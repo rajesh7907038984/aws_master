@@ -505,7 +505,6 @@ function confirmDeleteBranch(branchId, branchName) {
     const nameSpan = document.getElementById('deleteBranchName');
     
     if (!modal || !form || !nameSpan) {
-        console.error('Delete branch modal elements not found');
         return;
     }
     
@@ -531,7 +530,6 @@ function editBranch(branchId, name, description, sharepoint, orderManagement) {
     const form = document.getElementById('editBranchForm');
     
     if (!modal || !form) {
-        console.error('Edit branch modal elements not found');
         return;
     }
     
@@ -592,7 +590,6 @@ function showDeleteOrdersModal(branchId) {
     
     // Check if modal exists (order management might be disabled)
     if (!modal || !form) {
-        console.log('Order management modal not available - order management may be disabled');
         return;
     }
     

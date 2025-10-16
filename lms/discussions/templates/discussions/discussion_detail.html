@@ -1142,7 +1142,6 @@
                     this.classList.toggle('liked', data.liked);
                     this.querySelector('.likes-count').textContent = data.likes_count;
                 })
-                .catch(error => console.error('Error:', error));
             });
         });
         
@@ -1248,11 +1247,9 @@
                         }
                     }
                 } else {
-                    console.error('Failed to load evaluation data:', data.error);
                 }
             })
             .catch(error => {
-                console.error('Error loading evaluation data:', error);
                 // Still show the interactions summary even if AJAX fails
                 document.getElementById('student-interactions-summary').style.display = 'block';
             });
@@ -1594,7 +1591,6 @@
                     this.showNoResultsDropdown();
                 }
             } catch (error) {
-                console.error('Error searching users:', error);
                 this.hideDropdown();
             }
         }

@@ -448,7 +448,6 @@
 document.addEventListener('DOMContentLoaded', function() {
     // Clear any existing calendar state
     if (window.DashboardCalendarInitialized) {
-        console.log(' Clearing existing calendar state');
         delete window.DashboardCalendarInitialized;
     }
     
@@ -463,7 +462,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 this.bindEvents();
                 this.loadActivities();
             } catch (error) {
-                console.error('Error initializing dashboard calendar:', error);
             }
         },
         
@@ -516,7 +514,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 const monthYear = document.getElementById('currentMonthYear');
                 
                 if (!calendar || !monthYear) {
-                    console.error('Calendar DOM elements not found');
                     return;
                 }
                 
@@ -615,7 +612,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     calendar.appendChild(emptyDay);
                 }
             } catch (error) {
-                console.error('Error rendering calendar:', error);
             }
         },
         
@@ -635,7 +631,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     end_date: endDate.toISOString().split('T')[0]
                 });
                 
-                console.log('📅 Loading calendar activities for:', startDate.toISOString().split('T')[0], 'to', endDate.toISOString().split('T')[0]);
                 
                 
                 fetch(`/api/calendar/activities/?${params}`, {
@@ -652,7 +647,6 @@ document.addEventListener('DOMContentLoaded', function() {
         return response.json();
     })
                     .then(data => {
-                        console.log('📅 Calendar API response:', data);
                         if (data.success) {
                             this.activitiesData = {};
                             if (data.activities && data.activities.length > 0) {
@@ -665,20 +659,15 @@ document.addEventListener('DOMContentLoaded', function() {
                                         this.activitiesData[activity.date].push(activity);
                                     }
                                 });
-                                console.log('📅 Loaded activities for', Object.keys(this.activitiesData).length, 'dates');
                             } else {
-                                console.log('📅 No activities found for this period');
                             }
                             this.renderActivityIndicators();
                         } else {
-                            console.error('Activities API returned success:false', data);
                         }
                     })
                     .catch(error => {
-                        console.error('Error loading activities:', error);
                     });
             } catch (error) {
-                console.error('Error in loadActivities method:', error);
             }
         },
         
@@ -759,7 +748,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 const noActivities = document.getElementById('noActivitiesBox');
                 
                 if (!box || !title || !loading || !activityList || !noActivities) {
-                    console.error('Activities box elements not found');
                     return;
                 }
                 
@@ -830,13 +818,11 @@ document.addEventListener('DOMContentLoaded', function() {
                         }
                     })
                     .catch(error => {
-                        console.error('Error loading activities:', error);
                         loading.style.display = 'none';
                         activityList.innerHTML = '<div style="text-align: center; color: #dc2626; padding: 1rem;">Unable to load activities. Please try again.</div>';
                         activityList.style.display = 'block';
                     });
             } catch (error) {
-                console.error('Error in showDayActivities:', error);
             }
         },
         
@@ -856,7 +842,6 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Initialize the dashboard calendar
     if (typeof window.DashboardCalendarInitialized === 'undefined') {
-        console.log(' Initializing dashboard calendar');
         window.DashboardCalendarInitialized = true;
         DashboardCalendar.init();
     }

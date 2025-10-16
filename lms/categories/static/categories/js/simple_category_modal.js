@@ -5,7 +5,6 @@
 
 // Global functions for modal management
 function showCategoryModal() {
-    console.log('Opening category modal...');
     
     // Create modal if it doesn't exist
     let modal = document.getElementById('category-modal');
@@ -20,7 +19,6 @@ function showCategoryModal() {
 }
 
 function hideCategoryModal() {
-    console.log('Closing category modal...');
     const modal = document.getElementById('category-modal');
     if (modal) {
         modal.classList.add('hidden');
@@ -129,7 +127,6 @@ function getCSRFToken() {
 
 function handleCategoryFormSubmit(e) {
     e.preventDefault();
-    console.log('Category form submitted');
     
     const form = e.target;
     const submitButton = form.querySelector('button[type="submit"]');
@@ -152,7 +149,6 @@ function handleCategoryFormSubmit(e) {
     })
     .then(response => response.json())
     .then(data => {
-        console.log('Response:', data);
         
         if (data.status === 'success') {
             // Update category dropdown
@@ -168,7 +164,6 @@ function handleCategoryFormSubmit(e) {
         }
     })
     .catch(error => {
-        console.error('Error:', error);
         showNotification('An error occurred. Please try again.', 'error');
     })
     .finally(() => {
@@ -196,9 +191,7 @@ function updateCategoryDropdown(categoryData) {
         const event = new Event('change', { bubbles: true });
         categorySelect.dispatchEvent(event);
         
-        console.log('Category added to dropdown:', categoryData.name);
     } else {
-        console.warn('Category dropdown not found');
         // Fallback: refresh page
         setTimeout(() => {
             window.location.reload();
@@ -226,8 +219,6 @@ function showNotification(message, type) {
 
 // Initialize when page loads
 document.addEventListener('DOMContentLoaded', function() {
-    console.log(' Simple category modal loaded - CLEAN VERSION');
-    console.log('Available functions:', {
         showCategoryModal: typeof showCategoryModal,
         hideCategoryModal: typeof hideCategoryModal
     });
@@ -235,7 +226,6 @@ document.addEventListener('DOMContentLoaded', function() {
     // Add click handler for category add button
     document.addEventListener('click', function(e) {
         if (e.target.matches('#add-category-btn, button[onclick="showCategoryModal()"]')) {
-            console.log('Category add button clicked');
             e.preventDefault();
             showCategoryModal();
         }

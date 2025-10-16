@@ -276,7 +276,6 @@ class SecureFilenameValidator {
      */
     showErrors(errors, container) {
         if (!container) {
-            console.error('Filename validation errors:', errors);
             return;
         }
         

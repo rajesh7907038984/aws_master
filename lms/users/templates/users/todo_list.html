@@ -348,7 +348,6 @@ function loadTodoStats() {
         }
     })
     .catch(error => {
-        console.error('Error loading todo stats:', error);
     });
 }
 
@@ -457,7 +456,6 @@ function loadFilteredTodos() {
         }
     })
     .catch(error => {
-        console.error('Error loading todos:', error);
         showError('Failed to load tasks. Please try again.');
     })
     .finally(() => {
@@ -515,7 +513,6 @@ function loadMoreTodos() {
         }
     })
     .catch(error => {
-        console.error('Error loading more todos:', error);
         showError('Failed to load more tasks. Please try again.');
     })
     .finally(() => {

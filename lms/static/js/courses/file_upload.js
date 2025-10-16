@@ -135,7 +135,6 @@ function handleUploadComplete(e) {
 
 // Handle file upload error
 function handleUploadError(e) {
-    console.error('Upload error:', e);
     const errorMessage = document.createElement('div');
     errorMessage.className = 'mt-2 text-sm text-red-600';
     errorMessage.textContent = 'An error occurred while uploading the file. Please try again.';

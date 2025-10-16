@@ -13,7 +13,6 @@
  * 5. Network error recovery for file operations
  */
 
-console.log(' Loading S3 File Handling Fix...');
 
 /**
  * Enhanced S3 Error Handler
@@ -64,11 +63,9 @@ window.S3FileHandler = {
                 const token = method();
                 if (token) return token;
             } catch (e) {
-                console.debug('CSRF method failed:', e);
             }
         }
         
-        console.error(' CSRF token not found');
         return null;
     },
     
@@ -99,7 +96,6 @@ window.S3FileHandler = {
         
         for (let attempt = 1; attempt <= config.maxRetries; attempt++) {
             try {
-                console.log(`📤 File upload attempt ${attempt}/${config.maxRetries}`);
                 
                 const formData = new FormData();
                 formData.append('file', file);
@@ -132,7 +128,6 @@ window.S3FileHandler = {
                 const result = await response.json();
                 
                 if (result.success) {
-                    console.log(' File upload successful');
                     return result;
                 } else {
                     throw new Error(result.error || 'Upload failed');
@@ -140,14 +135,12 @@ window.S3FileHandler = {
                 
             } catch (error) {
                 lastError = error;
-                console.error(` Upload attempt ${attempt} failed:`, error);
                 
                 // Check if we should retry
                 const shouldRetry = attempt < config.maxRetries && 
                                    (this.isS3Error(error) || this.isNetworkError(error));
                 
                 if (shouldRetry) {
-                    console.log(` Retrying in ${config.retryDelay}ms...`);
                     await this.sleep(config.retryDelay);
                     // Increase delay for next attempt
                     config.retryDelay *= 1.5;
@@ -271,7 +264,6 @@ window.S3FileHandler = {
             }
         });
         
-        console.log(` Enhanced ${fileInputs.length} file inputs for S3 handling`);
     },
     
     /**
@@ -283,7 +275,6 @@ window.S3FileHandler = {
         input.addEventListener('change', async (event) => {
             if (event.target.files.length > 0) {
                 const file = event.target.files[0];
-                console.log(` File selected: ${file.name} (${this.formatFileSize(file.size)})`);
                 
                 // Add visual feedback
                 this.showFileProcessingIndicator(input);
@@ -293,7 +284,6 @@ window.S3FileHandler = {
                     try {
                         await originalHandler.call(input, event);
                     } catch (error) {
-                        console.error('Original handler error:', error);
                         this.showErrorNotification(error);
                     }
                 }
@@ -351,7 +341,6 @@ window.S3FileHandler = {
 // Initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', function() {
     window.S3FileHandler.initializeFormHandling();
-    console.log(' S3 File Handling Fix initialized');
 });
 
 // Also initialize if DOM is already loaded
@@ -363,4 +352,3 @@ if (document.readyState === 'loading') {
     window.S3FileHandler.initializeFormHandling();
 }
 
-console.log(' S3 File Handling Fix loaded successfully');

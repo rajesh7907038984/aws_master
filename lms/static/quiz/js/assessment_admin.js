@@ -2,7 +2,6 @@
 document.addEventListener('DOMContentLoaded', function() {
     const questionTypeSelect = document.getElementById('id_question_type');
     if (!questionTypeSelect) {
-        console.warn('Question type select not found - assessment admin functionality disabled');
         return;
     }
 

@@ -24,7 +24,6 @@ if (typeof console === 'undefined') {
         init: function() {
             this.calculateTimeOffset();
             this.startTimeUpdates();
-            console.log('User device time handler initialized');
         },
         
         calculateTimeOffset: function() {

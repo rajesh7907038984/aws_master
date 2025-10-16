@@ -93,7 +93,6 @@ class QuestionManager {
                     break;
             }
         } catch (e) {
-            console.error('Error parsing initial data:', e);
         }
 
         return data;

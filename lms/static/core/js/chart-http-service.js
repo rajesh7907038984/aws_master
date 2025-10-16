@@ -43,7 +43,6 @@ class ChartHttpService {
         if (this.cache.has(cacheKey)) {
             const cached = this.cache.get(cacheKey);
             if (Date.now() - cached.timestamp < this.cacheTimeout) {
-                console.log('Using cached data for:', url);
                 return cached.data;
             }
             this.cache.delete(cacheKey);
@@ -52,11 +51,9 @@ class ChartHttpService {
         // Check circuit breaker
         if (this.circuitBreaker.state === 'OPEN') {
             if (Date.now() - this.circuitBreaker.lastFailure < this.circuitBreaker.timeout) {
-                console.warn('Circuit breaker OPEN - using fallback data');
                 return this.getFallbackData(url);
             } else {
                 this.circuitBreaker.state = 'HALF_OPEN';
-                console.log('Circuit breaker moving to HALF_OPEN state');
             }
         }
 
@@ -77,7 +74,6 @@ class ChartHttpService {
             
         } catch (error) {
             this.handleCircuitBreakerFailure();
-            console.error('All retry attempts failed for:', url, error);
             return this.getFallbackData(url);
         }
     }
@@ -96,7 +92,6 @@ class ChartHttpService {
             }
             
             const delay = this.calculateDelay(attempt, baseDelay, maxDelay, jitter);
-            console.warn(`Request failed (attempt ${attempt + 1}/${maxRetries + 1}), retrying in ${delay}ms:`, error.message);
             
             await this.sleep(delay);
             return this.executeWithRetry(url, options, attempt + 1);
@@ -121,11 +116,9 @@ class ChartHttpService {
 
         const requestOptions = { ...defaultOptions, ...options };
         
-        console.log('Making HTTP request to:', url);
         
         const response = await fetch(url, requestOptions);
         
-        console.log('Response received:', {
             status: response.status,
             statusText: response.statusText,
             ok: response.ok,
@@ -138,7 +131,6 @@ class ChartHttpService {
             const error = new Error(`HTTP ${status}: ${statusText}`);
             error.status = response.status;
             error.response = response;
-            console.error('HTTP request failed:', error);
             throw error;
         }
 
@@ -199,7 +191,6 @@ class ChartHttpService {
         
         if (this.circuitBreaker.failures >= this.circuitBreaker.threshold) {
             this.circuitBreaker.state = 'OPEN';
-            console.warn('Circuit breaker OPEN - too many failures');
         }
     }
 
@@ -271,7 +262,6 @@ class ChartHttpService {
     getCSRFToken() {
         const token = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
         if (!token) {
-            console.warn('CSRF token not found');
         }
         return token || '';
     }
@@ -296,7 +286,6 @@ class ChartHttpService {
      */
     clearCache() {
         this.cache.clear();
-        console.log('Chart HTTP service cache cleared');
     }
 
     /**

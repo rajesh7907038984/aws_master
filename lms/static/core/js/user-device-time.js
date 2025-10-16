@@ -21,7 +21,6 @@
             try {
                 return Intl.DateTimeFormat().resolvedOptions().timeZone;
             } catch (e) {
-                console.warn('Could not detect timezone name:', e);
                 return 'Unknown';
             }
         },
@@ -65,18 +64,14 @@
                     body: JSON.stringify(serverPayload)
                 }).then(response => {
                     if (!response.ok) {
-                        console.warn('Device time sync failed:', response.status, response.statusText);
                         return response.json().then(data => {
-                            console.warn('Server error details:', data);
                         });
                     }
                     return response.json();
                 }).then(data => {
                     if (data && data.success) {
-                        console.debug('Device time synced successfully');
                     }
                 }).catch(e => {
-                    console.debug('Device time sync failed (optional):', e);
                 });
             }
         },
@@ -117,7 +112,6 @@
                 this.syncWithServer();
             }, 5 * 60 * 1000);
 
-            console.log('User device time handler initialized');
         }
     };
 

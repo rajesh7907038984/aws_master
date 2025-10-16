@@ -2974,11 +2974,9 @@ def export_user_report_to_excel(request, user):
                 # Attempts
                 activities_sheet.write(row, 7, progress.attempts)
             except Exception as e:
-                print(f"Error processing activity {progress.id}: {str(e)}")
                 # Write error row
                 activities_sheet.write(row, 0, "Error processing activity")
     except Exception as e:
-        print(f"Error processing activities: {str(e)}")
         activities_sheet.write(1, 0, "Error fetching activities data")
     
     # Set response headers for Excel download

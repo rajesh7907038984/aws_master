@@ -40,7 +40,6 @@ class MobileTabsAccordion {
      */
     static init() {
         if (window.mobileTabsAccordionInstance) {
-            console.log('MobileTabsAccordion already initialized');
             return window.mobileTabsAccordionInstance;
         }
         
@@ -54,11 +53,9 @@ class MobileTabsAccordion {
      */
     initialize() {
         if (this.isInitialized) {
-            console.log('MobileTabsAccordion already initialized');
             return;
         }
         
-        console.log('Initializing MobileTabsAccordion');
         
         // Find all tab containers
         this.findTabContainers();
@@ -73,7 +70,6 @@ class MobileTabsAccordion {
         window.addEventListener('resize', this.handleResize);
         
         this.isInitialized = true;
-        console.log(`MobileTabsAccordion initialized with ${this.containers.length} containers`);
         
         // Set up chart monitoring for mobile view
         this.setupChartMonitoring();
@@ -124,7 +120,6 @@ class MobileTabsAccordion {
             }
         });
         
-        console.log('Optimized accordion content for mobile display');
     }
     
     /**
@@ -144,7 +139,6 @@ class MobileTabsAccordion {
             table.parentNode.insertBefore(mobileContainer, table);
             table.remove();
             
-            console.log(`Converted table ${index + 1} to mobile format: ${tableTitle}`);
         });
     }
     
@@ -219,7 +213,6 @@ class MobileTabsAccordion {
                 scrollWrapper.classList.add('active');
             }
             
-            console.log(`Table toggle ${isActive ? 'closed' : 'opened'}: ${title}`);
         });
         
         return container;
@@ -318,7 +311,6 @@ class MobileTabsAccordion {
             }
         });
         
-        console.log('Optimized charts for mobile display');
     }
     
     /**
@@ -343,10 +335,8 @@ class MobileTabsAccordion {
                         chartInstances.options.responsive = true;
                         chartInstances.options.maintainAspectRatio = false;
                         chartInstances.resize();
-                        console.log(`Resized chart: ${chartId}`);
                     }
                 } catch (error) {
-                    console.warn(`Could not resize chart ${chartId}:`, error);
                 }
             }, 100);
         }
@@ -374,16 +364,13 @@ class MobileTabsAccordion {
                     const existingChart = Chart.getChart ? Chart.getChart(canvas) : null;
                     
                     if (!existingChart) {
-                        console.log(`No existing chart found for ${canvasId}, will try to recreate in force reinitialization`);
                     } else {
                         // Update existing chart to be responsive
                         existingChart.options.responsive = true;
                         existingChart.options.maintainAspectRatio = false;
                         existingChart.resize();
-                        console.log(`Updated existing chart: ${canvasId}`);
                     }
                 } catch (error) {
-                    console.warn(`Could not reinitialize chart ${canvasId}:`, error);
                 }
             }
             
@@ -403,7 +390,6 @@ class MobileTabsAccordion {
             container.style.display = 'block';
         });
         
-        console.log('Reinitialized charts in mobile accordion content');
     }
     
     /**
@@ -419,10 +405,8 @@ class MobileTabsAccordion {
                     existingChart.options.responsive = true;
                     existingChart.options.maintainAspectRatio = false;
                     existingChart.resize();
-                    console.log('Updated activity chart for mobile');
                 }
             } catch (error) {
-                console.warn('Could not update activity chart:', error);
             }
         }
         
@@ -435,10 +419,8 @@ class MobileTabsAccordion {
                     existingChart.options.responsive = true;
                     existingChart.options.maintainAspectRatio = false;
                     existingChart.resize();
-                    console.log('Updated courses chart for mobile');
                 }
             } catch (error) {
-                console.warn('Could not update courses chart:', error);
             }
         }
     }
@@ -447,10 +429,8 @@ class MobileTabsAccordion {
      * Force chart reinitialization by recreating charts from scratch
      */
     forceChartReinitialization(content) {
-        console.log('Force reinitializing charts in mobile accordion...');
         
         if (!window.Chart) {
-            console.warn('Chart.js library not available');
             return;
         }
         
@@ -462,7 +442,6 @@ class MobileTabsAccordion {
                 const existingChart = window.Chart.getChart ? window.Chart.getChart(activityCanvas) : null;
                 if (existingChart) {
                     existingChart.destroy();
-                    console.log('Destroyed existing activity chart');
                 }
                 
                 // Try to recreate the chart by calling the original creation function
@@ -517,17 +496,13 @@ class MobileTabsAccordion {
                                 }
                             }
                         });
-                        console.log('Successfully recreated activity chart in mobile view');
                     } else {
-                        console.log('Chart data not available, creating empty activity chart');
                         this.createEmptyActivityChart(activityCanvas);
                     }
                 } else {
-                    console.log('generateChartData function not available, creating empty activity chart');
                     this.createEmptyActivityChart(activityCanvas);
                 }
             } catch (error) {
-                console.error('Failed to force reinitialize activity chart:', error);
             }
         }
         
@@ -539,7 +514,6 @@ class MobileTabsAccordion {
                 const existingChart = window.Chart.getChart ? window.Chart.getChart(coursesCanvas) : null;
                 if (existingChart) {
                     existingChart.destroy();
-                    console.log('Destroyed existing courses chart');
                 }
                 
                 // Get course data from the DOM elements in the content area first, then fallback to document
@@ -592,9 +566,7 @@ class MobileTabsAccordion {
                         }
                     }
                 });
-                console.log(`Successfully recreated courses chart with data: [${completedCourses}, ${inProgressCourses}, ${notStartedCourses}, ${notPassedCourses}]`);
             } catch (error) {
-                console.error('Failed to force reinitialize courses chart:', error);
             }
         }
     }
@@ -606,18 +578,14 @@ class MobileTabsAccordion {
         try {
             // Use global activity chart component instead of custom implementation
             if (window.GlobalActivityChart) {
-                console.log('Initializing global activity chart as fallback...');
                 window.globalActivityChart = new GlobalActivityChart({
                     canvasId: canvas.id,
                     apiEndpoint: '/users/api/dashboard-activity-data/',
                     defaultPeriod: 'month'
                 });
-                console.log('Global activity chart initialized as fallback');
             } else {
-                console.warn('GlobalActivityChart not available, skipping chart initialization');
             }
         } catch (error) {
-            console.error('Failed to initialize global activity chart:', error);
         }
     }
     
@@ -628,7 +596,6 @@ class MobileTabsAccordion {
         // Monitor for Chart.js library loading
         const checkChartLibrary = () => {
             if (typeof window.Chart !== 'undefined') {
-                console.log('Chart.js library detected, setting up mobile chart monitoring');
                 
                 // Set up a periodic check for missing charts in mobile accordions
                 setTimeout(() => {
@@ -654,7 +621,6 @@ class MobileTabsAccordion {
     checkAndFixMobileCharts() {
         if (!this.isMobileView()) return;
         
-        console.log('Checking for missing charts in mobile accordions...');
         
         // Find all accordion content areas that should have charts
         const accordionContents = document.querySelectorAll('.tab-accordion-content');
@@ -667,7 +633,6 @@ class MobileTabsAccordion {
                                  window.Chart.getChart(canvas) !== null : false;
                 
                 if (!hasChart && canvas.offsetHeight > 0 && canvas.offsetWidth > 0) {
-                    console.log(`Found canvas without chart in mobile accordion: ${canvas.id || 'unnamed'}`);
                     // Try to reinitialize the chart
                     setTimeout(() => {
                         this.forceChartReinitialization(content);
@@ -684,7 +649,6 @@ class MobileTabsAccordion {
         // This method is called during initialization
         // Individual event listeners are set up in setupContainer method
         // for each container's specific elements
-        console.log('Setting up global event listeners');
     }
     
     /**
@@ -700,7 +664,6 @@ class MobileTabsAccordion {
             
             if (hasDesktopTabs || hasAccordion) {
                 this.containers.push(container);
-                console.log('Found tab container:', container);
             }
         });
         
@@ -711,7 +674,6 @@ class MobileTabsAccordion {
                 const container = header.closest('div, section, article') || document.body;
                 if (!this.containers.includes(container)) {
                     this.containers.push(container);
-                    console.log('Found standalone tab system:', container);
                 }
             });
         }
@@ -721,7 +683,6 @@ class MobileTabsAccordion {
         this.containers = this.containers.filter(container => {
             const onclickTabs = container.querySelectorAll('.tab-header[onclick]');
             if (onclickTabs.length > 0) {
-                console.log('Skipping container with onclick tab handlers to avoid conflicts:', container);
                 return false;
             }
             return true;
@@ -732,7 +693,6 @@ class MobileTabsAccordion {
      * Set up a specific container
      */
     setupContainer(container) {
-        console.log('Setting up container:', container);
         
         // Find desktop tabs
         const desktopTabs = container.querySelectorAll('.tab-btn[data-tab-target], .tab-button[data-tab-target]');
@@ -762,7 +722,6 @@ class MobileTabsAccordion {
      * Create accordion container if it doesn't exist
      */
     createAccordionContainer(container, desktopTabs) {
-        console.log('Creating accordion container');
         
         const accordionContainer = document.createElement('div');
         accordionContainer.className = 'tab-accordion-container';
@@ -832,7 +791,6 @@ class MobileTabsAccordion {
             accordionContainer.appendChild(accordionItem);
         });
         
-        console.log(`Created ${desktopTabs.length} accordion items`);
     }
     
     /**
@@ -854,7 +812,6 @@ class MobileTabsAccordion {
         desktopTabs.forEach(tab => {
             tab.addEventListener('click', this.handleTabClick);
         });
-        console.log(`Set up ${desktopTabs.length} desktop tab event handlers`);
     }
     
     /**
@@ -866,7 +823,6 @@ class MobileTabsAccordion {
         
         if (!tabTarget) return;
         
-        console.log('Tab clicked:', tab.id, 'Target:', tabTarget);
         
         // Find the container
         const container = tab.closest('.tab-responsive-container, .tab-container, [data-tab-container]') || 
@@ -880,7 +836,6 @@ class MobileTabsAccordion {
         
         // Don't sync content to preserve unique content per tab
         // this.syncContentToAccordion(tabTarget);
-        console.log('Tab switch completed for:', tabTarget);
     }
     
     /**
@@ -891,11 +846,9 @@ class MobileTabsAccordion {
         const accordionTarget = header.getAttribute('data-accordion-target');
         
         if (!accordionTarget) {
-            console.warn('No accordion target found for header:', header);
             return;
         }
         
-        console.log('Accordion clicked:', accordionTarget);
         
         // Find the container
         const container = header.closest('.tab-responsive-container, .tab-container, [data-tab-container]') || 
@@ -905,12 +858,10 @@ class MobileTabsAccordion {
         const accordionItem = header.closest('.tab-accordion-item');
         
         if (!accordionContainer) {
-            console.warn('No accordion container found for header:', header);
             return;
         }
         
         if (!accordionItem) {
-            console.warn('No accordion item found for header:', header);
             return;
         }
         
@@ -922,14 +873,12 @@ class MobileTabsAccordion {
         const desktopContent = document.querySelector(desktopTabTarget);
         const accordionContent = document.querySelector(`#${accordionTarget.substring(1)}`);
         
-        console.log('Desktop content found:', !!desktopContent, 'Accordion content found:', !!accordionContent);
         
         // Sync content from desktop to accordion if accordion is empty or needs content
         if (desktopContent && accordionContent) {
             if (accordionContent.innerHTML.trim() === '' || 
                 accordionContent.innerHTML.includes('Content will be populated by JavaScript')) {
                 
-                console.log('Populating accordion content from desktop tab');
                 
                 // Clone and optimize content for mobile
                 accordionContent.innerHTML = desktopContent.innerHTML;
@@ -940,12 +889,9 @@ class MobileTabsAccordion {
                     this.forceChartReinitialization(accordionContent);
                 }, 500);
                 
-                console.log('Populated accordion content for:', accordionTarget);
             } else {
-                console.log('Accordion content already populated');
             }
         } else {
-            console.warn('Missing content elements - Desktop:', !!desktopContent, 'Accordion:', !!accordionContent);
         }
         
         // Force chart reinitialization when accordion is opened (even if content already exists)
@@ -956,7 +902,6 @@ class MobileTabsAccordion {
         }
         
         // Don't update desktop tabs from mobile accordion to preserve unique content
-        console.log('Mobile accordion toggle completed for:', accordionTarget);
     }
     
     /**
@@ -1028,7 +973,6 @@ class MobileTabsAccordion {
         const allTabs = document.querySelectorAll('.tab-btn, .tab-button');
         const allContents = document.querySelectorAll('.tab-pane');
         
-        console.log('Updating desktop tabs:', { 
             activeTab: activeTab.id, 
             allTabs: allTabs.length, 
             allContents: allContents.length 
@@ -1038,7 +982,6 @@ class MobileTabsAccordion {
         allTabs.forEach(tab => {
             tab.classList.remove('active', 'border-blue-500', 'text-blue-600');
             tab.classList.add('border-transparent', 'text-gray-500');
-            console.log('Deactivated tab:', tab.id);
         });
         
         // Hide ALL content panes (but exclude help sections)
@@ -1052,13 +995,11 @@ class MobileTabsAccordion {
             content.style.setProperty('display', 'none', 'important');
             content.style.setProperty('visibility', 'hidden', 'important');
             content.style.setProperty('opacity', '0', 'important');
-            console.log('Hidden content:', content.id);
         });
         
         // Activate clicked tab
         activeTab.classList.add('active', 'border-blue-500', 'text-blue-600');
         activeTab.classList.remove('border-transparent', 'text-gray-500');
-        console.log('Activated tab:', activeTab.id);
         
         // Show corresponding content
         const tabTarget = activeTab.getAttribute('data-tab-target');
@@ -1075,8 +1016,6 @@ class MobileTabsAccordion {
                 targetContent.style.setProperty('height', 'auto', 'important');
                 targetContent.style.setProperty('overflow', 'visible', 'important');
                 
-                console.log('Activated content:', targetContent.id);
-                console.log('Content styles applied:', {
                     display: targetContent.style.display,
                     visibility: targetContent.style.visibility,
                     opacity: targetContent.style.opacity
@@ -1086,12 +1025,10 @@ class MobileTabsAccordion {
                 allContents.forEach(content => {
                     if (content !== targetContent) {
                         content.style.setProperty('display', 'none', 'important');
-                        console.log('Ensured hidden:', content.id);
                     }
                 });
                 
             } else {
-                console.warn('Target content not found:', tabTarget);
             }
         }
     }
@@ -1128,18 +1065,15 @@ class MobileTabsAccordion {
     toggleAccordionItem(accordionContainer, accordionItem, header) {
         const isCurrentlyActive = header.classList.contains('active');
         
-        console.log('Toggling accordion item:', header.textContent.trim(), 'Currently active:', isCurrentlyActive);
         
         if (isCurrentlyActive) {
             // Close current item
             this.deactivateAccordionItem(accordionItem, header);
             this.activeAccordionItems.delete(accordionContainer);
-            console.log('Closed accordion item');
         } else {
             // Close all other items and open this one
             this.closeAllAccordionItems(accordionContainer);
             this.activateAccordionItem(accordionContainer, accordionItem, header);
-            console.log('Opened accordion item');
         }
     }
     
@@ -1169,9 +1103,7 @@ class MobileTabsAccordion {
                 content.style.opacity = '1';
             }, 10);
             
-            console.log('Activated accordion content:', content);
         } else {
-            console.warn('No accordion content found for item:', accordionItem);
         }
         
         this.activeAccordionItems.set(accordionContainer, accordionItem);
@@ -1202,7 +1134,6 @@ class MobileTabsAccordion {
         // Force a reflow
         content.offsetHeight;
         
-        console.log('Forced show accordion content:', content);
     }
     
     /**
@@ -1225,7 +1156,6 @@ class MobileTabsAccordion {
                 content.style.display = 'none';
             }, 300);
             
-            console.log('Deactivated accordion content:', content);
         }
     }
     
@@ -1284,12 +1214,9 @@ class MobileTabsAccordion {
                     this.forceChartReinitialization(accordionContent);
                 }, 1000);
                 
-                console.log(`Synced content from ${tabTarget} to accordion`);
             } else {
-                console.log(`Skipped syncing ${tabTarget} - accordion already has substantial content`);
             }
         } else {
-            console.warn(`Sync failed - Desktop: ${!!desktopContent}, Accordion: ${!!accordionContent} for ${tabTarget}`);
         }
     }
     
@@ -1298,7 +1225,6 @@ class MobileTabsAccordion {
      */
     syncContentFromAccordion(accordionTarget, desktopTabTarget) {
         // Disable reverse sync to prevent content overwriting
-        console.log(`Skipping reverse sync from accordion to desktop to preserve unique content`);
         return;
         
         const accordionContent = document.querySelector(`#${accordionTarget.substring(1)}`);
@@ -1307,7 +1233,6 @@ class MobileTabsAccordion {
         if (accordionContent && desktopContent) {
             // Clone content from accordion to desktop
             desktopContent.innerHTML = accordionContent.innerHTML;
-            console.log(`Synced content from accordion to ${desktopTabTarget}`);
         }
     }
     
@@ -1315,13 +1240,11 @@ class MobileTabsAccordion {
      * Set initial state
      */
     setInitialState(container, desktopTabs, accordionContainer) {
-        console.log('Setting initial state for container');
         
         // Find active desktop tab or use first one
         let activeTab = container.querySelector('.tab-btn.active, .tab-button.active');
         if (!activeTab && desktopTabs.length > 0) {
             activeTab = desktopTabs[0];
-            console.log('No active tab found, using first tab:', activeTab.id);
         }
         
         if (activeTab) {
@@ -1348,7 +1271,6 @@ class MobileTabsAccordion {
                 // Update accordion state
                 this.updateAccordionFromDesktopTab(container, activeTab, tabTarget);
                 
-                console.log('Initial state set for tab:', tabTarget);
             }
         }
     }
@@ -1375,7 +1297,6 @@ class MobileTabsAccordion {
      * Reinitialize for dynamically added content
      */
     reinitialize() {
-        console.log('Reinitializing MobileTabsAccordion');
         this.containers = [];
         this.activeAccordionItems.clear();
         this.isInitialized = false;
@@ -1389,7 +1310,6 @@ class MobileTabsAccordion {
         if (!this.containers.includes(container)) {
             this.containers.push(container);
             this.setupContainer(container);
-            console.log('Added container manually:', container);
         }
     }
     
@@ -1419,7 +1339,6 @@ window.addEventListener('load', function() {
 if (!window.fixMobileCharts) {
     window.fixMobileCharts = function() {
         if (window.mobileTabsAccordionInstance) {
-            console.log('Manually fixing mobile charts...');
             window.mobileTabsAccordionInstance.checkAndFixMobileCharts();
             
             // Also try to force reinitialization for all accordion content
@@ -1427,11 +1346,9 @@ if (!window.fixMobileCharts) {
             accordionContents.forEach((content, index) => {
                 setTimeout(() => {
                     window.mobileTabsAccordionInstance.forceChartReinitialization(content);
-                    console.log(`Force reinitialized charts in accordion ${index + 1}`);
                 }, index * 200); // Stagger the reinitializations
             });
         } else {
-            console.warn('MobileTabsAccordion instance not found');
         }
     };
 }
@@ -1457,5 +1374,4 @@ if (!window.reinitializeMobileAccordion) {
 }
 
 } else {
-    console.log('MobileTabsAccordion already loaded, skipping duplicate declaration');
 } // End of duplicate prevention check

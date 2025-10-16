@@ -895,7 +895,6 @@
             }
         })
         .catch(error => {
-            console.error('Error:', error);
             showNotification('An error occurred while deleting users.', 'error');
         })
         .finally(() => {
@@ -1142,28 +1141,21 @@
     document.head.appendChild(style);
 
     document.addEventListener('DOMContentLoaded', function() {
-        console.log('Page loaded, checking bulk import functionality...');
         
         // Check if the modal exists
         const modal = document.getElementById('bulkImportModal');
-        console.log('Bulk import modal element:', modal);
         
         // Add click event listener to bulk import button
         const bulkImportBtn = document.getElementById('bulkImportBtn');
-        console.log('Bulk import button:', bulkImportBtn);
         
         if (bulkImportBtn) {
-            console.log('Adding click event listener to bulk import button');
             bulkImportBtn.addEventListener('click', function(e) {
-                console.log('Bulk import button clicked');
                 if (typeof showBulkImportModal === 'function') {
                     showBulkImportModal();
                 } else {
-                    console.error('showBulkImportModal function not found!');
                 }
             });
         } else {
-            console.error('Bulk import button not found!');
         }
     });
 </script>

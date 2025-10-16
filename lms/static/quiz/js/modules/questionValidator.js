@@ -3,7 +3,6 @@ const QuestionValidator = {
     validateForm() {
         const form = document.getElementById('inlineQuestionForm');
         if (!form) {
-            console.error('Form not found');
             return false;
         }
 
@@ -29,7 +28,6 @@ const QuestionValidator = {
             case 'matching':
                 return this.validateMatching();
             default:
-                console.error('Invalid question type');
                 return false;
         }
     },
@@ -141,7 +139,6 @@ const QuestionValidator = {
     validateFillBlank() {
         const container = document.getElementById('answersContainer');
         if (!container) {
-            console.error('Answers container not found');
             return false;
         }
 
@@ -164,7 +161,6 @@ const QuestionValidator = {
     validateMultiBlank() {
         const container = document.getElementById('blanksContainer');
         if (!container) {
-            console.error('Blanks container not found');
             return false;
         }
 
@@ -201,7 +197,6 @@ const QuestionValidator = {
     validateMatching() {
         const container = document.getElementById('pairsContainer');
         if (!container) {
-            console.error('Pairs container not found');
             return false;
         }
 

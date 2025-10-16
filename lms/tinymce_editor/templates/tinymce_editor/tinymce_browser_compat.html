@@ -17,14 +17,12 @@
                     String.prototype.includes !== undefined
                 );
             } catch (e) {
-                console.warn('Browser does not support ES6 features, using ES5 compatible scripts for TinyMCE');
                 window.browserHasES6Support = false;
             }
         }
         
         // If browser doesn't support ES6, load our compatibility script
         if (!window.browserHasES6Support && !window.tinymceES5CompatLoaded) {
-            console.log('Loading TinyMCE ES5 compatibility script');
             var script = document.createElement('script');
             script.src = "{% static 'core/js/tinymce-es5-compat.js' %}";
             document.head.appendChild(script);

@@ -299,7 +299,7 @@ def create_ilp_component(request, user_id, component):
                     
                     # Print debug information for strength_weakness component
                     if component == 'strength_weakness':
-                        print(f"Debug - ilp: {ilp.id}, instance.ilp: {getattr(instance, 'ilp_id', None)}")
+                        pass
                     
                     # Set creator/updater
                     if hasattr(instance, 'created_by'):

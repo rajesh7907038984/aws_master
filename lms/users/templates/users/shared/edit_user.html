@@ -165,7 +165,6 @@ function sendPasswordResetEmail(button) {
         }
     })
     .catch(error => {
-        console.error('Error:', error);
         showMessage('An error occurred while sending the password reset email. Please try again.', 'error');
     })
     .finally(() => {

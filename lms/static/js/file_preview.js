@@ -1,6 +1,5 @@
 // File preview functionality for different file types
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('DOM loaded, initializing file preview handlers');
     
     // Initialize existing file displays
     function initializeExistingFiles() {
@@ -31,7 +30,6 @@ document.addEventListener('DOMContentLoaded', function() {
     function handleFilePreview(input, fileType) {
         const container = input.closest('.file-upload-container');
         if (!container) {
-            console.error('Could not find container for file input');
             return;
         }
         

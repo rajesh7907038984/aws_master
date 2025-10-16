@@ -1,5 +1,4 @@
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('Course details JS loaded');
     
     // Get all tab elements
     const tabs = document.querySelectorAll('.tab');
@@ -7,7 +6,6 @@ document.addEventListener('DOMContentLoaded', function() {
     // Add click event to each tab
     tabs.forEach(tab => {
         tab.addEventListener('click', function() {
-            console.log('Tab clicked:', this.textContent.trim());
             
             // Remove active class from all tabs
             tabs.forEach(t => t.classList.remove('active'));
@@ -25,10 +23,8 @@ document.addEventListener('DOMContentLoaded', function() {
             // Show the selected content div
             const selectedContent = document.querySelector(`.${contentType}-content`);
             if (selectedContent) {
-                console.log('Found content div for', contentType);
                 selectedContent.style.display = 'block';
             } else {
-                console.log('Could not find content div for', contentType);
             }
         });
     });

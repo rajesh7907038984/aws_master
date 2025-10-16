@@ -1,19 +1,15 @@
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('Course edit JS loaded');
     
     // Tab functionality
     const tabButtons = document.querySelectorAll('.tab-btn');
     const tabContents = document.querySelectorAll('.tab-content');
     
-    console.log('Found tab buttons:', tabButtons.length);
-    console.log('Found tab contents:', tabContents.length);
     
     // Initialize tab functionality
     function initTabs() {
         tabButtons.forEach(button => {
             button.addEventListener('click', function(e) {
                 e.preventDefault();
-                console.log('Tab clicked:', this.getAttribute('data-tab-target'));
                 
                 // Remove active class from all buttons and contents
                 tabButtons.forEach(btn => {
@@ -34,7 +30,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Show corresponding content
                 const target = this.getAttribute('data-tab-target');
                 const targetContent = document.querySelector(target);
-                console.log('Target content found:', !!targetContent);
                 if (targetContent) {
                     targetContent.classList.add('active');
                 }
@@ -106,11 +101,9 @@ document.addEventListener('DOMContentLoaded', function() {
     })
                 .then(data => {
                     if (!data.success) {
-                        console.error('Failed to update topic order');
                     }
                 })
                 .catch(error => {
-                    console.error('Error updating topic order:', error);
                 });
             }
         });
@@ -132,14 +125,12 @@ document.addEventListener('DOMContentLoaded', function() {
 // Add a fallback to ensure tabs work even if DOMContentLoaded event has already fired
 if (document.readyState === 'complete' || document.readyState === 'interactive') {
     setTimeout(function() {
-        console.log('Initializing tabs after document load');
         const tabButtons = document.querySelectorAll('.tab-btn');
         const tabContents = document.querySelectorAll('.tab-content');
         
         tabButtons.forEach(button => {
             button.addEventListener('click', function(e) {
                 e.preventDefault();
-                console.log('Tab clicked (fallback):', this.getAttribute('data-tab-target'));
                 
                 // Remove active class from all buttons and contents
                 tabButtons.forEach(btn => {

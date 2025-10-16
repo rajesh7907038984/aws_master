@@ -301,10 +301,7 @@
 // Ensure tab state is preserved when making updates in this tab
 document.addEventListener('DOMContentLoaded', function() {
     // Debug logging for business field context
-    console.log('Account tab loaded with context:');
     {% if is_edit_mode %}
-    console.log('Edit mode: true');
-    console.log('Profile user role: {{ profile_user.role|escapejs }}');
     
     // Ensure password fields are not required in edit mode
     const password1Field = document.querySelector('[name="password1"]');
@@ -312,20 +309,15 @@ document.addEventListener('DOMContentLoaded', function() {
     
     if (password1Field) {
         password1Field.removeAttribute('required');
-        console.log('Removed required attribute from password1 field');
     }
     
     if (password2Field) {
         password2Field.removeAttribute('required');
-        console.log('Removed required attribute from password2 field');
     }
     {% if user_business %}
-    console.log('User business: {{ user_business.name|escapejs }} (ID: {{ user_business.id|escapejs }})');
     {% else %}
-    console.log('No user business assigned');
     {% endif %}
     {% endif %}
-    console.log('Available businesses count: {{ businesses|length|escapejs }}');
 
     // Set tab state for form submission
     function updateTabState() {
@@ -333,7 +325,6 @@ document.addEventListener('DOMContentLoaded', function() {
         if (typeof currentTabState !== 'undefined') {
             currentTabState.mainTab = 'account-tab';
             
-            console.log('Account tab: Setting tab state to:', currentTabState);
             
             // Update hidden form fields directly
             var activeTabField = document.getElementById('activeTabField');
@@ -376,10 +367,8 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         {% endif %}
         
-        console.log('Toggle function - detected role:', selectedRole, 'isSelfEdit:', isSelfEdit);
         
         if (selectedRole === 'superadmin') {
-            console.log('Showing business field for superadmin role');
             // Show business selection for superadmin, but keep branch visible for global admin
             var currentUserRole = '{{ request.user.role }}';
             if (branchSelection && currentUserRole !== 'globaladmin') {
@@ -398,7 +387,6 @@ document.addEventListener('DOMContentLoaded', function() {
             
             if (businessSelection) {
                 businessSelection.style.display = 'block';
-                console.log('Business field should now be visible');
                 if (businessField) {
                     businessField.setAttribute('required', 'required');
                     
@@ -406,13 +394,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     {% if is_edit_mode and user_business %}
                     if (!businessField.value) {
                         businessField.value = '{{ user_business.id }}';
-                        console.log('Set business field value to:', {{ user_business.id|escapejs }});
                     }
                     {% endif %}
                 }
             }
         } else {
-            console.log('Hiding business field for role:', selectedRole);
             // Show branch selection, hide business selection
             if (branchSelection) {
                 branchSelection.style.display = 'block';
@@ -454,7 +440,6 @@ document.addEventListener('DOMContentLoaded', function() {
         // Always run initial check to ensure proper field visibility
         // Add small delay to ensure DOM is fully rendered
         setTimeout(function() {
-            console.log('Running initial toggleBranchBusinessSelection...');
             toggleBranchBusinessSelection();
         }, 100);
         
@@ -573,7 +558,6 @@ document.addEventListener('DOMContentLoaded', function() {
         // Make AJAX request to check for duplicates
         const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
         if (!csrfToken) {
-            console.error('CSRF token not found');
             return;
         }
         
@@ -613,7 +597,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         })
         .catch(error => {
-            console.error('Error checking duplicate user role:', error);
         });
     }
     
@@ -670,7 +653,6 @@ function sendSelfPasswordReset() {
         }, 5000);
     })
     .catch(error => {
-        console.error('Error sending self password reset email:', error);
         
         // Show error message
         statusDiv.style.display = 'block';
@@ -731,7 +713,6 @@ function sendForgotPasswordEmail() {
         }, 5000);
     })
     .catch(error => {
-        console.error('Error sending forgot password email:', error);
         
         // Show error message
         statusDiv.style.display = 'block';

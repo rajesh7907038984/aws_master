@@ -1,6 +1,5 @@
 // This script adds color picker functionality to the course description editor
 window.addEventListener('load', function() {
-    console.log('Initializing improved color picker...');
     
     // Get references to the buttons and editor
     const textColorBtn = document.getElementById('text-color-btn');
@@ -9,7 +8,6 @@ window.addEventListener('load', function() {
     const hiddenInput = document.getElementById('description-input');
     
     if (!textColorBtn || !bgColorBtn || !editor || !hiddenInput) {
-        console.error('Missing required elements for color picker');
         return;
     }
     
@@ -146,15 +144,12 @@ window.addEventListener('load', function() {
             
             try {
                 document.execCommand('foreColor', false, color);
-                console.log('Text color applied:', color);
             } catch (e) {
-                console.error('Error applying text color:', e);
             }
             
             // Update the hidden input
             updateHiddenInput();
         } else {
-            console.log('No selection, creating a default one');
             // If no selection, select all content and apply
             selectAllContent();
             document.execCommand('foreColor', false, color);
@@ -176,20 +171,16 @@ window.addEventListener('load', function() {
             
             try {
                 document.execCommand('hiliteColor', false, color);
-                console.log('Background color applied:', color);
             } catch (e) {
-                console.error('Error applying background color:', e);
                 try {
                     document.execCommand('backColor', false, color);
                 } catch (e2) {
-                    console.error('Fallback also failed:', e2);
                 }
             }
             
             // Update the hidden input
             updateHiddenInput();
         } else {
-            console.log('No selection, creating a default one');
             // If no selection, select all content and apply
             selectAllContent();
             try {
@@ -242,5 +233,4 @@ window.addEventListener('load', function() {
         }
     }
     
-    console.log('Color picker initialization complete');
 }); 

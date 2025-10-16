@@ -71,16 +71,13 @@ document.addEventListener('DOMContentLoaded', function() {
     })
                 .then(data => {
                     if (!data.success) {
-                        console.error('Failed to update topic order');
                     }
                 })
                 .catch(error => {
-                    console.error('Error updating topic order:', error);
                 });
             }
         });
     } else if (topicList) {
-        console.warn('Sortable library not loaded - drag-and-drop functionality disabled');
     }
 
     // Close on escape key

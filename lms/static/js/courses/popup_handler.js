@@ -162,7 +162,6 @@ const sectionPopup = {
 
 // Initialize popups when DOM is loaded
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('DOM loaded in popup_handler.js');
 
     // Add Category Button Click Handler
     const addCategoryBtn = document.getElementById('add-category-btn');

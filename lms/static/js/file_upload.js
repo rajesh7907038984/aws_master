@@ -1,6 +1,5 @@
 // File upload preview functionality
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('DOM loaded, initializing file upload handlers');
     
     // Initialize existing file displays
     function initializeExistingFiles() {
@@ -32,18 +31,15 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Course Image Upload
     const courseImageInput = document.querySelector('input[name="course_image"]');
-    console.log('Course image input found:', !!courseImageInput);
     
     if (courseImageInput) {
         courseImageInput.addEventListener('change', function(e) {
             const file = e.target.files[0];
-            console.log('Course image changed:', file?.name);
             
             if (file) {
                 // Find the container
                 const container = courseImageInput.closest('.file-upload-container');
                 if (!container) {
-                    console.error('Could not find container for course image');
                     return;
                 }
                 
@@ -67,7 +63,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     preview.className = 'mt-2 rounded-lg max-h-40 object-cover';
                     preview.alt = "Course image preview";
                     container.appendChild(preview);
-                    console.log('Created new image preview element');
                 }
                 
                 // Update the preview
@@ -80,7 +75,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (imageContainer) {
                         imageContainer.classList.remove('hidden');
                     }
-                    console.log('Image preview updated');
                 };
                 reader.readAsDataURL(file);
             }
@@ -89,18 +83,15 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Course Video Upload
     const courseVideoInput = document.querySelector('input[name="course_video"]');
-    console.log('Course video input found:', !!courseVideoInput);
     
     if (courseVideoInput) {
         courseVideoInput.addEventListener('change', function(e) {
             const file = e.target.files[0];
-            console.log('Course video changed:', file?.name);
             
             if (file) {
                 // Find the container
                 const container = courseVideoInput.closest('.file-upload-container');
                 if (!container) {
-                    console.error('Could not find container for course video');
                     return;
                 }
                 
@@ -124,18 +115,15 @@ document.addEventListener('DOMContentLoaded', function() {
                     preview.className = 'mt-2 rounded-lg max-h-40 w-full';
                     preview.controls = true;
                     container.appendChild(preview);
-                    console.log('Created new video preview element');
                 }
                 
                 // Update the preview
                 const url = URL.createObjectURL(file);
                 preview.src = url;
                 preview.classList.remove('hidden');
-                console.log('Video preview updated');
             }
         });
     }
     
     // Add a message to help diagnose any issues
-    console.log('File upload initialization complete');
 }); 

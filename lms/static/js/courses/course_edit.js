@@ -5,7 +5,6 @@
 // Robust error handler to prevent JavaScript crashes
 window.addEventListener('error', function(event) {
     if (event.error && event.error.message && event.error.message.includes('entries')) {
-        console.warn('Entries-related error caught and handled:', event.error.message);
         event.preventDefault();
         return true;
     }
@@ -58,7 +57,6 @@ window.CourseEditCleanup = {
 
 // Course edit page functionality
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('DOM content loaded for course edit page');
     
     // Initialize file upload handlers
     initializeFileUploads();
@@ -74,36 +72,30 @@ document.addEventListener('DOMContentLoaded', function() {
         try {
             initializeTabButtons();
         } catch (error) {
-            console.error('Error initializing tab buttons:', error);
         }
         
         try {
             // Initialize topic title truncation
             truncateTopicTitles();
         } catch (error) {
-            console.error('Error truncating topic titles:', error);
         }
         
         try {
             // Initialize form change detection
             initFormChangeDetection();
         } catch (error) {
-            console.error('Error initializing form change detection:', error);
         }
         
         try {
             // Initialize cancel button handler
             initializeCancelButton();
         } catch (error) {
-            console.error('Error initializing cancel button:', error);
         }
         
-        console.log('All course edit page initializations complete');
     }, 300);
     
     // Create global function to mark form as changed
     window.markFormAsChanged = function() {
-        console.log('Form marked as changed via global function');
         if (typeof formHasUnsavedChanges !== 'undefined') {
             formHasUnsavedChanges = true;
             
@@ -111,7 +103,6 @@ document.addEventListener('DOMContentLoaded', function() {
             if (typeof showUnsavedChangesNotification !== 'function') {
                 // Create a fallback notification function
                 window.showUnsavedChangesNotification = function() {
-                    console.log('Using fallback notification');
                     const notificationBanner = document.getElementById('unsaved-changes-notification');
                     if (notificationBanner) {
                         notificationBanner.classList.remove('hidden');
@@ -135,7 +126,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             return true;
         } else {
-            console.error('Required variables not defined - form change detection may not be initialized yet');
             // Set a global flag that can be checked later
             window.formHasUnsavedChanges = true;
             return false;
@@ -164,7 +154,6 @@ function initializeCancelButton() {
                 // User confirmed, allow navigation to proceed
             }
         });
-        console.log('Cancel button handler initialized');
     }
 }
 
@@ -172,12 +161,10 @@ function initializeCancelButton() {
 function initFormChangeDetection() {
     const form = document.getElementById('courseCreateForm');
     if (!form) {
-        console.warn('Course form not found for change detection, will retry later');
         // Retry after a delay in case the form is loaded dynamically
         setTimeout(() => {
             const retryForm = document.getElementById('courseCreateForm');
             if (retryForm) {
-                console.log('Found course form on retry, initializing change detection');
                 initFormChangeDetection();
             }
         }, 1000);
@@ -208,7 +195,6 @@ function initFormChangeDetection() {
     // Function to save initial form state
     function saveFormInitialState(form) {
         if (!form) {
-            console.warn('Cannot save form state: form is null or undefined');
             return;
         }
         
@@ -223,7 +209,6 @@ function initFormChangeDetection() {
                 }
             }
         } catch (error) {
-            console.error('Error saving form initial state:', error);
             formInitialState = {};
         }
         
@@ -232,7 +217,6 @@ function initFormChangeDetection() {
         
         // Enhanced editor state saving with proper timing
         const saveEditorStates = (attempt = 0, maxAttempts = 3) => {
-            console.log(`Saving editor states - attempt ${attempt + 1}/${maxAttempts}`);
             
             // Quill editors removed - using TinyMCE only
             
@@ -243,11 +227,9 @@ function initFormChangeDetection() {
                         const editor = CKEDITOR.instances[editorId];
                         if (editor && typeof editor.getData === 'function') {
                             formInitialState[editorId] = editor.getData();
-                            console.log(`Saved initial state for CKEditor ${editorId}`);
                         }
                     });
                 } catch (error) {
-                    console.error('Error saving CKEditor initial states:', error);
                 }
             }
             
@@ -259,11 +241,9 @@ function initFormChangeDetection() {
                         if (editorId) {
                             const content = jQuery(this).summernote('code');
                             formInitialState[editorId] = content;
-                            console.log(`Saved initial state for Summernote editor ${editorId}`);
                         }
                     });
                 } catch (error) {
-                    console.error('Error saving Summernote initial states:', error);
                 }
             }
             
@@ -272,7 +252,6 @@ function initFormChangeDetection() {
             contentEditableElements.forEach(element => {
                 if (element.id && !formInitialState[element.id]) {
                     formInitialState[element.id] = element.innerHTML;
-                    console.log(`Saved initial state for contenteditable element ${element.id}`);
                 }
             });
         };
@@ -288,33 +267,27 @@ function initFormChangeDetection() {
     // Initialize TinyMCE editors with proper timing
     function initializeTinyMCEEditors() {
         if (typeof tinymce === 'undefined') {
-            console.log('TinyMCE not available, skipping TinyMCE initialization');
             return;
         }
         
-        console.log('Initializing TinyMCE editors with proper timing');
         
         // Function to handle editor initialization
         const handleEditorInit = (editor) => {
             if (!editor || !editor.id) {
-                console.warn('Invalid editor in handleEditorInit:', editor);
                 return;
             }
             
             // Prevent duplicate initialization
             if (editorsInitialized.has(editor.id)) {
-                console.log(`Editor ${editor.id} already initialized, skipping`);
                 return;
             }
             
-            console.log(`Initializing TinyMCE editor: ${editor.id}`);
             editorsInitialized.add(editor.id);
             
             // Save initial state only when editor is fully ready
             if (typeof editor.getContent === 'function') {
                 const initialContent = editor.getContent();
                 formInitialState[editor.id] = initialContent;
-                console.log(`Saved initial state for TinyMCE editor ${editor.id}: ${initialContent.substring(0, 50)}...`);
             }
             
             // Set up change detection
@@ -323,7 +296,6 @@ function initFormChangeDetection() {
         
         // Handle already initialized editors
         if (tinymce.editors && tinymce.editors.length > 0) {
-            console.log('Found existing TinyMCE editors:', tinymce.editors.length);
             tinymce.editors.forEach(editor => {
                 if (editor.initialized) {
                     handleEditorInit(editor);
@@ -337,11 +309,9 @@ function initFormChangeDetection() {
         // Listen for new editors being added
         if (typeof tinymce.on === 'function') {
             tinymce.on('AddEditor', function(e) {
-                console.log('New TinyMCE editor added:', e.editor.id);
                 
                 // Wait for editor to be fully initialized
                 e.editor.on('init', function() {
-                    console.log('TinyMCE editor init event fired:', e.editor.id);
                     handleEditorInit(e.editor);
                 });
             });
@@ -351,11 +321,9 @@ function initFormChangeDetection() {
     // Set up change detection for a TinyMCE editor
     function setupTinyMCEChangeDetection(editor) {
         if (!editor || typeof editor.on !== 'function') {
-            console.warn('Invalid TinyMCE editor for change detection:', editor);
             return;
         }
         
-        console.log(`Setting up change detection for TinyMCE editor: ${editor.id}`);
         
         // Debounced change handler
         let changeTimeout;
@@ -368,13 +336,10 @@ function initFormChangeDetection() {
                     const initialContent = formInitialState[editor.id] || '';
                     
                     if (currentContent !== initialContent) {
-                        console.log(`TinyMCE editor content changed (${eventType}): ${editor.id}`);
                         updateFormChangedState();
                     } else {
-                        console.log(`TinyMCE editor ${eventType} event but no content change: ${editor.id}`);
                     }
                 } else {
-                    console.log(`TinyMCE editor modified (${eventType}): ${editor.id}`);
                     updateFormChangedState();
                 }
             }, 100);
@@ -391,7 +356,6 @@ function initFormChangeDetection() {
     function checkFormChanged() {
         try {
             if (!form) {
-                console.warn('Cannot check form changes: form is null or undefined');
                 return false;
             }
             
@@ -401,7 +365,6 @@ function initFormChangeDetection() {
                 for (let [key, value] of formData.entries()) {
                     const initialValue = formInitialState[key] || '';
                     if (value !== initialValue) {
-                        console.log(`Form field changed: ${key}`, {old: initialValue, new: value});
                         return true;
                     }
                 }
@@ -410,7 +373,6 @@ function initFormChangeDetection() {
             // Enhanced editor content checking
             return checkEditorsChanged();
         } catch (error) {
-            console.error('Error checking form changes:', error);
             return false;
         }
     }
@@ -425,7 +387,6 @@ function initFormChangeDetection() {
                         const currentContent = editor.getContent();
                         const initialContent = formInitialState[editor.id] || '';
                         if (currentContent !== initialContent) {
-                            console.log(`TinyMCE editor changed: ${editor.id}`);
                             return true;
                         }
                     }
@@ -442,7 +403,6 @@ function initFormChangeDetection() {
                         const currentContent = editor.getData();
                         const initialContent = formInitialState[editorId] || '';
                         if (currentContent !== initialContent) {
-                            console.log(`CKEditor changed: ${editorId}`);
                             return true;
                         }
                     }
@@ -458,7 +418,6 @@ function initFormChangeDetection() {
                         const currentContent = jQuery(element).summernote('code');
                         const initialContent = formInitialState[element.id] || '';
                         if (currentContent !== initialContent) {
-                            console.log(`Summernote editor changed: ${element.id}`);
                             return true;
                         }
                     }
@@ -472,7 +431,6 @@ function initFormChangeDetection() {
                     const currentContent = element.innerHTML;
                     const initialContent = formInitialState[element.id] || '';
                     if (currentContent !== initialContent) {
-                        console.log(`ContentEditable element changed: ${element.id}`);
                         return true;
                     }
                 }
@@ -480,7 +438,6 @@ function initFormChangeDetection() {
             
             return false;
         } catch (error) {
-            console.error('Error checking editor changes:', error);
             return false;
         }
     }
@@ -512,11 +469,9 @@ function initFormChangeDetection() {
     function updateFormChangedState() {
         const hasChanged = checkFormChanged();
         if (hasChanged && !formHasUnsavedChanges) {
-            console.log('Form has unsaved changes - showing notification');
             formHasUnsavedChanges = true;
             showUnsavedChangesNotification();
         } else if (!hasChanged && formHasUnsavedChanges) {
-            console.log('Form no longer has changes - hiding notification');
             formHasUnsavedChanges = false;
             hideUnsavedChangesNotification();
         }
@@ -545,21 +500,16 @@ function initFormChangeDetection() {
     
     // Get all form elements for change detection
     const formElements = form.querySelectorAll('input, select, textarea');
-    console.log('Setting up change detection for', formElements.length, 'form elements');
     
     // Add change and input listeners to all form elements
     formElements.forEach(element => {
         // Special debugging for description field
         if (element.name === 'description' || element.id === 'id_description') {
-            console.log('Found description field:', element.id, element.name, element.tagName, element.type);
-            console.log('Description field value:', element.value?.substring(0, 100) + '...');
         }
         
         // Listen for change events
         element.addEventListener('change', function() {
-            console.log('Form element changed:', element.name || element.id, element.tagName);
             if (element.name === 'description' || element.id === 'id_description') {
-                console.log('DESCRIPTION FIELD CHANGED - triggering update');
             }
             updateFormChangedState();
         });
@@ -569,7 +519,6 @@ function initFormChangeDetection() {
             element.tagName === 'TEXTAREA') {
             element.addEventListener('input', function() {
                 if (element.name === 'description' || element.id === 'id_description') {
-                    console.log('DESCRIPTION FIELD INPUT EVENT - triggering update');
                 }
                 updateFormChangedState();
             });
@@ -577,7 +526,6 @@ function initFormChangeDetection() {
             // Additional specific handler for description field
             if (element.name === 'description' || element.id === 'id_description') {
                 element.addEventListener('keyup', function() {
-                    console.log('DESCRIPTION FIELD KEYUP - triggering update');
                     updateFormChangedState();
                 });
             }
@@ -603,12 +551,10 @@ function initFormChangeDetection() {
     descriptionSelectors.forEach(selector => {
         const element = document.querySelector(selector);
         if (element) {
-            console.log(`Found description field using selector "${selector}":`, element.id, element.name);
             
             // Add comprehensive event listeners
             ['input', 'change', 'keyup', 'paste', 'blur'].forEach(eventType => {
                 element.addEventListener(eventType, function() {
-                    console.log(`Description field ${eventType} event - triggering change detection`);
                     updateFormChangedState();
                 });
             });
@@ -617,13 +563,9 @@ function initFormChangeDetection() {
     
     // Enhanced debugging for the form state
     setTimeout(() => {
-        console.log('Form ID:', form?.id);
-        console.log('Total form elements:', formElements.length);
         
         const descriptionField = form.querySelector('#id_description') || form.querySelector('[name="description"]');
-        console.log('Description field found:', !!descriptionField);
         if (descriptionField) {
-            console.log('Description field details:', {
                 id: descriptionField.id,
                 name: descriptionField.name,
                 tagName: descriptionField.tagName,
@@ -633,9 +575,7 @@ function initFormChangeDetection() {
         }
         
         // Check if form initial state was properly saved
-        console.log('Form initial state keys:', Object.keys(formInitialState));
         if (descriptionField && formInitialState[descriptionField.name]) {
-            console.log('Description initial state saved:', formInitialState[descriptionField.name]?.substring(0, 50) + '...');
         }
     }, 1000);
     
@@ -643,7 +583,6 @@ function initFormChangeDetection() {
     const fileInputs = form.querySelectorAll('input[type="file"]');
     fileInputs.forEach(input => {
         input.addEventListener('change', function() {
-            console.log('File input changed:', input.name || input.id);
             formHasUnsavedChanges = true;
             showUnsavedChangesNotification();
         });
@@ -653,7 +592,6 @@ function initFormChangeDetection() {
     const contentEditableElements = document.querySelectorAll('[contenteditable="true"]');
     contentEditableElements.forEach(element => {
         element.addEventListener('input', function() {
-            console.log('ContentEditable element changed:', element.id || 'unnamed');
             formHasUnsavedChanges = true;
             showUnsavedChangesNotification();
         });
@@ -665,14 +603,11 @@ function initFormChangeDetection() {
         
         // CKEditor setup
         if (typeof CKEDITOR !== 'undefined' && CKEDITOR.instances) {
-            console.log('Setting up CKEditor detection');
             Object.keys(CKEDITOR.instances).forEach(editorId => {
                 const editor = CKEDITOR.instances[editorId];
-                console.log('Setting up change detection for CKEditor:', editorId);
                 
                 // Listen for changes
                 editor.on('change', function() {
-                    console.log('CKEditor changed:', editorId);
                     updateFormChangedState();
                 });
                 
@@ -684,14 +619,11 @@ function initFormChangeDetection() {
         
         // Summernote setup
         if (typeof jQuery !== 'undefined' && typeof jQuery.fn.summernote !== 'undefined') {
-            console.log('Setting up Summernote detection');
             jQuery('.summernote').each(function() {
                 const editorId = this.id;
-                console.log('Setting up change detection for Summernote:', editorId);
                 
                 // Listen for changes
                 jQuery(this).on('summernote.change', function() {
-                    console.log('Summernote editor changed:', editorId);
                     updateFormChangedState();
                 });
             });
@@ -706,7 +638,6 @@ function initFormChangeDetection() {
     window.CourseEditCleanup.addListener(window, 'beforeunload', function(e) {
         // Don't show confirmation if form is being submitted
         if (formHasUnsavedChanges && !isFormSubmitting) {
-            console.log('Preventing navigation due to unsaved changes');
             // Standard way to show confirmation dialog when leaving page
             const message = 'You have unsaved changes. Are you sure you want to leave this page?';
             e.preventDefault(); // Required for some browsers
@@ -739,13 +670,11 @@ function initFormChangeDetection() {
     
     // Reset flag when form is submitted
     form.addEventListener('submit', function() {
-        console.log('Form submitted, resetting unsaved changes flag');
         isFormSubmitting = true;
         formHasUnsavedChanges = false;
         hideUnsavedChangesNotification();
     });
     
-    console.log('Enhanced form change detection initialized with proper TinyMCE timing');
 }
 
 // Function to truncate topic titles to first 4 characters + ellipsis
@@ -780,13 +709,11 @@ function initializeModalButtons() {
     // Add Category button
     const addCategoryBtn = document.getElementById('add-category-btn');
     if (addCategoryBtn) {
-        console.log('Add Category button found, adding event listener');
         addCategoryBtn.addEventListener('click', function(e) {
             e.preventDefault();
             showCategoryModal();
         });
     } else {
-        console.log('Add Category button not found');
     }
     
     // Cancel button in category modal
@@ -817,7 +744,6 @@ function initializeFileUploads() {
     if (videoPlayer) {
         // Check if it's a video element, if not, replace it with a proper video element
         if (videoPlayer.tagName.toLowerCase() !== 'video' || typeof videoPlayer.load !== 'function') {
-            console.log('Converting non-video element to proper video element');
             
             // Get parent element
             const parentElement = videoPlayer.parentElement;
@@ -840,7 +766,6 @@ function initializeFileUploads() {
             if (parentElement) {
                 parentElement.replaceChild(newVideoPlayer, videoPlayer);
                 videoPlayer = newVideoPlayer;
-                console.log('Replaced with proper video element');
             }
         }
         
@@ -850,49 +775,40 @@ function initializeFileUploads() {
             
             // Add event listeners to monitor video state
             videoPlayer.addEventListener('error', function(e) {
-                console.error('Video error:', e);
             });
             
             videoPlayer.addEventListener('loadeddata', function() {
-                console.log('Video loaded successfully');
             });
         } catch (error) {
-            console.error('Error loading video:', error);
         }
     }
 }
 
 function initializeExistingImagePreview() {
-    console.log('Initializing existing image preview');
     
     const imagePreview = document.getElementById('course-image-preview');
     const imageContainer = document.querySelector('.course-image-container');
 
     
-    console.log('Image preview elements found:', {
         imagePreview: !!imagePreview,
         imageContainer: !!imageContainer
     });
     
     // Check if there's an existing image
     if (imagePreview && imagePreview.src && !imagePreview.src.includes('data:') && imagePreview.src !== window.location.href) {
-        console.log('Found existing image:', imagePreview.src);
         
         // Ensure the container is visible
         if (imageContainer) {
             imageContainer.classList.remove('hidden');
             imageContainer.style.display = 'block';
-            console.log('Made image container visible');
         }
         
         // Ensure the image itself is visible
         imagePreview.classList.remove('hidden');
         imagePreview.style.display = 'block';
-        console.log('Made image preview visible');
         
         // Add error handling for broken images
         imagePreview.onerror = function() {
-            console.error('Failed to load image:', this.src);
             this.style.display = 'none';
             
             // Show user-friendly error message
@@ -914,10 +830,8 @@ function initializeExistingImagePreview() {
         
         // Add load success handler
         imagePreview.onload = function() {
-            console.log('Image loaded successfully:', this.src);
         };
     } else {
-        console.log('No existing image found or image src is invalid');
     }
 }
 
@@ -927,8 +841,6 @@ function handleImageUpload(e) {
     const fileInfo = document.getElementById('image-file-info');
     const imagePreview = document.getElementById('course-image-preview');
     
-    console.log('handleImageUpload called');
-    console.log('Elements found:', {
         input: !!input,
         fileInfo: !!fileInfo,
         imagePreview: !!imagePreview
@@ -995,7 +907,6 @@ function handleVideoUpload(e) {
     const videoPreviewContainer = document.getElementById('course-video-preview');
     
     if (!videoPreviewContainer) {
-        console.error('Video preview element not found');
         return;
     }
     
@@ -1052,10 +963,8 @@ function handleVideoUpload(e) {
             
             // Try to ensure video is playable
             videoPreviewContainer.onloadeddata = function() {
-                console.log('Video data loaded successfully');
             };
         } else {
-            console.error('Expected video element but found', videoPreviewContainer.tagName);
         }
     } else {
         // Reset preview if no file selected
@@ -1068,45 +977,34 @@ function handleVideoUpload(e) {
 }
 
 function removeImage() {
-    console.log('removeImage function called');
     const courseImageInput = document.querySelector('input[name="course_image"]');
-    console.log('courseImageInput found:', !!courseImageInput);
     const fileInfo = document.getElementById('image-file-info');
-    console.log('fileInfo element found:', !!fileInfo);
     const imagePreview = document.getElementById('course-image-preview');
-    console.log('imagePreview element found:', !!imagePreview);
     const imageContainer = document.querySelector('.course-image-container');
-    console.log('imageContainer element found:', !!imageContainer);
     
     // Debug logging
-    console.log('Remove image function called - starting process');
     
     // Reset input
     if (courseImageInput) {
         courseImageInput.value = '';
-        console.log('courseImageInput value cleared');
     }
     
     // Reset UI
     if (fileInfo) {
         fileInfo.textContent = 'PNG, JPG - All Sizes Supported';
-        console.log('fileInfo text updated');
     }
     
     if (imagePreview) {
         imagePreview.classList.add('hidden');
-        console.log('imagePreview hidden');
         // Also hide the container
         const imageContainer = imagePreview.closest('.course-image-container');
         if (imageContainer) {
             imageContainer.classList.add('hidden');
-            console.log('imagePreview container hidden');
         }
     }
     
     // Set a hidden input to indicate image should be removed
     let removeImageInput = document.getElementById('remove_image');
-    console.log('Existing removeImageInput found:', !!removeImageInput);
     
     if (!removeImageInput) {
         removeImageInput = document.createElement('input');
@@ -1117,30 +1015,23 @@ function removeImage() {
         
         if (courseImageInput && courseImageInput.parentNode) {
             courseImageInput.parentNode.appendChild(removeImageInput);
-            console.log('New removeImageInput created and added to DOM with value:', removeImageInput.value);
         } else {
-            console.error('Could not append removeImageInput - parent node not found');
             // Fallback - add to form
             const form = document.querySelector('form');
             if (form) {
                 form.appendChild(removeImageInput);
-                console.log('New removeImageInput added to form with value:', removeImageInput.value);
             } else {
-                console.error('Could not find form to append removeImageInput');
             }
         }
     } else {
         removeImageInput.value = 'true';
-        console.log('Existing removeImageInput value updated to:', removeImageInput.value);
     }
 
     // Hide the image container if it exists
     if (imageContainer) {
         imageContainer.classList.add('hidden');
-        console.log('imageContainer hidden');
     }
     
-    console.log('removeImage function completed');
     return false; // Prevent default action if called from onclick
 }
 
@@ -1149,16 +1040,13 @@ document.addEventListener('DOMContentLoaded', function() {
     // Remove image button
     const removeImageBtn = document.getElementById('remove-image-btn');
     if (removeImageBtn) {
-        console.log('Remove image button found, adding event listener');
         removeImageBtn.addEventListener('click', function(e) {
             e.preventDefault();
             e.stopPropagation();
-            console.log('Remove image button clicked via event listener');
             removeImage();
             return false;
         });
     } else {
-        console.log('Remove image button not found during DOMContentLoaded');
     }
     
     // Remove video buttons (both existing and new)
@@ -1166,60 +1054,46 @@ document.addEventListener('DOMContentLoaded', function() {
     const removeVideoBtnNew = document.getElementById('remove-video-btn-new');
     
     if (removeVideoBtnExisting) {
-        console.log('Remove video button (existing) found, adding event listener');
         removeVideoBtnExisting.addEventListener('click', function(e) {
             e.preventDefault();
             e.stopPropagation();
-            console.log('Remove video button (existing) clicked via event listener');
             removeVideo();
             return false;
         });
     }
     
     if (removeVideoBtnNew) {
-        console.log('Remove video button (new) found, adding event listener');
         removeVideoBtnNew.addEventListener('click', function(e) {
             e.preventDefault();
             e.stopPropagation();
-            console.log('Remove video button (new) clicked via event listener');
             removeVideo();
             return false;
         });
     }
     
     if (!removeVideoBtnExisting && !removeVideoBtnNew) {
-        console.log('No remove video buttons found during DOMContentLoaded');
     }
 });
 
 function removeVideo() {
-    console.log('removeVideo function called');
     const courseVideoInput = document.querySelector('input[name="course_video"]');
-    console.log('courseVideoInput found:', !!courseVideoInput);
     const fileInfo = document.getElementById('video-file-info');
-    console.log('fileInfo element found:', !!fileInfo);
     const filenameDisplay = document.getElementById('video-filename-display');
-    console.log('filenameDisplay element found:', !!filenameDisplay);
     const videoPreviewContainer = document.getElementById('course-video-preview');
-    console.log('videoPreviewContainer element found:', !!videoPreviewContainer);
     const videoContainer = document.querySelector('.course-video-container');
-    console.log('videoContainer element found:', !!videoContainer);
     
     // Reset input
     if (courseVideoInput) {
         courseVideoInput.value = '';
-        console.log('courseVideoInput value cleared');
     }
     
     // Reset UI
     if (fileInfo) {
         fileInfo.textContent = 'MP4, MOV - All Sizes Supported';
-        console.log('fileInfo text updated');
     }
     
     if (filenameDisplay) {
 
-        console.log('filenameDisplay hidden');
     }
     
     if (videoPreviewContainer) {
@@ -1227,25 +1101,20 @@ function removeVideo() {
         const sourceElement = videoPreviewContainer.querySelector('source');
         if (sourceElement) {
             sourceElement.src = '';
-            console.log('Video source cleared');
         }
         
         // Hide video preview
         videoPreviewContainer.classList.add('hidden');
-        console.log('videoPreviewContainer hidden');
         
         if (videoPreviewContainer.parentElement) {
             videoPreviewContainer.parentElement.classList.add('hidden');
-            console.log('videoPreviewContainer parent hidden');
         }
         
         videoPreviewContainer.load(); // Force reload
-        console.log('Video reload triggered');
     }
     
     // Set a hidden input to indicate video should be removed
     let removeVideoInput = document.getElementById('remove_video');
-    console.log('Existing removeVideoInput found:', !!removeVideoInput);
     
     if (!removeVideoInput) {
         removeVideoInput = document.createElement('input');
@@ -1256,40 +1125,31 @@ function removeVideo() {
         
         if (courseVideoInput && courseVideoInput.parentNode) {
             courseVideoInput.parentNode.appendChild(removeVideoInput);
-            console.log('New removeVideoInput created and added to DOM with value:', removeVideoInput.value);
         } else {
-            console.error('Could not append removeVideoInput - parent node not found');
             // Fallback - add to form
             const form = document.querySelector('form');
             if (form) {
                 form.appendChild(removeVideoInput);
-                console.log('New removeVideoInput added to form with value:', removeVideoInput.value);
             } else {
-                console.error('Could not find form to append removeVideoInput');
             }
         }
     } else {
         removeVideoInput.value = 'true';
-        console.log('Existing removeVideoInput value updated to:', removeVideoInput.value);
     }
 
     // Hide the video container if it exists
     if (videoContainer) {
         videoContainer.classList.add('hidden');
-        console.log('videoContainer hidden');
     }
     
-    console.log('removeVideo function completed');
     return false; // Prevent default action if called from onclick
 }
 
 function handleFormSubmit(e) {
-    console.log('Form submission initiated');
     
     // Get all form elements
     const form = document.getElementById('courseCreateForm');
     if (!form) {
-        console.error('Course form not found');
         return true; // Allow form to submit normally if not found
     }
     
@@ -1318,7 +1178,6 @@ function handleFormSubmit(e) {
         submitButton.innerHTML = 'Updating...';
     }
     
-    console.log('Form validation passed, proceeding with submission');
     return true;
 }
 
@@ -1406,11 +1265,9 @@ window.hideCategoryModal = hideCategoryModal;
 
 // Initialize tab functionality
 function initializeTabButtons() {
-    console.log('Initializing tab buttons');
     try {
         const tabButtons = document.querySelectorAll('.tab-btn');
         if (tabButtons.length === 0) {
-            console.warn('No tab buttons found, skipping tab initialization');
             return;
         }
         
@@ -1444,19 +1301,14 @@ function initializeTabButtons() {
                         if (targetContent) {
                             targetContent.classList.add('active');
                             targetContent.style.display = 'block';
-                            console.log('Tab activated:', target);
                         } else {
-                            console.warn('Tab target not found:', target);
                         }
                     }
                 } catch (error) {
-                    console.error('Error in tab click handler:', error);
                 }
             });
         });
-        console.log('Tab buttons initialized successfully:', tabButtons.length);
     } catch (error) {
-        console.error('Error initializing tab buttons:', error);
     }
 }
 

@@ -6,7 +6,6 @@
 (function() {
     'use strict';
     
-    console.log(' Sidebar Submenu Fix Script loaded');
     
     // Wait for DOM to be ready
     function waitForDOM() {
@@ -25,25 +24,20 @@
         
         // Check if SidebarManager is available and initialized
         if (window.SidebarManager && window.SidebarManager.isInitialized) {
-            console.log(' SidebarManager is available, skipping duplicate submenu fix');
             return;
         }
         
-        console.log(' Fixing submenu functionality...');
         
         // Find all submenu buttons
         const submenuButtons = document.querySelectorAll('.menu-item.has-submenu, [data-submenu]');
-        console.log('Found submenu buttons:', submenuButtons.length);
         
         submenuButtons.forEach((button, index) => {
             const submenuId = button.getAttribute('data-submenu');
-            console.log(`Button ${index + 1}: ${submenuId}`);
             
             if (!submenuId) return;
             
             // Skip if already has proper event handling
             if (button.hasAttribute('data-sidebar-manager-initialized')) {
-                console.log(`Skipping button ${submenuId} - already initialized by SidebarManager`);
                 return;
             }
             
@@ -74,16 +68,13 @@
                     e.preventDefault();
                     e.stopPropagation();
                     
-                    console.log('🖱️ Submenu button clicked:', submenuId);
                     
                     const submenu = document.getElementById(submenuId);
                     if (!submenu) {
-                        console.error(' Submenu not found:', submenuId);
                         return;
                     }
                     
                     const wasHidden = submenu.classList.contains('hidden');
-                    console.log(' Submenu was hidden:', wasHidden);
                     
                     // Toggle submenu
                     submenu.classList.toggle('hidden');
@@ -94,7 +85,6 @@
                     if (arrow) {
                         const isNowHidden = submenu.classList.contains('hidden');
                         arrow.style.transform = isNowHidden ? '' : 'rotate(180deg)';
-                        console.log(' Arrow rotated:', !isNowHidden);
                     }
                     
                     // Close other submenus if opening this one
@@ -102,14 +92,11 @@
                         closeOtherSubmenus(submenuId);
                     }
                     
-                    console.log(' Submenu toggled successfully');
                 });
                 
-                console.log(` Submenu toggle setup for: ${submenuId}`);
             }
         });
         
-        console.log(' Submenu functionality fixed!');
     }
     
     // Close other submenus

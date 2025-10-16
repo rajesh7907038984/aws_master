@@ -9,7 +9,6 @@ class GlobalCoursesChartRobust {
         this.data = options.data || null;
         this.chartInstance = null;
         
-        console.log('Initializing robust courses chart with options:', options);
         this.init();
     }
 
@@ -24,13 +23,10 @@ class GlobalCoursesChartRobust {
             });
             
             if (this.chartInstance) {
-                console.log('Robust courses chart initialized successfully');
             } else {
-                console.error('Failed to initialize robust courses chart');
             }
             
         } catch (error) {
-            console.error('Error initializing robust courses chart:', error);
             this.showFallbackChart();
         }
     }
@@ -97,7 +93,6 @@ class GlobalCoursesChartRobust {
 // Create a compatibility wrapper for existing code
 class GlobalCoursesChart extends GlobalCoursesChartRobust {
     constructor(options = {}) {
-        console.log('Using robust GlobalCoursesChart implementation');
         super(options);
     }
 }

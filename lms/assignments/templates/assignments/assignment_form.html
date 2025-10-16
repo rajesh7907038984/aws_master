@@ -651,48 +651,33 @@
 <script src="{% static 'tinymce_editor/js/tinymce-json-handler.js' %}"></script>
 <script src="{% static 'tinymce_editor/js/toolbar-fixer.js' %}"></script>
 <script>
-    console.log('ASSIGNMENT FORM: JavaScript file loaded');
     document.addEventListener('DOMContentLoaded', function() {
-        console.log('ASSIGNMENT FORM: DOMContentLoaded event fired');
         // IMMEDIATE FIX: Show/hide quiz containers based on submission type
         setTimeout(function() {
-            console.log('ASSIGNMENT FORM: 50ms timeout - checking elements');
             const immediateSubmissionSelect = document.getElementById('id_submission_type');
             const immediateTextContainer = document.getElementById('textSubmissionFieldsContainer');
             const immediateQuestionsContainer = document.getElementById('textQuestionsContainer');
             
-            console.log('ASSIGNMENT FORM: Elements found:');
-            console.log('- id_submission_type:', !!immediateSubmissionSelect);
-            console.log('- textSubmissionFieldsContainer:', !!immediateTextContainer);
-            console.log('- textQuestionsContainer:', !!immediateQuestionsContainer);
             
-            console.log('IMMEDIATE CHECK - Submission type:', immediateSubmissionSelect ? immediateSubmissionSelect.value : 'null');
             
             if (immediateSubmissionSelect) {
                 const hasExistingQuestions = {% if existing_text_fields %}{{ existing_text_fields|length|escapejs }}{% else %}0{% endif %} > 0;
-                console.log('ASSIGNMENT FORM: Has existing questions:', hasExistingQuestions);
-                console.log('ASSIGNMENT FORM: Submission type value is:', immediateSubmissionSelect.value);
-                console.log('ASSIGNMENT FORM: Should show questions?', immediateSubmissionSelect.value === 'text' || immediateSubmissionSelect.value === 'both' || hasExistingQuestions);
                 
                 if (immediateSubmissionSelect.value === 'text' || immediateSubmissionSelect.value === 'both' || hasExistingQuestions) {
                     // Show for text, both, or when there are existing questions
                     if (immediateTextContainer) {
                         immediateTextContainer.style.display = 'block';
-                        console.log('IMMEDIATE: Made textSubmissionFieldsContainer visible');
                     }
                     if (immediateQuestionsContainer) {
                         immediateQuestionsContainer.style.display = 'block';
-                        console.log('IMMEDIATE: Made textQuestionsContainer visible');
                     }
                             } else {
                 // Hide for file upload only (and no existing questions)
                 if (immediateTextContainer) {
                     immediateTextContainer.style.display = 'none';
-                    console.log('IMMEDIATE: Hidden textSubmissionFieldsContainer');
                 }
                 if (immediateQuestionsContainer) {
                     immediateQuestionsContainer.style.display = 'none';
-                    console.log('IMMEDIATE: Hidden textQuestionsContainer');
                 }
             }
             }
@@ -705,15 +690,12 @@
         // Enhanced content processing for TinyMCE editors
         function processContentField(inputElement) {
             if (!inputElement) {
-                console.warn('processContentField: Input element not found');
                 return;
             }
             
             const rawContent = inputElement.value;
-            console.log(`Processing content for ${inputElement.id}:`, rawContent ? `${rawContent.length} chars` : 'empty');
             
             if (!rawContent) {
-                console.log(`No content to process for ${inputElement.id}`);
                 return;
             }
             
@@ -723,14 +705,11 @@
                 if (jsonData && typeof jsonData === 'object' && jsonData.html) {
                     // It's JSON with html property, extract the HTML
                     inputElement.value = jsonData.html;
-                    console.log(`Processed JSON content for ${inputElement.id}`);
                 } else if (jsonData && typeof jsonData === 'object') {
-                    console.log(`JSON content for ${inputElement.id} has no html property, leaving as is`);
                 }
                 // If it's JSON but no html property, leave as is
             } catch (e) {
                 // Not JSON, it's likely HTML - leave as is
-                console.log(`Content for ${inputElement.id} is HTML, not JSON - no processing needed`);
             }
             
             // Fix common image path issues
@@ -749,13 +728,11 @@
             if (content !== originalContent) {
                 inputElement.value = content;
                 inputElement.dataset.pathsFixed = 'true';
-                console.log(`Fixed image paths in ${inputElement.id}`);
             }
         }
         
         // Enhanced TinyMCE initialization and content setting
         function initializeTinyMCEAndSetContent() {
-            console.log('Starting TinyMCE initialization and content setting');
             
             // Process both description and instructions fields
             if (descriptionInput) {
@@ -766,18 +743,15 @@
                 processContentField(instructionsInput);
             }
             
-            console.log('Main content fields processed');
             
             // Wait for TinyMCE to be fully loaded
             if (typeof tinymce === 'undefined') {
-                console.log('TinyMCE not loaded yet, retrying in 300ms...');
                 setTimeout(initializeTinyMCEAndSetContent, 300);
                 return;
             }
             
             // Use TinyMCE widget system to initialize editors
             if (window.TinyMCEWidget && window.TinyMCEWidget.initializeAll) {
-                console.log('Using TinyMCE widget system for initialization');
                 window.TinyMCEWidget.initializeAll();
                 
                 // Set content after editors are initialized
@@ -785,7 +759,6 @@
                     updateTinyMCEContent();
                 }, 1000);
             } else {
-                console.log('TinyMCE widget system not available, trying direct initialization');
                 // Fallback: try direct initialization
                 setTimeout(function() {
                     updateTinyMCEContent();
@@ -795,26 +768,21 @@
         
         // Function to update TinyMCE editor content
         function updateTinyMCEContent() {
-            console.log('Updating TinyMCE editor content');
             
             // Update description editor
             if (descriptionInput && descriptionInput.value) {
                 const descEditor = tinymce.get('id_description');
                 if (descEditor) {
                     descEditor.setContent(descriptionInput.value);
-                    console.log('Updated TinyMCE description editor with content');
                     
                     if (descriptionInput.dataset.pathsFixed === 'true') {
-                        console.log('Description image paths were automatically corrected');
                     }
                 } else {
-                    console.warn('Description editor not found, retrying...');
                     // Retry once more after a delay
                     setTimeout(function() {
                         const retryDescEditor = tinymce.get('id_description');
                         if (retryDescEditor && descriptionInput.value) {
                             retryDescEditor.setContent(descriptionInput.value);
-                            console.log('Updated description editor on retry');
                         }
                     }, 1000);
                 }
@@ -825,19 +793,15 @@
                 const instEditor = tinymce.get('id_instructions');
                 if (instEditor) {
                     instEditor.setContent(instructionsInput.value);
-                    console.log('Updated TinyMCE instructions editor with content');
                     
                     if (instructionsInput.dataset.pathsFixed === 'true') {
-                        console.log('Instructions image paths were automatically corrected');
                     }
                 } else {
-                    console.warn('Instructions editor not found, retrying...');
                     // Retry once more after a delay
                     setTimeout(function() {
                         const retryInstEditor = tinymce.get('id_instructions');
                         if (retryInstEditor && instructionsInput.value) {
                             retryInstEditor.setContent(instructionsInput.value);
-                            console.log('Updated instructions editor on retry');
                         }
                     }, 1000);
                 }
@@ -851,7 +815,6 @@
         
         // Enhanced toolbar visibility function
         function forceToolbarVisibility() {
-            console.log('Forcing toolbar visibility');
             
             const toolbarElements = document.querySelectorAll('.tox-toolbar__primary, .tox-toolbar__group, .tox-tbtn, .tox-editor-header, .tox-toolbar-overlord');
             if (toolbarElements && toolbarElements.length > 0) {
@@ -860,7 +823,6 @@
                     el.style.visibility = 'visible';
                     el.style.opacity = '1';
                 });
-                console.log(`Made ${toolbarElements.length} toolbar elements visible`);
             }
             
             // Hide overflow buttons
@@ -869,7 +831,6 @@
                 overflowButtons.forEach(function(el) {
                     el.style.display = 'none';
                 });
-                console.log(`Hidden ${overflowButtons.length} overflow buttons`);
             }
             
             // Trigger resize on all active editors
@@ -884,7 +845,6 @@
                         }
                     });
                 }
-                console.log('Triggered ResizeEditor on all editors');
             }
         }
         
@@ -917,23 +877,18 @@
         // Add event listener to submission type select
         if (submissionTypeSelect) {
             submissionTypeSelect.addEventListener('change', handleSubmissionTypeChange);
-            console.log('ASSIGNMENT FORM: Added change event listener to submission type select');
             
             // Also call the function immediately to set initial state
             handleSubmissionTypeChange();
-            console.log('ASSIGNMENT FORM: Called handleSubmissionTypeChange on page load');
         }
 
         // Add event listener to Add Question button
         if (addTextFieldBtn) {
             addTextFieldBtn.addEventListener('click', function(e) {
                 e.preventDefault();
-                console.log('ASSIGNMENT FORM: Add Question button clicked');
                 addNewTextQuestion();
             });
-            console.log('ASSIGNMENT FORM: Added click event listener to Add Question button');
         } else {
-            console.error('ASSIGNMENT FORM: addTextFieldBtn not found');
         }
         
         // Store existing field data in JavaScript variables
@@ -951,12 +906,9 @@
         function initializeExistingTextQuestions() {
             // Check if we have existing text fields
             {% if existing_text_fields %}
-            console.log('ASSIGNMENT FORM: Initializing {{ existing_text_fields|length|escapejs }} existing text fields');
-            console.log('ASSIGNMENT FORM: Existing fields data:', existingFieldsData);
             
             // Ensure TinyMCE is loaded before proceeding
             if (typeof tinymce === 'undefined') {
-                console.log('ASSIGNMENT FORM: TinyMCE not loaded yet, retrying in 500ms...');
                 setTimeout(initializeExistingTextQuestions, 500);
                 return;
             }
@@ -964,32 +916,26 @@
             // First, ensure the containers are visible for existing questions
             if (textSubmissionFieldsContainer) {
                 textSubmissionFieldsContainer.style.display = 'block';
-                console.log('Made textSubmissionFieldsContainer visible for existing questions');
                 
                 // Force visibility by setting inline style
                 textSubmissionFieldsContainer.setAttribute('style', 'display: block !important;');
             } else {
-                console.warn('textSubmissionFieldsContainer not found');
             }
             
             if (textQuestionsContainer) {
                 textQuestionsContainer.style.display = 'block';
-                console.log('Made textQuestionsContainer visible for existing questions');
                 
                 // Force visibility by setting inline style  
                 textQuestionsContainer.setAttribute('style', 'display: block !important;');
             } else {
-                console.warn('textQuestionsContainer not found');
             }
             
             if (textFieldsContainer) {
                 // Clear any existing content to prevent duplication
                 textFieldsContainer.innerHTML = '';
-                console.log('Cleared text fields container before adding existing fields');
                 
                 // Add existing text fields using the stored data
                 existingFieldsData.forEach((fieldData, questionIndex) => {
-                    console.log(`ASSIGNMENT FORM: Creating field ${questionIndex} with data:`, fieldData);
                     
                     const newField = document.createElement('div');
                     newField.className = 'text-question-field mb-6 p-4 bg-white border border-gray-300 rounded-lg';
@@ -1020,7 +966,6 @@
                         let fieldContent = fieldData.content;
                         let htmlContent = '';
                         
-                        console.log(`ASSIGNMENT FORM: Processing field ${questionIndex} content:`, typeof fieldContent, fieldContent);
                         
                         try {
                             // Handle the field content properly - now it's a proper JavaScript object
@@ -1028,7 +973,6 @@
                                 // If content is an object with html property
                                 if (typeof fieldContent === 'object' && fieldContent.html) {
                                     htmlContent = fieldContent.html;
-                                    console.log(`ASSIGNMENT FORM: Extracted HTML from object for field ${questionIndex}`);
                                 } 
                                 // If content is a string (fallback)
                                 else if (typeof fieldContent === 'string') {
@@ -1038,25 +982,20 @@
                                             let contentObj = JSON.parse(fieldContent);
                                             if (contentObj && contentObj.html) {
                                                 htmlContent = contentObj.html;
-                                                console.log(`ASSIGNMENT FORM: Extracted HTML from JSON string for field ${questionIndex}`);
                                             } else {
                                                 htmlContent = fieldContent;
-                                                console.log(`ASSIGNMENT FORM: Using JSON string as HTML for field ${questionIndex}`);
                                             }
                                         } catch (jsonError) {
-                                            console.warn(`ASSIGNMENT FORM: JSON parse error for field ${questionIndex}, using as HTML:`, jsonError);
                                             htmlContent = fieldContent;
                                         }
                                     } else {
                                         // Regular string content
                                         htmlContent = fieldContent;
-                                        console.log(`ASSIGNMENT FORM: Using string content as-is for field ${questionIndex}`);
                                     }
                                 } 
                                 // Otherwise convert to string
                                 else {
                                     htmlContent = String(fieldContent);
-                                    console.log(`ASSIGNMENT FORM: Converting content to string for field ${questionIndex}`);
                                 }
                             }
                             
@@ -1066,9 +1005,7 @@
                             htmlContent = htmlContent.replace(/src="https?:\/\/(localhost|127\.0\.0\.1):[0-9]+\/media\//g, 'src="/media/');
                             
                             textarea.value = htmlContent;
-                            console.log(`ASSIGNMENT FORM: Set content for question ${questionIndex + 1}: ${htmlContent.length} chars`);
                         } catch (e) {
-                            console.error(`ASSIGNMENT FORM: Error processing field content for question ${questionIndex}:`, e);
                             textarea.value = fieldContent || '';
                         }
                     
@@ -1103,7 +1040,6 @@
         function initializeTinyMCEForQuestionField(textareaId, content = null) {
             const textarea = document.getElementById(textareaId);
             if (!textarea) {
-                console.error('Textarea not found:', textareaId);
                 return;
             }
             
@@ -1115,7 +1051,6 @@
             // Set content before initializing TinyMCE if provided
             if (content && content.trim()) {
                 textarea.value = content;
-                console.log(`ASSIGNMENT FORM: Set content for ${textareaId} before TinyMCE init: ${content.length} chars`);
             }
             
             // Apply the exact same pattern as Instructions field
@@ -1161,9 +1096,7 @@
             if (window.TinyMCEWidget && window.TinyMCEWidget.initialize) {
                 // Initialize this specific textarea using the widget system
                 window.TinyMCEWidget.initialize(textarea);
-                console.log('Initialized TinyMCE for question field using widget system:', textareaId);
             } else {
-                console.warn('TinyMCE Widget system not available, trying direct initialization');
                 // Direct initialization with exact same config as TinyMCEWidget
                 if (typeof tinymce !== 'undefined') {
                     tinymce.init({
@@ -1178,14 +1111,12 @@
                                 const textarea = document.getElementById(editor.id);
                                 if (textarea && textarea.value) {
                                     editor.setContent(textarea.value);
-                                    console.log('Set existing content on init:', editor.id);
                                 }
                                 
                                 // Also ensure content is loaded if passed as parameter
                                 if (content && content.trim()) {
                                     setTimeout(() => {
                                         editor.setContent(content);
-                                        console.log(`ASSIGNMENT FORM: Content loaded into TinyMCE editor ${editor.id}: ${content.length} chars`);
                                     }, 100);
                                 }
                             });
@@ -1198,12 +1129,10 @@
         // Function to handle submission type change
         function handleSubmissionTypeChange() {
             if (!submissionTypeSelect) {
-                console.error('handleSubmissionTypeChange: submissionTypeSelect not found');
                 return;
             }
             
             const selectedValue = submissionTypeSelect.value;
-            console.log('handleSubmissionTypeChange: Submission type is:', selectedValue);
             
             // Show/hide attachments section based on submission type
             const attachmentsSection = document.getElementById('attachmentsSection');
@@ -1232,35 +1161,27 @@
             // Show/hide text submission fields container and questions container based on submission type
             if (selectedValue === 'text' || selectedValue === 'both' || hasExistingQuestions) {
                 // Show Quiz Questions section for text, both, or when there are existing questions
-                console.log('handleSubmissionTypeChange: Showing quiz questions for type:', selectedValue, 'or existing questions:', hasExistingQuestions);
                 if (textSubmissionFieldsContainer) {
                     textSubmissionFieldsContainer.style.display = 'block';
-                    console.log('handleSubmissionTypeChange: Made textSubmissionFieldsContainer visible');
                 }
                 if (textQuestionsContainer) {
                     textQuestionsContainer.style.display = 'block';
-                    console.log('handleSubmissionTypeChange: Made textQuestionsContainer visible');
                 }
             } else {
                 // Hide Quiz Questions section for file upload only (and no existing questions)
-                console.log('handleSubmissionTypeChange: Hiding quiz questions for type:', selectedValue);
                 if (textSubmissionFieldsContainer) {
                     textSubmissionFieldsContainer.style.display = 'none';
-                    console.log('handleSubmissionTypeChange: Hidden textSubmissionFieldsContainer');
                 }
                 if (textQuestionsContainer) {
                     textQuestionsContainer.style.display = 'none';
-                    console.log('handleSubmissionTypeChange: Hidden textQuestionsContainer');
                 }
             }
         }
 
         // Function to add a new text question field
         function addNewTextQuestion() {
-            console.log('ASSIGNMENT FORM: Adding new text question');
             
             if (!textFieldsContainer) {
-                console.error('ASSIGNMENT FORM: textFieldsContainer not found');
                 return;
             }
 
@@ -1276,7 +1197,6 @@
             const existingFields = textFieldsContainer.querySelectorAll('.text-question-field');
             const questionIndex = existingFields.length;
             
-            console.log(`ASSIGNMENT FORM: Creating new question ${questionIndex + 1}`);
             
             // Create new question field
             const newField = document.createElement('div');
@@ -1324,15 +1244,12 @@
                 updateQuestionNumbers();
             });
 
-            console.log(`ASSIGNMENT FORM: Successfully added question ${questionIndex + 1}`);
         }
 
         // Function to update question numbers after adding/removing questions
         function updateQuestionNumbers() {
-            console.log('ASSIGNMENT FORM: Updating question numbers');
             
             if (!textFieldsContainer) {
-                console.error('ASSIGNMENT FORM: textFieldsContainer not found');
                 return;
             }
 
@@ -1380,15 +1297,12 @@
                 }
             });
 
-            console.log(`ASSIGNMENT FORM: Updated ${questionFields.length} question numbers`);
         }
 
         // Function to collect all question data before form submission
         function collectQuestionData() {
-            console.log('ASSIGNMENT FORM: Collecting question data for submission');
             
             if (!textFieldsContainer) {
-                console.log('ASSIGNMENT FORM: No text fields container found');
                 return [];
             }
 
@@ -1429,10 +1343,8 @@
                 };
 
                 questionsData.push(questionData);
-                console.log(`ASSIGNMENT FORM: Collected data for question ${index + 1}:`, questionData);
             });
 
-            console.log(`ASSIGNMENT FORM: Collected ${questionsData.length} questions`);
             return questionsData;
         }
 
@@ -1440,7 +1352,6 @@
         const assignmentForm = document.querySelector('#assignmentForm');
         if (assignmentForm) {
             assignmentForm.addEventListener('submit', function(e) {
-                console.log('ASSIGNMENT FORM: Form submission started');
                 
                 // Collect question data
                 const questionsData = collectQuestionData();
@@ -1449,21 +1360,15 @@
                 const hiddenField = document.getElementById('text_submission_fields');
                 if (hiddenField) {
                     hiddenField.value = JSON.stringify(questionsData);
-                    console.log('ASSIGNMENT FORM: Set text_submission_fields value:', hiddenField.value);
                 } else {
-                    console.error('ASSIGNMENT FORM: Hidden field text_submission_fields not found');
                 }
                 
-                console.log('ASSIGNMENT FORM: Form submission continuing...');
             });
-            console.log('ASSIGNMENT FORM: Added form submission handler');
         } else {
-            console.error('ASSIGNMENT FORM: Assignment form not found');
         }
         
         // Client-side validation for required fields
         function setupFieldValidation() {
-            console.log('ASSIGNMENT FORM: Setting up field validation');
             
             // Get required form fields
             const titleField = document.getElementById('id_title');
@@ -1765,11 +1670,9 @@
             // Form submission validation
             if (assignmentForm) {
                 assignmentForm.addEventListener('submit', function(e) {
-                    console.log('ASSIGNMENT FORM: Validating form before submission');
                     
                     if (!validateAllFields()) {
                         e.preventDefault();
-                        console.log('ASSIGNMENT FORM: Form validation failed');
                         
                         // Show a general error message
                         const existingAlert = document.querySelector('.validation-alert');
@@ -1810,27 +1713,21 @@
                         return false;
                     }
                     
-                    console.log('ASSIGNMENT FORM: Form validation passed');
                     return true;
                 });
             }
             
-            console.log('ASSIGNMENT FORM: Field validation setup complete');
         }
         
         // Multiple file upload handling functions
         function handleFileSelection(e) {
             const input = e.target || e;
-            console.log('handleFileSelection called with', input.files.length, 'files');
             const files = input.files;
             const selectedFilesDiv = document.getElementById('selectedFiles');
             const fileListDiv = document.getElementById('fileList');
             
-            console.log('selectedFilesDiv:', selectedFilesDiv);
-            console.log('fileListDiv:', fileListDiv);
             
             if (files.length > 0) {
-                console.log('Showing files, removing hidden class');
                 selectedFilesDiv.classList.remove('hidden');
                 fileListDiv.innerHTML = '';
                 
@@ -1849,7 +1746,6 @@
                 }
                 
                 Array.from(files).forEach((file, index) => {
-                    console.log('Processing file:', file.name, 'Size:', file.size);
                     const fileItem = document.createElement('div');
                     fileItem.className = 'flex items-center justify-between p-3 bg-white rounded border border-gray-200';
                     
@@ -1886,7 +1782,6 @@
                 // Validate file sizes
                 validateFileSizes(files);
             } else {
-                console.log('No files, hiding selected files div');
                 selectedFilesDiv.classList.add('hidden');
                 
                 // Reset upload prompt to original state
@@ -2017,18 +1912,15 @@
             const files = e.dataTransfer.files;
             const fileInput = document.getElementById('{{ form.attachments.id_for_label }}');
             
-            console.log('handleFileDrop called with', files.length, 'files');
             
             if (files.length > 0) {
                 // Create a new FileList with the dropped files
                 const dt = new DataTransfer();
                 Array.from(files).forEach(file => {
-                    console.log('Adding file to DataTransfer:', file.name);
                     dt.items.add(file);
                 });
                 fileInput.files = dt.files;
                 
-                console.log('FileInput files after drop:', fileInput.files.length);
                 
                 // Trigger the file selection handler
                 handleFileSelection(fileInput);
@@ -2038,18 +1930,15 @@
         // Initialize file upload functionality
         function initializeFileUpload() {
             const fileInput = document.getElementById('{{ form.attachments.id_for_label }}');
-            console.log('Initializing file upload, fileInput:', fileInput);
             
             if (fileInput) {
                 // Make sure the change event is properly bound
                 fileInput.addEventListener('change', function(e) {
-                    console.log('File input change event triggered');
                     handleFileSelection(e.target);
                 });
                 
                 // Check if there are already files selected (for edit mode)
                 if (fileInput.files && fileInput.files.length > 0) {
-                    console.log('Files already selected on page load:', fileInput.files.length);
                     handleFileSelection(fileInput);
                 }
             }
@@ -2151,13 +2040,11 @@
             // Add event listener to file input
             if (fileInput) {
                 fileInput.addEventListener('change', function(e) {
-                    console.log('File input changed, validating files...');
                     validateFiles(e.target.files);
                 });
                 
                 // Also validate on drag and drop if supported
                 fileInput.addEventListener('drop', function(e) {
-                    console.log('Files dropped, validating...');
                     setTimeout(() => {
                         validateFiles(e.target.files);
                     }, 100); // Small delay to ensure files are processed

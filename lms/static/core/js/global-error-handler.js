@@ -154,7 +154,6 @@ class GlobalErrorHandler {
             'The requested resource was not found. Please check the URL or contact support.',
             'error'
         );
-        console.warn(`404 error for URL: ${url}`);
     }
 
     /**
@@ -216,7 +215,6 @@ class GlobalErrorHandler {
             this.errors = this.errors.slice(-50);
         }
 
-        console.error('LMS Error:', errorInfo);
 
         // Send to server if endpoint is available (optional)
         this.sendErrorToServer(errorInfo);
@@ -244,12 +242,10 @@ class GlobalErrorHandler {
 
                 // Don't log if the logging endpoint fails
                 if (!response.ok) {
-                    console.warn('Failed to log error to server');
                 }
             }
         } catch (e) {
             // Silently fail if we can't log to server
-            console.warn('Error logging failed:', e.message);
         }
     }
 

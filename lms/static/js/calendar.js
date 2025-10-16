@@ -150,11 +150,9 @@ class Calendar {
                 this.events = data.activities || [];
                 this.renderEvents();
             } else {
-                console.error('Error loading events:', data.error);
             }
         })
         .catch(error => {
-            console.error('Error loading events:', error);
         });
     }
 
@@ -389,7 +387,6 @@ class EventModal {
             }
         })
         .catch(error => {
-            console.error('Error saving event:', error);
             alert('Error saving event');
         });
     }
@@ -418,7 +415,6 @@ class EventModal {
                 }
             })
             .catch(error => {
-                console.error('Error deleting event:', error);
                 alert('Error deleting event');
             });
         }
@@ -442,7 +438,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Date selection handler
         calendarContainer.addEventListener('dateSelected', (e) => {
-            console.log('Date selected:', e.detail.date);
             // You can add custom logic here for date selection
         });
     }

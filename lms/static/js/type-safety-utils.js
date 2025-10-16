@@ -207,7 +207,6 @@
             try {
                 return JSON.parse(jsonString);
             } catch (e) {
-                console.warn('JSON parsing failed:', e);
                 return defaultValue;
             }
         },
@@ -363,19 +362,16 @@
          */
         safeQuerySelector: function(selector, context = document) {
             if (!this.isString(selector)) {
-                console.warn('safeQuerySelector: selector must be a string');
                 return null;
             }
             
             if (!context || !this.isFunction(context.querySelector)) {
-                console.warn('safeQuerySelector: invalid context');
                 return null;
             }
             
             try {
                 return context.querySelector(selector);
             } catch (e) {
-                console.warn('safeQuerySelector: invalid selector', selector, e);
                 return null;
             }
         },
@@ -388,19 +384,16 @@
          */
         safeQuerySelectorAll: function(selector, context = document) {
             if (!this.isString(selector)) {
-                console.warn('safeQuerySelectorAll: selector must be a string');
                 return [];
             }
             
             if (!context || !this.isFunction(context.querySelectorAll)) {
-                console.warn('safeQuerySelectorAll: invalid context');
                 return [];
             }
             
             try {
                 return context.querySelectorAll(selector);
             } catch (e) {
-                console.warn('safeQuerySelectorAll: invalid selector', selector, e);
                 return [];
             }
         },
@@ -449,7 +442,6 @@
                 element.setAttribute(attribute, this.safeString(value));
                 return true;
             } catch (e) {
-                console.warn('safeSetAttribute failed:', e);
                 return false;
             }
         }

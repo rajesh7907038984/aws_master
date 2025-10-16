@@ -11,7 +11,6 @@
             this.setupFormValidation();
             this.setupRequiredFieldValidation();
             this.setupCustomValidation();
-            console.log('Form Validator initialized');
         },
 
         // Setup validation for all forms

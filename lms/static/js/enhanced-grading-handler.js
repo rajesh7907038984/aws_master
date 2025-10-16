@@ -11,7 +11,6 @@
             this.setupGradingForms();
             this.setupRubricHandling();
             this.setupGradebookHandling();
-            console.log('Enhanced Grading Handler initialized');
         },
 
         // Setup grading form handlers
@@ -110,7 +109,6 @@
                 }
             })
             .catch(error => {
-                console.error('Grading error:', error);
                 this.showGradingError(`Error saving grade: ${error.message}`);
             })
             .finally(() => {
@@ -442,6 +440,5 @@
 
     window.GradingHandler.autoSaveRubricEvaluation = function(input) {
         // Implementation for auto-saving rubric evaluations
-        console.log('Auto-saving rubric evaluation:', input.name, input.value);
     };
 })();

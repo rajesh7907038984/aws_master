@@ -57,12 +57,10 @@
         },
         
         showWarning: function() {
-            console.log('Session will expire soon. Please save your work.');
             // You can implement a modal or notification here
         },
         
         handleTimeout: function() {
-            console.log('Session expired. Redirecting to login...');
             window.location.href = '/login/?timeout=1';
         }
     };

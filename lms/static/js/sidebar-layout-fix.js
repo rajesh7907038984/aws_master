@@ -60,7 +60,6 @@
             const mainContent = document.getElementById('main-content');
             
             if (!sidebar || !mainContent) {
-                console.warn('Sidebar or main content element not found');
                 return;
             }
             

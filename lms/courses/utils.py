@@ -120,7 +120,6 @@ def handle_prerequisite_changes(course, old_prerequisite_ids, new_prerequisite_i
                             enrollment.delete()
                             unenrolled_users_count += 1
                             logger.info(f"Auto-unenrolled user {user.username} from removed prerequisite {removed_prereq_course.title}")
-                            print(f"DEBUG: Auto-unenrolled user {user.username} from removed prerequisite {removed_prereq_course.title}")
                         
             except Course.DoesNotExist:
                 logger.error(f"Removed prerequisite course with ID {removed_prereq_id} not found")
@@ -150,7 +149,6 @@ def handle_prerequisite_changes(course, old_prerequisite_ids, new_prerequisite_i
                         )
                         enrolled_users_count += 1
                         logger.info(f"Auto-enrolled user {user.username} in new prerequisite {added_prereq_course.title}")
-                        print(f"DEBUG: Auto-enrolled user {user.username} in new prerequisite {added_prereq_course.title} from course {course.title}")
                         
             except Course.DoesNotExist:
                 logger.error(f"Added prerequisite course with ID {added_prereq_id} not found")

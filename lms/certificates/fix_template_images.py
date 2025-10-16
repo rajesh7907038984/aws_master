@@ -103,7 +103,6 @@ def fix_template_image(template_id, image_path=None):
             return True
             
     except Exception as e:
-        print(f" Error fixing template: {str(e)}")
         return False
 
 if __name__ == "__main__":

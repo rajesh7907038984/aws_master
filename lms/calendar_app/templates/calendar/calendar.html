@@ -637,7 +637,6 @@ document.addEventListener('DOMContentLoaded', function() {
             const monthYear = document.getElementById('currentMonthYear');
             
             if (!calendar || !monthYear) {
-                console.error('Calendar: Required DOM elements not found');
                 return;
             }
             
@@ -759,13 +758,11 @@ document.addEventListener('DOMContentLoaded', function() {
                         }
                         this.renderActivityIndicators();
                     } else {
-                        console.log('Calendar API returned success: false, activities:', data.activities);
                         this.activitiesData = {};
                         this.renderActivityIndicators();
                     }
                 })
                 .catch(error => {
-                    console.error('Error loading activities:', error);
                 });
         },
         
@@ -808,7 +805,6 @@ document.addEventListener('DOMContentLoaded', function() {
             const noActivities = document.getElementById('modalNoActivities');
             
             if (!modal || !dateTitle || !loading || !activities || !noActivities) {
-                console.error('Calendar: Modal elements not found');
                 return;
             }
             
@@ -857,11 +853,9 @@ document.addEventListener('DOMContentLoaded', function() {
                         });
                     } else {
                         noActivities.style.display = 'block';
-                        console.log('No activities found for date:', dateString, 'Response:', data);
                     }
                 })
                 .catch(error => {
-                    console.error('Error loading daily activities:', error);
                     loading.style.display = 'none';
                     activities.style.display = 'block';
                     activities.innerHTML = '<p style="color: #dc2626; text-align: center;">Error loading activities. Please try again.</p>';
@@ -945,7 +939,6 @@ document.addEventListener('DOMContentLoaded', function() {
     try {
         MainCalendar.init();
     } catch (error) {
-        console.error('Failed to initialize calendar:', error);
     }
     
     // Cleanup on page unload

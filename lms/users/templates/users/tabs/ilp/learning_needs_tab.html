@@ -399,7 +399,6 @@
         const existingInputs = form.querySelectorAll('textarea[name*="learning_needs_item_"], select[name*="learning_needs_item_"]');
         existingInputs.forEach(input => {
             input.addEventListener('change', function() {
-                console.log('Learning needs item changed:', this.name, this.value);
                 // Could implement AJAX auto-save here if needed
             });
         });
@@ -407,7 +406,6 @@
         // Add auto-save for new items (delegated event handling)
         form.addEventListener('change', function(e) {
             if (e.target.name && e.target.name.includes('new_learning_needs_item_')) {
-                console.log('New learning needs item changed:', e.target.name, e.target.value);
                 // Could implement AJAX auto-save here if needed
             }
         });
@@ -453,7 +451,6 @@ document.addEventListener('DOMContentLoaded', function() {
             currentTabState.mainTab = 'ilp-tab';
             currentTabState.subTab = 'learning-needs-tab';
             
-            console.log('Learning Needs tab: Setting tab state to:', currentTabState);
             
             // Update hidden form fields directly
             var activeTabField = document.getElementById('activeTabField');

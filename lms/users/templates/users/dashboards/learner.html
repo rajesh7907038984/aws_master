@@ -73,7 +73,6 @@ function loadMoreTodos() {
         loadButton.disabled = false;
     })
     .catch(error => {
-        console.error('Error loading more todos:', error);
         
         // Restore button state on error
         loadButton.innerHTML = originalText;

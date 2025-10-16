@@ -12,7 +12,6 @@
             try {
                 return Intl.DateTimeFormat().resolvedOptions().timeZone;
             } catch (e) {
-                console.warn('Could not detect timezone:', e);
                 return 'UTC';
             }
         },
@@ -31,7 +30,6 @@
                 const formatOptions = Object.assign(defaultOptions, options);
                 return date.toLocaleDateString(undefined, formatOptions);
             } catch (e) {
-                console.warn('Could not format date:', e);
                 return dateString;
             }
         },
@@ -58,7 +56,6 @@
                 }
             });
 
-            console.log('Timezone handler initialized with timezone:', timezone);
         }
     };
 

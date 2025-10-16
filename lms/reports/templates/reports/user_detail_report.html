@@ -649,37 +649,27 @@
 <script src="{% static 'reports/js/user-report-tabs.js' %}"></script>
 <!-- Manual testing helper -->
 <script>
-// console.log(' Loading manual testing helpers...');
 
 // Define functions immediately (not in window.load event)
 window.testTabClick = function(tabName) {
-    // console.log('🧪 Manual tab test for:', tabName);
     if (window.showUserReportTab) {
         window.showUserReportTab(tabName);
     } else {
-        console.error(' showUserReportTab function not available');
     }
 };
 
 window.forceInitTabs = function() {
-    // console.log(' Force initializing tabs...');
     if (window.initUserReportTabs) {
         return window.initUserReportTabs();
     } else {
-        console.error(' initUserReportTabs function not available');
         return false;
     }
 };
 
 window.checkTabElements = function() {
-    // console.log(' Checking tab elements:');
-    // console.log('Tab container:', !!document.querySelector('.user-report-tab-content'));
-    // console.log('Tab buttons:', document.querySelectorAll('.user-report-tab-btn').length);
-    // console.log('Tab panes:', document.querySelectorAll('.user-report-tab-pane').length);
     
     const buttons = document.querySelectorAll('.user-report-tab-btn');
     buttons.forEach((btn, i) => {
-        // console.log(`Button ${i}:`, {
             'data-tab': btn.getAttribute('data-tab'),
             text: btn.textContent.trim(),
             clickable: !btn.disabled,
@@ -690,19 +680,15 @@ window.checkTabElements = function() {
 
 // Simple click test function
 window.clickTab = function(tabName) {
-    // console.log('👆 Simulating click on tab:', tabName);
     const button = document.querySelector(`[data-tab="${tabName}"]`);
     if (button) {
-        // console.log(' Found button, triggering click');
         button.click();
     } else {
-        console.error(' Button not found for tab:', tabName);
     }
 };
 
 // Direct show function
 window.showTab = function(tabName) {
-    // console.log('👁️ Directly showing tab:', tabName);
     
     // Hide all panes
     document.querySelectorAll('.user-report-tab-pane').forEach(pane => {
@@ -725,17 +711,9 @@ window.showTab = function(tabName) {
         targetPane.classList.add('active');
         targetButton.classList.add('active', 'border-blue-500', 'text-blue-600');
         targetButton.classList.remove('border-transparent', 'text-gray-500');
-        // console.log(' Tab switched successfully');
     } else {
-        console.error(' Elements not found - Pane:', !!targetPane, 'Button:', !!targetButton);
     }
 };
 
-// console.log(' Manual testing functions loaded:');
-// console.log('  - checkTabElements()');
-// console.log('  - forceInitTabs()');
-// console.log('  - testTabClick("tab-name")');
-// console.log('  - clickTab("courses")');
-// console.log('  - showTab("learning-activities")');
 </script>
 {% endblock %}

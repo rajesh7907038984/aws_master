@@ -931,7 +931,6 @@ function autoTickCapabilities(roleName) {
             }
         });
         
-        console.log(`Auto-ticked ${capabilities.length} capabilities for role: ${roleName}`);
     }
     
     // Update select-all checkboxes based on section states
@@ -1130,7 +1129,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         })
         .catch(error => {
-            console.error('Role creation error:', error);
             
             // Handle different types of errors
             let userFriendlyMessage = 'An unexpected error occurred while creating the role.';

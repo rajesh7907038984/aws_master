@@ -436,7 +436,6 @@
             })
             .catch(error => {
                 hideLoading();
-                console.error('Error:', error);
                 alert('Failed to clear cache');
             });
         }
@@ -485,7 +484,6 @@
                     loginTrendChart.update('none'); // Silent update
                 }
             })
-            .catch(error => console.error('Error refreshing login trend:', error));
         
         // Refresh completion trend chart
         fetch(`{{ api_endpoints.completion_trend }}&timeframe=${timeframe}&business_id=${businessId}`)
@@ -496,7 +494,6 @@
                     completionTrendChart.update('none'); // Silent update
                 }
             })
-            .catch(error => console.error('Error refreshing completion trend:', error));
         
         // Refresh business comparison chart
         fetch(`{{ api_endpoints.business_comparison }}`)
@@ -507,7 +504,6 @@
                     businessComparisonChart.update('none'); // Silent update
                 }
             })
-            .catch(error => console.error('Error refreshing business comparison:', error));
     }
 </script>
 {% endblock %}

@@ -6,7 +6,6 @@
 (function() {
     'use strict';
     
-    console.log('TinyMCE ES5 compatibility script loaded');
     
     // Add Array.from polyfill for older browsers
     if (!Array.from) {
@@ -65,12 +64,10 @@
     // TinyMCE specific patches
     function patchTinyMCE() {
         if (typeof tinymce === 'undefined') {
-            console.log('TinyMCE not yet loaded, will retry patching');
             setTimeout(patchTinyMCE, 500);
             return;
         }
         
-        console.log('Patching TinyMCE for ES5 compatibility');
         
         // Patch innerWidth issues with null elements
         var originalGetSize = tinymce.DOM.getSize;
@@ -79,7 +76,6 @@
                 if (!elm) return { width: 0, height: 0 };
                 return originalGetSize.call(this, elm, w, h);
             } catch (e) {
-                console.warn('Error in getSize, returning fallback dimensions', e);
                 return { width: 0, height: 0 };
             }
         };
@@ -90,7 +86,6 @@
             try {
                 return originalGetClientWidth.apply(this, arguments);
             } catch (e) {
-                console.warn('Error in getClientWidth, using fallback', e);
                 return window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth || 800;
             }
         };
@@ -100,7 +95,6 @@
             try {
                 return originalGetClientHeight.apply(this, arguments);
             } catch (e) {
-                console.warn('Error in getClientHeight, using fallback', e);
                 return window.innerHeight || document.documentElement.clientHeight || document.body.clientHeight || 600;
             }
         };
@@ -111,7 +105,6 @@
             try {
                 return originalCreateElement.call(this, name, attrs, html);
             } catch (e) {
-                console.warn('Error in createElement, using basic fallback', e);
                 var elm = document.createElement(name);
                 if (attrs) {
                     for (var key in attrs) {
@@ -141,7 +134,6 @@
                                     originalCallback.apply(scope || this, arguments);
                                 }
                             } catch (e) {
-                                console.warn('TinyMCE plugin loading error (handled):', url.split('/').pop(), e.message);
                                 // Continue with empty plugin to avoid breaking the editor
                                 return;
                             }
@@ -150,7 +142,6 @@
                     
                     // Set a timeout for loading scripts
                     var scriptTimeout = setTimeout(function() {
-                        console.warn('TinyMCE script loading timeout:', url);
                         if (callback) {
                             callback.call(scope || this, null);
                         }
@@ -165,7 +156,6 @@
                     
                     return originalResult;
                 } catch (e) {
-                    console.warn('TinyMCE script loading error (fallback):', url, e.message);
                     // Try to continue anyway
                     if (callback) {
                         setTimeout(function() {
@@ -176,7 +166,6 @@
             };
         }
         
-        console.log('TinyMCE patched for ES5 compatibility');
     }
     
     // Try to patch TinyMCE when the page loads

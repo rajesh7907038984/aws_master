@@ -98,20 +98,17 @@ class UnifiedChartService {
             try {
                 return null;
             } catch (error) {
-                console.error('Error in chart initialization:', error);
                 return null;
             }
 
             // Destroy existing chart if present
             if (this.charts.has(config.canvasId)) {
-                console.log(`Destroying existing chart for canvas: ${config.canvasId}`);
                 this.destroyChart(config.canvasId);
             }
             
             // Check for any Chart.js instances on this canvas
             const existingChart = Chart.getChart(canvas);
             if (existingChart) {
-                console.log(`Found existing Chart.js instance on canvas: ${config.canvasId}, destroying...`);
                 existingChart.destroy();
             }
             
@@ -141,7 +138,6 @@ class UnifiedChartService {
         };
 
         try {
-            console.log('Initializing courses chart with config:', config);
             
             // Check if Chart.js is available
             if (typeof Chart === 'undefined') {
@@ -165,11 +161,9 @@ class UnifiedChartService {
             
             this.charts.set(config.canvasId, chartInstance);
             
-            console.log('Courses chart initialized successfully');
             return chartInstance;
             
         } catch (error) {
-            console.error('Failed to initialize courses chart:', error);
             this.showChartError(config.canvasId, 'Failed to load courses chart: ' + error.message);
             return null;
         }
@@ -184,7 +178,6 @@ class UnifiedChartService {
             try {
                 await chartInstance.updatePeriod(period);
             } catch (error) {
-                console.error('Failed to update chart period:', error);
             }
         }
     }
@@ -196,18 +189,14 @@ class UnifiedChartService {
         if (periodSelector && this.charts.has(canvasId)) {
             // Check if period selector already has a chart listener
             if (periodSelector.hasAttribute('data-chart-listener-attached')) {
-                console.log('Period selector already has event listener, skipping unified service setup');
                 return;
             }
             
-            console.log(`Setting up unified service period selector for: ${canvasId}`);
             const periodChangeHandler = (event) => {
                 const selectedPeriod = event.target.value;
-                console.log(`Unified service period changed to: ${selectedPeriod} for chart: ${canvasId}`);
                 
                 // Prevent multiple simultaneous updates
                 if (event.target.hasAttribute('data-updating')) {
-                    console.log('Period update already in progress, ignoring unified service update');
                     return;
                 }
                 
@@ -228,7 +217,6 @@ class UnifiedChartService {
     destroyChart(canvasId) {
         const chart = this.charts.get(canvasId);
         if (chart) {
-            console.log(`Destroying chart for canvas: ${canvasId}`);
             if (typeof chart.destroy === 'function') {
                 chart.destroy();
             }
@@ -241,7 +229,6 @@ class UnifiedChartService {
                 periodSelector.removeEventListener('change', periodSelector._unifiedServiceHandler);
                 periodSelector.removeAttribute('data-chart-listener-attached');
                 delete periodSelector._unifiedServiceHandler;
-                console.log('Cleaned up unified service period selector event listener');
             }
         
         // Clean up canvas registry
@@ -299,7 +286,6 @@ class UnifiedChartService {
      * Retry chart initialization
      */
     async retryChart(canvasId) {
-        console.log('Retrying chart initialization for:', canvasId);
         
         // Clear HTTP service cache
         this.httpService.clearCache();
@@ -355,36 +341,23 @@ class ActivityChartComponent {
         const selectedPeriod = period || this.config.defaultPeriod;
         
         try {
-            console.log(`Loading activity data for period: ${selectedPeriod}`);
-            console.log(`API endpoint: ${this.config.apiEndpoint}`);
             
             const url = `${this.config.apiEndpoint}?period=${selectedPeriod}`;
-            console.log(`Making request to: ${url}`);
             
             const data = await this.httpService.makeRequest(url);
-            console.log('Received data:', data);
-            console.log('Data.fallback value:', data.fallback);
-            console.log('Data.labels:', data.labels);
-            console.log('Data.logins:', data.logins);
-            console.log('Data.completions:', data.completions);
             
             // Check if the API returned fallback data - only if explicitly marked as fallback
             if (data.fallback === true) {
-                console.warn('API returned fallback data:', data.error || 'No specific error message');
                 // Add period to fallback data URL for proper fallback generation
                 const fallbackUrl = `${url}&fallback=true`;
                 const periodAwareFallback = this.httpService.getFallbackData(fallbackUrl);
-                console.log('Using period-aware fallback:', periodAwareFallback);
                 this.renderChart(periodAwareFallback);
             } else {
                 // This is real data from the API
-                console.log('Rendering real data from API');
                 this.renderChart(data);
             }
             
         } catch (error) {
-            console.error('Failed to load activity data:', error);
-            console.error('Error details:', {
                 message: error.message,
                 status: error.status,
                 stack: error.stack
@@ -395,7 +368,6 @@ class ActivityChartComponent {
             const fallbackData = this.httpService.getFallbackData(fallbackUrl);
             fallbackData.error = `API Error: ${error.message}`;
             fallbackData.fallback = true;
-            console.log('Using fallback data due to API error:', fallbackData);
             this.renderChart(fallbackData);
         }
     }
@@ -579,7 +551,6 @@ class ActivityChartComponent {
     }
 
     async updatePeriod(period) {
-        console.log('Current config:', this.config);
         await this.loadData(period);
     }
 
@@ -631,11 +602,9 @@ class CoursesChartInstance {
     async loadData() {
         try {
             // This would be implemented based on your specific API endpoint
-            console.log('Loading courses data...');
             // const data = await this.httpService.makeRequest('/api/courses-data/');
             // this.renderChart(data);
         } catch (error) {
-            console.error('Failed to load courses data:', error);
             this.renderChart(this.httpService.getFallbackData('/api/courses-data/'));
         }
     }

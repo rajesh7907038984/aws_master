@@ -21,11 +21,9 @@ class AutoTimezoneDetector {
             // Check if user needs timezone detection
             const needsDetection = await this.checkTimezoneStatus();
             if (needsDetection) {
-                console.log('User needs timezone detection, proceeding...');
                 await this.detectAndSetTimezone();
             }
         } catch (error) {
-            console.error('Error in auto-timezone detection:', error);
         }
     }
 
@@ -52,13 +50,11 @@ class AutoTimezoneDetector {
 
             if (response.ok) {
                 const data = await response.json();
-                console.log('Timezone status:', data);
                 return data.needs_detection === true;
             }
             
             return false;
         } catch (error) {
-            console.error('Error checking timezone status:', error);
             return false;
         }
     }
@@ -74,12 +70,9 @@ class AutoTimezoneDetector {
             
             this.isDetected = true;
             
-            console.log('Detected timezone:', this.timezone);
-            console.log('Detected offset:', this.offset);
             
             return true;
         } catch (error) {
-            console.error('Error detecting device timezone:', error);
             return this.fallbackDetection();
         }
     }
@@ -94,10 +87,8 @@ class AutoTimezoneDetector {
             this.timezone = this.mapOffsetToTimezone(this.offset);
             this.isDetected = true;
             
-            console.log('Fallback timezone detection:', this.timezone, this.offset);
             return true;
         } catch (error) {
-            console.error('Fallback timezone detection failed:', error);
             this.timezone = 'UTC';
             this.offset = 0;
             this.isDetected = false;
@@ -141,7 +132,6 @@ class AutoTimezoneDetector {
     async detectAndSetTimezone() {
         // Step 1: Detect device timezone
         if (!this.detectDeviceTimezone()) {
-            console.warn('Could not detect device timezone');
             return false;
         }
 
@@ -164,7 +154,6 @@ class AutoTimezoneDetector {
 
             if (response.ok) {
                 const data = await response.json();
-                console.log('Timezone set successfully:', data);
                 
                 // Store in localStorage for immediate use
                 localStorage.setItem('user_timezone', this.timezone);
@@ -176,11 +165,9 @@ class AutoTimezoneDetector {
                 
                 return true;
             } else {
-                console.error('Failed to set timezone on server:', response.status);
                 return false;
             }
         } catch (error) {
-            console.error('Error setting timezone on server:', error);
             // Store locally as fallback
             localStorage.setItem('user_timezone', this.timezone);
             localStorage.setItem('timezone_offset', this.offset.toString());

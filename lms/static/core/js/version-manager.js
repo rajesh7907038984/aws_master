@@ -9,7 +9,6 @@
         build: Date.now(),
         
         init: function() {
-            console.log(`LMS Version: ${this.version} (Build: ${this.build})`);
         },
         
         getVersion: function() {

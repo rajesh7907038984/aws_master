@@ -18,11 +18,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const countryInput = document.querySelector('[name="country"]');
 
     if (!postcodeInput) {
-        console.log('Postcode input not found');
         return;
     }
 
-    console.log('Postcode lookup script loaded');
 
     let debounceTimeout;
     let currentPostcode = '';
@@ -62,7 +60,6 @@ document.addEventListener('DOMContentLoaded', function() {
             if (selectedValue) {
                 try {
                     const addressData = TypeSafety.safeJsonParse(selectedValue, {});
-                    console.log('Selected address:', addressData);
                     
                     // Fill address fields
                     if (addressLine1Input) {
@@ -107,10 +104,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     showNotification('Address populated from postcode lookup!', 'success');
                     
                 } catch (error) {
-                    console.error('Error parsing selected address:', error);
                 }
             } else {
-                console.log('User cleared address selection - manual entry mode');
             }
         });
     }
@@ -148,13 +143,11 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function performPostcodeLookup(postcode) {
-        console.log(' Starting postcode address lookup for:', postcode);
         
         // Basic UK postcode validation
         const postcodeRegex = /^[A-Z]{1,2}[0-9][A-Z0-9]?\s?[0-9][A-Z]{2}$/i;
         
         if (!postcodeRegex.test(postcode)) {
-            console.log(' Invalid UK postcode format:', postcode);
             if (postcodeStatusElement) {
                 postcodeStatusElement.classList.remove('hidden');
                 postcodeStatusElement.innerHTML = `
@@ -174,7 +167,6 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Check if it's the special ZZ99 9ZZ code
         if (postcode.toUpperCase() === 'ZZ99 9ZZ') {
-            console.log(' Skipping placeholder postcode');
             // Hide address selector for placeholder postcode
             if (addressSelectorContainer) {
                 addressSelectorContainer.classList.add('hidden');
@@ -182,7 +174,6 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
-        console.log(' Valid postcode format, proceeding with address lookup');
 
         // Show loading status
         if (postcodeStatusElement) {
@@ -198,14 +189,12 @@ document.addEventListener('DOMContentLoaded', function() {
         // Use our address lookup endpoint
         const apiUrl = `${window.POSTCODE_LOOKUP_URL || '/users/api/public/lookup-postcode-addresses/'}?postcode=${encodeURIComponent(postcode)}`;
         
-        console.log(' Looking up addresses for postcode:', postcode, 'URL:', apiUrl);
         
         // Make the API call with retry logic
         function makeAPICall(retryCount = 0) {
             return fetch(apiUrl)
             .catch(error => {
                 if (retryCount < 2) {
-                    console.log(` Retry attempt ${retryCount + 1} for address lookup`);
                     return new Promise(resolve => setTimeout(resolve, 1000)).then(() => makeAPICall(retryCount + 1));
                 }
                 throw error;
@@ -214,7 +203,6 @@ document.addEventListener('DOMContentLoaded', function() {
         
         makeAPICall()
         .then(response => {
-            console.log('API response status:', response.status);
             
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
@@ -222,10 +210,8 @@ document.addEventListener('DOMContentLoaded', function() {
             return response.json();
         })
         .then(data => {
-            console.log('API response data:', data);
             
             if (data.status === 'success' && data.addresses && data.addresses.length > 0) {
-                console.log(` Found ${data.addresses.length} addresses for postcode ${postcode}`);
                 
                 // Show success status
                 if (postcodeStatusElement) {
@@ -268,7 +254,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         })
         .catch(error => {
-            console.error(' Postcode lookup error:', error);
             
             if (postcodeStatusElement) {
                 postcodeStatusElement.innerHTML = `

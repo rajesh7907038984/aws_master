@@ -1299,16 +1299,16 @@
                                                 {% endif %}
                                             {% endfor %}
                                             
-                                            <!-- Legacy alignment check for compatibility -->
+                                            <!-- Assignment alignment check -->
                                             {% for alignment in outcome.alignments.all %}
                                                 {% if alignment.content_type == 'assignment' %}
                                                     {% get_topic_for_assignment alignment.object_id as topic %}
                                                     {% if topic %}
                                                         <span class="inline-block bg-orange-100 text-orange-800 px-2 py-1 rounded-md text-xs mr-1 mb-1">
-                                                            {{ topic.title }} (Legacy Assignment)
+                                                            {{ topic.title }}
                                                         </span>
                                                     {% else %}
-                                                        <span class="inline-block bg-gray-100 text-gray-600 px-2 py-1 rounded-md text-xs mr-1 mb-1">Legacy Assignment</span>
+                                                        <span class="inline-block bg-gray-100 text-gray-600 px-2 py-1 rounded-md text-xs mr-1 mb-1">Assignment</span>
                                                     {% endif %}
                                                 {% elif alignment.content_type == 'quiz' %}
                                                     {% get_topic_for_quiz alignment.object_id as topic %}
@@ -1577,7 +1577,6 @@
                     // Store the collapsed state in localStorage
                     localStorage.setItem('sidebar_collapsed', 'true');
                     
-                    console.log('Sidebar auto-collapsed for course details page');
                 }
             }
         }
@@ -1645,7 +1644,6 @@
             const issueCertificate = {{ course.issue_certificate|yesno:"true,false" }};
             const userRole = "{{ user.role|escapejs }}";
             
-            console.log('Button state validation:', {
                 progress: progress,
                 isEnrolled: isEnrolled,
                 issueCertificate: issueCertificate,
@@ -1660,12 +1658,9 @@
                 const currentText = buttonText.textContent.trim();
                 const expectedState = getExpectedButtonState(progress, isEnrolled, issueCertificate, userRole);
                 
-                console.log('Current button text:', currentText);
-                console.log('Expected state:', expectedState);
                 
                 // Validate and correct button state if necessary
                 if (currentText !== expectedState.text) {
-                    console.log(`Correcting button from "${currentText}" to "${expectedState.text}"`);
                     buttonText.textContent = expectedState.text;
                     
                     // Update classes
@@ -1726,7 +1721,6 @@
     })();
 
     document.addEventListener('DOMContentLoaded', function() {
-        console.log('DOM loaded - Course ID:', {{ course.id|escapejs }});
         
         const videoElement = document.getElementById('courseVideo');
         const videoError = document.getElementById('video-error');
@@ -1734,7 +1728,6 @@
         if (videoElement) {
             // Add event listeners for video
             videoElement.addEventListener('error', function(e) {
-                console.error('Video error:', e);
                 if (videoError) {
                     videoError.classList.remove('hidden');
                     videoError.innerHTML = `<p class="text-red-700">Error loading video: ${e.target.error ? e.target.error.message : 'Unknown error'}</p>`;
@@ -1745,7 +1738,6 @@
             });
             
             videoElement.addEventListener('loadeddata', function() {
-                console.log('Video loaded successfully');
                 if (videoError) {
                     videoError.classList.add('hidden');
                 }
@@ -1764,10 +1756,8 @@
         return response.json();
     })
                 .then(data => {
-                    console.log('Video status:', data);
                     
                     if (data.success && data.video_exists) {
-                        console.log('Video exists, available at:', data.stream_url);
                         
                         // If we have a source element, update it
                         if (videoElement.querySelector('source')) {
@@ -1781,7 +1771,6 @@
                             }
                         }
                     } else {
-                        console.error('Video check failed:', data.error || 'Unknown error');
                         if (videoError) {
                             videoError.classList.remove('hidden');
                             videoError.innerHTML = `<p class="text-red-700">Video check failed: ${data.error || 'Unknown error'}</p>`;
@@ -1789,7 +1778,6 @@
                     }
                 })
                 .catch(error => {
-                    console.error('Error checking video status:', error);
                 });
         }
         

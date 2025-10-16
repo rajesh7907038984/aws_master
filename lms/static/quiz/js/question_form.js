@@ -1,23 +1,13 @@
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('=== Question Form Script Loading ===');
     
     const questionType = document.getElementById('id_question_type');
     const answerFields = document.getElementById('answerFields');
     const form = document.getElementById('questionForm');
     const isEdit = document.querySelector('input[name="is_edit"]')?.value === 'true';
 
-    console.log('Elements found:');
-    console.log('- Question type dropdown:', questionType ? 'Found' : 'NOT FOUND');
-    console.log('- Answer fields container:', answerFields ? 'Found' : 'NOT FOUND');
-    console.log('- Form element:', form ? 'Found' : 'NOT FOUND');
-    console.log('- Is edit mode:', isEdit);
     
     if (isEdit) {
-        console.log('Initial question type:', questionType?.value);
-        console.log('Options JSON:', window.options_json);
-        console.log('Correct answers JSON:', window.correct_answers_json);
     } else {
-        console.log('New question mode - initializing empty data');
     }
 
     // Add form submission handling for TinyMCE
@@ -27,7 +17,6 @@ document.addEventListener('DOMContentLoaded', function() {
             if (typeof tinymce !== 'undefined') {
                 const editor = tinymce.get('question_text_editor');
                 if (editor) {
-                    console.log('Saving TinyMCE content before submission');
                     editor.save(); // This will update the textarea with the editor content
                 }
             }
@@ -280,9 +269,6 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Debug logging for correct answers (only in development)
         if (false || false) {
-            console.log('generateMultipleChoiceHtml - correctAnswers:', correctAnswers);
-            console.log('generateMultipleChoiceHtml - correctAnswersArray:', correctAnswersArray);
-            console.log('generateMultipleChoiceHtml - options:', options);
         }
         
         return `
@@ -409,14 +395,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function updateAnswerFields() {
         if (!answerFields) {
-            console.log('Answer fields container not found');
             return;
         }
         
         const type = questionType.value;
-        console.log('Updating answer fields for type:', type);
-        console.log('Question type element:', questionType);
-        console.log('Question type options:', questionType.options);
         
         // Initialize empty data for new questions if not already set
         if (!window.options_json) window.options_json = [];
@@ -439,10 +421,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 // Debug logging (only in development)
                 if (false || false) {
-                    console.log('updateAnswerFields - type:', type);
-                    console.log('updateAnswerFields - options:', options);
-                    console.log('updateAnswerFields - correctAnswers:', correctAnswers);
-                    console.log('updateAnswerFields - learningStyles:', learningStyles);
                 }
                 
                 // Ensure at least 2 empty options for new questions
@@ -505,7 +483,6 @@ document.addEventListener('DOMContentLoaded', function() {
             case 'fill_blank':
                 const isVakTestFillBlank = window.is_vak_test || false;
                 const blankAnswer = window.blank_answer || '';
-                console.log('Setting blank answer:', blankAnswer);
                 
                 if (isVakTestFillBlank) {
                     // For VAK Test only, don't require correct answer
@@ -788,22 +765,15 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Initialize
-    console.log('=== Initializing Form ===');
     handleEditMode();
     
     if (questionType && answerFields) {
-        console.log('Setting up event listeners...');
         questionType.addEventListener('change', function() {
-            console.log('Question type changed to:', questionType.value);
             updateAnswerFields();
         });
         
-        console.log('Calling initial updateAnswerFields...');
         updateAnswerFields(); // Call initially to set up fields
     } else {
-        console.error('Missing required elements - cannot initialize form');
-        if (!questionType) console.error('Question type dropdown not found');
-        if (!answerFields) console.error('Answer fields container not found');
     }
     
     // Form validation
@@ -811,5 +781,4 @@ document.addEventListener('DOMContentLoaded', function() {
         form.addEventListener('submit', validateForm);
     }
 
-    console.log('=== Form Initialization Complete ===');
 }); 

@@ -1178,7 +1178,6 @@ class ProfileTabManager {
         // Initialize UI
         this.showTab(this.currentTab);
         
-        console.log('ProfileTabManager initialized with tab:', this.currentTab);
     }
     
     setupEventListeners() {
@@ -1226,19 +1225,16 @@ class ProfileTabManager {
     }
     
     openTab(tabName) {
-        console.log('Opening tab:', tabName);
         this.currentTab = tabName;
         this.showTab(tabName);
         this.updateURL();
     }
     
     openILPTab(tabName) {
-        console.log('Opening ILP tab:', tabName);
         this.showILPTab(tabName);
     }
     
     openLearningProfileTab(tabName) {
-        console.log('Opening Learning Profile tab:', tabName);
         this.showLearningProfileTab(tabName);
     }
     
@@ -1499,7 +1495,6 @@ class ProfileTabManager {
 let profileTabManager;
 
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('Initializing ProfileTabManager...');
     profileTabManager = new ProfileTabManager();
     
     // Make global functions available for backward compatibility

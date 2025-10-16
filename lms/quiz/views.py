@@ -481,12 +481,6 @@ def create_quiz(request, course_id=None):
 @login_required
 def add_question(request, quiz_id):
     """API endpoint to add a new question to a quiz"""
-    print(f"\n=== Starting Question Creation ===")
-    print(f"Quiz ID: {quiz_id}")
-    print(f"User: {request.user.username}")
-    print(f"Request method: {request.method}")
-    print(f"Request headers: {dict(request.headers)}")
-    print(f"Request POST data: {dict(request.POST)}")
     
     # Get quiz and check permissions - this should be done for both GET and POST requests
     quiz = get_object_or_404(Quiz, id=quiz_id)
@@ -497,13 +491,12 @@ def add_question(request, quiz_id):
     
     if request.method == 'POST':
         try:
-            print(f"Found quiz: {quiz.title}")
             
             form = QuestionForm(request.POST, quiz=quiz)
             print(f"Form data received: {dict(request.POST)}")
             print(f"Form is valid: {form.is_valid()}")
             if not form.is_valid():
-                print(f"Form errors: {form.errors}")
+                return JsonResponse({'success': False, 'error': 'Form is not valid'}, status=400)
             
             if form.is_valid():
                 try:

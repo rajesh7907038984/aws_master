@@ -9,8 +9,6 @@
     // Global error handler initialized (production-ready)
 
     // Store original console methods
-    const originalConsoleError = console.error;
-    const originalConsoleWarn = console.warn;
     
     // Error count tracking
     let errorCount = 0;
@@ -27,12 +25,9 @@
         if (seenErrorsCount > MAX_SEEN_ERRORS) {
             seenErrors = {};
             seenErrorsCount = 0;
-            console.log('Error tracking cache cleared to prevent memory leaks');
         }
     }
     
-    // Override console.error to track errors
-    console.error = function() {
         // Call original method
         originalConsoleError.apply(console, arguments);
         
@@ -82,8 +77,6 @@
         }
     };
     
-    // Override console.warn to track warnings
-    console.warn = function() {
         // Call original method
         originalConsoleWarn.apply(console, arguments);
         
@@ -146,7 +139,6 @@
     // Check browser compatibility on load
     var compatibility = isBrowserCompatible();
     if (!compatibility.isCompatible) {
-        console.warn('Browser compatibility issues detected. Some features may not work correctly.', compatibility.features);
         // Show a warning for users with incompatible browsers
         setTimeout(function() {
             showErrorNotification('Your browser may not support all features. Please consider updating your browser.', 'warning');
@@ -172,7 +164,6 @@
         cleanupSeenErrors();
         
         // Log the error
-        console.error(
             'JavaScript Error:',
             event.error || { message: event.message },
             '\nLocation:', event.filename || 'unknown file',
@@ -189,7 +180,6 @@
         if (event.message && event.message.includes('Unexpected token')) {
             if (event.message.includes("'const'") || event.message.includes("'let'") || 
                 event.message.includes("'=>'") || event.message.includes("'...")) {
-                console.warn('ES6 syntax not supported in this browser. Consider using ES5 syntax or a transpiler.');
                 showErrorNotification('Your browser does not support modern JavaScript features. Please update your browser.', 'warning');
             }
         }
@@ -219,7 +209,6 @@
                 
                 brokenEditors.forEach(function(editor) {
                     try {
-                        console.log('Attempting to recover TinyMCE editor:', editor.id);
                         
                         // Safely remove the broken editor
                         if (editor.remove) {
@@ -242,18 +231,14 @@
                                 resize: true,
                                 setup: function(ed) {
                                     ed.on('init', function() {
-                                        console.log('TinyMCE editor recovered successfully:', ed.id);
                                     });
                                     ed.on('error', function(e) {
-                                        console.warn('Recovered TinyMCE editor error:', e);
                                     });
                                 }
                             });
                         } else {
-                            console.warn('Target element not found for TinyMCE recovery:', editor.id);
                         }
                     } catch (e) {
-                        console.warn('Failed to recover TinyMCE editor', editor.id, e);
                         
                         // Last resort: try to make the textarea visible again
                         try {
@@ -263,7 +248,6 @@
                                 textarea.style.visibility = 'visible';
                             }
                         } catch (fallbackError) {
-                            console.error('Complete TinyMCE recovery failed:', fallbackError);
                         }
                     }
                 });
@@ -273,7 +257,6 @@
     
     // Unhandled promise rejection handler
     window.addEventListener('unhandledrejection', function(event) {
-        console.error('Unhandled Promise Rejection:', event.reason);
         
         // Log to server if enabled
         if (window.LMS_CONFIG && window.LMS_CONFIG.enableServerLogging) {
@@ -439,7 +422,6 @@
     function polyfillES6Features() {
         // Basic Promise polyfill check
         if (typeof Promise === 'undefined') {
-            console.warn('Promise not supported, adding polyfill');
             // This is a simplified Promise polyfill
             window.Promise = function(executor) {
                 var callbacks = [];
@@ -481,5 +463,4 @@
     });
     
     // Initialize error tracking
-    console.log('Error handler initialized. Tracking JavaScript errors.');
 })(); 

@@ -3,5 +3,4 @@
 
 // Initialize course functionality when DOM is ready
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('Course JavaScript loaded');
 });

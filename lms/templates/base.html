@@ -880,9 +880,7 @@
             if (csrfToken) {
                 // Store token globally for easy access
                 window.CSRF_TOKEN = csrfToken;
-                console.log('CSRF token loaded successfully');
             } else {
-                console.error('CRITICAL: No CSRF token found - forms will fail');
                 // Show user-friendly error
                 if (typeof createSimpleNotification !== 'undefined') {
                     createSimpleNotification('Security token missing. Please refresh the page.', 'error');
@@ -940,7 +938,6 @@
         // Handle toast notifications
         function showToast(message, type = 'info') {
             if (!document.body) {
-                console.error('Cannot show toast: document.body not available');
                 return;
             }
             
@@ -1108,16 +1105,13 @@
                     event.stopPropagation();
                 }
                 
-                console.log('🖱️ Fallback sidebar toggle function called');
                 
                 // Check if we're on mobile
                 const isMobile = window.innerWidth < 768;
-                console.log('📱 Is mobile:', isMobile);
                 
                 if (isMobile) {
                     // Mobile behavior - toggle mobile menu
                     const mobileMenu = document.getElementById('mobile-menu');
-                    console.log('📱 Mobile menu element:', mobileMenu);
                     
                     if (mobileMenu) {
                         const wasOpen = mobileMenu.classList.contains('open');
@@ -1125,21 +1119,16 @@
                         
                         if (!wasOpen) {
                             document.body.classList.add('overflow-hidden');
-                            console.log('📱 Mobile menu opened via fallback');
                         } else {
                             document.body.classList.remove('overflow-hidden');
-                            console.log('📱 Mobile menu closed via fallback');
                         }
                     } else {
-                        console.error(' Mobile menu element not found');
                     }
                 } else {
                     // Desktop behavior - toggle sidebar collapse
                     const sidebar = document.getElementById('sidebar');
                     const mainContent = document.getElementById('main-content');
                     
-                    console.log('🖥️ Sidebar element:', sidebar);
-                    console.log('🖥️ Main content element:', mainContent);
                     
                     if (sidebar && mainContent) {
                         const wasCollapsed = sidebar.classList.contains('collapsed');
@@ -1148,15 +1137,10 @@
                         
                         // Store state
                         localStorage.setItem('sidebar_collapsed', !wasCollapsed);
-                        console.log('🖥️ Sidebar toggled via fallback:', !wasCollapsed);
                     } else {
-                        console.error(' Sidebar or main content element not found');
-                        console.error('Sidebar:', sidebar);
-                        console.error('Main content:', mainContent);
                     }
                 }
             } catch (error) {
-                console.error(' Error in handleSidebarToggle:', error);
             }
         }
         

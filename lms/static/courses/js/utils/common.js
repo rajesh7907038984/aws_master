@@ -21,7 +21,6 @@ class CommonUtils {
             ClassicEditor
                 .create(editor)
                 .catch(error => {
-                    console.error(error);
                 });
         });
     }

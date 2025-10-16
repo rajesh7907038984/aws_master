@@ -404,7 +404,6 @@
 
     document.addEventListener('DOMContentLoaded', function() {
         // Test if enrollUser function is accessible
-        console.log('enrollUser function available:', typeof enrollUser);
         
         // Client-side filtering for already loaded users
         const searchInput = document.getElementById('userSearch');
@@ -452,11 +451,9 @@
 
     // Function to handle enrolling a user
     function enrollUser(userId, courseId, userName) {
-        console.log('enrollUser called with:', {userId, courseId, userName});
         
         // Validate parameters
         if (!userId || !courseId) {
-            console.error('Missing required parameters:', {userId, courseId, userName});
             createSimpleNotification('Error: Missing user or course information', 'error');
             return;
         }
@@ -501,7 +498,6 @@
         }
         
         // Send AJAX request to enroll the user
-        console.log('Enrolling user:', userId, 'in course:', courseId, 'with token:', csrftoken ? 'found' : 'missing');
         
         fetch(`/courses/${courseId}/enroll/${userId}/`, {
             method: 'POST',
@@ -512,14 +508,12 @@
             credentials: 'same-origin'
         })
         .then(response => {
-            console.log('Response status:', response.status);
             if (!response.ok) {
                 throw new Error(`Server responded with status: ${response.status}`);
             }
             return response.json();
         })
         .then(data => {
-            console.log('Enrollment response:', data);
             if (data.success) {
                 // Show simple success message with reduced verbosity
                 createSimpleNotification(`Added ${userName}`, 'success');
@@ -534,7 +528,6 @@
                 }
             } else {
                 // User enrollment was not successful - only show error for actual failures
-                console.log('Enrollment failed:', data.message);
                 if (data.message && !data.message.includes('already enrolled')) {
                     createSimpleNotification(data.message || 'Enrollment failed', 'error');
                 }
@@ -547,8 +540,6 @@
             }
         })
         .catch(error => {
-            console.error('Enrollment error:', error);
-            console.error('Error details:', {
                 userId: userId,
                 courseId: courseId,
                 userName: userName,
@@ -629,11 +620,9 @@
                 const courseId = this.getAttribute('data-course-id');
                 const userName = this.getAttribute('data-user-name');
                 
-                console.log('Button click fallback triggered:', {userId, courseId, userName});
                 if (userId && courseId) {
                     enrollUser(parseInt(userId), parseInt(courseId), userName);
                 } else {
-                    console.error('Missing data attributes on button:', this);
                 }
             });
         });

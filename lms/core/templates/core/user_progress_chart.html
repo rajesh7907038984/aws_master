@@ -69,19 +69,16 @@
 <script>
 // Initialize the user progress chart component
 (function() {
-    console.log('User progress chart initialization starting...');
     
     function initializeUserProgressChart() {
         // Check if Chart.js is available
         if (typeof Chart === 'undefined') {
-            console.log('Chart.js not ready for user progress chart, retrying in 100ms...');
             setTimeout(initializeUserProgressChart, 100);
             return;
         }
         
         // Check if UserProgressChart class is available
         if (typeof UserProgressChart === 'undefined') {
-            console.log('UserProgressChart class not ready, retrying in 100ms...');
             setTimeout(initializeUserProgressChart, 100);
             return;
         }
@@ -89,12 +86,10 @@
         // Check if canvas exists
         const canvas = document.getElementById('user-progress-chart');
         if (!canvas) {
-            console.log('User progress chart canvas not found, retrying in 100ms...');
             setTimeout(initializeUserProgressChart, 100);
             return;
         }
         
-        console.log('Initializing user progress chart...');
         
         // Get user progress data from Django template context
         const userProgressData = {% if enhanced_user_progress_json %}{{ enhanced_user_progress_json|safe }}{% else %}[]{% endif %};
@@ -103,7 +98,6 @@
         if (typeof UserProgressChart.create === 'function') {
             window.userProgressChart = UserProgressChart.create('user-progress-chart', userProgressData);
         } else {
-            console.error('UserProgressChart.create method not found');
         }
     }
     

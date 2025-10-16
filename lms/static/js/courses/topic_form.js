@@ -4,9 +4,7 @@ window.onload = function() {
         Quill.register({
             'modules/better-table': QuillBetterTable
         }, true);
-        console.log('QuillBetterTable module registered');
     } else {
-        console.warn('Quill or QuillBetterTable not loaded yet');
     }
 };
 
@@ -34,7 +32,6 @@ document.addEventListener('DOMContentLoaded', function() {
         const pageHeader = document.querySelector('h1');
         const isCreateHeader = pageHeader && (pageHeader.textContent.includes('Create') || pageHeader.textContent.includes('Add'));
         
-        console.log('Create mode detection:', {
             hasTopicId: hasTopicId,
             isCreateURL: isCreateURL,
             isCreateAction: isCreateAction,
@@ -54,7 +51,6 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // For create mode, ensure clean form especially for title field
     if (isCreateMode) {
-        console.log('CREATE MODE DETECTED - Ensuring clean form with blank title field');
         
         // Only clear localStorage if the form is truly empty (no user input yet)
         const titleField = document.querySelector('input[name="title"], #topic_title');
@@ -75,15 +71,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 keysToRemove.forEach(key => localStorage.removeItem(key));
                 
-                console.log('Cleared localStorage entries for clean form:', keysToRemove);
             } catch (e) {
-                console.warn('Could not clear saved form data:', e);
             }
             
             // Only clear fields if no user input detected
             if (titleField && !titleField.value.trim()) {
                 titleField.value = '';
-                console.log('Title field cleared for new topic creation');
             }
             
             // Clear other key fields that users expect to be blank for new topics
@@ -98,16 +91,13 @@ document.addEventListener('DOMContentLoaded', function() {
                     const textEditor = tinyMCE.get('id_text_content');
                     if (textEditor && !textEditor.getContent().trim()) {
                         textEditor.setContent('');
-                        console.log('TinyMCE text content cleared for new topic');
                     }
                 }
             }, 1000);
         } else {
-            console.log('User input detected - preserving form data');
         }
         
     } else {
-        console.log('EDIT MODE DETECTED - Loading saved form data if available');
         // Load saved form data if available (only for edit mode)
         if (topicForm) {
             loadSavedFormData(formId);
@@ -160,7 +150,6 @@ document.addEventListener('DOMContentLoaded', function() {
             // Restore title field value if it was cleared
             if (titleField && titleValue && !titleField.value) {
                 titleField.value = titleValue;
-                console.log('Restored title field value after content type change');
             }
             
             // Save form data when content type changes
@@ -177,10 +166,8 @@ document.addEventListener('DOMContentLoaded', function() {
         if (instructionsField) {
             if (hideInstructionsTypes.includes(selectedType)) {
                 instructionsField.style.display = 'none';
-                console.log('Hiding Instructions field for content type:', selectedType);
             } else {
                 instructionsField.style.display = 'block';
-                console.log('Showing Instructions field for content type:', selectedType);
             }
         }
         
@@ -203,14 +190,12 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // Special handling for text content
             if (selectedType === 'text') {
-                console.log('Text content type selected');
                 // Ensure TinyMCE is properly initialized for text content
                 setTimeout(function() {
                     const textArea = selectedField.querySelector('textarea');
                     if (textArea && typeof tinymce !== 'undefined') {
                         const editorId = textArea.id || 'id_text_content';
                         if (tinymce.get(editorId)) {
-                            console.log('TinyMCE already initialized for:', editorId);
                             // Make sure the editor container is visible
                             const editorContainer = tinymce.get(editorId).getContainer();
                             if (editorContainer) {
@@ -219,7 +204,6 @@ document.addEventListener('DOMContentLoaded', function() {
                                 editorContainer.style.opacity = '1';
                             }
                         } else {
-                            console.log('Initializing TinyMCE for text content field...');
                             // Initialize TinyMCE if not already done
                             if (typeof window.TinyMCEWidget !== 'undefined' && window.TinyMCEWidget.initialize) {
                                 window.TinyMCEWidget.initialize(textArea);
@@ -230,7 +214,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             // Log for debugging
-            console.log(`Showing ${selectedType} content field`);
         }
         
         // Hide/show quiz, assignment, conference, discussion dropdowns
@@ -278,7 +261,6 @@ document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('input[name="content_type"]').forEach(radio => {
         radio.addEventListener('change', function() {
             if (this.checked) {
-                console.log('Content type changed to:', this.value);
                 toggleContentFields(this.value.toLowerCase());
             }
         });
@@ -287,7 +269,6 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initial setup - show the correct field if a content type is already selected
     const selectedContentType = document.querySelector('input[name="content_type"]:checked');
     if (selectedContentType) {
-        console.log('Initial content type:', selectedContentType.value);
         toggleContentFields(selectedContentType.value.toLowerCase());
     }
 
@@ -297,15 +278,11 @@ document.addEventListener('DOMContentLoaded', function() {
     const webRadio = document.querySelector('input[name="content_type"][value="Web"]') || 
                      document.querySelector('input[name="content_type"][value="web"]');
     if (webRadio) {
-        console.log('Web radio button found:', webRadio);
         webRadio.addEventListener('change', function() {
             if (this.checked) {
-                console.log('Web content type selected!');
                 const webContentDiv = document.getElementById('web-content');
                 const webUrlField = document.querySelector('[name="web_url"]');
                 
-                console.log('Web content div:', webContentDiv);
-                console.log('Web URL field:', webUrlField);
                 
                 if (webContentDiv) {
                     // Remove all possible hiding mechanisms
@@ -320,12 +297,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 if (webUrlField) {
                     webUrlField.focus();
-                    console.log('Web URL field focused');
                 }
             }
         });
     } else {
-        console.error('Web radio button not found!');
     }
 
     // Handle endless access checkbox
@@ -508,7 +483,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 })
                 .catch(error => {
-                    console.error('Error creating section:', error);
                     displayGlobalError('Error creating section. Please try again.');
                 });
             } else {
@@ -671,7 +645,6 @@ document.addEventListener('DOMContentLoaded', function() {
                         const textEditor = tinyMCE.get('id_text_content');
                         if (textEditor) {
                             const content = textEditor.getContent();
-                            console.log('TinyMCE content:', content);
                             formData.set('text_content', content);
                         }
                     }
@@ -773,7 +746,6 @@ document.addEventListener('DOMContentLoaded', function() {
                         } catch (e) {
                             // If response isn't JSON, likely a 500 error
                             displayGlobalError('Unable to save topic. Please check your input and try again, or contact support if the problem persists.');
-                            console.error('Error parsing response:', e);
                         }
                     });
                     
@@ -886,7 +858,6 @@ document.addEventListener('DOMContentLoaded', function() {
         try {
             localStorage.setItem('topicForm_' + formId, JSON.stringify(formData));
         } catch (e) {
-            console.warn('Could not save form data to localStorage:', e);
         }
     }
     
@@ -913,8 +884,6 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // For create operations, absolutely ensure clean form - users expect fresh forms for new topics
         if (isCreateMode) {
-            console.log('FAILSAFE: Create mode detected in loadSavedFormData - ensuring clean form without prefilled data');
-            console.log('Detection details:', {
                 hasTopicId: hasTopicId,
                 isCreatePage: isCreatePage,
                 isCreateAction: isCreateAction,
@@ -937,19 +906,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 keysToRemove.forEach(key => localStorage.removeItem(key));
                 
-                console.log('FAILSAFE: Cleared localStorage entries for clean form:', keysToRemove);
                 
             } catch (e) {
-                console.warn('Could not clear saved form data:', e);
             }
             
             // Only clear title field if it's empty (preserve user input)
             const titleField = document.querySelector('input[name="title"], #topic_title');
             if (titleField && !titleField.value.trim()) {
                 titleField.value = '';
-                console.log('FAILSAFE: Title field cleared (was empty)');
             } else if (titleField && titleField.value.trim()) {
-                console.log('FAILSAFE: Preserving user input in title field');
             }
             
             return;
@@ -1005,9 +970,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 toggleContentFields(selectedType.toLowerCase());
             }
             
-            console.log('Edit mode detected - Form data restored from localStorage');
         } catch (e) {
-            console.warn('Could not load saved form data:', e);
         }
     }
     
@@ -1016,9 +979,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         try {
             localStorage.removeItem('topicForm_' + formId);
-            console.log('Saved form data cleared');
         } catch (e) {
-            console.warn('Could not clear saved form data:', e);
         }
     }
 
@@ -1034,11 +995,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (webUrlField) {
                     // Ensure the field is not disabled
                     webUrlField.disabled = false;
-                    console.log('Web URL field value on submit:', webUrlField.value);
                     
                     // If field has value but parent is hidden, create a hidden input
                     if (webUrlField.value.trim() && webContentDiv && window.getComputedStyle(webContentDiv).display === 'none') {
-                        console.log('Web content div appears hidden, creating backup field');
                         let hiddenInput = document.createElement('input');
                         hiddenInput.type = 'hidden';
                         hiddenInput.name = 'web_url';

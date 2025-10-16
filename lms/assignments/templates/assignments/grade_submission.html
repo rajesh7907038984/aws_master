@@ -2661,7 +2661,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const container = document.getElementById('mainGrid');
     
     if (!resizer || !leftColumn || !rightColumn || !container) {
-        console.log('Column resizer elements not found');
         return;
     }
     
@@ -2743,7 +2742,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Use existing TinyMCE widget system
     if (typeof window.TinyMCEWidget !== 'undefined' && window.TinyMCEWidget.initializeAll) {
-        console.log('Initializing TinyMCE using existing widget system');
         window.TinyMCEWidget.initializeAll();
     }
 
@@ -2809,20 +2807,13 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Alternative function to directly set final grade to match current Total Points value
     function setFinalGradeFromCurrentTotalPoints() {
-        console.log('Attempting to set Final Grade from Total Points');
-        console.log('finalGradeInput:', finalGradeInput);
-        console.log('totalPointsElement:', totalPointsElement);
         
         if (finalGradeInput && totalPointsElement) {
             // Get the current displayed Total Points value
             const currentTotalPoints = parseFloat(totalPointsElement.textContent) || 0;
-            console.log('Current Total Points text:', totalPointsElement.textContent);
-            console.log('Parsed Total Points:', currentTotalPoints);
             
             finalGradeInput.value = currentTotalPoints.toFixed(2);
-            console.log('Set Final Grade to:', currentTotalPoints);
         } else {
-            console.log('Missing elements - finalGradeInput or totalPointsElement not found');
         }
     }
     
@@ -2971,11 +2962,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const feedbackTabButtons = document.querySelectorAll('.feedback-tab-btn');
     const feedbackTabContents = document.querySelectorAll('.feedback-tab-content');
     
-    console.log('Found feedback tab buttons:', feedbackTabButtons.length);
-    console.log('Found feedback tab contents:', feedbackTabContents.length);
     
     function switchFeedbackTab(targetTab) {
-        console.log('Switching to tab:', targetTab);
         
         // Update button states
         feedbackTabButtons.forEach(btn => {
@@ -3019,7 +3007,6 @@ document.addEventListener('DOMContentLoaded', function() {
         btn.addEventListener('click', function(e) {
             e.preventDefault();
             const targetTab = this.dataset.tab;
-            console.log('Tab button clicked:', targetTab);
             switchFeedbackTab(targetTab);
         });
     });
@@ -3067,7 +3054,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     return;
                 }
                 
-                console.log('Audio file selected:', file.name, 'Size:', (file.size / 1024 / 1024).toFixed(2) + 'MB');
             }
         });
     }
@@ -3090,7 +3076,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     return;
                 }
                 
-                console.log('Video file selected:', file.name, 'Size:', (file.size / 1024 / 1024).toFixed(2) + 'MB');
             }
         });
     }
@@ -3183,11 +3168,6 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!mediaContainer || !pdfContainer) return;
         
         // Debug logging
-        console.log('=== PDF Viewer Debug Info ===');
-        console.log('Django view URL:', pdfUrl);
-        console.log('Submission ID suffix:', suffix);
-        console.log('Current origin:', window.location.origin);
-        console.log('=============================');
         
         // Hide other containers
         if (audioContainer) audioContainer.classList.add('hidden');
@@ -3210,7 +3190,6 @@ document.addEventListener('DOMContentLoaded', function() {
             const directViewer = document.getElementById('directPdfViewer' + suffix);
             if (directViewer) {
                 const embed = directViewer.querySelector('embed');
-                console.log('PDF viewer opened - embed src is:', embed ? embed.src : 'No embed found');
             }
         }
     };
@@ -3234,11 +3213,9 @@ document.addEventListener('DOMContentLoaded', function() {
             const googleViewerUrl = 'https://docs.google.com/viewer?url=' + encodeURIComponent(absoluteUrl) + '&embedded=true';
             document.getElementById('googleViewerFrame').src = googleViewerUrl;
             
-            console.log('Switched to Google Docs viewer');
         } else {
             googleViewer.classList.add('hidden');
             directViewer.classList.remove('hidden');
-            console.log('Switched to direct viewer');
         }
     };
     
@@ -3260,7 +3237,6 @@ document.addEventListener('DOMContentLoaded', function() {
         const googleViewerUrl = 'https://docs.google.com/viewer?url=' + encodeURIComponent(absoluteUrl) + '&embedded=true';
         document.getElementById('googleViewerFrame').src = googleViewerUrl;
         
-        console.log('Trying Google Docs viewer with URL:', googleViewerUrl);
     };
     
     window.showPDFError = function() {

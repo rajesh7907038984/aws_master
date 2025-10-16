@@ -56,7 +56,6 @@
             this.user = null;
             
             // Show logout message
-            console.log('User logging out...');
         },
         
         getUser: function() {

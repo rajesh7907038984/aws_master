@@ -1263,7 +1263,6 @@
 function initializeTinyMCE() {
     // Check if TinyMCE is available
     if (typeof tinymce === 'undefined') {
-        console.warn('TinyMCE is not available yet');
         return;
     }
     
@@ -1323,7 +1322,6 @@ function initializeTinyMCE() {
             browser_spellcheck: true,
             contextmenu: false
         }).catch(error => {
-            console.warn('Failed to initialize TinyMCE for textarea:', textarea.id, error);
         });
         
         textarea.setAttribute('data-tinymce-initialized', 'true');
@@ -1333,7 +1331,6 @@ function initializeTinyMCE() {
 // Initialize TinyMCE for a specific textarea (used for dynamic content)
 function initializeTinyMCEForTextarea(textarea) {
     if (typeof tinymce === 'undefined') {
-        console.warn('TinyMCE is not available yet');
         return;
     }
     
@@ -1389,7 +1386,6 @@ function initializeTinyMCEForTextarea(textarea) {
             });
         }
     }).catch(error => {
-        console.warn('Failed to initialize TinyMCE for textarea:', textarea.id, error);
     });
 }
 
@@ -1418,7 +1414,6 @@ document.addEventListener('DOMContentLoaded', function() {
             initAttempts++;
             setTimeout(tryInitialize, 100 * initAttempts); // Increasing delay
         } else {
-            console.error('TinyMCE failed to load after maximum attempts');
         }
     }
     
@@ -1432,7 +1427,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 try {
                     tinymce.triggerSave();
                 } catch (error) {
-                    console.warn('Error saving TinyMCE content:', error);
                 }
             }
         });
@@ -1511,7 +1505,6 @@ function autoRegisterAndJoin() {
         }
     })
     .catch(error => {
-        console.error('Error:', error);
         errorMessage.textContent = 'Network error. Please try again.';
         
         // Re-enable button
@@ -1643,7 +1636,6 @@ function switchFeedbackTab(attendanceId, tabType) {
                                     editor.focus();
                                 }, 200);
                             } catch (e) {
-                                console.warn('Error refreshing TinyMCE editor:', e);
                                 // Try to reinitialize if refresh fails
                                 tinymce.remove('#' + textarea.id);
                                 editor = null;
@@ -1864,7 +1856,6 @@ function syncConferenceData() {
         }
     })
     .catch(error => {
-        console.error('Error:', error);
         errorMessage.textContent = 'An error occurred while syncing data. Please try again.';
         
         // Re-enable button and restore original content

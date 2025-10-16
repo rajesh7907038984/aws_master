@@ -31,7 +31,6 @@ class CSRFTokenManager {
         }
 
         if (!this.token) {
-            console.warn('CSRF token not found. Some requests may fail.');
         }
     }
 
@@ -68,7 +67,6 @@ class CSRFTokenManager {
                 throw new Error('Failed to refresh CSRF token');
             }
         } catch (error) {
-            console.error('Error refreshing CSRF token:', error);
             throw error;
         }
     }
@@ -144,7 +142,6 @@ class CSRFTokenManager {
             
             return response.ok;
         } catch (error) {
-            console.error('Error validating CSRF token:', error);
             return false;
         }
     }
@@ -178,7 +175,6 @@ window.csrfFetch = async function(url, options = {}) {
         if (response.status === 403 && response.headers.get('content-type')?.includes('application/json')) {
             const errorData = await response.json();
             if (errorData.error_type === 'csrf_error') {
-                console.warn('CSRF token expired, attempting to refresh...');
                 try {
                     await window.CSRFManager.refreshToken();
                     // Retry the request with new token
@@ -187,7 +183,6 @@ window.csrfFetch = async function(url, options = {}) {
                     }
                     return await fetch(url, options);
                 } catch (refreshError) {
-                    console.error('Failed to refresh CSRF token:', refreshError);
                     throw new Error('Session expired. Please refresh the page.');
                 }
             }
@@ -195,7 +190,6 @@ window.csrfFetch = async function(url, options = {}) {
         
         return response;
     } catch (error) {
-        console.error('Fetch error:', error);
         throw error;
     }
 };

@@ -126,9 +126,13 @@ class ScoreCalculationService:
             return None
     
     @classmethod
+    def normalize_score(cls, score, total):
         """
+        Normalize a score to a 0-100 percentage
         
         Args:
+            score: The actual score achieved
+            total: The total possible score
             
         Returns:
             Normalized score or None
@@ -137,14 +141,17 @@ class ScoreCalculationService:
         score = None
         
         # Try scaled score first (0-1 range)
-            try:
-                # Convert to percentage (0-100)
-                score = scaled_score * 100
-            except (ValueError, TypeError) as e:
+        try:
+            # Convert to percentage (0-100)
+            score = scaled_score * 100
+        except (ValueError, TypeError) as e:
+            pass
         
         # Try raw score if scaled not available
-            try:
-            except (ValueError, TypeError) as e:
+        try:
+            pass
+        except (ValueError, TypeError) as e:
+            pass
         
         return cls.normalize_score(score)
     

@@ -19,7 +19,6 @@
                                 try {
                                     // Check if editor is properly initialized
                                     if (!editor.getContainer()) {
-                                        console.warn('TinyMCE container not found, attempting recovery');
                                         // Try to force editor into the DOM
                                         var editorElement = document.getElementById(editor.id);
                                         if (editorElement) {
@@ -29,7 +28,6 @@
                                         }
                                     }
                                 } catch (err) {
-                                    console.error('Error in TinyMCE init:', err);
                                 }
                             });
                             
@@ -44,7 +42,6 @@
                                         container.style.visibility = 'visible';
                                     }
                                 } catch (err) {
-                                    console.error('Error in TinyMCE resize:', err);
                                 }
                             });
                         };
@@ -60,7 +57,6 @@
                                 try {
                                     // Check if editor is properly initialized
                                     if (!editor.getContainer()) {
-                                        console.warn('TinyMCE container not found, attempting recovery');
                                         // Try to force editor into the DOM
                                         var editorElement = document.getElementById(editor.id);
                                         if (editorElement) {
@@ -70,7 +66,6 @@
                                         }
                                     }
                                 } catch (err) {
-                                    console.error('Error in TinyMCE init:', err);
                                 }
                             });
                         };
@@ -80,7 +75,6 @@
                     try {
                         tinymce.init(config);
                     } catch (err) {
-                        console.error('Error initializing TinyMCE:', err);
                         
                         // Fallback to basic initialization
                         setTimeout(function() {
@@ -95,7 +89,6 @@
                                     statusbar: false
                                 });
                             } catch (fallbackErr) {
-                                console.error('Failed to initialize fallback editor:', fallbackErr);
                                 // Show plain textarea as last resort
                                 var textarea = document.getElementById('{{ field_id }}');
                                 if (textarea) {

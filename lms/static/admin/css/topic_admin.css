@@ -684,7 +684,6 @@ if (contentType === 'Text') {
         const textarea = textField.querySelector('textarea');
         if (textarea) {
             // Use Quill Editor instead of CKEditor
-            console.log('Quill Editor should be used instead of CKEditor');
             // Initialize Quill if needed
         }
     }

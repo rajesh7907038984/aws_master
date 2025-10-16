@@ -614,9 +614,7 @@
             const applyFiltersBtn = document.getElementById('apply-filters');
             
             // Debug output - log all courses and their prices
-            console.log("Available courses:");
             document.querySelectorAll('.course-card').forEach(card => {
-                console.log(`Course: ${card.querySelector('.course-title').textContent.trim()}, Price: ${card.dataset.price}`);
             });
             
             applyFiltersBtn.addEventListener('click', function() {
@@ -624,7 +622,6 @@
                 const selectedInstructor = instructorFilter.value;
                 const selectedPrice = priceFilter.value;
                 
-                console.log(`Filtering - Category: ${selectedCategory}, Instructor: ${selectedInstructor}, Price: ${selectedPrice}`);
                 
                 const courseCards = document.querySelectorAll('.course-card');
                 
@@ -659,7 +656,6 @@
                         }
                     }
                     
-                    console.log(`Course: ${courseTitle}, Price: ${price}, Show: ${showCard}`);
                     
                     // Show or hide card
                     cardContainer.style.display = showCard ? 'block' : 'none';

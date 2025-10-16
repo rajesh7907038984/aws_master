@@ -96,7 +96,6 @@
     // Auto-retry after 5 seconds if it's a temporary connection issue
     setTimeout(function() {
         if (document.querySelector('[data-error-type="database_connection"]')) {
-            console.log('Auto-retrying database connection...');
             window.location.reload();
         }
     }, 5000);

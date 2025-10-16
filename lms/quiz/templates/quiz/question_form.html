@@ -409,8 +409,6 @@
 <script src="{% static 'tinymce_editor/js/tinymce-json-handler.js' %}"></script>
 <script src="{% static 'tinymce_editor/js/toolbar-fixer.js' %}"></script>
 <script>
-    console.log('=== Static files loading ===');
-    console.log('Question form JavaScript will load after TinyMCE...');
 </script>
 <script>
     // Initialize TinyMCE for question text
@@ -501,10 +499,8 @@
         
         // Debug logging for initialized data (only in development)
         if (false || false) {
-            console.log('Quiz data initialized successfully');
         }
     } catch (error) {
-        console.error('Error initializing quiz data:', error);
         // Fallback values
         window.options_json = [];
         window.correct_answers_json = [];
@@ -525,19 +521,15 @@
 <script src="{% static 'quiz/js/question_types/matching.js' %}" defer></script>
 <script src="{% static 'quiz/js/question_types/drag_drop_matching.js' %}" defer></script>
 <script>
-    console.log('=== Loading question form script ===');
-    console.log('About to load:', '{% static "quiz/js/question_form.js" %}');
 </script>
 <script src="{% static 'quiz/js/question_form.js' %}"></script>
 <script>
-    console.log('=== Question form script loaded ===');
     
     // Note: Question type handling is now managed by the main question_form.js script
     // This duplicate code has been removed to prevent conflicts
 
     // Fix for header display issues on quiz add question page
     document.addEventListener('DOMContentLoaded', function() {
-        console.log('=== Fixing header display issues ===');
         
         // Ensure header is visible
         const header = document.querySelector('header');
@@ -546,7 +538,6 @@
             header.style.visibility = 'visible';
             header.style.opacity = '1';
             header.style.zIndex = '50';
-            console.log('Header fixed');
         }
 
         // Search container responsive behavior is handled in header.html
@@ -576,14 +567,12 @@
                 span.style.opacity = '1';
             }
         });
-        console.log('Header icons fixed');
 
         // Ensure TinyMCE doesn't interfere with header
         const tinymceElements = document.querySelectorAll('.tox-tinymce, .tox-toolbar');
         tinymceElements.forEach(el => {
             el.style.zIndex = '10';
         });
-        console.log('TinyMCE z-index fixed');
     });
 </script>
 {% endblock %}

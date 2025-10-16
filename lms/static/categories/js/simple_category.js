@@ -3,17 +3,14 @@
  * This file provides basic category functionality needed by the Topic Section
  */
 
-console.log('Simple Category JS loaded');
 
 // Basic category management functions
 function initializeSimpleCategory() {
-    console.log('Initializing simple category functionality');
     
     // Handle category dropdown changes if present
     const categoryDropdowns = document.querySelectorAll('select[name*="category"], #id_category, .category-select');
     categoryDropdowns.forEach(dropdown => {
         dropdown.addEventListener('change', function() {
-            console.log('Category changed to:', this.value);
             // Basic change handler - can be extended if needed
         });
     });
@@ -23,12 +20,10 @@ function initializeSimpleCategory() {
     addCategoryButtons.forEach(button => {
         button.addEventListener('click', function(e) {
             e.preventDefault();
-            console.log('Add category button clicked');
             // Call modal function if available
             if (typeof showCategoryModal === 'function') {
                 showCategoryModal();
             } else {
-                console.warn('showCategoryModal function not available');
             }
         });
     });
@@ -56,7 +51,6 @@ function refreshCategoryDropdown(newCategoryData) {
 
 // Initialize on DOM ready
 document.addEventListener('DOMContentLoaded', function() {
-    console.log(' Simple category script initialized');
     initializeSimpleCategory();
 });
 

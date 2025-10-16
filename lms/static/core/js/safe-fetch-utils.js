@@ -21,7 +21,6 @@ async function safeJsonResponse(response) {
     if (!contentType || !contentType.includes('application/json')) {
         // Try to get text response for debugging
         const text = await response.text();
-        console.error('Non-JSON response received:', {
             status: response.status,
             statusText: response.statusText,
             contentType: contentType,
@@ -33,7 +32,6 @@ async function safeJsonResponse(response) {
     try {
         return await response.json();
     } catch (error) {
-        console.error('JSON parsing error:', error);
         throw new Error('Failed to parse JSON response from server');
     }
 }
@@ -56,7 +54,6 @@ async function safeFetch(url, options = {}) {
         
         return await safeJsonResponse(response);
     } catch (error) {
-        console.error('Safe fetch error:', error);
         throw error;
     }
 }
@@ -127,7 +124,6 @@ function getCSRFToken() {
         return metaToken.getAttribute('content');
     }
     
-    console.warn('CSRF token not found');
     return '';
 }
 

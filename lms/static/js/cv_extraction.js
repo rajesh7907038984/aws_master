@@ -43,7 +43,6 @@ document.addEventListener('DOMContentLoaded', function() {
     };
 
     if (!cvFileInput) {
-        console.log('CV file input not found on this page');
         return;
     }
 
@@ -65,7 +64,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Process the CV file
                 extractCVData(file);
             } else {
-                console.log('Non-PDF file selected, skipping CV extraction');
                 hideExtractionStatus();
             }
         } else {
@@ -125,16 +123,13 @@ document.addEventListener('DOMContentLoaded', function() {
             hideExtractionStatus();
             
             if (data.status === 'success' && data.data) {
-                console.log('CV data extracted successfully:', data.data);
                 populateFormFields(data.data);
                 showSuccessMessage('CV data extracted successfully!');
             } else {
-                console.error('CV extraction failed:', data.message || 'Unknown error');
                 showErrorMessage(data.message || 'Failed to extract CV data');
             }
         })
         .catch(error => {
-            console.error('Error extracting CV data:', error);
             hideExtractionStatus();
             showErrorMessage('An error occurred while extracting CV data');
         });
@@ -184,20 +179,17 @@ document.addEventListener('DOMContentLoaded', function() {
 
             // Handle education data (if there are education fields in the form)
             if (extractedData.education && extractedData.education.length > 0) {
-                console.log('Education data found:', extractedData.education);
                 // Education fields would be handled here if they exist in the form
                 // This could be extended based on the specific form structure
             }
 
             // Handle employment data (if there are employment fields in the form)
             if (extractedData.employment && extractedData.employment.length > 0) {
-                console.log('Employment data found:', extractedData.employment);
                 // Employment fields would be handled here if they exist in the form
                 // This could be extended based on the specific form structure
             }
 
         } catch (error) {
-            console.error('Error populating form fields:', error);
             showErrorMessage('Error populating form with extracted data');
         }
     }
@@ -271,5 +263,4 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 5000);
     }
 
-    console.log('CV extraction JavaScript initialized');
 });

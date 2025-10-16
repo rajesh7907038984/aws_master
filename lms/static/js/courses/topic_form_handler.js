@@ -76,7 +76,6 @@ document.addEventListener('DOMContentLoaded', function() {
     // Update content fields visibility
     function updateContentFields() {
         const selectedType = contentTypeSelect.value.toLowerCase();
-        console.log('Selected content type:', selectedType);
 
         // Hide all content fields first
         contentFields.forEach(field => {
@@ -86,24 +85,20 @@ document.addEventListener('DOMContentLoaded', function() {
         // Show the appropriate content field based on the selected type
         let fieldId = selectedType + '-content-field';
         
-        console.log('Looking for field with ID:', fieldId);
         const field = document.getElementById(fieldId);
         if (field) {
-            console.log('Found field, displaying it');
             field.style.display = 'block';
             field.style.visibility = 'visible';
             
             // If it's a file input, ensure it's properly visible
             const fileInput = field.querySelector('input[type="file"]');
             if (fileInput) {
-                console.log('Found file input, making it visible');
                 fileInput.style.display = 'block';
                 fileInput.style.visibility = 'visible';
                 fileInput.style.opacity = '1';
                 fileInput.style.position = 'static';
             }
         } else {
-            console.log('Field not found for ID:', fieldId);
         }
     }
 
@@ -153,7 +148,6 @@ document.addEventListener('DOMContentLoaded', function() {
                         // Get content from TinyMCE editor
                         const content = editor.getContent();
                         formData.set('text_content', content);
-                        console.log('Setting text_content with TinyMCE content');
                     }
                 }
             }
@@ -183,7 +177,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             })
             .catch(error => {
-                console.error('Error:', error);
                 alert('Error creating topic. Please try again.');
             });
         });

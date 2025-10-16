@@ -5,14 +5,12 @@
  */
 
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('Topic Handler: DOM Content Loaded');
     
     // Elements
     const topicList = document.getElementById('topic-list');
     const addTopicBtn = document.getElementById('add-topic-btn');
     
     if (!topicList) {
-        console.warn('Topic list element not found');
         return;
     }
     
@@ -30,7 +28,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    console.log('Topic Handler: Initialization completed');
 });
 
 /**
@@ -49,9 +46,7 @@ function initSortable() {
                 saveTopicOrder();
             }
         });
-        console.log('Sortable initialized for topic list');
     } else {
-        console.warn('Sortable library not available');
     }
 }
 
@@ -90,14 +85,12 @@ function saveTopicOrder() {
     })
     .then(data => {
         if (data.success) {
-            console.log('Topic order saved successfully');
             
             // Flash success notification if notification system exists
             if (typeof showNotification === 'function') {
                 showNotification('Topic order updated successfully', 'success');
             }
         } else {
-            console.error('Error saving topic order:', data.error);
             
             // Flash error notification if notification system exists
             if (typeof showNotification === 'function') {
@@ -106,7 +99,6 @@ function saveTopicOrder() {
         }
     })
     .catch(error => {
-        console.error('Error saving topic order:', error);
         
         // Flash error notification if notification system exists
         if (typeof showNotification === 'function') {
@@ -172,13 +164,11 @@ function deleteTopic(topicId) {
             return response.json();
         } else {
             // Handle non-JSON responses as errors
-            console.error('Received non-JSON response from topic delete endpoint');
             throw new Error('Invalid response format from server');
         }
     })
     .then(data => {
         if (data.success) {
-            console.log('Topic deleted successfully');
             
             // Remove topic from DOM
             const topicElement = document.querySelector(`.topic-item[data-topic-id="${topicId}"]`);
@@ -191,7 +181,6 @@ function deleteTopic(topicId) {
                 showNotification('Topic deleted successfully', 'success');
             }
         } else {
-            console.error('Error deleting topic:', data.error);
             
             // Flash error notification if notification system exists
             if (typeof showNotification === 'function') {
@@ -200,7 +189,6 @@ function deleteTopic(topicId) {
         }
     })
     .catch(error => {
-        console.error('Error deleting topic:', error);
         
         // Flash error notification if notification system exists
         if (typeof showNotification === 'function') {

@@ -5,7 +5,6 @@
  */
 
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('Topic Accordion Handler: Initialized');
     
     // Initialize the accordion state
     document.querySelectorAll('.section-content').forEach(content => {
@@ -14,7 +13,6 @@ document.addEventListener('DOMContentLoaded', function() {
             if (icon) {
                 icon.classList.add('rotate-180');
             }
-            console.log('Initialized open section:', content.closest('.section-container').querySelector('h3')?.textContent);
         }
     });
     
@@ -38,8 +36,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     icon.classList.remove('rotate-180');
                 }
                 
-                console.log('Section toggled:', this.querySelector('h3').textContent);
-                console.log('Section is now:', content.classList.contains('hidden') ? 'closed' : 'open');
                 
                 // Store state in localStorage for persistence
                 try {
@@ -60,10 +56,8 @@ document.addEventListener('DOMContentLoaded', function() {
                         localStorage.setItem('topicViewOpenSections', JSON.stringify(openSections));
                     }
                 } catch (storageError) {
-                    console.error('Error storing section state:', storageError);
                 }
             } catch (error) {
-                console.error('Error in section click handler:', error);
             }
         });
     });
@@ -86,6 +80,5 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     } catch (error) {
-        console.error('Error restoring section states:', error);
     }
 }); 

@@ -4,7 +4,6 @@
  */
 
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('Password validation script loaded');
     
     // Initialize password validation for all password forms
     initializePasswordValidation();

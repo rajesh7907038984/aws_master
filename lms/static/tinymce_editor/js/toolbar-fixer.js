@@ -6,12 +6,10 @@
 (function() {
     'use strict';
     
-    console.log('TinyMCE Toolbar Fixer loading...');
     
     // Wait for TinyMCE to load
     function checkTinyMCE() {
         if (typeof tinymce !== 'undefined') {
-            console.log('TinyMCE detected, setting up toolbar fixer');
             setupToolbarFixer();
         } else {
             setTimeout(checkTinyMCE, 100);
@@ -25,7 +23,6 @@
             const editor = e.editor;
             
             editor.on('init', function() {
-                console.log('Fixing toolbar for editor:', editor.id);
                 setTimeout(function() {
                     fixToolbar(editor);
                 }, 300);
@@ -109,7 +106,6 @@
             overflowButton.style.display = 'none';
         }
         
-        console.log('Toolbar fixed for editor:', editor.id);
         
         // Force editor to redraw
         editor.fire('ResizeEditor');

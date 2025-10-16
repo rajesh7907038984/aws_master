@@ -26,7 +26,6 @@
             this.setupResourceErrorHandling();
             this.setupRecoveryMechanisms();
             
-            console.log('Enhanced Error Boundary initialized');
         },
 
         // Setup global error handling
@@ -129,14 +128,12 @@
                 try {
                     strategy.call(this, errorInfo);
                 } catch (recoveryError) {
-                    console.warn('Recovery attempt failed:', recoveryError);
                 }
             }
         },
 
         // TinyMCE recovery strategy
         recoverTinyMCE: function(errorInfo) {
-            console.log('Attempting TinyMCE recovery...');
             
             // Wait for DOM to be ready
             if (document.readyState === 'loading') {
@@ -148,7 +145,6 @@
             
             // Check if TinyMCE is available
             if (typeof tinymce === 'undefined') {
-                console.log('TinyMCE not available, skipping recovery');
                 return;
             }
             
@@ -156,7 +152,6 @@
             const editors = tinymce.get();
             editors.forEach(editor => {
                 if (!editor.getContainer() || !editor.getBody()) {
-                    console.log('Recovering TinyMCE editor:', editor.id);
                     try {
                         editor.remove();
                         // Reinitialize with minimal config
@@ -171,7 +166,6 @@
                             statusbar: false
                         });
                     } catch (e) {
-                        console.warn('Failed to recover TinyMCE editor:', e);
                     }
                 }
             });
@@ -179,7 +173,6 @@
 
         // Chart recovery strategy
         recoverCharts: function(errorInfo) {
-            console.log('Attempting chart recovery...');
             
             // Wait for chart services to be available
             setTimeout(() => {
@@ -187,7 +180,6 @@
                     try {
                         window.chartInitializer.initializeCharts();
                     } catch (e) {
-                        console.warn('Chart recovery failed:', e);
                     }
                 }
             }, 1000);
@@ -195,17 +187,14 @@
 
         // Network recovery strategy
         recoverNetwork: function(errorInfo) {
-            console.log('Attempting network recovery...');
             
             // Retry failed requests after a delay
             setTimeout(() => {
                 // Trigger a page refresh for critical network failures
                 if (errorInfo.message.includes('critical') || errorInfo.message.includes('auth')) {
-                    console.log('Critical network error detected, considering page refresh');
                     // Only refresh if multiple network errors occur
                     const networkErrors = this.errors.filter(e => e.category === 'Network');
                     if (networkErrors.length > 3) {
-                        console.log('Multiple network errors, refreshing page...');
                         window.location.reload();
                     }
                 }
@@ -214,14 +203,12 @@
 
         // DOM recovery strategy
         recoverDOM: function(errorInfo) {
-            console.log('Attempting DOM recovery...');
             
             // Try to reinitialize critical DOM elements
             const criticalElements = ['#sidebar', '#main-content', 'header'];
             criticalElements.forEach(selector => {
                 const element = document.querySelector(selector);
                 if (!element) {
-                    console.log('Critical DOM element missing:', selector);
                     // Could trigger a page refresh for critical DOM issues
                 }
             });
@@ -232,11 +219,9 @@
             const isCritical = this.isCriticalError(errorInfo, category);
             
             if (isCritical) {
-                console.error('Critical Error:', errorInfo);
                 // Could show user notification for critical errors
                 this.showUserNotification('A critical error occurred. Please refresh the page.', 'error');
             } else {
-                console.warn('Non-critical Error:', errorInfo);
             }
         },
 
@@ -297,7 +282,6 @@
             });
             
             if (recentErrors.length > 10) {
-                console.warn('High error rate detected:', recentErrors.length, 'errors in the last minute');
                 // Could implement circuit breaker pattern here
             }
         },
@@ -335,7 +319,6 @@
         // Clear errors
         clearErrors: function() {
             this.errors = [];
-            console.log('Error history cleared');
         }
     };
 
@@ -351,5 +334,4 @@
     // Make available globally
     window.ErrorBoundary = ErrorBoundary;
 
-    console.log('Enhanced Error Boundary system loaded');
 })();

@@ -22,7 +22,6 @@ class ChartInitializer {
     async initializeCharts() {
         if (this.initialized) return;
         
-        console.log('Chart initializer starting...');
         
         try {
             // Wait for unified service to be available
@@ -35,10 +34,8 @@ class ChartInitializer {
             await this.initializeCoursesCharts();
             
             this.initialized = true;
-            console.log('Chart initializer completed successfully');
             
         } catch (error) {
-            console.error('Chart initializer failed:', error);
             this.initializeFallbackCharts();
         }
     }
@@ -62,7 +59,6 @@ class ChartInitializer {
             if (this.charts.has(canvasId)) continue;
             
             try {
-                console.log(`Initializing activity chart: ${canvasId}`);
                 
                 // Get endpoint from data attributes or use default
                 const apiEndpoint = canvas.dataset.apiEndpoint || '/users/api/dashboard-activity-data/';
@@ -79,7 +75,6 @@ class ChartInitializer {
                 }
                 
             } catch (error) {
-                console.error(`Failed to initialize activity chart ${canvasId}:`, error);
             }
         }
     }
@@ -92,7 +87,6 @@ class ChartInitializer {
             if (this.charts.has(canvasId)) continue;
             
             try {
-                console.log(`Initializing courses chart: ${canvasId}`);
                 
                 // Get data from data attributes
                 const data = canvas.dataset.chartData ? 
@@ -107,18 +101,15 @@ class ChartInitializer {
                 }
                 
             } catch (error) {
-                console.error(`Failed to initialize courses chart ${canvasId}:`, error);
             }
         }
     }
 
     // Period selector removed - activity chart now shows month data only
     setupPeriodSelector(canvasId) {
-        console.log(`Period selector setup skipped for ${canvasId} - using fixed month period`);
     }
 
     initializeFallbackCharts() {
-        console.log('Initializing fallback charts...');
         
         // Try to use legacy chart components
         const activityCanvases = document.querySelectorAll('canvas[id*="activity-chart"]');
@@ -132,7 +123,6 @@ class ChartInitializer {
                     });
                     this.charts.set(canvas.id, chartInstance);
                 } catch (error) {
-                    console.error('Fallback chart initialization failed:', error);
                 }
             }
         }

@@ -1434,7 +1434,6 @@ def assignment_detail(request, assignment_id):
                 # Not valid JSON, so wrap it in our JSON structure
                 field['content'] = json.dumps({"delta": {}, "html": field['content']})
             except Exception as e:
-                print(f"Error formatting field content: {e}")
                 field['content'] = json.dumps({"delta": {}, "html": ""})
 
     # Progress percentage not available without start_date field
@@ -1663,7 +1662,6 @@ def create_assignment(request, course_id=None):
                             print(f"Created question: {question.id}")
                     except (json.JSONDecodeError, KeyError, Exception) as e:
                         # Log the error but continue with assignment creation
-                        print(f"Error processing temporary questions: {e}")
                         import traceback
                         traceback.print_exc()
                 
@@ -1718,7 +1716,6 @@ def create_assignment(request, course_id=None):
                                 
                                 # Get content from field data - this is crucial for edit page display
                                 content_json = field_data.get('content', '{"delta":{},"html":""}')
-                                print(f"Field {i} content: {content_json[:100]}...")  # Log first 100 chars
                                 
                                 # Parse content JSON to store in the database
                                 content_data = None
@@ -1777,7 +1774,6 @@ def create_assignment(request, course_id=None):
                                     )
                                     print(f"Created field (after DoesNotExist): {field.id}")
                         except json.JSONDecodeError as e:
-                            print(f"JSON decode error: {e}")
                             print(f"Raw data: {text_fields}")
                             # Try a more flexible approach to parse the JSON
                             import re
@@ -1790,7 +1786,6 @@ def create_assignment(request, course_id=None):
                             )
                     except Exception as e:
                         # Log the error but continue with assignment creation
-                        print(f"Error processing text submission fields: {e}")
                         import traceback
                         traceback.print_exc()
                 
@@ -1838,7 +1833,7 @@ def create_assignment(request, course_id=None):
         else:
             print("Form is invalid. Errors:")
             for field, errors in form.errors.items():
-                print(f"Field: {field} - Errors: {errors}")
+                pass
             
             # More specific error messages
             if form.errors:
@@ -2066,7 +2061,6 @@ def edit_assignment(request, assignment_id):
                                 
                                 # Get content from field data - this is crucial for edit page display
                                 content_json = field_data.get('content', '{"delta":{},"html":""}')
-                                print(f"Field {i} content: {content_json[:100]}...")  # Log first 100 chars
                                 
                                 # Parse content JSON to store in the database
                                 content_data = None
@@ -2125,14 +2119,11 @@ def edit_assignment(request, assignment_id):
                                     )
                                     print(f"Created field (after DoesNotExist): {field.id}")
                         except json.JSONDecodeError as e:
-                            print(f"JSON decode error: {e}")
                             print(f"Raw data: {text_fields}")
                         except Exception as e:
-                            print(f"Error processing text submission fields: {e}")
                             import traceback
                             traceback.print_exc()
                     except Exception as e:
-                        print(f"Error processing text submission fields: {e}")
                         import traceback
                         traceback.print_exc()
                 
@@ -2172,7 +2163,7 @@ def edit_assignment(request, assignment_id):
         else:
             print("Form is invalid during edit. Errors:")
             for field, errors in form.errors.items():
-                print(f"Field: {field} - Errors: {errors}")
+                pass
             
             # More specific error messages
             if form.errors:

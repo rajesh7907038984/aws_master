@@ -2148,10 +2148,6 @@
         window.TOPIC_CREATE_URL_TEMPLATE = "{% url 'courses:topic_create' course_id=0 %}";
         
         // Cache busting for drag and drop fixes - 2025-01-26
-        console.log(' Course Edit Template Loaded - Drag & Drop Fixes Applied');
-        console.log(' Template Version: 2025-01-26-drag-drop-complete-fix');
-        console.log('⏰ Load Time:', new Date().toISOString());
-        console.log(' Features: Section Accordion + Cross-Section Topic Drag + Section Reorder');
         
         // Force template reload detection
         window.DRAG_DROP_FIXES_LOADED = true;
@@ -2169,7 +2165,6 @@
             
             // Initialize section accordion functionality
             function initializeSectionAccordion() {
-                console.log(' Initializing section accordion...');
                 
                 // Add click handlers to section toggle buttons
                 const sectionToggles = document.querySelectorAll('.section-toggle');
@@ -2194,18 +2189,15 @@
                             sectionTopics.style.display = 'block';
                             this.style.transform = 'rotate(0deg)';
                             sectionContainer.classList.remove('section-collapsed');
-                            console.log('Section expanded');
                         } else {
                             // Collapse section
                             sectionTopics.style.display = 'none';
                             this.style.transform = 'rotate(-90deg)';
                             sectionContainer.classList.add('section-collapsed');
-                            console.log('Section collapsed');
                         }
                     });
                 });
                 
-                console.log(' Section accordion initialized');
             }
             
             // Make section accordion function globally available
@@ -2213,26 +2205,21 @@
             
             // Initialize sections sortable functionality
             function initializeSectionsSortable() {
-                console.log(' Initializing sections sortable...');
                 
                 // Check if Sortable is available
                 if (typeof Sortable === 'undefined') {
-                    console.warn('Sortable library not available for sections');
                     return;
                 }
                 
                 // Find sections container
                 const sectionsContainer = document.getElementById('sections-container');
-                console.log('Sections container found:', sectionsContainer);
                 
                 if (!sectionsContainer) {
-                    console.warn('Sections container not found');
                     return;
                 }
                 
                 // Skip if already initialized
                 if (sectionsContainer.hasAttribute('data-sortable-initialized')) {
-                    console.log('Sections sortable already initialized');
                     return;
                 }
                 
@@ -2244,45 +2231,37 @@
                         dragClass: 'sortable-drag',
                         handle: '.section-drag-handle',
                         onStart: function(evt) {
-                            console.log('Section drag started');
                             document.body.classList.add('section-dragging-active');
                             evt.item.classList.add('is-dragging');
                             evt.item.setAttribute('data-drag-active', 'true');
                         },
                         onEnd: function(evt) {
-                            console.log('Section drag ended');
                             document.body.classList.remove('section-dragging-active');
                             evt.item.classList.remove('is-dragging');
                             evt.item.removeAttribute('data-drag-active');
                             
                             // Save new order if needed
                             if (evt.oldIndex !== evt.newIndex) {
-                                console.log('Section order changed:', evt.oldIndex, '->', evt.newIndex);
                                 saveSectionOrder();
                             }
                         }
                     });
                     
                     sectionsContainer.setAttribute('data-sortable-initialized', 'true');
-                    console.log(' Sections sortable initialized successfully');
                 } catch (error) {
-                    console.error('Error initializing sections sortable:', error);
                 }
             }
             
             // Initialize topics sortable functionality with cross-section support
             function initializeTopicsSortable() {
-                console.log(' Initializing topics sortable with cross-section support...');
                 
                 // Check if Sortable is available
                 if (typeof Sortable === 'undefined') {
-                    console.warn('Sortable library not available');
                     return;
                 }
                 
                 // Find all topic containers
                 const topicContainers = document.querySelectorAll('.topic-list, .topics-container, [data-sortable="true"]');
-                console.log('Found topic containers:', topicContainers.length);
                 
                 // Create a group for cross-section dragging
                 const sortableOptions = {
@@ -2293,7 +2272,6 @@
                     dragClass: 'sortable-drag',
                     handle: '.topic-drag-handle, .drag-handle',
                     onStart: function(evt) {
-                        console.log('Topic drag started');
                         document.body.classList.add('topic-dragging-active');
                         evt.item.classList.add('is-dragging');
                         evt.item.setAttribute('data-drag-active', 'true');
@@ -2304,7 +2282,6 @@
                         evt.item.setAttribute('data-original-section', originalSectionId);
                     },
                     onEnd: function(evt) {
-                        console.log('Topic drag ended');
                         document.body.classList.remove('topic-dragging-active');
                         evt.item.classList.remove('is-dragging');
                         evt.item.removeAttribute('data-drag-active');
@@ -2314,11 +2291,9 @@
                         const newContainer = evt.to;
                         const newSectionId = newContainer.getAttribute('data-section-id');
                         
-                        console.log('Topic moved from section', originalSectionId, 'to section', newSectionId);
                         
                         // Save the new order and section
                         if (originalSectionId !== newSectionId || evt.oldIndex !== evt.newIndex) {
-                            console.log('Topic order/section changed:', evt.oldIndex, '->', evt.newIndex);
                             saveTopicOrderWithSectionChange(evt.item, newContainer, originalSectionId, newSectionId);
                         }
                         
@@ -2336,28 +2311,22 @@
                     try {
                         new Sortable(container, sortableOptions);
                         container.setAttribute('data-sortable-initialized', 'true');
-                        console.log(' Sortable initialized for container:', container.getAttribute('data-section-id'));
                     } catch (error) {
-                        console.error('Error initializing sortable for container:', container, error);
                     }
                 });
                 
-                console.log(' Topics sortable with cross-section support initialized');
             }
             
             // Function to save section order
             async function saveSectionOrder() {
                 try {
-                    console.log(' Saving section order...');
                     const sectionsContainer = document.getElementById('sections-container');
                     const sectionItems = sectionsContainer.querySelectorAll('.section-item[data-id]');
                     const sectionOrders = [];
                     
-                    console.log('Found section items:', sectionItems.length);
                     
                     sectionItems.forEach((item, index) => {
                         const sectionId = item.getAttribute('data-id');
-                        console.log(`Section ${index}: ID=${sectionId}`);
                         if (sectionId && sectionId !== 'standalone') {
                             sectionOrders.push({
                                 section_id: parseInt(sectionId),
@@ -2367,14 +2336,11 @@
                     });
                     
                     if (sectionOrders.length === 0) {
-                        console.log('No sections to reorder');
                         return;
                     }
                     
-                    console.log('Saving section order:', sectionOrders);
                     
                     const csrfToken = getCSRFToken();
-                    console.log('CSRF token:', csrfToken ? 'Found' : 'Not found');
                     
                     const response = await fetch('/courses/api/sections/reorder/', {
                         method: 'POST',
@@ -2388,19 +2354,14 @@
                         })
                     });
                     
-                    console.log('Section reorder response status:', response.status);
                     const data = await response.json();
-                    console.log('Section reorder response data:', data);
                     
                     if (data.success) {
-                        console.log(' Section order saved successfully');
                         showNotification('Section order updated successfully', 'success');
                     } else {
-                        console.error(' Failed to save section order:', data.error);
                         showNotification('Failed to update section order: ' + data.error, 'error');
                     }
                 } catch (error) {
-                    console.error(' Error saving section order:', error);
                     showNotification('Error updating section order: ' + error.message, 'error');
                 }
             }
@@ -2408,12 +2369,9 @@
             // Function to save topic order with section change
             async function saveTopicOrderWithSectionChange(topicItem, newContainer, originalSectionId, newSectionId) {
                 try {
-                    console.log(' Saving topic order with section change...');
-                    console.log('Topic:', topicItem.dataset.topicId, 'from section:', originalSectionId, 'to section:', newSectionId);
                     
                     const topicId = topicItem.getAttribute('data-topic-id');
                     if (!topicId) {
-                        console.error('Topic ID not found');
                         return;
                     }
                     
@@ -2421,11 +2379,9 @@
                     const topicItems = newContainer.querySelectorAll('.topic-item[data-topic-id]');
                     const newOrder = Array.from(topicItems).indexOf(topicItem) + 1;
                     
-                    console.log('New order for topic:', newOrder);
                     
                     const csrfToken = getCSRFToken();
                     if (!csrfToken) {
-                        console.error('CSRF token not found');
                         showNotification('Security token not found. Please refresh the page.', 'error');
                         return;
                     }
@@ -2445,18 +2401,14 @@
                         })
                     });
                     
-                    console.log('Topic move response status:', response.status);
                     const data = await response.json();
-                    console.log('Topic move response data:', data);
                     
                     if (data.success) {
-                        console.log(' Topic moved successfully');
                         showNotification('Topic moved successfully', 'success');
                         
                         // Update the topic's data attributes
                         topicItem.setAttribute('data-section-id', newSectionId);
                     } else {
-                        console.error(' Failed to move topic:', data.error);
                         showNotification('Failed to move topic: ' + data.error, 'error');
                         
                         // Revert the move by moving the topic back
@@ -2466,7 +2418,6 @@
                         }
                     }
                 } catch (error) {
-                    console.error(' Error moving topic:', error);
                     showNotification('Error moving topic: ' + error.message, 'error');
                 }
             }
@@ -2474,16 +2425,13 @@
             // Function to save topic order
             async function saveTopicOrder(container) {
                 try {
-                    console.log(' Saving topic order...');
                     const sectionId = container.getAttribute('data-section-id');
                     const topicItems = container.querySelectorAll('.topic-item[data-topic-id]');
                     const topicOrders = [];
                     
-                    console.log('Found topic items:', topicItems.length, 'in section:', sectionId);
                     
                     topicItems.forEach((item, index) => {
                         const topicId = item.getAttribute('data-topic-id');
-                        console.log(`Topic ${index}: ID=${topicId}`);
                         if (topicId) {
                             topicOrders.push({
                                 topic_id: parseInt(topicId),
@@ -2493,14 +2441,11 @@
                     });
                     
                     if (topicOrders.length === 0) {
-                        console.log('No topics to reorder');
                         return;
                     }
                     
-                    console.log('Saving topic order for section:', sectionId, topicOrders);
                     
                     const csrfToken = getCSRFToken();
-                    console.log('CSRF token:', csrfToken ? 'Found' : 'Not found');
                     
                     const response = await fetch('/courses/api/topics/reorder/', {
                         method: 'POST',
@@ -2515,19 +2460,14 @@
                         })
                     });
                     
-                    console.log('Topic reorder response status:', response.status);
                     const data = await response.json();
-                    console.log('Topic reorder response data:', data);
                     
                     if (data.success) {
-                        console.log(' Topic order saved successfully');
                         showNotification('Topic order updated successfully', 'success');
                     } else {
-                        console.error(' Failed to save topic order:', data.error);
                         showNotification('Failed to update topic order: ' + data.error, 'error');
                     }
                 } catch (error) {
-                    console.error(' Error saving topic order:', error);
                     showNotification('Error updating topic order: ' + error.message, 'error');
                 }
             }
@@ -2582,10 +2522,8 @@
                     initializeSectionsSortable();
                     // Initialize topics sortable
                     initializeTopicsSortable();
-                    console.log(' Sortable initialization completed');
                 } else {
                     // Retry after a short delay
-                    console.log(' Containers not ready, retrying in 200ms...');
                     setTimeout(initializeSortableWhenReady, 200);
                 }
             }
@@ -2679,7 +2617,6 @@
                         })
                         .catch(error => {
                             // Handle network errors or other exceptions
-                            console.error('Error updating topic status:', error);
                             showTopicNotification('Error updating topic status: ' + error.message, 'error');
                             this.innerHTML = originalInnerHTML; // Restore original button
                         });
@@ -2724,7 +2661,6 @@
             // Create an AbortController for timeout handling
             const controller = new AbortController();
             const timeoutId = setTimeout(() => {
-                console.log('Request timeout - aborting...');
                 controller.abort();
             }, 15000); // 15 second timeout
             
@@ -2777,14 +2713,11 @@
                     try {
                         return JSON.parse(text);
                     } catch (jsonError) {
-                        console.error('JSON parsing error:', jsonError);
-                        console.error('Response text:', text.substring(0, 200) + '...');
                         throw new Error('Invalid JSON response from server');
                     }
                 });
             })
             .then(data => {
-                console.log('Response data:', data);
                 
                 if (data && data.success) {
                     // Update the section name in the DOM
@@ -2803,7 +2736,6 @@
                         errorMessage = 'Permission denied: You do not have permission to rename sections in this course. Please ensure you are the course instructor or have been granted edit permissions.';
                     }
                     
-                    console.error('Section rename failed:', data);
                     
                     showTopicNotification(errorMessage, 'error');
                 }
@@ -2811,12 +2743,6 @@
             .catch(error => {
                 removeLoadingIndicator();
                 
-                console.error('=== SECTION RENAME ERROR ===');
-                console.error('Full error details:', error);
-                console.error('Error name:', error.name);
-                console.error('Error message:', error.message);
-                console.error('Error stack:', error.stack);
-                console.error('============================');
                 
                 let errorMessage = 'Error renaming section: ';
                 
@@ -2832,7 +2758,6 @@
                     errorMessage += 'Unknown error occurred. Please try again.';
                 }
                 
-                console.error('Final error message:', errorMessage);
                 
                 showTopicNotification(errorMessage, 'error');
             });
@@ -2850,7 +2775,6 @@
         // Global error handler for section operations
         window.addEventListener('error', function(event) {
             if (event.error && event.error.message && event.error.message.includes('section')) {
-                console.error('Section-related error caught:', event.error);
                 showTopicNotification('A section operation error occurred. Please refresh the page and try again.', 'error');
             }
         });
@@ -2865,7 +2789,6 @@
             } else if (typeof renameSectionGlobal === 'function') {
                 renameSectionGlobal(sectionId, sectionName);
             } else {
-                console.error('Rename section function not available');
             }
         };
         
@@ -2876,7 +2799,6 @@
             if (typeof window.deleteSection === 'function') {
                 window.deleteSection(sectionId);
             } else {
-                console.error('Delete section function not available');
             }
         };
         
@@ -2885,7 +2807,6 @@
             try {
                 renameSection(sectionId, currentName);
             } catch (error) {
-                console.error('Error in global renameSection:', error);
                 showTopicNotification('Error renaming section. Please try again.', 'error');
             }
         };
@@ -2898,7 +2819,6 @@
         // Unified notification function for topic operations
         function showTopicNotification(message, type = 'info') {
             // Always show notifications - user feedback is important in all environments
-            console.log(`🔔 Showing notification: ${message} (${type})`);
             
             // Check if we're in development/localhost
             const isDevelopment = false || 
@@ -2908,7 +2828,6 @@
             
             if (isDevelopment) {
                 // In development, use alert as fallback to ensure user sees the message
-                console.log(`[DEV] Using alert for notification: ${message} (${type})`);
                 alert(`${type.toUpperCase()}: ${message}`);
                 return;
             }
@@ -2927,7 +2846,6 @@
                     try {
                         notification.remove();
                     } catch (e) {
-                        console.warn('Error removing existing notification:', e);
                     }
                 }
             });
@@ -2936,15 +2854,12 @@
             if (typeof window.showNotification === 'function') {
                 try {
                     window.showNotification(message, type, 4000);
-                    console.log(`Showing unified notification: ${message} (${type})`);
                     return;
                 } catch (error) {
-                    console.warn('Unified notification system failed, using fallback:', error);
                 }
             }
             
             // Fallback to creating our own notification
-            console.log(`Showing fallback notification: ${message} (${type})`);
             const notification = document.createElement('div');
             notification.className = `topic-notification fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 max-w-md transition-all duration-300 ${
                 type === 'success' ? 'bg-green-500' :
@@ -4033,6 +3948,7 @@
                                                             </span>
                                                             <!-- Topic type icon -->
                                                             <span class="content-type-icon content-type-{{ topic.content_type|lower }} mr-2 h-5 w-5 flex-shrink-0">
+                                                                {% if topic.content_type == 'Image' %}
                                                                     <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
                                                                         <path d="M4 6h16v12H4V6zm2 2v8h12V8H6zm5 2h2v4h-2v-4z"/>
                                                                     </svg>
@@ -4080,7 +3996,7 @@
                                                                     <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
                                                                         <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14h-2V9h-2V7h4v10z"/>
                                                                     </svg>
-                                        {% endif %}
+                                                                {% endif %}
                                                             </span>
                                                             <span class="text-sm truncate max-w-[150px] inline-block" title="{{ topic.title }}">{{ topic.title }}</span>
                                                             <!-- Dot indicator -->
@@ -4166,6 +4082,7 @@
                                                             </span>
                                                             <!-- Topic type icon -->
                                                             <span class="content-type-icon content-type-{{ topic.content_type|lower }} mr-2 h-5 w-5 flex-shrink-0">
+                                                                {% if topic.content_type == 'Image' %}
                                                                     <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
                                                                         <path d="M4 6h16v12H4V6zm2 2v8h12V8H6zm5 2h2v4h-2v-4z"/>
                                                                     </svg>
@@ -4406,7 +4323,6 @@ document.addEventListener('DOMContentLoaded', function() {
         if (descriptionEditor.textContent === '{' || 
             descriptionEditor.innerHTML === '{' || 
             descriptionEditor.innerHTML === '<p>{</p>') {
-            console.log('Fixing single bracket issue');
             descriptionEditor.innerHTML = '<br>';
             
             // Also fix the hidden input if it just contains a bracket
@@ -4422,7 +4338,6 @@ document.addEventListener('DOMContentLoaded', function() {
     // Function to update character and word counts
     function updateTextStats() {
         if (!descriptionEditor || !characterCountElement || !wordCountElement) {
-            console.warn('updateTextStats: One or more required elements not found');
             return;
         }
         
@@ -4441,9 +4356,7 @@ document.addEventListener('DOMContentLoaded', function() {
             wordCountElement.textContent = wordCount;
             
             // Debug log for text stats
-            console.log(`Text stats updated: ${charCount} chars, ${wordCount} words`);
         } catch (error) {
-            console.error('Error updating text stats:', error);
         }
     }
     
@@ -4456,7 +4369,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 try {
                     contentObj = JSON.parse(hiddenInput.value);
                 } catch (parseError) {
-                    console.warn('Failed to parse description JSON, using fallback:', parseError);
                     // Try to extract HTML from a string that looks like a JSON but isn't valid
                     const htmlMatch = hiddenInput.value.match(/"html":"(.*?)"/s);
                     if (htmlMatch && htmlMatch[1]) {
@@ -4498,11 +4410,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Also update the stats directly
                 updateTextStats();
                 
-                console.log('Editor initialized with content:', 
                     html.substring(0, 50) + (html.length > 50 ? '...' : ''));
             }
         } catch (e) {
-            console.error('Error setting initial editor content:', e);
             // Provide a fallback when JSON parsing fails
             descriptionEditor.innerHTML = '<br>';
             hiddenInput.value = JSON.stringify({
@@ -4535,13 +4445,11 @@ document.addEventListener('DOMContentLoaded', function() {
             updateTextStats();
             updateActiveFormatButton();
             
-            console.log('Editor content updated:', html.substring(0, 50) + (html.length > 50 ? '...' : ''));
         });
         
         // Force an initial update of text stats
         setTimeout(function() {
             updateTextStats();
-            console.log('Initial text stats update triggered');
         }, 500);
         
         // Enhanced editor event handling
@@ -4616,7 +4524,6 @@ document.addEventListener('DOMContentLoaded', function() {
         function updateActiveFormatButton() {
             // Safety check - don't proceed if editor is not found
             if (!descriptionEditor) {
-                console.warn('Cannot update format buttons: editor not found');
                 return;
             }
             
@@ -4677,7 +4584,6 @@ document.addEventListener('DOMContentLoaded', function() {
                             const isActive = document.queryCommandState(command);
                             button.classList.toggle('active', isActive);
                         } catch (e) {
-                            console.warn(`Error checking state for ${command}:`, e);
                         }
                     }
                 }
@@ -4712,7 +4618,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 }
             } catch (error) {
-                console.error('Error updating format buttons:', error);
             }
         }
         
@@ -4734,7 +4639,6 @@ document.addEventListener('DOMContentLoaded', function() {
                             html = '<br>';
                         }
                     } catch (error) {
-                        console.error('Error parsing HTML on submit:', error);
                         html = '<br>';
                     }
                 } else {
@@ -4758,9 +4662,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     hiddenInput.value = JSON.stringify(jsonData);
                     
                     // Double-check the value was set correctly
-                    console.log('Form submission - description value:', hiddenInput.value);
                 } catch (error) {
-                    console.error('Error creating JSON data:', error);
                     // Fallback to simple JSON with just HTML
                     hiddenInput.value = JSON.stringify({
                         delta: {},
@@ -4816,7 +4718,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     .replace(/<p><\/p>/g, '<p><br></p>') // Empty paragraphs should have br
                     .replace(/<([a-z][a-z0-9]*)[^>]*?\/>/gi, '<$1></$1>'); // Fix self-closing tags
             } catch (error) {
-                console.error('Error in sanitizeHtml:', error);
                 // Return a safe fallback if parsing fails
                 return '<p>' + html.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</p>';
             }
@@ -4838,7 +4739,6 @@ document.addEventListener('DOMContentLoaded', function() {
                         sel.removeAllRanges();
                         sel.addRange(window._savedEditorRange);
                     } catch (e) {
-                        console.warn('Could not restore saved selection:', e);
                     }
                 }
                 
@@ -4880,7 +4780,6 @@ document.addEventListener('DOMContentLoaded', function() {
                         document.execCommand('formatBlock', false, '<' + format + '>');
                     }
                 } catch (e) {
-                    console.error('Error applying format:', e);
                 }
                 
                 // Restore selection if it was lost
@@ -4890,7 +4789,6 @@ document.addEventListener('DOMContentLoaded', function() {
                         newSel.removeAllRanges();
                         newSel.addRange(savedRange);
                     } catch (e) {
-                        console.error('Error restoring selection:', e);
                     }
                 }
                 
@@ -4928,7 +4826,6 @@ document.addEventListener('DOMContentLoaded', function() {
                         sel.removeAllRanges();
                         sel.addRange(window._savedEditorRange);
                     } catch (e) {
-                        console.warn('Could not restore saved selection:', e);
                     }
                 }
                 
@@ -5005,7 +4902,6 @@ document.addEventListener('DOMContentLoaded', function() {
                             descriptionEditor.style.fontFamily = ""; // Reset to default formatting
                             descriptionEditor.style.whiteSpace = "";
                         } catch (error) {
-                            console.error('Error parsing HTML:', error);
                             descriptionEditor.innerHTML = '<br>';
                         }
                         descriptionEditor.setAttribute('data-showing-html', 'false');
@@ -5039,7 +4935,6 @@ document.addEventListener('DOMContentLoaded', function() {
                             descriptionEditor.style.fontFamily = "monospace";
                             descriptionEditor.style.whiteSpace = "pre-wrap";
                         } catch (error) {
-                            console.error('Error switching to HTML view:', error);
                             descriptionEditor.textContent = descriptionEditor.innerHTML;
                         }
                         
@@ -5059,7 +4954,6 @@ document.addEventListener('DOMContentLoaded', function() {
                         });
                         updateTextStats();
                     } catch (error) {
-                        console.error('Error updating hidden input during view toggle:', error);
                     }
                 } else {
                     document.execCommand(command, false, null);
@@ -5083,7 +4977,6 @@ document.addEventListener('DOMContentLoaded', function() {
                             sel.removeAllRanges();
                             sel.addRange(savedRange);
                         } catch (e) {
-                            console.error('Error restoring selection:', e);
                         }
                     }
                 }
@@ -5131,29 +5024,22 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Check if Sortable is available
     if (typeof Sortable === 'undefined') {
-        console.error('Sortable library not loaded! Drag and drop will not work.');
     } else {
-        console.log('Sortable library available (version ' + Sortable.version + ')');
     }
     
     // Log information about topic elements to help debugging
     const topicItems = document.querySelectorAll('.topic-item');
-    console.log(`Found ${topicItems.length} topic items on page load`);
     
     // Additional debugging for topic loading
     const sectionTopics = document.querySelectorAll('.section-topics');
-    console.log(`Found ${sectionTopics.length} section topic containers`);
     
     sectionTopics.forEach((container, index) => {
         const topicsInSection = container.querySelectorAll('.topic-item');
-        console.log(`Section ${index}: ${topicsInSection.length} topics`);
         
         // Check if topics are being rendered
         if (topicsInSection.length === 0) {
-            console.warn(`Section ${index} has no topics - checking template rendering`);
             const sectionItem = container.closest('.section-item');
             const sectionId = sectionItem ? sectionItem.dataset.id : 'unknown';
-            console.log(`Section ID: ${sectionId}`);
         }
     });
     
@@ -5162,23 +5048,19 @@ document.addEventListener('DOMContentLoaded', function() {
         const dragHandle = item.querySelector('.drag-handle, .topic-drag-handle');
         
         if (!topicId) {
-            console.warn(`Topic item #${index} is missing ID attributes`);
         }
         
         if (!dragHandle) {
-            console.warn(`Topic item #${index} (ID: ${topicId}) is missing drag handle`);
         }
     });
     
     // Check section containers
-    console.log(`Found ${sectionTopics.length} section topic containers`);
     
     sectionTopics.forEach((container, index) => {
         const sectionItem = container.closest('.section-item');
         const sectionId = sectionItem ? sectionItem.dataset.id : null;
         
         if (!sectionId) {
-            console.warn(`Section container #${index} is missing section ID`);
         }
     });
 });
@@ -5191,7 +5073,6 @@ document.addEventListener('DOMContentLoaded', function() {
 (function() {
     'use strict';
     
-    console.log('Course Edit Page: Additional TinyMCE handling');
     
     // Wait for TinyMCE to load
     function waitForTinyMCE(callback, maxAttempts = 30) {
@@ -5201,12 +5082,10 @@ document.addEventListener('DOMContentLoaded', function() {
             attempts++;
             
             if (typeof tinymce !== 'undefined' && tinymce.init) {
-                console.log('TinyMCE available, proceeding with initialization');
                 callback();
             } else if (attempts < maxAttempts) {
                 setTimeout(checkTinyMCE, 100);
             } else {
-                console.error('TinyMCE failed to load after', maxAttempts, 'attempts');
                 // Try to load dynamically as fallback
                 loadTinyMCEDynamically(callback);
             }
@@ -5218,21 +5097,17 @@ document.addEventListener('DOMContentLoaded', function() {
     // Dynamic TinyMCE loading fallback
     function loadTinyMCEDynamically(callback) {
         if (document.querySelector('script[src*="tinymce.min.js"]')) {
-            console.log('TinyMCE script already exists, waiting for it to load');
             setTimeout(() => waitForTinyMCE(callback, 10), 500);
             return;
         }
         
-        console.log('Loading TinyMCE dynamically');
         const script = document.createElement('script');
         script.src = '{% static "tinymce_editor/tinymce/tinymce.min.js" %}';
         script.async = true;
         script.onload = function() {
-            console.log('TinyMCE loaded dynamically');
             setTimeout(() => callback(), 100);
         };
         script.onerror = function() {
-            console.error('Failed to load TinyMCE dynamically');
         };
         document.head.appendChild(script);
     }
@@ -5246,23 +5121,18 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize TinyMCE editors
     function initializeTinyMCEEditors() {
         if (tinymceInitialized) {
-            console.log('TinyMCE already initialized, skipping');
             return;
         }
         
-        console.log('Initializing TinyMCE editors');
         
         // Use TinyMCE widget system for course description field
         if (typeof window.TinyMCEWidget !== 'undefined' && window.TinyMCEWidget.initializeAll) {
-            console.log('Initializing TinyMCE widgets');
             window.TinyMCEWidget.initializeAll();
         }
         
         const textareas = document.querySelectorAll('textarea.tinymce-editor:not([data-tinymce-config])');
-        console.log('Found textareas for manual TinyMCE init:', textareas.length);
         
         if (textareas.length === 0) {
-            console.log('No textareas found for manual TinyMCE initialization');
             tinymceInitialized = true;
             initializeFormChangeDetection();
             return;
@@ -5271,7 +5141,6 @@ document.addEventListener('DOMContentLoaded', function() {
         textareas.forEach(function(textarea) {
             // Skip if already initialized
             if (textarea.classList.contains('tinymce-initialized')) {
-                console.log('Textarea already initialized:', textarea.id);
                 return;
             }
             
@@ -5280,7 +5149,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 textarea.id = 'tinymce-' + Math.random().toString(36).substr(2, 9);
             }
             
-            console.log('Initializing TinyMCE for:', textarea.id);
             
             // Mark as being initialized
             textarea.classList.add('tinymce-initialized');
@@ -5300,7 +5168,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 },
                 setup: function(editor) {
                     editor.on('init', function() {
-                        console.log('TinyMCE editor initialized:', editor.id);
                         
                         // Initialize form change detection once editors are ready
                         if (!formChangeDetectionActive) {
@@ -5325,7 +5192,6 @@ document.addEventListener('DOMContentLoaded', function() {
                                     const currentContent = editor.getContent();
                                     
                                     if (currentContent !== initialContent) {
-                                        console.log('TinyMCE editor content actually changed:', editor.id);
                                         if (typeof window.formHasUnsavedChanges !== 'undefined') {
                                             window.formHasUnsavedChanges = true;
                                         }
@@ -5333,7 +5199,6 @@ document.addEventListener('DOMContentLoaded', function() {
                                             window.markFormAsChanged();
                                         }
                                     } else {
-                                        console.log('TinyMCE editor event but no content change:', editor.id);
                                     }
                                 }
                             }, 100);
@@ -5348,15 +5213,12 @@ document.addEventListener('DOMContentLoaded', function() {
             try {
                 tinymce.init(config).then(function(editors) {
                     if (editors && editors.length > 0) {
-                        console.log('TinyMCE initialized successfully for:', textarea.id);
                     }
                 }).catch(function(error) {
-                    console.error('Failed to initialize TinyMCE for:', textarea.id, error);
                     // Remove the initialization flag so it can be retried
                     textarea.classList.remove('tinymce-initialized');
                 });
             } catch (error) {
-                console.error('Error calling tinymce.init for:', textarea.id, error);
                 textarea.classList.remove('tinymce-initialized');
             }
         });
@@ -5370,7 +5232,6 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
-        console.log('Initializing form change detection');
         formChangeDetectionActive = true;
         
         // This will be handled by the main course_edit.js file
@@ -5384,7 +5245,6 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Initialize when DOM is ready
     document.addEventListener('DOMContentLoaded', function() {
-        console.log('DOM loaded, waiting for TinyMCE');
         waitForTinyMCE(initializeTinyMCEEditors);
     });
     
@@ -5399,7 +5259,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 try {
                     editor.destroy();
                 } catch (e) {
-                    console.warn('Error destroying editor:', e);
                 }
             });
         }
@@ -5436,7 +5295,6 @@ document.addEventListener('DOMContentLoaded', function() {
             const currentStatus = button.getAttribute('data-status');
             
             if (!topicId) {
-                console.error('No topic ID found for toggle button');
                 return;
             }
             
@@ -5483,7 +5341,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                     
                     // Show success message
-                    console.log(`Topic status updated: ${data.message}`);
                     
                     // Optional: Show a temporary success indicator
                     const originalBg = button.style.backgroundColor;
@@ -5493,12 +5350,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     }, 1000);
                     
                 } else {
-                    console.error('Failed to toggle status:', data.error);
                     alert('Failed to update topic status: ' + (data.error || 'Unknown error'));
                 }
             })
             .catch(error => {
-                console.error('Error toggling topic status:', error);
                 alert('Error updating topic status. Please try again.');
             })
             .finally(() => {
@@ -5519,7 +5374,6 @@ document.addEventListener('DOMContentLoaded', function() {
             const topicTitle = button.getAttribute('data-topic-title');
             
             if (!topicId) {
-                console.error('No topic ID found for delete button');
                 return;
             }
             
@@ -5564,7 +5418,6 @@ document.addEventListener('DOMContentLoaded', function() {
                         
                         // Show success message to user
                         alert(`Topic "${topicTitle}" has been deleted successfully.`);
-                        console.log(`Topic "${topicTitle}" deleted successfully`);
                         
                     } else if (response.status === 403) {
                         throw new Error('Permission denied. You do not have permission to delete this topic.');
@@ -5575,7 +5428,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 })
                 .catch(error => {
-                    console.error('Error deleting topic:', error);
                     alert('Error deleting topic: ' + error.message);
                     
                     // Remove loading state
@@ -5775,7 +5627,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
 <!-- Category functionality removed as requested -->
 <script>
-console.log(' Add Category button has been removed - Template updated successfully');
 </script>
 
 {% endblock %}

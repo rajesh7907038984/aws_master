@@ -35,7 +35,6 @@ class ActiveTimeTracker {
     }
     
     init() {
-        console.log('ActiveTimeTracker: Initializing for attempt', this.attemptId);
         
         // Set up activity event listeners
         this.options.activityEvents.forEach(event => {
@@ -74,29 +73,24 @@ class ActiveTimeTracker {
         this.isPageVisible = !document.hidden;
         
         if (this.isPageVisible) {
-            console.log('ActiveTimeTracker: Page became visible');
             this.handlePageFocus();
         } else {
-            console.log('ActiveTimeTracker: Page became hidden');
             this.handlePageBlur();
         }
     }
     
     handlePageFocus() {
-        console.log('ActiveTimeTracker: Page gained focus');
         this.isPageVisible = true;
         this.startSession();
         this.sendFocusUpdate(true);
     }
     
     handlePageBlur() {
-        console.log('ActiveTimeTracker: Page lost focus');
         this.endSession();
         this.sendFocusUpdate(false);
     }
     
     handleBeforeUnload() {
-        console.log('ActiveTimeTracker: Page unloading, sending final update');
         this.endSession();
         this.sendPingUpdate(true); // Send synchronous final update
     }
@@ -106,7 +100,6 @@ class ActiveTimeTracker {
             this.isActive = true;
             this.sessionStartTime = Date.now();
             this.lastActivity = Date.now();
-            console.log('ActiveTimeTracker: Session started');
         }
     }
     
@@ -116,7 +109,6 @@ class ActiveTimeTracker {
             this.totalActiveTime += sessionDuration;
             this.isActive = false;
             this.sessionStartTime = null;
-            console.log('ActiveTimeTracker: Session ended, duration:', sessionDuration / 1000, 'seconds');
             
             // Send ping with accumulated time
             this.sendPingUpdate();
@@ -136,7 +128,6 @@ class ActiveTimeTracker {
             const timeSinceActivity = Date.now() - this.lastActivity;
             
             if (this.isActive && timeSinceActivity > this.options.idleThreshold) {
-                console.log('ActiveTimeTracker: User idle, ending session');
                 this.endSession();
             }
         }, 5000); // Check every 5 seconds
@@ -201,7 +192,6 @@ class ActiveTimeTracker {
             .then(response => {
                 if (!response.ok) {
                     if (response.status === 401) {
-                        console.warn('ActiveTimeTracker: Session expired, stopping tracker');
                         this.destroy();
                         // Optionally redirect to login or refresh page
                         if (this.options.onSessionExpired) {
@@ -215,18 +205,15 @@ class ActiveTimeTracker {
             })
             .then(result => {
                 if (result && result.success) {
-                    console.log('ActiveTimeTracker: Update successful', result);
                     
                     // Update UI if callback provided
                     if (this.options.onUpdate) {
                         this.options.onUpdate(result);
                     }
                 } else if (result) {
-                    console.error('ActiveTimeTracker: Update failed', result.error);
                     
                     // Handle specific error types
                     if (result.error_type === 'authentication_required') {
-                        console.warn('ActiveTimeTracker: Authentication required, stopping tracker');
                         this.destroy();
                         if (this.options.onSessionExpired) {
                             this.options.onSessionExpired();
@@ -235,11 +222,9 @@ class ActiveTimeTracker {
                 }
             })
             .catch(error => {
-                console.error('ActiveTimeTracker: Request failed', error);
                 
                 // Stop tracker on network errors to prevent spam
                 if (error.name === 'NetworkError' || error.message.includes('Failed to fetch')) {
-                    console.warn('ActiveTimeTracker: Network error detected, reducing ping frequency');
                     // Reduce ping frequency on network errors
                     if (this.pingTimer) {
                         clearInterval(this.pingTimer);
@@ -279,7 +264,6 @@ class ActiveTimeTracker {
     }
     
     destroy() {
-        console.log('ActiveTimeTracker: Destroying tracker');
         
         // End current session
         this.endSession();

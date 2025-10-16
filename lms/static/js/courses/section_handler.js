@@ -67,7 +67,6 @@ async function deleteSection(sectionId) {
                                 throw new Error('Failed to reorder sections');
                             }
                         } catch (error) {
-                            console.error('Error reordering sections:', error);
                         }
                     }
 
@@ -83,7 +82,6 @@ async function deleteSection(sectionId) {
             throw new Error(data.error || 'Failed to delete section');
         }
     } catch (error) {
-        console.error('Error:', error);
         alert(error.message || 'An error occurred while deleting the section. Please try again.');
         
         // Restore opacity if error
@@ -193,7 +191,6 @@ document.addEventListener('drop', async function(e) {
                 throw new Error(data.error || 'Failed to update section order');
             }
         } catch (error) {
-            console.error('Error:', error);
             alert(error.message || 'An error occurred while updating section order. Please try again.');
         }
     }

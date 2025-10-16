@@ -4,7 +4,6 @@
  */
 
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('Form tabs script loaded');
     
     // Handle tab state from URL parameters
     const urlParams = new URLSearchParams(window.location.search);
@@ -49,5 +48,4 @@ function openTab(evt, tabName) {
         }
     }
     
-    console.log('Switched to tab:', tabName);
 } 

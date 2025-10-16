@@ -1,10 +1,7 @@
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('topic_form_updated.js loaded - VERSION 1.8 (Updated with field visibility requirements)');
-    console.log('Current URL:', window.location.href);
     
     // Global error handler
     window.addEventListener('error', function(event) {
-        console.log('Global error caught:', event.error ? event.error.message : 'Unknown error');
         // Prevent the error from completely breaking the page functionality
         event.preventDefault();
         return true;
@@ -32,14 +29,12 @@ document.addEventListener('DOMContentLoaded', function() {
     var contentTypeRadios = document.querySelectorAll('input[name="content_type"]');
     var contentFields = document.querySelectorAll('.content-type-field');
     
-    console.log('DOM loaded. Checking for text content type selection.');
     
     // Check if text content type is selected on page load
     var textRadioSelected = document.querySelector('input[name="content_type"][value="Text"]:checked') || 
                            document.querySelector('input[name="content_type"][value="text"]:checked');
     
     if (textRadioSelected) {
-        console.log('Text content type is selected on page load. Will attempt to show content.');
         // Try multiple times with increasing delays to ensure it works
         setTimeout(forceTextContentVisibility, 100);
         setTimeout(forceTextContentVisibility, 500);
@@ -57,7 +52,6 @@ document.addEventListener('DOMContentLoaded', function() {
             var textContent = document.getElementById('text-content');
             
             if (textContent) {
-                console.log('Forcing text content field visibility');
                 
                 // Explicitly set inline styles to override any CSS rules
                 textContent.style.display = 'block';
@@ -156,7 +150,6 @@ document.addEventListener('DOMContentLoaded', function() {
                         }
                     }
                 } else {
-                    console.log('TinyMCE editor not found, reinitializing...');
                     
                     // If TinyMCE editor is not found, try to reinitialize it
                     if (typeof tinymce !== 'undefined') {
@@ -183,24 +176,18 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }
         } catch (error) {
-            console.error('Error in forceTextContentVisibility:', error);
         }
     }
     
     // Function to show/hide content fields
     function toggleContentFields(selectedType) {
         try {
-            console.log('=== toggleContentFields called ===');
-            console.log('Original selectedType:', selectedType);
             
             // Normalize selected type for consistency
             var normalizedType = selectedType.toLowerCase();
-            console.log('Normalized type:', normalizedType);
             
             // Define content types that should hide the Instructions field
             
-            console.log('hideInstructionsTypes:', hideInstructionsTypes);
-            console.log('Should hide instructions?', hideInstructionsTypes.indexOf(normalizedType) !== -1);
             
             // Handle Description field visibility - always show description field
             var descriptionField = document.querySelector('label[for*="description"]');
@@ -208,7 +195,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 var descriptionDiv = descriptionField.closest('div');
                 if (descriptionDiv) {
                     descriptionDiv.style.display = 'block';
-                    console.log('Showing Description field for content type:', normalizedType);
                 }
             }
             
@@ -221,10 +207,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (hideInstructionsTypes.indexOf(normalizedType) !== -1) {
                         // Hide instructions field
                         instructionsDiv.style.display = 'none';
-                        console.log('Hiding Instructions field for content type:', normalizedType);
                     } else {
                         instructionsDiv.style.display = 'block';
-                        console.log('Showing Instructions field for content type:', normalizedType);
                     }
                 }
             }
@@ -240,12 +224,10 @@ document.addEventListener('DOMContentLoaded', function() {
                         }
                     }
                 });
-                console.log('FALLBACK: Hiding instructions elements for:', normalizedType);
             }
             
             // Special case for Assignment - always force display
             if (selectedType && normalizedType === 'assignment') {
-                console.log('TOGGLE: Special handling for Assignment content type');
                 var assignmentField = document.getElementById('assignment-content');
                 if (assignmentField) {
                     // Force visibility with !important
@@ -263,7 +245,6 @@ document.addEventListener('DOMContentLoaded', function() {
                             var option = assignmentSelect.querySelector('option[value="' + assignmentIdField.value + '"]');
                             if (option) {
                                 option.selected = true;
-                                console.log('TOGGLE: Selected assignment option:', option.textContent);
                             }
                         }
                     }
@@ -272,7 +253,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }
             
-            console.log('Toggling content field for type:', selectedType, 'normalized to:', normalizedType);
             
             // Hide all content fields first
             if (contentFields && contentFields.length > 0) {
@@ -289,12 +269,10 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // Determine the correct field ID based on normalized type
             var fieldId = normalizedType + '-content';
-            console.log('Looking for field with ID:', fieldId);
             
             // Show only the selected content field
             var selectedField = document.getElementById(fieldId);
             if (selectedField) {
-                console.log('Found field, making it active');
                 selectedField.classList.add('active');
                 selectedField.style.display = 'block';
                 selectedField.style.visibility = 'visible';
@@ -302,15 +280,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 // Special handling for text content with TinyMCE editor
                 if (fieldId === 'text-content') {
-                    console.log('Text content selected, using enhanced visibility function');
                     // Use our enhanced function to ensure TinyMCE is fully visible
                     forceTextContentVisibility();
                 }
             } else {
-                console.warn('No content field found with ID:', fieldId);
             }
         } catch (error) {
-            console.error('Error in toggleContentFields:', error);
         }
     }
     
@@ -320,7 +295,6 @@ document.addEventListener('DOMContentLoaded', function() {
             var radio = contentTypeRadios[i];
             radio.addEventListener('change', function() {
                 if (this.checked) {
-                    console.log('Content type changed to:', this.value);
                     
                     // First clear any auto-filled content for the new content type
                     forceClearHiddenFields();
@@ -334,7 +308,6 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Function to force clear hidden fields
     function forceClearHiddenFields() {
-        console.log('Force clearing any hidden description/instruction fields to prevent auto-fill');
         
         // Always clear description and instruction fields for content types that shouldn't have them
         var hideBothTypes = ['text', 'quiz', 'assignment', 'conference', 'discussion'];
@@ -358,7 +331,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     input.value = '';
                 });
                 
-                console.log('Cleared description and instruction fields for:', normalizedType);
             } else if (showDescriptionOnlyTypes.indexOf(normalizedType) !== -1) {
                 // Clear only instruction fields for description-only types
                 var instructionInputs = document.querySelectorAll('textarea[name*="instructions"], input[name*="instructions"]');
@@ -366,7 +338,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     input.value = '';
                 });
                 
-                console.log('Cleared instruction fields for:', normalizedType);
             }
         }
     }
@@ -374,8 +345,6 @@ document.addEventListener('DOMContentLoaded', function() {
     // Check if there is a pre-selected content type
     var selectedContentType = document.querySelector('input[name="content_type"]:checked');
     if (selectedContentType) {
-        console.log('Content type already selected:', selectedContentType.value);
-        console.log('Calling toggleContentFields with:', selectedContentType.value);
         
         // First clear any auto-filled content
         forceClearHiddenFields();
@@ -383,12 +352,9 @@ document.addEventListener('DOMContentLoaded', function() {
         // Then apply field visibility rules
         toggleContentFields(selectedContentType.value);
     } else {
-        console.log('No content type pre-selected');
         // Check all content type radio buttons
         var allRadios = document.querySelectorAll('input[name="content_type"]');
-        console.log('Found content type radios:', allRadios.length);
         allRadios.forEach(function(radio, index) {
-            console.log('Radio', index + ':', radio.value, 'checked:', radio.checked);
         });
     }
     
@@ -452,7 +418,6 @@ document.addEventListener('DOMContentLoaded', function() {
     // Handle topic form submission and validation
     var topicForm = document.getElementById('topicForm');
     if (topicForm) {
-        console.log('Found topic form, setting up submission handler');
         
         topicForm.addEventListener('submit', function(event) {
             var isValid = true;
@@ -551,10 +516,6 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // Only restore localStorage data for edit operations, not for new topic creation
             if (!isEditMode || isCreatePage) {
-                console.log('Create mode detected (no topic_id or create URL) - not restoring localStorage data to ensure clean form');
-                console.log('Topic ID field:', topicIdField ? topicIdField.value : 'not found');
-                console.log('Current path:', currentPath);
-                console.log('Is create page:', isCreatePage);
                 
                 // Clear any existing localStorage data for create operations to prevent confusion
                 localStorage.removeItem(formKey);
@@ -569,7 +530,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 for (var j = 0; j < keysToRemove.length; j++) {
                     localStorage.removeItem(keysToRemove[j]);
                 }
-                console.log('Cleared localStorage entries:', keysToRemove);
                 return;
             }
             
@@ -578,7 +538,6 @@ document.addEventListener('DOMContentLoaded', function() {
             if (savedData) {
                 try {
                     var formData = JSON.parse(savedData);
-                    console.log('Edit mode detected - Form data restored from localStorage');
                     
                     // Apply the saved data to form fields
                     for (var fieldName in formData) {
@@ -608,7 +567,6 @@ document.addEventListener('DOMContentLoaded', function() {
                         }
                     }
                 } catch (error) {
-                    console.error('Error restoring form data:', error);
                 }
             }
         });
@@ -621,26 +579,21 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Extra check when window is fully loaded
     window.addEventListener('load', function() {
-        console.log('Window loaded - ensuring content types are properly displayed');
         
         // Handle content field visibility after load
         var selectedContentType = document.querySelector('input[name="content_type"]:checked');
         if (selectedContentType) {
-            console.log('Content type selected on page load:', selectedContentType.value);
             toggleContentFields(selectedContentType.value);
         } else {
-            console.log('No content type selected on page load');
         }
         
         // If this is an edit form for an existing topic, ensure content fields are visible
         var topicIdField = document.querySelector('input[name="topic_id"]');
         if (topicIdField && topicIdField.value) {
-            console.log('This is an edit form for existing topic ID:', topicIdField.value);
             
             // Special check for assignment content
             var assignmentIdField = document.querySelector('input[name="assignment_id"]');
             if (assignmentIdField && assignmentIdField.value) {
-                console.log('Found assignment ID:', assignmentIdField.value);
                 
                 var assignmentField = document.getElementById('assignment-content');
                 if (assignmentField) {
@@ -663,7 +616,6 @@ document.addEventListener('DOMContentLoaded', function() {
             // Special check for quiz content
             var quizIdField = document.querySelector('input[name="quiz_id"]');
             if (quizIdField && quizIdField.value) {
-                console.log('Found quiz ID:', quizIdField.value);
                 
                 var quizField = document.getElementById('quiz-content');
                 if (quizField) {

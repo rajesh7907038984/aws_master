@@ -336,7 +336,6 @@ let newAssessmentRowCounter = 1;
 
 // Ensure tab state is preserved when making updates in this tab
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('Assessment Data tab: JavaScript loaded');
     
     // Set tab state for form submission
     function updateTabState() {
@@ -346,7 +345,6 @@ document.addEventListener('DOMContentLoaded', function() {
             currentTabState.subTab = 'learning-profile-tab';
             currentTabState.nestedTab = 'assessment-data-tab';
             
-            console.log('Assessment Data tab: Setting tab state to:', currentTabState);
             
             // Update hidden form fields directly
             var activeTabField = document.getElementById('activeTabField');
@@ -397,7 +395,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Manual Assessment Table Management Functions
 function addManualAssessmentRow() {
-    console.log('Adding new manual assessment row');
     
     const tableBody = document.getElementById('manualAssessmentTableBody');
     const template = document.getElementById('new-assessment-row-template');
@@ -441,7 +438,6 @@ function addManualAssessmentRow() {
 }
 
 function removeNewAssessmentRow(button) {
-    console.log('Removing new assessment row');
     
     const row = button.closest('tr');
     if (row) {
@@ -459,7 +455,6 @@ function removeNewAssessmentRow(button) {
 }
 
 function removeManualAssessmentRow(entryId, subject) {
-    console.log('Removing manual assessment row with ID:', entryId, 'Subject:', subject);
     
     if (!confirm(`Are you sure you want to delete the manual assessment for "${subject}"?`)) {
         return;

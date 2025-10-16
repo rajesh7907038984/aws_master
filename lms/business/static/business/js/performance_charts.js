@@ -54,7 +54,6 @@ class PerformanceChartManager {
     createLineChart(canvasId, data, options = {}) {
         const ctx = document.getElementById(canvasId);
         if (!ctx) {
-            console.error(`Canvas with id '${canvasId}' not found`);
             return null;
         }
 
@@ -75,7 +74,6 @@ class PerformanceChartManager {
     createBarChart(canvasId, data, options = {}) {
         const ctx = document.getElementById(canvasId);
         if (!ctx) {
-            console.error(`Canvas with id '${canvasId}' not found`);
             return null;
         }
 
@@ -96,7 +94,6 @@ class PerformanceChartManager {
     createPieChart(canvasId, data, options = {}) {
         const ctx = document.getElementById(canvasId);
         if (!ctx) {
-            console.error(`Canvas with id '${canvasId}' not found`);
             return null;
         }
 
@@ -130,7 +127,6 @@ class PerformanceChartManager {
     createDoughnutChart(canvasId, data, options = {}) {
         const ctx = document.getElementById(canvasId);
         if (!ctx) {
-            console.error(`Canvas with id '${canvasId}' not found`);
             return null;
         }
 
@@ -168,7 +164,6 @@ class PerformanceChartManager {
             chart.data = newData;
             chart.update();
         } else {
-            console.error(`Chart with id '${canvasId}' not found`);
         }
     }
 
@@ -314,7 +309,6 @@ class PerformanceChartManager {
     updateProgressRing(elementId, percentage) {
         const element = document.getElementById(elementId);
         if (!element) {
-            console.error(`Element with id '${elementId}' not found`);
             return;
         }
 
@@ -332,7 +326,6 @@ class PerformanceChartManager {
     animateProgressRing(elementId, percentage, duration = 1000) {
         const element = document.getElementById(elementId);
         if (!element) {
-            console.error(`Element with id '${elementId}' not found`);
             return;
         }
 
@@ -382,7 +375,6 @@ class PerformanceChartManager {
                 chart = this.createDoughnutChart(canvasId, data, options);
                 break;
             default:
-                console.error(`Unknown chart type: ${chartType}`);
                 return null;
         }
         
@@ -401,7 +393,6 @@ class PerformanceChartManager {
             link.href = url;
             link.click();
         } else {
-            console.error(`Chart with id '${canvasId}' not found`);
         }
     }
 
@@ -425,7 +416,6 @@ class PerformanceChartManager {
             printWindow.document.close();
             printWindow.print();
         } else {
-            console.error(`Chart with id '${canvasId}' not found`);
         }
     }
 }

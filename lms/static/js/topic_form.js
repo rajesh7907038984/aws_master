@@ -5,7 +5,6 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Function to show/hide content type sections
     function updateContentTypeSections(selectedType) {
-        console.log('Updating content type sections for:', selectedType);
         
         // Normalize selected type (lowercase first)
         const normalizedType = selectedType.toLowerCase();
@@ -17,10 +16,8 @@ document.addEventListener('DOMContentLoaded', function() {
         if (instructionsField) {
             if (hideInstructionsTypes.includes(normalizedType)) {
                 instructionsField.style.display = 'none';
-                console.log('Hiding Instructions field for content type:', normalizedType);
             } else {
                 instructionsField.style.display = 'block';
-                console.log('Showing Instructions field for content type:', normalizedType);
             }
         }
         
@@ -34,14 +31,12 @@ document.addEventListener('DOMContentLoaded', function() {
         // Then show the selected content field
         const selectedField = document.getElementById(`${normalizedType}-content`);
         if (selectedField) {
-            console.log(`Showing content field for ${normalizedType}`);
             selectedField.style.display = 'block';
             selectedField.style.visibility = 'visible';
             selectedField.classList.add('active');
             
             // Special handling for assignment content
             if (normalizedType === 'assignment') {
-                console.log('Handling assignment content type specifically');
                 const assignmentSelect = selectedField.querySelector('select[name="assignment"]');
                 if (assignmentSelect) {
                     // Make sure it's visible
@@ -51,10 +46,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Check if there's a selected option
                     const selectedOption = assignmentSelect.querySelector('option:checked[value]:not([value=""])');
                     if (selectedOption) {
-                        console.log('Assignment already selected:', selectedOption.value);
                     }
                 } else {
-                    console.warn('Assignment select not found');
                 }
             }
             
@@ -67,7 +60,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             });
         } else {
-            console.warn(`Content field with ID ${normalizedType}-content not found`);
             
             // Fall back to legacy content sections
             contentTypeSections.forEach(section => {
@@ -195,7 +187,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     throw new Error(data.error || 'An error occurred while saving the topic');
                 }
             } catch (error) {
-                console.error('Error:', error);
                 alert('An error occurred while saving the topic. Please try again.');
             } finally {
                 // Reset button state
@@ -218,7 +209,6 @@ window.onload = function() {
     // Check for assignment content type
     const assignmentRadio = document.querySelector('input[name="content_type"][value="Assignment"]:checked');
     if (assignmentRadio) {
-        console.log('Assignment content type detected on window load');
         
         // Check if field is visible
         const assignmentField = document.getElementById('assignment-content');
@@ -228,7 +218,6 @@ window.onload = function() {
             assignmentField.style.visibility = 'visible';
             assignmentField.style.opacity = '1';
             assignmentField.classList.add('active');
-            console.log('Assignment field made visible on window load');
             
             // Also ensure assignment select is visible
             const assignmentSelect = assignmentField.querySelector('select[name="assignment"]');
@@ -244,7 +233,6 @@ window.onload = function() {
                     const option = assignmentSelect.querySelector(`option[value="${assignmentIdField.value}"]`);
                     if (option) {
                         option.selected = true;
-                        console.log('Selected assignment option from hidden field:', assignmentIdField.value);
                     }
                 }
             }
@@ -253,7 +241,6 @@ window.onload = function() {
     
     // Original code for Quill/BetterTable initialization
     if (typeof Quill === 'undefined' || typeof QuillBetterTable === 'undefined') {
-        console.log('Quill or QuillBetterTable not loaded yet');
         return;
     }
 }; 

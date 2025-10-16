@@ -49,9 +49,7 @@
             setupHoverTooltips();
             
             state.isInitialized = true;
-            console.log('Sidebar system initialized successfully');
         } catch (error) {
-            console.error('Error initializing sidebar system:', error);
             // Try to set up basic functionality even if full initialization fails
             setupBasicToggle();
         }
@@ -89,7 +87,6 @@
                 }
             });
             
-            console.log('Basic sidebar toggle functionality initialized');
         }
     }
 
@@ -122,7 +119,6 @@
             
             // Add new event listener
             elements.mobileMenuToggle.addEventListener('click', handleMobileMenuToggle);
-            console.log('Toggle button event listener added');
         }
         
         // Window resize handler
@@ -215,13 +211,10 @@
         e.preventDefault();
         e.stopPropagation();
         
-        console.log('Toggle button clicked, isMobile:', state.isMobile, 'window width:', window.innerWidth);
         
         if (state.isMobile) {
-            console.log('Mobile mode: toggling mobile menu');
             toggleMobileMenu();
         } else {
-            console.log('Desktop mode: toggling sidebar');
             toggleSidebar();
         }
     }
@@ -258,30 +251,23 @@
      */
     function toggleSidebar() {
         if (!elements.sidebar) {
-            console.error('Sidebar element not found');
             return;
         }
         
         if (state.isMobile) {
-            console.log('Toggle called on mobile, switching to mobile menu');
             toggleMobileMenu();
             return;
         }
         
-        console.log('Toggling sidebar, current state:', state.isCollapsed);
-        console.log('Sidebar element:', elements.sidebar);
-        console.log('Main content element:', elements.mainContent);
         
         state.isCollapsed = !state.isCollapsed;
         
         // Toggle collapsed class
         elements.sidebar.classList.toggle('collapsed');
-        console.log('Sidebar collapsed class toggled, now has collapsed:', elements.sidebar.classList.contains('collapsed'));
         
         // Update main content
         if (elements.mainContent) {
             elements.mainContent.classList.toggle('sidebar-collapsed');
-            console.log('Main content sidebar-collapsed class toggled, now has sidebar-collapsed:', elements.mainContent.classList.contains('sidebar-collapsed'));
         }
         
         // If collapsing, close all submenus
@@ -291,7 +277,6 @@
         
         // Store state in localStorage
         localStorage.setItem(CONFIG.storage.collapsedKey, state.isCollapsed);
-        console.log('Sidebar state saved to localStorage:', state.isCollapsed);
         
         // Hide tooltip when toggling
         hideHoverTooltip();
@@ -299,7 +284,6 @@
         // Reinitialize hover tooltips based on new state
         setTimeout(() => {
             setupHoverTooltips();
-            console.log('Sidebar toggled successfully. Collapsed:', state.isCollapsed);
         }, 150);
         
         // Force a reflow to ensure changes are applied
@@ -330,14 +314,12 @@
     function setupSubmenuToggles() {
         if (!elements.sidebar) return;
         
-        console.log(' Setting up submenu toggles...');
         
         // Remove existing event listeners and reinitialize
         document.querySelectorAll('.menu-item.has-submenu, [data-submenu]').forEach(button => {
             const submenuId = button.getAttribute('data-submenu');
             if (!submenuId) return;
             
-            console.log(' Found submenu button:', submenuId);
             
             // Remove any existing onclick handlers
             button.removeAttribute('onclick');
@@ -362,30 +344,25 @@
                     arrow.style.height = '0.75rem';
                     arrow.style.zIndex = '10';
                     arrow.style.transition = 'transform 0.3s ease';
-                    console.log(' Arrow icon styled for:', submenuId);
                 }
                 
                 // Add new event listener with enhanced error handling
                 newButton.addEventListener('click', function(e) {
                     e.preventDefault();
                     e.stopPropagation();
-                    console.log('🖱️ Submenu button clicked:', submenuId);
                     
                     // Don't allow submenu toggling when sidebar is collapsed
                     if (state.isCollapsed) {
-                        console.log('Submenu toggle blocked - sidebar is collapsed');
                         return;
                     }
                     
                     // Direct toggle implementation
                     const submenu = document.getElementById(submenuId);
                     if (!submenu) {
-                        console.error(' Submenu not found:', submenuId);
                         return;
                     }
                     
                     const wasHidden = submenu.classList.contains('hidden');
-                    console.log(' Submenu was hidden:', wasHidden);
                     
                     // Toggle submenu
                     submenu.classList.toggle('hidden');
@@ -396,7 +373,6 @@
                     if (arrow) {
                         const isNowHidden = submenu.classList.contains('hidden');
                         arrow.style.transform = isNowHidden ? '' : 'rotate(180deg)';
-                        console.log(' Arrow rotated:', !isNowHidden);
                     }
                     
                     // Close other submenus if opening this one
@@ -418,10 +394,8 @@
                         });
                     }
                     
-                    console.log(' Submenu toggled successfully');
                 });
                 
-                console.log(' Submenu toggle setup for:', submenuId);
             }
         });
         
@@ -435,15 +409,12 @@
     function toggleSubmenu(submenuId, event) {
         // Don't allow submenu toggling when sidebar is collapsed
         if (state.isCollapsed) {
-            console.log('Submenu toggle blocked - sidebar is collapsed');
             return;
         }
         
-        console.log('Submenu toggle allowed - sidebar is expanded');
         
         const submenu = document.getElementById(submenuId);
         if (!submenu) {
-            console.warn('Submenu not found:', submenuId);
             return;
         }
         
@@ -454,14 +425,12 @@
         }
         
         if (!button) {
-            console.warn('Button not found for submenu:', submenuId);
             return;
         }
         
         const arrow = button.querySelector('.arrow-icon');
         const wasHidden = submenu.classList.contains('hidden');
         
-        console.log('Toggling submenu:', submenuId, 'was hidden:', wasHidden);
         
         // Toggle submenu
         submenu.classList.toggle('hidden');
@@ -484,7 +453,6 @@
             arrow.style.height = '0.75rem';
             arrow.style.zIndex = '10';
             arrow.style.transition = 'transform 0.3s ease';
-            console.log('Arrow rotated:', !isNowHidden);
         }
         
         // Close other submenus if opening this one
@@ -541,7 +509,6 @@
                 }
             }
         });
-        console.log('All submenus closed');
     }
 
     /**
@@ -666,7 +633,6 @@
         
         elements.sidebar._tooltipHandler = mouseEnterHandler;
         
-        console.log('Hover tooltips setup for collapsed sidebar');
     }
 
     /**
@@ -687,7 +653,6 @@
         const hasSubmenu = menuItem.classList.contains('has-submenu');
         
         if (!menuText) {
-            console.warn('No menu text found for tooltip');
             return;
         }
         
@@ -696,10 +661,7 @@
             const submenuId = menuItem.getAttribute('data-submenu');
             if (submenuId) {
                 submenu = document.getElementById(submenuId);
-                console.log('Submenu element found:', submenu);
                 if (submenu) {
-                    console.log('Submenu children count:', submenu.children.length);
-                    console.log('Submenu HTML:', submenu.innerHTML);
                 }
             }
         }
@@ -712,17 +674,14 @@
         `;
         
         if (submenu && submenu.children.length > 0) {
-            console.log('Adding submenu to tooltip, items found:', submenu.children.length);
             tooltipContent += '<div class="tooltip-submenu">';
             const submenuItems = submenu.querySelectorAll('a.menu-item');
-            console.log('Submenu items found:', submenuItems.length);
             
             if (submenuItems.length > 0) {
                 submenuItems.forEach(item => {
                     const itemText = item.querySelector('.menu-text');
                     const itemHref = item.getAttribute('href') || '#';
                     if (itemText) {
-                        console.log('Adding submenu item:', itemText.textContent.trim());
                         tooltipContent += `
                             <a href="${itemHref}" class="tooltip-submenu-item">
                                 ${itemText.textContent.trim()}
@@ -733,12 +692,10 @@
             } else {
                 // Fallback: look for any child elements with menu-text
                 const allChildren = submenu.querySelectorAll('[class*="menu-text"]');
-                console.log('Fallback: Found menu-text elements:', allChildren.length);
                 allChildren.forEach(child => {
                     const parent = child.closest('a');
                     if (parent) {
                         const itemHref = parent.getAttribute('href') || '#';
-                        console.log('Adding fallback submenu item:', child.textContent.trim());
                         tooltipContent += `
                             <a href="${itemHref}" class="tooltip-submenu-item">
                                 ${child.textContent.trim()}
@@ -749,7 +706,6 @@
             }
             tooltipContent += '</div>';
         } else {
-            console.log('No submenu found or submenu is empty');
         }
         
         tooltip.innerHTML = tooltipContent;
@@ -779,9 +735,6 @@
         // Show tooltip with animation
         requestAnimationFrame(() => {
             tooltip.classList.add('show');
-            console.log('Tooltip shown for:', menuText.textContent.trim());
-            console.log('Tooltip content:', tooltip.innerHTML);
-            console.log('Tooltip position:', tooltip.style.top, tooltip.style.left);
         });
     }
 
@@ -867,7 +820,6 @@
             // Reinitialize submenu toggles in mobile menu
             setupMobileMenuSubmenus(mobileMenuContent);
             
-            console.log('Mobile menu content loaded and submenus initialized');
         }
     }
 
@@ -875,7 +827,6 @@
      * Setup mobile menu submenus
      */
     function setupMobileMenuSubmenus(container) {
-        console.log('Setting up mobile menu submenus...');
         
         const submenuToggleButtons = container.querySelectorAll('.menu-item.has-submenu');
         submenuToggleButtons.forEach(button => {
@@ -897,7 +848,6 @@
                     e.preventDefault();
                     e.stopPropagation();
                     
-                    console.log('Mobile submenu button clicked:', submenuId);
                     
                     const submenu = document.getElementById(submenuId);
                     if (submenu) {
@@ -919,11 +869,9 @@
                             closeOtherSubmenus(submenuId);
                         }
                         
-                        console.log('Mobile submenu toggled:', submenuId, 'now hidden:', submenu.classList.contains('hidden'));
                     }
                 });
                 
-                console.log('Mobile submenu toggle setup for:', submenuId);
             }
         });
     }

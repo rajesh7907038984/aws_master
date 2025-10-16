@@ -42,7 +42,6 @@ async function checkSlugExists(slug) {
         const data = await response.json();
         return data.exists;
     } catch (error) {
-        console.error('Error checking slug:', error);
         return false;
     }
 }
@@ -139,7 +138,6 @@ if (categoryForm) {
             }
             
         } catch (error) {
-            console.error('Error:', error);
             if (!window.categoryCreatedSuccessfully) {
                 alert(error.message || 'An error occurred while creating the category. Please try again.');
             }
@@ -228,7 +226,6 @@ if (sectionForm) {
             }
             
         } catch (error) {
-            console.error('Error:', error);
             alert(error.message || 'An error occurred while creating the section. Please try again.');
         } finally {
             // Reset button state

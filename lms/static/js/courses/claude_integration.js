@@ -9,7 +9,6 @@ let CLAUDE_API_KEY = ""; // This will be set from the template
  */
 function initClaudeAI(apiKey, editor, hiddenInput) {
     if (!apiKey || !editor || !hiddenInput) {
-        console.error('Missing required parameters for Claude AI integration');
         return;
     }
 
@@ -18,7 +17,6 @@ function initClaudeAI(apiKey, editor, hiddenInput) {
     // Create the AI button and add it to the toolbar
     const toolbar = document.querySelector('.custom-editor-toolbar');
     if (!toolbar) {
-        console.error('Could not find editor toolbar');
         return;
     }
     
@@ -280,7 +278,6 @@ function showAIPromptModal(editor, hiddenInput) {
             document.body.removeChild(backdrop);
             
         } catch (error) {
-            console.error('Error generating content with Claude AI:', error);
             showStatus(statusDiv, 'Error generating content: ' + error.message, 'error');
             
             // Re-enable generate button
@@ -318,7 +315,6 @@ function showStatus(statusDiv, message, type) {
  */
 async function generateWithClaudeAI(prompt) {
     try {
-        console.log('Sending request to Claude AI proxy with key:', CLAUDE_API_KEY.substring(0, 10) + '...');
         
         // Get CSRF token
         const csrfToken = getCsrfToken();
@@ -344,7 +340,6 @@ async function generateWithClaudeAI(prompt) {
 
         if (!response.ok) {
             const errorText = await response.text();
-            console.error('Claude API error response:', errorText);
             
             try {
                 const errorData = JSON.parse(errorText);
@@ -367,10 +362,8 @@ async function generateWithClaudeAI(prompt) {
         }
 
         const data = await response.json();
-        console.log('Claude API response:', data);
         return data.content[0].text;
     } catch (error) {
-        console.error('Error calling Claude API:', error);
         throw error;
     }
 }

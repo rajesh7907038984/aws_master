@@ -38,7 +38,6 @@
                 }
             }
 
-            console.warn('CSRF token not found');
             return null;
         },
 
@@ -119,7 +118,6 @@
             this.setupFetch();
             this.setupForms();
             
-            console.log('CSRF handler initialized');
         }
     };
 

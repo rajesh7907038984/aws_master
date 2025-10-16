@@ -261,7 +261,6 @@ document.addEventListener('DOMContentLoaded', function() {
             window.location.href = "{% url 'calendar_app:calendar' %}";
         })
         .catch(error => {
-            console.error('Error:', error);
             alert('Error creating event: ' + error.message);
         });
     });

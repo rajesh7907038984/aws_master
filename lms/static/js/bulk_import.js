@@ -4,28 +4,20 @@ let hasErrors = false;
 
 // Show the bulk import modal
 function showBulkImportModal() {
-    console.log('Showing bulk import modal...');
     const modal = document.getElementById('bulkImportModal');
-    console.log('Modal element:', modal);
     if (modal) {
         modal.classList.remove('hidden');
-        console.log('Hidden class removed');
     } else {
-        console.error('Modal element not found!');
     }
 }
 
 // Close the bulk import modal
 function closeBulkImportModal() {
-    console.log('Closing bulk import modal...');
     const modal = document.getElementById('bulkImportModal');
-    console.log('Modal element:', modal);
     if (modal) {
         modal.classList.add('hidden');
-        console.log('Hidden class added');
         resetForm();
     } else {
-        console.error('Modal element not found!');
     }
 }
 

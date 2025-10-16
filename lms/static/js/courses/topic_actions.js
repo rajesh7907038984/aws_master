@@ -1,27 +1,20 @@
 // Debug: Verify file is loaded
-console.log('topic_actions.js loaded successfully');
 
 // Function to edit a topic
 function editTopic(topicId) {
-    console.log('editTopic called with topicId:', topicId);
-    console.log('Current URL:', window.location.href);
-    console.log('User agent:', navigator.userAgent);
     
     // Get the CSRF token
     const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]');
     if (!csrfToken) {
-        console.error('CSRF token not found!');
         showNotification('CSRF token not found. Please refresh the page.', 'error');
         return;
     }
-    console.log('CSRF token found:', csrfToken.value ? 'Yes' : 'No');
     
     // Make a GET request to get the topic data with timeout
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
     
     const requestUrl = `/courses/topic/${topicId}/edit/`;
-    console.log('Making request to:', requestUrl);
     
     fetch(requestUrl, {
         method: 'GET',
@@ -40,7 +33,6 @@ function editTopic(topicId) {
     })
     .then(data => {
         if (data.success) {
-            console.log('Topic data received:', data.topic);
             
             // First navigate to the edit page if not already there
             if (!window.location.href.includes(`/topic/${topicId}/edit/`)) {
@@ -48,7 +40,6 @@ function editTopic(topicId) {
                 return;
             }
             
-            console.log('Starting to populate form fields for topic ID:', topicId);
             
             // Find and set values for basic fields
             setFieldValue('topic_title', data.topic.title);
@@ -57,12 +48,10 @@ function editTopic(topicId) {
             
             // Set dates
             if (data.topic.start_date) {
-                console.log('Setting start date:', data.topic.start_date);
                 setFieldValue('topic_start_date', data.topic.start_date);
             }
             
             if (data.topic.endless_access) {
-                console.log('Topic has endless access');
                 const endlessAccessCheckbox = document.getElementById('topic_endless_access');
                 if (endlessAccessCheckbox) {
                     endlessAccessCheckbox.checked = true;
@@ -70,10 +59,8 @@ function editTopic(topicId) {
                     const endDateField = document.getElementById('topic_end_date');
                     if (endDateField) endDateField.disabled = true;
                 } else {
-                    console.warn('Could not find endless_access checkbox');
                 }
             } else if (data.topic.end_date) {
-                console.log('Setting end date:', data.topic.end_date);
                 setFieldValue('topic_end_date', data.topic.end_date);
             }
             
@@ -112,12 +99,10 @@ function editTopic(topicId) {
                         }
                         break;
                     case 'Assignment':
-                        console.log('Handling assignment content type, assignment_id:', data.topic.assignment_id);
                         setSelectFieldValue('assignment', data.topic.assignment_id);
                         // Ensure assignment content field is visible
                         const assignmentField = document.getElementById('assignment-content');
                         if (assignmentField) {
-                            console.log('Making assignment field visible');
                             assignmentField.style.display = 'block';
                             assignmentField.style.visibility = 'visible';
                             assignmentField.style.opacity = '1';
@@ -172,8 +157,6 @@ function editTopic(topicId) {
         }
     })
     .catch(error => {
-        console.error('Topic edit error:', error);
-        console.error('Error details:', {
             message: error.message,
             stack: error.stack,
             url: window.location.href,
@@ -184,7 +167,6 @@ function editTopic(topicId) {
         
         // Check if it's a timeout error
         if (error.name === 'AbortError') {
-            console.error('Request timed out after 10 seconds');
             showNotification('Request timed out. This might be a staging server issue. Please try again.', 'error');
         } else {
             // Show more detailed error message
@@ -196,7 +178,6 @@ function editTopic(topicId) {
         setTimeout(() => {
             const courseId = window.location.pathname.match(/\/courses\/(\d+)\/edit\//);
             if (courseId) {
-                console.log('Redirecting to course edit page as fallback');
                 window.location.href = `/courses/${courseId[1]}/edit/`;
             }
         }, 3000);
@@ -206,7 +187,6 @@ function editTopic(topicId) {
 // Helper function to set field values
 function setFieldValue(fieldId, value) {
     if (value === undefined || value === null) {
-        console.log(`Skipping field ${fieldId} due to null/undefined value`);
         return;
     }
     
@@ -217,7 +197,6 @@ function setFieldValue(fieldId, value) {
     if (!field) {
         field = document.querySelector(`[name="${fieldId}"]`);
         if (field) {
-            console.log(`Field ${fieldId} found by name instead of ID`);
         }
     }
     
@@ -226,7 +205,6 @@ function setFieldValue(fieldId, value) {
         const altId = fieldId.replace('topic_', '');
         field = document.getElementById(altId) || document.querySelector(`[name="${altId}"]`);
         if (field) {
-            console.log(`Field ${fieldId} found with alternate ID ${altId}`);
         }
     }
     
@@ -246,22 +224,18 @@ function setFieldValue(fieldId, value) {
         }
         
         if (field) {
-            console.log(`Field ${fieldId} found using specific selector`);
         }
     }
     
     if (field) {
-        console.log(`Setting value for ${fieldId}:`, value);
         field.value = value;
     } else {
-        console.warn(`Field with ID or name "${fieldId}" does not exist in the DOM`);
     }
 }
 
 // Helper function to set select field value
 function setSelectFieldValue(fieldName, valueId) {
     if (!valueId) return;
-    console.log(`Setting select field value for ${fieldName} to ${valueId}`);
     const select = document.querySelector(`select[name="${fieldName}"]`);
     if (select) {
         // First try to find the option by value
@@ -272,9 +246,7 @@ function setSelectFieldValue(fieldName, valueId) {
             // Trigger a change event to ensure any listeners are notified
             const event = new Event('change');
             select.dispatchEvent(event);
-            console.log(`Successfully selected option with value ${valueId} for ${fieldName}`);
         } else {
-            console.warn(`Could not find option with value ${valueId} for ${fieldName}`);
             
             // In case options are loaded dynamically, try again after a short delay
             setTimeout(() => {
@@ -284,12 +256,10 @@ function setSelectFieldValue(fieldName, valueId) {
                     // Trigger a change event
                     const event = new Event('change');
                     select.dispatchEvent(event);
-                    console.log(`Successfully selected option with value ${valueId} for ${fieldName} after delay`);
                 }
             }, 500);
         }
     } else {
-        console.warn(`Select field with name "${fieldName}" not found in the DOM`);
     }
 }
 
@@ -351,8 +321,6 @@ function showContentField(contentType) {
 function handleTextContent(topic) {
     if (!topic.text_content) return;
     
-    console.log('Handling text content for topic:', topic.id);
-    console.log('Text content data:', topic.text_content);
     
     // Function to decode HTML entities
     function decodeHtmlEntities(str) {
@@ -364,7 +332,6 @@ function handleTextContent(topic) {
     // Set text content in textarea field first
     const textContentField = document.querySelector('textarea[name="text_content"]');
     if (textContentField) {
-        console.log('Setting text content in textarea');
         textContentField.value = topic.text_content || '';
     }
     
@@ -387,40 +354,32 @@ function handleTextContent(topic) {
                                 const content = JSON.parse(topic.text_content);
                                 if (content && content.html) {
                                     htmlContent = content.html;
-                                    console.log('Parsed JSON content successfully');
                                 } else {
                                     // Valid JSON but without html property - decode entities
                                     htmlContent = decodeHtmlEntities(topic.text_content);
-                                    console.log('JSON parsed but no HTML property found, decoded entities');
                                 }
                             } catch (e) {
                                 // If parsing fails, decode HTML entities
-                                console.log('JSON parsing failed, decoding HTML entities');
                                 htmlContent = decodeHtmlEntities(topic.text_content);
                             }
                         } else {
                             // Not JSON format - decode HTML entities
-                            console.log('Not JSON format, decoding HTML entities');
                             htmlContent = decodeHtmlEntities(topic.text_content);
                         }
                     } else if (typeof topic.text_content === 'object') {
                         // Already an object
                         if (topic.text_content.html) {
                             htmlContent = topic.text_content.html;
-                            console.log('Using object HTML content');
                         } else {
                             // No html property, convert to string and decode
                             htmlContent = decodeHtmlEntities(JSON.stringify(topic.text_content));
-                            console.log('No HTML in object, stringified and decoded');
                         }
                     }
                     
                     // Set content in TinyMCE editor
-                    console.log('Setting TinyMCE content:', htmlContent.substring(0, 100) + '...');
                     textEditor.setContent(htmlContent);
                     
                 } catch (e) {
-                    console.error('Error setting TinyMCE content:', e);
                     // Fallback: set raw content
                     textEditor.setContent(topic.text_content || '');
                 }
@@ -470,7 +429,6 @@ function deleteTopic(topicId) {
             return response.json();
         } else {
             // Handle non-JSON responses as errors
-            console.error('Received non-JSON response from topic delete endpoint');
             throw new Error('Invalid response format from server');
         }
     })
@@ -520,7 +478,6 @@ function deleteTopic(topicId) {
         }
     })
     .catch(error => {
-        console.error('Error:', error);
         // Show error notification
         const notification = document.createElement('div');
         notification.className = 'fixed top-4 right-4 p-4 rounded-lg shadow-lg bg-red-500 text-white z-50';
@@ -573,7 +530,6 @@ function moveTopic(topicId, direction) {
         }
     })
     .catch(error => {
-        console.error('Error:', error);
         showNotification('Error reordering topic', 'error');
     });
 }
@@ -672,7 +628,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             })
             .catch(error => {
-                console.error('Error:', error);
                 showNotification(error.message || 'Error moving topic', 'error');
             });
         });
@@ -689,7 +644,6 @@ document.addEventListener('DOMContentLoaded', function() {
         // Check if this is an assignment topic
         const assignmentRadio = document.querySelector('input[name="content_type"][value="Assignment"]');
         if (assignmentRadio && assignmentRadio.checked) {
-            console.log('Assignment content type detected - ensuring field is visible');
             // Find the assignment content field
             const assignmentField = document.getElementById('assignment-content');
             if (assignmentField) {
@@ -713,7 +667,6 @@ document.addEventListener('DOMContentLoaded', function() {
                         const option = assignmentSelect.querySelector(`option[value="${assignmentIdField.value}"]`);
                         if (option) {
                             option.selected = true;
-                            console.log('Selected assignment option from hidden field value:', assignmentIdField.value);
                         }
                     }
                 }
@@ -728,23 +681,17 @@ document.addEventListener('DOMContentLoaded', function() {
  * and if it does, it will automatically mark the topic as complete
  */
 function autoMarkTopicAsComplete() {
-    console.log('autoMarkTopicAsComplete function called');
     
     // Check if we're on a topic view page
     const urlPattern = /\/courses\/topic\/(\d+)\/view\//;
     const match = window.location.pathname.match(urlPattern);
-    console.log('URL match:', match);
     
     if (match) {
         const topicId = match[1];
-        console.log('Topic ID:', topicId);
         
         const completeForm = document.querySelector(`form[action^='/courses/topic/${topicId}/complete/']`);
-        console.log('Complete form found:', completeForm ? true : false);
         
         // Debug body classes
-        console.log('Body class list:', document.body.classList);
-        console.log('Document URL:', window.location.href);
         
         // Check for manual completion types in multiple ways
         
@@ -786,19 +733,6 @@ function autoMarkTopicAsComplete() {
             (metaTopicType && ['Text', 'Document', 'Web'].includes(metaTopicType)) ||
             (containerContentType && ['Text', 'Document', 'Web'].includes(containerContentType));
         
-        console.log('Has manual completion class:', hasManualCompletionClass);
-        console.log('Text content element found:', !!textContentElement);
-        console.log('Document content element found:', !!documentContentElement);
-        console.log('Web content element found:', !!webContentElement);
-        console.log('Embed video element found:', !!embedVideoElement);
-        console.log('Assignment content element found:', !!assignmentContentElement);
-        console.log('Quiz content element found:', !!quizContentElement);
-        console.log('Conference content element found:', !!conferenceContentElement);
-        console.log('Discussion content element found:', !!discussionContentElement);
-        console.log('Topic type from meta tag:', metaTopicType);
-        console.log('Content type from container:', containerContentType);
-        console.log('Main container type:', mainContainerType);
-        console.log('Is manual completion type:', isManualCompletionType);
             
         // Special handling for auto-complete topics - they should auto-complete
         const isAutoCompleteTopic = 
@@ -811,17 +745,14 @@ function autoMarkTopicAsComplete() {
             document.body.classList.contains('topic-type-conference') ||
             document.body.classList.contains('topic-type-discussion');
         
-        console.log('Is auto-complete topic:', isAutoCompleteTopic);
         
         // If content requires manual completion, skip auto-completion (except for auto-complete topics)
         if (isManualCompletionType && !isAutoCompleteTopic) {
-            console.log('Manual completion content type detected, skipping auto-completion');
             return;
         }
         
         // For auto-complete topics, add a small delay to ensure page is fully loaded
         if (isAutoCompleteTopic) {
-            console.log('Auto-complete topic detected, will auto-complete after delay');
             setTimeout(() => {
                 performAutoComplete(topicId, completeForm);
             }, 2000); // 2 second delay for auto-complete topics
@@ -831,7 +762,6 @@ function autoMarkTopicAsComplete() {
         // Also check if the form itself has the manual-completion class
         // This is an alternative way to determine if the topic should have manual completion
         if (completeForm && completeForm.classList.contains('manual-completion-only')) {
-            console.log('Form marked for manual completion only, skipping auto-completion');
             return;
         }
         
@@ -849,11 +779,9 @@ function autoMarkTopicAsComplete() {
  */
 function performAutoComplete(topicId, completeForm) {
     if (!completeForm) {
-        console.log('No completion form found for topic:', topicId);
         return;
     }
     
-    console.log('Performing auto-complete for topic:', topicId);
     
     // Create custom headers for the fetch request
     const headers = new Headers({
@@ -875,7 +803,6 @@ function performAutoComplete(topicId, completeForm) {
     })
     .then(data => {
         if (data.success) {
-            console.log('Topic auto-marked as complete');
             // Update UI to reflect completion
             updateCompletionUI(topicId);
             
@@ -884,7 +811,6 @@ function performAutoComplete(topicId, completeForm) {
         }
     })
     .catch(error => {
-        console.error('Error auto-marking topic as complete:', error);
     });
 }
 

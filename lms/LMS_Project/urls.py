@@ -76,7 +76,7 @@ urlpatterns = [
     path('static/', RedirectView.as_view(url=settings.STATIC_URL, permanent=True)),
     path('', include('core.urls')),  # Include core URLs at root level for session management
     path('admin_dashboard/', include('admin_dashboard.urls', namespace='admin_dashboard')),
-    path('super-admin/', include('admin_dashboard.urls', namespace='admin_dashboard_legacy')),
+    path('super-admin/', include('admin_dashboard.urls', namespace='admin_dashboard')),
     path('dashboard/globaladmin/', global_admin_dashboard, name='dashboard_globaladmin'),
     path('dashboard/superadmin/', SuperAdminDashboardView.as_view(), name='dashboard_superadmin'),
     path('dashboard/learner/', learner_dashboard, name='dashboard_learner'),

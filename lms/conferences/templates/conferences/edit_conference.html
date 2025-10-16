@@ -638,7 +638,6 @@
             }
         })
         .catch(error => {
-            console.error('Error updating meeting:', error);
             meetingStatusSpan.textContent = `Error: ${error.message}`;
             button.disabled = false;
             button.innerHTML = originalText;

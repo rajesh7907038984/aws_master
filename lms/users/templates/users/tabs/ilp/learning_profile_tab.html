@@ -141,7 +141,6 @@ function editStrengthWeakness(questionId) {
                     }
                 })
                 .catch(error => {
-                    console.error('Error:', error);
                     alert('Error updating strength/weakness. Please try again.');
                 });
             });
@@ -186,7 +185,6 @@ function deleteStrengthWeakness(questionId) {
             }
         })
         .catch(error => {
-            console.error('Error:', error);
             alert('Error deleting strength/weakness. Please try again.');
         });
     }
@@ -220,7 +218,6 @@ function toggleInstructorConfirmation(questionId) {
         }
     })
     .catch(error => {
-        console.error('Error:', error);
         alert('Error updating confirmation status. Please try again.');
     });
 }
@@ -260,7 +257,6 @@ function addStrengthWeakness(type) {
         }
     })
     .catch(error => {
-        console.error('Error:', error);
         alert('Error adding strength/weakness. Please try again.');
     });
 }

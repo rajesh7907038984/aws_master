@@ -11,20 +11,14 @@ class GlobalActivityChartRobust {
         this.contextData = options.contextData || null;
         this.chartInstance = null;
         
-        console.log('Initializing robust activity chart with options:', options);
         this.init();
     }
 
     async init() {
         try {
-            console.log('GlobalActivityChart.init() starting...');
-            console.log('Canvas ID:', this.canvasId);
-            console.log('API Endpoint:', this.apiEndpoint);
-            console.log('Default Period:', this.defaultPeriod);
             
             // Wait for unified chart service to be available
             await this.waitForUnifiedService();
-            console.log('Unified chart service is available');
             
             // Initialize using unified service
             this.chartInstance = await window.unifiedChartService.initializeActivityChart(this.canvasId, {
@@ -34,18 +28,14 @@ class GlobalActivityChartRobust {
             });
             
             if (this.chartInstance) {
-                console.log('Robust activity chart initialized successfully');
-                console.log('Chart instance:', this.chartInstance);
                 // Set up period selector after chart is ready
                 setTimeout(() => {
                     this.setupPeriodSelector();
                 }, 100);
             } else {
-                console.error('Failed to initialize robust activity chart');
             }
             
         } catch (error) {
-            console.error('Error initializing robust activity chart:', error);
             this.showFallbackChart();
         }
     }
@@ -62,22 +52,16 @@ class GlobalActivityChartRobust {
 
     // Period selector removed - now using fixed month period
     setupPeriodSelector() {
-        console.log('Period selector setup skipped - using fixed month period');
         // No period selector setup needed
     }
 
     async updatePeriod(period) {
-        console.log('GlobalActivityChart.updatePeriod called with period:', period);
         if (this.chartInstance) {
             try {
-                console.log('Chart instance found, updating period...');
                 await this.chartInstance.updatePeriod(period);
-                console.log('Chart period updated successfully');
             } catch (error) {
-                console.error('Failed to update chart period:', error);
             }
         } else {
-            console.error('No chart instance available for period update');
         }
     }
 
@@ -162,7 +146,6 @@ class GlobalActivityChartRobust {
 if (typeof window.GlobalActivityChart === 'undefined') {
     class GlobalActivityChart extends GlobalActivityChartRobust {
         constructor(options = {}) {
-            console.log('Using robust GlobalActivityChart implementation');
             super(options);
         }
     }
@@ -171,5 +154,4 @@ if (typeof window.GlobalActivityChart === 'undefined') {
     window.GlobalActivityChart = GlobalActivityChart;
     window.GlobalActivityChartRobust = GlobalActivityChartRobust;
 } else {
-    console.log('GlobalActivityChart already exists, skipping declaration');
 }

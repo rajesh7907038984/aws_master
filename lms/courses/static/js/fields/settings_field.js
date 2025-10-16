@@ -123,7 +123,6 @@ document.addEventListener('DOMContentLoaded', function() {
                        document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
       
       if (!csrfToken) {
-        console.error('CSRF token not found');
         alert('Security token not found. Please refresh the page and try again.');
         return;
       }
@@ -153,7 +152,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
       })
       .catch(error => {
-        console.error('Error:', error);
         alert('Error saving settings');
       });
     });

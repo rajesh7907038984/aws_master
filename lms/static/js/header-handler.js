@@ -33,7 +33,6 @@
                 // Reinitialize submenu toggles
                 initializeMobileSubmenus(mobileMenuContent);
             } catch (error) {
-                console.error('Error loading mobile menu content:', error);
             }
         }
     }
@@ -265,7 +264,6 @@
             .catch(() => {
                 // Silent fail - DO NOT hide icons on API errors
                 // Icons should remain visible regardless of API status
-                console.log('API failed but keeping icons visible');
             });
         
         // Update notification counts
@@ -306,7 +304,6 @@
             .catch(() => {
                 // Silent fail - DO NOT hide icons on API errors
                 // Icons should remain visible regardless of API status
-                console.log('API failed but keeping icons visible');
             });
     }
     

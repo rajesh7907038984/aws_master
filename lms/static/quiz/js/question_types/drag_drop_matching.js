@@ -105,7 +105,6 @@ const DragDropMatchingLearner = {
         const leftItems = this.container.querySelectorAll('.drag-item');
         const dropZones = this.container.querySelectorAll('.drop-zone');
         
-        console.log('Setting up drag and drop:', {
             leftItems: leftItems.length,
             dropZones: dropZones.length,
             questionId: this.questionId
@@ -134,7 +133,6 @@ const DragDropMatchingLearner = {
             item.addEventListener('touchmove', this.handleTouchMove.bind(this), { passive: false });
             item.addEventListener('touchend', this.handleTouchEnd.bind(this), { passive: false });
             
-            console.log('Set up drag item:', item.textContent, item.dataset.leftItem);
         });
 
         // Setup drop zones
@@ -161,7 +159,6 @@ const DragDropMatchingLearner = {
             zone.addEventListener('touchmove', this.handleTouchMove.bind(this), { passive: false });
             zone.addEventListener('touchend', this.handleTouchEnd.bind(this), { passive: false });
             
-            console.log('Set up drop zone:', zone.dataset.rightItem);
         });
     },
 
@@ -173,7 +170,6 @@ const DragDropMatchingLearner = {
     },
 
     handleDragStart(e) {
-        console.log('Drag start:', e.target);
         // Safari compatibility: ensure dataTransfer is available
         if (e.dataTransfer) {
             e.dataTransfer.setData('text/plain', e.target.dataset.leftItem);
@@ -193,7 +189,6 @@ const DragDropMatchingLearner = {
     },
 
     handleDragEnd(e) {
-        console.log('Drag end:', e.target);
         e.target.classList.remove('dragging');
         e.target.style.opacity = '';
         e.target.style.transform = '';
@@ -246,16 +241,13 @@ const DragDropMatchingLearner = {
         
         const rightItem = dropZone.dataset.rightItem;
         
-        console.log('Drop event:', { leftItem, rightItem, dropZone });
         
         if (!leftItem) {
-            console.error('No left item data found in drop event');
             return;
         }
         
         // Check if this drop zone already has a match
         if (dropZone.classList.contains('matched')) {
-            console.log('Drop zone already matched, removing previous match');
             this.removeMatch(dropZone);
         }
         
@@ -279,7 +271,6 @@ const DragDropMatchingLearner = {
         // Update progress
         this.updateProgress();
         
-        console.log('Match created successfully');
     },
 
     removeMatch(dropZone) {
@@ -367,7 +358,6 @@ const DragDropMatchingLearner = {
     // Touch event handlers for mobile devices
     handleTouchStart(e) {
         if (e.target.classList.contains('drag-item')) {
-            console.log('Touch start on drag item:', e.target);
             e.preventDefault();
             this.touchStartX = e.touches[0].clientX;
             this.touchStartY = e.touches[0].clientY;
@@ -408,7 +398,6 @@ const DragDropMatchingLearner = {
 
     handleTouchEnd(e) {
         if (this.touchDraggedItem) {
-            console.log('Touch end on drag item:', this.touchDraggedItem);
             e.preventDefault();
             const touch = e.changedTouches[0];
             const elementBelow = document.elementFromPoint(touch.clientX, touch.clientY);
@@ -425,16 +414,13 @@ const DragDropMatchingLearner = {
             });
             
             if (dropZone && this.touchDraggedItem.classList.contains('drag-item')) {
-                console.log('Touch drop on zone:', dropZone);
                 // Simulate a drop event
                 const leftItem = this.touchDraggedItem.dataset.leftItem;
                 const rightItem = dropZone.dataset.rightItem;
                 
-                console.log('Touch drop data:', { leftItem, rightItem });
                 
                 // Check if this drop zone already has a match
                 if (dropZone.classList.contains('matched')) {
-                    console.log('Drop zone already matched, removing previous match');
                     this.removeMatch(dropZone);
                 }
                 
@@ -458,7 +444,6 @@ const DragDropMatchingLearner = {
                 // Update progress
                 this.updateProgress();
                 
-                console.log('Touch match created successfully');
             }
             
             this.touchDraggedItem = null;

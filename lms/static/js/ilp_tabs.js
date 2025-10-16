@@ -4,7 +4,6 @@
  */
 
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('ILP tabs script loaded');
     
     // Initialize ILP nested tabs
     initializeILPTabs();
@@ -52,7 +51,6 @@ function openILPTab(evt, tabName) {
         }
     }
     
-    console.log('Switched to ILP tab:', tabName);
 }
 
 function openLearningProfileTab(evt, tabName) {
@@ -87,7 +85,6 @@ function openLearningProfileTab(evt, tabName) {
         }
     }
     
-    console.log('Switched to learning profile tab:', tabName);
 }
 
 function initializeILPTabs() {

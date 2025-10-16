@@ -20,7 +20,6 @@ if (typeof console === 'undefined') {
     const LMS_VERSION = '1.0.0';
     const BUILD_NUMBER = Date.now();
     
-    console.log(`LMS Version: ${LMS_VERSION} (Build: ${BUILD_NUMBER})`);
     
     // Export version info
     window.LMSVersion = {

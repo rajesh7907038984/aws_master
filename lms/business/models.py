@@ -193,7 +193,7 @@ def assign_user_to_appropriate_branch(sender, instance, created, **kwargs):
                     print(f" Reassigned Global Admin {instance.user.username} to default branch: {default_branch.name}")
             else:
                 # Super admin assigned to default business - this should not happen due to validation
-                print(f"  Warning: Super Admin {instance.user.username} assigned to default business - this should be prevented")
+                pass
         else:
             # Non-default business - assign to business's default branch or first available branch
             branches = instance.business.get_business_branches()

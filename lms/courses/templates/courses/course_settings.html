@@ -673,7 +673,6 @@
             cancelButton.addEventListener('click', function(e) {
                 // No need to prevent default since we want standard link behavior
                 // Just logging for debugging
-                console.log('Cancel button clicked, returning to course edit page');
                 // The href attribute already contains the correct URL from Django template
             });
         }
@@ -699,28 +698,21 @@
                 }
                 
                 // Debug log
-                console.log('Selected prerequisites:', selectedOptions.map(opt => opt.value));
             }
             
             // Listen for changes in the select element
             prerequisitesSelect.addEventListener('change', updateSelectedDisplay);
             
             // Log initial state
-            console.log('Prerequisites select element found:', prerequisitesSelect);
-            console.log('Total options:', prerequisitesSelect.options.length);
-            console.log('Initially selected:', Array.from(prerequisitesSelect.selectedOptions).map(opt => opt.value));
         } else {
-            console.log('Prerequisites select element not found');
         }
         
         // Debug form submission
         const form = document.getElementById('courseSettingsForm');
         if (form) {
             form.addEventListener('submit', function(e) {
-                console.log('Form submitted');
                 if (prerequisitesSelect) {
                     const selectedValues = Array.from(prerequisitesSelect.selectedOptions).map(opt => opt.value);
-                    console.log('Prerequisites being submitted:', selectedValues);
                 }
             });
         }

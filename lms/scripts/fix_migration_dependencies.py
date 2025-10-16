@@ -133,7 +133,6 @@ class MigrationDependencyFixer:
                         self.fix_discussions_migrations()
                         
             except Exception as e:
-                print(f"     Error checking {app}: {e}")
     
     def fix_assignments_migrations(self):
         """Fix assignments app migration issues"""
@@ -148,7 +147,6 @@ class MigrationDependencyFixer:
                 self.create_fake_migration('assignments', '0001_initial')
                 
         except Exception as e:
-            print(f"    Error fixing assignments: {e}")
     
     def fix_discussions_migrations(self):
         """Fix discussions app migration issues"""
@@ -170,7 +168,6 @@ class MigrationDependencyFixer:
                 self.create_fake_migration('discussions', '0002_initial')
                 
         except Exception as e:
-            print(f"    Error fixing discussions: {e}")
     
     def run_safe_migrations(self):
         """Run migrations in a safe order"""
@@ -292,7 +289,6 @@ python manage.py makemigrations --dry-run
                         print(f"    Migration already exists: {app_name}.{migration_name}")
                         
                 except Exception as e:
-                    print(f"     Error with {app_name}.{migration_name}: {e}")
         
         print(" All missing dependencies fixed!")
 
@@ -353,7 +349,6 @@ def main():
         print("   4. Keep migration dependencies simple and avoid circular references")
         
     except Exception as e:
-        print(f" Error during migration fix: {e}")
         print("💡 Try running individual steps manually:")
         print("   python manage.py migrate --fake-initial")
         print("   python manage.py migrate")

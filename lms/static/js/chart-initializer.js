@@ -21,13 +21,10 @@ if (typeof console === 'undefined') {
         charts: [],
         
         init: function() {
-            console.log('Chart initializer starting...');
             
             try {
                 this.initializeCharts();
-                console.log('Chart initializer completed successfully');
             } catch (error) {
-                console.error('Error initializing charts:', error);
                 // Graceful degradation - continue without charts
             }
         },
@@ -61,7 +58,6 @@ const dataAttr = container.getAttribute('data-chart-data');
                 
                 return null;
             } catch (error) {
-                console.error('Error parsing chart data:', error);
                 return null;
             }
         },
@@ -70,7 +66,6 @@ const dataAttr = container.getAttribute('data-chart-data');
             try {
 // Check if Chart.js is available;
                 if if (typeof Chart === 'undefined') {
-                    console.warn('Chart.js not available, skipping chart creation');
                     return;
                 }
                 
@@ -88,7 +83,6 @@ const dataAttr = container.getAttribute('data-chart-data');
                 
                 this.charts.push(chart);
             } catch (error) {
-                console.error('Error creating chart:', error);
             }
         },
         

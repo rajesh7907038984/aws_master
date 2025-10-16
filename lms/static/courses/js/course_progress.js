@@ -4,12 +4,10 @@
  */
 
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('Course progress script loaded');
     
     // Check if user is enrolled by looking for the progress bar container
     const progressBarContainer = document.querySelector('.progress-container, .mb-6');
     if (!progressBarContainer) {
-        console.log('User not enrolled or progress container not found. Skipping progress tracking.');
         return;
     }
     
@@ -26,7 +24,6 @@ function initCourseProgress() {
         const container = document.querySelector('.course-container');
         if (container) {
             courseId = container.getAttribute('data-course-id');
-            console.log('Found course ID from container:', courseId);
         }
     }
     
@@ -36,19 +33,16 @@ function initCourseProgress() {
         const courseIdMatch = urlPath.match(/\/courses\/(\d+)\/view\//);
         if (courseIdMatch && courseIdMatch[1]) {
             courseId = courseIdMatch[1];
-            console.log('Extracted course ID from URL:', courseId);
         }
     }
     
     if (!courseId) {
-        console.log('Could not find course ID for progress tracking. Elements on page:', {
             'course-data': document.getElementById('course-data'),
             'course-container': document.querySelector('.course-container')
         });
         return;
     }
     
-    console.log('Initializing progress tracking for course:', courseId);
     
     // Find progress elements
     const progressBar = document.getElementById('progress-bar');
@@ -56,13 +50,11 @@ function initCourseProgress() {
     
     // If progress elements don't exist, we likely don't have the right permissions
     if (!progressBar || !progressPercentage) {
-        console.log('Progress elements not found. User may not be enrolled.');
         return;
     }
     
     // If progress bar already exists in the DOM with initial values, update its width directly
     if (progressBar) {
-        console.log('Initial progress bar found:', progressBar);
         // Ensure the width is properly set with percentage units
         const currentStyle = progressBar.getAttribute('style');
         if (currentStyle && currentStyle.includes('width:')) {
@@ -71,7 +63,6 @@ function initCourseProgress() {
                 const widthValue = parseInt(currentStyle.replace(/width:\s*/, ''));
                 if (!isNaN(widthValue)) {
                     progressBar.style.width = `${widthValue}%`;
-                    console.log('Fixed initial progress bar width:', progressBar.style.width);
                 }
             }
         }
@@ -93,7 +84,6 @@ function initCourseProgress() {
             })
             .then(data => {
                 if (!data.success) {
-                    console.error('Error in progress data:', data.error || 'Unknown error');
                     return;
                 }
                 
@@ -102,13 +92,11 @@ function initCourseProgress() {
                 
                 // Update course overall progress
                 if (progressBar && data.overall_progress !== undefined) {
-                    console.log('Setting progress bar width to:', `${data.overall_progress}%`);
                     progressBar.style.width = `${data.overall_progress}%`;
                     
                     // Double check that the width was set properly
                     setTimeout(() => {
                         if (progressBar.style.width !== `${data.overall_progress}%`) {
-                            console.log('Progress bar width not set correctly, forcing update');
                             progressBar.style.width = `${data.overall_progress}%`;
                         }
                     }, 100);
@@ -126,17 +114,14 @@ function initCourseProgress() {
                 }
             })
             .catch(error => {
-                console.error('Error fetching progress data:', error);
             });
     }
     
     // Helper function to update button state based on progress
     function updateButtonState(progress) {
-        console.log('updateButtonState called with progress:', progress);
         
         const startButton = document.querySelector('.start-button');
         if (!startButton) {
-            console.log('No start button found');
             return;
         }
         
@@ -145,7 +130,6 @@ function initCourseProgress() {
         
         // Update text and add appropriate class based on progress
         if (progress === 100) {
-            console.log('Setting button to Show Certificate mode');
             // Change to certificate button
             startButton.textContent = 'Show Certificate';
             startButton.classList.add('completed-button');
@@ -163,7 +147,6 @@ function initCourseProgress() {
             const newButton = startButton.cloneNode(true);
             startButton.parentNode.replaceChild(newButton, startButton);
         } else if (progress > 0) {
-            console.log('Setting button to Resume mode');
             // Resume button
             startButton.textContent = 'Resume';
             startButton.classList.add('resume-button');
@@ -177,7 +160,6 @@ function initCourseProgress() {
                 startButton.parentNode.replaceChild(newButton, startButton);
             }
         } else {
-            console.log('Setting button to Start mode');
             // Start button
             startButton.textContent = 'Start';
             
@@ -259,7 +241,6 @@ function initCourseProgress() {
                 }
             })
             .catch(error => {
-                console.error('Error marking topic as complete:', error);
             });
         });
     });

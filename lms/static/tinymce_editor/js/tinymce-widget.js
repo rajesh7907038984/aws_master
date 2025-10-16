@@ -28,7 +28,6 @@
                 config = JSON.parse(configData);
             }
         } catch (e) {
-            console.warn('Failed to parse TinyMCE config:', e);
         }
 
         // Set target selector
@@ -363,7 +362,6 @@
                         return;
                     }
                     
-                    console.log('Selected image file:', file.name);
                     
                     // Client-side file size validation for images (10MB = 10 * 1024 * 1024 bytes)
                     const maxSize = 10 * 1024 * 1024;
@@ -382,26 +380,20 @@
                     
                     // Get the upload URL from config or use default
                     const uploadUrl = config.images_upload_url || '/tinymce/upload_image/';
-                    console.log('Uploading image to:', uploadUrl);
                     
                     xhr.open('POST', uploadUrl);
                     
                     // Try to get CSRF token from cookie or form
                     const csrfToken = getCsrfToken();
                     if (csrfToken) {
-                        console.log('CSRF token found, adding to request');
                         xhr.setRequestHeader('X-CSRFToken', csrfToken);
                     } else {
-                        console.warn('No CSRF token found, trying to get from meta tag');
                         // Try to get CSRF token from meta tag
                         const metaToken = document.querySelector('meta[name="csrf-token"]');
                         if (metaToken) {
                             const metaTokenValue = metaToken.getAttribute('content');
-                            console.log('Found CSRF token in meta tag:', metaTokenValue ? 'Yes' : 'No');
                             xhr.setRequestHeader('X-CSRFToken', metaTokenValue);
                         } else {
-                            console.error('No CSRF token available - upload will likely fail');
-                            console.log('Available CSRF sources:', {
                                 cookie: document.cookie.includes('csrftoken='),
                                 formInput: !!document.querySelector('input[name="csrfmiddlewaretoken"]'),
                                 metaTag: !!document.querySelector('meta[name="csrf-token"]'),
@@ -416,7 +408,6 @@
                         if (xhr.status === 200) {
                             try {
                                 const response = JSON.parse(xhr.responseText);
-                                console.log('Upload successful, response:', response);
                                 
                                 if (response.success) {
                                     // Ensure we have alt and title text from the response or fallback to file name
@@ -432,35 +423,26 @@
                                             alt: altText,
                                             title: titleText
                                         });
-                                        console.log('Image inserted successfully:', imageUrl);
                                     } else {
-                                        console.error('Invalid response: Missing image URL');
                                         alert('Error: Server response missing image URL');
                                     }
                                 } else {
-                                    console.error('Upload error from server:', response.error || 'Unknown error');
                                     alert('Error uploading image: ' + (response.error || 'Unknown error'));
                                 }
                             } catch (e) {
-                                console.error('Error parsing upload response:', e);
-                                console.error('Response text:', xhr.responseText);
                                 alert('Error: Invalid response from server');
                             }
                         } else {
-                            console.error('Upload failed:', xhr.status, xhr.statusText);
                             try {
                                 const response = JSON.parse(xhr.responseText);
-                                console.error('Error details:', response);
                                 alert('Upload failed: ' + (response.error || xhr.statusText));
                             } catch (e) {
-                                console.error('Raw response:', xhr.responseText);
                                 alert('Upload failed: ' + xhr.statusText);
                             }
                         }
                     };
                     
                     xhr.onerror = function() {
-                        console.error('Network error during upload');
                         alert('Network error during image upload. Please check your internet connection and try again.');
                     };
                     
@@ -482,7 +464,6 @@
                         return;
                     }
                     
-                    console.log('Selected media file:', file.name);
                     
                     // Client-side file size validation based on file type
                     const fileExtension = file.name.split('.').pop().toLowerCase();
@@ -517,26 +498,20 @@
                     
                     // Get the upload URL from config or use default
                     const uploadUrl = config.media_upload_url || '/tinymce/upload_media_file/';
-                    console.log('Uploading media to:', uploadUrl);
                     
                     xhr.open('POST', uploadUrl);
                     
                     // Try to get CSRF token from cookie or form
                     const csrfToken = getCsrfToken();
                     if (csrfToken) {
-                        console.log('CSRF token found, adding to request');
                         xhr.setRequestHeader('X-CSRFToken', csrfToken);
                     } else {
-                        console.warn('No CSRF token found, trying to get from meta tag');
                         // Try to get CSRF token from meta tag
                         const metaToken = document.querySelector('meta[name="csrf-token"]');
                         if (metaToken) {
                             const metaTokenValue = metaToken.getAttribute('content');
-                            console.log('Found CSRF token in meta tag:', metaTokenValue ? 'Yes' : 'No');
                             xhr.setRequestHeader('X-CSRFToken', metaTokenValue);
                         } else {
-                            console.error('No CSRF token available - upload will likely fail');
-                            console.log('Available CSRF sources:', {
                                 cookie: document.cookie.includes('csrftoken='),
                                 formInput: !!document.querySelector('input[name="csrfmiddlewaretoken"]'),
                                 metaTag: !!document.querySelector('meta[name="csrf-token"]'),
@@ -551,34 +526,27 @@
                         if (xhr.status === 200) {
                             try {
                                 const response = JSON.parse(xhr.responseText);
-                                console.log('Upload successful, response:', response);
                                 
                                 if (response.location) {
                                     callback(response.location, { title: file.name, alt: file.name });
                                 } else if (response.url) {
                                     callback(response.url, { title: response.filename || file.name, alt: response.filename || file.name });
                                 } else {
-                                    console.error('Invalid response format, missing location or url:', response);
                                     alert('Upload successful but response format is invalid. Please try again.');
                                 }
                             } catch (e) {
-                                console.error('Error parsing upload response:', e);
                             }
                         } else {
-                            console.error('Upload failed:', xhr.status, xhr.statusText);
                             try {
                                 const response = JSON.parse(xhr.responseText);
-                                console.error('Error details:', response);
                                 alert('Upload failed: ' + (response.error || xhr.statusText));
                             } catch (e) {
-                                console.error('Raw response:', xhr.responseText);
                                 alert('Upload failed: ' + xhr.statusText);
                             }
                         }
                     };
                     
                     xhr.onerror = function() {
-                        console.error('Network error during upload');
                         alert('Network error during media upload. Please check your internet connection and try again.');
                     };
                     
@@ -679,10 +647,8 @@
                     // Ensure selection is available before any focus operations
                     if (editor.selection && editor.selection.getRng) {
                         // Selection is available, safe to perform focus operations
-                        console.log(`Editor ${editor.id} focused successfully`);
                     }
                 } catch (error) {
-                    console.warn(`Focus error in editor ${editor.id}:`, error);
                 }
             });
             
@@ -694,13 +660,11 @@
                     if (cmd === 'mceFocus' || cmd === 'mceResize') {
                         // Ensure editor is properly initialized
                         if (!editor.initialized || !editor.selection) {
-                            console.warn(`Cannot execute ${cmd} - editor not properly initialized`);
                             return false;
                         }
                     }
                     return originalExecCommand.call(this, cmd, ui, value);
                 } catch (error) {
-                    console.warn(`Error executing command ${cmd}:`, error);
                     return false;
                 }
             };
@@ -708,17 +672,14 @@
 
         // Initialize TinyMCE
         if (typeof tinymce === 'undefined') {
-            console.error('TinyMCE is not loaded yet');
             return;
         }
         
         tinymce.init(config).then(function(editors) {
             if (editors.length > 0) {
                 initializedEditors.add(textarea.id);
-                console.log('TinyMCE initialized for:', textarea.id);
             }
         }).catch(function(error) {
-            console.error('Failed to initialize TinyMCE:', error);
         });
     }
 
@@ -799,11 +760,9 @@
             if (retryAttempts <= MAX_RETRY_ATTEMPTS) {
                 if (retryAttempts === 1 || retryAttempts === MAX_RETRY_ATTEMPTS) {
                     // Only log first and last attempt to reduce console noise
-                    console.warn(`TinyMCE not loaded yet, retrying in 100ms... (Attempt ${retryAttempts}/${MAX_RETRY_ATTEMPTS})`);
                 }
                 setTimeout(initializeAllEditors, 100);
             } else {
-                console.log('TinyMCE not available, attempting dynamic load');
                 // Try to load TinyMCE dynamically as a fallback
                 loadTinyMCEDynamically();
             }
@@ -840,7 +799,6 @@
         script.defer = true;
         
         script.onload = function() {
-            console.log('TinyMCE loaded dynamically');
             // Set default license key for all TinyMCE instances
             if (typeof tinymce !== 'undefined') {
                 tinymce.defaultSettings = tinymce.defaultSettings || {};
@@ -851,7 +809,6 @@
         };
         
         script.onerror = function(error) {
-            console.error('Failed to load TinyMCE dynamically:', error);
             // Alert the user that there's an issue
             if (typeof alert === 'function') {
                 alert('There was an error loading the editor. Please try refreshing the page.');
@@ -867,7 +824,6 @@
      */
     function destroyEditor(editorId) {
         if (typeof tinymce === 'undefined') {
-            console.warn('TinyMCE not available for destroying editor:', editorId);
             return;
         }
         
@@ -883,7 +839,6 @@
      */
     function reinitializeEditors() {
         if (typeof tinymce === 'undefined') {
-            console.warn('TinyMCE not available for reinitializing editors');
             return;
         }
         

@@ -2,6 +2,7 @@ from django.urls import path, include
 from . import views
 from . import views_simple
 from .topic_views import topic_view, topic_content, topic_url_embed
+from .s3_direct_upload import get_presigned_upload_url, confirm_upload
 
 app_name = 'courses'
 
@@ -23,7 +24,7 @@ urlpatterns = [
     path('<int:course_id>/view/', views.course_view, name='course_view'),
     path('<int:course_id>/delete/', views.course_delete, name='course_delete'),
     path('<int:course_id>/settings/', views.course_settings, name='course_settings'),
-    path('<int:course_id>/debug-permissions/', views.debug_course_permissions, name='debug_course_permissions'),
+    # Debug route removed
     # path('course/<int:course_id>/settings/update/', views.update_course_title_api, name='update_course_title'),
     
     # API endpoints
@@ -103,10 +104,7 @@ urlpatterns = [
     
     # Editor video upload endpoint
     path('upload-editor-video/', views.upload_editor_video, name='upload_editor_video'),
-]
-# Direct S3 Upload endpoints
-from courses.s3_direct_upload import get_presigned_upload_url, confirm_upload
-urlpatterns += [
+    # Direct S3 Upload endpoints
     path('api/get-upload-url/', get_presigned_upload_url, name='get_upload_url'),
     path('api/confirm-upload/', confirm_upload, name='confirm_upload'),
 ]

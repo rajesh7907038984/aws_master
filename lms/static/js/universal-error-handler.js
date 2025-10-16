@@ -31,7 +31,6 @@
             this.setupGlobalErrorHandling();
             this.setupCSRFTokenManagement();
             this.setupNetworkErrorHandling();
-            console.log('LMS Universal Error Handler initialized');
         },
 
         // Setup global error handling with enhanced user feedback
@@ -50,7 +49,6 @@
                 // Critical errors should be handled by specific error handlers
                 // This prevents false error messages for expected errors
                 if (this.config.debugMode) {
-                    console.warn('JavaScript error caught by global handler:', event.message);
                 }
             });
 
@@ -65,7 +63,6 @@
                 // DON'T show automatic error notifications
                 // Let specific handlers deal with user-facing errors
                 if (this.config.debugMode) {
-                    console.warn('Unhandled promise rejection:', event.reason);
                 }
             });
         },
@@ -101,7 +98,6 @@
                 }
             }
             
-            console.warn('CSRF token not found');
             return null;
         },
 
@@ -191,7 +187,6 @@
                         }
                     } catch (jsonError) {
                         // If JSON parsing fails, continue with generic error
-                        console.warn('Failed to parse JSON error response:', jsonError);
                     }
                 }
                 throw new Error('Permission denied. Please check your access rights.');
@@ -331,7 +326,6 @@
         // Handle form errors
         handleFormErrors: function(form, errors, message) {
             if (!form) {
-                console.warn('handleFormErrors called with null/undefined form');
                 return;
             }
             
@@ -359,7 +353,6 @@
         // Show field-specific error
         showFieldError: function(field, errors) {
             if (!field) {
-                console.warn('showFieldError called with null/undefined field');
                 return;
             }
             
@@ -423,7 +416,6 @@
         // Error logging
         logError: function(title, details) {
             if (this.config.debugMode) {
-                console.error(`[LMS] ${title}:`, details);
             }
             
             // Send to server if logging endpoint exists

@@ -225,7 +225,6 @@
 <script>
 // Employment records functionality
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('Employment tab script loaded');
     
     // Load existing employment records if we're in edit mode
     loadExistingEmploymentRecords();
@@ -235,12 +234,10 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function loadExistingEmploymentRecords() {
-    console.log('Loading existing employment records...');
     
     // Check if we have existing employment records data from the backend
     {% if existing_employment_records_json %}
         const existingRecords = {{ existing_employment_records_json|safe }};
-        console.log('Found existing employment records:', existingRecords);
         
         if (existingRecords && existingRecords.length > 0) {
             const accordion = document.getElementById('employment-records-accordion');
@@ -262,24 +259,19 @@ function loadExistingEmploymentRecords() {
                 // Update the count
                 countField.value = existingRecords.length;
                 
-                console.log(`Loaded ${existingRecords.length} employment records`);
             }
         } else {
-            console.log('No existing employment records found');
         }
     {% else %}
-        console.log('No employment records data available');
     {% endif %}
 }
 
 function createEmploymentRecordFromData(employData, index) {
-    console.log('Creating employment record from data:', employData, 'Index:', index);
     
     const template = document.getElementById('employment-record-template');
     const accordion = document.getElementById('employment-records-accordion');
     
     if (!template || !accordion) {
-        console.error('Employment template or accordion not found');
         return;
     }
     
@@ -368,7 +360,6 @@ function createEmploymentRecordFromData(employData, index) {
     // Set up progress listeners for this record
     setupIndustryChangeListener(recordElement);
     
-    console.log(`Employment record ${index} created successfully`);
 }
 
 function setupEmploymentEventListeners() {
@@ -379,7 +370,6 @@ function setupEmploymentEventListeners() {
 }
 
 function addEmploymentRecord() {
-    console.log('Adding new employment record');
     
     const accordion = document.getElementById('employment-records-accordion');
     const template = document.getElementById('employment-record-template');
@@ -387,7 +377,6 @@ function addEmploymentRecord() {
     const noRecordsMessage = document.getElementById('no-employment-message');
     
     if (!accordion || !template || !countField) {
-        console.error('Required elements not found for adding employment record');
         return;
     }
     
@@ -435,7 +424,6 @@ function addEmploymentRecord() {
     // Trigger progress update for new record
     triggerProgressUpdate();
     
-    console.log(`Added new employment record ${currentCount}`);
 }
 
 function toggleEmploymentRecord(headerElement) {
@@ -590,7 +578,6 @@ document.addEventListener('DOMContentLoaded', function() {
         if (typeof currentTabState !== 'undefined') {
             currentTabState.mainTab = 'employment-tab';
             
-            console.log('Employment tab: Setting tab state to:', currentTabState);
             
             // Update hidden form fields directly
             var activeTabField = document.getElementById('activeTabField');

@@ -602,13 +602,11 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // Add any interactive functionality here
-    console.log('Users Admin Dashboard loaded');
     
     // Optional: Add click tracking for analytics
     document.querySelectorAll('.todo-item').forEach(function(element) {
         element.addEventListener('click', function() {
             // You can add analytics tracking here
-            console.log('User interaction:', this.href || this.textContent);
         });
     });
 });

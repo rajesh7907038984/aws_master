@@ -21,29 +21,22 @@
         }
 
         function showRelevantFields(selectedType) {
-            console.log('Showing fields for type:', selectedType);
             
             switch(selectedType) {
                 case 'multiple_choice':
                 case 'multiple_select':
-                    console.log('Multiple choice/select selected');
                     var optionsGroup = $('.inline-group').has('.dynamic-questionoption_set');
-                    console.log('Options group found:', optionsGroup.length);
                     optionsGroup.show();
                     break;
                 case 'matching':
-                    console.log('Matching selected');
                     var matchingGroup = $('.inline-group').has('.dynamic-matchingpair_set');
-                    console.log('Matching group found:', matchingGroup.length);
                     matchingGroup.show();
                     formRows.matching.show();
                     break;
                 case 'fill_blank':
-                    console.log('Fill blank selected');
                     formRows.fillBlank.show();
                     break;
                 case 'multi_blank':
-                    console.log('Multi blank selected');
                     formRows.multiBlank.show();
                     break;
             }
@@ -51,7 +44,6 @@
 
         function updateFormFields() {
             var selectedType = questionType.val();
-            console.log('Updating fields for type:', selectedType);
             
             hideAllFormRows();
             if (selectedType) {
@@ -64,7 +56,6 @@
 
         // Initial update on page load - try multiple times to ensure it works
         $(window).on('load', function() {
-            console.log('Window loaded');
             updateFormFields();
         });
 
@@ -98,13 +89,10 @@
         });
 
         // Debug logging
-        console.log('Question type handler initialized');
-        console.log('Form rows found:', {
             multipleChoice: formRows.multipleChoice.length,
             matching: formRows.matching.length,
             fillBlank: formRows.fillBlank.length,
             multiBlank: formRows.multiBlank.length
         });
-        console.log('Current question type:', questionType.val());
     });
 })(django.jQuery); 

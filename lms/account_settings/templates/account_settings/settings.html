@@ -104,13 +104,11 @@
                 setTimeout(() => firstInput.focus(), 100);
             }
         } else {
-            console.error(`Modal with ID ${modalId} not found`);
         }
     }
 
     // Define the function globally to fix the "not defined" error
     function openBranchLimitsModal(buttonElement) {
-        // console.log removed for production
         
         // Hide all other modals first
         hideAllModals();
@@ -123,7 +121,6 @@
         const totalCurrentUsage = document.getElementById('totalCurrentUsage');
         
         if (!modal) {
-            console.error("Modal element not found!");
             return;
         }
         
@@ -133,7 +130,6 @@
         const totalLimit = buttonElement.getAttribute('data-total-limit');
         const totalCurrent = buttonElement.getAttribute('data-total-current');
         
-        // console.log removed for production
         
         // Set values in form
         if (branchIdInput) branchIdInput.value = branchId;
@@ -158,7 +154,6 @@
     
     // Business Limits Modal Functions
     function openBusinessLimitsModal(buttonElement) {
-        // console.log removed for production
         
         // Hide all other modals first
         hideAllModals();
@@ -173,7 +168,6 @@
         const branchCreationCurrentUsage = document.getElementById('branchCreationCurrentUsage');
         
         if (!modal) {
-            console.error("Business modal element not found!");
             return;
         }
         
@@ -185,7 +179,6 @@
         const currentUsers = buttonElement.getAttribute('data-current-users');
         const currentBranches = buttonElement.getAttribute('data-current-branches');
         
-        // console.log removed for production
         
         // Set values in form
         if (businessIdInput) businessIdInput.value = businessId;
@@ -213,7 +206,6 @@
 
     // Storage Management Modal Functions
     function openStorageModal(branchId, branchName) {
-        // console.log removed for production
 
         // Hide all other modals first
         hideAllModals();
@@ -227,7 +219,6 @@
         const unlimitedCheckbox = document.getElementById('unlimitedStorageCheckbox');
 
         if (!modal) {
-            console.error("Storage modal element not found!");
             return;
         }
 
@@ -278,12 +269,10 @@
                 updateRecentUploadsTable(storageData.recent_uploads);
 
             } else {
-                console.error("Error loading storage data:", data.error);
                 alert('Error loading storage data: ' + data.error);
             }
         })
         .catch(error => {
-            console.error("Error fetching storage data:", error);
             alert('Error loading storage data. Please try again.');
         });
 
@@ -348,7 +337,6 @@
             activeIntegration: '{{ active_integration|default:"zoom" }}',
             
             init() {
-                // console.log removed for production
                 
                 // Handle browser back/forward buttons
                 window.addEventListener('popstate', () => {
@@ -359,7 +347,6 @@
             },
             
             toggleSection(section) {
-                // console.log removed for production
                 
                 if (this.activeSection === section) {
                     // Close the section
@@ -420,7 +407,6 @@
                 if (typeof loadBusinessSettings === 'function') {
                     loadBusinessSettings();
                 } else {
-                    console.warn('loadBusinessSettings function not available');
                 }
             },
             
@@ -428,7 +414,6 @@
                 if (typeof loadBranchesSettings === 'function') {
                     loadBranchesSettings();
                 } else {
-                    console.warn('loadBranchesSettings function not available');
                 }
             },
             
@@ -436,7 +421,6 @@
                 if (typeof loadOrderManagementBranches === 'function') {
                     loadOrderManagementBranches();
                 } else {
-                    console.warn('loadOrderManagementBranches function not available');
                 }
             }
         }
@@ -3693,14 +3677,12 @@
                     
                     // Load order management branches data
                     function loadOrderManagementBranches() {
-                        // console.log removed for production
                         const container = document.getElementById('order-businesses-container');
                         const loadingEl = document.getElementById('order-loading');
                         const errorEl = document.getElementById('order-error');
                         const noResultsEl = document.getElementById('order-no-results');
                         
                         if (!container) {
-                            console.error('Order businesses container not found');
                             return;
                         }
                         
@@ -3715,14 +3697,12 @@
                         
                         fetch('/account/load-order-management-branches/')
                         .then(response => {
-                            // console.log removed for production
                             if (!response.ok) {
                                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                             }
                             return response.json();
                         })
                         .then(data => {
-                            // console.log removed for production
                             if (loadingEl) loadingEl.style.display = 'none';
                             
                             if (data.success) {
@@ -3741,7 +3721,6 @@
                                 // Initialize business toggles after adding HTML
                                 initializeOrderManagementToggles();
                                 
-                                // console.log removed for production
                             } else {
                                 if (errorEl) {
                                     document.getElementById('order-error-message').textContent = data.error || 'Unknown error occurred';
@@ -3750,7 +3729,6 @@
                             }
                         })
                         .catch(error => {
-                            console.error('Error loading order management branches:', error);
                             if (loadingEl) loadingEl.style.display = 'none';
                             if (errorEl) {
                                 document.getElementById('order-error-message').textContent = `Error loading branches: ${error.message}`;
@@ -4417,7 +4395,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             })
             .catch(error => {
-                console.error('Error:', error);
                 alert('An error occurred while saving branch limits');
             })
             .finally(() => {
@@ -4469,7 +4446,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 button.classList.add('bg-blue-100', 'text-blue-700');
             }, 2000);
         }).catch(function(err) {
-            console.error('Failed to copy: ', err);
             alert('Failed to copy to clipboard. Please copy manually.');
         });
     }
@@ -4532,7 +4508,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         })
         .catch(error => {
-            console.error('Error testing SharePoint connection:', error);
             alert(' An error occurred while testing the connection. Please try again.');
         })
         .finally(() => {
@@ -4601,7 +4576,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         })
         .catch(error => {
-            console.error('Error testing SharePoint connection:', error);
             alert(' An error occurred while testing the connection. Please try again.');
         })
         .finally(() => {
@@ -4635,7 +4609,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         })
         .catch(error => {
-            console.error('Error loading manual setup guide:', error);
             alert('Error loading setup guide. Please try again.');
         });
     }
@@ -5033,7 +5006,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         })
         .catch(error => {
-            console.error('Error starting sync:', error);
             showSyncError('Network error occurred while starting sync');
         });
     }
@@ -5084,7 +5056,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             })
             .catch(error => {
-                console.error('Error checking sync status:', error);
                 clearInterval(syncStatusInterval);
                 showSyncError('Error monitoring sync progress');
                 
@@ -5222,7 +5193,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             })
             .catch(error => {
-                console.error('Error:', error);
                 alert('An error occurred while saving business limits');
             })
             .finally(() => {
@@ -5281,7 +5251,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             })
             .catch(error => {
-                console.error('Error:', error);
                 alert('An error occurred while saving storage settings');
             })
             .finally(() => {
@@ -5293,11 +5262,9 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Additional event handling for accordion sections if needed
-    // console.log removed for production
     
     // Load job lists when data management section is opened
     if (window.location.hash === '#data_management' || new URLSearchParams(window.location.search).get('tab') === 'data_management') {
-        // console.log removed for production
         loadExportJobs();
         loadImportJobs();
         // Only load backups for superadmin users
@@ -5338,7 +5305,6 @@ function testZoomConnection() {
         }
     })
     .catch(error => {
-        console.error('Error testing Zoom connection:', error);
         alert(' An error occurred while testing the connection. Please try again.');
     })
     .finally(() => {
@@ -5379,7 +5345,6 @@ function startExport() {
         }
     })
     .catch(error => {
-        console.error('Error:', error);
         alert('An error occurred while starting export');
     });
 }
@@ -5423,7 +5388,6 @@ function startImport() {
         }
     })
     .catch(error => {
-        console.error('Error:', error);
         alert('An error occurred while starting import');
     });
 }
@@ -5456,17 +5420,14 @@ function createBackup() {
         }
     })
     .catch(error => {
-        console.error('Error:', error);
         alert('An error occurred while creating backup');
     });
 }
 
 function loadBackups() {
-    // console.log removed for production
     const container = document.getElementById('backup_list');
     
     if (!container) {
-        console.error('Backup list container not found');
         return;
     }
     
@@ -5475,14 +5436,12 @@ function loadBackups() {
     
     fetch(window.BACKUP_LIST_URL)
     .then(response => {
-        // console.log removed for production
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
         return response.json();
     })
     .then(data => {
-        // console.log removed for production
         if (data.success) {
             container.innerHTML = '';
             
@@ -5496,13 +5455,11 @@ function loadBackups() {
                 container.appendChild(backupElement);
             });
             
-            // console.log removed for production
         } else {
             container.innerHTML = `<p class="text-red-500 text-sm">Error: ${data.error || 'Unknown error'}</p>`;
         }
     })
     .catch(error => {
-        console.error('Error loading backups:', error);
         container.innerHTML = `<p class="text-red-500 text-sm">Error loading backups: ${error.message}</p>`;
     });
 }
@@ -5580,7 +5537,6 @@ function deleteBackup(backupId) {
         }
     })
     .catch(error => {
-        console.error('Error:', error);
         alert('An error occurred while deleting backup');
     });
 }
@@ -5603,7 +5559,6 @@ async function fetchWithRetry(url, options = {}, retries = 3, delay = 1000) {
             }
             return await response.json();
         } catch (error) {
-            console.warn(`Fetch attempt ${i + 1} failed:`, error.message);
             if (i === retries - 1) throw error;
             
             // Wait before retrying with exponential backoff
@@ -5614,11 +5569,9 @@ async function fetchWithRetry(url, options = {}, retries = 3, delay = 1000) {
 
 // Business Settings Functions
 async function loadBusinessSettings() {
-    // console.log removed for production
     const container = document.querySelector('[data-section-id="business"] .accordion-content tbody');
     
     if (!container) {
-        console.error('Business settings container not found');
         return;
     }
     
@@ -5636,7 +5589,6 @@ async function loadBusinessSettings() {
     
     try {
         const data = await fetchWithRetry(window.LOAD_BUSINESS_DATA_URL);
-        // console.log removed for production
         
         if (data.success) {
             container.innerHTML = '';
@@ -5651,12 +5603,10 @@ async function loadBusinessSettings() {
                 container.appendChild(row);
             });
             
-            // console.log removed for production
         } else {
             throw new Error(data.error || 'Unknown error from server');
         }
     } catch (error) {
-        console.error('Error loading business data:', error);
         container.innerHTML = `
             <tr>
                 <td colspan="4" class="px-6 py-4 text-center">
@@ -5724,11 +5674,9 @@ function createBusinessRow(businessData) {
 
 // Branches Settings Functions
 async function loadBranchesSettings() {
-    // console.log removed for production
     const container = document.querySelector('[data-section-id="branches"] .accordion-content tbody');
     
     if (!container) {
-        console.error('Branches settings container not found');
         return;
     }
     
@@ -5746,7 +5694,6 @@ async function loadBranchesSettings() {
     
     try {
         const data = await fetchWithRetry(window.LOAD_BRANCHES_DATA_URL);
-        // console.log removed for production
         
         if (data.success) {
             container.innerHTML = '';
@@ -5760,12 +5707,10 @@ async function loadBranchesSettings() {
             const branchesHtml = createBranchesHtml(data.branches);
             container.innerHTML = branchesHtml;
             
-            // console.log removed for production
         } else {
             throw new Error(data.error || 'Unknown error from server');
         }
     } catch (error) {
-        console.error('Error loading branches data:', error);
         container.innerHTML = `
             <tr>
                 <td colspan="3" class="px-6 py-4 text-center">
@@ -5843,7 +5788,6 @@ function loadExportJobs() {
         }
     })
     .catch(error => {
-        console.error('Error loading export jobs:', error);
     });
 }
 
@@ -5872,7 +5816,6 @@ function loadImportJobs() {
         }
     })
     .catch(error => {
-        console.error('Error loading import jobs:', error);
     });
 }
 
@@ -5956,7 +5899,6 @@ function pollJobStatus(jobId, type) {
             }
         })
         .catch(error => {
-            console.error('Error polling job status:', error);
         });
     };
     
@@ -6030,7 +5972,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // AI Token Management Modal Functions
 function openAITokenModal(branchId, branchName) {
-    // console.log removed for production
     
     // Hide all other modals first
     hideAllModals();
@@ -6043,7 +5984,6 @@ function openAITokenModal(branchId, branchName) {
     const modalContent = document.getElementById('aiTokenModalContent');
     
     if (!modal) {
-        console.error("AI Token modal element not found!");
         return;
     }
     
@@ -6073,7 +6013,6 @@ function closeAITokenModal() {
 
 async function loadAITokenData(branchId) {
     try {
-        // console.log removed for production
         
         // Make AJAX request to get token data
         const response = await fetch(`/tinymce/manage-branch-tokens/${branchId}/data/`, {
@@ -6090,7 +6029,6 @@ async function loadAITokenData(branchId) {
         }
         
         const data = await response.json();
-        // console.log removed for production
         
         // Update modal content with data
         updateAITokenModalContent(data);
@@ -6102,7 +6040,6 @@ async function loadAITokenData(branchId) {
         if (modalContent) modalContent.classList.remove('hidden');
         
     } catch (error) {
-        console.error('Error loading AI token data:', error);
         
         // Show error message
         const loadingState = document.getElementById('aiTokenLoadingState');
@@ -6250,7 +6187,6 @@ async function saveAITokenLimits() {
         
         // Show subtle success indication
         const limitText = isUnlimited ? "unlimited" : `${parseInt(monthlyLimit).toLocaleString()} tokens/month`;
-        // console.log removed for production
         
         // Show success in button text briefly
         saveButton.textContent = '✓ Saved';
@@ -6270,7 +6206,6 @@ async function saveAITokenLimits() {
         }, 800); // Close after 800ms for smoother experience
         
     } catch (error) {
-        console.error('Error saving token limits:', error);
         
         // Show error in button text briefly
         saveButton.textContent = '✗ Error';
@@ -6320,7 +6255,6 @@ function openManageTokensPopup(url) {
         const branchName = event.target.getAttribute('data-branch-name') || 'Unknown Branch';
         openAITokenModal(branchId, branchName);
     } else {
-        console.error('Could not extract branch ID from URL:', url);
         // Silently fail without popup - just log the error
     }
 }

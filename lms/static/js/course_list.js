@@ -5,7 +5,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Check if all required elements exist
     if (!courseContainer || !gridViewBtn || !listViewBtn) {
-        console.warn('Course list view toggle: Required elements not found');
         return;
     }
 

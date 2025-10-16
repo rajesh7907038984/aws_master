@@ -4,7 +4,6 @@
  */
 
 document.addEventListener('DOMContentLoaded', function() {
-    console.log(' Simple Profile Dropdown Handler Loading...');
     
     // Get profile elements
     const profileButton = document.getElementById('profile-button');
@@ -13,7 +12,6 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Check if elements exist
     if (!profileButton || !profileDropdown || !profileContainer) {
-        console.error(' Profile dropdown elements not found:', {
             profileButton: !!profileButton,
             profileDropdown: !!profileDropdown,
             profileContainer: !!profileContainer
@@ -21,7 +19,6 @@ document.addEventListener('DOMContentLoaded', function() {
         return;
     }
     
-    console.log(' Profile dropdown elements found');
     
     // Track dropdown state
     let isDropdownOpen = false;
@@ -36,7 +33,6 @@ document.addEventListener('DOMContentLoaded', function() {
         profileDropdown.classList.remove('hidden');
         isDropdownOpen = true;
         
-        console.log('📂 Profile dropdown opened');
     }
     
     // Function to hide dropdown
@@ -49,7 +45,6 @@ document.addEventListener('DOMContentLoaded', function() {
         profileDropdown.classList.add('hidden');
         isDropdownOpen = false;
         
-        console.log(' Profile dropdown closed');
     }
     
     // Function to toggle dropdown
@@ -66,7 +61,6 @@ document.addEventListener('DOMContentLoaded', function() {
         e.preventDefault();
         e.stopPropagation();
         
-        console.log('🖱️ Profile button clicked');
         toggleDropdown();
     });
     
@@ -75,7 +69,6 @@ document.addEventListener('DOMContentLoaded', function() {
         e.preventDefault();
         e.stopPropagation();
         
-        console.log('📱 Profile button touched');
         toggleDropdown();
     });
     
@@ -161,7 +154,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 100);
     });
     
-    console.log(' Simple Profile Dropdown Handler Loaded Successfully');
 });
 
 // Export functions for external use

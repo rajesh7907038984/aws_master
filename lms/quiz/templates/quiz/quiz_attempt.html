@@ -289,7 +289,6 @@ document.addEventListener('DOMContentLoaded', function() {
     // Debug utility function
     const debug = (message, data) => {
         if (window.quizDebug) {
-            console.log(`[Quiz Debug] ${message}`, data || '');
         }
     };
     
@@ -314,11 +313,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     debug('DragDropMatchingLearner initialized successfully');
                 } catch (error) {
                     debug('Error initializing DragDropMatchingLearner:', error);
-                    console.error('DragDropMatchingLearner error:', error);
                 }
             } else {
                 debug('DragDropMatchingLearner not available, using fallback');
-                console.warn('DragDropMatchingLearner not available, using fallback implementation');
                 
                 // Fallback implementation if module not loaded
                 const dragItems = container.querySelectorAll('.drag-item');
@@ -611,7 +608,6 @@ document.addEventListener('DOMContentLoaded', function() {
         .catch(error => {
             debug('Error in fetch:', error.message);
             createNotification(`Error: ${error.message || 'Failed to save progress'}`, 'error');
-            console.error('Save progress error:', error);
         })
         .finally(() => {
             if (saveButton) {
@@ -628,7 +624,6 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Get user timezone info
     const userTimezone = window.timezoneDetector ? window.timezoneDetector.getTimezoneInfo() : null;
-    console.log('User timezone info:', userTimezone);
     
     // Progress tracking
     const totalQuestions = document.querySelectorAll('.question-container').length;
@@ -888,7 +883,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 `;
                 // Submit the quiz (bypass validation for time expiration)
                 if (form && !isSubmitting) {
-                    console.log('Auto-submitting quiz due to time expiration');
                     submitQuiz(true); // Skip validation for auto-submit
                     // Remove modal after a short delay to show submission status
                     setTimeout(() => {
@@ -926,7 +920,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 startTimer();
             })
             .catch(error => {
-                console.warn('Could not refresh remaining time:', error);
                 startTimer(); // Continue with current timeLeft
             });
         }

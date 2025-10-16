@@ -23,14 +23,12 @@ if (typeof console === 'undefined') {
         init: function() {
             this.detectTimezone();
             this.setupTimezoneDisplay();
-            console.log(`Timezone handler initialized with timezone: ${this.userTimezone}`);
         },
         
         detectTimezone: function() {
             try {
                 this.userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
             } catch (error) {
-                console.warn('Could not detect timezone, using default');
                 this.userTimezone = 'UTC';
             }
         },
@@ -45,7 +43,6 @@ const timestamps = document.querySelectorAll('[data-timestamp]');
                         const date = new Date(parseInt(timestamp) * 1000);
                         element.textContent = date.toLocaleString();
                     } catch (error) {
-                        console.warn('Invalid timestamp:', timestamp);
                     }
                 }
             });

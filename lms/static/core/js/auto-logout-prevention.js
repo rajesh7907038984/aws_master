@@ -31,7 +31,6 @@
                 },
                 credentials: 'same-origin'
             }).catch(function(error) {
-                console.warn('Session ping failed:', error);
             });
         },
         

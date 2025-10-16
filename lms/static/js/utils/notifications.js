@@ -12,7 +12,6 @@ function showToast(message, type = 'success', duration = 3000) {
     try {
         // Ensure document.body exists
         if (!document.body) {
-            console.error('Cannot show toast: document.body is not available');
             return;
         }
         
@@ -22,14 +21,12 @@ function showToast(message, type = 'success', duration = 3000) {
             try {
                 toast.remove();
             } catch (err) {
-                console.error('Error removing existing toast:', err);
             }
         });
         
         // Create toast element
         const toast = document.createElement('div');
         if (!toast) {
-            console.error('Failed to create toast element');
             return;
         }
         
@@ -57,7 +54,6 @@ function showToast(message, type = 'success', duration = 3000) {
             try {
                 toast.textContent = message;
             } catch (err) {
-                console.error('Error setting toast message:', err);
                 // Fallback method
                 toast.innerHTML = '';
                 const textNode = document.createTextNode(String(message));
@@ -72,7 +68,6 @@ function showToast(message, type = 'success', duration = 3000) {
         try {
             document.body.appendChild(toast);
         } catch (err) {
-            console.error('Error appending toast to document.body:', err);
             return;
         }
         
@@ -82,7 +77,6 @@ function showToast(message, type = 'success', duration = 3000) {
                 try {
                     toast.classList.add('opacity-100');
                 } catch (err) {
-                    console.error('Error adding opacity class:', err);
                 }
             }
         }, 10);
@@ -95,12 +89,10 @@ function showToast(message, type = 'success', duration = 3000) {
             try {
                 toast.classList.add('opacity-0');
             } catch (err) {
-                console.error('Error adding fade-out class:', err);
                 // Try direct removal if fade fails
                 try {
                     toast.remove();
                 } catch (innerErr) {
-                    console.error('Error removing toast directly:', innerErr);
                 }
                 return;
             }
@@ -111,13 +103,11 @@ function showToast(message, type = 'success', duration = 3000) {
                     try {
                         toast.remove();
                     } catch (err) {
-                        console.error('Error removing toast after animation:', err);
                     }
                 }
             }, 300);
         }, duration);
     } catch (err) {
-        console.error('Unhandled error in showToast:', err);
     }
 }
 

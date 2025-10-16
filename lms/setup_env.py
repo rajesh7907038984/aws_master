@@ -22,7 +22,6 @@ def create_env_file():
     env_example = project_root / 'env.example'
     
     if env_file.exists():
-        print(f"WARNING: .env file already exists at {env_file}")
         response = input("Do you want to overwrite it? (y/N): ").strip().lower()
         if response != 'y':
             print("CANCELLED: No changes made.")

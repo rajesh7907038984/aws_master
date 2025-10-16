@@ -383,7 +383,6 @@
                                 <!-- PDF Viewer JavaScript -->
                                 <script>
                                 function handlePdfLoad() {
-                                    console.log('PDF loaded successfully');
                                     const loading = document.getElementById('pdf-loading');
                                     if (loading) {
                                         loading.style.display = 'none';
@@ -391,7 +390,6 @@
                                 }
                                 
                                 function handlePdfError() {
-                                    console.log('PDF iframe failed to load, showing fallback');
                                     document.getElementById('pdf-iframe').style.display = 'none';
                                     document.getElementById('pdf-fallback').classList.remove('hidden');
                                     document.getElementById('pdf-loading').style.display = 'none';
@@ -406,7 +404,6 @@
                                     // Set a timeout to show fallback if PDF doesn't load
                                     const timeout = setTimeout(function() {
                                         if (loading.style.display !== 'none') {
-                                            console.log('PDF loading timeout, showing fallback');
                                             loading.style.display = 'none';
                                             iframe.style.display = 'none';
                                             fallback.classList.remove('hidden');
@@ -417,7 +414,6 @@
                                     iframe.addEventListener('load', function() {
                                         clearTimeout(timeout);
                                         loading.style.display = 'none';
-                                        console.log('PDF loaded successfully');
                                     });
                                     
                                     // Handle iframe errors
@@ -866,7 +862,6 @@
                     // Store the collapsed state in localStorage
                     localStorage.setItem('sidebar_collapsed', 'true');
                     
-                    console.log('Sidebar auto-collapsed for topic view page');
                 }
             }
         }
@@ -1086,7 +1081,6 @@
                                  window.location.hostname.includes('.local');
             
             if (isDevelopment) {
-                console.log(`[DEV] Notification suppressed: ${message} (${type})`);
                 return;
             }
             
@@ -1167,7 +1161,6 @@
     })
                     .then(data => {
                         if (data.success && data.completed) {
-                            console.log('Video completed automatically at ' + progress + '%');
                             // Update UI to show completion
                             if (typeof updateCompletionUI === 'function') {
                                 updateCompletionUI('{{ topic.id }}');
@@ -1176,12 +1169,10 @@
                                 showCompletionToast('{{ topic.title|escapejs }}');
                             } else {
                                 // Show simple completion message
-                                console.log('Topic completed: {{ topic.title|escapejs }}');
                             }
                         }
                     })
                     .catch(error => {
-                        console.error('Error updating video progress:', error);
                     });
                 }
             }
@@ -1257,7 +1248,6 @@
     })
                     .then(data => {
                         if (data.success && data.completed) {
-                            console.log('Audio completed automatically at ' + progress + '%');
                             // Update UI to show completion
                             if (typeof updateCompletionUI === 'function') {
                                 updateCompletionUI('{{ topic.id }}');
@@ -1268,7 +1258,6 @@
                         }
                     })
                     .catch(error => {
-                        console.error('Error updating audio progress:', error);
                     });
                 }
             }
@@ -1340,7 +1329,6 @@
     })
                 .then(data => {
                     if (data.success && data.completed) {
-                        console.log('EmbedVideo completed automatically');
                         // Update UI to show completion
                         if (typeof updateCompletionUI === 'function') {
                             updateCompletionUI('{{ topic.id }}');
@@ -1351,7 +1339,6 @@
                     }
                 })
                 .catch(error => {
-                    console.error('Error updating embed video progress:', error);
                 });
             }
             

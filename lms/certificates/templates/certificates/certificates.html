@@ -680,15 +680,12 @@
                     fields[fieldIndex].fontColor = fontColor;
                     
                     // Debug: Log the updated field data
-                    console.log('Updated field data:', fields[fieldIndex]);
                 } else {
-                    console.error('Field not found in fields array:', fieldId, fields);
                 }
                 
                 // Show success message
                 showSuccess('Field styles applied successfully');
             } else {
-                console.error('No field selected for styling');
             }
         });
         
@@ -710,7 +707,6 @@
             const fieldId = selectedField.dataset.id;
             const fieldData = fields.find(f => f.id === fieldId);
             
-            console.log('Selecting field:', fieldId, 'Field data:', fieldData, 'All fields:', fields);
             
             if (fieldData) {
                 // Set default values if not available
@@ -720,7 +716,6 @@
                 fontColorPicker.value = fieldData.fontColor || '#000000';
                 fontColorHex.textContent = fieldData.fontColor || '#000000';
                 
-                console.log('Applied field data to styling panel:', {
                     fontFamily: fieldData.fontFamily,
                     fontSize: fieldData.fontSize,
                     fontWeight: fieldData.fontWeight,
@@ -734,7 +729,6 @@
                 fontColorPicker.value = '#000000';
                 fontColorHex.textContent = '#000000';
                 
-                console.log('No field data found, using defaults');
             }
         }
         
@@ -820,7 +814,6 @@
                         
                         // Load fields
                         if (data.elements && data.elements.length > 0) {
-                            console.log('Loading template elements:', data.elements);
                             data.elements.forEach(element => {
                                 // Create field placeholder
                                 const placeholder = document.createElement('div');
@@ -914,7 +907,6 @@
                                     fontColor: element.color || '#000000'
                                 };
                                 fields.push(fieldData);
-                                console.log('Added field to array:', fieldData);
                                 
                                 previewContainer.appendChild(placeholder);
                             });
@@ -924,7 +916,6 @@
                     }
                 })
                 .catch(error => {
-                    console.error('Error:', error);
                     alert('An error occurred while loading the template');
                 });
         }
@@ -1000,7 +991,6 @@
                         return;
                     }
                 } catch (err) {
-                    console.error('Error parsing field data:', err);
                 }
             }
             
@@ -1251,7 +1241,6 @@
             fieldsDataInput.value = JSON.stringify(fields);
             
             // Debug: Log the fields data being submitted
-            console.log('Submitting fields data:', fields);
             
             // Set action based on whether this is an update
             if (isUpdate) {

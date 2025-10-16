@@ -25,14 +25,10 @@
             this.setupGlobalErrorHandling();
             this.setupNetworkMonitoring();
             this.setupAPIErrorHandling();
-            console.log('Production Error Handler initialized');
         },
 
         // Setup global error handling for production
         setupGlobalErrorHandling: function() {
-            // Override console.error to include more context in production
-            const originalConsoleError = console.error;
-            console.error = function(...args) {
                 const timestamp = new Date().toISOString();
                 const context = {
                     timestamp: timestamp,
@@ -117,7 +113,6 @@
                     
                     // Log successful requests in production
                     if (this.config.enableDetailedLogging) {
-                        console.log(`API call successful: ${url} (${duration}ms)`);
                     }
 
                     return this.handleResponse(response, url, options);
@@ -127,7 +122,6 @@
                     const duration = Date.now() - startTime;
                     
                     // Log error with context
-                    console.error(`API call failed: ${url} (${duration}ms)`, error);
 
                     return this.handleError(error, url, options, retryCount, maxRetries, originalFetch);
                 });
@@ -154,7 +148,6 @@
             if (retryCount < maxRetries && isRetryable) {
                 const delay = this.calculateRetryDelay(retryCount);
                 
-                console.warn(`Retrying API call (${retryCount + 1}/${maxRetries}) after ${delay}ms: ${url}`);
                 
                 return new Promise(resolve => {
                     setTimeout(() => {
@@ -216,7 +209,6 @@
             } else if (error.status === 404) {
                 // Don't show 404 errors automatically - they might be expected (e.g., optional resources)
                 // Only log to console for debugging
-                console.warn('Resource not found:', url);
                 return; // Don't show notification
             } else if (error.status >= 500) {
                 message = 'Server error. Please try again in a few moments.';
@@ -278,14 +270,12 @@
         // Retry failed requests when connection is restored
         retryFailedRequests: function() {
             // This would be implemented to retry any queued failed requests
-            console.log('Retrying failed requests...');
         },
 
         // Log to server (placeholder for production logging service)
         logToServer: function(level, data) {
             // In a real production environment, you would send this to your logging service
             // For now, we'll just log to console
-            console.log(`[${level.toUpperCase()}]`, data);
         }
     };
 

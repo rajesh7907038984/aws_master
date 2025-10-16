@@ -1068,7 +1068,6 @@ class TabManager {
         this.initializeUI();
         
         this.isInitialized = true;
-        console.log('TabManager initialized with state:', this.state);
     }
     
     loadStateFromURL() {
@@ -1097,7 +1096,6 @@ class TabManager {
             this.state.nestedTab = 'assessment-data-tab';
         }
         
-        console.log('Tab state loaded:', this.state);
     }
     
     setupEventListeners() {
@@ -1145,7 +1143,6 @@ class TabManager {
     }
     
     openMainTab(tabName) {
-        console.log('Opening main tab:', tabName);
         this.userChangedTab = true;
         
         // Update state
@@ -1166,7 +1163,6 @@ class TabManager {
     }
     
     openSubTab(tabName) {
-        console.log('Opening sub tab:', tabName);
         this.userChangedTab = true;
         
         // Update state
@@ -1186,7 +1182,6 @@ class TabManager {
     }
     
     openNestedTab(tabName) {
-        console.log('Opening nested tab:', tabName);
         this.userChangedTab = true;
         
         // Update state
@@ -1353,7 +1348,6 @@ class TabManager {
         
         const newURL = window.location.pathname + '?' + urlParams.toString();
         window.history.replaceState({}, '', newURL);
-        console.log('URL updated to:', newURL);
     }
     
     updateHiddenFields() {
@@ -1365,7 +1359,6 @@ class TabManager {
         if (activeSubTabField) activeSubTabField.value = this.state.subTab || '';
         if (activeNestedTabField) activeNestedTabField.value = this.state.nestedTab || '';
         
-        console.log('Hidden fields updated:', this.state);
     }
     
     initializeUI() {
@@ -1448,7 +1441,6 @@ class TabManager {
     
     // Public method to navigate to a specific category
     navigateToCategory(tabName) {
-        console.log('Navigating to category tab:', tabName);
         this.openMainTab(tabName);
         
         const tabButton = document.querySelector(`.tab-button[onclick*="${tabName}"]`);
@@ -1534,7 +1526,6 @@ class TabManager {
 let tabManager;
 
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('Initializing TabManager...');
     tabManager = new TabManager();
     
     // Make global functions available for backward compatibility
@@ -1581,11 +1572,6 @@ document.addEventListener('DOMContentLoaded', function() {
     // Debug function
     window.debugTabState = function() {
         // Debug function disabled in production
-        console.log('Hidden field values:');
-        console.log('- activeTabField:', document.getElementById('activeTabField')?.value);
-        console.log('- activeSubTabField:', document.getElementById('activeSubTabField')?.value);
-        console.log('- activeNestedTabField:', document.getElementById('activeNestedTabField')?.value);
-        console.log('=====================');
     };
 });
 
@@ -1605,11 +1591,9 @@ class FormManager {
     init() {
         this.form.addEventListener('submit', (e) => this.handleSubmit(e));
         this.submitBtn.addEventListener('click', (e) => this.handleButtonClick(e));
-        console.log('FormManager initialized');
     }
     
     handleSubmit(e) {
-        console.log('Form submit event');
         
         // Clean up any disabled placeholder fields that might interfere with validation
         this.cleanupPlaceholderFields();
@@ -1627,7 +1611,6 @@ class FormManager {
     }
     
     handleButtonClick(e) {
-        console.log('Submit button clicked');
         
         // Clean up any disabled placeholder fields that might interfere with validation
         this.cleanupPlaceholderFields();
@@ -1714,7 +1697,6 @@ class FormManager {
             });
         });
         
-        console.log('Cleaned up placeholder fields before form submission');
     }
     
     showLoadingState() {
@@ -1890,7 +1872,6 @@ function loadQuizzesForAssignment(assignmentType) {
             }
         })
         .catch(error => {
-            console.error('Error loading quizzes:', error);
             selector.innerHTML = '<option value="">Error loading quizzes</option>';
         });
 }
@@ -1938,7 +1919,6 @@ function submitQuizAssignment(assignmentType) {
         }
     })
     .catch(error => {
-        console.error('Error creating assignment:', error);
         alert('Error creating quiz assignment. Please try again.');
     });
 }
@@ -1966,7 +1946,6 @@ function editQuizAssignment(assignmentId) {
             }
         })
         .catch(error => {
-            console.error('Error fetching assignment:', error);
             alert('Error loading assignment details');
         });
 }
@@ -2061,7 +2040,6 @@ function submitEditQuizAssignment(assignmentId) {
         }
     })
     .catch(error => {
-        console.error('Error updating assignment:', error);
         alert('Error updating assignment. Please try again.');
     });
 }
@@ -2095,7 +2073,6 @@ function deleteQuizAssignment(assignmentId, assignmentName) {
             }
         })
         .catch(error => {
-            console.error('Error deleting assignment:', error);
             alert('Error deleting assignment. Please try again.');
         });
     }
@@ -2175,7 +2152,6 @@ function showNotification(message, type) {
             }, 5000);
         })
         .catch(error => {
-            console.error('Error sending self password reset email:', error);
             
             // Show error message
             statusDiv.style.display = 'block';
@@ -2240,7 +2216,6 @@ function showNotification(message, type) {
             }, 5000);
         })
         .catch(error => {
-            console.error('Error sending admin password reset email:', error);
             
             // Show error message
             statusDiv.style.display = 'block';

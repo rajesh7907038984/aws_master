@@ -45,7 +45,6 @@ def json_parse(value):
         print(f"Successfully parsed JSON: {type(parsed)}, value: {parsed}")
         return parsed
     except (json.JSONDecodeError, TypeError) as e:
-        print(f"JSON parse error: {e}, value: {value[:100]}")
         
         # Handle common fallback cases
         if isinstance(value, str):

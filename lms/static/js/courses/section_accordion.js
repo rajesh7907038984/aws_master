@@ -148,7 +148,6 @@ window.LMSEventListeners = window.LMSEventListeners || {
 };
 
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('Section Accordion Handler: Initialized');
     
     // Set courseId in the sections container for API calls
     const urlMatch = window.location.pathname.match(/\/courses\/(\d+)/);
@@ -158,7 +157,6 @@ document.addEventListener('DOMContentLoaded', function() {
         const sectionsContainer = document.getElementById('sections-container');
         if (sectionsContainer) {
             sectionsContainer.dataset.courseId = courseId;
-            console.log(`Set course ID ${courseId} on sections container`);
         }
     }
     
@@ -182,7 +180,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     } else {
         // View page only needs accordion functionality
-        console.log('View-only mode: Sortable functionality not needed on this page');
     }
     
     // On page load, restore section collapsed state
@@ -200,7 +197,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     } catch (e) {
-        console.error('Error restoring section states:', e);
     }
 });
 
@@ -208,7 +204,6 @@ document.addEventListener('DOMContentLoaded', function() {
  * Initialize the accordion functionality for all sections
  */
 function initializeSectionAccordion() {
-    console.log('Initializing section accordion...');
     
     // Find all toggle buttons - handle different markup in course edit page vs topic view page
     const toggleButtons = document.querySelectorAll('.section-toggle');
@@ -217,7 +212,6 @@ function initializeSectionAccordion() {
     const isTopicViewPage = window.location.pathname.includes('/topic/') && window.location.pathname.includes('/view/');
     const isEditPage = document.getElementById('sections-container') !== null;
     
-    console.log(`Page type: ${isTopicViewPage ? 'Topic View' : (isEditPage ? 'Course Edit' : 'Unknown')}`);
     
     // Handle specific page types
     if (isTopicViewPage) {
@@ -238,7 +232,6 @@ function initializeSectionAccordion() {
         toggle.addEventListener('click', handleToggleClick);
     });
     
-    console.log(`Section Accordion: Initialized ${toggleButtons.length} section toggles`);
 }
 
 /**
@@ -296,7 +289,6 @@ function handleToggleClick(e) {
     // Find container and topics section - handle both course edit and topic view page structures
     const container = this.closest('.section-container') || this.closest('.section');
     if (!container) {
-        console.error('Could not find section container for toggle click');
         return;
     }
     
@@ -351,15 +343,12 @@ function isHtmlResponse(text) {
  * Standard fetch with timeout and better error handling
  */
 function fetchWithTimeout(url, options, timeoutMs = 15000) {
-    console.log(`Fetching ${url} with options:`, options);
     
     // Log the request body for more debugging info
     if (options.body) {
         try {
             const parsedBody = JSON.parse(options.body);
-            console.log('Request body:', parsedBody);
         } catch (e) {
-            console.log('Request body (unparsed):', options.body);
         }
     }
 
@@ -370,7 +359,6 @@ function fetchWithTimeout(url, options, timeoutMs = 15000) {
     return Promise.race([
         fetch(url, options)
             .then(response => {
-                console.log(`Response from ${url}:`, {
                     status: response.status,
                     statusText: response.statusText,
                     headers: response.headers ? Object.fromEntries(response.headers.entries()) : {}
@@ -379,7 +367,6 @@ function fetchWithTimeout(url, options, timeoutMs = 15000) {
                 return response;
             })
             .catch(error => {
-                console.error(`Fetch error for ${url}:`, error);
                 throw error;
             }),
         timeoutPromise
@@ -416,11 +403,9 @@ function robustFetch(url, options = {}) {
                     resolve(response);
                 })
                 .catch(error => {
-                    console.error('Fetch error:', error);
                     reject(error);
                 });
         } catch (error) {
-            console.error('Error in robustFetch:', error);
             reject(error);
         }
     });
@@ -434,7 +419,6 @@ function safeParseJson(text) {
     try {
         // Check if the response is HTML
         if (isHtmlResponse(text)) {
-            console.warn('Received HTML instead of JSON:', text.substring(0, 100) + '...');
             return {
                 success: false,
                 error: 'Server returned HTML instead of JSON. Possible server error.'
@@ -444,7 +428,6 @@ function safeParseJson(text) {
         // Try to parse as JSON
         return JSON.parse(text);
     } catch (e) {
-        console.error('JSON parse error:', e);
         return {
             success: false,
             error: 'Invalid JSON response: ' + (text ? text.substring(0, 50) + '...' : 'empty response')
@@ -459,7 +442,6 @@ function initializeSectionSortable() {
     const sectionsContainer = document.getElementById('sections-container');
     if (!sectionsContainer) return;
     
-    console.log('Initializing section sortable...');
     
     try {
         // Destroy existing instance if it exists to prevent duplicates
@@ -488,12 +470,9 @@ function initializeSectionSortable() {
             sectionsContainer.sortableInstance = sortableInstance;
             
             initializedSortables.sections = true;
-            console.log('Sortable initialized for sections container');
         } else {
-            console.warn('Sortable library not available for sections');
         }
     } catch (error) {
-        console.error('Error initializing section sortable:', error);
     }
 }
 
@@ -503,13 +482,11 @@ function initializeSectionSortable() {
 function initializeTopicsSortable() {
     // Check if Sortable library is available
     if (typeof Sortable === 'undefined') {
-        console.log('Sortable library not available for topics - accordion-only mode active');
         return;
     }
     
     // Get all topic lists in all sections
     const topicLists = document.querySelectorAll('.topic-list');
-    console.log(`Initializing topic sortables for ${topicLists.length} lists...`);
     
     // For each topic list
     topicLists.forEach(list => {
@@ -519,7 +496,6 @@ function initializeTopicsSortable() {
         
         // Skip if we've already initialized this list or can't find section ID
         if (!sectionId) {
-            console.log('Skipping topic list without section ID');
             return;
         }
         
@@ -528,16 +504,13 @@ function initializeTopicsSortable() {
             try {
                 if (list.sortableInstance) {
                     list.sortableInstance.destroy();
-                    console.log(`Destroyed existing Sortable instance for section ${sectionId}`);
                 }
             } catch (err) {
-                console.warn(`Could not destroy previous sortable instance for section ${sectionId}:`, err);
             }
         }
         
         // Initialize Sortable for this list
         try {
-            console.log(`Creating sortable for section ${sectionId}`);
             
             const sortableInstance = new Sortable(list, {
                 animation: 150,
@@ -559,7 +532,6 @@ function initializeTopicsSortable() {
                 onStart: function(evt) {
                     // Try different ways to get the topic ID
                     const topicId = evt.item.dataset.topicId || evt.item.dataset.id || evt.item.id.replace('topic-', '');
-                    console.log('Topic drag started:', topicId);
                     document.body.classList.add('topic-dragging-active');
                     
                     // Mark the item being dragged with a special class
@@ -571,7 +543,6 @@ function initializeTopicsSortable() {
                     });
                 },
                 onEnd: function(evt) {
-                    console.log('Topic drag ended');
                     document.body.classList.remove('topic-dragging-active');
                     
                     // Remove the dragging class
@@ -590,12 +561,10 @@ function initializeTopicsSortable() {
                     const toSectionItem = evt.to.closest('.section-item');
                     const toSectionId = toSectionItem ? (toSectionItem.dataset.sectionId || toSectionItem.dataset.id) : null;
                     
-                    console.log(`From section ${fromSectionId} to section ${toSectionId}`);
                     
                     try {
                         if (fromSectionId === toSectionId) {
                             // Same section, just reordering
-                            console.log('Reordering topics in same section:', fromSectionId);
                             saveTopicOrder(fromSectionId);
                         } else {
                             // Moving to different section
@@ -604,7 +573,6 @@ function initializeTopicsSortable() {
                                 const topicId = evt.item.dataset.topicId || evt.item.dataset.id || evt.item.id.replace('topic-', '');
                                 
                                 if (!topicId) {
-                                    console.error('Could not determine topic ID from dragged element');
                                     showNotification('Error: Could not identify the topic being moved', 'error');
                                     return;
                                 }
@@ -612,7 +580,6 @@ function initializeTopicsSortable() {
                                 // Get new position
                                 const newOrder = Array.from(evt.to.children).indexOf(evt.item) + 1; // Add 1 for 1-based indexing
                                 
-                                console.log(`Moving topic ${topicId} to section ${toSectionId} at position ${newOrder}`);
                                 
                                 // Add visual indicator that the move is being processed
                                 evt.item.classList.add('topic-processing');
@@ -633,7 +600,6 @@ function initializeTopicsSortable() {
                                         }, 1500);
                                     })
                                     .catch(error => {
-                                        console.error('Error during topic move:', error);
                                         evt.item.classList.remove('topic-processing');
                                         
                                         // Add error indicator
@@ -648,7 +614,6 @@ function initializeTopicsSortable() {
                             }
                         }
                     } catch (error) {
-                        console.error('Error in Sortable onEnd handler:', error);
                         showNotification('Error processing drag and drop operation', 'error');
                         
                         // Refresh the page to restore to a consistent state
@@ -664,9 +629,7 @@ function initializeTopicsSortable() {
             
             // Mark as initialized
             initializedSortables.topics.add(sectionId);
-            console.log(`Sortable initialized for topic list in section ${sectionId}`);
         } catch (e) {
-            console.error(`Error initializing sortable for section ${sectionId}:`, e);
         }
     });
 }
@@ -686,7 +649,6 @@ function saveSectionOrder() {
     const courseId = sectionsContainer.dataset.courseId;
     if (!courseId) {
         showNotification('Error: Course ID not found', 'error');
-        console.error('Course ID not found in sections container');
         return;
     }
     
@@ -705,7 +667,6 @@ function saveSectionOrder() {
     const csrfToken = getCsrfToken();
     if (!csrfToken) {
         showNotification('Error: CSRF token not found', 'error');
-        console.error('CSRF token not found');
         return;
     }
     
@@ -762,7 +723,6 @@ function saveSectionOrder() {
         
         if (data.success) {
             showNotification('Section order updated successfully', 'success');
-            console.log('Section order updated successfully');
         } else {
             throw new Error(data.error || 'Failed to update section order');
         }
@@ -773,7 +733,6 @@ function saveSectionOrder() {
         
         // Show error notification
         showNotification(`Error saving section order: ${error.message}`, 'error');
-        console.error('Error updating section order:', error);
         
         // Reload the page if sections are likely out of sync with server
         if (error.message.includes('404') || error.message.includes('500')) {
@@ -831,10 +790,8 @@ function getElementCourseId() {
         }
         
         // No course ID found
-        console.error('Could not determine course ID');
         return null;
     } catch (e) {
-        console.error('Error getting course ID:', e);
         return null;
     }
 }
@@ -858,7 +815,6 @@ function saveTopicOrder(sectionId) {
         }
         
         if (!topicList) {
-            console.error('Topic list container not found for section:', sectionId);
             showNotification('Error: Topic list not found', 'error');
             return;
         }
@@ -873,7 +829,6 @@ function saveTopicOrder(sectionId) {
         // Get all topic items in this section
         const topicItems = Array.from(topicList.querySelectorAll('.topic-item'));
         if (!topicItems.length) {
-            console.log('No topics to reorder in section', sectionId);
             return; // No topics to reorder
         }
         
@@ -881,7 +836,6 @@ function saveTopicOrder(sectionId) {
         const topicOrders = topicItems.map((item, index) => {
             const topicId = item.dataset.topicId;
             if (!topicId) {
-                console.error('Topic item missing data-topic-id attribute:', item);
                 return null;
             }
             return {
@@ -892,7 +846,6 @@ function saveTopicOrder(sectionId) {
         }).filter(Boolean); // Remove null entries
         
         if (!topicOrders.length) {
-            console.error('No valid topics found for reordering');
             showNotification('Error: No valid topics to reorder', 'error');
             return;
         }
@@ -913,7 +866,6 @@ function saveTopicOrder(sectionId) {
         document.body.appendChild(loadingIndicator);
         
         // Debug logs
-        console.log('Sending topic order update:', {
             course_id: courseId,
             section_id: sectionId,
             topic_orders: topicOrders
@@ -973,7 +925,6 @@ function saveTopicOrder(sectionId) {
             removeLoadingIndicator();
             
             if (data && data.success) {
-                console.log('Topic order updated successfully');
                 showNotification('Topic order updated successfully', 'success');
             } else {
                 throw new Error((data && data.error) || 'Failed to update topic order');
@@ -983,7 +934,6 @@ function saveTopicOrder(sectionId) {
             // Remove loading indicator
             removeLoadingIndicator();
             
-            console.error('Error updating topic order:', error);
             showNotification('Error updating topic order: ' + error.message, 'error');
             
             // Refresh the page after a delay to ensure consistent state
@@ -1000,7 +950,6 @@ function saveTopicOrder(sectionId) {
             }
         }
     } catch (e) {
-        console.error('Unexpected error in saveTopicOrder:', e);
         showNotification('Unexpected error: ' + e.message, 'error');
     }
 }
@@ -1017,12 +966,10 @@ function saveTopicMove(topicId, sectionId, newOrder) {
         try {
             if (!topicId) {
                 const error = 'No topic ID provided to saveTopicMove';
-                console.error(error);
                 showNotification('Error: No topic ID provided', 'error');
                 return reject(new Error(error));
             }
             
-            console.log(`Saving topic move: Topic ${topicId} to section ${sectionId} at position ${newOrder}`);
             
             // Ensure sectionId is properly formatted - null or number
             let formattedSectionId = sectionId;
@@ -1068,7 +1015,6 @@ function saveTopicMove(topicId, sectionId, newOrder) {
             }
             
             // Debug log the data being sent
-            console.log('Sending topic move data:', {
                 topic_id: parseInt(topicId, 10),
                 section_id: formattedSectionId,
                 new_order: newOrder + 1,
@@ -1131,7 +1077,6 @@ function saveTopicMove(topicId, sectionId, newOrder) {
                     showNotification('Topic moved successfully', 'success');
                     
                     // Update any UI state if needed
-                    console.log('Topic move saved successfully');
                     
                     // Resolve the promise
                     resolve(data);
@@ -1148,7 +1093,6 @@ function saveTopicMove(topicId, sectionId, newOrder) {
                 }
             })
             .catch(error => {
-                console.error('Error saving topic move:', error);
                 // Show error notification
                 showNotification(`Error moving topic: ${error.message}`, 'error');
                 
@@ -1172,7 +1116,6 @@ function saveTopicMove(topicId, sectionId, newOrder) {
                 }
             }
         } catch (e) {
-            console.error('Unexpected error in saveTopicMove:', e);
             showNotification('Unexpected error: ' + e.message, 'error');
             
             // Remove loading indicator if it exists
@@ -1259,7 +1202,6 @@ function deleteSection(sectionId) {
                 sectionElement.remove();
                 showNotification('Section deleted successfully', 'success');
             } else {
-                console.error('Section element not found for ID:', sectionId);
                 showNotification('Section deleted, but UI needs to be refreshed', 'warning');
                 setTimeout(() => window.location.reload(), 1000);
             }
@@ -1272,7 +1214,6 @@ function deleteSection(sectionId) {
         const indicator = document.getElementById(loadingId);
         if (indicator) indicator.remove();
         
-        console.error('Error deleting section:', error);
         showNotification('Error deleting section: ' + error.message, 'error');
     });
 }
@@ -1354,7 +1295,6 @@ function renameSection(sectionId, currentName) {
                 nameElement.title = data.name;
                 showNotification('Section renamed successfully', 'success');
             } else {
-                console.error('Section name element not found for ID:', sectionId);
                 showNotification('Section renamed, but UI needs to be refreshed', 'warning');
                 setTimeout(() => window.location.reload(), 1000);
             }
@@ -1367,7 +1307,6 @@ function renameSection(sectionId, currentName) {
         const indicator = document.getElementById(loadingId);
         if (indicator) indicator.remove();
         
-        console.error('Error renaming section:', error);
         showNotification('Error renaming section: ' + error.message, 'error');
     });
 }

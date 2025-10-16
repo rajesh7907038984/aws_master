@@ -18,7 +18,6 @@ function initializeCategoryField() {
 // Function to handle category change
 function handleCategoryChange(categoryId) {
     // You can add additional logic here when category changes
-    console.log('Category changed to:', categoryId);
 }
 
 // Function to update category field

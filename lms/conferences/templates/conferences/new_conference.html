@@ -656,7 +656,6 @@
             }
         } else {
             // No integration elements exist, that's fine - user can create conference without platform integration
-            console.log('No platform integration elements found - proceeding without platform integration');
         }
 
         // Validate form before submission
@@ -820,7 +819,6 @@
             }
         })
         .catch(error => {
-            console.error('Error creating meeting:', error);
             meetingStatusSpan.textContent = `Error: ${error.message}`;
             meetingStatusSpan.className = 'ml-2 text-sm text-red-600';
             button.disabled = false;

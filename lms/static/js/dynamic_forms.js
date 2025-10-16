@@ -4,7 +4,6 @@
  */
 
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('Dynamic forms script loaded');
     
     // Handle "Other" field visibility for various dropdowns
     handleOtherFieldVisibility();
@@ -87,7 +86,6 @@ function handleFileInputs() {
                 fileNameElement.textContent = fileName;
             }
             
-            console.log('File selected:', fileName);
         });
     });
 } 

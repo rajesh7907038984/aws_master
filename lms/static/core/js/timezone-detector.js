@@ -32,7 +32,6 @@ class TimezoneDetector {
             this.sendToServer();
             
         } catch (error) {
-            console.error('Error detecting timezone:', error);
             this.fallbackDetection();
         }
     }
@@ -51,7 +50,6 @@ class TimezoneDetector {
             this.sendToServer();
             
         } catch (error) {
-            console.error('Fallback timezone detection failed:', error);
             this.timezone = 'UTC';
             this.offset = 0;
             this.detected = false;

@@ -23,7 +23,6 @@ document.addEventListener('DOMContentLoaded', function() {
             const data = await response.json();
             return data.count || 0;
         } catch (error) {
-            console.warn('Failed to fetch notification count:', error);
             // Fallback to localStorage or default
             return 0;
         }

@@ -129,19 +129,16 @@
 <script>
 // Initialize the global unit success chart when this component is loaded
 (function() {
-    console.log('Template-specific unit success chart initialization starting...');
     
     function initializeChart() {
         // Check if Chart.js is available
         if (typeof Chart === 'undefined') {
-            console.log('Chart.js not ready, retrying in 100ms...');
             setTimeout(initializeChart, 100);
             return;
         }
         
         // Check if GlobalUnitSuccessChart is available
         if (typeof GlobalUnitSuccessChart === 'undefined') {
-            console.log('GlobalUnitSuccessChart not ready, retrying in 100ms...');
             setTimeout(initializeChart, 100);
             return;
         }
@@ -149,26 +146,22 @@
         // Check if canvas exists
         const canvas = document.getElementById('unit-success-chart');
         if (!canvas) {
-            console.log('Unit success chart canvas not found, retrying in 100ms...');
             setTimeout(initializeChart, 100);
             return;
         }
         
         // Destroy existing chart if present
         if (window.globalUnitSuccessChart && window.globalUnitSuccessChart.chart) {
-            console.log('Destroying existing unit success chart...');
             window.globalUnitSuccessChart.destroy();
             window.globalUnitSuccessChart = null;
         }
         
-        console.log('Initializing unit success chart...');
         
         // Get data from template context with safe defaults
         const passedCount = parseInt('{{ passed_count|default:0 }}') || 0;
         const notPassedCount = parseInt('{{ not_passed_count|default:0 }}') || 0;
         const totalAttempts = parseInt('{{ total_attempts|default:0 }}') || 0;
         
-        console.log('Chart data:', { passedCount, notPassedCount, totalAttempts });
         
         // Initialize the chart using the object method
         if (typeof GlobalUnitSuccessChart.initialize === 'function') {
@@ -179,7 +172,6 @@
                 totalAttempts: totalAttempts
             });
         } else {
-            console.error('GlobalUnitSuccessChart.initialize method not found');
         }
     }
     

@@ -1,5 +1,4 @@
 // Debug: Verify file is loaded
-console.log('topic_actions.es5.js loaded successfully');
 
 // Function to edit a topic
 function editTopic(topicId) {
@@ -22,7 +21,6 @@ function editTopic(topicId) {
     })
     .then(function(data) {
         if (data.success) {
-            console.log('Topic data received:', data.topic);
             
             // First navigate to the edit page if not already there
             if (window.location.href.indexOf('/topic/' + topicId + '/edit/') === -1) {
@@ -30,7 +28,6 @@ function editTopic(topicId) {
                 return;
             }
             
-            console.log('Starting to populate form fields for topic ID:', topicId);
             
             // Find and set values for basic fields
             setFieldValue('topic_title', data.topic.title);
@@ -39,12 +36,10 @@ function editTopic(topicId) {
             
             // Set dates
             if (data.topic.start_date) {
-                console.log('Setting start date:', data.topic.start_date);
                 setFieldValue('topic_start_date', data.topic.start_date);
             }
             
             if (data.topic.endless_access) {
-                console.log('Topic has endless access');
                 var endlessAccessCheckbox = document.getElementById('topic_endless_access');
                 if (endlessAccessCheckbox) {
                     endlessAccessCheckbox.checked = true;
@@ -52,10 +47,8 @@ function editTopic(topicId) {
                     var endDateField = document.getElementById('topic_end_date');
                     if (endDateField) endDateField.disabled = true;
                 } else {
-                    console.warn('Could not find endless_access checkbox');
                 }
             } else if (data.topic.end_date) {
-                console.log('Setting end date:', data.topic.end_date);
                 setFieldValue('topic_end_date', data.topic.end_date);
             }
             
@@ -94,12 +87,10 @@ function editTopic(topicId) {
                         }
                         break;
                     case 'Assignment':
-                        console.log('Handling assignment content type, assignment_id:', data.topic.assignment_id);
                         setSelectFieldValue('assignment', data.topic.assignment_id);
                         // Ensure assignment content field is visible
                         var assignmentField = document.getElementById('assignment-content');
                         if (assignmentField) {
-                            console.log('Making assignment field visible');
                             assignmentField.style.display = 'block';
                             assignmentField.style.visibility = 'visible';
                             assignmentField.style.opacity = '1';
@@ -154,7 +145,6 @@ function editTopic(topicId) {
         }
     })
     .catch(function(error) {
-        console.error('Error:', error);
         showNotification(error.message || 'Error loading topic data', 'error');
     });
 }
@@ -162,7 +152,6 @@ function editTopic(topicId) {
 // Helper function to set field values
 function setFieldValue(fieldId, value) {
     if (value === undefined || value === null) {
-        console.log('Skipping field ' + fieldId + ' due to null/undefined value');
         return;
     }
     
@@ -173,7 +162,6 @@ function setFieldValue(fieldId, value) {
     if (!field) {
         field = document.querySelector('[name="' + fieldId + '"]');
         if (field) {
-            console.log('Field ' + fieldId + ' found by name instead of ID');
         }
     }
     
@@ -182,7 +170,6 @@ function setFieldValue(fieldId, value) {
         var altId = fieldId.replace('topic_', '');
         field = document.getElementById(altId) || document.querySelector('[name="' + altId + '"]');
         if (field) {
-            console.log('Field ' + fieldId + ' found with alternate ID ' + altId);
         }
     }
     
@@ -200,22 +187,18 @@ function setFieldValue(fieldId, value) {
         }
         
         if (field) {
-            console.log('Field ' + fieldId + ' found using specific selector');
         }
     }
     
     if (field) {
-        console.log('Setting value for ' + fieldId + ':', value);
         field.value = value;
     } else {
-        console.warn('Field with ID or name "' + fieldId + '" does not exist in the DOM');
     }
 }
 
 // Helper function to set select field value
 function setSelectFieldValue(fieldName, valueId) {
     if (!valueId) return;
-    console.log('Setting select field value for ' + fieldName + ' to ' + valueId);
     var select = document.querySelector('select[name="' + fieldName + '"]');
     if (select) {
         // First try to find the option by value
@@ -226,9 +209,7 @@ function setSelectFieldValue(fieldName, valueId) {
             // Trigger a change event to ensure any listeners are notified
             var event = new Event('change');
             select.dispatchEvent(event);
-            console.log('Successfully selected option with value ' + valueId + ' for ' + fieldName);
         } else {
-            console.warn('Could not find option with value ' + valueId + ' for ' + fieldName);
             
             // In case options are loaded dynamically, try again after a short delay
             setTimeout(function() {
@@ -238,12 +219,10 @@ function setSelectFieldValue(fieldName, valueId) {
                     // Trigger a change event
                     var event = new Event('change');
                     select.dispatchEvent(event);
-                    console.log('Successfully selected option with value ' + valueId + ' for ' + fieldName + ' after delay');
                 }
             }, 500);
         }
     } else {
-        console.warn('Select field with name "' + fieldName + '" not found in the DOM');
     }
 }
 
@@ -251,7 +230,6 @@ function setSelectFieldValue(fieldName, valueId) {
 function showContentField(contentType) {
     // Normalize content type for field ID
     var fieldId = contentType.toLowerCase() + '-content';
-    console.log('Showing content field for: ' + contentType + ' (ID: ' + fieldId + ')');
     
     // Hide all content fields first
     var allContentFields = document.querySelectorAll('.content-type-field');
@@ -266,7 +244,6 @@ function showContentField(contentType) {
     // Show the selected content field
     var selectedField = document.getElementById(fieldId);
     if (selectedField) {
-        console.log('Found field with ID ' + fieldId + ', making it visible');
         selectedField.style.display = 'block';
         selectedField.style.visibility = 'visible';
         selectedField.style.opacity = '1';
@@ -276,7 +253,6 @@ function showContentField(contentType) {
         if (contentType.toLowerCase() === 'text') {
             var textContent = document.getElementById('text-content');
             if (textContent) {
-                console.log('Making text content editor visible');
                 // Make TinyMCE visible if present
                 var tinyMceEditor = textContent.querySelector('.tox-tinymce');
                 if (tinyMceEditor) {
@@ -295,13 +271,11 @@ function showContentField(contentType) {
             }
         }
     } else {
-        console.warn('Content field with ID ' + fieldId + ' not found');
     }
 }
 
 // Helper function to handle text content
 function handleTextContent(topic) {
-    console.log('Handling text content');
     
     // Function to decode HTML entities
     function decodeHtmlEntities(str) {
@@ -313,12 +287,10 @@ function handleTextContent(topic) {
     // Set text content field
     var textContentField = document.querySelector('textarea[name="text_content"]');
     if (textContentField) {
-        console.log('Setting text content');
         textContentField.value = topic.text_content || '';
         
         // If TinyMCE is initialized
         if (typeof tinymce !== 'undefined' && tinymce.editors) {
-            console.log('TinyMCE found, setting editor content');
             // Find the TinyMCE instance for this field
             for (var i = 0; i < tinymce.editors.length; i++) {
                 var editor = tinymce.editors[i];
@@ -334,20 +306,16 @@ function handleTextContent(topic) {
                                 var content = JSON.parse(topic.text_content);
                                 if (content && content.html) {
                                     htmlContent = content.html;
-                                    console.log('Parsed JSON content successfully');
                                 } else {
                                     // Valid JSON but without html property - decode entities
                                     htmlContent = decodeHtmlEntities(topic.text_content);
-                                    console.log('JSON parsed but no HTML property found, decoded entities');
                                 }
                             } catch (e) {
                                 // If parsing fails, decode HTML entities
-                                console.log('JSON parsing failed, decoding HTML entities');
                                 htmlContent = decodeHtmlEntities(topic.text_content);
                             }
                         } else {
                             // Not JSON format - decode HTML entities
-                            console.log('Not JSON format, decoding HTML entities');
                             htmlContent = decodeHtmlEntities(topic.text_content);
                         }
                     } else {
@@ -356,16 +324,13 @@ function handleTextContent(topic) {
                     }
                     
                     // Set content in TinyMCE
-                    console.log('Setting TinyMCE content:', htmlContent.substring(0, 100) + '...');
                     editor.setContent(htmlContent);
                     break;
                 }
             }
         } else {
-            console.log('TinyMCE not found, using plain textarea');
         }
     } else {
-        console.warn('Text content textarea not found');
     }
 }
 
@@ -427,7 +392,6 @@ function deleteTopic(topicId) {
         }
     })
     .catch(function(error) {
-        console.error('Error:', error);
         showNotification('Error deleting topic', 'error');
     });
 }
@@ -466,7 +430,6 @@ function moveTopic(topicId, direction) {
         }
     })
     .catch(function(error) {
-        console.error('Error:', error);
         showNotification('Error reordering topic', 'error');
     });
 }
@@ -587,7 +550,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             })
             .catch(function(error) {
-                console.error('Error:', error);
                 showNotification('Error moving topic', 'error');
             });
         });
@@ -642,14 +604,12 @@ function autoMarkTopicAsComplete() {
         // Auto-complete for certain content types if we haven't already
             // Check if we've already marked this as complete
             if (localStorage.getItem('topic_' + topicId + '_completed') === 'true') {
-                console.log('Topic already marked as complete');
                 updateCompletionUI(topicId);
                 return;
             }
             
             // Set a timeout to mark as complete after 10 seconds of viewing
             var autoCompleteTimeout = setTimeout(function() {
-                console.log('Auto-marking topic as complete after 10 seconds');
                 
                 // Get course ID 
                 var courseIdElement = document.querySelector('[data-course-id]');
@@ -677,7 +637,6 @@ function autoMarkTopicAsComplete() {
                 .then(function(response) { return response.json(); })
                 .then(function(data) {
                     if (data.success) {
-                        console.log('Topic marked as complete successfully');
                         localStorage.setItem('topic_' + topicId + '_completed', 'true');
                         updateCompletionUI(topicId);
                         
@@ -689,11 +648,9 @@ function autoMarkTopicAsComplete() {
                             showCompletionToast('Topic');
                         }
                     } else {
-                        console.error('Error marking topic as complete:', data.error);
                     }
                 })
                 .catch(function(error) {
-                    console.error('Error marking topic as complete:', error);
                 });
             }, 10000);
             
@@ -841,7 +798,6 @@ function syncTopicCompletion(topicId, courseId) {
     .then(function(response) { return response.json(); })
     .then(function(data) {
         if (data.success) {
-            console.log('Topic marked as complete successfully');
             localStorage.setItem('topic_' + topicId + '_completed', 'true');
             updateCompletionUI(topicId);
             
@@ -853,12 +809,10 @@ function syncTopicCompletion(topicId, courseId) {
                 showCompletionToast('Topic');
             }
         } else {
-            console.error('Error marking topic as complete:', data.error);
             showNotification(data.error || 'Error marking topic as complete', 'error');
         }
     })
     .catch(function(error) {
-        console.error('Error marking topic as complete:', error);
         showNotification('Error marking topic as complete', 'error');
     });
 }

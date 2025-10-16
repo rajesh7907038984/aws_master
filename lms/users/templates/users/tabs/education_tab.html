@@ -656,7 +656,6 @@ function loadExistingEducationRecords() {
     // Load education records from backend data
     {% if existing_education_records %}
     const existingRecords = JSON.parse('{{ existing_education_records_json|escapejs }}');
-    console.log('Loading existing education records:', existingRecords);
     
     if (existingRecords && existingRecords.length > 0) {
         // Hide the no-records message
@@ -667,7 +666,6 @@ function loadExistingEducationRecords() {
         
         // Create education records from backend data
         existingRecords.forEach((record, index) => {
-            console.log('Creating record from data:', record, 'index:', index + 1);
             createEducationRecordFromData(record, index + 1);
         });
         
@@ -676,10 +674,8 @@ function loadExistingEducationRecords() {
         if (countField) {
             countField.value = educationRecordCount;
         }
-        console.log('Set education record count to:', educationRecordCount);
     }
     {% else %}
-    console.log('No existing education records found in template context');
     {% endif %}
     
     // Check if there's existing education data in form fields and update UI accordingly
@@ -746,7 +742,6 @@ document.addEventListener('DOMContentLoaded', function() {
         if (typeof currentTabState !== 'undefined') {
             currentTabState.mainTab = 'education-tab';
             
-            console.log('Education tab: Setting tab state to:', currentTabState);
             
             // Update hidden form fields directly
             var activeTabField = document.getElementById('activeTabField');

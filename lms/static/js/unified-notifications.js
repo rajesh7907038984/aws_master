@@ -56,7 +56,6 @@ class UnifiedNotificationSystem {
         }
         
         if (!this.container) {
-            console.error('Cannot show notification: container not available');
             return;
         }
 

@@ -50,7 +50,6 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(data => {
                 if (data && data.success) {
                     // Section created successfully
-                    console.log('Section created successfully', data);
                     
                     // Create new section element
                     const sectionId = data.section.id;
@@ -70,7 +69,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             })
             .catch(error => {
-                console.error('Error creating section:', error);
                 showFormError(createSectionForm, 'general', error.message || 'An error occurred while creating the section');
             })
             .finally(() => {
@@ -185,7 +183,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         })
         .catch(error => {
-            console.error('Error deleting section:', error);
             showToast('Error deleting section: ' + error.message, 'error');
         });
     }

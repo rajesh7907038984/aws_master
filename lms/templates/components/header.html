@@ -973,23 +973,19 @@ document.addEventListener('DOMContentLoaded', function() {
     // Load branch data when dropdown is opened
     const branchMenuButton = document.querySelector('#branch-switcher-button');
     if (branchMenuButton) {
-        console.log('Branch menu button found, adding click listener');
         // Load branches when menu is first opened
         branchMenuButton.addEventListener('click', function(e) {
-            console.log('Branch button clicked, isLoading:', isLoading, 'branchData:', branchData);
             if (!isLoading && !branchData) {
                 loadUserBranches();
             }
         });
     } else {
-        console.log('Branch menu button not found');
     }
     
     async function loadUserBranches() {
         if (isLoading) return;
         isLoading = true;
         
-        console.log('Loading user branches...');
         
         try {
             const response = await fetch('{% url "branches:get_user_branches" %}', {
@@ -1000,19 +996,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             });
             
-            console.log('Branch response status:', response.status);
             
             if (!response.ok) {
                 throw new Error('Failed to load branches');
             }
             
             branchData = await response.json();
-            console.log('Branch data loaded:', branchData);
             renderBranchOptions();
             updateCurrentBranchDisplay();
             
         } catch (error) {
-            console.error('Error loading branches:', error);
             renderBranchError();
         } finally {
             isLoading = false;
@@ -1111,7 +1104,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
         } catch (error) {
-            console.error('Error switching branch:', error);
             showBranchMessage('Error switching branch', 'error');
         }
     };
@@ -1183,13 +1175,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 mobileMenuContent.appendChild(clone);
                 mobileMenuContentLoaded = true;
             } catch (error) {
-                console.error('Error loading mobile menu content:', error);
                 return;
             }
             
             // Reinitialize submenu toggles in mobile menu with improved error handling
             const submenuToggleButtons = mobileMenuContent.querySelectorAll('.menu-item.has-submenu');
-            console.log('Found submenu toggle buttons in mobile menu:', submenuToggleButtons.length);
             
             submenuToggleButtons.forEach((button, index) => {
                 try {
@@ -1203,7 +1193,6 @@ document.addEventListener('DOMContentLoaded', function() {
                         submenuId = onclickMatch ? onclickMatch[1] : null;
                     }
                     
-                    console.log(`Processing mobile submenu button ${index + 1}:`, submenuId);
                     
                     if (submenuId) {
                         // Ensure arrow icon is visible
@@ -1222,12 +1211,10 @@ document.addEventListener('DOMContentLoaded', function() {
                             e.preventDefault();
                             e.stopPropagation();
                             
-                            console.log('Mobile submenu button clicked:', submenuId);
                             
                             try {
                                 const submenu = document.getElementById(submenuId);
                                 if (!submenu) {
-                                    console.error('Submenu not found:', submenuId);
                                     return;
                                 }
                                 
@@ -1252,7 +1239,6 @@ document.addEventListener('DOMContentLoaded', function() {
                                     arrow.style.opacity = '1';
                                 }
                                 
-                                console.log('Mobile submenu toggled:', submenuId, 'now hidden:', submenu.classList.contains('hidden'));
                                 
                                 // Close other submenus when opening a new one
                                 if (!submenu.classList.contains('hidden')) {
@@ -1276,16 +1262,12 @@ document.addEventListener('DOMContentLoaded', function() {
                                     });
                                 }
                             } catch (error) {
-                                console.error('Error in mobile submenu toggle:', error);
                             }
                         });
                         
-                        console.log('Mobile submenu toggle setup completed for:', submenuId);
                     } else {
-                        console.warn('No submenu ID found for button:', button);
                     }
                 } catch (error) {
-                    console.error('Error setting up mobile submenu button:', error);
                 }
             });
             
@@ -1314,12 +1296,10 @@ document.addEventListener('DOMContentLoaded', function() {
             e.preventDefault();
             e.stopPropagation();
             
-            console.log('Mobile menu toggle clicked, screen width:', window.innerWidth);
             
             // On mobile, open the menu 
             if (window.innerWidth < 768) {
                 const wasOpen = mobileMenu.classList.contains('open');
-                console.log('Mobile menu was open:', wasOpen);
                 
                 mobileMenu.classList.toggle('open');
                 
@@ -1327,23 +1307,18 @@ document.addEventListener('DOMContentLoaded', function() {
                     document.body.classList.add('overflow-hidden');
                     // Load sidebar content if it hasn't been loaded yet
                     loadSidebarContentToMobileMenu();
-                    console.log('Mobile menu opened');
                 } else {
                     document.body.classList.remove('overflow-hidden');
-                    console.log('Mobile menu closed');
                 }
             } else {
                 // On desktop, toggle sidebar collapse/expand
-                console.log('Desktop sidebar toggle clicked');
                 
                 if (typeof window.SidebarManager !== 'undefined' && window.SidebarManager.toggle) {
                     // Use SidebarManager if available
                     window.SidebarManager.toggle();
-                    console.log('Desktop sidebar toggled via SidebarManager');
                 } else if (typeof window.toggleSidebar === 'function') {
                     // Use global toggleSidebar function
                     window.toggleSidebar();
-                    console.log('Desktop sidebar toggled via global function');
                 } else {
                     // Fallback if the functions aren't available yet
                     if (sidebar && mainContent) {
@@ -1359,9 +1334,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         if (window.hideTooltip) {
                             window.hideTooltip();
                         }
-                        console.log('Desktop sidebar toggled via fallback, collapsed:', isNowCollapsed);
                     } else {
-                        console.error('Sidebar or main content elements not found');
                     }
                 }
             }
@@ -1403,7 +1376,6 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(response => {
                 // Ensure response has proper status information
                 if (typeof response.status === 'undefined' || response.status === null) {
-                    console.warn('Response with undefined status detected:', {
                         url: args[0],
                         status: response.status,
                         statusText: response.statusText,
@@ -1421,7 +1393,6 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .catch(error => {
                 // Enhanced error logging for fetch failures
-                console.error('Fetch error:', {
                     url: args[0],
                     error: error.message,
                     name: error.name,
@@ -1437,13 +1408,11 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Skip update if polling is paused
         if (isPollingPaused) {
-            console.log('Skipping notification count update - polling paused');
             return;
         }
         
         // Skip notification updates for first-time visitors or unauthenticated users
         if (!isUserAuthenticated() || isFirstVisit()) {
-            console.log('Skipping notification count update - first visit or unauthenticated');
             return;
         }
 
@@ -1470,7 +1439,6 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(response => {
                 if (!response.ok) {
                     // Log specific error details for debugging
-                    console.error(`API call failed with status ${response.status}: ${response.statusText}`);
                     const error = new Error(`HTTP error! status: ${response.status}`);
                     error.status = response.status;
                     error.statusText = response.statusText;
@@ -1478,7 +1446,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 const contentType = response.headers.get('content-type');
                 if (!contentType || !contentType.includes('application/json')) {
-                    console.error('API response is not JSON:', contentType);
                     throw new Error('Response is not JSON');
                 }
                 return response.json();
@@ -1499,7 +1466,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 const isHttpError = error.status && (error.status >= 400 && error.status < 600);
                 
                 if (retryCount < maxRetries && isRetryableError && !isHttpError) {
-                    console.warn(`API call failed, retrying... (${retryCount + 1}/${maxRetries}) - Error: ${error.message}`);
                     return new Promise(resolve => {
                         setTimeout(() => {
                             resolve(makeApiCall(url, retryCount + 1));
@@ -1517,7 +1483,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     timestamp: new Date().toISOString()
                 };
                 
-                console.error(`API call failed after ${retryCount + 1} attempts:`, errorInfo);
                 throw error;
             });
         }
@@ -1567,9 +1532,7 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // Only log error if it's not a network issue (to avoid spam)
             if (!error.message.includes('Failed to fetch') && error.name !== 'TypeError') {
-                console.error('Error updating message counts:', errorDetails);
             } else {
-                console.warn('Network issue with message count API:', errorDetails);
             }
             
             // Fallback: Hide message indicators on API failure
@@ -1653,9 +1616,7 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // Only log error if it's not a network issue (to avoid spam)
             if (!error.message.includes('Failed to fetch') && error.name !== 'TypeError') {
-                console.error('Error updating notification counts:', errorDetails);
             } else {
-                console.warn('Network issue with notification count API:', errorDetails);
             }
             
             // Fallback: Hide notification indicators on API failure
@@ -1746,7 +1707,6 @@ document.addEventListener('DOMContentLoaded', function() {
             // Resume polling if it was paused
             if (isPollingPaused) {
                 isPollingPaused = false;
-                console.log('Resuming notification polling after course creation context');
             }
             
             pollingTimeout = setTimeout(() => {
@@ -1776,7 +1736,6 @@ document.addEventListener('DOMContentLoaded', function() {
     forms.forEach(form => {
         form.addEventListener('submit', function() {
             isPollingPaused = true;
-            console.log('Pausing notification polling during form submission');
         });
     });
     
@@ -1784,7 +1743,6 @@ document.addEventListener('DOMContentLoaded', function() {
     if (typeof tinymce !== 'undefined') {
         tinymce.on('AddEditor', function(e) {
             isPollingPaused = true;
-            console.log('Pausing notification polling during TinyMCE editing');
         });
         
         tinymce.on('RemoveEditor', function(e) {
@@ -1792,7 +1750,6 @@ document.addEventListener('DOMContentLoaded', function() {
             setTimeout(() => {
                 if (!shouldPausePolling()) {
                     isPollingPaused = false;
-                    console.log('Resuming notification polling after TinyMCE editing');
                 }
             }, 2000);
         });
@@ -1823,7 +1780,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 scheduleNextUpdate();
             }, 1000);
         } else {
-            console.log('Skipping notification polling - first visit or unauthenticated user');
         }
     }
     
@@ -1841,7 +1797,6 @@ document.addEventListener('DOMContentLoaded', function() {
     window.addEventListener('pagehide', cleanupPolling);
     
     // Simple profile dropdown - no Alpine.js needed
-    console.log(' Simple profile dropdown system loaded');
     
     // Profile dropdown functionality
     const profileButton = document.getElementById('profile-button');

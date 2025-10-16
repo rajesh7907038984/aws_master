@@ -301,12 +301,10 @@
     });
 
     function initializeInductionChecklist() {
-        console.log('Initializing Induction Checklist...');
         
         // Add Item button functionality
         const addButton = document.getElementById('add-induction-item-btn');
         if (addButton) {
-            console.log('Add button found, attaching event listener');
             addButton.addEventListener('click', addInductionItem);
         }
         
@@ -320,7 +318,6 @@
         const template = document.getElementById('induction-item-template');
         
         if (!container || !template) {
-            console.error('Container or template not found for induction checklist');
             return;
         }
         
@@ -377,7 +374,6 @@
         // Scroll to new item
         newItem.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         
-        console.log('Added new induction item successfully');
     };
 
     function deleteInductionItem(itemElement) {
@@ -453,7 +449,6 @@ document.addEventListener('DOMContentLoaded', function() {
             currentTabState.mainTab = 'ilp-tab';
             currentTabState.subTab = 'induction-checklist-tab';
             
-            console.log('Induction Checklist tab: Setting tab state to:', currentTabState);
             
             // Update hidden form fields directly
             var activeTabField = document.getElementById('activeTabField');

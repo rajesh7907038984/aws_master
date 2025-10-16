@@ -92,7 +92,6 @@ document.addEventListener('DOMContentLoaded', function() {
     // Update content fields visibility
     function updateContentFields() {
         const selectedType = contentTypeSelect.value.toLowerCase();
-        console.log('Selected content type:', selectedType);
 
         // Hide all content fields first
         contentFields.forEach(field => {
@@ -103,10 +102,8 @@ document.addEventListener('DOMContentLoaded', function() {
         // Show the appropriate content field based on the selected type
         let fieldId = selectedType + '-content';
         
-        console.log('Looking for field with ID:', fieldId);
         const field = document.getElementById(fieldId);
         if (field) {
-            console.log('Found field, displaying it');
             field.style.display = 'block';
             field.style.visibility = 'visible';
             field.style.opacity = '1';
@@ -115,7 +112,6 @@ document.addEventListener('DOMContentLoaded', function() {
             // If it's a file input, ensure it's properly visible
             const fileInput = field.querySelector('input[type="file"]');
             if (fileInput) {
-                console.log('Found file input, making it visible');
                 fileInput.style.display = 'block';
                 fileInput.style.visibility = 'visible';
                 fileInput.style.opacity = '1';
@@ -124,16 +120,13 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // Special handling for text content field to ensure TinyMCE is properly initialized
             if (selectedType === 'text') {
-                console.log('Text content selected, ensuring TinyMCE is ready');
                 setTimeout(function() {
                     // Force reinitialize TinyMCE for text content when field becomes visible
                     const textArea = field.querySelector('textarea');
                     if (textArea && typeof tinymce !== 'undefined') {
                         const editorId = textArea.id || 'id_text_content';
-                        console.log('Looking for TinyMCE editor with ID:', editorId);
                         
                         if (tinymce.get(editorId)) {
-                            console.log('TinyMCE already initialized for:', editorId);
                             // Make sure the editor container is visible and has proper height
                             const editor = tinymce.get(editorId);
                             const editorContainer = editor.getContainer();
@@ -149,16 +142,12 @@ document.addEventListener('DOMContentLoaded', function() {
                                     iframe.style.minHeight = '400px';
                                     iframe.style.height = '400px';
                                 }
-                                console.log('TinyMCE container made visible with proper height');
                             }
                         } else {
-                            console.log('TinyMCE not found for:', editorId, 'Initializing...');
                             // Initialize TinyMCE if not already done
                             if (typeof window.TinyMCEWidget !== 'undefined' && window.TinyMCEWidget.initialize) {
-                                console.log('Using TinyMCEWidget to initialize');
                                 window.TinyMCEWidget.initialize(textArea);
                             } else {
-                                console.log('TinyMCEWidget not available, trying direct initialization');
                                 // Direct TinyMCE initialization
                                 tinymce.init({
                                     selector: '#' + editorId,
@@ -191,17 +180,13 @@ document.addEventListener('DOMContentLoaded', function() {
                                         });
                                     }
                                 }).then(function(editors) {
-                                    console.log('TinyMCE initialized successfully for:', editorId);
                                     if (editors && editors.length > 0) {
-                                        console.log('Editor instance created:', editors[0].id);
                                     }
                                 }).catch(function(error) {
-                                    console.error('Failed to initialize TinyMCE for:', editorId, error);
                                 });
                             }
                         }
                     } else {
-                        console.log('Textarea not found or TinyMCE not available');
                     }
                     
                     // Additional attempt to ensure visibility and height
@@ -213,7 +198,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 }, 200); // Increased timeout to ensure DOM is ready
             }
         } else {
-            console.log('Field not found for ID:', fieldId);
         }
     }
 
@@ -263,7 +247,6 @@ document.addEventListener('DOMContentLoaded', function() {
                         // Get content from TinyMCE editor
                         const content = editor.getContent();
                         formData.set('text_content', content);
-                        console.log('Setting text_content with TinyMCE content');
                     }
                 }
             }
@@ -293,7 +276,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             })
             .catch(error => {
-                console.error('Error:', error);
                 alert('Error creating topic. Please try again.');
             });
         });

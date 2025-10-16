@@ -21,18 +21,14 @@ class UserProgressChart {
     }
     
     init() {
-        console.log('Initializing UserProgressChart...');
-        console.log('User data:', this.userData);
         
         if (typeof Chart === 'undefined') {
-            console.error('Chart.js library not loaded');
             this.showError('Chart.js library not loaded');
             return;
         }
         
         this.canvas = document.getElementById(this.canvasId);
         if (!this.canvas) {
-            console.error(`Canvas element with id '${this.canvasId}' not found!`);
             this.showError(`Canvas element with id '${this.canvasId}' not found!`);
             return;
         }
@@ -46,11 +42,9 @@ class UserProgressChart {
         // Update summary stats
         this.updateSummaryStats();
         
-        console.log('UserProgressChart initialized successfully');
     }
     
     processUserData() {
-        console.log('Processing user data:', this.userData);
         
         this.stats = {
             completed: 0,
@@ -82,7 +76,6 @@ class UserProgressChart {
             }
         });
         
-        console.log('Processed stats:', this.stats);
     }
     
     setupEventListeners() {
@@ -357,7 +350,6 @@ class UserProgressChart {
     }
     
     showError(message) {
-        console.error('User Progress Chart error:', message);
         if (this.canvas) {
             const ctx = this.canvas.getContext('2d');
             ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
@@ -380,7 +372,6 @@ class UserProgressChart {
 
 // Static create method for template compatibility
 UserProgressChart.create = function(canvasId, userData) {
-    console.log(' UserProgressChart.create called with:', canvasId, userData);
     return new UserProgressChart({
         canvasId: canvasId,
         userData: userData

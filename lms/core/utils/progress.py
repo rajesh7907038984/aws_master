@@ -53,7 +53,7 @@ class ProgressCalculationService:
             }
             
             # Calculate completion percentage based on topic type
-            elif topic.topic_type == 'quiz':
+            if topic.topic_type == 'quiz':
                 result.update(cls._calculate_quiz_progress(user, topic))
             elif topic.topic_type == 'assignment':
                 result.update(cls._calculate_assignment_progress(user, topic))
@@ -78,28 +78,26 @@ class ProgressCalculationService:
             }
     
     @classmethod
+    def _calculate_quiz_progress(cls, user, topic):
         try:
+            from quiz.models import QuizAttempt
             
-            # removed functionality removed
+            # Get the latest quiz attempt
+            latest_attempt = QuizAttempt.objects.filter(
+                user=user,
+                quiz=topic.quiz
+            ).order_by('-attempted_at').first()
             
             if not latest_attempt:
                 return {'completion_percentage': 0.0}
             
             completion_percentage = 0.0
             
-            is_completed = False
-                is_completed = latest_attempt.lesson_status in ['completed', 'passed']
-                is_completed = latest_attempt.completion_status == 'completed'
+            # Check completion status
+            is_completed = latest_attempt.lesson_status in ['completed', 'passed'] or latest_attempt.completion_status == 'completed'
             
             if is_completed:
-                # Check if there's a mastery score requirement
-                    # Check if score requirement is met
-                        completion_percentage = 100.0
-                    else:
-                        # Partial completion based on score
-                        completion_percentage = min(score_progress, 99.0)  # Cap at 99% if not passed
-                else:
-                    completion_percentage = 100.0
+                completion_percentage = 100.0
             else:
                 # Calculate partial progress based on available data
                 if progress.progress_data.get('completion_percent'):
@@ -116,7 +114,7 @@ class ProgressCalculationService:
             return {'completion_percentage': 0.0, 'error': str(e)}
     
     @classmethod
-    def _calculate_quiz_progress(cls, user, topic) -> Dict[str, Any]:
+    def _calculate_assignment_progress(cls, user, topic) -> Dict[str, Any]:
         """Calculate progress for quiz content"""
         try:
             from quiz.models import Quiz, QuizAttempt

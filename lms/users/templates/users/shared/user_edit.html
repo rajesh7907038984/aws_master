@@ -326,7 +326,6 @@ document.addEventListener('DOMContentLoaded', function() {
     formInputs.forEach(input => {
         input.addEventListener('change', function() {
             // You can implement auto-save logic here
-            console.log('Field changed:', input.name, input.value);
         });
     });
     
@@ -390,8 +389,6 @@ document.addEventListener('DOMContentLoaded', function() {
             const detectedTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
             const offset = -new Date().getTimezoneOffset();
             
-            console.log('Detected timezone:', detectedTimezone);
-            console.log('Detected offset:', offset);
             
             // Check if the detected timezone is available in the select options
             const timezoneOptions = Array.from(timezoneSelect.options).map(option => option.value);
@@ -420,7 +417,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
         } catch (error) {
-            console.error('Error detecting timezone:', error);
             timezoneStatus.textContent = 'Error detecting timezone';
             timezoneStatus.style.color = '#ef4444';
         } finally {
@@ -466,7 +462,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
         } catch (error) {
-            console.error('Error updating timezone:', error);
             timezoneStatus.textContent = 'Error updating timezone';
             timezoneStatus.style.color = '#ef4444';
         } finally {

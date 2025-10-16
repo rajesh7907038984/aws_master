@@ -347,7 +347,6 @@
             const max = Math.max(...arr.filter(n => typeof n === 'number' && !isNaN(n)));
             return isFinite(max) ? max : fallback;
         } catch (e) {
-            console.warn('Error calculating max:', e);
             return fallback;
         }
     }
@@ -355,7 +354,6 @@
     
     // Auto-load with safety checks
     document.addEventListener('DOMContentLoaded', function() {
-        console.log('Dashboard JavaScript loaded');
     });
     
 })();

@@ -1354,71 +1354,7 @@ def course_view(request, course_id):
     
     return render(request, 'courses/course_details.html', context)
 
-@login_required
-def debug_course_permissions(request, course_id):
-    """Debug view to check course permissions for troubleshooting"""
-    try:
-        course = Course.objects.get(id=course_id)
-    except Course.DoesNotExist:
-        return JsonResponse({'error': 'Course not found'}, status=404)
-    
-    user = request.user
-    
-    debug_info = {
-        'user_id': user.id,
-        'user_role': user.role,
-        'user_branch': str(user.branch) if user.branch else None,
-        'user_is_superuser': user.is_superuser,
-        'course_id': course.id,
-        'course_instructor': str(course.instructor) if course.instructor else None,
-        'course_branch': str(course.branch) if course.branch else None,
-        'course_business': str(course.branch.business) if course.branch and hasattr(course.branch, 'business') else None,
-        'permissions': {
-            'can_edit': check_course_edit_permission(user, course),
-            'can_modify_model': course.user_can_modify(user),
-            'can_delete': False  # Will be calculated separately
-        }
-    }
-    
-    # Check business assignments for superadmin
-    if user.role == 'superadmin' and course.branch and hasattr(course.branch, 'business'):
-        debug_info['business_assignments'] = list(user.business_assignments.filter(
-            business=course.branch.business, 
-            is_active=True
-        ).values('business__name', 'is_active'))
-    
-    # Check group access for instructors
-    if user.role == 'instructor':
-        debug_info['group_access'] = list(course.accessible_groups.filter(
-            memberships__user=user,
-            memberships__is_active=True,
-            memberships__custom_role__can_edit=True
-        ).values('name', 'memberships__custom_role__can_edit'))
-    
-    # Calculate can_delete permission
-    can_delete = (
-        user.is_superuser or 
-        user.role == 'globaladmin' or
-        (user.role == 'superadmin' and hasattr(course, 'branch') and course.branch and
-         user.business_assignments.filter(business=course.branch.business, is_active=True).exists()) or
-        (user.role == 'admin' and course.branch == user.branch) or
-        (user.role == 'instructor' and course.instructor == user)
-    )
-    
-    # For group-assigned instructors, allow delete only if they have admin-level permissions in the group
-    if not can_delete and user.role == 'instructor':
-        from groups.models import CourseGroupAccess
-        can_delete = CourseGroupAccess.objects.filter(
-            course=course,
-            group__memberships__user=user,
-            group__memberships__is_active=True,
-            group__memberships__custom_role__can_manage_content=True,
-            can_modify=True
-        ).exists()
-    
-    debug_info['permissions']['can_delete'] = can_delete
-    
-    return JsonResponse(debug_info)
+# Debug view removed - was only for troubleshooting
 
 @ensure_csrf_cookie
 @login_required(login_url='/login/')

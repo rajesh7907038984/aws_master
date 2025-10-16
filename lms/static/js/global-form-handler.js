@@ -23,7 +23,6 @@
                 online: navigator.onLine
             };
             
-            console.error('LMS Error Details:', errorDetails);
             
             // Store recent errors in localStorage for debugging
             try {
@@ -35,7 +34,6 @@
                 }
                 localStorage.setItem('lms_recent_errors', JSON.stringify(recentErrors));
             } catch (storageError) {
-                console.warn('Could not store error in localStorage:', storageError);
             }
             
             return errorDetails;
@@ -47,7 +45,6 @@
             this.setupGlobalFormHandlers();
             this.setupErrorHandling();
             this.fixCommonSubmitIssues();
-            console.log('LMS Form Handler initialized');
         },
 
         // Enhanced CSRF token handling with validation
@@ -72,12 +69,10 @@
                             }
                         }
                     } catch (e) {
-                        console.warn('CSRF token source failed:', e);
                         // Continue to next source
                     }
                 }
                 
-                console.error('No valid CSRF token found from any source');
                 return null;
             };
 
@@ -87,7 +82,6 @@
             // Validate CSRF token on page load
             const token = getCSRFToken();
             if (!token) {
-                console.error('CRITICAL: No CSRF token available - forms will fail to submit');
                 this.showGlobalError('Security token missing. Please refresh the page and try again.');
             }
 
@@ -95,7 +89,6 @@
             document.addEventListener('DOMContentLoaded', function() {
                 const token = getCSRFToken();
                 if (!token) {
-                    console.error('No CSRF token available for forms');
                     LMSFormHandler.showGlobalError('Security token missing. Please refresh the page and try again.');
                     return;
                 }
@@ -117,7 +110,6 @@
                 });
                 
                 if (formsUpdated > 0) {
-                    console.log(`Added CSRF token to ${formsUpdated} forms`);
                 }
             });
         },
@@ -216,13 +208,11 @@
                             LMSFormHandler.showGlobalError('Permission denied. Please refresh the page and try again.');
                         } else if (response.status === 404 && isUserInitiated) {
                             // Only show 404 errors for user-initiated requests
-                            console.warn('Resource not found:', url);
                             // Don't show automatic error notification for 404s
                         } else if (response.status >= 500 && isUserInitiated) {
                             LMSFormHandler.showGlobalError('Server error. Please try again in a few moments.');
                         } else if (!response.ok) {
                             // Log other errors to console for debugging
-                            console.warn(`HTTP ${response.status}: ${response.statusText} for ${url}`);
                         }
                         return response;
                     })
@@ -249,7 +239,6 @@
                                 errorMessage = 'Server error. Please try again in a few moments.';
                             } else if (error.message.includes('404')) {
                                 // Don't show 404 errors automatically - just log them
-                                console.warn('Resource not found:', url);
                                 throw error; // Let the caller handle it
                             } else if (error.message.includes('CSRF')) {
                                 errorMessage = 'Security token expired. Please refresh the page and try again.';
@@ -262,7 +251,6 @@
                             LMSFormHandler.showGlobalError(errorMessage);
                         } else {
                             // For non-user-initiated requests, just log to console
-                            console.warn('Fetch error (non-user-initiated):', error.message, url);
                         }
                         
                         throw error;
@@ -360,7 +348,6 @@
                 django.messages.error(message);
             } else {
                 // Fallback to alert or custom notification
-                console.error('Form Error:', message);
                 
                 // Try to show in existing message container
                 let messageContainer = document.querySelector('.messages, .alert-container, #messages');

@@ -11,13 +11,10 @@ function waitForTinyMCE(callback, maxAttempts = 50) {
         attempts++;
         
         if (typeof tinymce !== 'undefined' && tinymce.init) {
-            console.log('TinyMCE loaded successfully after', attempts, 'attempts');
             callback();
         } else if (attempts < maxAttempts) {
-            console.log('Waiting for TinyMCE to load, attempt:', attempts);
             setTimeout(checkTinyMCE, 100);
         } else {
-            console.error('TinyMCE failed to load after', maxAttempts, 'attempts');
         }
     }
     
@@ -26,18 +23,13 @@ function waitForTinyMCE(callback, maxAttempts = 50) {
 
 // Function to initialize TinyMCE editors
 function initializeTinyMCEEditors() {
-    console.log('Initializing TinyMCE editors');
     
     const textareas = document.querySelectorAll('textarea.tinymce-editor');
-    console.log('Found textareas with tinymce-editor class:', textareas.length);
     
     if (textareas.length === 0) {
-        console.warn('No textareas with tinymce-editor class found');
         // Check all textareas for debugging
         const allTextareas = document.querySelectorAll('textarea');
-        console.log('All textareas found:', allTextareas.length);
         allTextareas.forEach(function(ta, index) {
-            console.log(`Textarea ${index}:`, {
                 id: ta.id,
                 className: ta.className,
                 name: ta.name
@@ -51,7 +43,6 @@ function initializeTinyMCEEditors() {
             textarea.id = 'tinymce-' + Math.random().toString(36).substr(2, 9);
         }
         
-        console.log('Initializing TinyMCE for:', textarea.id);
         
         // Get config from data attribute
         const configData = textarea.getAttribute('data-tinymce-config');
@@ -62,7 +53,6 @@ function initializeTinyMCEEditors() {
                 config = JSON.parse(configData);
             }
         } catch (e) {
-            console.warn('Failed to parse TinyMCE config:', e);
         }
         
         // Set default config if none provided
@@ -90,22 +80,17 @@ function initializeTinyMCEEditors() {
         // Initialize TinyMCE with error handling
         try {
             tinymce.init(config).then(function(editors) {
-                console.log('TinyMCE initialized successfully for:', textarea.id);
                 if (editors && editors.length > 0) {
-                    console.log('Editor instance created:', editors[0].id);
                 }
             }).catch(function(error) {
-                console.error('Failed to initialize TinyMCE for:', textarea.id, error);
             });
         } catch (error) {
-            console.error('Error calling tinymce.init for:', textarea.id, error);
         }
     });
 }
 
 // Initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('DOM loaded, waiting for TinyMCE');
     
     waitForTinyMCE(function() {
         initializeTinyMCEEditors();

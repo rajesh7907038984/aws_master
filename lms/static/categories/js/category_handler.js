@@ -35,7 +35,6 @@ function refreshCategoryDropdown() {
             }
         })
         .catch(error => {
-            console.error('Error refreshing categories:', error);
         });
 }
 
@@ -150,7 +149,6 @@ function handleCategorySubmit(event) {
         }
     })
     .catch(error => {
-        console.error('Category creation error:', error);
         const errorMessage = error.message || 'Failed to create category';
         showNotification(errorMessage, 'error');
     })

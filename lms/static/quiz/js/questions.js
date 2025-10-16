@@ -1,6 +1,5 @@
 // Question form handling
 document.addEventListener('DOMContentLoaded', function() {
-    console.log("DOM fully loaded");
     
     // Add event delegation for question actions
     const questionsList = document.getElementById('questionsList');
@@ -33,7 +32,6 @@ document.addEventListener('DOMContentLoaded', function() {
     // Get CSRF token once and store it
     const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
     if (!csrfToken) {
-        console.error('CSRF token not found!');
     }
 
     // Get form elements
@@ -49,15 +47,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Toggle question form visibility
     window.toggleQuestionForm = function() {
-        console.log('Toggle question form called');
         const formContainer = document.getElementById('questionFormContainer');
         if (!formContainer) {
-            console.error('Question form container not found');
             return;
         }
         
         const isHidden = formContainer.classList.contains('hidden');
-        console.log('Form is currently hidden:', isHidden);
         
         if (isHidden) {
             // Show the form
@@ -95,7 +90,6 @@ document.addEventListener('DOMContentLoaded', function() {
     // Handle question type changes
     window.toggleQuestionTypeFields = function() {
         const questionType = questionTypeSelect?.value;
-        console.log('Question type changed to:', questionType);
         
         // Hide all dynamic fields first
         const dynamicFields = document.querySelectorAll('.dynamic-field');
@@ -133,7 +127,6 @@ document.addEventListener('DOMContentLoaded', function() {
     window.setupMultipleChoiceOptions = function(isMultiSelect = false) {
         if (!optionsContainer) return;
         
-        console.log('Setting up multiple choice options, isMultiSelect:', isMultiSelect);
         optionsContainer.innerHTML = '';
         
         // Add initial options
@@ -513,7 +506,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         } catch (error) {
             // Error already handled by LMS error handler
-            console.error('Question submission error:', error);
         }
     }
 
@@ -963,7 +955,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         })
         .catch(error => {
-            console.error('Error:', error);
             const errorMsg = document.createElement('div');
             errorMsg.className = 'p-4 mb-4 bg-red-800 text-red-100 rounded-lg';
             errorMsg.textContent = error.message;
@@ -982,12 +973,10 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function editQuestion(questionId) {
-        console.log("Editing question:", questionId);
         
         // Show loading state
         const modal = document.getElementById('editQuestionModal');
         if (!modal) {
-            console.error('Edit question modal not found!');
             return;
         }
         
@@ -996,7 +985,6 @@ document.addEventListener('DOMContentLoaded', function() {
         // Get the submit button
         const submitButton = modal.querySelector('button[onclick="updateQuestion()"]');
         if (!submitButton) {
-            console.error('Submit button not found in modal!');
             return;
         }
         
@@ -1012,7 +1000,6 @@ document.addEventListener('DOMContentLoaded', function() {
         // Get CSRF token
         const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
         if (!csrfToken) {
-            console.error('CSRF token not found!');
             alert('Error: CSRF token not found. Please refresh the page and try again.');
             return;
         }
@@ -1050,7 +1037,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         })
         .catch(error => {
-            console.error('Error:', error);
             alert('Error fetching question data. Please try again.');
             closeEditModal();
         });
@@ -1061,7 +1047,6 @@ document.addEventListener('DOMContentLoaded', function() {
             // Get CSRF token
             const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
             if (!csrfToken) {
-                console.error('CSRF token not found!');
                 alert('Error: CSRF token not found. Please refresh the page and try again.');
                 return;
             }
@@ -1069,7 +1054,6 @@ document.addEventListener('DOMContentLoaded', function() {
             // Show loading state
             const questionElement = document.getElementById(`question_${questionId}`);
             if (!questionElement) {
-                console.error('Question element not found!');
                 return;
             }
             
@@ -1131,7 +1115,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             })
             .catch(error => {
-                console.error('Error:', error);
                 // Restore original content
                 questionElement.innerHTML = originalContent;
                 

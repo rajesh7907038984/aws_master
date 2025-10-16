@@ -20,7 +20,6 @@
 document.addEventListener('DOMContentLoaded', function() {
     // Check for available unified systems (ErrorHandler and TopicActions removed)
     if (window.CSRFHandler && window.NotificationSystem) {
-        console.log('Available unified JavaScript systems loaded successfully');
         
         // Refresh CSRF token on page load
         if (window.CSRFHandler && window.CSRFHandler.refresh) {
@@ -32,7 +31,6 @@ document.addEventListener('DOMContentLoaded', function() {
             initializeUnifiedSystems();
         }
     } else {
-        console.warn('Some unified JavaScript systems are not available (ErrorHandler and TopicActions removed)');
     }
 });
 </script>

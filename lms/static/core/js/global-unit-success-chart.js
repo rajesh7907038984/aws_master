@@ -59,8 +59,6 @@ class GlobalUnitSuccessChart {
     }
     
     init() {
-        console.log(' Initializing Global Unit Success Chart...');
-        console.log(' Chart data:', {
             passed: this.passedCount,
             notPassed: this.notPassedCount,
             total: this.totalAttempts
@@ -77,11 +75,9 @@ class GlobalUnitSuccessChart {
         
         if (typeof Chart === 'undefined') {
             if (retryCount >= maxRetries) {
-                console.error('Chart.js library not available for Unit Success Chart');
                 this.showError('Chart library not loaded');
                 return;
             }
-            console.log(` Waiting for Chart.js... (${retryCount + 1}/${maxRetries})`);
             setTimeout(() => this.waitForChart(callback, retryCount + 1), 200);
             return;
         }
@@ -89,11 +85,9 @@ class GlobalUnitSuccessChart {
         const canvas = document.getElementById(this.canvasId);
         if (!canvas) {
             if (retryCount >= maxRetries) {
-                console.error('Canvas not found for Unit Success Chart');
                 this.showError('Canvas element not found');
                 return;
             }
-            console.log(` Waiting for canvas... (${retryCount + 1}/${maxRetries})`);
             setTimeout(() => this.waitForChart(callback, retryCount + 1), 200);
             return;
         }
@@ -124,17 +118,14 @@ class GlobalUnitSuccessChart {
             // Create the chart
             this.chart = new Chart(ctx, this.chartConfig);
             
-            console.log('Global Unit Success Chart created successfully');
             this.hideStatus();
             
         } catch (error) {
-            console.error('Failed to create Global Unit Success Chart:', error);
             this.showError('Chart creation failed: ' + error.message);
         }
     }
     
     showEmptyState() {
-        console.log(' No data available for unit success chart');
         const statusDiv = document.getElementById('unit-success-status');
         if (statusDiv) {
             statusDiv.className = 'text-center text-sm text-gray-400 mt-4';
@@ -144,7 +135,6 @@ class GlobalUnitSuccessChart {
     }
     
     showError(message) {
-        console.error('Unit Success Chart Error:', message);
         const statusDiv = document.getElementById('unit-success-status');
         if (statusDiv) {
             statusDiv.className = 'text-center text-sm text-red-500 mt-4';

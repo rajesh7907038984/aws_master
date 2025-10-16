@@ -59,8 +59,6 @@
                 return rawContent; // Fallback to raw content if no HTML property
             }
         } catch (e) {
-            console.warn('Error parsing JSON content:', e);
-            console.log('Raw content was:', rawContent);
             return rawContent; // Return original content on error
         }
     }
@@ -119,9 +117,7 @@
             const parsedContent = parseContentJson(rawContent);
             textareaElement.value = parsedContent;
             processedContentFields.add(textareaElement.id);
-            console.log(`Processed JSON content for ${textareaElement.id}`);
         } catch (e) {
-            console.error(`Error processing JSON content for ${textareaElement.id}:`, e);
         }
     }
     

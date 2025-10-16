@@ -2155,7 +2155,6 @@ function enterFullscreen() {
     if (pageHeader) pageHeader.style.display = 'none';
     if (breadcrumbs) breadcrumbs.style.display = 'none';
     
-    console.log(' Entered fullscreen mode (use F11 or ESC to exit)');
 }
 
 function exitFullscreen() {
@@ -2170,7 +2169,6 @@ function exitFullscreen() {
     if (pageHeader) pageHeader.style.display = 'block';
     if (breadcrumbs) breadcrumbs.style.display = 'block';
     
-    console.log(' Exited fullscreen mode');
 }
 
 // Filter and Search Functionality
@@ -2554,7 +2552,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Sidebar functionality - Make sure it's globally accessible
 window.openGradingSidebar = function(activityType, activityId, studentId, submissionId = null) {
-    console.log(' Opening grading sidebar for:', activityType, activityId, studentId, submissionId);
     
     const sidebar = document.getElementById('gradingSidebar');
     const overlay = document.getElementById('sidebarOverlay');
@@ -2562,25 +2559,20 @@ window.openGradingSidebar = function(activityType, activityId, studentId, submis
     
     // Debug: Check if elements exist
     if (!sidebar) {
-        console.error(' Sidebar element not found!');
         return;
     }
     if (!overlay) {
-        console.error(' Overlay element not found!');
         return;
     }
     if (!content) {
-        console.error(' Content element not found!');
         return;
     }
     
-    console.log(' All required elements found');
     
     // Show enhanced loading
     content.innerHTML = '<div class="sidebar-loading"><i class="fas fa-spinner fa-spin text-2xl text-blue-500"></i><p class="text-gray-600 text-sm">Loading grading interface...</p></div>';
     
     // Show sidebar and overlay
-    console.log(' Showing sidebar and overlay');
     sidebar.classList.remove('translate-x-full');
     overlay.classList.remove('hidden');
     
@@ -2588,29 +2580,24 @@ window.openGradingSidebar = function(activityType, activityId, studentId, submis
     sidebar.offsetHeight; // Trigger reflow
     overlay.offsetHeight; // Trigger reflow
     
-    console.log(' Sidebar classes updated');
     
     // Initialize sidebar resize functionality and restore width
     setTimeout(function() {
-        console.log(' Initializing sidebar resize');
         initializeSidebarResize();
         restoreSidebarWidth();
     }, 100);
     
     // Load content directly - TinyMCE is already loaded globally
-    console.log(' Loading grading content');
     loadGradingContent(activityType, activityId, studentId, submissionId);
 }
 
 window.closeSidebar = function() {
-    console.log(' Closing sidebar');
     
     const sidebar = document.getElementById('gradingSidebar');
     const overlay = document.getElementById('sidebarOverlay');
     const sidebarContent = document.getElementById('sidebarContent');
     
     if (!sidebar || !overlay) {
-        console.error(' Sidebar or overlay elements not found during close');
         return;
     }
     
@@ -2627,7 +2614,6 @@ window.closeSidebar = function() {
     sidebar.classList.add('translate-x-full');
     overlay.classList.add('hidden');
     
-    console.log(' Sidebar closed');
 }
 
 
@@ -2653,7 +2639,6 @@ function initializeSidebarResize() {
 }
 
 function startResize(e) {
-    console.log(' Starting resize');
     
     e.preventDefault();
     isResizing = true;
@@ -2663,7 +2648,6 @@ function startResize(e) {
     const resizeHandle = document.getElementById('sidebarResizeHandle');
     
     if (!sidebar || !resizeHandle) {
-        console.error(' Sidebar or resize handle not found');
         return;
     }
     
@@ -2683,7 +2667,6 @@ function startResize(e) {
     document.addEventListener('touchmove', handleResize);
     document.addEventListener('touchend', stopResize);
     
-    console.log(' Starting sidebar resize from width:', startWidth);
 }
 
 function handleResize(e) {
@@ -2728,7 +2711,6 @@ function handleResize(e) {
                 });
             }
         } catch (error) {
-            console.warn('Could not refresh TinyMCE during resize:', error);
         }
     }, 100);
 }
@@ -2753,13 +2735,11 @@ function stopResize() {
     document.removeEventListener('touchend', stopResize);
     
     // Store the new width for future use
-    console.log(' Sidebar resize completed. New width:', currentSidebarWidth);
     
     // Save the preferred width to localStorage
     try {
         localStorage.setItem('gradebook_sidebar_width', currentSidebarWidth);
     } catch (error) {
-        console.warn('Could not save sidebar width to localStorage:', error);
     }
 }
 
@@ -2773,16 +2753,13 @@ function restoreSidebarWidth() {
                 sidebar.style.width = width + 'px';
                 sidebar.classList.remove('w-96');
                 currentSidebarWidth = width;
-                console.log(' Restored sidebar width from localStorage:', width);
             }
         }
     } catch (error) {
-        console.warn('Could not restore sidebar width from localStorage:', error);
     }
 }
 
 window.loadGradingContent = function(activityType, activityId, studentId, submissionId) {
-    console.log(' Loading grading content for:', activityType, activityId, studentId, submissionId);
     
     const content = document.getElementById('sidebarContent');
     
@@ -2804,7 +2781,6 @@ window.loadGradingContent = function(activityType, activityId, studentId, submis
         url = `/gradebook/grade-sidebar/conference/${activityId}/${studentId}/`;
     }
     
-    console.log(' Fetching content from URL:', url);
     
     // Fetch the content with proper credentials
     fetch(url, {
@@ -2816,14 +2792,12 @@ window.loadGradingContent = function(activityType, activityId, studentId, submis
         }
     })
         .then(response => {
-            console.log('📥 Received response:', response.status, response.statusText);
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
             return response.text();
         })
         .then(html => {
-            console.log(' Content loaded successfully, length:', html.length);
             content.innerHTML = html;
             
             // Initialize sidebar resize functionality
@@ -2838,7 +2812,6 @@ window.loadGradingContent = function(activityType, activityId, studentId, submis
             // Initialize TinyMCE editors using enhanced approach with multiple retries
             function ensureTinyMCEInitialized(retryCount = 0) {
                 try {
-                    console.log(` Attempt ${retryCount + 1}: Initializing TinyMCE in sidebar content...`);
                     
                     // Use the new unified approach
                     initializeSidebarTinyMCE(content);
@@ -2847,12 +2820,10 @@ window.loadGradingContent = function(activityType, activityId, studentId, submis
                     if (typeof window.TinyMCEWidget !== 'undefined' && window.TinyMCEWidget.initializeAll) {
                         setTimeout(() => {
                             window.TinyMCEWidget.initializeAll();
-                            console.log(' TinyMCE sidebar editors initialized using widget system');
                         }, 200);
                     }
                     
                 } catch (error) {
-                    console.error('Error during TinyMCE initialization:', error);
                     if (retryCount < 3) {
                         setTimeout(() => ensureTinyMCEInitialized(retryCount + 1), 500);
                     }
@@ -2869,12 +2840,10 @@ window.loadGradingContent = function(activityType, activityId, studentId, submis
                 try {
                     initializeFeedbackTabsInContent(content);
                 } catch (error) {
-                    console.error(' Error initializing feedback tabs:', error);
                 }
             }, 200);
         })
         .catch(error => {
-            console.error('Error loading grading content:', error);
             content.innerHTML = '<div class="text-center py-8 text-red-500"><i class="fas fa-exclamation-triangle text-2xl"></i><p class="mt-2">Error loading content</p></div>';
         });
 }
@@ -2887,7 +2856,6 @@ window.showFeedback = function(activityType, activityId, studentId) {
 
 // Enhanced TinyMCE initialization for sidebar content
 function initializeSidebarTinyMCE(container) {
-    console.log(' Starting sidebar TinyMCE initialization...');
     
     // Use a more robust approach with proper timing
     function attemptInitialization(retryCount = 0) {
@@ -2897,20 +2865,16 @@ function initializeSidebarTinyMCE(container) {
         // Check if TinyMCE is available
         if (typeof tinymce === 'undefined') {
             if (retryCount < MAX_RETRIES) {
-                console.log(` TinyMCE not available, retrying in ${RETRY_DELAY}ms... (${retryCount + 1}/${MAX_RETRIES})`);
                 setTimeout(() => attemptInitialization(retryCount + 1), RETRY_DELAY);
             } else {
-                console.error(' TinyMCE failed to load after maximum retries');
             }
             return;
         }
         
         // Find all textareas that need TinyMCE
         const textareas = container.querySelectorAll('textarea.tinymce-editor, textarea[data-tinymce-config]');
-        console.log(` Found ${textareas.length} textareas to initialize`);
         
         if (textareas.length === 0) {
-            console.log('ℹ️ No TinyMCE textareas found in sidebar content');
             return;
         }
         
@@ -2923,7 +2887,6 @@ function initializeSidebarTinyMCE(container) {
             
             // Skip if already initialized
             if (tinymce.get(textarea.id)) {
-                console.log(` TinyMCE already initialized for: ${textarea.id}`);
                 return;
             }
             
@@ -2935,7 +2898,6 @@ function initializeSidebarTinyMCE(container) {
                     config = JSON.parse(configData);
                 }
             } catch (e) {
-                console.warn('Failed to parse TinyMCE config:', e);
             }
             
             // Set essential configuration for sidebar
@@ -2971,7 +2933,6 @@ function initializeSidebarTinyMCE(container) {
             // Setup function to handle initialization
             config.setup = function(editor) {
                 editor.on('init', function() {
-                    console.log(` TinyMCE initialized for: ${editor.id}`);
                     
                     // Ensure editor is visible
                     const container = editor.getContainer();
@@ -3005,10 +2966,8 @@ function initializeSidebarTinyMCE(container) {
             // Initialize TinyMCE
             tinymce.init(config).then(function(editors) {
                 if (editors.length > 0) {
-                    console.log(` TinyMCE successfully initialized for: ${textarea.id}`);
                 }
             }).catch(function(error) {
-                console.error(` Failed to initialize TinyMCE for ${textarea.id}:`, error);
             });
         });
     }
@@ -3019,21 +2978,17 @@ function initializeSidebarTinyMCE(container) {
 
 // Enhanced feedback tab initialization
 function initializeFeedbackTabsInContent(container) {
-    console.log(' Initializing feedback tabs in loaded sidebar content...');
     
     const tabButtons = container.querySelectorAll('.feedback-tab-btn');
     const tabContents = container.querySelectorAll('.feedback-tab-content');
     
-    console.log(`Found ${tabButtons.length} feedback tab buttons and ${tabContents.length} feedback tab contents`);
     
     if (tabButtons.length === 0 || tabContents.length === 0) {
-        console.log('ℹ️ No feedback tabs found in sidebar content');
         return;
     }
     
     // Enhanced tab functionality
     function switchToTab(targetTab) {
-        console.log(` Switching to feedback tab: ${targetTab}`);
         
         // Update button states
         tabButtons.forEach(btn => {
@@ -3058,7 +3013,6 @@ function initializeFeedbackTabsInContent(container) {
                         textareas.forEach(textarea => {
                             const editor = tinymce.get(textarea.id);
                             if (editor) {
-                                console.log(` Refreshing TinyMCE editor: ${textarea.id}`);
                                 
                                 // Add error handling for TinyMCE operations
                                 try {
@@ -3067,10 +3021,8 @@ function initializeFeedbackTabsInContent(container) {
                                         editor.execCommand('mceResize');
                                         editor.fire('ResizeEditor');
                                     } else {
-                                        console.warn(`Editor ${textarea.id} not fully initialized, skipping refresh`);
                                     }
                                 } catch (error) {
-                                    console.warn(`Error refreshing TinyMCE editor ${textarea.id}:`, error);
                                 }
                             }
                         });
@@ -3083,7 +3035,6 @@ function initializeFeedbackTabsInContent(container) {
             }
         });
         
-        console.log(` Feedback tab switched to: ${targetTab}`);
     }
     
     // Add click handlers
@@ -3099,15 +3050,12 @@ function initializeFeedbackTabsInContent(container) {
         switchToTab('text');
     }
     
-    console.log(' Feedback tabs initialized successfully');
 }
 
 // Clean up TinyMCE editors in sidebar
 function cleanupSidebarTinyMCE(container) {
-    console.log('🧹 Cleaning up sidebar TinyMCE editors...');
     
     if (typeof tinymce === 'undefined') {
-        console.log('ℹ️ TinyMCE not available for cleanup');
         return;
     }
     
@@ -3118,9 +3066,7 @@ function cleanupSidebarTinyMCE(container) {
             if (editor) {
                 try {
                     editor.remove();
-                    console.log(` Cleaned up TinyMCE editor: ${textarea.id}`);
                 } catch (error) {
-                    console.warn(`Could not clean up TinyMCE editor ${textarea.id}:`, error);
                 }
             }
         }
@@ -3175,7 +3121,6 @@ function submitSidebarForm(form) {
         }
     })
     .catch(error => {
-        console.error('Error:', error);
         showToast('Error saving grade', 'error');
     })
     .finally(() => {
@@ -3207,7 +3152,6 @@ window.exportGradebook = function() {
 
 // Initialize everything when page loads
 document.addEventListener('DOMContentLoaded', function() {
-    console.log(' Gradebook page loaded');
     
     // Check if required elements exist
     const sidebar = document.getElementById('gradingSidebar');
@@ -3215,21 +3159,15 @@ document.addEventListener('DOMContentLoaded', function() {
     const content = document.getElementById('sidebarContent');
     
     if (!sidebar) {
-        console.error(' Sidebar element missing from DOM');
     } else {
-        console.log(' Sidebar element found');
     }
     
     if (!overlay) {
-        console.error(' Overlay element missing from DOM');
     } else {
-        console.log(' Overlay element found');
     }
     
     if (!content) {
-        console.error(' Content element missing from DOM');
     } else {
-        console.log(' Content element found');
     }
     
     // Initialize view mode

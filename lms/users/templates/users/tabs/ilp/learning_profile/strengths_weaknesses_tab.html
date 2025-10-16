@@ -347,7 +347,6 @@ document.addEventListener('DOMContentLoaded', function() {
             currentTabState.subTab = 'learning-profile-tab';
             currentTabState.nestedTab = 'strengths-weaknesses-tab';
             
-            console.log('Strengths & Weaknesses tab: Setting tab state to:', currentTabState);
             
             // Update hidden form fields directly
             var activeTabField = document.getElementById('activeTabField');
@@ -500,7 +499,6 @@ function editStrengthWeakness(questionId) {
                     }
                 })
                 .catch(error => {
-                    console.error('Error:', error);
                     alert('Error updating strength/weakness. Please try again.');
                 });
             });
@@ -555,7 +553,6 @@ function deleteStrengthWeakness(questionId) {
             }
         })
         .catch(error => {
-            console.error('Error:', error);
             alert('Error deleting strength/weakness. Please try again.');
         });
     }
@@ -599,7 +596,6 @@ function toggleInstructorConfirmation(questionId) {
         }
     })
     .catch(error => {
-        console.error('Error:', error);
         alert('Error updating confirmation status. Please try again.');
     });
 }
@@ -649,7 +645,6 @@ function addStrengthWeakness(type) {
         }
     })
     .catch(error => {
-        console.error('Error:', error);
         alert('Error adding strength/weakness. Please try again.');
     });
 }

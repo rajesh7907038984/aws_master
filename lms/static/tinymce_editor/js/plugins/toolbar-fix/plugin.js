@@ -5,14 +5,11 @@
 (function() {
     'use strict';
     
-    console.log('Toolbar Fix Plugin loading...');
     
     tinymce.PluginManager.add('toolbarfix', function(editor) {
-        console.log('Toolbar Fix Plugin initialized for editor:', editor.id);
         
         // Fix toolbar visibility after editor initialization
         editor.on('init', function() {
-            console.log('Fixing toolbar visibility...');
             
             // Add a slight delay to let TinyMCE render fully
             setTimeout(function() {
@@ -66,7 +63,6 @@
                     group.style.left = '0';
                 });
                 
-                console.log('Toolbar visibility fixed');
                 
                 // Force editor to recalculate layout
                 editor.fire('ResizeEditor');

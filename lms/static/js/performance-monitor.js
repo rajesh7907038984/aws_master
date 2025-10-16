@@ -24,13 +24,11 @@
         trackUserInteractions: function() {
             // Track form submissions
             document.addEventListener('submit', function(e) {
-                console.log('Form submitted:', e.target.action || 'unknown');
             });
             
             // Track navigation clicks
             document.addEventListener('click', function(e) {
                 if (e.target.tagName === 'A') {
-                    console.log('Link clicked:', e.target.href || 'unknown');
                 }
             });
         },

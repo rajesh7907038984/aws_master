@@ -396,7 +396,6 @@
                     loginTrendChart.update('none'); // Silent update
                 }
             })
-            .catch(error => console.error('Error refreshing login trend:', error));
         
         // Refresh completion trend chart
         fetch(`/business/api/chart-data/?type=chart_data&chart_type=completion_trend&timeframe=${timeframe}&business_id=${businessId}`)
@@ -407,7 +406,6 @@
                     completionTrendChart.update('none'); // Silent update
                 }
             })
-            .catch(error => console.error('Error refreshing completion trend:', error));
     }
 </script>
 {% endblock %}

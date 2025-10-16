@@ -5,9 +5,7 @@ const QuestionTypeFields = {
     },
 
     toggle(questionType) {
-        console.log('Toggling fields for question type:', questionType);
         if (!this.dynamicFields) {
-            console.error('Dynamic fields container not found');
             return;
         }
 
@@ -33,7 +31,6 @@ const QuestionTypeFields = {
                 this.createMatchingFields();
                 break;
             default:
-                console.log('No specific fields needed for this question type');
         }
     },
 

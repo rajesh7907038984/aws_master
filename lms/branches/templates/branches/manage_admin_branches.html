@@ -436,7 +436,6 @@ function saveAssignmentEdit(assignmentId) {
         }
     })
     .catch(error => {
-        console.error('Error:', error);
         showMessage('An error occurred while updating the assignment.', 'error');
     });
 }

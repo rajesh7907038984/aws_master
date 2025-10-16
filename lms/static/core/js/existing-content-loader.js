@@ -14,24 +14,20 @@
      */
     function loadTinyMCEContent(editorId, content) {
         if (!content || !content.trim()) {
-            console.log(`No content to load for editor: ${editorId}`);
             return;
         }
         
         const editor = tinymce.get(editorId);
         if (!editor) {
-            console.warn(`TinyMCE editor not found: ${editorId}`);
             return;
         }
         
         // Check if content is already loaded to prevent overwrites
         const contentKey = `${editorId}_${content.substring(0, 50)}`;
         if (loadedContent.has(contentKey)) {
-            console.log(`Content already loaded for editor: ${editorId}`);
             return;
         }
         
-        console.log(`Loading content into TinyMCE editor ${editorId}: ${content.length} chars`);
         
         // Set content with proper timing
         if (editor.initialized) {
@@ -41,7 +37,6 @@
             editor.on('init', function() {
                 editor.setContent(content);
                 loadedContent.add(contentKey);
-                console.log(`Content loaded after editor init: ${editorId}`);
             });
         }
     }
@@ -56,7 +51,6 @@
         const container = containerId ? document.getElementById(containerId) : image.closest('.image-container, .course-image-container');
         
         if (image.src && !image.src.includes('data:') && image.src !== window.location.href) {
-            console.log(`Making existing image visible: ${imageId}`);
             
             if (container) {
                 container.classList.remove('hidden');
@@ -68,7 +62,6 @@
             
             // Add error handling
             image.onerror = function() {
-                console.error(`Failed to load image: ${this.src}`);
                 this.style.display = 'none';
                 
                 // Show error message
@@ -98,7 +91,6 @@
         const container = containerId ? document.getElementById(containerId) : video.closest('.video-container, .course-video-container');
         
         if (video.src || video.querySelector('source[src]')) {
-            console.log(`Making existing video visible: ${videoId}`);
             
             if (container) {
                 container.classList.remove('hidden');
@@ -120,7 +112,6 @@
         const form = document.getElementById(formId);
         if (!form || !data) return;
         
-        console.log(`Loading existing form data for: ${formId}`);
         
         // Wait for form to be ready
         setTimeout(() => {
@@ -148,7 +139,6 @@
                     field.value = value;
                 }
                 
-                console.log(`Set field ${fieldName} to:`, value);
             });
         }, 100);
     }
@@ -157,7 +147,6 @@
      * Initialize all existing content on page load
      */
     function initializeExistingContent() {
-        console.log('Initializing existing content for edit forms...');
         
         // Wait for DOM to be ready
         if (document.readyState === 'loading') {
@@ -198,7 +187,6 @@
             ensureVideoPreviewVisible(videoId, containerId);
         });
         
-        console.log('Existing content initialization complete');
     }
     
     // Expose functions globally

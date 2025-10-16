@@ -14,14 +14,12 @@ const QuestionForm = {
         if (this.addQuestionBtn) {
             this.addQuestionBtn.addEventListener('click', (e) => {
                 e.preventDefault();
-                console.log('Add Question button clicked');
                 this.toggleForm();
             });
         }
 
         if (this.questionType) {
             this.questionType.addEventListener('change', () => {
-                console.log('Question type changed to:', this.questionType.value);
                 window.QuestionTypeFields.toggle(this.questionType.value);
             });
         }
@@ -38,16 +36,13 @@ const QuestionForm = {
             }
 
             const isVisible = !this.formContainer.classList.contains('hidden');
-            console.log('Form is currently visible:', isVisible);
 
             if (isVisible) {
                 this.hideForm();
             } else {
                 this.showForm();
             }
-            console.log('Form visibility toggled successfully');
         } catch (error) {
-            console.error('Error in toggleForm:', error);
             alert('Error: ' + error.message);
         }
     },
@@ -96,7 +91,6 @@ const QuestionForm = {
 
     initializeFormState() {
         if (this.formContainer) {
-            console.log('Initializing form container state');
             this.formContainer.classList.add('hidden');
         }
 
@@ -107,10 +101,8 @@ const QuestionForm = {
 
     async handleSubmit(event) {
         event.preventDefault();
-        console.log('Form submit event triggered');
 
         if (!window.QuestionValidator.validateForm()) {
-            console.log('Form validation failed');
             return;
         }
 
@@ -133,7 +125,6 @@ const QuestionForm = {
                 window.QuestionUI.showError(response.message || 'Error adding question');
             }
         } catch (error) {
-            console.error('Error submitting question:', error);
             window.QuestionUI.showError('Error submitting question. Please try again.');
         }
     },
@@ -174,7 +165,6 @@ const QuestionForm = {
 
         if (!response.ok) {
             const text = await response.text();
-            console.error('Server response:', text);
             
             // Provide more specific error messages
             if (response.status === 403) {

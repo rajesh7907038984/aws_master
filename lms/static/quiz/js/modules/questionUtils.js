@@ -3,7 +3,6 @@ const QuestionUtils = {
     getCSRFToken() {
         const csrfInput = document.querySelector('input[name="csrfmiddlewaretoken"]');
         if (!csrfInput) {
-            console.error('CSRF token not found');
             return null;
         }
         return csrfInput.value;
