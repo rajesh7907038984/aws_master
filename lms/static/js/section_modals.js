@@ -127,7 +127,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     </div>
                 </div>
                 <div class="mt-2 flex justify-end">
-                    <a href="${window.TOPIC_CREATE_URL_TEMPLATE ? window.TOPIC_CREATE_URL_TEMPLATE.replace('0', courseId) + '?section_id=' + sectionId : '/courses/' + courseId + '/topic/create/?section_id=' + sectionId}" class="inline-flex items-center px-2 py-1 text-xs font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none">
+                    <a href="/courses/${courseId}/topic/create/?section_id=${sectionId}" class="inline-flex items-center px-2 py-1 text-xs font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none">
                         <svg class="-ml-0.5 mr-1 h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
                         </svg>
