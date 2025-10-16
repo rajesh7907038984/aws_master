@@ -38,6 +38,7 @@ static_root/
 
 # Media files
 media/
+local_media/
 
 # Environment variables
 
