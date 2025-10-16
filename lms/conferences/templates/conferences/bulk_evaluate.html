@@ -374,6 +374,19 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 
+// Global function to update button states
+function updateButtonStates() {
+    const applyButton = document.querySelector('button[onclick="applyToAll()"]');
+    const saveButton = document.querySelector('button[type="submit"]');
+    
+    if (applyButton) {
+        applyButton.disabled = false;
+    }
+    if (saveButton) {
+        saveButton.disabled = false;
+    }
+}
+
 // Apply first row values to all rows
 function applyToAll() {
     if (!confirm('This will copy the ratings, points, and comments from the first attendee to all other attendees. Continue?')) {
@@ -382,6 +395,15 @@ function applyToAll() {
     
     const firstAttendance = document.querySelector('tbody tr.attendee-header');
     if (!firstAttendance) return;
+    
+    // Disable buttons during operation
+    const applyButton = document.querySelector('button[onclick="applyToAll()"]');
+    const saveButton = document.querySelector('button[type="submit"]');
+    
+    if (applyButton) {
+        applyButton.disabled = true;
+        applyButton.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Applying...';
+    }
     
     // Get all criterion values from first attendee
     const criterionValues = {};
@@ -462,6 +484,9 @@ function applyToAll() {
         const attendanceId = pointsRow.querySelector('.criterion-points').dataset.attendanceId;
         updateTotalPoints(attendanceId);
     });
+    
+    // Re-enable buttons after operation
+    updateButtonStates();
 }
 </script>
 {% endblock %} 

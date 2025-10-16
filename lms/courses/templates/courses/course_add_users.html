@@ -80,7 +80,6 @@
 
 {% block content %}
 <div class="container mx-auto px-4 py-8">
-    {% csrf_token %}
     <!-- Main container -->
     <div class="bg-white rounded-lg shadow-md">
         <div class="w-full px-8 py-6">
@@ -243,7 +242,7 @@
                                 <button 
                                     class="add-btn single-add-btn"
                                     data-user-id="{{ user.id }}"
-                                    data-course-id="{{ course.id }}"
+                                    data-course-id="{{ course.id|escapejs }}"
                                     data-user-name="{{ user.get_full_name|default:user.username|escapejs }}">
                                     <svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
@@ -401,104 +400,110 @@
         }
     }
 
-    document.addEventListener('DOMContentLoaded', function() {
-        // Test if enrollUser function is accessible
+    // Global function to update select all checkbox state
+    function updateSelectAllState() {
+        const totalVisibleCheckboxes = document.querySelectorAll('.user-checkbox:not([style*="display: none"])').length;
+        const checkedVisibleCheckboxes = document.querySelectorAll('.user-checkbox:not([style*="display: none"]):checked').length;
+        const selectAllCheckbox = document.getElementById('selectAllUsers');
+        if (selectAllCheckbox) {
+            selectAllCheckbox.checked = (totalVisibleCheckboxes > 0 && totalVisibleCheckboxes === checkedVisibleCheckboxes);
+        }
+        updateBulkAddButton();
+    }
+
+    // Global function to update bulk add button state
+    function updateBulkAddButton() {
+        // Use vanilla JS for more reliable results
+        const selectedCheckboxes = document.querySelectorAll('.user-checkbox:checked');
+        const selectedCount = selectedCheckboxes.length;
+        const bulkAddBtn = document.getElementById('bulkAddBtn');
         
+        if (bulkAddBtn) {
+            const buttonTextSpan = bulkAddBtn.querySelector('.button-text');
+            bulkAddBtn.disabled = selectedCount === 0;
+            if (selectedCount > 0 && buttonTextSpan) {
+                buttonTextSpan.textContent = `Add Selected Users (${selectedCount})`;
+            } else if (buttonTextSpan) {
+                buttonTextSpan.textContent = 'Add Selected Users';
+            }
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
         // Client-side filtering for already loaded users
         const searchInput = document.getElementById('userSearch');
         let typingTimer;
         const typingInterval = 300; // ms
         
         // Only do client-side filtering on keyup for quick searches without reloading
-        searchInput.addEventListener('keyup', function(e) {
-            clearTimeout(typingTimer);
-            
-            // Don't trigger on Enter key as that should submit the form
-            if (e.key === 'Enter') return;
-            
-            typingTimer = setTimeout(function() {
-                const searchTerm = searchInput.value.toLowerCase();
-                const rows = document.querySelectorAll('.user-table tbody tr');
+        if (searchInput) {
+            searchInput.addEventListener('keyup', function(e) {
+                clearTimeout(typingTimer);
                 
-                rows.forEach(row => {
-                    if (row.querySelector('.user-name')) {
-                        const userName = row.querySelector('.user-name').textContent.toLowerCase();
-                        if (userName.includes(searchTerm)) {
-                            row.style.display = '';
-                        } else {
-                            row.style.display = 'none';
+                // Don't trigger on Enter key as that should submit the form
+                if (e.key === 'Enter') return;
+                
+                typingTimer = setTimeout(function() {
+                    const searchTerm = searchInput.value.toLowerCase();
+                    const rows = document.querySelectorAll('.user-table tbody tr');
+                    
+                    rows.forEach(row => {
+                        if (row.querySelector('.user-name')) {
+                            const userName = row.querySelector('.user-name').textContent.toLowerCase();
+                            if (userName.includes(searchTerm)) {
+                                row.style.display = '';
+                            } else {
+                                row.style.display = 'none';
+                            }
                         }
-                    }
-                });
-                
-                // Update select all checkbox state after filtering
-                updateSelectAllState();
-            }, typingInterval);
-        });
-        
-        // Function to update select all checkbox state
-        function updateSelectAllState() {
-            const totalVisibleCheckboxes = document.querySelectorAll('.user-checkbox:not([style*="display: none"])').length;
-            const checkedVisibleCheckboxes = document.querySelectorAll('.user-checkbox:not([style*="display: none"]):checked').length;
-            const selectAllCheckbox = document.getElementById('selectAllUsers');
-            if (selectAllCheckbox) {
-                selectAllCheckbox.checked = (totalVisibleCheckboxes > 0 && totalVisibleCheckboxes === checkedVisibleCheckboxes);
-            }
-            updateBulkAddButton();
+                    });
+                    
+                    // Update select all checkbox state after filtering
+                    updateSelectAllState();
+                }, typingInterval);
+            });
         }
     });
 
     // Function to handle enrolling a user
     function enrollUser(userId, courseId, userName) {
-        
         // Validate parameters
         if (!userId || !courseId) {
             createSimpleNotification('Error: Missing user or course information', 'error');
             return;
         }
         
-        // Temporarily disable form change warnings during AJAX operations
-        if (typeof window.disableFormChangeWarnings === 'function') {
-            window.disableFormChangeWarnings();
-        }
-        
-        // Get CSRF token - try multiple methods
-        let csrftoken = null;
-        
-        // Method 1: Try to get from hidden input
-        const csrfInput = document.querySelector('[name=csrfmiddlewaretoken]');
-        if (csrfInput) {
-            csrftoken = csrfInput.value;
-        }
-        
-        // Method 2: Try to get from cookie if not found
-        if (!csrftoken) {
-            const getCookie = function(name) {
-                let cookieValue = null;
-                if (document.cookie && document.cookie !== '') {
-                    const cookies = document.cookie.split(';');
-                    for (let i = 0; i < cookies.length; i++) {
-                        const cookie = cookies[i].trim();
-                        if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                            break;
-                        }
+        // Get CSRF token from cookie
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
                     }
                 }
-                return cookieValue;
-            };
-            csrftoken = getCookie('csrftoken');
+            }
+            return cookieValue;
         }
         
-        // If still no token, show error and return
+        const csrftoken = getCookie('csrftoken');
         if (!csrftoken) {
             createSimpleNotification('CSRF token not found. Please refresh the page and try again.', 'error');
             return;
         }
         
-        // Send AJAX request to enroll the user
+        // Disable the button to prevent double-clicks
+        const button = document.querySelector(`button[data-user-id="${userId}"]`);
+        if (button) {
+            button.disabled = true;
+            button.innerHTML = '<svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>Adding...';
+        }
         
-        fetch(`/courses/${courseId}/enroll/${userId}/`, {
+        // Send AJAX request to enroll the user
+        fetch('/courses/' + courseId + '/enroll/' + userId + '/', {
             method: 'POST',
             headers: {
                 'X-CSRFToken': csrftoken,
@@ -514,24 +519,19 @@
         })
         .then(data => {
             if (data.success) {
-                // Show simple success message with reduced verbosity
                 createSimpleNotification(`Added ${userName}`, 'success');
-                
                 // Remove the enrolled user from the list
                 const userRow = document.querySelector(`tr[data-user-id="${userId}"]`);
                 if (userRow) {
                     userRow.remove();
                 } else {
-                    // Fallback: reload the page to reflect changes
                     window.location.reload();
                 }
             } else {
-                // User enrollment was not successful - only show error for actual failures
                 if (data.message && !data.message.includes('already enrolled')) {
                     createSimpleNotification(data.message || 'Enrollment failed', 'error');
                 }
-                
-                // Try to remove the user anyway if there's a row for them
+                // Remove the user anyway if there's a row for them
                 const userRow = document.querySelector(`tr[data-user-id="${userId}"]`);
                 if (userRow) {
                     userRow.remove();
@@ -539,25 +539,19 @@
             }
         })
         .catch(error => {
-            console.error('Error enrolling user:', {
-                userId: userId,
-                courseId: courseId,
-                userName: userName,
-                error: error.message,
-                stack: error.stack
-            });
+            console.error('Error enrolling user:', error);
             createSimpleNotification('Error enrolling user. Please try again.', 'error');
         })
         .finally(() => {
-            // Re-enable form change warnings
-            if (typeof window.enableFormChangeWarnings === 'function') {
-                window.enableFormChangeWarnings();
+            // Re-enable the button
+            if (button) {
+                button.disabled = false;
+                button.innerHTML = '<svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>Add';
             }
         });
     }
 
     document.addEventListener('DOMContentLoaded', function() {
-        
         // Handle select all checkbox - Direct DOM manipulation 
         const selectAllUsers = document.getElementById('selectAllUsers');
         if (selectAllUsers) {
@@ -579,35 +573,20 @@
         // Handle individual checkbox changes using vanilla JS
         document.querySelectorAll('.user-checkbox').forEach(checkbox => {
             checkbox.addEventListener('change', function() {
-                
                 // Count checkboxes
                 const allVisible = document.querySelectorAll('.user-checkbox:not([style*="display: none"])');
                 const allCheckedVisible = document.querySelectorAll('.user-checkbox:not([style*="display: none"]):checked');
                 
                 // Update select all checkbox state
-                document.getElementById('selectAllUsers').checked = 
-                    (allVisible.length > 0 && allVisible.length === allCheckedVisible.length);
+                const selectAllCheckbox = document.getElementById('selectAllUsers');
+                if (selectAllCheckbox) {
+                    selectAllCheckbox.checked = (allVisible.length > 0 && allVisible.length === allCheckedVisible.length);
+                }
                 
                 // Update bulk add button
                 updateBulkAddButton();
             });
         });
-        
-        // Update bulk add button state
-        function updateBulkAddButton() {
-            // Use vanilla JS for more reliable results
-            const selectedCheckboxes = document.querySelectorAll('.user-checkbox:checked');
-            const selectedCount = selectedCheckboxes.length;
-            const bulkAddBtn = document.getElementById('bulkAddBtn');
-            const buttonTextSpan = bulkAddBtn.querySelector('.button-text');
-            
-            bulkAddBtn.disabled = selectedCount === 0;
-            if (selectedCount > 0) {
-                buttonTextSpan.textContent = `Add Selected Users (${selectedCount})`;
-            } else {
-                buttonTextSpan.textContent = 'Add Selected Users';
-            }
-        }
 
         // Set initial button state on page load
         updateBulkAddButton();
@@ -630,30 +609,22 @@
         // Handle bulk add button click with vanilla JS
         const bulkAddBtn = document.getElementById('bulkAddBtn');
         if (bulkAddBtn) {
-            bulkAddBtn.addEventListener('click', function() {
-            // Temporarily disable form change warnings during bulk operations
-            if (typeof window.disableFormChangeWarnings === 'function') {
-                window.disableFormChangeWarnings();
-            }
+            bulkAddBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                
+                // Disable bulk operations during processing
 
-            // Get all selected user IDs using vanilla JS
-            const selectedCheckboxes = document.querySelectorAll('.user-checkbox:checked');
-            const selectedUserIds = Array.from(selectedCheckboxes).map(checkbox => checkbox.value);
+                // Get all selected user IDs using vanilla JS
+                const selectedCheckboxes = document.querySelectorAll('.user-checkbox:checked');
+                const selectedUserIds = Array.from(selectedCheckboxes).map(checkbox => checkbox.value);
 
-            if (selectedUserIds.length === 0) return;
+                if (selectedUserIds.length === 0) {
+                    createSimpleNotification('Please select at least one user to add.', 'error');
+                    return;
+                }
 
-            // Get CSRF token - try multiple methods
-            let csrftoken = null;
-            
-            // Method 1: Try to get from hidden input
-            const csrfInput = document.querySelector('[name=csrfmiddlewaretoken]');
-            if (csrfInput) {
-                csrftoken = csrfInput.value;
-            }
-            
-            // Method 2: Try to get from cookie if not found
-            if (!csrftoken) {
-                const getCookie = function(name) {
+                // Get CSRF token from cookie
+                function getCookie(name) {
                     let cookieValue = null;
                     if (document.cookie && document.cookie !== '') {
                         const cookies = document.cookie.split(';');
@@ -666,93 +637,82 @@
                         }
                     }
                     return cookieValue;
-                };
-                csrftoken = getCookie('csrftoken');
-            }
-            
-            // If still no token, show error and return
-            if (!csrftoken) {
-                createSimpleNotification('CSRF token not found. Please refresh the page and try again.', 'error');
-                return;
-            }
-            
-            // Show loading state
-            const bulkAddBtn = this;
-            const originalContent = bulkAddBtn.innerHTML;
-            bulkAddBtn.disabled = true;
-            bulkAddBtn.innerHTML = `
-                <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                Adding Users...
-            `;
-
-            // Send bulk enrollment request
-            fetch('/courses/' + {{ course.id }} + '/bulk-enroll/', {
-                method: 'POST',
-                headers: {
-                    'X-CSRFToken': csrftoken,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ user_ids: selectedUserIds }),
-                credentials: 'same-origin'
-            })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`Server responded with status: ${response.status}`);
-                }
-                return response.json();
-            })
-            .then(data => {
-                if (data.success) {
-                    // Remove enrolled users from the list without showing toast notification
-                    selectedUserIds.forEach(userId => {
-                        const userRow = document.querySelector(`tr[data-user-id="${userId}"]`);
-                        if (userRow) {
-                            userRow.remove();
-                        }
-                    });
-                    
-                    // Reset select all checkbox
-                    const selectAllCheckbox = document.getElementById('selectAllUsers');
-                    if (selectAllCheckbox) {
-                        selectAllCheckbox.checked = false;
-                    }
-                    
-                    // Create a simple success message instead of using showToast
-                    createSimpleNotification(`Added ${selectedUserIds.length} users`, 'success');
-                    
-                    // Update UI elements
-                    if (typeof updateBulkAddButton === 'function') {
-                        updateBulkAddButton();
-                    }
-                } else {
-                    // Enrollment was not successful
-                    
-                    // Update UI elements
-                    if (typeof updateBulkAddButton === 'function') {
-                        updateBulkAddButton();
-                    }
-                }
-            })
-            .catch(error => {
-                // Don't show any error notification
-            })
-            .finally(() => {
-                // Re-enable form change warnings
-                if (typeof window.enableFormChangeWarnings === 'function') {
-                    window.enableFormChangeWarnings();
                 }
                 
-                // Restore button state
-                if (bulkAddBtn) {
-                    bulkAddBtn.disabled = false;
-                    bulkAddBtn.innerHTML = originalContent;
-                    if (typeof updateBulkAddButton === 'function') {
+                const csrftoken = getCookie('csrftoken');
+                if (!csrftoken) {
+                    createSimpleNotification('CSRF token not found. Please refresh the page and try again.', 'error');
+                    return;
+                }
+                
+                // Show loading state
+                const bulkAddBtn = this;
+                const originalContent = bulkAddBtn.innerHTML;
+                bulkAddBtn.disabled = true;
+                bulkAddBtn.innerHTML = `
+                    <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Adding Users...
+                `;
+
+                // Send bulk enrollment request
+                const courseId = parseInt('{{ course.id }}');
+                fetch('/courses/' + courseId + '/bulk-enroll/', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': csrftoken,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ user_ids: selectedUserIds }),
+                    credentials: 'same-origin'
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`Server responded with status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.success) {
+                        // Remove enrolled users from the list
+                        selectedUserIds.forEach(userId => {
+                            const userRow = document.querySelector(`tr[data-user-id="${userId}"]`);
+                            if (userRow) {
+                                userRow.remove();
+                            }
+                        });
+                        
+                        // Reset select all checkbox
+                        const selectAllCheckbox = document.getElementById('selectAllUsers');
+                        if (selectAllCheckbox) {
+                            selectAllCheckbox.checked = false;
+                        }
+                        
+                        // Create a simple success message
+                        createSimpleNotification(`Added ${selectedUserIds.length} users`, 'success');
+                        
+                        // Update UI elements
+                        updateBulkAddButton();
+                    } else {
+                        // Show error message if provided
+                        if (data.message) {
+                            createSimpleNotification(data.message, 'error');
+                        }
                         updateBulkAddButton();
                     }
-                }
+                })
+                .catch(error => {
+                    console.error('Bulk enrollment error:', error);
+                    createSimpleNotification('Failed to add users. Please try again.', 'error');
+                })
+                .finally(() => {
+                    // Restore button state
+                    bulkAddBtn.disabled = false;
+                    bulkAddBtn.innerHTML = originalContent;
+                    updateBulkAddButton();
+                });
             });
         }
     });

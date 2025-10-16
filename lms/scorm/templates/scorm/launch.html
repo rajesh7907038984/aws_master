@@ -186,8 +186,13 @@ window.API = {
     LMSFinish: function(param) {
         console.log('SCORM: LMSFinish called with', param);
         
-        // Set exit value before terminating
-        this.LMSSetValue('cmi.core.exit', 'normal');
+        // Set exit value before terminating - handle different exit scenarios
+        const exitValue = param || 'normal';
+        console.log('SCORM: Setting exit value to:', exitValue);
+        this.LMSSetValue('cmi.core.exit', exitValue);
+        
+        // Commit any pending changes
+        this.LMSCommit('');
         
         // Make synchronous AJAX request to finish
         const xhr = new XMLHttpRequest();
@@ -202,6 +207,16 @@ window.API = {
             if (xhr.status === 200) {
                 const data = JSON.parse(xhr.responseText);
                 console.log('SCORM: Finish result:', data);
+                
+                // Handle successful termination
+                if (data.result === 'true') {
+                    console.log('SCORM: Successfully terminated, redirecting...');
+                    // Small delay to ensure data is saved
+                    setTimeout(function() {
+                        window.location.href = "{% url 'courses:topic_view' topic.id %}";
+                    }, 100);
+                }
+                
                 return data.result === 'true' ? 'true' : 'false';
             } else {
                 console.error('SCORM: Error finishing, status:', xhr.status);
@@ -239,16 +254,28 @@ function handleSCORMError() {
 }
 
 function closeWindow() {
+    console.log('SCORM: Close button clicked');
+    
+    // First, try to properly terminate the SCORM session
+    if (window.API && window.API.LMSFinish) {
+        console.log('SCORM: Terminating session before closing...');
+        // Set exit value to 'logout' for manual close
+        window.API.LMSSetValue('cmi.core.exit', 'logout');
+        window.API.LMSFinish('logout');
+    }
+    
     // Try to close the window first
     if (window.close) {
         window.close();
         // If we're still here after 100ms, the close was blocked
         setTimeout(function() {
             // Fallback: redirect to topic view
+            console.log('SCORM: Window close blocked, redirecting...');
             window.location.href = "{% url 'courses:topic_view' topic.id %}";
         }, 100);
     } else {
         // No close method available, redirect directly
+        console.log('SCORM: No close method available, redirecting...');
         window.location.href = "{% url 'courses:topic_view' topic.id %}";
     }
 }
@@ -277,11 +304,29 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // Handle page unload to save progress
-window.addEventListener('beforeunload', function() {
+window.addEventListener('beforeunload', function(event) {
+    console.log('SCORM: Page unloading, saving progress...');
+    
     if (window.API && window.API.LMSFinish) {
         // Set exit value to 'time-out' for unexpected exits
         window.API.LMSSetValue('cmi.core.exit', 'time-out');
-        window.API.LMSFinish('');
+        window.API.LMSFinish('time-out');
+    }
+});
+
+// Handle visibility change (tab switching, minimizing)
+document.addEventListener('visibilitychange', function() {
+    if (document.hidden && window.API && window.API.LMSCommit) {
+        console.log('SCORM: Page hidden, committing progress...');
+        window.API.LMSCommit('');
+    }
+});
+
+// Handle focus loss
+window.addEventListener('blur', function() {
+    if (window.API && window.API.LMSCommit) {
+        console.log('SCORM: Window lost focus, committing progress...');
+        window.API.LMSCommit('');
     }
 });
 </script>

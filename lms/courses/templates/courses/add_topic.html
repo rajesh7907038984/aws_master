@@ -2819,6 +2819,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 e.preventDefault();
                 console.log('Submit button clicked, submitting form directly');
                 
+                // Disable button to prevent double submission
+                this.disabled = true;
+                
                 // Hide submit text, show spinner
                 const submitText = this.querySelector('.submit-text');
                 const spinner = this.querySelector('.spinner');

@@ -211,11 +211,25 @@
 <script src="{% static 'core/js/utils/notifications.js' %}"></script>
 <script>
     function addGroupToCourse(groupId, courseId, groupName) {
+        // Get CSRF token from cookie
+        const csrftoken = getCookie('csrftoken');
+        if (!csrftoken) {
+            showToast('CSRF token not found. Please refresh the page and try again.', 'error');
+            return;
+        }
+        
+        // Disable the button to prevent double-clicks
+        const button = document.querySelector(`button[onclick*="${groupId}"]`);
+        if (button) {
+            button.disabled = true;
+            button.innerHTML = '<svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>Adding...';
+        }
+        
         fetch(`/courses/${courseId}/groups/add/${groupId}/`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                'X-CSRFToken': csrftoken
             }
         })
         .then(response => {
@@ -253,7 +267,15 @@
             }
         })
         .catch(error => {
+            console.error('Error adding group to course:', error);
             showToast('An error occurred while trying to add the group to the course.', 'error');
+        })
+        .finally(() => {
+            // Re-enable the button
+            if (button) {
+                button.disabled = false;
+                button.innerHTML = '<svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>Add';
+            }
         });
     }
 

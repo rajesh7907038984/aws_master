@@ -335,34 +335,43 @@ document.addEventListener('DOMContentLoaded', function() {
     updateRecipientOptions();
     recipientTypeSelect.addEventListener('change', updateRecipientOptions);
 
-    // Form validation
+    // Form validation and submission handling
     const form = document.getElementById('bulk-notification-form');
-    form.addEventListener('submit', function(e) {
-        const recipientType = recipientTypeSelect.value;
-        let hasRecipients = false;
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            const recipientType = recipientTypeSelect.value;
+            let hasRecipients = false;
 
-        if (recipientType === 'all_users') {
-            hasRecipients = true;
-        } else if (recipientType === 'role') {
-            hasRecipients = document.querySelectorAll('input[name="target_roles"]:checked').length > 0;
-        } else if (recipientType === 'branch') {
-            hasRecipients = document.querySelectorAll('input[name="target_branches"]:checked').length > 0;
-        } else if (recipientType === 'group') {
-            hasRecipients = document.querySelectorAll('input[name="target_groups"]:checked').length > 0;
-        } else if (recipientType === 'course') {
-            hasRecipients = document.querySelectorAll('input[name="target_courses"]:checked').length > 0;
-        } else if (recipientType === 'custom') {
-            hasRecipients = document.querySelectorAll('input[name="custom_recipients"]:checked').length > 0;
-        }
+            if (recipientType === 'all_users') {
+                hasRecipients = true;
+            } else if (recipientType === 'role') {
+                hasRecipients = document.querySelectorAll('input[name="target_roles"]:checked').length > 0;
+            } else if (recipientType === 'branch') {
+                hasRecipients = document.querySelectorAll('input[name="target_branches"]:checked').length > 0;
+            } else if (recipientType === 'group') {
+                hasRecipients = document.querySelectorAll('input[name="target_groups"]:checked').length > 0;
+            } else if (recipientType === 'course') {
+                hasRecipients = document.querySelectorAll('input[name="target_courses"]:checked').length > 0;
+            } else if (recipientType === 'custom') {
+                hasRecipients = document.querySelectorAll('input[name="custom_recipients"]:checked').length > 0;
+            }
 
-        if (!hasRecipients && recipientType !== 'all_users') {
-            e.preventDefault();
-            alert('Please select at least one recipient for the chosen recipient type.');
-            return false;
-        }
+            if (!hasRecipients && recipientType !== 'all_users') {
+                e.preventDefault();
+                alert('Please select at least one recipient for the chosen recipient type.');
+                return false;
+            }
 
-        return true;
-    });
+            // Show loading state on submit button
+            const submitButton = form.querySelector('button[type="submit"]');
+            if (submitButton) {
+                submitButton.disabled = true;
+                submitButton.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Saving...';
+            }
+
+            return true;
+        });
+    }
 });
 </script>
 {% endblock %} 

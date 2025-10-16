@@ -197,6 +197,19 @@
 
 {% block extra_js %}
 <script>
+    // Global function to update student selection state
+    function updateStudentSelectionState() {
+        const studentCheckboxes = document.querySelectorAll('.student-checkbox');
+        const totalCheckboxes = studentCheckboxes.length;
+        const checkedCheckboxes = document.querySelectorAll('.student-checkbox:checked').length;
+        
+        // Update select all button state
+        const selectAllBtn = document.getElementById('select-all');
+        if (selectAllBtn) {
+            selectAllBtn.textContent = checkedCheckboxes === totalCheckboxes ? 'Deselect All' : 'Select All';
+        }
+    }
+
     document.addEventListener('DOMContentLoaded', function() {
         // Select/deselect all buttons
         const selectAllBtn = document.getElementById('select-all');
@@ -205,28 +218,47 @@
         const studentCheckboxes = document.querySelectorAll('.student-checkbox');
         
         if (selectAllBtn) {
-            selectAllBtn.addEventListener('click', function() {
+            selectAllBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                const isAllSelected = document.querySelectorAll('.student-checkbox:checked').length === studentCheckboxes.length;
+                
                 studentCheckboxes.forEach(checkbox => {
-                    checkbox.checked = true;
+                    checkbox.checked = !isAllSelected;
                 });
+                
+                updateStudentSelectionState();
             });
         }
         
         if (selectNoneBtn) {
-            selectNoneBtn.addEventListener('click', function() {
+            selectNoneBtn.addEventListener('click', function(e) {
+                e.preventDefault();
                 studentCheckboxes.forEach(checkbox => {
                     checkbox.checked = false;
                 });
+                updateStudentSelectionState();
             });
         }
         
         if (selectWithCommentsBtn) {
-            selectWithCommentsBtn.addEventListener('click', function() {
+            selectWithCommentsBtn.addEventListener('click', function(e) {
+                e.preventDefault();
                 studentCheckboxes.forEach(checkbox => {
                     checkbox.checked = checkbox.dataset.hasComments === 'true';
                 });
+                updateStudentSelectionState();
             });
         }
+        
+        // Handle individual checkbox changes
+        studentCheckboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', function() {
+                updateStudentSelectionState();
+            });
+        });
+        
+        // Initialize state
+        updateStudentSelectionState();
         
         // Sync bulk values to individual student values
         const bulkPoints = document.querySelectorAll('.bulk-points');

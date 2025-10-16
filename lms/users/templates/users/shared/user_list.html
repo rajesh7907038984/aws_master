@@ -605,10 +605,13 @@
     const filterOptions = document.querySelectorAll('.filter-option input');
 
     // Toggle filter dropdown
-    filterButton.addEventListener('click', function(e) {
-        e.stopPropagation();
-        filterDropdown.classList.toggle('show');
-    });
+    if (filterButton && filterDropdown) {
+        filterButton.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            filterDropdown.classList.toggle('show');
+        });
+    }
 
     // Close dropdown when clicking outside
     document.addEventListener('click', function(e) {

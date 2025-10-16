@@ -5561,7 +5561,7 @@ function handleFormSubmit(event) {
         const submitButton = event.target.querySelector('button[type="submit"]');
         if (submitButton) {
             submitButton.disabled = true;
-            submitButton.innerHTML = 'Updating Course...';
+            submitButton.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Updating Course...';
         }
         
         // Validate required fields
@@ -5570,7 +5570,7 @@ function handleFormSubmit(event) {
             alert('Course title is required');
             if (submitButton) {
                 submitButton.disabled = false;
-                submitButton.innerHTML = 'Update Course';
+                submitButton.innerHTML = '<i class="fas fa-save mr-2"></i>Update Course';
             }
             return false;
         }

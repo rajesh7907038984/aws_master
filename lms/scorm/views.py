@@ -233,6 +233,17 @@ def _handle_scorm_post(request, topic_id):
                 # Handle all exit values: 'time-out', 'suspend', 'logout', 'normal', 'ab-initio'
                 # Store the exit value for proper SCORM compliance
                 tracking.raw_data['cmi.core.exit'] = value
+                logger.info(f"SCORM: Setting exit value for user {request.user.id}: {value}")
+                
+                # Handle different exit scenarios
+                if value == 'logout':
+                    logger.info(f"SCORM: User {request.user.id} manually logged out")
+                elif value == 'time-out':
+                    logger.info(f"SCORM: User {request.user.id} session timed out")
+                elif value == 'suspend':
+                    logger.info(f"SCORM: User {request.user.id} suspended session")
+                elif value == 'normal':
+                    logger.info(f"SCORM: User {request.user.id} completed normally")
             elif element == 'cmi.core.entry':
                 # Store entry value for tracking
                 tracking.raw_data['cmi.core.entry'] = value
@@ -269,6 +280,16 @@ def _handle_scorm_post(request, topic_id):
             
         elif action == 'Terminate':
             # Terminate is always successful
+            logger.info(f"SCORM: Terminating session for user {request.user.id}")
+            
+            # Ensure we have the latest exit value
+            exit_value = tracking.raw_data.get('cmi.core.exit', 'normal')
+            logger.info(f"SCORM: Final exit value for user {request.user.id}: {exit_value}")
+            
+            # Update last launch time
+            tracking.last_launch = timezone.now()
+            tracking.save()
+            
             return JsonResponse({'result': 'true'})
             
         else:
