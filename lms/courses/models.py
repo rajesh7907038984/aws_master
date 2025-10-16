@@ -1284,7 +1284,92 @@ class Course(models.Model):
                 logger.error(f"Error deleting report data: {str(e)}")
             
 
-            # 9. DELETE ALL TOPICS (EXCLUSIVELY LINKED TO THIS COURSE)
+            # 9. DELETE ALL SCORM/E-LEARNING PACKAGES FOR COURSE TOPICS
+            try:
+                from scorm.models import ELearningPackage, ELearningTracking
+                
+                # Get all topics associated with this course
+                course_topics = CourseTopic.objects.filter(course=self)
+                scorm_packages_deleted = 0
+                
+                for course_topic in course_topics:
+                    topic = course_topic.topic
+                    # Check if this topic has an e-learning package
+                    if hasattr(topic, 'elearning_package') and topic.elearning_package:
+                        elearning_package = topic.elearning_package
+                        logger.info(f"Deleting SCORM/e-learning package for topic {topic.id}: {elearning_package.title}")
+                        
+                        # Delete all tracking records for this package
+                        tracking_count = ELearningTracking.objects.filter(elearning_package=elearning_package).count()
+                        if tracking_count > 0:
+                            logger.info(f"Deleting {tracking_count} e-learning tracking records for package {elearning_package.id}")
+                            ELearningTracking.objects.filter(elearning_package=elearning_package).delete()
+                            logger.info(f"Successfully deleted {tracking_count} tracking records")
+                        
+                        # Delete the package file from storage
+                        if elearning_package.package_file:
+                            try:
+                                elearning_package.package_file.delete(save=False)
+                                logger.info(f"Deleted SCORM package file: {elearning_package.package_file.name}")
+                            except Exception as file_error:
+                                logger.error(f"Error deleting SCORM package file: {str(file_error)}")
+                        
+                        # Delete extracted content directory
+                        if elearning_package.extracted_path:
+                            try:
+                                from scorm.storage import SCORMLocalStorage
+                                storage = SCORMLocalStorage()
+                                
+                                # Delete the extracted content directory
+                                extracted_dir = elearning_package.extracted_path
+                                if storage.exists(extracted_dir):
+                                    # List all files in the directory and delete them
+                                    try:
+                                        files, dirs = storage.listdir(extracted_dir)
+                                        for file in files:
+                                            file_path = f"{extracted_dir}/{file}"
+                                            try:
+                                                storage.delete(file_path)
+                                                logger.info(f"Deleted SCORM extracted file: {file_path}")
+                                            except Exception as file_error:
+                                                logger.error(f"Error deleting SCORM extracted file {file_path}: {str(file_error)}")
+                                        
+                                        # Delete subdirectories recursively
+                                        for subdir in dirs:
+                                            subdir_path = f"{extracted_dir}/{subdir}"
+                                            try:
+                                                subfiles, subdirs = storage.listdir(subdir_path)
+                                                for subfile in subfiles:
+                                                    subfile_path = f"{subdir_path}/{subfile}"
+                                                    try:
+                                                        storage.delete(subfile_path)
+                                                        logger.info(f"Deleted SCORM extracted subfile: {subfile_path}")
+                                                    except Exception as subfile_error:
+                                                        logger.error(f"Error deleting SCORM extracted subfile {subfile_path}: {str(subfile_error)}")
+                                            except Exception as subdir_error:
+                                                logger.error(f"Error processing SCORM subdirectory {subdir_path}: {str(subdir_error)}")
+                                        
+                                        logger.info(f"Successfully deleted SCORM extracted content directory: {extracted_dir}")
+                                    except Exception as list_error:
+                                        logger.error(f"Error listing SCORM extracted directory {extracted_dir}: {str(list_error)}")
+                                else:
+                                    logger.info(f"SCORM extracted directory {extracted_dir} does not exist - skipping")
+                            except Exception as dir_error:
+                                logger.error(f"Error deleting SCORM extracted directory: {str(dir_error)}")
+                        
+                        # Delete the e-learning package record
+                        elearning_package.delete()
+                        scorm_packages_deleted += 1
+                        logger.info(f"Successfully deleted SCORM/e-learning package: {elearning_package.title}")
+                
+                if scorm_packages_deleted > 0:
+                    logger.info(f"Successfully deleted {scorm_packages_deleted} SCORM/e-learning packages for course {self.id}")
+                else:
+                    logger.info(f"No SCORM/e-learning packages found for course {self.id}")
+            except Exception as e:
+                logger.error(f"Error deleting SCORM/e-learning packages for course: {str(e)}")
+            
+            # 10. DELETE ALL TOPICS (EXCLUSIVELY LINKED TO THIS COURSE)
             try:
                 # Get all topics associated with this course that are not used by other courses
                 topics_to_delete = []
@@ -1316,7 +1401,7 @@ class Course(models.Model):
             except Exception as e:
                 logger.error(f"Error deleting course topics: {str(e)}")
             
-            # 10. DELETE COURSE MEDIA FILES
+            # 11. DELETE COURSE MEDIA FILES
             try:
                 # Delete course image if it exists
                 if self.course_image:
@@ -1451,6 +1536,105 @@ class Section(models.Model):
         
     def __str__(self):
         return self.name or f"Section {self.id}"
+    
+    def delete(self, *args, **kwargs):
+        """
+        Enhanced delete method for Section with SCORM file cleanup.
+        This method ensures all SCORM files are properly cleaned up when a section is deleted.
+        """
+        try:
+            logger.info(f"Starting deletion for Section: {self.name} (ID: {self.id})")
+            
+            # Get all topics in this section
+            topics = Topic.objects.filter(section=self)
+            scorm_packages_deleted = 0
+            
+            # Delete SCORM files for all topics in this section
+            for topic in topics:
+                try:
+                    # Check if this topic has an e-learning package
+                    if hasattr(topic, 'elearning_package') and topic.elearning_package:
+                        elearning_package = topic.elearning_package
+                        logger.info(f"Deleting SCORM/e-learning package for topic {topic.id}: {elearning_package.title}")
+                        
+                        # Delete all tracking records for this package
+                        from scorm.models import ELearningTracking
+                        tracking_count = ELearningTracking.objects.filter(elearning_package=elearning_package).count()
+                        if tracking_count > 0:
+                            logger.info(f"Deleting {tracking_count} e-learning tracking records for package {elearning_package.id}")
+                            ELearningTracking.objects.filter(elearning_package=elearning_package).delete()
+                            logger.info(f"Successfully deleted {tracking_count} tracking records")
+                        
+                        # Delete the package file from storage
+                        if elearning_package.package_file:
+                            try:
+                                elearning_package.package_file.delete(save=False)
+                                logger.info(f"Deleted SCORM package file: {elearning_package.package_file.name}")
+                            except Exception as file_error:
+                                logger.error(f"Error deleting SCORM package file: {str(file_error)}")
+                        
+                        # Delete extracted content directory
+                        if elearning_package.extracted_path:
+                            try:
+                                from scorm.storage import SCORMLocalStorage
+                                storage = SCORMLocalStorage()
+                                
+                                # Delete the extracted content directory
+                                extracted_dir = elearning_package.extracted_path
+                                if storage.exists(extracted_dir):
+                                    # List all files in the directory and delete them
+                                    try:
+                                        files, dirs = storage.listdir(extracted_dir)
+                                        for file in files:
+                                            file_path = f"{extracted_dir}/{file}"
+                                            try:
+                                                storage.delete(file_path)
+                                                logger.info(f"Deleted SCORM extracted file: {file_path}")
+                                            except Exception as file_error:
+                                                logger.error(f"Error deleting SCORM extracted file {file_path}: {str(file_error)}")
+                                        
+                                        # Delete subdirectories recursively
+                                        for subdir in dirs:
+                                            subdir_path = f"{extracted_dir}/{subdir}"
+                                            try:
+                                                subfiles, subdirs = storage.listdir(subdir_path)
+                                                for subfile in subfiles:
+                                                    subfile_path = f"{subdir_path}/{subfile}"
+                                                    try:
+                                                        storage.delete(subfile_path)
+                                                        logger.info(f"Deleted SCORM extracted subfile: {subfile_path}")
+                                                    except Exception as subfile_error:
+                                                        logger.error(f"Error deleting SCORM extracted subfile {subfile_path}: {str(subfile_error)}")
+                                            except Exception as subdir_error:
+                                                logger.error(f"Error processing SCORM subdirectory {subdir_path}: {str(subdir_error)}")
+                                        
+                                        logger.info(f"Successfully deleted SCORM extracted content directory: {extracted_dir}")
+                                    except Exception as list_error:
+                                        logger.error(f"Error listing SCORM extracted directory {extracted_dir}: {str(list_error)}")
+                                else:
+                                    logger.info(f"SCORM extracted directory {extracted_dir} does not exist - skipping")
+                            except Exception as dir_error:
+                                logger.error(f"Error deleting SCORM extracted directory: {str(dir_error)}")
+                        
+                        # Delete the e-learning package record
+                        elearning_package.delete()
+                        scorm_packages_deleted += 1
+                        logger.info(f"Successfully deleted SCORM/e-learning package: {elearning_package.title}")
+                except Exception as e:
+                    logger.error(f"Error deleting SCORM package for topic {topic.id}: {str(e)}")
+            
+            if scorm_packages_deleted > 0:
+                logger.info(f"Successfully deleted {scorm_packages_deleted} SCORM/e-learning packages for section {self.id}")
+            else:
+                logger.info(f"No SCORM/e-learning packages found for section {self.id}")
+            
+            # Call the parent delete method
+            super().delete(*args, **kwargs)
+            logger.info(f"Successfully completed deletion for Section: {self.name} (ID: {self.id})")
+            
+        except Exception as e:
+            logger.error(f"Error in Section.delete(): {str(e)}")
+            raise
 
 class Topic(models.Model):
     """Model for course topics with various content types"""
@@ -1784,7 +1968,82 @@ class Topic(models.Model):
             except Exception as e:
                 logger.error(f"Error deleting gradebook data: {str(e)}")
             
-            # 6. DELETE ALL REPORT TEMPLATE DATA
+            # 6. DELETE SCORM/E-LEARNING PACKAGE FILES
+            try:
+                from scorm.models import ELearningPackage, ELearningTracking
+                
+                # Check if this topic has an e-learning package
+                if hasattr(self, 'elearning_package') and self.elearning_package:
+                    elearning_package = self.elearning_package
+                    logger.info(f"Deleting SCORM/e-learning package: {elearning_package.title}")
+                    
+                    # Delete all tracking records for this package
+                    tracking_count = ELearningTracking.objects.filter(elearning_package=elearning_package).count()
+                    if tracking_count > 0:
+                        logger.info(f"Deleting {tracking_count} e-learning tracking records")
+                        ELearningTracking.objects.filter(elearning_package=elearning_package).delete()
+                        logger.info(f"Successfully deleted {tracking_count} tracking records")
+                    
+                    # Delete the package file from storage
+                    if elearning_package.package_file:
+                        try:
+                            elearning_package.package_file.delete(save=False)
+                            logger.info(f"Deleted SCORM package file: {elearning_package.package_file.name}")
+                        except Exception as file_error:
+                            logger.error(f"Error deleting SCORM package file: {str(file_error)}")
+                    
+                    # Delete extracted content directory
+                    if elearning_package.extracted_path:
+                        try:
+                            from scorm.storage import SCORMLocalStorage
+                            storage = SCORMLocalStorage()
+                            
+                            # Delete the extracted content directory
+                            extracted_dir = elearning_package.extracted_path
+                            if storage.exists(extracted_dir):
+                                # List all files in the directory and delete them
+                                try:
+                                    files, dirs = storage.listdir(extracted_dir)
+                                    for file in files:
+                                        file_path = f"{extracted_dir}/{file}"
+                                        try:
+                                            storage.delete(file_path)
+                                            logger.info(f"Deleted SCORM extracted file: {file_path}")
+                                        except Exception as file_error:
+                                            logger.error(f"Error deleting SCORM extracted file {file_path}: {str(file_error)}")
+                                    
+                                    # Delete subdirectories recursively
+                                    for subdir in dirs:
+                                        subdir_path = f"{extracted_dir}/{subdir}"
+                                        try:
+                                            subfiles, subdirs = storage.listdir(subdir_path)
+                                            for subfile in subfiles:
+                                                subfile_path = f"{subdir_path}/{subfile}"
+                                                try:
+                                                    storage.delete(subfile_path)
+                                                    logger.info(f"Deleted SCORM extracted subfile: {subfile_path}")
+                                                except Exception as subfile_error:
+                                                    logger.error(f"Error deleting SCORM extracted subfile {subfile_path}: {str(subfile_error)}")
+                                        except Exception as subdir_error:
+                                            logger.error(f"Error processing SCORM subdirectory {subdir_path}: {str(subdir_error)}")
+                                    
+                                    logger.info(f"Successfully deleted SCORM extracted content directory: {extracted_dir}")
+                                except Exception as list_error:
+                                    logger.error(f"Error listing SCORM extracted directory {extracted_dir}: {str(list_error)}")
+                            else:
+                                logger.info(f"SCORM extracted directory {extracted_dir} does not exist - skipping")
+                        except Exception as dir_error:
+                            logger.error(f"Error deleting SCORM extracted directory: {str(dir_error)}")
+                    
+                    # Delete the e-learning package record
+                    elearning_package.delete()
+                    logger.info(f"Successfully deleted SCORM/e-learning package: {elearning_package.title}")
+                else:
+                    logger.info("No SCORM/e-learning package found for this topic")
+            except Exception as e:
+                logger.error(f"Error deleting SCORM/e-learning package: {str(e)}")
+            
+            # 7. DELETE ALL REPORT TEMPLATE DATA
             try:
                 from reports.models import Report
                 

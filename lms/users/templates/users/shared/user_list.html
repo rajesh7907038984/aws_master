@@ -1,5 +1,6 @@
 {% extends 'admin_base.html' %}
 {% load static %}
+{% load dashboard_filters %}
 
 {% block title %}User Management - LMS{% endblock %}
 
@@ -700,4 +701,12 @@
     }
 </script>
 <script src="{% static 'core/js/bulk_import.js' %}"></script>
+{% endblock %}
+
+{% block right_sidebar %}
+{% if request|should_show_right_sidebar %}
+    <div class="hidden lg:block fixed right-0 top-20 w-80 h-[calc(100vh-5rem)] overflow-y-auto bg-gray-50 border-l border-gray-200 z-40" data-right-sidebar="visible">
+        {% include 'components/global_right_sidebar.html' %}
+    </div>
+{% endif %}
 {% endblock %}

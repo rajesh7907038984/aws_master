@@ -18,6 +18,7 @@ from users.models import Branch
 from groups.models import BranchGroup
 from courses.models import Course, CourseEnrollment, TopicProgress, Topic, CourseTopic
 from categories.models import CourseCategory
+from scorm.models import ELearningTracking
 from core.utils.forms import CustomTinyMCEFormField
 from core.utils.business_filtering import filter_queryset_by_business
 from core.branch_filters import BranchFilterManager
@@ -154,6 +155,64 @@ def normalize_score(score):
     
     normalized = ScoreCalculationService.normalize_score(score)
     return float(normalized) if normalized is not None else 0.0
+
+def get_scorm_scores_for_user(user, course=None):
+    """Get SCORM scores for a user, optionally filtered by course"""
+    try:
+        if course:
+            # Get SCORM tracking for specific course
+            course_topics = CourseTopic.objects.filter(course=course).values_list('topic', flat=True)
+            scorm_tracking = ELearningTracking.objects.filter(
+                user=user,
+                elearning_package__topic__in=course_topics
+            ).select_related('elearning_package__topic')
+        else:
+            # Get all SCORM tracking for user
+            scorm_tracking = ELearningTracking.objects.filter(
+                user=user
+            ).select_related('elearning_package__topic')
+        
+        scorm_scores = []
+        total_score = 0
+        score_count = 0
+        
+        for tracking in scorm_tracking:
+            if tracking.score_raw is not None:
+                # Get score percentage
+                score_percentage = tracking.get_score_percentage()
+                if score_percentage is not None:
+                    scorm_scores.append({
+                        'topic_title': tracking.elearning_package.topic.title,
+                        'score_raw': tracking.score_raw,
+                        'score_max': tracking.score_max,
+                        'score_percentage': score_percentage,
+                        'completion_status': tracking.completion_status,
+                        'success_status': tracking.success_status,
+                        'total_time': tracking.total_time,
+                        'progress_percentage': tracking.get_progress_percentage(),
+                        'last_launch': tracking.last_launch,
+                        'completion_date': tracking.completion_date
+                    })
+                    total_score += score_percentage
+                    score_count += 1
+        
+        # Calculate average SCORM score
+        average_scorm_score = total_score / score_count if score_count > 0 else None
+        
+        return {
+            'scorm_scores': scorm_scores,
+            'average_scorm_score': average_scorm_score,
+            'total_scorm_activities': scorm_tracking.count(),
+            'completed_scorm_activities': len([s for s in scorm_scores if s['completion_status'] == 'completed'])
+        }
+    except Exception as e:
+        logger.error(f"Error getting SCORM scores for user {user.id}: {str(e)}")
+        return {
+            'scorm_scores': [],
+            'average_scorm_score': None,
+            'total_scorm_activities': 0,
+            'completed_scorm_activities': 0
+        }
 
 def validate_branch_id(branch_id_str):
     """
@@ -863,40 +922,46 @@ class LearningActivitiesView(LoginRequiredMixin, TemplateView):
         for topic in activities:
             topic_progress = progress_base_query.filter(topic=topic)
             
+            # Calculate basic progress statistics
+            total_progress = topic_progress.count()
+            completed = topic_progress.filter(completed=True).count()
+            
             # Check if this is removed content
             is_removed = hasattr(topic, 'removed_content') and topic.removed_content is not None
             
-            # Filter: Only show scenarios when learner has passed them
-            # For removed content, check if user has passed status
-            # removed functionality removed
-            not_attempted = total_progress - completed
-            
-            # Calculate average score with proper removed score normalization
-            from core.utils.scoring import ScoreCalculationService
-            
-            removed_scores = []
-            removed_registrations_with_scores = removed_progress.exclude(last_score__isnull=True)
-            for progress in removed_registrations_with_scores:
-                normalized_score = ScoreCalculationService.normalize_score(progress.last_score)
-                if normalized_score is not None:
-                    removed_scores.append(float(normalized_score))
-            
-            average_score = sum(removed_scores) / len(removed_scores) if removed_scores else 0
-        else:
-            # Standard content progress calculation
-            in_progress = topic_progress.filter(completed=False, last_score__gt=0).count()
-            not_passed = topic_progress.filter(completed=False, last_score=0).count()
-            not_attempted = total_progress - completed - in_progress - not_passed
-            
-            # Calculate average score with normalization
-            scores = topic_progress.exclude(last_score__isnull=True).values_list('last_score', flat=True)
-            normalized_scores = []
-            for score in scores:
-                norm_score = normalize_score(score)
-                if norm_score is not None:
-                    normalized_scores.append(norm_score)
-            
-            average_score = sum(normalized_scores) / len(normalized_scores) if normalized_scores else 0
+            if is_removed:
+                # For removed content, use different calculation
+                removed_progress = topic_progress.filter(progress_data__isnull=False)
+                in_progress = 0
+                not_passed = 0
+                not_attempted = total_progress - completed
+                
+                # Calculate average score with proper removed score normalization
+                from core.utils.scoring import ScoreCalculationService
+                
+                removed_scores = []
+                removed_registrations_with_scores = removed_progress.exclude(last_score__isnull=True)
+                for progress in removed_registrations_with_scores:
+                    normalized_score = ScoreCalculationService.normalize_score(progress.last_score)
+                    if normalized_score is not None:
+                        removed_scores.append(float(normalized_score))
+                
+                average_score = sum(removed_scores) / len(removed_scores) if removed_scores else 0
+            else:
+                # Standard content progress calculation
+                in_progress = topic_progress.filter(completed=False, last_score__gt=0).count()
+                not_passed = topic_progress.filter(completed=False, last_score=0).count()
+                not_attempted = total_progress - completed - in_progress - not_passed
+                
+                # Calculate average score with normalization
+                scores = topic_progress.exclude(last_score__isnull=True).values_list('last_score', flat=True)
+                normalized_scores = []
+                for score in scores:
+                    norm_score = normalize_score(score)
+                    if norm_score is not None:
+                        normalized_scores.append(norm_score)
+                
+                average_score = sum(normalized_scores) / len(normalized_scores) if normalized_scores else 0
             
             activity_data.append({
                 'topic': topic,
@@ -905,7 +970,6 @@ class LearningActivitiesView(LoginRequiredMixin, TemplateView):
                 'not_passed': not_passed,
                 'not_attempted': not_attempted,
                 'average_score': round(average_score, 1),
-
             })
         
         # Pagination
@@ -4960,6 +5024,17 @@ def course_detail(request, course_id):
             learner.progress_percentage = 0
             learner.time_spent_formatted = "0h 0m 0s"
             learner.score = None
+        # Get SCORM scores for this learner
+        scorm_data = get_scorm_scores_for_user(learner, course)
+        learner.scorm_scores = scorm_data['scorm_scores']
+        learner.scorm_average_score = scorm_data['average_scorm_score']
+        learner.scorm_total_activities = scorm_data['total_scorm_activities']
+        learner.scorm_completed_activities = scorm_data['completed_scorm_activities']
+        
+        # If no regular score but has SCORM score, use SCORM score
+        if learner.score is None and learner.scorm_average_score is not None:
+            learner.score = learner.scorm_average_score
+        
         learners_with_progress.append(learner)
     
     # Get topic progress statistics for learning activities
@@ -5290,6 +5365,17 @@ def _get_course_report_data(request, course_id):
             learner.progress_percentage = 0
             learner.time_spent_formatted = "0h 0m 0s"
             learner.score = None
+        # Get SCORM scores for this learner
+        scorm_data = get_scorm_scores_for_user(learner, course)
+        learner.scorm_scores = scorm_data['scorm_scores']
+        learner.scorm_average_score = scorm_data['average_scorm_score']
+        learner.scorm_total_activities = scorm_data['total_scorm_activities']
+        learner.scorm_completed_activities = scorm_data['completed_scorm_activities']
+        
+        # If no regular score but has SCORM score, use SCORM score
+        if learner.score is None and learner.scorm_average_score is not None:
+            learner.score = learner.scorm_average_score
+        
         learners_with_progress.append(learner)
     
     # Get topic progress statistics for learning activities

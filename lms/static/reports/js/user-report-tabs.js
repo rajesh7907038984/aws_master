@@ -26,11 +26,13 @@ if (isReportsPage && isUserPage) {
         
         if (tabButtons.length > 0) {
             tabButtons.forEach((btn, i) => {
+                // Initialize tab buttons
             });
         }
         
         if (tabPanes.length > 0) {
             tabPanes.forEach((pane, i) => {
+                // Initialize tab panes
             });
         }
         
@@ -40,6 +42,7 @@ if (isReportsPage && isUserPage) {
         
         // Prevent mobile accordion from interfering
         if (window.mobileTabsAccordionInstance) {
+            // Mobile accordion instance exists
         }
         
         // Simple tab switching function with conflict prevention
@@ -71,12 +74,12 @@ if (isReportsPage && isUserPage) {
                 targetButton.classList.remove('border-transparent', 'text-gray-500');
                 
             } else {
+                console.log('Target pane or button not found for tab:', tabName);
             }
         }
         
         // Add click listeners - simple and direct approach
         tabButtons.forEach((button, index) => {
-            
             button.addEventListener('click', function(e) {
                 e.preventDefault();
                 e.stopPropagation();
@@ -103,8 +106,10 @@ if (isReportsPage && isUserPage) {
         window.showUserReportTab = showTab;
         window.debugUserReportTabs = function() {
             tabButtons.forEach((btn, i) => {
+                console.log('Tab button', i, btn);
             });
             tabPanes.forEach((pane, i) => {
+                console.log('Tab pane', i, pane);
             });
         };
         
@@ -134,4 +139,5 @@ if (isReportsPage && isUserPage) {
     window.initUserReportTabs = initializeTabs;
     
 } else {
+    // Not on reports page or user page
 }

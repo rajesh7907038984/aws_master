@@ -224,6 +224,22 @@
                             <div class="value">{{ package_stats.completion_rate|floatformat:1|default:0 }}%</div>
                             <div class="label">Completion Rate</div>
                         </div>
+                        {% for score_id, score_data in score_stats.items %}
+                            {% if score_id == package.id %}
+                                {% if score_data.average_score %}
+                                <div class="stat-item">
+                                    <div class="value">{{ score_data.average_score|floatformat:1 }}%</div>
+                                    <div class="label">Avg Score</div>
+                                </div>
+                                {% endif %}
+                                {% if score_data.total_time_hours > 0 %}
+                                <div class="stat-item">
+                                    <div class="value">{{ score_data.total_time_hours }}h</div>
+                                    <div class="label">Total Time</div>
+                                </div>
+                                {% endif %}
+                            {% endif %}
+                        {% endfor %}
                     {% endif %}
                 {% empty %}
                     <div class="stat-item">

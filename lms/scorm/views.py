@@ -1076,16 +1076,42 @@ def scorm_reports(request, course_id):
     scorm_topics = scorm_packages.count()
     
     completion_stats = {}
+    score_stats = {}
+    
     for package in scorm_packages:
-        completions = tracking_data.filter(
-            elearning_package=package,
-            completion_status='completed'
-        ).count()
+        package_tracking = tracking_data.filter(elearning_package=package)
+        completions = package_tracking.filter(completion_status='completed').count()
+        
+        # Calculate score statistics
+        package_scores = []
+        total_time_seconds = 0
+        for tracking in package_tracking:
+            if tracking.score_raw is not None:
+                score_percentage = tracking.get_score_percentage()
+                if score_percentage is not None:
+                    package_scores.append(score_percentage)
+            
+            # Calculate total time in seconds
+            if tracking.total_time:
+                total_time_seconds += tracking.total_time.total_seconds()
+        
+        # Calculate average score
+        average_score = sum(package_scores) / len(package_scores) if package_scores else None
+        
+        # Calculate time statistics
+        total_time_hours = total_time_seconds / 3600 if total_time_seconds > 0 else 0
         
         completion_stats[package.id] = {
-            'total': tracking_data.filter(elearning_package=package).count(),
+            'total': package_tracking.count(),
             'completed': completions,
             'completion_rate': (completions / total_learners * 100) if total_learners > 0 else 0
+        }
+        
+        score_stats[package.id] = {
+            'average_score': average_score,
+            'total_scores': len(package_scores),
+            'total_time_hours': round(total_time_hours, 2),
+            'scores': package_scores
         }
     
     context = {
@@ -1093,6 +1119,7 @@ def scorm_reports(request, course_id):
         'scorm_packages': scorm_packages,
         'tracking_data': tracking_data,
         'completion_stats': completion_stats,
+        'score_stats': score_stats,
         'total_learners': total_learners,
         'scorm_topics': scorm_topics
     }

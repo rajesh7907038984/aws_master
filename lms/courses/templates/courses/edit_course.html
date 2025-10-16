@@ -2229,9 +2229,14 @@
                     return;
                 }
                 
+                // Destroy any existing sortable instance
+                if (sectionsContainer.sortable) {
+                    sectionsContainer.sortable.destroy();
+                }
+                
                 try {
                     console.log('Creating Sortable instance for sections...');
-                    new Sortable(sectionsContainer, {
+                    const sortableInstance = new Sortable(sectionsContainer, {
                         animation: 150,
                         ghostClass: 'sortable-ghost',
                         chosenClass: 'sortable-chosen',
@@ -2256,6 +2261,8 @@
                         }
                     });
                     
+                    // Store the sortable instance
+                    sectionsContainer.sortable = sortableInstance;
                     sectionsContainer.setAttribute('data-sortable-initialized', 'true');
                     console.log('Sections sortable initialized successfully');
                 } catch (error) {
@@ -2329,9 +2336,15 @@
                         return;
                     }
                     
+                    // Destroy any existing sortable instance
+                    if (container.sortable) {
+                        container.sortable.destroy();
+                    }
+                    
                     try {
                         console.log(`Initializing sortable for container ${index}`);
-                        new Sortable(container, sortableOptions);
+                        const sortableInstance = new Sortable(container, sortableOptions);
+                        container.sortable = sortableInstance;
                         container.setAttribute('data-sortable-initialized', 'true');
                         console.log(`Container ${index} initialized successfully`);
                     } catch (error) {
@@ -2545,6 +2558,13 @@
                 console.log('Sections container:', sectionsContainer);
                 console.log('Topic containers found:', topicContainers.length);
                 
+                // Check if Sortable is available
+                if (typeof Sortable === 'undefined') {
+                    console.error('Sortable.js not loaded, retrying...');
+                    setTimeout(initializeSortableWhenReady, 500);
+                    return;
+                }
+                
                 if (sectionsContainer && topicContainers.length > 0) {
                     console.log('Containers ready, initializing sortable...');
                     // Initialize sections sortable
@@ -2558,7 +2578,10 @@
                 }
             }
             
-            setTimeout(initializeSortableWhenReady, 300);
+            // Try multiple times to ensure initialization
+            setTimeout(initializeSortableWhenReady, 100);
+            setTimeout(initializeSortableWhenReady, 500);
+            setTimeout(initializeSortableWhenReady, 1000);
             
             // Add a failsafe to detect and fix any stuck drag operations
             document.addEventListener('mouseup', function() {
@@ -2663,6 +2686,33 @@
                     initializeTopicsSortable();
                 }, 500);
             });
+            
+            // Manual initialization function for debugging
+            window.manualInitializeSortable = function() {
+                console.log('Manual sortable initialization triggered');
+                initializeSectionsSortable();
+                initializeTopicsSortable();
+            };
+            
+            // Add a button to manually initialize sortable if needed (for debugging)
+            if (window.location.hostname.includes('staging') || window.location.hostname.includes('localhost')) {
+                const debugButton = document.createElement('button');
+                debugButton.textContent = 'Fix Drag & Drop';
+                debugButton.style.cssText = 'position: fixed; top: 10px; right: 10px; z-index: 9999; background: #ff6b6b; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-size: 12px;';
+                debugButton.onclick = function() {
+                    console.log('Manual sortable fix triggered');
+                    window.manualInitializeSortable();
+                    this.style.display = 'none';
+                };
+                document.body.appendChild(debugButton);
+                
+                // Auto-hide the button after 10 seconds
+                setTimeout(() => {
+                    if (debugButton.parentNode) {
+                        debugButton.parentNode.removeChild(debugButton);
+                    }
+                }, 10000);
+            }
         });
 
         // Robust section rename functionality with comprehensive error handling
