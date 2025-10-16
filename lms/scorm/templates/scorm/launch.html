@@ -103,6 +103,8 @@
         // Try to find API in current window
         if (typeof window !== 'undefined' && window.API) {
             console.log('SCORM: API found in current window');
+            // Make sure ConcedeControl is directly accessible
+            window.ConcedeControl = window.API.ConcedeControl.bind(window.API);
             return;
         }
         
@@ -111,6 +113,8 @@
             var api = findAPI(window);
             if (api) {
                 window.API = api;
+                // Make sure ConcedeControl is directly accessible
+                window.ConcedeControl = api.ConcedeControl.bind(api);
                 console.log('SCORM: API found via parent discovery');
                 return;
             }
@@ -584,8 +588,33 @@ var API = {
         this.data['cmi.core.exit'] = 'normal';
         this.sendElementToServer('cmi.core.exit', 'normal');
         
+        // Set completion status if not already completed
+        if (this.data['cmi.core.lesson_status'] !== 'completed' && this.data['cmi.core.lesson_status'] !== 'passed') {
+            this.data['cmi.core.lesson_status'] = 'completed';
+            this.sendElementToServer('cmi.core.lesson_status', 'completed');
+        }
+        
         // Also call LMSFinish to properly terminate the session
         this.LMSFinish('');
+        
+        // Redirect to topic view after a short delay to ensure data is saved
+        setTimeout(function() {
+            const backButton = document.querySelector('.back-to-topic-btn');
+            if (backButton && backButton.href) {
+                window.location.href = backButton.href;
+            } else {
+                // Fallback: Show exit message
+                const iframe = document.getElementById('scorm-iframe');
+                if (iframe) {
+                    iframe.style.display = 'none';
+                    const exitMessage = document.createElement('div');
+                    exitMessage.className = 'scorm-exit-message';
+                    exitMessage.innerHTML = '<h2>Assessment Completed</h2><p>You have successfully exited the assessment.</p><a href="{% url 'courses:topic_view' topic.id %}" class="back-to-topic-btn">Return to Topic</a>';
+                    exitMessage.style.cssText = 'text-align: center; padding: 50px; background: white;';
+                    iframe.parentNode.appendChild(exitMessage);
+                }
+            }
+        }, 500);
         
         return "true";
     },
@@ -1128,6 +1157,11 @@ API.initializeAPIDiscovery();
 // Make API available globally - ENHANCED
 window.API = API;
 
+// CRITICAL FIX: Make ConcedeControl directly accessible on window
+window.ConcedeControl = function() {
+    return API.ConcedeControl.call(API);
+};
+
 // Set API in parent windows with error handling
 try {
     if (window.parent && window.parent !== window) {
@@ -1185,12 +1219,24 @@ function injectAPIIntoIframe() {
             // CRITICAL FIX: Set up SD reference for CourseExit.js
             if (iframe.contentWindow.parent) {
                 iframe.contentWindow.parent.SD = API;
-                iframe.contentWindow.parent.ConcedeControl = API.ConcedeControl;
+                iframe.contentWindow.parent.ConcedeControl = function() {
+                    return API.ConcedeControl.call(API);
+                };
             }
             
             // Also set SD in the iframe content window itself
             iframe.contentWindow.SD = API;
-            iframe.contentWindow.ConcedeControl = API.ConcedeControl;
+            iframe.contentWindow.ConcedeControl = function() {
+                return API.ConcedeControl.call(API);
+            };
+            
+            // Additional direct function exposure for compatibility
+            iframe.contentWindow.parent.LMSFinish = function() {
+                return API.LMSFinish.call(API);
+            };
+            iframe.contentWindow.parent.Finish = function() {
+                return API.Finish.call(API);
+            };
             
             console.log('SCORM API: API injected into iframe with enhanced discovery and SD reference');
         } catch (e) {
@@ -1265,8 +1311,12 @@ window.onload = function () {
                     iframe.contentWindow.top.API = API;
                     iframe.contentWindow.SD = API;
                     iframe.contentWindow.parent.SD = API;
-                    iframe.contentWindow.ConcedeControl = API.ConcedeControl;
-                    iframe.contentWindow.parent.ConcedeControl = API.ConcedeControl;
+                    iframe.contentWindow.ConcedeControl = function() {
+                        return API.ConcedeControl.call(API);
+                    };
+                    iframe.contentWindow.parent.ConcedeControl = function() {
+                        return API.ConcedeControl.call(API);
+                    };
                 }
             } catch (e) {
                 // Clear interval if iframe is no longer accessible
