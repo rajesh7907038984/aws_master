@@ -2284,6 +2284,12 @@
                 const topicContainers = document.querySelectorAll('.topic-list, .topics-container, [data-sortable="true"]');
                 console.log('Found topic containers:', topicContainers.length);
                 
+                if (topicContainers.length === 0) {
+                    console.warn('No topic containers found, retrying in 500ms...');
+                    setTimeout(initializeTopicsSortable, 500);
+                    return;
+                }
+                
                 // Create a group for cross-section dragging
                 const sortableOptions = {
                     group: 'topics', // Allow dragging between containers
@@ -2294,6 +2300,8 @@
                     handle: '.topic-drag-handle, .drag-handle',
                     onStart: function(evt) {
                         console.log('Topic drag started');
+                        console.log('Drag item:', evt.item);
+                        console.log('From container:', evt.from);
                         document.body.classList.add('topic-dragging-active');
                         evt.item.classList.add('is-dragging');
                         evt.item.setAttribute('data-drag-active', 'true');
@@ -2306,6 +2314,8 @@
                     },
                     onEnd: function(evt) {
                         console.log('Topic drag ended');
+                        console.log('To container:', evt.to);
+                        console.log('Old index:', evt.oldIndex, 'New index:', evt.newIndex);
                         document.body.classList.remove('topic-dragging-active');
                         evt.item.classList.remove('is-dragging');
                         evt.item.removeAttribute('data-drag-active');
@@ -2424,6 +2434,13 @@
                     }
                     
                     // Call the topic move API
+                    console.log('Making API call to move topic:', {
+                        course_id: {{ course.id }},
+                        topic_id: parseInt(topicId),
+                        section_id: newSectionId === 'standalone' ? null : parseInt(newSectionId),
+                        new_order: newOrder
+                    });
+                    
                     const response = await fetch('/courses/api/topics/move/', {
                         method: 'POST',
                         headers: {
@@ -2438,7 +2455,14 @@
                         })
                     });
                     
+                    console.log('API response status:', response.status);
+                    
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    
                     const data = await response.json();
+                    console.log('API response data:', data);
                     
                     if (data.success) {
                         showNotification('Topic moved successfully', 'success');
@@ -2446,7 +2470,7 @@
                         // Update the topic's data attributes
                         topicItem.setAttribute('data-section-id', newSectionId);
                     } else {
-                        showNotification('Failed to move topic: ' + data.error, 'error');
+                        showNotification('Failed to move topic: ' + (data.error || 'Unknown error'), 'error');
                         
                         // Revert the move by moving the topic back
                         const originalContainer = document.querySelector(`[data-section-id="${originalSectionId}"] .topic-list`);
@@ -2582,6 +2606,7 @@
             setTimeout(initializeSortableWhenReady, 100);
             setTimeout(initializeSortableWhenReady, 500);
             setTimeout(initializeSortableWhenReady, 1000);
+            setTimeout(initializeSortableWhenReady, 2000);
             
             // Add a failsafe to detect and fix any stuck drag operations
             document.addEventListener('mouseup', function() {
@@ -2601,6 +2626,28 @@
                     el.removeAttribute('data-drag-active');
                 });
             });
+            
+            // Add manual initialization function for debugging
+            window.manualInitSortable = function() {
+                console.log('Manual sortable initialization triggered');
+                initializeSectionsSortable();
+                initializeTopicsSortable();
+            };
+            
+            // Add debug button for manual initialization
+            const debugButton = document.createElement('button');
+            debugButton.textContent = 'Debug: Reinit Sortable';
+            debugButton.style.position = 'fixed';
+            debugButton.style.top = '10px';
+            debugButton.style.right = '10px';
+            debugButton.style.zIndex = '9999';
+            debugButton.style.background = '#ff0000';
+            debugButton.style.color = 'white';
+            debugButton.style.padding = '5px 10px';
+            debugButton.style.border = 'none';
+            debugButton.style.borderRadius = '3px';
+            debugButton.onclick = window.manualInitSortable;
+            document.body.appendChild(debugButton);
             
             // Function to handle topic status toggling
             function initializeTopicStatusToggle() {
