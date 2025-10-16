@@ -858,6 +858,7 @@
     background: #e7d9ff;
   }
   
+  .activity-type-scorm {
     color: #6f42c1;
     background: #e2d9f3;
   }
@@ -1410,6 +1411,7 @@
               <option value="quiz">Quizzes</option>
               <option value="discussion">Discussions</option>
               <option value="conference">Conferences</option>
+              <option value="scorm">SCORM Content</option>
             </select>
           </div>
 
@@ -1474,6 +1476,7 @@
           </p>
           <div class="text-sm text-blue-600">
             <p class="mb-2"><strong>Note:</strong> Only VAK tests are diagnostic tools and do not appear in the gradebook.</p>
+            <p>Gradeable activities include: Assignments, Quizzes, Initial Assessments, Discussions, Conferences, and SCORM content.</p>
           </div>
           {% if user.role != 'learner' %}
           <div class="mt-4">
@@ -1499,46 +1502,46 @@
                     <span class="activity-type-label activity-type-assignment">ASG {{ activity.activity_number }}</span>
                     <div class="activity-title">{{ activity.title|truncatechars:15 }}</div>
                     <div class="activity-points">{{ activity.max_score }} pts</div>
-                  {% else %}
-                    {% if activity.type == 'quiz' %}
-                      <span class="activity-type-label activity-type-quiz">QUZ {{ activity.activity_number }}</span>
-                      <div class="activity-title">{{ activity.title|truncatechars:15 }}</div>
-                      {% if not activity.object.is_active %}
-                        <div class="activity-points grade-unpublished">INACTIVE</div>
-                      {% else %}
-                        <div class="activity-points">{{ activity.max_score }} pts</div>
-                      {% endif %}
+                  {% elif activity.type == 'quiz' %}
+                    <span class="activity-type-label activity-type-quiz">QUZ {{ activity.activity_number }}</span>
+                    <div class="activity-title">{{ activity.title|truncatechars:15 }}</div>
+                    {% if not activity.object.is_active %}
+                      <div class="activity-points grade-unpublished">INACTIVE</div>
                     {% else %}
-                      {% if activity.type == 'initial_assessment' %}
-                        <span class="activity-type-label activity-type-assessment">IA {{ activity.activity_number }}</span>
-                        <div class="activity-title">{{ activity.title|truncatechars:15 }}</div>
-                        {% if not activity.object.is_active %}
-                          <div class="activity-points grade-unpublished">INACTIVE</div>
-                        {% else %}
-                          <div class="activity-points">{{ activity.max_score }} pts</div>
-                        {% endif %}
-                      {% else %}
-                        {% if activity.type == 'discussion' %}
-                          <span class="activity-type-label activity-type-discussion">DSC {{ activity.activity_number }}</span>
-                          <div class="activity-title">{{ activity.title|truncatechars:15 }}</div>
-                          {% if activity.max_score > 0 %}
-                            <div class="activity-points">{{ activity.max_score }} pts</div>
-                          {% else %}
-                            <div class="activity-points">Participation</div>
-                          {% endif %}
-                        {% else %}
-                          {% if activity.type == 'conference' %}
-                            <span class="activity-type-label activity-type-conference">CNF {{ activity.activity_number }}</span>
-                            <div class="activity-title">{{ activity.title|truncatechars:15 }}</div>
-                            {% if activity.max_score > 0 %}
-                              <div class="activity-points">{{ activity.max_score }} pts</div>
-                            {% else %}
-                              <div class="activity-points">Attendance</div>
-                            {% endif %}
-                          {% endif %}
-                        {% endif %}
-                      {% endif %}
+                      <div class="activity-points">{{ activity.max_score }} pts</div>
                     {% endif %}
+                  {% elif activity.type == 'initial_assessment' %}
+                    <span class="activity-type-label activity-type-assessment">IA {{ activity.activity_number }}</span>
+                    <div class="activity-title">{{ activity.title|truncatechars:15 }}</div>
+                    {% if not activity.object.is_active %}
+                      <div class="activity-points grade-unpublished">INACTIVE</div>
+                    {% else %}
+                      <div class="activity-points">{{ activity.max_score }} pts</div>
+                    {% endif %}
+                  {% elif activity.type == 'discussion' %}
+                    <span class="activity-type-label activity-type-discussion">DSC {{ activity.activity_number }}</span>
+                    <div class="activity-title">{{ activity.title|truncatechars:15 }}</div>
+                    {% if activity.max_score > 0 %}
+                      <div class="activity-points">{{ activity.max_score }} pts</div>
+                    {% else %}
+                      <div class="activity-points">Participation</div>
+                    {% endif %}
+                  {% elif activity.type == 'conference' %}
+                    <span class="activity-type-label activity-type-conference">CNF {{ activity.activity_number }}</span>
+                    <div class="activity-title">{{ activity.title|truncatechars:15 }}</div>
+                    {% if activity.max_score > 0 %}
+                      <div class="activity-points">{{ activity.max_score }} pts</div>
+                    {% else %}
+                      <div class="activity-points">Attendance</div>
+                    {% endif %}
+                  {% elif activity.type == 'scorm' %}
+                    <span class="activity-type-label activity-type-scorm">SCO {{ activity.activity_number }}</span>
+                    <div class="activity-title">{{ activity.title|truncatechars:15 }}</div>
+                    <div class="activity-points">{{ activity.max_score }} pts</div>
+                  {% elif activity.type == 'scorm_topic' %}
+                    <span class="activity-type-label activity-type-scorm">SCO {{ activity.activity_number }}</span>
+                    <div class="activity-title">{{ activity.title|truncatechars:15 }}</div>
+                    <div class="activity-points">{{ activity.max_score }} pts</div>
                   {% endif %}
                 </th>
               {% endfor %}
@@ -1568,82 +1571,150 @@
                 
                 {% for activity in activities %}
                   <td class="activity-cell">
+                    {% get_student_activity_score student_scores student.id activity.object.id as score_data %}
                     
                     <div class="submission-info">
                       {% if activity.type == 'assignment' %}
-                        {% if score_data.score is not None %}
+                        {% if score_data.excused %}
+                          <span class="grade-score grade-none">(Excused)</span>
+                          {% if score_data.submission %}
+                            {% if user.role != 'learner' %}
+                              <button onclick="openGradingSidebar('assignment', {{ activity.object.id }}, {{ student.id }}, {{ score_data.submission.id|default:'null' }})" class="view-btn grade-btn">
+                                GRADE
+                              </button>
+                              <a href="{% url 'assignments:assignment_detailed_report' activity.object.id %}?student_id={{ student.id }}" class="view-btn assignment-view-btn mt-1" style="font-size: 0.65rem;">
+                                DETAILED
+                              </a>
+                            {% else %}
+                              <a href="{% url 'assignments:assignment_detail' activity.object.id %}" class="view-btn assignment-view-btn">
+                                VIEW
+                              </a>
+                            {% endif %}
+                          {% endif %}
+                        {% elif score_data.score is not None %}
                           <div class="submission-date">
                             {{ score_data.date|date:"M d, Y" }}
                           </div>
-                          {% if score_data.score >= activity.max_score|mul:0.7 %}
-                            <!-- PASSED - Show in GREEN with Retake option -->
-                            <span class="grade-score grade-passed" style="color: #28a745; font-weight: bold;">
-                              {{ score_data.score|floatformat:1 }}/{{ activity.max_score|floatformat:1 }}
-                            </span>
-                            <div class="action-buttons mt-1">
-                              <a href="{% url 'assignments:assignment_detail' activity.object.id %}" class="view-btn retake-btn" style="background-color: #28a745; color: white; font-size: 0.7rem; padding: 2px 6px;">
-                                RETAKE
-                              </a>
-                            </div>
+                          <span class="grade-score 
+                            {% if score_data.score >= activity.max_score|mul:0.9 %}grade-excellent
+                            {% elif score_data.score >= activity.max_score|mul:0.8 %}grade-good
+                            {% elif score_data.score >= activity.max_score|mul:0.7 %}grade-average
+                            {% else %}grade-poor{% endif %}">
+                            {{ score_data.score|floatformat:1 }}/{{ activity.max_score|floatformat:1 }}
+                          </span>
+                          {% if user.role != 'learner' %}
+                            <button onclick="openGradingSidebar('assignment', {{ activity.object.id }}, {{ student.id }}, {{ score_data.submission.id|default:'null' }})" class="view-btn grade-btn">
+                              GRADE
+                            </button>
+                            <a href="{% url 'assignments:assignment_detailed_report' activity.object.id %}?student_id={{ student.id }}" class="view-btn assignment-view-btn mt-1" style="font-size: 0.65rem;">
+                              DETAILED
+                            </a>
                           {% else %}
-                            <!-- FAILED - Show in RED with Resume option -->
-                            <span class="grade-score grade-failed" style="color: #dc3545; font-weight: bold;">
-                              {{ score_data.score|floatformat:1 }}/{{ activity.max_score|floatformat:1 }}
-                            </span>
-                            <div class="action-buttons mt-1">
-                              <a href="{% url 'assignments:assignment_detail' activity.object.id %}" class="view-btn resume-btn" style="background-color: #dc3545; color: white; font-size: 0.7rem; padding: 2px 6px;">
-                                RESUME
+                            {% has_feedback_available activity student.id as has_feedback %}
+                            {% if has_feedback %}
+                              <button onclick="showFeedback('assignment', {{ activity.object.id }}, {{ student.id }})" class="view-btn assignment-view-btn">
+                                VIEW FEEDBACK
+                              </button>
+                            {% else %}
+                              <a href="{% url 'assignments:assignment_detail' activity.object.id %}" class="view-btn assignment-view-btn">
+                                VIEW
                               </a>
-                            </div>
+                            {% endif %}
+                          {% endif %}
+                        {% elif score_data.submission and score_data.has_submission %}
+                          {# BUGFIX: Show actual submission status instead of generic message #}
+                          <div class="submission-date">
+                            {{ score_data.date|date:"M d, Y" }}
+                          </div>
+                          {% if score_data.submission.status == 'submitted' %}
+                            <span class="grade-score grade-pending">Submitted - Awaiting Grade</span>
+                          {% elif score_data.submission.status == 'not_graded' %}
+                            <span class="grade-score grade-pending">Not Graded Yet</span>
+                          {% elif score_data.submission.status == 'returned' %}
+                            <span class="grade-score grade-revision">Returned for Revision</span>
+                          {% elif score_data.submission.status == 'late' %}
+                            <span class="grade-score grade-late">Late Submission</span>
+                          {% elif score_data.submission.status == 'draft' %}
+                            <span class="grade-score grade-draft">Draft (Not Submitted)</span>
+                          {% else %}
+                            <span class="grade-score grade-pending">{{ score_data.submission.get_status_display }}</span>
+                          {% endif %}
+                          {% if user.role != 'learner' %}
+                            <button onclick="openGradingSidebar('assignment', {{ activity.object.id }}, {{ student.id }}, {{ score_data.submission.id|default:'null' }})" class="view-btn grade-btn">
+                              {% if score_data.submission.status == 'returned' %}RE-GRADE{% else %}GRADE NOW{% endif %}
+                            </button>
+                            <a href="{% url 'assignments:assignment_detailed_report' activity.object.id %}?student_id={{ student.id }}" class="view-btn assignment-view-btn mt-1" style="font-size: 0.65rem;">
+                              DETAILED
+                            </a>
+                          {% else %}
+                            {% if score_data.submission.status == 'returned' %}
+                              <a href="{% url 'assignments:assignment_detail' activity.object.id %}" class="view-btn assignment-view-btn grade-revision">
+                                REVISE
+                              </a>
+                            {% else %}
+                              <a href="{% url 'assignments:assignment_detail' activity.object.id %}" class="view-btn assignment-view-btn">
+                                VIEW
+                              </a>
+                            {% endif %}
                           {% endif %}
                         {% else %}
-                          <!-- No score yet -->
-                          <span class="grade-score grade-none">-</span>
-                          <div class="action-buttons mt-1">
-                            <a href="{% url 'assignments:assignment_detail' activity.object.id %}" class="view-btn start-btn" style="background-color: #007bff; color: white; font-size: 0.7rem; padding: 2px 6px;">
-                              START
+                          <span class="grade-score grade-none">Not Submitted</span>
+                          {% if user.role == 'learner' %}
+                            <a href="{% url 'assignments:assignment_detail' activity.object.id %}" class="view-btn assignment-view-btn">
+                              ATTEMPT
                             </a>
-                          </div>
+                          {% endif %}
                         {% endif %}
                         
                       {% elif activity.type == 'quiz' %}
-                        {% if score_data.score is not None %}
+                        {% if not activity.object.is_active %}
+                          <span class="grade-score grade-unpublished">Inactive</span>
+                        {% elif score_data.score is not None %}
                           <div class="submission-date">
                             {{ score_data.date|date:"M d, Y" }}
                           </div>
-                          {% if score_data.score >= 70 %}
-                            <!-- PASSED - Show in GREEN with Retake option -->
-                            {% if score_data.score_source == 'rubric' %}
-                              <span class="grade-score grade-passed" style="color: #28a745; font-weight: bold;">{{ score_data.score|floatformat:1 }}/{{ score_data.max_score }}</span>
+                          {% if score_data.score_source == 'rubric' %}
+                            {% comment %}For rubric-based scoring, show points/total_points{% endcomment %}
+                            {% if score_data.score >= score_data.max_score|mul:0.7 %}
+                              <span class="grade-score grade-excellent">{{ score_data.score|floatformat:1 }}/{{ score_data.max_score }}</span>
                             {% else %}
-                              <span class="grade-score grade-passed" style="color: #28a745; font-weight: bold;">{{ score_data.score|floatformat:1 }}%</span>
+                              <span class="grade-score grade-poor">{{ score_data.score|floatformat:1 }}/{{ score_data.max_score }}</span>
                             {% endif %}
-                            <div class="action-buttons mt-1">
-                              <a href="{% url 'quiz:quiz_detail' activity.object.id %}" class="view-btn retake-btn" style="background-color: #28a745; color: white; font-size: 0.7rem; padding: 2px 6px;">
-                                RETAKE
-                              </a>
-                            </div>
                           {% else %}
-                            <!-- FAILED - Show in RED with Resume option -->
-                            {% if score_data.score_source == 'rubric' %}
-                              <span class="grade-score grade-failed" style="color: #dc3545; font-weight: bold;">{{ score_data.score|floatformat:1 }}/{{ score_data.max_score }}</span>
+                            {% comment %}For auto-calculated scoring, show percentage{% endcomment %}
+                            {% if score_data.score >= activity.object.passing_score|default:70 %}
+                              <span class="grade-score grade-excellent">{{ score_data.score|floatformat:1 }}%</span>
                             {% else %}
-                              <span class="grade-score grade-failed" style="color: #dc3545; font-weight: bold;">{{ score_data.score|floatformat:1 }}%</span>
+                              <span class="grade-score grade-poor">{{ score_data.score|floatformat:1 }}%</span>
                             {% endif %}
-                            <div class="action-buttons mt-1">
-                              <a href="{% url 'quiz:quiz_detail' activity.object.id %}" class="view-btn resume-btn" style="background-color: #dc3545; color: white; font-size: 0.7rem; padding: 2px 6px;">
-                                RESUME
+                          {% endif %}
+                          {% if user.role != 'learner' %}
+                            <button onclick="openGradingSidebar('quiz', {{ activity.object.id }}, {{ student.id }}, {{ score_data.attempt.id|default:'null' }})" class="view-btn grade-btn">
+                              GRADE
+                            </button>
+                            <a href="{% url 'quiz:quiz_detailed_report' activity.object.id %}?student_id={{ student.id }}" class="view-btn quiz-view-btn mt-1" style="font-size: 0.65rem;">
+                              DETAILED
+                            </a>
+                          {% else %}
+                            {% has_feedback_available activity student.id as quiz_has_feedback %}
+                            {% comment %}Quiz feedback logic: always show feedback if available, otherwise show results{% endcomment %}
+                            {% if quiz_has_feedback %}
+                              <button onclick="showFeedback('quiz', {{ activity.object.id }}, {{ student.id }})" class="view-btn quiz-view-btn">
+                                VIEW FEEDBACK
+                              </button>
+                            {% elif score_data.attempt and score_data.attempt.id %}
+                              <a href="{% url 'quiz:view_attempt' score_data.attempt.id %}" class="view-btn quiz-view-btn">
+                                VIEW RESULTS
                               </a>
-                            </div>
+                            {% endif %}
                           {% endif %}
                         {% else %}
-                          <!-- No score yet -->
-                          <span class="grade-score grade-none">-</span>
-                          <div class="action-buttons mt-1">
-                            <a href="{% url 'quiz:quiz_detail' activity.object.id %}" class="view-btn start-btn" style="background-color: #007bff; color: white; font-size: 0.7rem; padding: 2px 6px;">
-                              START
+                          <span class="grade-score grade-none">Not Attempted</span>
+                          {% if user.role == 'learner' %}
+                            <a href="{% url 'quiz:quiz_detail' activity.object.id %}" class="view-btn quiz-view-btn">
+                              ATTEMPT
                             </a>
-                          </div>
+                          {% endif %}
                         {% endif %}
                         
                       {% elif activity.type == 'initial_assessment' %}
@@ -1687,22 +1758,14 @@
                           <div class="submission-date">
                             {{ score_data.date|date:"M d, Y" }}
                           </div>
-                          {% if score_data.score >= score_data.max_score|mul:0.7 %}
-                            <!-- PASSED - Show in GREEN with Retake option -->
-                            <span class="grade-score grade-passed" style="color: #28a745; font-weight: bold;">{{ score_data.score|floatformat:1 }}/{{ score_data.max_score }}</span>
-                            <div class="action-buttons mt-1">
-                              <a href="{% url 'discussions:discussion_detail' activity.object.id %}" class="view-btn retake-btn" style="background-color: #28a745; color: white; font-size: 0.7rem; padding: 2px 6px;">
-                                RETAKE
-                              </a>
-                            </div>
+                          {% if score_data.score >= score_data.max_score|mul:0.9 %}
+                            <span class="grade-score grade-excellent">{{ score_data.score|floatformat:1 }}/{{ score_data.max_score }}</span>
+                          {% elif score_data.score >= score_data.max_score|mul:0.8 %}
+                            <span class="grade-score grade-good">{{ score_data.score|floatformat:1 }}/{{ score_data.max_score }}</span>
+                          {% elif score_data.score >= score_data.max_score|mul:0.6 %}
+                            <span class="grade-score grade-average">{{ score_data.score|floatformat:1 }}/{{ score_data.max_score }}</span>
                           {% else %}
-                            <!-- FAILED - Show in RED with Resume option -->
-                            <span class="grade-score grade-failed" style="color: #dc3545; font-weight: bold;">{{ score_data.score|floatformat:1 }}/{{ score_data.max_score }}</span>
-                            <div class="action-buttons mt-1">
-                              <a href="{% url 'discussions:discussion_detail' activity.object.id %}" class="view-btn resume-btn" style="background-color: #dc3545; color: white; font-size: 0.7rem; padding: 2px 6px;">
-                                RESUME
-                              </a>
-                            </div>
+                            <span class="grade-score grade-poor">{{ score_data.score|floatformat:1 }}/{{ score_data.max_score }}</span>
                           {% endif %}
                           {% if user.role != 'learner' %}
                             <button onclick="openGradingSidebar('discussion', {{ activity.object.id }}, {{ student.id }})" class="view-btn grade-btn">
@@ -1744,22 +1807,14 @@
                           <div class="submission-date">
                             {{ score_data.date|date:"M d, Y" }}
                           </div>
-                          {% if score_data.score >= score_data.max_score|mul:0.7 %}
-                            <!-- PASSED - Show in GREEN with Retake option -->
-                            <span class="grade-score grade-passed" style="color: #28a745; font-weight: bold;">{{ score_data.score|floatformat:1 }}/{{ score_data.max_score }}</span>
-                            <div class="action-buttons mt-1">
-                              <a href="{% url 'conferences:conference_detail' activity.object.id %}" class="view-btn retake-btn" style="background-color: #28a745; color: white; font-size: 0.7rem; padding: 2px 6px;">
-                                RETAKE
-                              </a>
-                            </div>
+                          {% if score_data.score >= score_data.max_score|mul:0.9 %}
+                            <span class="grade-score grade-excellent">{{ score_data.score|floatformat:1 }}/{{ score_data.max_score }}</span>
+                          {% elif score_data.score >= score_data.max_score|mul:0.8 %}
+                            <span class="grade-score grade-good">{{ score_data.score|floatformat:1 }}/{{ score_data.max_score }}</span>
+                          {% elif score_data.score >= score_data.max_score|mul:0.6 %}
+                            <span class="grade-score grade-average">{{ score_data.score|floatformat:1 }}/{{ score_data.max_score }}</span>
                           {% else %}
-                            <!-- FAILED - Show in RED with Resume option -->
-                            <span class="grade-score grade-failed" style="color: #dc3545; font-weight: bold;">{{ score_data.score|floatformat:1 }}/{{ score_data.max_score }}</span>
-                            <div class="action-buttons mt-1">
-                              <a href="{% url 'conferences:conference_detail' activity.object.id %}" class="view-btn resume-btn" style="background-color: #dc3545; color: white; font-size: 0.7rem; padding: 2px 6px;">
-                                RESUME
-                              </a>
-                            </div>
+                            <span class="grade-score grade-poor">{{ score_data.score|floatformat:1 }}/{{ score_data.max_score }}</span>
                           {% endif %}
                           {% if user.role != 'learner' %}
                             <button onclick="openGradingSidebar('conference', {{ activity.object.id }}, {{ student.id }})" class="view-btn grade-btn">
@@ -1801,173 +1856,93 @@
                         {% else %}
                           <span class="grade-score grade-none">No Activity</span>
                         {% endif %}
-                        {% endif %}
                         
-                        {% if score_data.score is not None %}
+                      {% elif activity.type == 'scorm' %}
+                        {% get_student_activity_score student_scores student.id activity.object.id as score_data %}
+                        {% if score_data.score is not None or score_data.completed or score_data.completion_status == 'completed' or score_data.success_status == 'passed' or score_data.has_toc_data %}
                           <div class="submission-date">
                             {{ score_data.date|date:"M d, Y" }}
                           </div>
-                          
-                            <!-- Mastery Score (Required passing score) -->
-                            <div class="text-xs text-gray-600 mb-1">
-                              <strong>Mastery Required:</strong> {{ score_data.mastery_score|floatformat:1 }}%
-                            </div>
-                            
-                            <!-- User Achieved Score -->
-                            <div class="text-sm mb-1">
-                              <strong>Your Score:</strong> 
-                              <span class="{% if score_data.is_passed %}text-green-600{% else %}text-red-600{% endif %} font-bold">
-                                {{ score_data.user_achieved_score|floatformat:1 }}%
-                              </span>
-                            </div>
-                            
-                            <!-- Pass/Fail Status -->
-                            <div class="text-sm mb-2">
-                              <strong>Status:</strong> 
-                              <span class="{% if score_data.is_passed %}text-green-600{% else %}text-red-600{% endif %} font-bold">
-                                {% if score_data.is_passed %}PASSED{% else %}FAILED{% endif %}
-                              </span>
-                            </div>
-                            
-                            <div class="action-buttons mt-1">
-                              {% if score_data.is_passed %}
-                                  <i class="fas fa-redo-alt"></i> RETAKE
-                                </a>
+                          {% if score_data.success_status == 'passed' or score_data.completed %}
+                            <span class="grade-score grade-excellent">
+                              {% if score_data.score is not None %}
+                                {{ score_data.score|floatformat:0 }}/{{ score_data.max_score }}
                               {% else %}
-                                  <i class="fas fa-play"></i> RESUME
-                                </a>
+                                Completed
                               {% endif %}
-                              
-                              <!-- Content type indicator -->
-                              <div class="text-xs mt-1" style="color: #6c757d;">
-                                <i class="fas fa-file"></i> Content
-                              </div>
-                            </div>
-                          </div>
-                        {% elif score_data.success_status == 'failed' %}
-                          <!-- Show failed status with score if available -->
-                          <div class="submission-date">
-                            {{ score_data.date|date:"M d, Y" }}
-                          </div>
-                          <span class="grade-score grade-poor">
-                            {% if score_data.score is not None %}
-                              {{ score_data.score|floatformat:1 }}% (Failed)
+                            </span>
+                          {% elif score_data.score is not None %}
+                            {% if score_data.score >= score_data.max_score|mul:0.8 %}
+                              <span class="grade-score grade-good">{{ score_data.score|floatformat:0 }}/{{ score_data.max_score }}</span>
+                            {% elif score_data.score >= score_data.max_score|mul:0.6 %}
+                              <span class="grade-score grade-average">{{ score_data.score|floatformat:0 }}/{{ score_data.max_score }}</span>
                             {% else %}
-                              Failed
+                              <span class="grade-score grade-poor">{{ score_data.score|floatformat:0 }}/{{ score_data.max_score }}</span>
                             {% endif %}
-                          </span>
-                          {% if user.role == 'learner' %}
-                                RETRY
-                              </a>
-                            {% endif %}
-                        {% elif score_data.in_progress or score_data.has_bookmark %}
-                          <!-- ENHANCED: Show resume button for learners who have started but not passed -->
-                          <div class="submission-date">
-                            {{ score_data.date|date:"M d, Y" }}
-                          </div>
-                          <span class="grade-score grade-none" style="color: #ffc107; font-weight: bold;">In Progress</span>
-                          
-                          {% if user.role == 'learner' %}
-                            <div class="action-buttons mt-1">
-                                <i class="fas fa-play"></i> RESUME
-                              </a>
-                              
-                              <!-- Show content type and progress -->
-                              <div class="text-xs mt-1" style="color: #6c757d;">
-                                <i class="fas fa-file"></i> Interactive Content
-                                {% if score_data.progress_percentage %}
-                                  <br><i class="fas fa-chart-line"></i> {{ score_data.progress_percentage|floatformat:1 }}% Complete
-                                {% endif %}
-                              </div>
-                            </div>
-                            {% endif %}
-                        {% else %}
-                          {% if user.role == 'learner' %}
-                            <span class="grade-score grade-none" style="color: #6c757d;">Not Started</span>
-                            <div class="action-buttons mt-1">
-                                <i class="fas fa-play-circle"></i> START
-                              </a>
-                              
-                              <!-- Content type indicator -->
-                              <div class="text-xs mt-1" style="color: #6c757d;">
-                                <i class="fas fa-file"></i> Interactive Content
-                              </div>
-                            </div>
-                            {% endif %}
-                        {% endif %}
-                        
-                        {% if score_data.score is not None %}
-                          <div class="submission-date">
-                            {{ score_data.date|date:"M d, Y" }}
-                          </div>
-                          
-                            <!-- Mastery Score (Required passing score) -->
-                            <div class="text-xs text-gray-600 mb-1">
-                              <strong>Mastery Required:</strong> {{ score_data.mastery_score|floatformat:1 }}%
-                            </div>
-                            
-                            <!-- User Achieved Score -->
-                            <div class="text-sm mb-1">
-                              <strong>Your Score:</strong> 
-                              <span class="{% if score_data.is_passed %}text-green-600{% else %}text-red-600{% endif %} font-bold">
-                                {{ score_data.user_achieved_score|floatformat:1 }}%
-                              </span>
-                            </div>
-                            
-                            <!-- Pass/Fail Status -->
-                            <div class="text-sm mb-2">
-                              <strong>Status:</strong> 
-                              <span class="{% if score_data.is_passed %}text-green-600{% else %}text-red-600{% endif %} font-bold">
-                                {% if score_data.is_passed %}PASSED{% else %}FAILED{% endif %}
-                              </span>
-                            </div>
-                            
-                            <!-- Action buttons -->
-                            <div class="action-buttons mt-1">
-                              {% if score_data.is_passed %}
-                                <a href="{% url 'courses:topic_view' activity.object.id %}" class="view-btn retake-btn" style="background-color: #28a745; color: white; font-size: 0.7rem; padding: 2px 6px;">
-                                  RETAKE
-                                </a>
-                              {% else %}
-                                <a href="{% url 'courses:topic_view' activity.object.id %}" class="view-btn resume-btn" style="background-color: #dc3545; color: white; font-size: 0.7rem; padding: 2px 6px;">
-                                  RESUME
-                                </a>
-                              {% endif %}
-                            </div>
-                          </div>
-                        {% elif score_data.success_status == 'failed' %}
-                          <!-- Show failed status with score if available -->
-                          <div class="submission-date">
-                            {{ score_data.date|date:"M d, Y" }}
-                          </div>
-                          <span class="grade-score grade-poor">
-                            {% if score_data.score is not None %}
-                              {{ score_data.score|floatformat:1 }}% (Failed)
+                          {% elif score_data.has_toc_data %}
+                            <!-- Show TOC progress data -->
+                            {% if score_data.toc_progress %}
+                              <span class="grade-score grade-good">{{ score_data.toc_progress }}% Complete</span>
+                            {% elif score_data.current_slide %}
+                              <span class="grade-score grade-good">In Progress ({{ score_data.current_slide }})</span>
                             {% else %}
-                              Failed
+                              <span class="grade-score grade-good">In Progress</span>
                             {% endif %}
-                          </span>
-                          {% if user.role == 'learner' %}
-                            <a href="{% url 'courses:topic_view' activity.object.id %}" class="view-btn" style="color: #dc3545; border-color: #dc3545; background: white;">
-                              RETRY
-                            </a>
                           {% endif %}
-                        {% elif score_data.in_progress or score_data.has_bookmark %}
-                          <!-- Show resume button for learners who have started but not passed -->
-                          <span class="grade-score grade-none">In Progress</span>
+                          {% if user.role == 'learner' %}
+                            {% if activity.object.topic %}
+                              <a href="{% url 'courses:topic_view' activity.object.topic.id %}" class="view-btn" style="color: #20c997; border-color: #20c997; background: white;">
+                                {% if score_data.has_toc_data %}RESUME{% else %}VIEW{% endif %}
+                              </a>
+                            {% endif %}
+                          {% endif %}
+                        {% else %}
+                          <span class="grade-score grade-none">Not Started</span>
+                          {% if user.role == 'learner' %}
+                            {% if activity.object.topic %}
+                              <a href="{% url 'courses:topic_view' activity.object.topic.id %}" class="view-btn" style="color: #20c997; border-color: #20c997; background: white;">
+                                LAUNCH
+                              </a>
+                            {% endif %}
+                          {% endif %}
+                        {% endif %}
+                        
+                      {% elif activity.type == 'scorm_topic' %}
+                        {% comment %}SCORM topics - check TopicProgress for scores{% endcomment %}
+                        {% get_student_activity_score student_scores student.id activity.object.id as score_data %}
+                        {% if score_data.score is not None or score_data.completed %}
+                          <div class="submission-date">
+                            {{ score_data.date|date:"M d, Y" }}
+                          </div>
+                          {% if score_data.success_status == 'passed' or score_data.completed %}
+                            <span class="grade-score grade-excellent">
+                              {% if score_data.score is not None %}
+                                {{ score_data.score|floatformat:0 }}/{{ score_data.max_score }}
+                              {% else %}
+                                Completed
+                              {% endif %}
+                            </span>
+                          {% elif score_data.score is not None %}
+                            {% if score_data.score >= score_data.max_score|mul:0.8 %}
+                              <span class="grade-score grade-good">{{ score_data.score|floatformat:0 }}/{{ score_data.max_score }}</span>
+                            {% elif score_data.score >= score_data.max_score|mul:0.6 %}
+                              <span class="grade-score grade-average">{{ score_data.score|floatformat:0 }}/{{ score_data.max_score }}</span>
+                            {% else %}
+                              <span class="grade-score grade-poor">{{ score_data.score|floatformat:0 }}/{{ score_data.max_score }}</span>
+                            {% endif %}
+                          {% endif %}
                           {% if user.role == 'learner' %}
                             <a href="{% url 'courses:topic_view' activity.object.id %}" class="view-btn" style="color: #20c997; border-color: #20c997; background: white;">
-                              RESUME
+                              VIEW
                             </a>
                           {% endif %}
-                          <!-- Show progress percentage if available -->
-                          {% if score_data.progress_percentage %}
-                            <div class="text-xs text-blue-600 mt-1">
-                              Progress: {{ score_data.progress_percentage|floatformat:1 }}%
-                            </div>
-                          {% endif %}
                         {% else %}
-                          <span class="grade-score grade-none">-</span>
+                          <span class="grade-score grade-none">Not Started</span>
+                          {% if user.role == 'learner' %}
+                            <a href="{% url 'courses:topic_view' activity.object.id %}" class="view-btn" style="color: #20c997; border-color: #20c997; background: white;">
+                              LAUNCH
+                            </a>
+                          {% endif %}
                         {% endif %}
                         
                       {% endif %}
@@ -1979,7 +1954,7 @@
                 <td class="assignment-total activity-cell">
                   {% calculate_student_total_optimized student_scores student.id activities as total_data %}
                   <div class="total-score-container">
-                    {% if total_data.has_completed_activity and total_data.possible > 0 %}
+                    {% if total_data.possible > 0 %}
                       <div class="total-points">
                         {{ total_data.earned|floatformat:1 }}/{{ total_data.possible|floatformat:1 }} pts
                       </div>
@@ -1994,15 +1969,11 @@
                       {% else %}
                         <div class="grade-score grade-poor total-percentage">{{ total_data.percentage|floatformat:1 }}%</div>
                       {% endif %}
-                      {% endif %}
-                      {% endif %}
-                      {% endif %}
                     {% else %}
-                      <div class="grade-score grade-none">-</div>
+                      <div class="grade-score grade-none">No Activities</div>
                     {% endif %}
                   </div>
                 </td>
-                {% endif %}
                 {% endif %}
                 
                 <!-- Outcome Mastery Data -->
@@ -2074,7 +2045,6 @@
                   <li class="page-item">
                     <a class="page-link" href="?page={{ num }}">{{ num }}</a>
                   </li>
-                {% endif %}
                 {% endif %}
               {% endfor %}
               
@@ -2151,6 +2121,7 @@ function enterFullscreen() {
     if (pageHeader) pageHeader.style.display = 'none';
     if (breadcrumbs) breadcrumbs.style.display = 'none';
     
+    console.log(' Entered fullscreen mode (use F11 or ESC to exit)');
 }
 
 function exitFullscreen() {
@@ -2165,6 +2136,7 @@ function exitFullscreen() {
     if (pageHeader) pageHeader.style.display = 'block';
     if (breadcrumbs) breadcrumbs.style.display = 'block';
     
+    console.log(' Exited fullscreen mode');
 }
 
 // Filter and Search Functionality
@@ -2215,7 +2187,9 @@ function applyFilters() {
                 const cellText = cell.textContent.toLowerCase();
                 
                 if (statusFilter === 'submitted') {
+                    // BUGFIX: Check for new assignment statuses AND quiz/scorm scores
                     // Assignment statuses: "Submitted - Awaiting Grade", "Not Graded Yet", "Late Submission"
+                    // Quiz/SCORM: scores like "85.0/100" or "85%", or "Completed"
                     if (cellText.includes('submitted') || 
                         cellText.includes('not graded yet') ||
                         cellText.includes('late submission') ||
@@ -2278,9 +2252,7 @@ function applyFilters() {
     
     // Filter activity columns
     activityHeaders.forEach((header, colIndex) => {
-        // Skip non-activity columns (student name, total, outcomes)
-        // Only process columns that have activity-header class
-        if (!header.classList.contains('activity-header')) return;
+        if (colIndex === 0 || header.classList.contains('assignment-total')) return; // Skip student name and total columns
         
         const activityTitle = header.textContent.toLowerCase();
         const activityTypeLabels = header.querySelectorAll('.activity-type-label');
@@ -2292,6 +2264,7 @@ function applyFilters() {
             else if (labelText.includes('quz')) activityType = 'quiz';
             else if (labelText.includes('dsc')) activityType = 'discussion';
             else if (labelText.includes('cnf')) activityType = 'conference';
+            else if (labelText.includes('sco')) activityType = 'scorm';
         }
         
         let columnVisible = true;
@@ -2548,6 +2521,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Sidebar functionality - Make sure it's globally accessible
 window.openGradingSidebar = function(activityType, activityId, studentId, submissionId = null) {
+    console.log(' Opening grading sidebar for:', activityType, activityId, studentId, submissionId);
     
     const sidebar = document.getElementById('gradingSidebar');
     const overlay = document.getElementById('sidebarOverlay');
@@ -2555,20 +2529,25 @@ window.openGradingSidebar = function(activityType, activityId, studentId, submis
     
     // Debug: Check if elements exist
     if (!sidebar) {
+        console.error(' Sidebar element not found!');
         return;
     }
     if (!overlay) {
+        console.error(' Overlay element not found!');
         return;
     }
     if (!content) {
+        console.error(' Content element not found!');
         return;
     }
     
+    console.log(' All required elements found');
     
     // Show enhanced loading
     content.innerHTML = '<div class="sidebar-loading"><i class="fas fa-spinner fa-spin text-2xl text-blue-500"></i><p class="text-gray-600 text-sm">Loading grading interface...</p></div>';
     
     // Show sidebar and overlay
+    console.log(' Showing sidebar and overlay');
     sidebar.classList.remove('translate-x-full');
     overlay.classList.remove('hidden');
     
@@ -2576,24 +2555,29 @@ window.openGradingSidebar = function(activityType, activityId, studentId, submis
     sidebar.offsetHeight; // Trigger reflow
     overlay.offsetHeight; // Trigger reflow
     
+    console.log(' Sidebar classes updated');
     
     // Initialize sidebar resize functionality and restore width
     setTimeout(function() {
+        console.log(' Initializing sidebar resize');
         initializeSidebarResize();
         restoreSidebarWidth();
     }, 100);
     
     // Load content directly - TinyMCE is already loaded globally
+    console.log(' Loading grading content');
     loadGradingContent(activityType, activityId, studentId, submissionId);
 }
 
 window.closeSidebar = function() {
+    console.log(' Closing sidebar');
     
     const sidebar = document.getElementById('gradingSidebar');
     const overlay = document.getElementById('sidebarOverlay');
     const sidebarContent = document.getElementById('sidebarContent');
     
     if (!sidebar || !overlay) {
+        console.error(' Sidebar or overlay elements not found during close');
         return;
     }
     
@@ -2610,6 +2594,7 @@ window.closeSidebar = function() {
     sidebar.classList.add('translate-x-full');
     overlay.classList.add('hidden');
     
+    console.log(' Sidebar closed');
 }
 
 
@@ -2635,6 +2620,7 @@ function initializeSidebarResize() {
 }
 
 function startResize(e) {
+    console.log(' Starting resize');
     
     e.preventDefault();
     isResizing = true;
@@ -2644,6 +2630,7 @@ function startResize(e) {
     const resizeHandle = document.getElementById('sidebarResizeHandle');
     
     if (!sidebar || !resizeHandle) {
+        console.error(' Sidebar or resize handle not found');
         return;
     }
     
@@ -2663,6 +2650,7 @@ function startResize(e) {
     document.addEventListener('touchmove', handleResize);
     document.addEventListener('touchend', stopResize);
     
+    console.log(' Starting sidebar resize from width:', startWidth);
 }
 
 function handleResize(e) {
@@ -2707,6 +2695,7 @@ function handleResize(e) {
                 });
             }
         } catch (error) {
+            console.warn('Could not refresh TinyMCE during resize:', error);
         }
     }, 100);
 }
@@ -2731,11 +2720,13 @@ function stopResize() {
     document.removeEventListener('touchend', stopResize);
     
     // Store the new width for future use
+    console.log(' Sidebar resize completed. New width:', currentSidebarWidth);
     
     // Save the preferred width to localStorage
     try {
         localStorage.setItem('gradebook_sidebar_width', currentSidebarWidth);
     } catch (error) {
+        console.warn('Could not save sidebar width to localStorage:', error);
     }
 }
 
@@ -2749,13 +2740,16 @@ function restoreSidebarWidth() {
                 sidebar.style.width = width + 'px';
                 sidebar.classList.remove('w-96');
                 currentSidebarWidth = width;
+                console.log(' Restored sidebar width from localStorage:', width);
             }
         }
     } catch (error) {
+        console.warn('Could not restore sidebar width from localStorage:', error);
     }
 }
 
 window.loadGradingContent = function(activityType, activityId, studentId, submissionId) {
+    console.log(' Loading grading content for:', activityType, activityId, studentId, submissionId);
     
     const content = document.getElementById('sidebarContent');
     
@@ -2777,6 +2771,7 @@ window.loadGradingContent = function(activityType, activityId, studentId, submis
         url = `/gradebook/grade-sidebar/conference/${activityId}/${studentId}/`;
     }
     
+    console.log(' Fetching content from URL:', url);
     
     // Fetch the content with proper credentials
     fetch(url, {
@@ -2788,12 +2783,14 @@ window.loadGradingContent = function(activityType, activityId, studentId, submis
         }
     })
         .then(response => {
+            console.log('📥 Received response:', response.status, response.statusText);
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
             return response.text();
         })
         .then(html => {
+            console.log(' Content loaded successfully, length:', html.length);
             content.innerHTML = html;
             
             // Initialize sidebar resize functionality
@@ -2808,6 +2805,7 @@ window.loadGradingContent = function(activityType, activityId, studentId, submis
             // Initialize TinyMCE editors using enhanced approach with multiple retries
             function ensureTinyMCEInitialized(retryCount = 0) {
                 try {
+                    console.log(` Attempt ${retryCount + 1}: Initializing TinyMCE in sidebar content...`);
                     
                     // Use the new unified approach
                     initializeSidebarTinyMCE(content);
@@ -2816,10 +2814,12 @@ window.loadGradingContent = function(activityType, activityId, studentId, submis
                     if (typeof window.TinyMCEWidget !== 'undefined' && window.TinyMCEWidget.initializeAll) {
                         setTimeout(() => {
                             window.TinyMCEWidget.initializeAll();
+                            console.log(' TinyMCE sidebar editors initialized using widget system');
                         }, 200);
                     }
                     
                 } catch (error) {
+                    console.error('Error during TinyMCE initialization:', error);
                     if (retryCount < 3) {
                         setTimeout(() => ensureTinyMCEInitialized(retryCount + 1), 500);
                     }
@@ -2836,10 +2836,12 @@ window.loadGradingContent = function(activityType, activityId, studentId, submis
                 try {
                     initializeFeedbackTabsInContent(content);
                 } catch (error) {
+                    console.error(' Error initializing feedback tabs:', error);
                 }
             }, 200);
         })
         .catch(error => {
+            console.error('Error loading grading content:', error);
             content.innerHTML = '<div class="text-center py-8 text-red-500"><i class="fas fa-exclamation-triangle text-2xl"></i><p class="mt-2">Error loading content</p></div>';
         });
 }
@@ -2852,6 +2854,7 @@ window.showFeedback = function(activityType, activityId, studentId) {
 
 // Enhanced TinyMCE initialization for sidebar content
 function initializeSidebarTinyMCE(container) {
+    console.log(' Starting sidebar TinyMCE initialization...');
     
     // Use a more robust approach with proper timing
     function attemptInitialization(retryCount = 0) {
@@ -2861,16 +2864,20 @@ function initializeSidebarTinyMCE(container) {
         // Check if TinyMCE is available
         if (typeof tinymce === 'undefined') {
             if (retryCount < MAX_RETRIES) {
+                console.log(` TinyMCE not available, retrying in ${RETRY_DELAY}ms... (${retryCount + 1}/${MAX_RETRIES})`);
                 setTimeout(() => attemptInitialization(retryCount + 1), RETRY_DELAY);
             } else {
+                console.error(' TinyMCE failed to load after maximum retries');
             }
             return;
         }
         
         // Find all textareas that need TinyMCE
         const textareas = container.querySelectorAll('textarea.tinymce-editor, textarea[data-tinymce-config]');
+        console.log(` Found ${textareas.length} textareas to initialize`);
         
         if (textareas.length === 0) {
+            console.log('ℹ️ No TinyMCE textareas found in sidebar content');
             return;
         }
         
@@ -2883,6 +2890,7 @@ function initializeSidebarTinyMCE(container) {
             
             // Skip if already initialized
             if (tinymce.get(textarea.id)) {
+                console.log(` TinyMCE already initialized for: ${textarea.id}`);
                 return;
             }
             
@@ -2894,6 +2902,7 @@ function initializeSidebarTinyMCE(container) {
                     config = JSON.parse(configData);
                 }
             } catch (e) {
+                console.warn('Failed to parse TinyMCE config:', e);
             }
             
             // Set essential configuration for sidebar
@@ -2929,6 +2938,7 @@ function initializeSidebarTinyMCE(container) {
             // Setup function to handle initialization
             config.setup = function(editor) {
                 editor.on('init', function() {
+                    console.log(` TinyMCE initialized for: ${editor.id}`);
                     
                     // Ensure editor is visible
                     const container = editor.getContainer();
@@ -2962,8 +2972,10 @@ function initializeSidebarTinyMCE(container) {
             // Initialize TinyMCE
             tinymce.init(config).then(function(editors) {
                 if (editors.length > 0) {
+                    console.log(` TinyMCE successfully initialized for: ${textarea.id}`);
                 }
             }).catch(function(error) {
+                console.error(` Failed to initialize TinyMCE for ${textarea.id}:`, error);
             });
         });
     }
@@ -2974,17 +2986,21 @@ function initializeSidebarTinyMCE(container) {
 
 // Enhanced feedback tab initialization
 function initializeFeedbackTabsInContent(container) {
+    console.log(' Initializing feedback tabs in loaded sidebar content...');
     
     const tabButtons = container.querySelectorAll('.feedback-tab-btn');
     const tabContents = container.querySelectorAll('.feedback-tab-content');
     
+    console.log(`Found ${tabButtons.length} feedback tab buttons and ${tabContents.length} feedback tab contents`);
     
     if (tabButtons.length === 0 || tabContents.length === 0) {
+        console.log('ℹ️ No feedback tabs found in sidebar content');
         return;
     }
     
     // Enhanced tab functionality
     function switchToTab(targetTab) {
+        console.log(` Switching to feedback tab: ${targetTab}`);
         
         // Update button states
         tabButtons.forEach(btn => {
@@ -3009,6 +3025,7 @@ function initializeFeedbackTabsInContent(container) {
                         textareas.forEach(textarea => {
                             const editor = tinymce.get(textarea.id);
                             if (editor) {
+                                console.log(` Refreshing TinyMCE editor: ${textarea.id}`);
                                 
                                 // Add error handling for TinyMCE operations
                                 try {
@@ -3017,8 +3034,10 @@ function initializeFeedbackTabsInContent(container) {
                                         editor.execCommand('mceResize');
                                         editor.fire('ResizeEditor');
                                     } else {
+                                        console.warn(`Editor ${textarea.id} not fully initialized, skipping refresh`);
                                     }
                                 } catch (error) {
+                                    console.warn(`Error refreshing TinyMCE editor ${textarea.id}:`, error);
                                 }
                             }
                         });
@@ -3031,6 +3050,7 @@ function initializeFeedbackTabsInContent(container) {
             }
         });
         
+        console.log(` Feedback tab switched to: ${targetTab}`);
     }
     
     // Add click handlers
@@ -3046,12 +3066,15 @@ function initializeFeedbackTabsInContent(container) {
         switchToTab('text');
     }
     
+    console.log(' Feedback tabs initialized successfully');
 }
 
 // Clean up TinyMCE editors in sidebar
 function cleanupSidebarTinyMCE(container) {
+    console.log('🧹 Cleaning up sidebar TinyMCE editors...');
     
     if (typeof tinymce === 'undefined') {
+        console.log('ℹ️ TinyMCE not available for cleanup');
         return;
     }
     
@@ -3062,7 +3085,9 @@ function cleanupSidebarTinyMCE(container) {
             if (editor) {
                 try {
                     editor.remove();
+                    console.log(` Cleaned up TinyMCE editor: ${textarea.id}`);
                 } catch (error) {
+                    console.warn(`Could not clean up TinyMCE editor ${textarea.id}:`, error);
                 }
             }
         }
@@ -3117,6 +3142,7 @@ function submitSidebarForm(form) {
         }
     })
     .catch(error => {
+        console.error('Error:', error);
         showToast('Error saving grade', 'error');
     })
     .finally(() => {
@@ -3148,6 +3174,7 @@ window.exportGradebook = function() {
 
 // Initialize everything when page loads
 document.addEventListener('DOMContentLoaded', function() {
+    console.log(' Gradebook page loaded');
     
     // Check if required elements exist
     const sidebar = document.getElementById('gradingSidebar');
@@ -3155,15 +3182,21 @@ document.addEventListener('DOMContentLoaded', function() {
     const content = document.getElementById('sidebarContent');
     
     if (!sidebar) {
+        console.error(' Sidebar element missing from DOM');
     } else {
+        console.log(' Sidebar element found');
     }
     
     if (!overlay) {
+        console.error(' Overlay element missing from DOM');
     } else {
+        console.log(' Overlay element found');
     }
     
     if (!content) {
+        console.error(' Content element missing from DOM');
     } else {
+        console.log(' Content element found');
     }
     
     // Initialize view mode
