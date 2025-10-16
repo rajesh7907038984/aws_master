@@ -157,6 +157,7 @@ function editTopic(topicId) {
         }
     })
     .catch(error => {
+        console.error('Topic edit error:', {
             message: error.message,
             stack: error.stack,
             url: window.location.href,

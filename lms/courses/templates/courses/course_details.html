@@ -308,14 +308,25 @@
         padding: 0;
         margin: 0;
         list-style: none;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none; /* Firefox */
+        -ms-overflow-style: none; /* IE/Edge */
+    }
+    
+    .tabs::-webkit-scrollbar {
+        display: none; /* Chrome/Safari */
     }
 
     .tab {
-        padding: 16px 24px;
+        padding: 16px 20px;
         color: #6b7280;
         cursor: pointer;
         border-bottom: 2px solid transparent;
         font-size: 14px;
+        flex: 0 0 auto;
+        white-space: nowrap;
+        min-width: fit-content;
     }
 
     .tab.active {
@@ -741,7 +752,7 @@
         
         .tab {
             flex: 0 0 auto;
-            padding: 12px 16px;
+            padding: 12px 14px;
             font-size: 13px;
             white-space: nowrap;
             min-width: fit-content;
@@ -833,12 +844,19 @@
         .tabs {
             overflow-x: auto;
             -webkit-overflow-scrolling: touch;
+            scrollbar-width: none; /* Firefox */
+            -ms-overflow-style: none; /* IE/Edge */
+        }
+        
+        .tabs::-webkit-scrollbar {
+            display: none; /* Chrome/Safari */
         }
         
         .tab {
             flex: 0 0 auto;
             min-width: fit-content;
             white-space: nowrap;
+            padding: 14px 18px;
         }
         
         /* Adjust content padding for tablets */
@@ -1135,9 +1153,6 @@
                 <!-- When completed and certificate is enabled, show certificate button -->
                 <a href="javascript:void(0)" id="show-certificate-btn" class="start-button completed-button" onclick="return showCertificateTab()" data-progress="100">
                     <span class="button-text">Show Certificate</span>
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                        <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
-                    </svg>
                 </a>
             {% elif progress == 100 %}
                 <!-- Course completed but no certificate -->
@@ -1152,9 +1167,6 @@
                 <a href="{% if first_topic %}{% url 'courses:topic_view' first_topic.id %}?manual=True{% else %}{% url 'courses:course_view' course.id %}{% endif %}" 
                    id="progress-button"
                    data-progress="{{ progress|default:0 }}">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                        <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
-                    </svg>
                 </a>
             {% elif user.role == 'learner' %}
                 <!-- Enrollment required for learners -->
@@ -1170,9 +1182,6 @@
                    class="start-button"
                    id="access-button">
                     <span class="button-text">Access Course</span>
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                        <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
-                    </svg>
                 </a>
             {% endif %}
         </div>
@@ -1644,6 +1653,7 @@
             const issueCertificate = {{ course.issue_certificate|yesno:"true,false" }};
             const userRole = "{{ user.role|escapejs }}";
             
+            console.log('Button state validation:', {
                 progress: progress,
                 isEnrolled: isEnrolled,
                 issueCertificate: issueCertificate,
@@ -1751,10 +1761,10 @@
             fetch(`/courses/{{ course.id }}/check-video/`)
                 .then(response => {
                     if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        return response.json();
-    })
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
                 .then(data => {
                     
                     if (data.success && data.video_exists) {

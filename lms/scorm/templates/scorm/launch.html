@@ -17,21 +17,11 @@
         color: white;
         padding: 1rem;
         display: flex;
-        justify-content: space-between;
+        justify-content: flex-end;
         align-items: center;
     }
     
-    .scorm-header h1 {
-        margin: 0;
-        font-size: 1.2rem;
-    }
-    
-    .scorm-actions {
-        display: flex;
-        gap: 1rem;
-    }
-    
-    .scorm-actions button {
+    .back-to-topic-btn {
         background: rgba(255, 255, 255, 0.2);
         border: 1px solid rgba(255, 255, 255, 0.3);
         color: white;
@@ -39,10 +29,14 @@
         border-radius: 4px;
         cursor: pointer;
         transition: background 0.2s;
+        text-decoration: none;
+        display: inline-block;
     }
     
-    .scorm-actions button:hover {
+    .back-to-topic-btn:hover {
         background: rgba(255, 255, 255, 0.3);
+        color: white;
+        text-decoration: none;
     }
     
     .scorm-iframe {
@@ -50,15 +44,6 @@
         height: calc(100vh - 80px);
         border: none;
         background: white;
-    }
-    
-    .scorm-loading {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        height: 200px;
-        font-size: 1.1rem;
-        color: #666;
     }
     
     .scorm-error {
@@ -74,260 +59,151 @@
 
 {% block content %}
 <div class="scorm-header">
-    <h1>{{ topic.title }}</h1>
-    <div class="scorm-actions">
-        <button id="close-btn">Close</button>
-        <button id="refresh-btn">Refresh</button>
-        <a href="{% url 'courses:topic_view' topic.id %}" class="btn btn-secondary">Back to Topic</a>
-    </div>
+    <a href="{% url 'courses:topic_view' topic.id %}" class="back-to-topic-btn">Back to Topic</a>
 </div>
 
 <div id="scorm-content">
-    <div class="scorm-loading" id="loading">
-        <i class="fas fa-spinner fa-spin"></i> Loading SCORM content...
-    </div>
-    
     <iframe 
         id="scorm-iframe" 
         class="scorm-iframe" 
         src="{{ launch_url }}"
-        style="display: none;">
+        width="100%" 
+        height="100vh"
+        allowfullscreen="allowfullscreen" 
+        mozallowfullscreen="mozallowfullscreen" 
+        msallowfullscreen="msallowfullscreen" 
+        oallowfullscreen="oallowfullscreen" 
+        webkitallowfullscreen="webkitallowfullscreen">
     </iframe>
 </div>
 
 <script>
-// SCORM API Implementation
-window.API = {
-    LMSInitialize: function(param) {
-        console.log('SCORM: LMSInitialize called with', param);
-        return "true";
-    },
-    
-    LMSGetValue: function(element) {
-        console.log('SCORM: LMSGetValue called for', element);
-        
-        // Make synchronous AJAX request to get value
-        const xhr = new XMLHttpRequest();
-        xhr.open('GET', `/scorm/api/{{ topic.id }}/?element=${element}`, false); // false = synchronous
-        xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
-        
-        try {
-            xhr.send();
-            if (xhr.status === 200) {
-                const data = JSON.parse(xhr.responseText);
-                console.log('SCORM: Got value for', element, ':', data.value);
-                return data.value || '';
-            } else {
-                console.error('SCORM: Error getting value, status:', xhr.status);
-                return '';
-            }
-        } catch (error) {
-            console.error('SCORM: Error getting value:', error);
-            return '';
-        }
-    },
-    
-    LMSSetValue: function(element, value) {
-        console.log('SCORM: LMSSetValue called for', element, 'with value', value);
-        
-        // Make synchronous AJAX request to set value
-        const xhr = new XMLHttpRequest();
-        xhr.open('POST', `/scorm/api/{{ topic.id }}/`, false); // false = synchronous
-        xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
-        
-        const formData = new FormData();
-        formData.append('action', 'SetValue');
-        formData.append('element', element);
-        formData.append('value', value);
-        
-        try {
-            xhr.send(formData);
-            if (xhr.status === 200) {
-                const data = JSON.parse(xhr.responseText);
-                console.log('SCORM: Set value result:', data);
-                return data.result === 'true' ? 'true' : 'false';
-            } else {
-                console.error('SCORM: Error setting value, status:', xhr.status);
-                return 'false';
-            }
-        } catch (error) {
-            console.error('SCORM: Error setting value:', error);
-            return 'false';
-        }
-    },
-    
-    LMSCommit: function(param) {
-        console.log('SCORM: LMSCommit called with', param);
-        
-        // Make synchronous AJAX request to commit
-        const xhr = new XMLHttpRequest();
-        xhr.open('POST', `/scorm/api/{{ topic.id }}/`, false); // false = synchronous
-        xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
-        
-        const formData = new FormData();
-        formData.append('action', 'Commit');
-        
-        try {
-            xhr.send(formData);
-            if (xhr.status === 200) {
-                const data = JSON.parse(xhr.responseText);
-                console.log('SCORM: Commit result:', data);
-                return data.result === 'true' ? 'true' : 'false';
-            } else {
-                console.error('SCORM: Error committing, status:', xhr.status);
-                return 'false';
-            }
-        } catch (error) {
-            console.error('SCORM: Error committing:', error);
-            return 'false';
-        }
-    },
-    
-    LMSFinish: function(param) {
-        console.log('SCORM: LMSFinish called with', param);
-        
-        // Set exit value before terminating - handle different exit scenarios
-        const exitValue = param || 'normal';
-        console.log('SCORM: Setting exit value to:', exitValue);
-        this.LMSSetValue('cmi.core.exit', exitValue);
-        
-        // Commit any pending changes
-        this.LMSCommit('');
-        
-        // Make synchronous AJAX request to finish
-        const xhr = new XMLHttpRequest();
-        xhr.open('POST', `/scorm/api/{{ topic.id }}/`, false); // false = synchronous
-        xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
-        
-        const formData = new FormData();
-        formData.append('action', 'Terminate');
-        
-        try {
-            xhr.send(formData);
-            if (xhr.status === 200) {
-                const data = JSON.parse(xhr.responseText);
-                console.log('SCORM: Finish result:', data);
-                
-                // Handle successful termination
-                if (data.result === 'true') {
-                    console.log('SCORM: Successfully terminated, redirecting...');
-                    // Small delay to ensure data is saved
-                    setTimeout(function() {
-                        window.location.href = "{% url 'courses:topic_view' topic.id %}";
-                    }, 100);
-                }
-                
-                return data.result === 'true' ? 'true' : 'false';
-            } else {
-                console.error('SCORM: Error finishing, status:', xhr.status);
-                return 'false';
-            }
-        } catch (error) {
-            console.error('SCORM: Error finishing:', error);
-            return 'false';
-        }
-    },
-    
-    LMSGetLastError: function() {
-        return "0";
-    },
-    
-    LMSGetErrorString: function(errorCode) {
-        return "No error";
-    },
-    
-    LMSGetDiagnostic: function(errorCode) {
-        return "No error";
-    }
+// SCORM data similar to Skillikz pattern
+var scorm_data = {
+    "student_name": "{{ user.get_full_name|default:user.username }}",
+    "student_id": {{ user.id }},
+    "suspend_data": "",
+    "total_time": "{{ tracking.total_time|default:'PT0S' }}",
+    "lesson_location": "{{ tracking.raw_data.cmi.core.lesson_location|default:'' }}",
+    "lesson_status": "{{ tracking.completion_status|default:'incomplete' }}",
+    "datafromlms": "",
+    "score_raw": "{{ tracking.score_raw|default:'' }}",
+    "commit_url": "{% url 'scorm:api' topic.id %}",
+    "entry": "{{ tracking.raw_data.cmi.core.entry|default:'ab-initio' }}"
 };
 
-function handleSCORMLoad() {
-    console.log('SCORM: Content loaded');
-    document.getElementById('loading').style.display = 'none';
-    document.getElementById('scorm-iframe').style.display = 'block';
-}
-
-function handleSCORMError() {
-    console.error('SCORM: Error loading content');
-    document.getElementById('loading').innerHTML = 
-        '<div class="scorm-error">Error loading SCORM content. Please try refreshing the page.</div>';
-}
-
-function closeWindow() {
-    console.log('SCORM: Close button clicked');
-    
-    // First, try to properly terminate the SCORM session
-    if (window.API && window.API.LMSFinish) {
-        console.log('SCORM: Terminating session before closing...');
-        // Set exit value to 'logout' for manual close
-        window.API.LMSSetValue('cmi.core.exit', 'logout');
-        window.API.LMSFinish('logout');
-    }
-    
-    // Try to close the window first
-    if (window.close) {
-        window.close();
-        // If we're still here after 100ms, the close was blocked
-        setTimeout(function() {
-            // Fallback: redirect to topic view
-            console.log('SCORM: Window close blocked, redirecting...');
-            window.location.href = "{% url 'courses:topic_view' topic.id %}";
-        }, 100);
-    } else {
-        // No close method available, redirect directly
-        console.log('SCORM: No close method available, redirecting...');
-        window.location.href = "{% url 'courses:topic_view' topic.id %}";
-    }
-}
 
 // Initialize SCORM when page loads
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('SCORM: Page loaded, API ready');
+window.onload = function () {
+    console.log('SCORM: Page loaded, initializing...');
     
-    // Set up button event listeners
-    document.getElementById('close-btn').addEventListener('click', closeWindow);
-    document.getElementById('refresh-btn').addEventListener('click', function() {
-        location.reload();
+    const iframe = document.getElementById('scorm-iframe');
+    
+    // Send SCORM data to iframe when ready
+    iframe.addEventListener('load', function() {
+        console.log('SCORM: Iframe loaded');
+        console.log('SCORM: Sending data to iframe');
+        iframe.contentWindow.postMessage(scorm_data, '*');
     });
     
-    // Set up iframe event listeners
-    const iframe = document.getElementById('scorm-iframe');
-    iframe.addEventListener('load', handleSCORMLoad);
-    iframe.addEventListener('error', handleSCORMError);
+    iframe.addEventListener('error', function() {
+        console.error('SCORM: Error loading iframe');
+    });
     
-    // Set up periodic progress saving
-    setInterval(function() {
-        if (window.API && window.API.LMSCommit) {
-            window.API.LMSCommit('');
+    // Handle messages from SCORM content
+    function receiveMessage(e) {
+        // Check origin for security
+        if (e.origin !== window.location.origin) {
+            return;
         }
-    }, 30000); // Save every 30 seconds
-});
-
-// Handle page unload to save progress
-window.addEventListener('beforeunload', function(event) {
-    console.log('SCORM: Page unloading, saving progress...');
+        
+        if (e.data.launchURL !== window.location.href) {
+            return;
+        }
+        
+        console.log('SCORM: Received message from iframe', e.data);
+        
+        // Handle SCORM data updates
+        if (e.data.sendValues) {
+            const commitUrl = scorm_data.commit_url;
+            
+            if ('fetch' in window) {
+                const opts = {
+                    keepalive: true,
+                    method: "POST",
+                    body: new URLSearchParams(e.data.sendValues).toString(),
+                    headers: {
+                        "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8"
+                    }
+                };
+                
+                fetch(commitUrl, opts)
+                    .then(function(response) {
+                        return response.text();
+                    })
+                    .then(function(response) {
+                        updateProgress(response);
+                    })
+                    .catch(function(err) {
+                        console.log('Commit-Fetch error', err);
+                    });
+            } else {
+                // Fallback for older browsers
+                const xhr = new XMLHttpRequest();
+                xhr.open('POST', commitUrl, false);
+                xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+                xhr.send(new URLSearchParams(e.data.sendValues).toString());
+                updateProgress(xhr.responseText);
+            }
+        }
+    }
     
-    if (window.API && window.API.LMSFinish) {
-        // Set exit value to 'time-out' for unexpected exits
-        window.API.LMSSetValue('cmi.core.exit', 'time-out');
-        window.API.LMSFinish('time-out');
+    window.addEventListener('message', receiveMessage);
+};
+
+// Handle page unload - following Skillikz pattern exactly
+window.addEventListener('beforeunload', function(){
+    const exitUrl = '{% url "scorm:api" topic.id %}';
+    const isFirefox = navigator.userAgent.toLowerCase().indexOf('firefox') > -1;
+    
+    if ('fetch' in window && !isFirefox) {
+        fetch(exitUrl, {
+            method: 'POST',
+            keepalive: true,
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: 'action=Terminate&element=cmi.core.exit&value=time-out'
+        }).catch(function(err) {
+            console.log('Exit-Fetch error', err);
+        });
+    } else {
+        // Fallback for Firefox and older browsers
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', exitUrl, false);
+        xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+        xhr.send('action=Terminate&element=cmi.core.exit&value=time-out');
     }
 });
 
-// Handle visibility change (tab switching, minimizing)
-document.addEventListener('visibilitychange', function() {
-    if (document.hidden && window.API && window.API.LMSCommit) {
-        console.log('SCORM: Page hidden, committing progress...');
-        window.API.LMSCommit('');
+// Update progress function - following Skillikz pattern
+function updateProgress(response) {
+    console.log('SCORM: Updating progress', response);
+    
+    try {
+        const data = JSON.parse(response);
+        
+        if (data.unit_status === 'completed') {
+            console.log('SCORM: Unit completed');
+            // Handle completion logic here
+        } else if (data.unit_status === 'incomplete') {
+            console.log('SCORM: Unit incomplete');
+            // Handle incomplete logic here
+        }
+    } catch (error) {
+        console.error('SCORM: Error parsing progress response', error);
     }
-});
+}
 
-// Handle focus loss
-window.addEventListener('blur', function() {
-    if (window.API && window.API.LMSCommit) {
-        console.log('SCORM: Window lost focus, committing progress...');
-        window.API.LMSCommit('');
-    }
-});
 </script>
 {% endblock %}

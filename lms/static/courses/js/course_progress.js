@@ -37,6 +37,7 @@ function initCourseProgress() {
     }
     
     if (!courseId) {
+        console.log('Course ID not found:', {
             'course-data': document.getElementById('course-data'),
             'course-container': document.querySelector('.course-container')
         });

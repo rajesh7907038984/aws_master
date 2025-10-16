@@ -243,15 +243,8 @@
     <script src="{% static 'core/js/chart-initializer.js' %}"></script>
     <!-- user-progress-chart.js removed - causing syntax errors -->
     
-    <!-- Tailwind and Alpine.js -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        // Suppress Tailwind production warning
-        if (typeof tailwind !== 'undefined') {
-            tailwind.config = tailwind.config || {};
-            tailwind.config.silent = true;
-        }
-    </script>
+    <!-- Tailwind CSS - Use compiled version instead of CDN -->
+    <link href="{% static 'css/tailwind.min.css' %}" rel="stylesheet" type="text/css">
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     
     <!-- Font Awesome -->
