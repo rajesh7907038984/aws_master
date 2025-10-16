@@ -1531,9 +1531,13 @@
                             <span class="activity-type-label activity-type-conference">CNF {{ activity.activity_number }}</span>
                             <div class="activity-title">{{ activity.title|truncatechars:15 }}</div>
                             {% if activity.max_score > 0 %}
-                      <div class="activity-points">{{ activity.max_score }} pts</div>
-                    {% else %}
-                      <div class="activity-points">Attendance</div>
+                              <div class="activity-points">{{ activity.max_score }} pts</div>
+                            {% else %}
+                              <div class="activity-points">Attendance</div>
+                            {% endif %}
+                          {% endif %}
+                        {% endif %}
+                      {% endif %}
                     {% endif %}
                   {% endif %}
                 </th>
@@ -1602,7 +1606,7 @@
                           </div>
                         {% endif %}
                         
-                      {% else %}{% if activity.type == 'quiz' %}
+                      {% elif activity.type == 'quiz' %}
                         {% if score_data.score is not None %}
                           <div class="submission-date">
                             {{ score_data.date|date:"M d, Y" }}
@@ -1641,12 +1645,11 @@
                             </a>
                           </div>
                         {% endif %}
-                        {% endif %}
                         
-                      {% else %}{% if activity.type == 'initial_assessment' %}
+                      {% elif activity.type == 'initial_assessment' %}
                         {% if not activity.object.is_active %}
                           <span class="grade-score grade-unpublished">Inactive</span>
-                        {% else %}{% if score_data.score is not None %}
+                        {% elif score_data.score is not None %}
                           <div class="submission-date">
                             {{ score_data.date|date:"M d, Y" }}
                           </div>
@@ -1678,9 +1681,8 @@
                             </a>
                           {% endif %}
                         {% endif %}
-                        {% endif %}
                         
-                      {% else %}{% if activity.type == 'discussion' %}
+                      {% elif activity.type == 'discussion' %}
                         {% if score_data.score is not None %}
                           <div class="submission-date">
                             {{ score_data.date|date:"M d, Y" }}
@@ -1714,7 +1716,7 @@
                               VIEW
                             </a>
                           {% endif %}
-                        {% else %}{% if activity.max_score > 0 %}
+                        {% elif activity.max_score > 0 %}
                           {% has_student_participation activity student.id as has_participation %}
                           {% if has_participation %}
                             <span class="grade-score grade-none">Not Evaluated</span>
@@ -1736,9 +1738,8 @@
                         {% else %}
                           <span class="grade-score grade-none">No Activity</span>
                         {% endif %}
-                        {% endif %}
                         
-                      {% else %}{% if activity.type == 'conference' %}
+                      {% elif activity.type == 'conference' %}
                         {% if score_data.score is not None %}
                           <div class="submission-date">
                             {{ score_data.date|date:"M d, Y" }}
@@ -1775,7 +1776,7 @@
                               </a>
                             {% endif %}
                           {% endif %}
-                        {% else %}{% if activity.max_score > 0 %}
+                        {% elif activity.max_score > 0 %}
                           {% has_student_participation activity student.id as has_participation %}
                           {% if has_participation %}
                             <span class="grade-score grade-none">Not Evaluated</span>
@@ -1843,7 +1844,7 @@
                               </div>
                             </div>
                           </div>
-                        {% else %}{% if score_data.success_status == 'failed' %}
+                        {% elif score_data.success_status == 'failed' %}
                           <!-- Show failed status with score if available -->
                           <div class="submission-date">
                             {{ score_data.date|date:"M d, Y" }}
@@ -1859,8 +1860,7 @@
                                 RETRY
                               </a>
                             {% endif %}
-                          {% endif %}
-                        {% else %}{% if score_data.in_progress or score_data.has_bookmark %}
+                        {% elif score_data.in_progress or score_data.has_bookmark %}
                           <!-- ENHANCED: Show resume button for learners who have started but not passed -->
                           <div class="submission-date">
                             {{ score_data.date|date:"M d, Y" }}
@@ -1881,7 +1881,6 @@
                               </div>
                             </div>
                             {% endif %}
-                          {% endif %}
                         {% else %}
                           {% if user.role == 'learner' %}
                             <span class="grade-score grade-none" style="color: #6c757d;">Not Started</span>
@@ -1898,6 +1897,11 @@
                           {% else %}
                             <span class="grade-score grade-none">-</span>
                           {% endif %}
+                        {% endif %}
+                        {% endif %}
+                        {% endif %}
+                        {% endif %}
+                        {% endif %}
                         {% endif %}
                         
                         {% if score_data.score is not None %}
@@ -1939,7 +1943,7 @@
                               {% endif %}
                             </div>
                           </div>
-                        {% else %}{% if score_data.success_status == 'failed' %}
+                        {% elif score_data.success_status == 'failed' %}
                           <!-- Show failed status with score if available -->
                           <div class="submission-date">
                             {{ score_data.date|date:"M d, Y" }}
@@ -1956,7 +1960,7 @@
                               RETRY
                             </a>
                           {% endif %}
-                        {% else %}{% if score_data.in_progress or score_data.has_bookmark %}
+                        {% elif score_data.in_progress or score_data.has_bookmark %}
                           <!-- Show resume button for learners who have started but not passed -->
                           <span class="grade-score grade-none">In Progress</span>
                           {% if user.role == 'learner' %}
@@ -1989,11 +1993,11 @@
                       </div>
                       {% if total_data.percentage >= 90 %}
                         <div class="grade-score grade-excellent total-percentage">{{ total_data.percentage|floatformat:1 }}%</div>
-                      {% else %}{% if total_data.percentage >= 80 %}
+                      {% elif total_data.percentage >= 80 %}
                         <div class="grade-score grade-good total-percentage">{{ total_data.percentage|floatformat:1 }}%</div>
-                      {% else %}{% if total_data.percentage >= 70 %}
+                      {% elif total_data.percentage >= 70 %}
                         <div class="grade-score grade-average total-percentage">{{ total_data.percentage|floatformat:1 }}%</div>
-                      {% else %}{% if total_data.percentage >= 60 %}
+                      {% elif total_data.percentage >= 60 %}
                         <div class="grade-score grade-poor total-percentage">{{ total_data.percentage|floatformat:1 }}%</div>
                       {% else %}
                         <div class="grade-score grade-poor total-percentage">{{ total_data.percentage|floatformat:1 }}%</div>
@@ -2074,7 +2078,7 @@
                   <li class="page-item active">
                     <span class="page-link">{{ num }}</span>
                   </li>
-                {% else %}{% if num > students_page.number|add:'-3' and num < students_page.number|add:'3' %}
+                {% elif num > students_page.number|add:'-3' and num < students_page.number|add:'3' %}
                   <li class="page-item">
                     <a class="page-link" href="?page={{ num }}">{{ num }}</a>
                   </li>
