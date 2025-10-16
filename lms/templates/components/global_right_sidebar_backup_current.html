@@ -3,14 +3,14 @@
 <!-- Right Column - Dashboard Sidebar -->
 <div class="sticky top-20">
     <!-- Toggle Button -->
-    <button id="rightSidebarToggle" class="fixed right-0 top-24 w-6 h-6 bg-[#1C2260] rounded-full flex items-center justify-center shadow-lg border border-gray-600 hover:bg-[#232a75] transition-all z-[999]">                                 
-        <svg id="expandIcon" class="w-4 h-4 text-white transform transition-transform hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">            
+    <button id="rightSidebarToggle" class="fixed right-0 top-24 w-6 h-6 bg-primary rounded-full flex items-center justify-center shadow-lg border border-gray-600 hover:bg-primary-hover transition-all z-[999]">                                 
+        <svg id="expandIcon" class="w-4 h-4 text-white transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="display: block;">            
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7"></path>                                     
         </svg>
-        <svg id="collapseIcon" class="w-4 h-4 text-white transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">                 
+        <svg id="collapseIcon" class="w-4 h-4 text-white transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="display: none;">                 
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7"></path>                                         
-        </svg>
-    </button>
+                </svg>
+            </button>
 
     <div id="rightSidebar" class="space-y-6 transition-all duration-300 relative">                                                                              
         
@@ -22,7 +22,7 @@
                     Activity Calendar
                 </h3>
                 <span class="dashboard-card-subtitle">Recently Updated</span>
-            </div>
+        </div>
             
             <div class="dashboard-card-content">
                 <!-- Mini Calendar View -->
@@ -59,7 +59,7 @@
                         <div class="activity-item">
                             <div class="activity-icon bg-blue-100">
                                 <i class="fas fa-{{ activity.icon|default:'calendar' }} text-blue-600"></i>                                                     
-                            </div>
+            </div>
                             <div class="activity-details">
                                 <div class="activity-name">{{ activity.title|truncatechars:20 }}</div>                                                          
                                 <div class="activity-time">{{ activity.date|date:"M d, Y" }}</div>                                                              
@@ -87,7 +87,7 @@
             </div>
             
             <div class="dashboard-card-content">
-                <!-- Quick Stats -->
+            <!-- Quick Stats -->
                 <div class="todo-stats">
                     <div class="stat-item">
                         <span class="stat-number">{{ total_todos|default:0 }}</span>                                                                            
@@ -117,8 +117,8 @@
                                         <span class="sidebar-notification-dot">
                                             <i class="fas fa-bell"></i>
                                         </span>
-                                    {% endif %}
-                                </div>
+                        {% endif %}
+                        </div>
                                 <div class="todo-meta">
                                     <span class="todo-type {% if task.type == 'message' or task.type == 'feedback' or task.type == 'conference' %}notification-type{% endif %}">                                                                
                                         {% if task.type == 'message' %}
@@ -131,11 +131,11 @@
                                             <i class="fas fa-file-alt"></i> Deadline                                                                            
                                         {% else %}
                                             {{ task.type|default:'Task' }}
-                                        {% endif %}
+                    {% endif %}
                                     </span>
                                     <span class="todo-due">{{ task.due_date|date:"M d"|default:'No due date' }}</span>                                          
-                                </div>
-                            </div>
+                </div>
+            </div>
                             <div class="todo-actions">
                                 <a href="{{ task.url|default:'#' }}" class="todo-link">                                                                         
                                     <i class="fas fa-arrow-right"></i>
@@ -148,9 +148,9 @@
                             <p>No recent tasks</p>
                         </div>
                         {% endfor %}
-                    </div>
                 </div>
-                
+            </div>
+
 
             </div>
         </div>
@@ -267,7 +267,7 @@
         position: absolute;
         top: 2px;
         right: 2px;
-        width: 4px;
+    width: 4px;
         height: 4px;
         background: #ef4444;
         border-radius: 50%;
@@ -399,7 +399,7 @@
     }
     
     .todo-item:hover {
-        background: #f1f5f9;
+    background: #f1f5f9;
         transform: translateX(2px);
     }
     
@@ -415,7 +415,7 @@
     .todo-priority {
         width: 4px;
         height: 100%;
-        border-radius: 2px;
+    border-radius: 2px;
         flex-shrink: 0;
         min-height: 2.5rem;
     }
@@ -540,52 +540,117 @@
         margin: 0;
     }
 
-    /* Sidebar Toggle Styles */
+    /* Sidebar Toggle Styles - Fixed and Simplified */
+    #rightSidebar {
+        transform: translateX(0);
+        transition: transform 0.3s ease-in-out, opacity 0.3s ease-in-out, visibility 0.3s ease-in-out;
+    }
+
     #rightSidebar.collapsed {
         transform: translateX(100%);
         opacity: 0;
         visibility: hidden;
-        margin-right: -100%;
     }
 
-    #rightSidebar {
-        transform: translateX(0);
-        transition: transform 0.3s ease-in-out, opacity 0.3s ease-in-out, visibility 0.3s ease-in-out;                                                          
-    }
-
+    /* Toggle Button Styles - Fixed */
     #rightSidebarToggle {
         cursor: pointer;
+        position: fixed;
+        right: 0;
+        top: 6rem;
+        width: 1.5rem;
+        height: 1.5rem;
+        background: #1C2260;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 999;
+        transition: all 0.3s ease;
         transform: translateX(-50%);
-        transition: all 0.3s ease-in-out;
     }
 
     #rightSidebarToggle:hover {
         background-color: #232a75;
+        transform: translateX(-50%) scale(1.1);
     }
 
-    #rightSidebar.collapsed ~ #rightSidebarToggle {
-        transform: translateX(0);
+    /* Icon Management - Simplified and Fixed */
+    #rightSidebarToggle #expandIcon {
+        display: block;
+        opacity: 1;
+        transition: opacity 0.3s ease;
     }
 
+    #rightSidebarToggle #collapseIcon {
+        display: none;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    }
+
+    /* When sidebar is collapsed, show expand icon */
     #rightSidebar.collapsed ~ #rightSidebarToggle #expandIcon {
         display: block;
+        opacity: 1;
     }
 
     #rightSidebar.collapsed ~ #rightSidebarToggle #collapseIcon {
         display: none;
+        opacity: 0;
     }
 
+    /* When sidebar is expanded, show collapse icon */
     #rightSidebar:not(.collapsed) ~ #rightSidebarToggle #expandIcon {
         display: none;
+        opacity: 0;
     }
 
     #rightSidebar:not(.collapsed) ~ #rightSidebarToggle #collapseIcon {
         display: block;
+        opacity: 1;
+    }
+    
+    /* Icon Styles */
+    #rightSidebarToggle svg {
+        width: 1rem;
+        height: 1rem;
+        color: white;
+        stroke: white;
+        fill: none;
     }
 
+    /* Responsive Behavior - Fixed */
     @media (max-width: 1024px) {
         #rightSidebarToggle {
             display: none;
+            visibility: hidden;
+            opacity: 0;
+        }
+        
+        #rightSidebar {
+            display: none;
+            visibility: hidden;
+            opacity: 0;
+            transform: translateX(100%);
+        }
+        
+        #main-content {
+            margin-right: 0;
+        }
+    }
+    
+    @media (min-width: 1025px) {
+        #rightSidebarToggle {
+            display: flex;
+            visibility: visible;
+            opacity: 1;
+        }
+        
+        #rightSidebar {
+            display: block;
+            visibility: visible;
+            opacity: 1;
+            transform: translateX(0);
         }
     }
 </style>
@@ -596,44 +661,55 @@ document.addEventListener('DOMContentLoaded', function() {
     const rightToggleBtn = document.getElementById('rightSidebarToggle');
     const expandIcon = document.getElementById('expandIcon');
     const collapseIcon = document.getElementById('collapseIcon');
-    const mainContent = document.querySelector('.lg\\:col-span-8');
+    const mainContent = document.getElementById('main-content');
+    
+    // Check if all required elements exist
+    if (!rightSidebar || !rightToggleBtn || !expandIcon || !collapseIcon) {
+        console.warn('Right sidebar elements not found, skipping initialization');
+        return;
+    }
     
     // Check for saved state, default to collapsed if no saved state
     const savedState = localStorage.getItem('rightSidebarCollapsed');
     const isCollapsed = savedState === null ? true : savedState === 'true';
     
-    // Set initial state
+    // Set initial state - Fixed
     if (isCollapsed) {
         rightSidebar.classList.add('collapsed');
         if (mainContent) {
-            mainContent.classList.remove('lg:col-span-8');
-            mainContent.classList.add('lg:col-span-12');
+            mainContent.style.marginRight = '0';
+            mainContent.style.width = 'calc(100% - 16rem)'; // Account for left sidebar
         }
-        expandIcon.classList.remove('hidden');
-        collapseIcon.classList.add('hidden');
+    } else {
+        rightSidebar.classList.remove('collapsed');
+        if (mainContent) {
+            mainContent.style.marginRight = '20rem';
+            mainContent.style.width = 'calc(100% - 36rem)'; // Account for both sidebars
+        }
     }
     
     // Save default state if not previously saved
     if (savedState === null) {
         localStorage.setItem('rightSidebarCollapsed', 'true');
     }
-
-    // Toggle functionality
+    
+    // Toggle functionality - Fixed
     rightToggleBtn.addEventListener('click', function() {
         rightSidebar.classList.toggle('collapsed');
         
-        // Toggle icons
-        expandIcon.classList.toggle('hidden');
-        collapseIcon.classList.toggle('hidden');
-        
-        // Toggle main content width
+        // Toggle main content margin with proper calculation
         if (mainContent) {
-            mainContent.classList.toggle('lg:col-span-8');
-            mainContent.classList.toggle('lg:col-span-12');
+            if (rightSidebar.classList.contains('collapsed')) {
+                mainContent.style.marginRight = '0';
+                mainContent.style.width = 'calc(100% - 16rem)'; // Account for left sidebar
+            } else {
+                mainContent.style.marginRight = '20rem';
+                mainContent.style.width = 'calc(100% - 36rem)'; // Account for both sidebars
+            }
         }
         
         // Save state
-        localStorage.setItem('rightSidebarCollapsed', rightSidebar.classList.contains('collapsed'));                                                            
+        localStorage.setItem('rightSidebarCollapsed', rightSidebar.classList.contains('collapsed'));
     });
     
     // Dashboard refresh functionality - refresh data every 5 minutes
@@ -646,5 +722,60 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Initial refresh after 2 seconds
     setTimeout(refreshDashboardData, 2000);
+    
+    // Handle window resize with improved responsive behavior - Fixed
+    window.addEventListener('resize', function() {
+        const isDesktop = window.innerWidth >= 1025;
+        const isTablet = window.innerWidth >= 768 && window.innerWidth < 1025;
+        const isMobile = window.innerWidth < 768;
+        
+        if (isMobile) {
+            // Mobile: Hide both sidebars
+            rightSidebar.style.display = 'none';
+            rightSidebar.style.visibility = 'hidden';
+            rightSidebar.style.opacity = '0';
+            rightToggleBtn.style.display = 'none';
+            rightToggleBtn.style.visibility = 'hidden';
+            rightToggleBtn.style.opacity = '0';
+            if (mainContent) {
+                mainContent.style.marginRight = '0';
+                mainContent.style.marginLeft = '0';
+                mainContent.style.width = '100%';
+            }
+        } else if (isTablet) {
+            // Tablet: Show left sidebar, hide right sidebar
+            rightSidebar.style.display = 'none';
+            rightSidebar.style.visibility = 'hidden';
+            rightSidebar.style.opacity = '0';
+            rightToggleBtn.style.display = 'none';
+            rightToggleBtn.style.visibility = 'hidden';
+            rightToggleBtn.style.opacity = '0';
+            if (mainContent) {
+                mainContent.style.marginRight = '0';
+                mainContent.style.marginLeft = '16rem';
+                mainContent.style.width = 'calc(100% - 16rem)';
+            }
+        } else if (isDesktop) {
+            // Desktop: Show right sidebar and toggle button
+            rightSidebar.style.display = 'block';
+            rightSidebar.style.visibility = 'visible';
+            rightSidebar.style.opacity = '1';
+            rightToggleBtn.style.display = 'flex';
+            rightToggleBtn.style.visibility = 'visible';
+            rightToggleBtn.style.opacity = '1';
+            
+            // Restore margin and width based on collapsed state
+            if (mainContent) {
+                if (rightSidebar.classList.contains('collapsed')) {
+                    mainContent.style.marginRight = '0';
+                    mainContent.style.width = 'calc(100% - 16rem)';
+                } else {
+                    mainContent.style.marginRight = '20rem';
+                    mainContent.style.width = 'calc(100% - 36rem)';
+                }
+                mainContent.style.marginLeft = '16rem'; // Always account for left sidebar
+            }
+        }
+    });
 });
 </script>
