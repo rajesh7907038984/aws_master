@@ -230,7 +230,7 @@ class SyncConfiguration:
         rules = self.get_sync_rules(model_type)
         return rules.get('conflict_resolution', 'latest_wins')
     
-    def validate_data(self, model_type: str, data: Dict) -> tuple[bool, List[str]]:
+    def validate_data(self, model_type: str, data: Dict) -> Tuple[bool, List[str]]:
         """
         Validate data before sync
         
@@ -369,7 +369,7 @@ class SyncConfigurationManager:
         return SyncConfiguration(integration)
     
     @staticmethod
-    def validate_sync_request(integration_id: int, model_type: str, operation: str, data: Dict = None) -> tuple[bool, List[str]]:
+    def validate_sync_request(integration_id: int, model_type: str, operation: str, data: Dict = None) -> Tuple[bool, List[str]]:
         """
         Validate a sync request
         

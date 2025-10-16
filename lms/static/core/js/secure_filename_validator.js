@@ -35,7 +35,6 @@ class SecureFilenameValidator {
             'video': new Set(['.mp4', '.webm']),
             'audio': new Set(['.mp3', '.wav', '.ogg', '.m4a', '.aac', '.flac']),
             'archive': new Set(['.zip', '.rar', '.7z', '.tar', '.gz']),
-            'scorm': new Set(['.zip']),
             'general': null
         };
         

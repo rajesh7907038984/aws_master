@@ -38,7 +38,6 @@ class EnhancedCsrfMiddleware(CsrfViewMiddleware):
     def _should_skip_csrf(self, request):
         """Determine if CSRF should be skipped for this request"""
         skip_paths = [
-            '/scorm/api/',  # SCORM API endpoints
             '/api/',        # API endpoints
             '/admin/',      # Admin interface
         ]

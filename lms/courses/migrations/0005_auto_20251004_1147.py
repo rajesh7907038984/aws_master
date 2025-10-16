@@ -19,6 +19,6 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='topic',
             name='content_type',
-            field=models.CharField(choices=[('SCORM', 'SCORM Package'), ('Video', 'Video'), ('Document', 'Document'), ('Text', 'Text'), ('Audio', 'Audio'), ('Web', 'Web Content'), ('Quiz', 'Quiz'), ('Assignment', 'Assignment'), ('EmbedVideo', 'Embedded Video'), ('Conference', 'ILT/Conference'), ('Discussion', 'Discussion')], max_length=20),
+            field=models.CharField(choices=[('video', 'Video'), ('audio', 'Audio'), ('document', 'Document'), ('text', 'Text'), ('quiz', 'Quiz'), ('assignment', 'Assignment')], default='text', max_length=20),
         ),
     ]

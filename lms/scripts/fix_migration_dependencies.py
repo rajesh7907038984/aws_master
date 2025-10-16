@@ -205,7 +205,6 @@ class MigrationDependencyFixer:
             'reports',
             'account_settings',
             'sharepoint_integration',
-            # 'scorm_cloud',  # Removed - using new SCORM implementation
             'tinymce_editor',
             'admin_dashboard',
             'individual_learning_plan',

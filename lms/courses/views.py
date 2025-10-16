@@ -100,6 +100,10 @@ logger = logging.getLogger(__name__)
 @csrf_protect
 def course_manage(request: HttpRequest) -> HttpResponse:
     """Handle course creation for all roles."""
+    # Check if user has permission to create courses
+    if request.user.role not in ['instructor', 'admin', 'superadmin', 'globaladmin']:
+        return HttpResponseForbidden("You don't have permission to create courses")
+    
     # Generate a sequential course code
     last_course = Course.objects.order_by('-id').first()
     next_id = (last_course.id + 1) if last_course else 1
@@ -124,7 +128,7 @@ def course_manage(request: HttpRequest) -> HttpResponse:
     # Ensure the course creator is enrolled in the course
     # This is important for branch admins and other non-instructor roles
     from core.utils.enrollment import EnrollmentService
-    EnrollmentService.create_or_get_enrollment(
+    enrollment, created, message = EnrollmentService.create_or_get_enrollment(
         user=request.user,
         course=course,
         source='manual'
@@ -1350,7 +1354,6 @@ def course_view(request, course_id):
     
     return render(request, 'courses/course_details.html', context)
 
-
 @login_required
 def debug_course_permissions(request, course_id):
     """Debug view to check course permissions for troubleshooting"""
@@ -1427,6 +1430,12 @@ def course_edit(request, course_id):
         course = Course.objects.get(id=course_id)
     except Course.DoesNotExist:
         logger.info(f"Course edit attempted for non-existent course ID: {course_id} by user {request.user.username} - redirecting to create new course")
+        
+        # Check if user has permission to create courses
+        if request.user.role not in ['instructor', 'admin', 'superadmin', 'globaladmin']:
+            messages.error(request, "You don't have permission to create courses.")
+            return redirect('courses:course_list')
+        
         messages.info(request, f"Course with ID {course_id} does not exist. Creating a new course...")
         # Create a new course with the requested ID instead of redirecting
         try:
@@ -2344,14 +2353,6 @@ def mark_topic_complete(request, topic_id):
         progress.progress_data['completed'] = True
         progress.progress_data['completed_at'] = timezone.now().isoformat()
     
-    # CRITICAL FIX: For SCORM content, explicitly sync score before marking complete
-    # This ensures the gradebook reflects the learner's score
-    if topic.content_type == 'SCORM':
-        score_synced = progress.sync_scorm_score()
-        if score_synced:
-            logger.info(f" SCORM Score synced for topic {topic_id} before marking complete (score: {progress.last_score})")
-        else:
-            logger.warning(f"  No SCORM score found to sync for topic {topic_id}")
     
     # Use the mark_complete method instead of manually setting fields
     # This ensures all necessary fields and completion_data are updated
@@ -2885,7 +2886,6 @@ def update_video_progress(request, topic_id):
         traceback.print_exc()
         return JsonResponse({'error': str(e)}, status=500)
 
-
 @login_required
 def like_item(request, topic_id, item_type, item_id):
     """Toggle like status for discussions, comments, and replies"""
@@ -3393,13 +3393,7 @@ def topic_edit(request, topic_id, section_id=None):
             discussion_id = form_data.get('discussion')
             if discussion_id:
                 topic.discussion_id = discussion_id
-        elif content_type == 'scorm':
-            # SCORM packages are typically not replaced after creation
-            # But we allow metadata updates (title, description, etc.)
-            # File upload is only allowed during creation, not edit
-            if 'content_file' in files:
-                logger.warning(f"SCORM file upload attempted during edit for topic {topic_id} - ignoring")
-                messages.warning(request, "SCORM packages cannot be replaced after creation.")
+        # removed content type removed
         
         # Handle section assignment
         new_section_name = form_data.get('new_section_name')
@@ -3501,7 +3495,6 @@ def topic_edit(request, topic_id, section_id=None):
         ('Document', 'Document'),
         ('Quiz', 'Quiz'),
         ('Assignment', 'Assignment'),
-        ('SCORM', 'SCORM Package'),
         ('Conference', 'Conference'),
         ('Discussion', 'Discussion'),
     ]
@@ -4704,7 +4697,6 @@ def course_create(request):
             
             # ... rest of existing code ...
 
-
 @login_required
 @require_http_methods(["POST"])
 def api_topic_reorder(request):
@@ -5095,7 +5087,6 @@ def api_topic_move(request):
             'error': str(e)
         }, status=500)
 
-
 @login_required
 def course_users(request, course_id):
     """View to display and manage users enrolled in a course with proper role categorization"""
@@ -5440,44 +5431,7 @@ def get_course_progress(request, course_id):
     
     # Check cache first using centralized cache manager
     try:
-        from scorm.cache_utils import ScormCacheManager
-        cache_key = ScormCacheManager.get_course_progress_key(course_id, request.user.id)
-        cached_result = ScormCacheManager.get_or_none(cache_key)
-        if cached_result:
-            logger.debug(f"Cache hit for course progress: {cache_key}")
-            return JsonResponse(cached_result)
-    except ImportError as e:
-        logger.warning(f"Cache manager not available: {str(e)}")
-        # Continue without cache
-    except Exception as e:
-        logger.warning(f"Cache lookup error for course {course_id}: {str(e)}")
-        # Continue without cache on error
-    
-    # Get progress information
-    try:
-        # Get all topics for this course with optimized query
-        course_topics = CourseTopic.objects.filter(course=course).select_related('topic').prefetch_related('topic__topicprogress_set')
-        topics_data = []
-        
-        # Get overall course progress
-        total_topics = course_topics.count()
-        if total_topics == 0:
-            result = {
-                'success': True,
-                'overall_progress': 0,
-                'completed_topics': 0,
-                'total_topics': 0,
-                'topics': []
-            }
-            # Cache the result using centralized cache manager
-            try:
-                from scorm.cache_utils import ScormCacheManager
-                ScormCacheManager.set_with_timeout(cache_key, result, ScormCacheManager.TIMEOUT_SHORT)
-            except ImportError as e:
-                logger.warning(f"Cache manager not available for setting: {str(e)}")
-            except Exception as cache_error:
-                logger.warning(f"Cache set error: {cache_error}")
-            return JsonResponse(result)
+        pass
             
         # Get or create enrollment for this user
         enrollment, created, message = EnrollmentService.create_or_get_enrollment(
@@ -5559,10 +5513,8 @@ def get_course_progress(request, course_id):
         
         # Cache the result using centralized cache manager
         try:
-            from scorm.cache_utils import ScormCacheManager
-            ScormCacheManager.set_with_timeout(cache_key, result, ScormCacheManager.TIMEOUT_SHORT)
-        except ImportError as e:
-            logger.warning(f"Cache manager not available for setting: {str(e)}")
+            # Cache functionality removed - no longer needed
+            pass
         except Exception as cache_error:
             logger.warning(f"Cache set error for course {course_id}: {cache_error}")
         
@@ -6065,7 +6017,6 @@ def course_bulk_enroll(request, course_id):
                  logger.error(f"Invalid user ID format: {e}")
                  return JsonResponse({'success': False, 'message': 'Invalid user ID format.'}, status=400)
 
-
             # Get already enrolled users to avoid duplicates
             enrolled_user_ids = CourseEnrollment.objects.filter(
                 course=course,
@@ -6102,14 +6053,12 @@ def course_bulk_enroll(request, course_id):
                  missing_ids = set(new_user_ids) - found_user_ids
                  logger.warning(f"Some users not found or inactive: {len(missing_ids)} users")
 
-
             if not users_to_enroll:
                 logger.warning("No valid users found to enroll")
                 return JsonResponse({
                     'success': False,
                     'message': 'No valid users found to enroll (might be inactive or not in branch).'
                 }, status=400)
-
 
             from groups.models import BranchGroup, GroupMembership, GroupMemberRole, CourseGroupAccess
             
@@ -6348,7 +6297,6 @@ def toggle_topic_status(request, topic_id):
     except Exception as e:
         logger.error(f"Error toggling topic status: {str(e)}")
         return JsonResponse({'success': False, 'error': str(e)}, status=500)
-
 
 @require_POST
 
@@ -7098,5 +7046,4 @@ def get_user_filtered_content(user, course=None, request=None):
         'conferences': conferences.distinct(),
         'discussions': discussions.distinct()
     }
-
 

@@ -6,10 +6,16 @@ from django.conf import settings
 logger = logging.getLogger(__name__)
 
 class Command(BaseCommand):
-    help = 'Ensures all necessary media directories exist with proper permissions'
+    help = 'Ensures all necessary media directories exist with proper permissions (S3-compatible)'
 
     def handle(self, *args, **options):
-        # List of directories to ensure exist
+        # Check if using S3 storage
+        if settings.MEDIA_ROOT is None:
+            self.stdout.write(self.style.WARNING('Using S3 storage - no local directories to create'))
+            self.stdout.write('Media files are stored in S3 bucket: {}'.format(getattr(settings, 'AWS_STORAGE_BUCKET_NAME', 'Not configured')))
+            return
+        
+        # List of directories to ensure exist (only for local storage)
         directories = [
             os.path.join(settings.MEDIA_ROOT),
             os.path.join(settings.MEDIA_ROOT, 'temp'),

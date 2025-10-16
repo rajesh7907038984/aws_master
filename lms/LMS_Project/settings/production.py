@@ -117,7 +117,7 @@ DATABASES = {
         'NAME': get_env('AWS_DB_NAME', 'postgres'),
         'USER': get_env('AWS_DB_USER', 'lms_admin'),
         'PASSWORD': AWS_DB_PASSWORD,
-        'HOST': get_env('AWS_DB_HOST', 'lms-ec2-database.c1wwcwuwq2pa.eu-west-2.rds.amazonaws.com'),
+        'HOST': get_env('AWS_DB_HOST', required=True),
         'PORT': get_env('AWS_DB_PORT', '5432'),
         'OPTIONS': {
             'connect_timeout': 30,
@@ -160,13 +160,9 @@ SECURE_HSTS_SECONDS = 31536000
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True
 
-# Frame Options - Allow SAMEORIGIN for SCORM content (don't override view-level settings)
-# SCORM content needs SAMEORIGIN, non-SCORM content uses DENY
 # Let individual views control X-Frame-Options rather than applying globally
 # X_FRAME_OPTIONS = 'DENY'  # DISABLED - Let views control this
 
-# Exempt SCORM content from SSL redirect to prevent iframe resource loading issues
-SECURE_REDIRECT_EXEMPT = [r'^scorm/content/']
 
 # ==============================================
 # PRODUCTION MEDIA FILES CONFIGURATION
@@ -175,8 +171,8 @@ SECURE_REDIRECT_EXEMPT = [r'^scorm/content/']
 # AWS S3 Configuration for Production
 AWS_ACCESS_KEY_ID = get_env('AWS_ACCESS_KEY_ID')
 AWS_SECRET_ACCESS_KEY = get_env('AWS_SECRET_ACCESS_KEY')
-# Force the correct bucket name
-AWS_STORAGE_BUCKET_NAME = 'lms-staging-nexsy-io'
+# Get S3 bucket name from environment
+AWS_STORAGE_BUCKET_NAME = get_env('AWS_STORAGE_BUCKET_NAME', required=True)
 AWS_S3_REGION_NAME = 'eu-west-2'
 
 # Disable Transfer Acceleration to avoid signature mismatch errors with large uploads
@@ -322,8 +318,6 @@ ENABLE_EXTERNAL_NOTIFICATIONS = True
 ENABLE_PAYMENT_PROCESSING = True
 ENABLE_EXTERNAL_ANALYTICS = True
 
-# Enable SCORM worker auto-start for production
-SCORM_WORKER_AUTO_START = True
 
 # Set DEBUG for production - CRITICAL: Must be False in production
 DEBUG = False

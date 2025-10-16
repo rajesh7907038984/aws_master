@@ -171,7 +171,6 @@ document.addEventListener('DOMContentLoaded', function() {
     // Toggle visibility of content type specific fields
     function toggleContentFields(selectedType) {
         // Define content types that should hide the Instructions field
-        const hideInstructionsTypes = ['video', 'document', 'text', 'audio', 'web', 'embedvideo', 'scorm', 'quiz', 'assignment', 'conference', 'discussion'];
         
         // Handle Instructions field visibility
         const instructionsField = document.querySelector('label[for*="instructions"]').closest('div');
@@ -608,20 +607,15 @@ document.addEventListener('DOMContentLoaded', function() {
                         displayFieldError('embed_code', 'Embed code is required');
                         validationPassed = false;
                     }
-                } else if (['video', 'audio', 'document', 'scorm'].includes(contentTypeLower)) {
                     const fileInput = document.querySelector('#' + contentTypeLower + '-content input[type="file"]');
                     
                     // Check if editing existing topic
                     const isEdit = !!document.getElementById('edit_topic_id')?.value;
                     const hasExistingFile = document.querySelector('#' + contentTypeLower + '-content .selected-filename')?.textContent.includes('Current file:');
                     
-                    // Special handling for SCORM - prevent file replacement and support direct upload
-                    if (contentTypeLower === 'scorm') {
                         if (isEdit && hasExistingFile && fileInput && fileInput.files.length > 0) {
-                            displayFieldError('content_file', 'SCORM packages cannot be replaced once uploaded. Please create a new topic if you need to upload a different SCORM package.');
                             validationPassed = false;
                         }
-                        // For SCORM, file is optional (direct upload to cloud is supported)
                     } else {
                         // For other content types, file is required
                         if (!isEdit || (fileInput && fileInput.files.length > 0)) {
@@ -682,12 +676,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         }
                     }
                     
-                    // Special handling for SCORM uploads
                     let uploadUrl = topicForm.action;
-                    if (contentTypeLower === 'scorm') {
-                        // Use the SCORM upload endpoint for SCORM content
-                        uploadUrl = '/scorm/upload/topic/';
-                        console.log('Using SCORM upload endpoint:', uploadUrl);
                     }
                     
                     // Show loading state
@@ -709,7 +698,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     `;
                     
                     // Only show progress for file uploads
-                    if (['video', 'audio', 'document', 'scorm'].includes(contentTypeLower)) {
                         document.body.appendChild(progressContainer);
                     }
                     

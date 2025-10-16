@@ -44,7 +44,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 case 'Video':
                 case 'Audio':
                 case 'Document':
-                case 'SCORM':
                     fieldToShow = contentFileField;
                     break;
                 case 'Web':

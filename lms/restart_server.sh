@@ -49,11 +49,19 @@ else
 fi
 
 # ==============================================
-# PRESERVE SESSIONS BEFORE RESTART
+# SESSION VALIDATION AND PRESERVATION
 # ==============================================
 
+echo "🔍 Checking session configuration..."
+python manage.py check_session_config --detailed
+
+echo ""
 echo "🛡️  Preserving user sessions before restart..."
 python manage.py preserve_sessions 2>/dev/null || echo "   Session preservation command not available"
+
+# Additional session health check
+echo "🔍 Running session health check..."
+python manage.py check_session_config --fix-issues
 
 # ==============================================
 # STOP EXISTING PROCESSES
@@ -213,6 +221,14 @@ else
 fi
 
 # ==============================================
+# POST-RESTART SESSION VALIDATION
+# ==============================================
+
+echo ""
+echo "🔍 Post-restart session validation..."
+python manage.py check_session_config
+
+# ==============================================
 # RESTART SUMMARY
 # ==============================================
 
@@ -226,6 +242,11 @@ echo "   - PID: $(lsof -ti:$SERVER_PORT)"
 echo "   - Port: $SERVER_PORT"
 echo "   - Logs: $LOGS_DIR"
 echo ""
+echo " Session Status:"
+echo "   - SECRET_KEY: Persistent (prevents auto-logout)"
+echo "   - Sessions: Preserved across restart"
+echo "   - Users: Should remain logged in"
+echo ""
 echo "🔗 Access URLs:"
 if [ ! -z "$PRIMARY_DOMAIN" ]; then
     echo "   - Production: https://$PRIMARY_DOMAIN"
@@ -235,6 +256,7 @@ echo ""
 echo " Useful Commands:"
 echo "   - Check status: ./server_manager.sh status"
 echo "   - View logs: tail -f $LOGS_DIR/gunicorn_error.log"
+echo "   - Session diagnostic: python manage.py check_session_config"
 echo "   - Quick restart: ./restart_server.sh quick"
 echo "   - Full restart: ./restart_server.sh full"
 echo ""

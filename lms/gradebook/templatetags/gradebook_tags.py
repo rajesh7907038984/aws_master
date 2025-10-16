@@ -123,78 +123,10 @@ def get_item(dictionary, key):
         return None
 
 @register.simple_tag
-def get_scorm_topic(scorm_package):
-    """
-    Gets the Topic object associated with a native SCORM package
-    Usage: {% get_scorm_topic scorm_package as topic %}
-    """
-    try:
-        # Import here to avoid circular imports
-        from courses.models import Topic
-        
-        # For native SCORM, the package has a direct relationship with topic
-        if hasattr(scorm_package, 'topic'):
-            return scorm_package.topic
-        
-        # Fallback: try to find topic by matching SCORM content
-        topic = Topic.objects.filter(
-            content_type='SCORM',
-            scorm_package=scorm_package
-        ).first()
-        return topic
-    except Exception:
-        return None
-
-@register.simple_tag
-def has_scorm_progress(attempt):
-    """
-    Check if a SCORM attempt represents actual progress (not just an initial attempt)
-    Uses ScormAttempt model fields
-    """
-    if not attempt:
-        return False
-    
-    # Consider it progress if any of these conditions are met:
-    # 1. Has been accessed (last_accessed is set) - this indicates user actually opened the content
-    # 2. Has spent some time (more than 0 seconds) - this indicates user interaction
-    # 3. Lesson status is completed or passed - this indicates actual completion
-    # 4. Has a score_raw AND last_accessed (score without access suggests programmatic assignment)
-    
-    # First check: User actually accessed the content
-    if attempt.last_accessed:
-        return True
-    
-    # Second check: User spent time on the content
-    if attempt.total_time and attempt.total_time != '0000:00:00.00':
-        return True
-    
-    # Third check: Content is completed or passed (regardless of access time)
-    if attempt.lesson_status in ['completed', 'passed', 'failed']:
-        return True
-        
-    # Fourth check: Has a score_raw AND was accessed (prevents false positives from programmatic scores)
-    if attempt.score_raw and attempt.score_raw > 0 and attempt.last_accessed:
-        return True
-    
-    # Check if there's meaningful progress data that indicates actual user interaction
-    if attempt.cmi_data and isinstance(attempt.cmi_data, dict):
-        # Look for meaningful progress indicators that suggest user interaction
-        if attempt.cmi_data.get('progress', 0) > 0:
-            return True
-        if attempt.cmi_data.get('completion_percent', 0) > 0:
-            return True
-        # Only consider scorm_sync if there's also evidence of user interaction
-        if (attempt.cmi_data.get('scorm_sync', False) and 
-            (attempt.last_accessed or attempt.total_time != '0000:00:00.00')):
-            return True
-    
-    return False
-
-@register.simple_tag
-def get_activity_best_score(activity, student_id, grades, quiz_attempts, scorm_registrations=None):
+def get_activity_best_score(activity, student_id, grades, quiz_attempts):
     """
     Get the BEST score data for a specific activity and student (highest score achieved)
-    Usage: {% get_activity_best_score activity student.id grades quiz_attempts scorm_registrations as score_data %}
+    Usage: {% get_activity_best_score activity student.id grades quiz_attempts removed_registrations as score_data %}
     """
     try:
         from decimal import Decimal
@@ -432,255 +364,8 @@ def get_activity_best_score(activity, student_id, grades, quiz_attempts, scorm_r
                 'is_best_score': True
             }
             
-        elif activity['type'] == 'scorm':
-            # SCORM packages - check scorm_attempts for scores (using ScormAttempt model)
-            best_attempt = None
-            best_score = None
-            
-            if scorm_registrations:  # This is actually scorm_attempts in the context
-                for attempt in scorm_registrations:
-                    if (attempt.user_id == student_id and 
-                        attempt.scorm_package_id == activity['object'].id):
-                        
-                        # Use score_raw field from ScormAttempt model
-                        if attempt.score_raw is not None:
-                            if best_score is None or attempt.score_raw > best_score:
-                                best_score = attempt.score_raw
-                                best_attempt = attempt
-            
-            if best_attempt:
-                # Check if attempt has meaningful progress (check completion status)
-                has_progress = (
-                    best_attempt.last_accessed or
-                    best_attempt.lesson_status in ['completed', 'passed', 'failed', 'incomplete'] or
-                    best_attempt.score_raw is not None
-                )
-                
-                if has_progress:
-                    # Get SCORM package mastery score
-                    scorm_package = activity['object']
-                    mastery_score = float(scorm_package.mastery_score) if scorm_package.mastery_score else 70.0
-                    
-                    # Get user's achieved score from score_raw
-                    user_score = float(best_attempt.score_raw) if best_attempt.score_raw is not None else 0.0
-                    
-                    # Determine if user passed
-                    is_passed = user_score >= mastery_score
-                    
-                    return {
-                        'score': user_score,
-                        'max_score': 100.0,  # SCORM scores are always 0-100
-                        'date': best_attempt.last_accessed or best_attempt.started_at,
-                        'type': 'scorm',
-                        'object': activity['object'],
-                        'attempt': best_attempt,  # Changed from registration to attempt
-                        'mastery_score': mastery_score,      # Required passing score
-                        'user_achieved_score': user_score,   # User's total score
-                        'is_passed': is_passed,              # Did user pass?
-                        'lesson_status': best_attempt.lesson_status,
-                        'completion_status': best_attempt.completion_status,
-                        'is_best_score': True
-                    }
-                # If attempt exists but no progress, treat as not started and don't return attempt data
-                return {
-                    'score': None,
-                    'max_score': 100.0,
-                    'type': 'scorm',
-                    'object': activity['object'],
-                    'mastery_score': float(activity['object'].mastery_score) if activity['object'].mastery_score else 70.0,
-                    'user_achieved_score': None,
-                    'is_passed': False,
-                    'is_best_score': True
-                }
-            return {
-                'score': None,
-                'max_score': 100.0,
-                'type': 'scorm',
-                'object': activity['object'],
-                'mastery_score': float(activity['object'].mastery_score) if activity['object'].mastery_score else 70.0,
-                'user_achieved_score': None,
-                'is_passed': False,
-                'is_best_score': True
-            }
-            
-        elif activity['type'] == 'scorm_topic':
-            # SCORM topics - check TopicProgress for scores
-            from courses.models import TopicProgress
-            
-            topic_progress = TopicProgress.objects.filter(
-                topic=activity['object'],
-                user_id=student_id
-            ).first()
-            
-            if topic_progress and (topic_progress.last_score is not None or topic_progress.completed or topic_progress.attempts > 0 or topic_progress.last_accessed):
-                # Get SCORM package mastery score from the topic's SCORM package
-                mastery_score = 70.0  # Default mastery score
-                if hasattr(activity['object'], 'scorm_package') and activity['object'].scorm_package:
-                    mastery_score = float(activity['object'].scorm_package.mastery_score) if activity['object'].scorm_package.mastery_score else 70.0
-                
-                # Get user's achieved score
-                user_score = float(topic_progress.last_score) if topic_progress.last_score else 0.0
-                
-                # Determine if user passed
-                is_passed = user_score >= mastery_score
-                
-                return {
-                    'score': user_score,
-                    'max_score': 100.0,  # SCORM scores are always 0-100
-                    'date': topic_progress.last_accessed or topic_progress.created_at,
-                    'type': 'scorm_topic',
-                    'object': activity['object'],
-                    'topic_progress': topic_progress,
-                    'mastery_score': mastery_score,      # Required passing score
-                    'user_achieved_score': user_score,   # User's total score
-                    'is_passed': is_passed,              # Did user pass?
-                    'completed': topic_progress.completed,
-                    'attempts': topic_progress.attempts,
-                    'is_best_score': True
-                }
-            return {
-                'score': None,
-                'max_score': 100.0,
-                'type': 'scorm_topic',
-                'object': activity['object'],
-                'mastery_score': 70.0,  # Default mastery score
-                'user_achieved_score': None,
-                'is_passed': False,
-                'is_best_score': True
-            }
-        
-        return {'score': None, 'max_score': 0, 'type': 'unknown', 'is_best_score': True}
-        
-    except Exception as e:
-        return {'score': None, 'max_score': 0, 'type': 'error', 'error': str(e), 'is_best_score': True}
-
-@register.simple_tag
-def get_activity_score(activity, student_id, grades, quiz_attempts, scorm_registrations=None):
-    """
-    Get the score data for a specific activity and student
-    Usage: {% get_activity_score activity student.id grades quiz_attempts scorm_registrations as score_data %}
-    """
-    try:
-        from decimal import Decimal
-        student_id = int(student_id)
-        
-        if activity['type'] == 'assignment':
-            # Look for assignment grade for this student and assignment
-            for grade in grades:
-                if grade.student_id == student_id and grade.assignment_id == activity['object'].id:
-                    # Check if grade is excused
-                    if getattr(grade, 'excused', False):
-                        return {
-                            'score': None,
-                            'max_score': activity['max_score'],
-                            'excused': True,
-                            'date': grade.updated_at,
-                            'type': 'assignment',
-                            'object': activity['object'],
-                            'submission': grade.submission
-                        }
-                    else:
-                        # Check if submission is late for graded assignments too
-                        is_late = False
-                        assignment = activity['object']
-                        if grade.submission and assignment.due_date and grade.submission.submitted_at:
-                            is_late = grade.submission.submitted_at > assignment.due_date
-                        
-                        return {
-                            'score': grade.score,
-                            'max_score': activity['max_score'],
-                            'date': grade.updated_at,
-                            'type': 'assignment',
-                            'object': activity['object'],
-                            'submission': grade.submission,
-                            'is_late': is_late
-                        }
-            
-            # If no Grade record found, check for AssignmentSubmission directly
-            from assignments.models import AssignmentSubmission
-            submission = AssignmentSubmission.objects.filter(
-                assignment=activity['object'],
-                user_id=student_id
-            ).order_by('-submitted_at').first()
-            
-            if submission:
-                # Check if submission is late by comparing with assignment due date
-                is_late = False
-                assignment = activity['object']
-                if assignment.due_date and submission.submitted_at:
-                    is_late = submission.submitted_at > assignment.due_date
-                
-                # Update status to include late if applicable
-                status = submission.status
-                if is_late and status not in ['returned', 'excused'] and submission.grade is not None:
-                    status = 'late'
-                
-                # Return submission data even if not graded yet
-                return {
-                    'score': submission.grade,  # May be None if not graded
-                    'max_score': activity['max_score'],
-                    'date': submission.submitted_at,
-                    'type': 'assignment',
-                    'object': activity['object'],
-                    'submission': submission,
-                    'status': status,
-                    'is_late': is_late
-                }
-            
-            return {'score': None, 'max_score': activity['max_score'], 'type': 'assignment', 'object': activity['object']}
-            
-        elif activity['type'] == 'quiz':
-            # Look for quiz attempt for this student and quiz
-            latest_attempt = None
-            for attempt in quiz_attempts:
-                if attempt.user_id == student_id and attempt.quiz_id == activity['object'].id:
-                    if latest_attempt is None or (attempt.end_time or attempt.start_time) > (latest_attempt.end_time or latest_attempt.start_time):
-                        latest_attempt = attempt
-            
-            if latest_attempt:
-                # Check if quiz has a rubric and if there's a rubric evaluation
-                quiz = activity['object']
-                final_score = latest_attempt.score
-                score_source = 'auto'  # Default to auto calculation
-                max_score = activity['max_score']
-                
-                if quiz.rubric:
-                    try:
-                        # Import here to avoid circular imports
-                        from quiz.models import QuizRubricEvaluation
-                        
-                        # Check if there's a rubric evaluation for this attempt
-                        rubric_evaluations = QuizRubricEvaluation.objects.filter(
-                            quiz_attempt=latest_attempt
-                        )
-                        
-                        if rubric_evaluations.exists():
-                            # Calculate total rubric score (convert float to Decimal for consistency)
-                            rubric_total = sum(Decimal(str(evaluation.points)) for evaluation in rubric_evaluations)
-                            final_score = rubric_total
-                            score_source = 'rubric'
-                            # Use rubric total_points as max_score when rubric evaluation exists
-                            max_score = quiz.rubric.total_points
-                    except Exception as e:
-                        # If there's any error getting rubric evaluation, fall back to auto score
-                        pass
-                else:
-                    # For non-rubric quizzes, latest_attempt.score is a percentage (0-100)
-                    # Keep as percentage for consistent display
-                    final_score = latest_attempt.score
-                    max_score = 100
-                
-                return {
-                    'score': final_score,
-                    'max_score': max_score,
-                    'date': latest_attempt.end_time or latest_attempt.start_time,
-                    'type': 'quiz',
-                    'object': activity['object'],
-                    'attempt': latest_attempt,
-                    'score_source': score_source  # Track whether it's from rubric or auto calculation
-                }
-            return {'score': None, 'max_score': activity['max_score'], 'type': 'quiz', 'object': activity['object']}
-            
+        # removed activity type removed
+        # removed topic activity type removed
         elif activity['type'] == 'discussion':
             # Check for discussion rubric evaluations
             discussion = activity['object']
@@ -769,67 +454,70 @@ def get_activity_score(activity, student_id, grades, quiz_attempts, scorm_regist
                 'object': conference
             }
             
-        elif activity['type'] == 'scorm':
-            # SCORM packages - check scorm_attempts for scores (using ScormAttempt model)
-            if scorm_registrations:  # This is actually scorm_attempts in the context
-                for attempt in scorm_registrations:
-                    if attempt.scorm_package_id == activity['object'].id and attempt.user_id == student_id:
-                        # Check if attempt has meaningful progress
-                        has_progress = (
-                            attempt.last_accessed or
-                            attempt.lesson_status in ['completed', 'passed', 'failed', 'incomplete'] or
-                            attempt.score_raw is not None
+        # removed activity type removed
+        # removed topic activity type removed
+        elif activity['type'] == 'discussion':
+            # Look for discussion rubric evaluations
+            discussion = activity['object']
+            
+            if discussion.rubric:
+                try:
+                    # Import here to avoid circular imports
+                    from lms_rubrics.models import RubricEvaluation
+                    
+                    # Get all rubric evaluations for this discussion and student
+                    evaluations = RubricEvaluation.objects.filter(
+                        discussion=discussion,
+                        student_id=student_id
+                    )
+                    
+                    if evaluations.exists():
+                        # Calculate total score from rubric evaluations
+                        total_score = sum(Decimal(str(evaluation.points)) for evaluation in evaluations)
+                        total_earned += total_score
+                except Exception:
+                    # If there's any error getting discussion evaluations, continue without adding to total
+                    pass
+            
+            # Add total possible points for discussion
+            total_possible += activity_max_score
+        
+        elif activity['type'] == 'conference':
+            # Look for conference rubric evaluations
+            conference = activity['object']
+            
+            if conference.rubric:
+                try:
+                    # Import here to avoid circular imports
+                    from conferences.models import ConferenceRubricEvaluation, ConferenceAttendance
+                    
+                    # Get the attendance record for this student and conference
+                    attendance = ConferenceAttendance.objects.filter(
+                        conference=conference,
+                        user_id=student_id
+                    ).first()
+                    
+                    if attendance:
+                        # Get all rubric evaluations for this attendance
+                        evaluations = ConferenceRubricEvaluation.objects.filter(
+                            conference=conference,
+                            attendance=attendance
                         )
                         
-                        # Only return attempt data if there's actual progress
-                        if has_progress:
-                            # Get SCORM package mastery score
-                            scorm_package = activity['object']
-                            mastery_score = float(scorm_package.mastery_score) if scorm_package.mastery_score else 70.0
+                        if evaluations.exists():
+                            # Calculate total score from rubric evaluations
+                            total_score = sum(Decimal(str(evaluation.points)) for evaluation in evaluations)
+                            total_earned += total_score
+                except Exception:
+                    # If there's any error getting conference evaluations, continue without adding to total
+                    pass
+                    
+                    # Add total possible points for conference
+                    total_possible += activity_max_score
                             
-                            # Get user's achieved score from score_raw
-                            user_score = float(attempt.score_raw) if attempt.score_raw is not None else 0.0
-                            
-                            # Determine if user passed
-                            is_passed = user_score >= mastery_score
-                            
-                            return {
-                                'score': user_score,
-                                'max_score': 100.0,  # SCORM scores are always 0-100
-                                'date': attempt.last_accessed or attempt.started_at,
-                                'type': 'scorm',
-                                'object': activity['object'],
-                                'attempt': attempt,  # Changed from registration to attempt
-                                'mastery_score': mastery_score,      # Required passing score
-                                'user_achieved_score': user_score,   # User's total score
-                                'is_passed': is_passed,              # Did user pass?
-                                'completion_status': attempt.completion_status,
-                                'lesson_status': attempt.lesson_status,
-                                'in_progress': attempt.lesson_status == 'incomplete' and attempt.last_accessed is not None,
-                                'has_bookmark': bool(getattr(attempt, 'lesson_location', None))
-                            }
-                        # If attempt exists but no progress, treat as not started and don't return attempt data
-                        return {
-                            'score': None,
-                            'max_score': 100.0,
-                            'type': 'scorm',
-                            'object': activity['object'],
-                            'mastery_score': float(activity['object'].mastery_score) if activity['object'].mastery_score else 70.0,
-                            'user_achieved_score': None,
-                            'is_passed': False
-                        }
-            return {
-                'score': None,
-                'max_score': 100.0,
-                'type': 'scorm',
-                'object': activity['object'],
-                'mastery_score': float(activity['object'].mastery_score) if activity['object'].mastery_score else 70.0,
-                'user_achieved_score': None,
-                'is_passed': False
-            }
-            
-        elif activity['type'] == 'scorm_topic':
-            # SCORM topics - check TopicProgress for scores
+                # removed activity type removed
+        elif activity['type'] == 'removed_topic':
+            # Handle removed topics - check TopicProgress for scores
             try:
                 from courses.models import TopicProgress
                 
@@ -838,244 +526,23 @@ def get_activity_score(activity, student_id, grades, quiz_attempts, scorm_regist
                     user_id=student_id
                 ).first()
                 
-                if topic_progress and (topic_progress.last_score is not None or topic_progress.completed or topic_progress.attempts > 0 or topic_progress.last_accessed):
-                    # Get SCORM package mastery score from the topic's SCORM package
-                    mastery_score = 70.0  # Default mastery score
-                    if hasattr(activity['object'], 'scorm_package') and activity['object'].scorm_package:
-                        mastery_score = float(activity['object'].scorm_package.mastery_score) if activity['object'].scorm_package.mastery_score else 70.0
+                if topic_progress and topic_progress.last_score is not None:
+                    # Convert the score (typically 0-100) to a percentage of max_score
+                    score_percentage = Decimal(str(topic_progress.last_score)) / Decimal('100')
+                    activity_score = score_percentage * activity_max_score
                     
-                    # Get user's achieved score
-                    user_score = float(topic_progress.last_score) if topic_progress.last_score else 0.0
-                    
-                    # Determine if user passed
-                    is_passed = user_score >= mastery_score
-                    
-                    # Calculate completion status
-                    completion_status = 'completed' if topic_progress.completed else 'incomplete'
-                    
-                    return {
-                        'score': user_score,
-                        'max_score': 100.0,  # SCORM scores are always 0-100
-                        'date': topic_progress.last_accessed,
-                        'type': 'scorm_topic',
-                        'object': activity['object'],
-                        'topic_progress': topic_progress,
-                        'mastery_score': mastery_score,      # Required passing score
-                        'user_achieved_score': user_score,   # User's total score
-                        'is_passed': is_passed,              # Did user pass?
-                        'completion_status': completion_status,
-                        'completed': topic_progress.completed,
-                        'in_progress': not topic_progress.completed and topic_progress.last_accessed is not None,
-                        'has_bookmark': bool(topic_progress.progress_data and topic_progress.progress_data.get('lesson_location'))
-                    }
+                    # Add to total only if completed or has a passing score
+                    if topic_progress.completed or float(topic_progress.last_score) >= 70:
+                        total_earned += activity_score
             except Exception:
                 pass
             
-            return {
-                'score': None,
-                'max_score': 100.0,
-                'type': 'scorm_topic',
-                'object': activity['object'],
-                'mastery_score': 70.0,  # Default mastery score
-                'user_achieved_score': None,
-                'is_passed': False
-            }
-            
-    except (ValueError, AttributeError, TypeError):
-        return {'score': None, 'max_score': 0, 'type': 'unknown'}
-
-@register.simple_tag
-def calculate_student_total(student_id, activities, grades, quiz_attempts, scorm_registrations=None):
-    """
-    Calculate total score for a student across all activities
-    Usage: {% calculate_student_total student.id activities grades quiz_attempts scorm_registrations as total_data %}
-    Uses only the latest submission/attempt for each activity
-    """
-    try:
-        from decimal import Decimal
-        student_id = int(student_id)
-        total_earned = Decimal('0')
-        total_possible = Decimal('0')  # Changed to Decimal for consistent precision
+            # Add total possible points for removed topic
+            total_possible += activity_max_score
         
-        for activity in activities:
-            if activity['max_score'] > 0:  # Only count activities with scores
-                # Convert to Decimal for consistent precision
-                activity_max_score = Decimal(str(activity['max_score']))
-                
-                if activity['type'] == 'assignment':
-                    # For assignments, use activity max_score as is
-                    total_possible += activity_max_score
-                    
-                    # Look for all assignment grades for this student and assignment
-                    matching_grades = []
-                    for grade in grades:
-                        if grade.student_id == student_id and grade.assignment_id == activity['object'].id:
-                            matching_grades.append(grade)
-                    
-                    # Use the most recent grade if available
-                    if matching_grades:
-                        latest_grade = max(matching_grades, key=lambda g: g.updated_at)
-                        if latest_grade.score is not None and not getattr(latest_grade, 'excused', False):
-                            total_earned += Decimal(str(latest_grade.score))
-                            
-                elif activity['type'] == 'quiz':
-                    # Look for all quiz attempts for this student and quiz
-                    matching_attempts = []
-                    for attempt in quiz_attempts:
-                        if attempt.user_id == student_id and attempt.quiz_id == activity['object'].id:
-                            matching_attempts.append(attempt)
-                    
-                    # Use the most recent attempt if available
-                    if matching_attempts:
-                        latest_attempt = max(matching_attempts, key=lambda a: a.end_time or a.start_time)
-                        if latest_attempt.score is not None:
-                            # Check if quiz has a rubric and if there's a rubric evaluation
-                            quiz = activity['object']
-                            final_score = Decimal(str(latest_attempt.score))
-                            quiz_max_score = activity_max_score
-                            
-                            if quiz.rubric:
-                                try:
-                                    # Import here to avoid circular imports
-                                    from quiz.models import QuizRubricEvaluation
-                                    
-                                    # Check if there's a rubric evaluation for this attempt
-                                    rubric_evaluations = QuizRubricEvaluation.objects.filter(
-                                        quiz_attempt=latest_attempt
-                                    )
-                                    
-                                    if rubric_evaluations.exists():
-                                        # Calculate total rubric score (convert float to Decimal for consistency)
-                                        rubric_total = sum(Decimal(str(evaluation.points)) for evaluation in rubric_evaluations)
-                                        final_score = rubric_total
-                                        # Use rubric total_points as max_score when rubric evaluation exists
-                                        quiz_max_score = Decimal(str(quiz.rubric.total_points))
-                                except Exception:
-                                    # If there's any error getting rubric evaluation, fall back to auto score
-                                    pass
-                            else:
-                                # For non-rubric quizzes, latest_attempt.score is a percentage
-                                # Convert percentage to points based on quiz total_points
-                                if quiz.total_points and quiz.total_points > 0:
-                                    final_score = (Decimal(str(latest_attempt.score)) * Decimal(str(quiz.total_points))) / Decimal('100')
-                                    quiz_max_score = Decimal(str(quiz.total_points))
-                                else:
-                                    # Fallback: treat as percentage-based scoring
-                                    final_score = Decimal(str(latest_attempt.score))
-                                    quiz_max_score = Decimal('100')
-                            
-                            total_earned += final_score
-                            total_possible += quiz_max_score
-                    else:
-                        # No attempt found, just add the max score to total_possible
-                        total_possible += activity_max_score
-                            
-                elif activity['type'] == 'discussion':
-                    # Look for discussion rubric evaluations
-                    discussion = activity['object']
-                    
-                    if discussion.rubric:
-                        try:
-                            # Import here to avoid circular imports
-                            from lms_rubrics.models import RubricEvaluation
-                            
-                            # Get all rubric evaluations for this discussion and student
-                            evaluations = RubricEvaluation.objects.filter(
-                                discussion=discussion,
-                                student_id=student_id
-                            )
-                            
-                            if evaluations.exists():
-                                # Calculate total score from rubric evaluations
-                                total_score = sum(Decimal(str(evaluation.points)) for evaluation in evaluations)
-                                total_earned += total_score
-                        except Exception:
-                            # If there's any error getting discussion evaluations, continue without adding to total
-                            pass
-                    
-                    # Add total possible points for discussion
-                    total_possible += activity_max_score
-                    
-                elif activity['type'] == 'conference':
-                    # Look for conference rubric evaluations
-                    conference = activity['object']
-                    
-                    if conference.rubric:
-                        try:
-                            # Import here to avoid circular imports
-                            from conferences.models import ConferenceRubricEvaluation, ConferenceAttendance
-                            
-                            # Get the attendance record for this student and conference
-                            attendance = ConferenceAttendance.objects.filter(
-                                conference=conference,
-                                user_id=student_id
-                            ).first()
-                            
-                            if attendance:
-                                # Get all rubric evaluations for this attendance
-                                evaluations = ConferenceRubricEvaluation.objects.filter(
-                                    conference=conference,
-                                    attendance=attendance
-                                )
-                                
-                                if evaluations.exists():
-                                    # Calculate total score from rubric evaluations
-                                    total_score = sum(Decimal(str(evaluation.points)) for evaluation in evaluations)
-                                    total_earned += total_score
-                        except Exception:
-                            # If there's any error getting conference evaluations, continue without adding to total
-                            pass
-                    
-                    # Add total possible points for conference
-                    total_possible += activity_max_score
-                            
-                elif activity['type'] == 'scorm':
-                    # Look for SCORM attempts for this student and package (using ScormAttempt model)
-                    if scorm_registrations:  # This is actually scorm_attempts in the context
-                        for attempt in scorm_registrations:
-                            if attempt.scorm_package_id == activity['object'].id and attempt.user_id == student_id:
-                                # Only include score if the SCORM activity has a score (use score_raw)
-                                if attempt.score_raw is not None:
-                                    # Convert the score to a percentage of max_score (SCORM scores are typically 0-100)
-                                    score_percentage = Decimal(str(attempt.score_raw)) / Decimal('100')
-                                    activity_score = score_percentage * activity_max_score
-                                    
-                                    # Add to total only if completed or passed
-                                    if (attempt.lesson_status in ['completed', 'passed'] and 
-                                        attempt.lesson_status != 'failed'):
-                                        total_earned += activity_score
-                                break  # Use the first matching attempt
-                    
-                    # Add total possible points for SCORM
-                    total_possible += activity_max_score
-                
-                elif activity['type'] == 'scorm_topic':
-                    # Handle SCORM topics - check TopicProgress for scores
-                    try:
-                        from courses.models import TopicProgress
-                        
-                        topic_progress = TopicProgress.objects.filter(
-                            topic=activity['object'],
-                            user_id=student_id
-                        ).first()
-                        
-                        if topic_progress and topic_progress.last_score is not None:
-                            # Convert the score (typically 0-100) to a percentage of max_score
-                            score_percentage = Decimal(str(topic_progress.last_score)) / Decimal('100')
-                            activity_score = score_percentage * activity_max_score
-                            
-                            # Add to total only if completed or has a passing score
-                            if topic_progress.completed or float(topic_progress.last_score) >= 70:
-                                total_earned += activity_score
-                    except Exception:
-                        pass
-                    
-                    # Add total possible points for SCORM topic
-                    total_possible += activity_max_score
-                
-                else:
-                    # For any other activity types, just add the max_score to total_possible
-                    total_possible += activity_max_score
+        else:
+            # For any other activity types, just add the max_score to total_possible
+            total_possible += activity_max_score
         
         # Calculate percentage with proper precision
         percentage = round((total_earned / total_possible * 100), 1) if total_possible > 0 else Decimal('0')
@@ -1092,23 +559,21 @@ def calculate_student_total(student_id, activities, grades, quiz_attempts, scorm
         return {'earned': 0, 'possible': 0, 'percentage': 0}
 
 @register.simple_tag
-def get_scorm_registration(scorm_registrations, package_id):
+def get_removed_registration(removed_registrations, package_id):
     """
-    Get the first SCORM attempt for a specific package (using ScormAttempt model)
-    Usage: {% get_scorm_registration scorm_registrations activity.object.id as registration %}
-    Note: scorm_registrations is actually scorm_attempts in the context
+    Get the first removed attempt for a specific package (using removedAttempt model)
+    Usage: {% get_removed_registration removed_registrations activity.object.id as registration %}
+    Note: removed_registrations is actually removed_attempts in the context
     """
     try:
         package_id = int(package_id)
-        for attempt in scorm_registrations:  # This is actually scorm_attempts
-            if attempt.scorm_package_id == package_id:
-                return attempt
+        # removed functionality removed
         return None
     except (ValueError, AttributeError, TypeError):
         return None
 
 @register.simple_tag
-def course_has_activities(course, activity_type, assignments=None, quizzes=None, quiz_attempts=None, discussions=None, conferences=None, scorm_registrations=None):
+def course_has_activities(course, activity_type, assignments=None, quizzes=None, quiz_attempts=None, discussions=None, conferences=None, removed_registrations=None):
     """
     Check if a course has activities of a specific type
     MODIFIED: Always show activities if they exist in the course, regardless of student interaction
@@ -1125,16 +590,16 @@ def course_has_activities(course, activity_type, assignments=None, quizzes=None,
             return any(discussion.course and discussion.course.id == course.id and discussion.rubric for discussion in discussions)
         elif activity_type == 'conference' and conferences:
             return any(conference.course and conference.course.id == course.id and conference.rubric for conference in conferences)
-        elif activity_type == 'scorm' and scorm_registrations:
-            # For SCORM, check if there are any packages available in the course (via topics)
+        elif activity_type == 'removed' and removed_registrations:
+            # For removed, check if there are any packages available in the course (via topics)
             try:
                 from courses.models import Topic
-                # Check if the course has any SCORM topics
-                scorm_topics = Topic.objects.filter(
+                # Check if the course has any removed topics
+                removed_topics = Topic.objects.filter(
                     coursetopic__course=course,
-                    content_type='SCORM'
+                    content_type='removed'
                 )
-                return scorm_topics.exists()
+                return removed_topics.exists()
             except Exception:
                 return False
         return False
@@ -1156,22 +621,17 @@ def should_hide_course(student_id, course_id, student_courses_with_activities, u
         return False 
 
 @register.simple_tag
-def get_scorm_registration_for_topic(scorm_registrations, student_id, topic_id):
+def get_removed_registration_for_topic(removed_registrations, student_id, topic_id):
     """
-    Get the SCORM attempt for a specific student and topic (using ScormAttempt model)
-    Usage: {% get_scorm_registration_for_topic scorm_registrations student.id topic.id as registration %}
-    Note: scorm_registrations is actually scorm_attempts in the context
+    Get the removed attempt for a specific student and topic (using removedAttempt model)
+    Usage: {% get_removed_registration_for_topic removed_registrations student.id topic.id as registration %}
+    Note: removed_registrations is actually removed_attempts in the context
     """
     try:
         student_id = int(student_id)
         topic_id = int(topic_id)
         
-        for attempt in scorm_registrations:  # This is actually scorm_attempts
-            if attempt.user_id == student_id:
-                # Get the topic associated with this attempt's scorm_package
-                topic = get_scorm_topic(attempt.scorm_package)
-                if topic and topic.id == topic_id:
-                    return attempt
+        # removed functionality removed
         return None
     except (ValueError, AttributeError, TypeError):
         return None 
@@ -1579,7 +1039,7 @@ def calculate_student_total_optimized(student_scores, student_id, activities):
                     if score_data.get('score') is not None and not score_data.get('excused', False):
                         total_earned += Decimal(str(score_data['score']))
                         has_completed_activity = True
-                    # Also count completed activities even without scores (for SCORM completions)
+                    # Also count completed activities even without scores (for removed completions)
                     elif (score_data.get('completed', False) or 
                           score_data.get('completion_status') == 'completed' or 
                           score_data.get('success_status') == 'passed') and not score_data.get('excused', False):
@@ -1648,8 +1108,8 @@ def get_activity_type_label(activity_type):
         'quiz': 'QUZ',
         'discussion': 'DSC',
         'conference': 'CNF',
-        'scorm': 'SCO',
-        'scorm_topic': 'SCO'
+        'removed': 'SCO',
+        'removed_topic': 'SCO'
     }
     return labels.get(activity_type, 'UNK')
 
@@ -1702,7 +1162,7 @@ def get_activity_status_text(activity_type, score_data):
         else:
             return 'Not Evaluated'
     
-    elif activity_type == 'scorm':
+    elif activity_type == 'removed':
         if score_data.get('score') and score_data.get('lesson_status') in ['completed', 'passed']:
             return 'Completed'
         elif score_data.get('attempt'):  # Changed from 'registration' to 'attempt'

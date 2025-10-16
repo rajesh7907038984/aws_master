@@ -10,9 +10,6 @@ from django.apps import apps
 from users.models import CustomUser, Branch
 from django.db.models.signals import post_save
 from django.dispatch import receiver
-# SCORM imports removed - functionality no longer supported
-# from scorm_cloud.utils.api import get_scorm_client
-# from scorm_cloud.models import SCORMPackage, SCORMCloudContent, SCORMDestination
 from core.utils.fields import TinyMCEField
 from django.core.files.storage import default_storage
 # Local file storage configuration
@@ -34,14 +31,9 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-# SCORM model getters removed - functionality no longer supported
-
 def content_file_path(instance: Any, filename: str) -> str:
     """Generate file path for course content with safe filename handling for S3 storage"""
     # Local file storage configuration
-    if isinstance(instance, Topic) and instance.content_type == 'SCORM':
-        return f"scorm_content/{instance.pk}_{filename}"
-    
     # Get the base filename and extension
     name, ext = os.path.splitext(filename)
     
@@ -1286,7 +1278,6 @@ class Course(models.Model):
             except Exception as e:
                 logger.error(f"Error deleting report data: {str(e)}")
             
-            # 8. SCORM content deletion removed - no longer supported
 
             # 9. DELETE ALL TOPICS (EXCLUSIVELY LINKED TO THIS COURSE)
             try:
@@ -1459,7 +1450,6 @@ class Section(models.Model):
 class Topic(models.Model):
     """Model for course topics with various content types"""
     TOPIC_TYPE_CHOICES = [
-        ('SCORM', 'SCORM Package'),
         ('Video', 'Video'),
         ('Document', 'Document'),
         ('Text', 'Text'),
@@ -1574,7 +1564,6 @@ class Topic(models.Model):
     def clean(self):
         """Validate topic data"""
         super().clean()
-        # SCORM file validation handled at form level
         # Model validation runs too early before files are assigned to the instance
         
         # Validate dates
@@ -1596,29 +1585,6 @@ class Topic(models.Model):
         
         super().save(*args, **kwargs)
         
-        # Register SCORM package upload in storage tracking system
-        if self.content_type == 'scorm' and self.content_file and is_new:
-            try:
-                from core.utils.storage_manager import StorageManager
-                # Get the user who created this topic (if available from request context)
-                # For now, try to get from course creator or skip if not available
-                course = self.course
-                user = course.created_by if course and hasattr(course, 'created_by') else None
-                
-                if user and hasattr(self.content_file, 'size'):
-                    StorageManager.register_file_upload(
-                        user=user,
-                        file_path=self.content_file.name,
-                        original_filename=self.content_file.name.split('/')[-1],
-                        file_size_bytes=self.content_file.size,
-                        content_type='application/zip',
-                        source_app='courses',
-                        source_model='Topic',
-                        source_object_id=self.pk
-                    )
-                    logger.info(f"Registered SCORM package upload for topic {self.pk}")
-            except Exception as e:
-                logger.error(f"Error registering SCORM package in storage tracking: {str(e)}")
         
     @property
     def course(self):
@@ -1857,7 +1823,6 @@ class Topic(models.Model):
             except Exception as e:
                 logger.error(f"Error deleting report data: {str(e)}")
             
-            # 7. SCORM content deletion removed - no longer supported
             
             # 8. DELETE CONTENT FILES
             if self.content_file:
@@ -1916,12 +1881,12 @@ class Topic(models.Model):
             raise
 
     @property
-    def scorm_package(self):
-        """Get SCORM package for this topic"""
-        if self.content_type == 'SCORM':
+    def removed_package(self):
+        """Get removed package for this topic"""
+        if self.content_type == 'removed':
             try:
-                from scorm.models import SCORMPackage
-                return SCORMPackage.objects.filter(topic=self, is_active=True, is_processed=True).first()
+                from removed.models import removedPackage
+                return removedPackage.objects.filter(topic=self, is_active=True, is_processed=True).first()
             except Exception:
                 return None
         return None
@@ -1939,7 +1904,7 @@ class Topic(models.Model):
         # Get the course through CourseTopic
         course = Course.objects.filter(coursetopic__topic=self).first()
         if course:
-            # All content types (including SCORM) require proper course access
+            # All content types require proper course access
             # This includes enrollment for learners, instructor permissions, etc.
             return course.user_has_access(user)
         return False
@@ -1956,14 +1921,14 @@ class Topic(models.Model):
 
     def get_completion_requirements(self):
         """Get topic completion requirements based on content type"""
-        if self.content_type == 'SCORM':
-            # Use new SCORM implementation - check for SCORM package requirements
-            if hasattr(self, 'scorm_package') and self.scorm_package:
+        if self.content_type == 'removed':
+            # Use new removed implementation - check for removed package requirements
+            if hasattr(self, 'removed_package') and self.removed_package:
                 return {
-                    'requires_score': getattr(self.scorm_package, 'requires_passing_score', False),
+                    'requires_score': getattr(self.removed_package, 'requires_passing_score', False),
                     'requires_completion': True,
-                    'pass_score': getattr(self.scorm_package, 'passing_score', None),
-                    'requires_passing_score': getattr(self.scorm_package, 'requires_passing_score', False)
+                    'pass_score': getattr(self.removed_package, 'passing_score', None),
+                    'requires_passing_score': getattr(self.removed_package, 'requires_passing_score', False)
                 }
         return {
             'requires_completion': True,
@@ -1974,59 +1939,10 @@ class Topic(models.Model):
 
     def get_user_progress(self, user):
         """Get progress for a specific user"""
-        if self.content_type == 'SCORM':
-            scorm_progress = self.get_scorm_progress(user)
-            if scorm_progress:
-                return scorm_progress
         return TopicProgress.objects.filter(
             topic=self,
             user=user
         ).first()
-
-    def get_scorm_content(self):
-        """Get SCORM content with improved error handling"""
-        if self.content_type == 'SCORM':
-            try:
-                # Use new SCORM implementation - return the topic itself as SCORM content
-                if not self.content_file:
-                    logger.warning(f"Topic {self.id} ({self.title}) has no content file")
-                    return None
-                
-                # For S3 storage, we can't use os.path.exists with .path
-                # Instead, check if the file has a URL (which means it exists)
-                if not hasattr(self.content_file, 'url'):
-                    logger.warning(f"Topic {self.id} ({self.title}) content file does not exist: {self.content_file.name}")
-                    return None
-                
-                # Return the topic as SCORM content
-                return self
-            except Exception as e:
-                logger.error(f"Error getting SCORM content for topic {self.id}: {str(e)}")
-                return None
-        return None
-
-    def get_launch_url(self, user):
-        """Get SCORM launch URL for user with branch-specific support"""
-        scorm_content = self.get_scorm_content()
-        if scorm_content:
-            return scorm_content.get_launch_url(user)
-        return None
-
-    def get_scorm_progress(self, user):
-        """Get SCORM progress for a specific user"""
-        if self.content_type == 'SCORM':
-            scorm_content = self.get_scorm_content()
-            if scorm_content:
-                registration = scorm_content.package.get_registration(user)
-                return registration
-        return None
-
-    def sync_scorm_progress(self, user):
-        """Sync SCORM progress data with branch-specific support"""
-        scorm_content = self.get_scorm_content()
-        if scorm_content:
-            return scorm_content.sync_progress(user)
-        return False
 
     def get_user_progress_record(self, user=None):
         """Get progress record for a specific user or the current request user"""
@@ -2071,14 +1987,6 @@ class TopicProgress(models.Model):
         related_name='user_progress'
     )
     
-    # SCORM tracking
-    scorm_registration = models.CharField(
-        max_length=255,
-        null=True,
-        blank=True,
-        help_text="SCORM Cloud registration ID"
-    )
-    
     # Progress tracking
     progress_data = models.JSONField(
         default=dict,
@@ -2102,7 +2010,6 @@ class TopicProgress(models.Model):
         choices=[
             ('auto', 'Automatic'),
             ('manual', 'Manual'),
-            ('scorm', 'SCORM')
         ],
         default='auto'
     )
@@ -2189,7 +2096,7 @@ class TopicProgress(models.Model):
         # Use type-safe progress data handling
         normalized_data = normalize_mixed_type_field(self.progress_data)
         if normalized_data:
-            # For Video, Audio, SCORM content
+            # For Video, Audio content
             progress = safe_get_float(normalized_data, 'progress')
             if progress is not None:
                 # Handle both percentage (0-100) and decimal (0-1) formats
@@ -2198,23 +2105,13 @@ class TopicProgress(models.Model):
                 else:  # Percentage format (0-100)
                     return round(min(progress, 100))
             
-            # For SCORM content, check completion_percent
-            completion = safe_get_float(normalized_data, 'completion_percent')
-            if completion is not None:
-                return round(min(completion, 100))
-            
-            # For SCORM content, check lesson_status
+            # Check lesson status for completion
             lesson_status = normalized_data.get('lesson_status', '').lower()
-            if lesson_status:
-                # SCORM 1.2 and 2004 lesson_status values
-                if lesson_status in ['completed', 'passed', 'failed']:
-                    # Activity was completed (even if failed)
-                    return 100
-                elif lesson_status in ['incomplete', 'browsed']:
-                    # Activity was started but not completed
-                    return 50
-                elif lesson_status == 'not attempted':
-                    return 0
+            if lesson_status in ['incomplete', 'browsed']:
+                # Activity was started but not completed
+                return 50
+            elif lesson_status == 'not attempted':
+                return 0
         
         # For other content types, use attempts as indicator
         if self.attempts > 0:
@@ -2279,8 +2176,8 @@ class TopicProgress(models.Model):
             if 'last_position' not in self.progress_data:
                 self.progress_data['last_position'] = 0
         
-        # SCORM-specific defaults
-        elif self.topic.content_type == 'SCORM':
+        # removed-specific defaults
+        elif self.topic.content_type == 'removed':
             if 'status' not in self.progress_data:
                 self.progress_data['status'] = 'not_attempted'
                 
@@ -2323,88 +2220,33 @@ class TopicProgress(models.Model):
                 
             self.save()
 
-    def update_from_scorm(self, registration):
-        """Update progress based on SCORM Cloud registration data"""
-        # Ensure progress_data is initialized as a dictionary
-        if not isinstance(self.progress_data, dict):
-            self.progress_data = {}
-            
-        # Increment attempts counter
-        self.attempts += 1
-        
-        # Update score tracking
-        if registration.score is not None:
-            self.last_score = registration.score
-            if self.best_score is None or registration.score > self.best_score:
-                self.best_score = registration.score
-        
-        # Update total time spent from SCORM registration
-        if registration.total_time is not None and registration.total_time > 0:
-            self.total_time_spent = registration.total_time
-        
-        # Update completion data
-        if not self.completion_data:
-            self.completion_data = {}
-            
-        self.completion_data.update({
-            'last_attempt': {
-                'date': timezone.now().isoformat(),
-                'score': float(self.last_score) if self.last_score else None,
-                'status': registration.completion_status,
-                'time_spent': registration.total_time
-            },
-            'total_attempts': self.attempts,
-            'best_score': float(self.best_score) if self.best_score else None,
-        })
-        
-        # Update progress data
-        self.progress_data.update({
-            'status': registration.completion_status,
-            'score': float(registration.score) if registration.score else None,
-            'total_time': self.total_time_spent,
-            'last_updated': timezone.now().isoformat()
-        })
-        
-        # Check completion requirements
-        if registration.completion_status in ['completed', 'passed']:
-            scorm_content = self.topic.get_scorm_content()
-            if scorm_content:
-                if not scorm_content.requires_passing_score or (
-                    registration.score and registration.score >= scorm_content.passing_score
-                ):
-                    self.mark_complete('scorm')
-                    return  # mark_complete already calls save()
-                    
-        # Save if mark_complete wasn't called
-        self.save()
-
-    def sync_scorm_score(self):
+    def sync_removed_score(self):
         """
-        Sync SCORM score from ScormAttempt to TopicProgress
-        This ensures gradebook displays the correct score for SCORM content
+        Sync removed score from removedAttempt to TopicProgress
+        This ensures gradebook displays the correct score for removed content
         """
         import logging
         logger = logging.getLogger(__name__)
         
-        # Only sync for SCORM topics
-        if not hasattr(self, 'topic') or not self.topic or self.topic.content_type != 'SCORM':
+        # Only sync for removed topics
+        if not hasattr(self, 'topic') or not self.topic or self.topic.content_type != 'removed':
             return False
         
         try:
-            # Check if topic has a SCORM package
-            if not hasattr(self.topic, 'scorm_package'):
-                logger.warning(f"SCORM_SYNC: Topic {self.topic.id} is SCORM type but has no scorm_package")
+            # Check if topic has a removed package
+            if not hasattr(self.topic, 'removed_package'):
+                logger.warning(f"removed_SYNC: Topic {self.topic.id} is removed type but has no removed_package")
                 return False
             
-            # Get the latest SCORM attempt for this user and topic
-            from scorm.models import ScormAttempt
-            latest_attempt = ScormAttempt.objects.filter(
+            # Get the latest removed attempt for this user and topic
+            from removed.models import removedAttempt
+            latest_attempt = removedAttempt.objects.filter(
                 user=self.user,
-                scorm_package=self.topic.scorm_package
+                removed_package=self.topic.removed_package
             ).order_by('-last_accessed').first()
             
             if not latest_attempt:
-                logger.info(f"SCORM_SYNC: No SCORM attempts found for user {self.user.username}, topic {self.topic.id}")
+                logger.info(f"removed_SYNC: No removed attempts found for user {self.user.username}, topic {self.topic.id}")
                 return False
             
             # Sync score if available
@@ -2424,14 +2266,14 @@ class TopicProgress(models.Model):
                 if not self.progress_data:
                     self.progress_data = {}
                 self.progress_data['score_raw'] = score_value
-                self.progress_data['scorm_attempt_id'] = latest_attempt.id
+                self.progress_data['removed_attempt_id'] = latest_attempt.id
                 self.progress_data['lesson_status'] = latest_attempt.lesson_status
                 
                 # Update attempts count if not already set
-                # Count all SCORM attempts for this user/package
-                total_attempts = ScormAttempt.objects.filter(
+                # Count all removed attempts for this user/package
+                total_attempts = removedAttempt.objects.filter(
                     user=self.user,
-                    scorm_package=self.topic.scorm_package
+                    removed_package=self.topic.removed_package
                 ).count()
                 if total_attempts > self.attempts:
                     self.attempts = total_attempts
@@ -2444,17 +2286,17 @@ class TopicProgress(models.Model):
                     self.completed = True
                     if not self.completed_at:
                         self.completed_at = latest_attempt.last_accessed or timezone.now()
-                    self.completion_method = 'scorm'
-                    logger.info(f"SCORM_SYNC: Marked topic {self.topic.id} as completed for user {self.user.username} (lesson_status: {latest_attempt.lesson_status})")
+                    self.completion_method = 'removed'
+                    logger.info(f"removed_SYNC: Marked topic {self.topic.id} as completed for user {self.user.username} (lesson_status: {latest_attempt.lesson_status})")
                 
-                logger.info(f"SCORM_SYNC: Updated scores for topic {self.topic.id}, user {self.user.username} - last_score: {old_last_score} -> {self.last_score}, best_score: {old_best_score} -> {self.best_score}, attempts: {self.attempts}")
+                logger.info(f"removed_SYNC: Updated scores for topic {self.topic.id}, user {self.user.username} - last_score: {old_last_score} -> {self.last_score}, best_score: {old_best_score} -> {self.best_score}, attempts: {self.attempts}")
                 return True
             else:
-                logger.info(f"SCORM_SYNC: Latest attempt {latest_attempt.id} has no score_raw for user {self.user.username}, topic {self.topic.id}")
+                logger.info(f"removed_SYNC: Latest attempt {latest_attempt.id} has no score_raw for user {self.user.username}, topic {self.topic.id}")
                 return False
                 
         except Exception as e:
-            logger.error(f"SCORM_SYNC ERROR: Failed to sync SCORM score for topic {self.topic.id}, user {self.user.username}: {str(e)}")
+            logger.error(f"removed_SYNC ERROR: Failed to sync removed score for topic {self.topic.id}, user {self.user.username}: {str(e)}")
             import traceback
             logger.error(traceback.format_exc())
             return False
@@ -2495,13 +2337,13 @@ class TopicProgress(models.Model):
             self.progress_data['completed'] = True
             self.progress_data['completed_at'] = current_time.isoformat()
         
-        # CRITICAL FIX: For SCORM content, sync the score from ScormAttempt before saving
-        if hasattr(self, 'topic') and self.topic and self.topic.content_type == 'SCORM':
-            score_synced = self.sync_scorm_score()
+        # CRITICAL FIX: For removed content, sync the score from removedAttempt before saving
+        if hasattr(self, 'topic') and self.topic and self.topic.content_type == 'removed':
+            score_synced = self.sync_removed_score()
             if score_synced:
-                logger.info(f"SCORM_COMPLETE: Score synced for topic {self.topic.id} when marking complete")
+                logger.info(f"removed_COMPLETE: Score synced for topic {self.topic.id} when marking complete")
             else:
-                logger.warning(f"SCORM_COMPLETE: No score synced for topic {self.topic.id} when marking complete")
+                logger.warning(f"removed_COMPLETE: No score synced for topic {self.topic.id} when marking complete")
         
         self.save()
         
@@ -2742,14 +2584,14 @@ class TopicProgress(models.Model):
             return 'In Progress'
         return 'Not Started'
 
-    def update_scorm_progress(self, registration_report):
-        """Update progress based on SCORM Cloud registration report"""
+    def update_removed_progress(self, registration_report):
+        """Update progress based on removed Cloud registration report"""
         if not registration_report:
             logger.warning(f"Empty registration report for topic {self.topic.id}, user {self.user.username}")
             return
 
         try:
-            logger.info(f"Updating SCORM progress for topic {self.topic.id}, user {self.user.username}")
+            logger.info(f"Updating removed progress for topic {self.topic.id}, user {self.user.username}")
             
             # Ensure progress_data is initialized as a dictionary
             if not isinstance(self.progress_data, dict):
@@ -2806,7 +2648,7 @@ class TopicProgress(models.Model):
                 from core.utils.scoring import ScoreCalculationService
                 
                 score_data = registration_report.get('score', {})
-                normalized_score = ScoreCalculationService.handle_scorm_score(score_data)
+                normalized_score = ScoreCalculationService.handle_removed_score(score_data)
                 
                 if normalized_score is not None:
                     self.last_score = normalized_score
@@ -2836,7 +2678,7 @@ class TopicProgress(models.Model):
                 'score': float(normalized_score) if normalized_score is not None else None,
                 'total_time': registration_report.get('totalSecondsTracked', 0),
                 'last_updated': timezone.now().isoformat(),
-                'scorm_sync': True
+                'removed_sync': True
             })
             logger.info(f"Updated progress_data with completion status: {completion_status}, success status: {success_status}, progress: {completion_percent}%")
             
@@ -2876,7 +2718,7 @@ class TopicProgress(models.Model):
             if completion_status in ['completed', 'passed'] or success_status == 'passed':
                 logger.info(f"Completion/success status indicates completion, marking as completed")
                 self.completed = True
-                self.completion_method = 'scorm'
+                self.completion_method = 'removed'
                 if not self.completed_at:
                     self.completed_at = timezone.now()
                     logger.info(f"Set completed_at to {self.completed_at}")
@@ -2886,13 +2728,13 @@ class TopicProgress(models.Model):
             self.save()
             logger.info(f"Saved progress record")
             
-            # Check course completion after updating SCORM progress
+            # Check course completion after updating removed progress
             if self.completed:
                 logger.info(f"Topic completed, checking course completion")
                 self._check_course_completion()
                 
         except Exception as e:
-            logger.error(f"Error updating SCORM progress: {str(e)}")
+            logger.error(f"Error updating removed progress: {str(e)}")
             logger.exception("Exception details:")
 
     def update_audio_progress(self, current_time, duration):
@@ -2928,15 +2770,15 @@ class CourseTopic(models.Model):
 
 # DISABLED - Using direct upload system instead of signals
 # @receiver(post_save, sender=Topic)
-# def handle_scorm_content(sender, instance, created, **kwargs):
+# def handle_removed_content(sender, instance, created, **kwargs):
 #     """
-#     DISABLED - Direct upload system handles SCORM content creation
+#     DISABLED - Direct upload system handles removed content creation
 #     """
 #     return  # Signal disabled - using direct upload in views
     
 #     # Import required models and utilities
 #     from django.core.cache import cache
-#     from scorm_cloud.models import SCORMCloudContent, SCORMPackage
+#     from removed_cloud.models import removedCloudContent, removedPackage
     
 #     # Use a more robust lock key with file hash to prevent duplicates
 #     import hashlib
@@ -2961,16 +2803,16 @@ class CourseTopic(models.Model):
 #             file_size = 0
 #         
 #         unique_key = f"{instance.id}_{file_size}_{instance.title}"
-#         lock_key = f"scorm_upload_lock_{hashlib.md5(unique_key.encode()).hexdigest()}"
+#         lock_key = f"removed_upload_lock_{hashlib.md5(unique_key.encode()).hexdigest()}"
 #         
 #         # Use database-level check first (more reliable than cache)
-#         existing_content = SCORMCloudContent.objects.filter(
+#         existing_content = removedCloudContent.objects.filter(
 #             content_type='topic',
 #             content_id=str(instance.id)
 #         ).first()
 #         
 #         if existing_content and existing_content.package:
-#             logger.info(f"Found existing SCORM content for topic {instance.id}, skipping upload")
+#             logger.info(f"Found existing removed content for topic {instance.id}, skipping upload")
 #             return
 #             
 #         # Try to acquire cache lock with shorter timeout to reduce blocking
@@ -2982,28 +2824,28 @@ class CourseTopic(models.Model):
 #             
 #         try:
 #             # Double-check after acquiring lock (race condition protection)
-#             existing_content = SCORMCloudContent.objects.filter(
+#             existing_content = removedCloudContent.objects.filter(
 #                 content_type='topic',
 #                 content_id=str(instance.id)
 #             ).first()
 #             
 #             if existing_content and existing_content.package:
-#                 logger.info(f"Found existing SCORM content for topic {instance.id} after lock, skipping upload")
+#                 logger.info(f"Found existing removed content for topic {instance.id} after lock, skipping upload")
 #                 return
 #             
 #             # Check if the file exists
 #             # For S3 storage, we can't use os.path.exists with .path
 #             # Instead, check if the file has a URL (which means it exists)
 #             if not hasattr(instance.content_file, 'url'):
-#                 logger.error(f"SCORM file does not exist: {instance.content_file.name}")
+#                 logger.error(f"removed file does not exist: {instance.content_file.name}")
 #                 return
 #                 
 #             # Use the async uploader and return early
 #             try:
-#                 from scorm_cloud.utils.async_uploader import enqueue_upload
+#                 from removed_cloud.utils.async_uploader import enqueue_upload
 #                 
 #                 # Queue the upload task with unique identifier and user context
-#                 # Try to get user from course/branch context for branch-specific SCORM
+#                 # Try to get user from course/branch context for branch-specific removed
 #                 user = None
 #                 try:
 #                     logger.info(f"courses/models.py: Determining user context for topic {instance.id}")
@@ -3023,7 +2865,7 @@ class CourseTopic(models.Model):
 #                             user = topic_course.created_by
 #                         elif topic_course and topic_course.branch:
 #                             logger.info(f"courses/models.py: Looking for branch admin in {topic_course.branch.name}")
-#                             # Get a branch admin user for branch-specific SCORM
+#                             # Get a branch admin user for branch-specific removed
 #                             from django.contrib.auth import get_user_model
 #                             User = get_user_model()
 #                             user = User.objects.filter(
@@ -3046,22 +2888,22 @@ class CourseTopic(models.Model):
 #                 
 #                 logger.info(f"courses/models.py: Final user for enqueue_upload: {user.username if user else None}")
 #                 
-#                 # For SCORM topics with content files, we need to upload to SCORM Cloud
-#                 # This handles the case where topics are created with SCORM files
+#                 # For removed topics with content files, we need to upload to removed Cloud
+#                 # This handles the case where topics are created with removed files
 #                 if instance.content_file:
 #                     try:
 #                         # Get the file path for upload (handle cloud storage properly)
 #                         upload_file_path = None
 #                         
-#                         # Use local storage for SCORM files - no need for cloud storage handling
+#                         # Use local storage for removed files - no need for cloud storage handling
 #                         upload_file_path = instance.content_file.path
-#                         logger.info(f"Using local SCORM file path: {upload_file_path}")
+#                         logger.info(f"Using local removed file path: {upload_file_path}")
 #                         
 #                         if not upload_file_path:
-#                             logger.error("Could not determine file path for SCORM upload")
-#                             raise Exception("Could not determine file path for SCORM upload")
+#                             logger.error("Could not determine file path for removed upload")
+#                             raise Exception("Could not determine file path for removed upload")
 #                         
-#                         logger.info(f"Uploading SCORM file for topic {instance.id}: {upload_file_path}")
+#                         logger.info(f"Uploading removed file for topic {instance.id}: {upload_file_path}")
 #                         
 #                         # Enqueue the upload
 #                         enqueue_upload(
@@ -3071,23 +2913,23 @@ class CourseTopic(models.Model):
 #                             user=user
 #                         )
 #                         
-#                         logger.info(f"Queued SCORM upload for topic {instance.id}")
+#                         logger.info(f"Queued removed upload for topic {instance.id}")
 #                         return
 #                         
 #                     except Exception as upload_error:
-#                         logger.error(f"Error queuing SCORM upload for topic {instance.id}: {str(upload_error)}")
+#                         logger.error(f"Error queuing removed upload for topic {instance.id}: {str(upload_error)}")
 #                         logger.exception("Full upload error traceback:")
 #                         
 #                         # Upload failed, log error and return
-#                         logger.error(f"SCORM upload failed for topic {instance.id}")
+#                         logger.error(f"removed upload failed for topic {instance.id}")
 #                         return
 #                 else:
-#                     logger.info(f"SCORM topic {instance.id} has no content file - skipping upload")
+#                     logger.info(f"removed topic {instance.id} has no content file - skipping upload")
 #                     return
 #                 
-#                 logger.error(f"No file path available for SCORM upload of topic {instance.id}")
+#                 logger.error(f"No file path available for removed upload of topic {instance.id}")
 #                 
-#                 logger.info(f"Queued SCORM upload for topic {instance.id}")
+#                 logger.info(f"Queued removed upload for topic {instance.id}")
 #                 return
 #                 
 #             except ImportError:
@@ -3102,7 +2944,7 @@ class CourseTopic(models.Model):
 #                 logger.warning(f"Error releasing cache lock for topic {instance.id}: {str(cache_error)}")
 #                 
 #     except Exception as e:
-#         logger.error(f"Error processing SCORM content for topic {instance.id}: {str(e)}")
+#         logger.error(f"Error processing removed content for topic {instance.id}: {str(e)}")
 #         # Make sure to release lock on error
 #         try:
 #                 cache.delete(lock_key)
@@ -3202,9 +3044,6 @@ def ensure_paid_course_has_branch(sender, instance, **kwargs):
             logger.info(f"Auto-assigned paid course '{instance.title}' to default branch '{default_branch.name}'")
         else:
             logger.warning(f"Cannot auto-assign branch to paid course '{instance.title}' - no branches available")
-
-
-
 
 class CourseCompletionRequirement(models.Model):
     """Model for storing custom course completion requirements"""

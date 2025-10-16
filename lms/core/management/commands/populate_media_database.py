@@ -158,8 +158,6 @@ class Command(BaseCommand):
             return 'assignment_submission'
         elif 'editor_upload' in path_lower:
             return 'editor_upload'
-        elif 'scorm' in path_lower:
-            return 'scorm_package'
         elif 'conference' in path_lower:
             return 'conference_file'
         elif 'message' in path_lower:

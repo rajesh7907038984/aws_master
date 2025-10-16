@@ -198,7 +198,6 @@ document.addEventListener('DOMContentLoaded', function() {
             console.log('Normalized type:', normalizedType);
             
             // Define content types that should hide the Instructions field
-            var hideInstructionsTypes = ['video', 'document', 'text', 'audio', 'web', 'embedvideo', 'scorm', 'quiz', 'assignment', 'conference', 'discussion'];
             
             console.log('hideInstructionsTypes:', hideInstructionsTypes);
             console.log('Should hide instructions?', hideInstructionsTypes.indexOf(normalizedType) !== -1);
@@ -339,7 +338,6 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Always clear description and instruction fields for content types that shouldn't have them
         var hideBothTypes = ['text', 'quiz', 'assignment', 'conference', 'discussion'];
-        var showDescriptionOnlyTypes = ['video', 'audio', 'document', 'web', 'embedvideo', 'scorm'];
         
         // Get current selected content type
         var selectedContentType = document.querySelector('input[name="content_type"]:checked');

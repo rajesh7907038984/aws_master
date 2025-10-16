@@ -490,7 +490,6 @@
                     let maxSize, sizeDescription;
                     
                     if (fileExtension === 'zip') {
-                        // SCORM packages or archives - allow up to 600MB
                         maxSize = 600 * 1024 * 1024;
                         sizeDescription = '600MB';
                     } else if (videoExtensions.includes(fileExtension)) {
@@ -622,7 +621,6 @@
                                 const fileExtension = file.name.split('.').pop().toLowerCase();
                                 const videoExtensions = ['mp4', 'mov', 'avi', 'wmv', 'mkv', 'webm', 'flv', 'm4v'];
                                 if (fileExtension === 'zip') {
-                                    maxSize = 600 * 1024 * 1024; // 600MB for SCORM packages/archives
                                     fileType = 'archive';
                                 } else if (videoExtensions.includes(fileExtension)) {
                                     maxSize = 100 * 1024 * 1024; // 100MB for video files (feedback videos)

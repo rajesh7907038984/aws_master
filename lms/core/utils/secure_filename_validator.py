@@ -51,7 +51,6 @@ class SecureFilenameValidator:
         'video': {'.mp4', '.webm'},
         'audio': {'.mp3', '.wav', '.ogg', '.m4a', '.aac', '.flac'},
         'archive': {'.zip', '.rar', '.7z', '.tar', '.gz'},
-        'scorm': {'.zip'},
         'general': None  # No restrictions for general uploads
     }
     
@@ -267,9 +266,6 @@ def validate_video_filename(filename, max_size_mb=500):
     validator = SecureFilenameValidator.get_category_validator('video', max_size_mb)
     return validator.validate_filename(filename)
 
-def validate_scorm_filename(filename, max_size_mb=600):
-    """Validate SCORM package filenames."""
-    validator = SecureFilenameValidator.get_category_validator('scorm', max_size_mb)
     return validator.validate_filename(filename)
 
 def validate_general_filename(filename, max_size_mb=100):

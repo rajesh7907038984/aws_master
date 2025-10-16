@@ -1,2 +1,0 @@
-# SCORM template tags
-

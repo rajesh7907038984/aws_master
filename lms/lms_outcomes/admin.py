@@ -1,6 +1,7 @@
 from django.contrib import admin
 from .models import OutcomeGroup, Outcome, OutcomeAlignment, RubricCriterionOutcome, OutcomeEvaluation
 
+@admin.register(Outcome)
 class OutcomeAdmin(admin.ModelAdmin):
     list_display = ('title', 'group', 'branch', 'created_at')
     list_filter = ('group', 'branch', 'created_at')
@@ -24,6 +25,7 @@ class OutcomeAdmin(admin.ModelAdmin):
                 obj.branch = request.user.branch
         super().save_model(request, obj, form, change)
 
+@admin.register(OutcomeGroup)
 class OutcomeGroupAdmin(admin.ModelAdmin):
     list_display = ('name', 'parent', 'branch', 'created_at')
     list_filter = ('parent', 'branch', 'created_at')
@@ -112,5 +114,6 @@ class OutcomeEvaluationAdmin(admin.ModelAdmin):
         return True
 
 
-admin.site.register(OutcomeGroup, OutcomeGroupAdmin)
-admin.site.register(Outcome, OutcomeAdmin) 
+# Old admin registrations removed - using @admin.register decorators instead
+# admin.site.register(OutcomeGroup, OutcomeGroupAdmin)
+# admin.site.register(Outcome, OutcomeAdmin) 

@@ -65,7 +65,6 @@ class Command(BaseCommand):
                 local_paths = [
                     f'/home/ec2-user/lms/media_local/{topic.content_file.name}' if topic.content_file else None,
                     f'/home/ec2-user/lms/media_local/courses/{topic.course.id}/topics/{topic.id}/website_development_proposal_jc5Ky29.pdf',
-                    f'/home/ec2-user/lms/scorm_uploads/topic_uploads/48190fe7.pdf',  # Found PDF file
                 ]
                 
                 local_file = None

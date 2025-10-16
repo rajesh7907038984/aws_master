@@ -77,10 +77,13 @@ class Migration(migrations.Migration):
                     ),
                 ),
                 (
-                    "scorm_integration_enabled",
-                    models.BooleanField(
-                        default=False,
-                        help_text="Enable SCORM integration for this branch. Admin can control this setting.",
+                    "business",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="branches",
+                        to="business.business",
                     ),
                 ),
             ],

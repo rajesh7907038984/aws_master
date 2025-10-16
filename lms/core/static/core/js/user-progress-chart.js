@@ -217,7 +217,6 @@ class UserProgressChart {
         listContainer.innerHTML = sortedUsers.map(user => {
             const progress = user.progress || user;
             const userInfo = progress.user || progress;
-            const scormData = user.scorm_data || {};
             
             let statusClass, statusText, statusIcon;
             
@@ -255,12 +254,9 @@ class UserProgressChart {
                         </div>
                     </div>
                     <div class="flex items-center space-x-3">
-                        ${scormData.completion_percent ? `
                             <div class="w-24">
                                 <div class="w-full bg-gray-200 rounded-full h-2">
-                                    <div class="bg-blue-600 h-2 rounded-full" style="width: ${scormData.completion_percent}%"></div>
                                 </div>
-                                <span class="text-xs text-gray-500">${parseFloat(scormData.completion_percent).toFixed(1)}%</span>
                             </div>
                         ` : ''}
                         <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusClass}">
@@ -322,11 +318,9 @@ class UserProgressChart {
     }
     
     exportAsCSV() {
-        const headers = ['User', 'Status', 'Score', 'Last Accessed', 'SCORM Progress'];
         const rows = this.userData.map(user => {
             const progress = user.progress || user;
             const userInfo = progress.user || progress;
-            const scormData = user.scorm_data || {};
             
             let status;
             if (progress.completed) {
@@ -344,7 +338,6 @@ class UserProgressChart {
                 status,
                 progress.last_score ? `${parseFloat(progress.last_score).toFixed(1)}%` : '-',
                 progress.last_accessed ? new Date(progress.last_accessed).toLocaleDateString() : '-',
-                scormData.completion_percent ? `${parseFloat(scormData.completion_percent).toFixed(1)}%` : '-'
             ];
         });
         

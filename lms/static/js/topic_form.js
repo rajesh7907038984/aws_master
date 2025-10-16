@@ -11,7 +11,6 @@ document.addEventListener('DOMContentLoaded', function() {
         const normalizedType = selectedType.toLowerCase();
         
         // Define content types that should hide the Instructions field
-        const hideInstructionsTypes = ['video', 'document', 'text', 'audio', 'web', 'embedvideo', 'scorm', 'quiz', 'assignment', 'conference', 'discussion'];
         
         // Handle Instructions field visibility
         const instructionsField = document.querySelector('label[for*="instructions"]').closest('div');

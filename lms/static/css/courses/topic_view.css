@@ -467,8 +467,7 @@
     margin-bottom: 2rem;
 }
 
-/* Override the default styles for SCORM and video included templates */
-.scorm-content-container,
+/* Override the default styles for video included templates */
 .video-content-container {
     margin: 0 auto !important;
     box-shadow: none !important;
@@ -593,7 +592,6 @@
 }
 
 /* Ensure all content fits properly */
-.scorm-content-container,
 .audio-content-container,
 .document-content-container,
 .text-content-container,

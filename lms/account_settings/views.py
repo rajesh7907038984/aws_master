@@ -446,7 +446,6 @@ LMS System''',
                 return redirect(f"{reverse('account_settings:settings')}?tab=menu_control")
             
 
-
         # Business data will be loaded via AJAX for better performance
         businesses_with_limits = []
         businesses = []
@@ -741,7 +740,6 @@ LMS System''',
         
         # Always load user's own integrations for proper template rendering
         teams_integration = TeamsIntegration.objects.filter(user=request.user).first()
-        # Zoom integration only for branch admins (like SCORM)
         zoom_integration = ZoomIntegration.objects.filter(user=request.user).first() if is_branch_admin else None
         stripe_integration = StripeIntegration.objects.filter(user=request.user).first()
         paypal_integration = PayPalIntegration.objects.filter(user=request.user).first()
@@ -1431,7 +1429,6 @@ LMS System''',
         messages.error(request, f"An error occurred: {str(e)}")
         return redirect('users:role_based_redirect')
 
-
 @login_required
 def toggle_2fa(request):
     """Toggle two-factor authentication for the user"""
@@ -1462,7 +1459,6 @@ def toggle_2fa(request):
     # Redirect back to Session section
     return redirect(f"{reverse('account_settings:settings')}?tab=Session")
 
-
 @login_required
 def toggle_oauth_2fa(request):
     """Toggle OAuth two-factor authentication for the user"""
@@ -1492,7 +1488,6 @@ def toggle_oauth_2fa(request):
     
     # Redirect back to Session section
     return redirect(f"{reverse('account_settings:settings')}?tab=Session")
-
 
 @login_required
 def setup_totp(request):
@@ -1588,7 +1583,6 @@ def setup_totp(request):
     
     return render(request, 'account_settings/setup_totp.html', context)
 
-
 @login_required
 def totp_backup_codes(request):
     """Display backup codes"""
@@ -1616,7 +1610,6 @@ def totp_backup_codes(request):
     }
     
     return render(request, 'account_settings/totp_backup_codes.html', context)
-
 
 @login_required
 def toggle_totp_2fa(request):
@@ -1648,7 +1641,6 @@ def toggle_totp_2fa(request):
     
     # Redirect back to Session section
     return redirect(f"{reverse('account_settings:settings')}?tab=Session")
-
 
 @login_required
 def delete_integration(request, integration_type, integration_id):
@@ -1952,7 +1944,6 @@ def update_branch_limits(request, branch_id):
         'message': f'User limits for {branch.name} updated successfully',
         'usage_data': usage_data
     })
-
 
 @login_required
 def update_business_limits(request, business_id):
@@ -2608,7 +2599,6 @@ def delete_backup(request, backup_id):
     except Exception as e:
         return JsonResponse({'success': False, 'error': f'Error deleting backup: {str(e)}'})
 
-
 @login_required
 def test_zoom_connection(request):
     """Test Zoom integration connection (only for branch admins)"""
@@ -2655,7 +2645,6 @@ def test_zoom_connection(request):
     except Exception as e:
         logger.error(f"Error testing Zoom connection for user {request.user.id}: {str(e)}")
         return JsonResponse({'success': False, 'error': f'Error testing connection: {str(e)}'})
-
 
 @login_required
 def test_sharepoint_connection(request):
@@ -2772,93 +2761,92 @@ def test_sharepoint_connection(request):
         logger.error(f"Error testing SharePoint connection for user {request.user.id}: {str(e)}")
         return JsonResponse({'success': False, 'error': f'Error testing connection: {str(e)}'}) 
 
-
 @login_required
-def test_scorm_connection(request):
-    """Test SCORM Cloud connection for the current user"""
-    logger.info(f"SCORM connection test requested by user {request.user.username} (ID: {request.user.id})")
+def test_removed_connection(request):
+    """Test removed Cloud connection for the current user"""
+    logger.info(f"removed connection test requested by user {request.user.username} (ID: {request.user.id})")
     
     if request.method != 'POST':
-        logger.warning(f"Invalid request method for SCORM test: {request.method}")
+        logger.warning(f"Invalid request method for removed test: {request.method}")
         return JsonResponse({'success': False, 'error': 'Invalid request method'})
     
     try:
-        logger.info("Starting SCORM connection test process...")
+        logger.info("Starting removed connection test process...")
         
         # Add CSRF debug info
         logger.info(f"CSRF token present: {bool(request.META.get('CSRF_COOKIE'))}")
         logger.info(f"Request headers: {dict(request.headers)}")
         
-        # Use the same lookup logic as get_scorm_client to ensure consistency
-        logger.info("Importing SCORM client...")
+        # Use the same lookup logic as get_removed_client to ensure consistency
+        logger.info("Importing removed client...")
         try:
-            from scorm_cloud.utils.api import get_scorm_client
-            logger.info("SCORM client import successful")
+            from removed_cloud.utils.api import get_removed_client
+            logger.info("removed client import successful")
         except ImportError as import_error:
-            logger.error(f"Failed to import SCORM client: {str(import_error)}")
-            return JsonResponse({'success': False, 'error': f'SCORM module not available: {str(import_error)}'})
+            logger.error(f"Failed to import removed client: {str(import_error)}")
+            return JsonResponse({'success': False, 'error': f'removed module not available: {str(import_error)}'})
         
-        # Get the SCORM client using the same logic as the main application
-        logger.info("Getting SCORM client...")
+        # Get the removed client using the same logic as the main application
+        logger.info("Getting removed client...")
         try:
-            scorm_client = get_scorm_client(user=request.user)
-            logger.info(f"SCORM client obtained: {scorm_client is not None}")
+            removed_client = get_removed_client(user=request.user)
+            logger.info(f"removed client obtained: {removed_client is not None}")
         except Exception as client_error:
-            logger.error(f"Error getting SCORM client: {str(client_error)}")
-            return JsonResponse({'success': False, 'error': f'Error initializing SCORM client: {str(client_error)}'})
+            logger.error(f"Error getting removed client: {str(client_error)}")
+            return JsonResponse({'success': False, 'error': f'Error initializing removed client: {str(client_error)}'})
         
-        if not scorm_client:
-            logger.warning(f"Test connection - No SCORM client available for user {request.user.username}")
+        if not removed_client:
+            logger.warning(f"Test connection - No removed client available for user {request.user.username}")
             return JsonResponse({
                 'success': False, 
-                'error': 'No SCORM integration found. Please configure SCORM integration first.'
+                'error': 'No removed integration found. Please configure removed integration first.'
             })
         
         try:
-            logger.info(f"Checking SCORM client configuration...")
-            is_configured = scorm_client.is_configured
-            logger.info(f"SCORM client configured: {is_configured}")
+            logger.info(f"Checking removed client configuration...")
+            is_configured = removed_client.is_configured
+            logger.info(f"removed client configured: {is_configured}")
         except Exception as config_error:
-            logger.error(f"Error checking SCORM client configuration: {str(config_error)}")
-            return JsonResponse({'success': False, 'error': f'Error checking SCORM configuration: {str(config_error)}'})
+            logger.error(f"Error checking removed client configuration: {str(config_error)}")
+            return JsonResponse({'success': False, 'error': f'Error checking removed configuration: {str(config_error)}'})
         
         if not is_configured:
-            logger.warning(f"Test connection - SCORM client not properly configured for user {request.user.username}")
+            logger.warning(f"Test connection - removed client not properly configured for user {request.user.username}")
             return JsonResponse({
                 'success': False, 
-                'error': 'SCORM Cloud credentials are missing or invalid. Please check your configuration.'
+                'error': 'removed Cloud credentials are missing or invalid. Please check your configuration.'
             })
         
         # For display purposes, try to find the integration model (might be None for global settings)
         try:
-            logger.info("Looking up SCORM integration from database...")
+            logger.info("Looking up removed integration from database...")
             if request.user.branch:
-                scorm_integration = SCORMIntegration.objects.filter(user=request.user, branch=request.user.branch).first()
-                if not scorm_integration:
-                    scorm_integration = SCORMIntegration.objects.filter(user=request.user).first()
-                if not scorm_integration and request.user.branch:
-                    scorm_integration = SCORMIntegration.objects.filter(branch=request.user.branch, is_active=True).first()
-            logger.info(f"Found SCORM integration: {scorm_integration is not None}")
+                removed_integration = removedIntegration.objects.filter(user=request.user, branch=request.user.branch).first()
+                if not removed_integration:
+                    removed_integration = removedIntegration.objects.filter(user=request.user).first()
+                if not removed_integration and request.user.branch:
+                    removed_integration = removedIntegration.objects.filter(branch=request.user.branch, is_active=True).first()
+            logger.info(f"Found removed integration: {removed_integration is not None}")
         except Exception as db_error:
-            logger.error(f"Database error looking up SCORM integration: {str(db_error)}")
-            # If we can't access the database, but we have a working SCORM client, 
+            logger.error(f"Database error looking up removed integration: {str(db_error)}")
+            # If we can't access the database, but we have a working removed client, 
             # we can still test the connection using the global settings
         
-        logger.info(f"Test connection - Using SCORM integration: {scorm_integration}")
+        logger.info(f"Test connection - Using removed integration: {removed_integration}")
         
         # Test the connection using the client or model's test_connection method
-        if scorm_integration:
-            logger.info(f"Test connection - Testing branch integration with app_id: {scorm_integration.app_id[:6]}****, base_url: {scorm_integration.base_url}")
+        if removed_integration:
+            logger.info(f"Test connection - Testing branch integration with app_id: {removed_integration.app_id[:6]}****, base_url: {removed_integration.base_url}")
             try:
-                test_success, test_message = scorm_integration.test_connection()
+                test_success, test_message = removed_integration.test_connection()
                 logger.info(f"Test connection - Result: success={test_success}, message={test_message}")
                 
                 if test_success:
                     return JsonResponse({
                         'success': True, 
                         'message': test_message,
-                        'app_id': scorm_integration.app_id,
-                        'base_url': scorm_integration.base_url,
+                        'app_id': removed_integration.app_id,
+                        'base_url': removed_integration.base_url,
                         'integration_type': 'branch_specific'
                     })
                 else:
@@ -2868,31 +2856,31 @@ def test_scorm_connection(request):
                 return JsonResponse({'success': False, 'error': f'Error testing branch integration: {str(test_error)}'})
         else:
             # Using global settings, test directly with client
-            logger.info(f"Test connection - Testing branch-specific SCORM settings with app_id: {scorm_client.app_id[:6] if scorm_client.app_id else 'None'}****, base_url: {scorm_client.base_url}")
+            logger.info(f"Test connection - Testing branch-specific removed settings with app_id: {removed_client.app_id[:6] if removed_client.app_id else 'None'}****, base_url: {removed_client.base_url}")
             
             # Create a simple ping test using the same method as the model
             try:
-                # Try to use the SCORM client's built-in test mechanism
+                # Try to use the removed client's built-in test mechanism
                 # Create a simple test by making a basic API call
-                test_response = scorm_client._make_request('GET', 'ping')
-                test_message = "SCORM Cloud connection successful (using branch-specific settings)"
+                test_response = removed_client._make_request('GET', 'ping')
+                test_message = "removed Cloud connection successful (using branch-specific settings)"
                 logger.info(f"Test connection - Global settings test successful")
                 
                 return JsonResponse({
                     'success': True, 
                     'message': test_message,
-                    'app_id': scorm_client.app_id,
-                    'base_url': scorm_client.base_url,
+                    'app_id': removed_client.app_id,
+                    'base_url': removed_client.base_url,
                     'integration_type': 'global_settings'
                 })
                     
             except Exception as test_error:
-                error_msg = f"Failed to test SCORM Cloud connection: {str(test_error)}"
+                error_msg = f"Failed to test removed Cloud connection: {str(test_error)}"
                 logger.error(f"Test connection - Global settings test error: {error_msg}")
                 return JsonResponse({'success': False, 'error': error_msg})
             
     except Exception as e:
-        logger.error(f"Unexpected error testing SCORM connection for user {request.user.id}: {str(e)}")
+        logger.error(f"Unexpected error testing removed connection for user {request.user.id}: {str(e)}")
         logger.exception("Full traceback:")
         
         # Check if it's a database error
@@ -2902,7 +2890,6 @@ def test_scorm_connection(request):
             error_msg = f'Error testing connection: {str(e)}'
             
         return JsonResponse({'success': False, 'error': error_msg})
-
 
 @login_required
 def manual_sharepoint_sync(request):
@@ -3049,7 +3036,6 @@ def manual_sharepoint_sync(request):
         logger.error(f"Error starting manual SharePoint sync for user {request.user.id}: {str(e)}")
         return JsonResponse({'success': False, 'error': f'Error starting sync: {str(e)}'})
 
-
 def _merge_sync_results(main_results, new_results):
     """Helper function to merge sync results"""
     if not new_results:
@@ -3065,7 +3051,6 @@ def _merge_sync_results(main_results, new_results):
     
     if not new_results.get('success', True):
         main_results['success'] = False
-
 
 @login_required
 def sharepoint_sync_status(request, task_id):
@@ -3124,7 +3109,6 @@ def sharepoint_sync_status(request, task_id):
     except Exception as e:
         logger.error(f"Error checking SharePoint sync status for task {task_id}: {str(e)}")
         return JsonResponse({'success': False, 'error': f'Error checking status: {str(e)}'})
-
 
 # AJAX endpoint views for lazy loading
 @login_required
@@ -3593,7 +3577,6 @@ def generate_dynamic_setup_data(user_list_name, enrollment_list_name, progress_l
                     {'name': 'CourseName', 'type': 'Single line of text', 'required': True, 'description': 'Course title'},
                     {'name': 'TopicID', 'type': 'Single line of text', 'required': True, 'description': 'Topic/module identifier'},
                     {'name': 'TopicName', 'type': 'Single line of text', 'required': True, 'description': 'Topic title'},
-                    {'name': 'TopicType', 'type': 'Choice', 'required': True, 'choices': ['scorm', 'video', 'document', 'text', 'audio', 'web', 'quiz', 'assignment', 'discussion'], 'description': 'Content type'},
                     {'name': 'ProgressPercent', 'type': 'Number', 'required': False, 'description': 'Topic completion percentage'},
                     {'name': 'CompletionDate', 'type': 'Date and Time', 'required': False, 'description': 'Topic completion date'},
                     {'name': 'TimeSpent', 'type': 'Number', 'required': False, 'description': 'Time spent on topic (minutes)'},
@@ -3726,12 +3709,4 @@ def generate_dynamic_setup_data(user_list_name, enrollment_list_name, progress_l
             }
         ]
     }
-
-
-
-
-
-
-
-
 

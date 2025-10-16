@@ -460,8 +460,6 @@
                     <div class="aspect-w-16 aspect-h-9 mb-4 embedvideo-content" id="embed-video-container" data-content-type="EmbedVideo">
                         {{ topic.embed_code|safe }}
                     </div>
-                {% elif topic.content_type == 'SCORM' %}
-                    <div class="w-full flex flex-col items-center justify-center py-8 scorm-content" data-content-type="SCORM">
                         {% if not can_access_interactive_content %}
                             <!-- Warning for non-learner users -->
                             <div class="w-full max-w-md mb-6">
@@ -477,52 +475,35 @@
                             </div>
                             <!-- Preview button for instructors/admins -->
                             {% if user.role == 'instructor' or user.role == 'admin' or user.role == 'superadmin' or user.role == 'globaladmin' %}
-                                {% if scorm_package %}
                                     <div class="w-full max-w-md">
-                                        <a href="{% url 'scorm:player' package_id=scorm_package.id %}" 
                                            class="btn btn-primary text-lg px-6 py-3 flex items-center justify-center"
                                            target="_blank">
-                                            <i class="fas fa-eye mr-2"></i>Preview SCORM Content
                                         </a>
                                         <p class="text-sm text-gray-600 text-center mt-2">Preview mode - tracking enabled</p>
                                     </div>
                                 {% else %}
                                     <button disabled class="btn btn-secondary text-lg px-6 py-3 cursor-not-allowed opacity-50">
-                                        <i class="fas fa-lock mr-2"></i>Launch SCORM Content (Restricted)
                                     </button>
                                 {% endif %}
                             {% else %}
                                 <!-- Disabled button for other users -->
                                 <button disabled class="btn btn-secondary text-lg px-6 py-3 cursor-not-allowed opacity-50">
-                                    <i class="fas fa-lock mr-2"></i>Launch SCORM Content (Restricted)
                                 </button>
                             {% endif %}
                         {% else %}
                             <!-- Normal access for learners -->
-                            {% if scorm_package %}
-                                <!-- SCORM package available - launch button -->
                                 <div class="w-full max-w-md">
                                     <div class="flex flex-col gap-3">
-                                        <!-- SCORM Launch Button - Direct to content -->
-                                        <a href="{% url 'scorm:player' package_id=scorm_package.id %}" 
                                            class="btn btn-primary text-lg px-6 py-3 flex items-center justify-center"
                                            target="_blank">
-                                            <i class="fas fa-play mr-2"></i>Launch SCORM Content
                                         </a>
                                         <div class="text-sm text-gray-600 text-center">
-                                            <p>{{ scorm_package.title }}</p>
-                                            {% if scorm_package.get_package_type_display %}
-                                                <p class="text-xs">{{ scorm_package.get_package_type_display }}</p>
                                             {% endif %}
                                         </div>
-                                        {% if scorm_attempt %}
                                             <div class="mt-2 text-sm">
                                                 <p class="text-center">
-                                                    <span class="badge bg-info">Status: {{ scorm_attempt.lesson_status|title }}</span>
                                                 </p>
-                                                {% if scorm_attempt.score_raw is not None %}
                                                     <p class="text-center mt-1">
-                                                        <span class="badge bg-success">Score: {{ scorm_attempt.score_raw }}{% if scorm_attempt.score_max %}/{{ scorm_attempt.score_max }}{% endif %}</span>
                                                     </p>
                                                 {% endif %}
                                             </div>
@@ -530,18 +511,36 @@
                                     </div>
                                 </div>
                             {% else %}
-                                <!-- No SCORM content - show detailed error message -->
                                 <div class="w-full max-w-md">
-                                    <div class="p-4 bg-yellow-100 border border-yellow-400 text-yellow-800 rounded-lg mb-4">
-                                        <div class="flex items-center">
-                                            <i class="fas fa-exclamation-triangle mr-3"></i>
-                                            <div>
-                                                <p class="font-semibold">SCORM Content Missing</p>
-                                                <p class="text-sm mt-1">No SCORM content is available for this topic. Please contact support if you believe this is an error.</p>
-                                                <p class="text-xs mt-2 text-yellow-700">Topic ID: {{ topic.id }} | Content Type: {{ topic.content_type }}</p>
+                                        <div class="p-4 bg-red-100 border border-red-400 text-red-800 rounded-lg mb-4">
+                                            <div class="flex items-center">
+                                                <i class="fas fa-exclamation-triangle mr-3"></i>
+                                                <div>
+                                                    <p class="text-xs mt-2 text-red-700">Topic ID: {{ topic.id }} | Content Type: {{ topic.content_type }}</p>
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
+                                    {% else %}
+                                        <div class="p-4 bg-yellow-100 border border-yellow-400 text-yellow-800 rounded-lg mb-4">
+                                            <div class="flex items-center">
+                                                <i class="fas fa-exclamation-triangle mr-3"></i>
+                                                <div>
+                                                    <p class="text-xs mt-2 text-yellow-700">Topic ID: {{ topic.id }} | Content Type: {{ topic.content_type }}</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    {% endif %}
+                                    
+                                        <div class="p-4 bg-blue-100 border border-blue-400 text-blue-800 rounded-lg mb-4">
+                                            <div class="flex items-center">
+                                                <i class="fas fa-info-circle mr-3"></i>
+                                                <div>
+                                                    <p class="font-semibold">Auto-Link Available</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    {% endif %}
+                                    
                                     <button disabled class="btn btn-secondary text-lg px-6 py-3 cursor-not-allowed opacity-50">
                                         <i class="fas fa-times mr-2"></i>Content Not Available
                                     </button>
@@ -712,7 +711,6 @@
             </div>
             
             <!-- Auto Completion Message for specific topic types -->
-            {% if topic.content_type == 'Video' or topic.content_type == 'EmbedVideo' or topic.content_type == 'Audio' or topic.content_type == 'SCORM' or topic.content_type == 'Quiz' or topic.content_type == 'Assignment' or topic.content_type == 'Conference' or topic.content_type == 'Discussion' %}
             <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-6">
                 <div class="flex items-center">
                     <i class="fas fa-info-circle text-blue-500 mr-3"></i>
@@ -799,8 +797,6 @@
                                             </div>
                                             <div class="topic-name truncate max-w-[150px] inline-block" title="{{ topic_item.title }}">{{ topic_item.title }}</div>
                                             {% if topic_item.content_type %}
-                                            <span class="topic-type text-xs {% if topic_item.content_type in 'SCORM,Quiz,Assignment' and not can_access_interactive_content %}text-yellow-600 bg-yellow-100 px-2 py-1 rounded{% else %}text-gray-500{% endif %} ml-2">
-                                                {{ topic_item.get_content_type_display }}{% if topic_item.content_type in 'SCORM,Quiz,Assignment' and not can_access_interactive_content %} <i class="fas fa-lock text-xs"></i>{% endif %}
                                             </span>
                                             {% endif %}
                                         </div>
@@ -836,8 +832,6 @@
                                             </div>
                                             <div class="topic-name truncate max-w-[150px] inline-block" title="{{ topic_item.title }}">{{ topic_item.title }}</div>
                                             {% if topic_item.content_type %}
-                                            <span class="topic-type text-xs {% if topic_item.content_type in 'SCORM,Quiz,Assignment' and not can_access_interactive_content %}text-yellow-600 bg-yellow-100 px-2 py-1 rounded{% else %}text-gray-500{% endif %} ml-2">
-                                                {{ topic_item.get_content_type_display }}{% if topic_item.content_type in 'SCORM,Quiz,Assignment' and not can_access_interactive_content %} <i class="fas fa-lock text-xs"></i>{% endif %}
                                             </span>
                                             {% endif %}
                                         </div>
@@ -902,32 +896,21 @@
             // If already completed, don't do anything
             if (isCompleted === true) return;
             
-            // CRITICAL FIX: For SCORM topics, ensure data is saved before marking complete
             const topicType = $('meta[name="topic-type"]').attr('content');
-            if (topicType === 'SCORM') {
-                console.log(' SCORM: Ensuring SCORM data is saved before marking complete');
                 
-                // Try to trigger SCORM commit from opener window (if SCORM player is open)
                 try {
-                    // Check if there's a SCORM player window that opened this page
                     if (window.opener && window.opener.API) {
-                        console.log(' SCORM: Calling LMSCommit via opener window');
                         window.opener.API.LMSCommit('');
                     } else if (window.opener && window.opener.API_1484_11) {
-                        console.log(' SCORM: Calling Commit via opener window (SCORM 2004)');
                         window.opener.API_1484_11.Commit('');
                     }
                 } catch (e) {
-                    console.log('ℹ️ SCORM: Could not access opener API (this is normal if player closed):', e.message);
                 }
                 
-                // Add a small delay to ensure SCORM commit completes
-                console.log(' SCORM: Waiting for commit to complete...');
                 setTimeout(function() {
                     markTopicComplete(topicId);
                 }, 1000);
             } else {
-                // Non-SCORM content, mark complete immediately
                 markTopicComplete(topicId);
             }
         });

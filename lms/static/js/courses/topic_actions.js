@@ -149,7 +149,6 @@ function editTopic(topicId) {
                     case 'Audio':
                     case 'Video':
                     case 'Document':
-                    case 'SCORM':
                         if (data.topic.content_file) {
                             const fileContainer = document.querySelector(`#${data.topic.content_type.toLowerCase()}-content .file-upload-container`);
                             if (fileContainer) {
@@ -334,8 +333,6 @@ function showContentField(contentType) {
         case 'Discussion':
             fieldId = 'discussion-content';
             break;
-        case 'SCORM':
-            fieldId = 'scorm-content';
             break;
     }
     
@@ -764,7 +761,6 @@ function autoMarkTopicAsComplete() {
         const webContentElement = document.querySelector('.web-content-frame, .web-content-container');
         const embedVideoElement = document.querySelector('.embed-video-container');
         const assignmentContentElement = document.querySelector('.assignment-content, [data-content-type="Assignment"]');
-        const scormContentElement = document.querySelector('.scorm-content, [data-content-type="SCORM"]');
         const quizContentElement = document.querySelector('.quiz-content, [data-content-type="Quiz"]');
         const conferenceContentElement = document.querySelector('.conference-content, [data-content-type="Conference"]');
         const discussionContentElement = document.querySelector('.discussion-content, [data-content-type="Discussion"]');
@@ -796,7 +792,6 @@ function autoMarkTopicAsComplete() {
         console.log('Web content element found:', !!webContentElement);
         console.log('Embed video element found:', !!embedVideoElement);
         console.log('Assignment content element found:', !!assignmentContentElement);
-        console.log('SCORM content element found:', !!scormContentElement);
         console.log('Quiz content element found:', !!quizContentElement);
         console.log('Conference content element found:', !!conferenceContentElement);
         console.log('Discussion content element found:', !!discussionContentElement);
@@ -808,15 +803,10 @@ function autoMarkTopicAsComplete() {
         // Special handling for auto-complete topics - they should auto-complete
         const isAutoCompleteTopic = 
             assignmentContentElement || 
-            scormContentElement ||
             quizContentElement ||
             conferenceContentElement ||
             discussionContentElement ||
-            (metaTopicType && ['Assignment', 'SCORM', 'Quiz', 'Conference', 'Discussion'].includes(metaTopicType)) ||
-            (containerContentType && ['Assignment', 'SCORM', 'Quiz', 'Conference', 'Discussion'].includes(containerContentType)) ||
-            (mainContainerType && ['assignment', 'scorm', 'quiz', 'conference', 'discussion'].includes(mainContainerType)) ||
             document.body.classList.contains('topic-type-assignment') ||
-            document.body.classList.contains('topic-type-scorm') ||
             document.body.classList.contains('topic-type-quiz') ||
             document.body.classList.contains('topic-type-conference') ||
             document.body.classList.contains('topic-type-discussion');

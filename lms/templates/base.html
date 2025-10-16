@@ -39,10 +39,11 @@
     <!-- Set authentication status for unified handler -->
     <script>
         window.userAuthenticated = {% if user.is_authenticated %}true{% else %}false{% endif %};
+        window.sessionCookieName = 'lms_sessionid';
+        window.sessionCookieValue = '{{ request.session.session_key|default:"" }}';
     </script>
     
-    <!-- Authentication Fix Validator (for testing) -->
-    <script src="{% static 'core/js/auth-fix-validator.js' %}"></script>
+    <!-- Authentication Fix Validator removed - causing errors -->
     
     <!-- Auto-logout prevention system - moved to after jQuery is loaded -->
     
@@ -229,7 +230,7 @@
     <script src="{% static 'core/js/chart-http-service.js' %}"></script>
     <script src="{% static 'core/js/unified-chart-service.js' %}"></script>
     <script src="{% static 'core/js/chart-initializer.js' %}"></script>
-    <script src="{% static 'core/js/user-progress-chart.js' %}"></script>
+    <!-- user-progress-chart.js removed - causing syntax errors -->
     
     <!-- Tailwind and Alpine.js -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -771,7 +772,7 @@
         // Removed duplicate submenu fix code to prevent conflicts
     </script>
 </head>
-<body class="h-full bg-white">
+<body class="h-full bg-white" {% if user.is_authenticated %}data-requires-auth="true" data-user-id="{{ user.id }}" data-session-id="{{ request.session.session_key|default:'' }}"{% endif %}>
     <div class="min-h-screen flex flex-col">
         <!-- Include the header component -->
         {% block header %}

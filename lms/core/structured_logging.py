@@ -94,7 +94,6 @@ class StructuredLogger:
         self.logger.debug(f"{message} | Context: {json.dumps(context)}")
 
 # Global structured logger instances
-scorm_logger = StructuredLogger('scorm')
 auth_logger = StructuredLogger('auth')
 api_logger = StructuredLogger('api')
 security_logger = StructuredLogger('security')

@@ -17,27 +17,19 @@ logger = logging.getLogger(__name__)
 
 T = TypeVar('T')
 
-
 # Type definitions for common data structures (Python 3.7 compatible)
 ProgressData = Dict[str, Union[int, float, bool, str, Dict[str, Any]]]
 EducationRecord = Dict[str, Optional[str]]
 EmploymentRecord = Dict[str, Optional[str]]
 UserCapabilities = Dict[str, Any]
 
-
-ScormData = Dict[str, Any]
-
-
 FormFieldData = Dict[str, Any]
 
-
 ErrorContext = Dict[str, Any]
-
 
 class TypeValidationError(Exception):
     """Custom exception for type validation errors"""
     pass
-
 
 def safe_json_loads(json_string: str) -> Optional[Dict[str, Any]]:
     """
@@ -61,7 +53,6 @@ def safe_json_loads(json_string: str) -> Optional[Dict[str, Any]]:
     except (json.JSONDecodeError, TypeError, ValueError) as e:
         logger.warning(f"JSON parsing failed: {e}")
         return None
-
 
 def safe_get_string(data: Dict[str, Any], key: str, default: str = "") -> str:
     """
@@ -87,7 +78,6 @@ def safe_get_string(data: Dict[str, Any], key: str, default: str = "") -> str:
         except (TypeError, ValueError):
             return default
     return value
-
 
 def safe_get_int(data: Dict[str, Any], key: str, default: int = 0) -> int:
     """
@@ -120,7 +110,6 @@ def safe_get_int(data: Dict[str, Any], key: str, default: int = 0) -> int:
     except (ValueError, TypeError, OverflowError):
         return default
 
-
 def safe_get_float(data: Dict[str, Any], key: str, default: float = 0.0) -> float:
     """
     Safely get a float value from a dictionary with type validation
@@ -152,7 +141,6 @@ def safe_get_float(data: Dict[str, Any], key: str, default: float = 0.0) -> floa
     except (ValueError, TypeError, OverflowError):
         return default
 
-
 def safe_get_bool(data: Dict[str, Any], key: str, default: bool = False) -> bool:
     """
     Safely get a boolean value from a dictionary with type validation
@@ -180,7 +168,6 @@ def safe_get_bool(data: Dict[str, Any], key: str, default: bool = False) -> bool
         return bool(value)
     else:
         return default
-
 
 def safe_get_list(data: Dict[str, Any], key: str, default: Optional[List[Any]] = None) -> List[Any]:
     """
@@ -211,7 +198,6 @@ def safe_get_list(data: Dict[str, Any], key: str, default: Optional[List[Any]] =
     else:
         return default
 
-
 def safe_get_dict(data: Dict[str, Any], key: str, default: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     """
     Safely get a dictionary value from a dictionary with type validation
@@ -239,7 +225,6 @@ def safe_get_dict(data: Dict[str, Any], key: str, default: Optional[Dict[str, An
     else:
         return default
 
-
 def validate_timezone_data(data: Any) -> Optional[Dict[str, Any]]:
     """
     Validate timezone data structure
@@ -264,7 +249,6 @@ def validate_timezone_data(data: Any) -> Optional[Dict[str, Any]]:
         'offset': offset
     }
 
-
 def is_valid_email(email: Any) -> bool:
     """
     Check if value is a valid email string
@@ -282,7 +266,6 @@ def is_valid_email(email: Any) -> bool:
     pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
     return bool(re.match(pattern, email))
 
-
 def is_valid_url(url: Any) -> bool:
     """
     Check if value is a valid URL string
@@ -299,7 +282,6 @@ def is_valid_url(url: Any) -> bool:
     import re
     pattern = r'^https?://(?:[-\w.])+(?::\d+)?(?:/(?:[\w/_.])*(?:\?(?:[\w&=%.])*)?(?:#(?:\w*))?)?$'
     return bool(re.match(pattern, url))
-
 
 def safe_cast(value: Any, target_type: Type[T], default: Optional[T] = None) -> Optional[T]:
     """
@@ -324,7 +306,6 @@ def safe_cast(value: Any, target_type: Type[T], default: Optional[T] = None) -> 
     except (TypeError, ValueError, OverflowError):
         return default
 
-
 def ensure_list(value: Any) -> List[Any]:
     """
     Ensure value is a list
@@ -344,7 +325,6 @@ def ensure_list(value: Any) -> List[Any]:
     else:
         return [value]
 
-
 def ensure_dict(value: Any) -> Dict[str, Any]:
     """
     Ensure value is a dictionary
@@ -359,7 +339,6 @@ def ensure_dict(value: Any) -> Dict[str, Any]:
         return value
     else:
         return {}
-
 
 def validate_request_data(request, required_fields: List[str]) -> Dict[str, Any]:
     """
@@ -396,7 +375,6 @@ def validate_request_data(request, required_fields: List[str]) -> Dict[str, Any]
     
     return validated_data
 
-
 def safe_model_get(model_class, **kwargs):
     """
     Safely get model instance with proper error handling
@@ -416,7 +394,6 @@ def safe_model_get(model_class, **kwargs):
         logger.error(f"Error getting {model_class.__name__}: {e}")
         return None
 
-
 def safe_model_filter(model_class, **kwargs):
     """
     Safely filter model instances with proper error handling
@@ -433,7 +410,6 @@ def safe_model_filter(model_class, **kwargs):
     except Exception as e:
         logger.error(f"Error filtering {model_class.__name__}: {e}")
         return model_class.objects.none()
-
 
 def validate_user_permissions(user, required_permissions: List[str]) -> bool:
     """
@@ -453,7 +429,6 @@ def validate_user_permissions(user, required_permissions: List[str]) -> bool:
         return False
     
     return all(user.has_perm(perm) for perm in required_permissions)
-
 
 class TypeSafeDict(dict):
     """
@@ -484,7 +459,6 @@ class TypeSafeDict(dict):
         """Get dictionary value safely"""
         return safe_get_dict(self, key, default)
 
-
 def create_type_safe_dict(data: Any) -> TypeSafeDict:
     """
     Create a type-safe dictionary from any data
@@ -499,7 +473,6 @@ def create_type_safe_dict(data: Any) -> TypeSafeDict:
         return TypeSafeDict(data)
     else:
         return TypeSafeDict()
-
 
 def validate_progress_data(data: Any) -> Optional[ProgressData]:
     """
@@ -556,7 +529,6 @@ def validate_progress_data(data: Any) -> Optional[ProgressData]:
     
     return validated
 
-
 def validate_education_record(data: Any) -> Optional[EducationRecord]:
     """
     Validate education record structure
@@ -591,7 +563,6 @@ def validate_education_record(data: Any) -> Optional[EducationRecord]:
             validated[field] = value
     
     return validated
-
 
 def validate_employment_record(data: Any) -> Optional[EmploymentRecord]:
     """
@@ -629,21 +600,17 @@ def validate_employment_record(data: Any) -> Optional[EmploymentRecord]:
     
     return validated
 
-
-def validate_scorm_data(data: Any) -> Optional[ScormData]:
     """
-    Validate SCORM data structure
     
     Args:
-        data: Raw SCORM data
         
     Returns:
-        Validated ScormData or None if invalid
+        Validated removedData or None if invalid
     """
     if not isinstance(data, dict):
         return None
     
-    validated: ScormData = {}
+    validated: removedData = {}
     
     # Required string fields
     completion_status = safe_get_string(data, 'completion_status')
@@ -668,7 +635,6 @@ def validate_scorm_data(data: Any) -> Optional[ScormData]:
             validated[field] = value
     
     return validated
-
 
 def normalize_mixed_type_field(value: Any) -> Optional[Dict[str, Any]]:
     """
@@ -697,7 +663,6 @@ def normalize_mixed_type_field(value: Any) -> Optional[Dict[str, Any]]:
     logger.warning(f"Unexpected type for mixed field: {type(value)}")
     return None
 
-
 def safe_extract_records_list(mixed_field: Any) -> List[Dict[str, Any]]:
     """
     Safely extract a list of records from mixed-type fields
@@ -722,7 +687,6 @@ def safe_extract_records_list(mixed_field: Any) -> List[Dict[str, Any]]:
             return [normalized]
     
     return []
-
 
 def validate_cache_capabilities(capabilities: Any) -> Optional[List[str]]:
     """
@@ -761,7 +725,6 @@ def validate_cache_capabilities(capabilities: Any) -> Optional[List[str]]:
         validated_capabilities.append(cap)
     
     return validated_capabilities
-
 
 def validate_user_capabilities_cache(cache_data: Any) -> Optional[UserCapabilities]:
     """

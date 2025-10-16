@@ -733,7 +733,6 @@ class SharePointAPI:
                     {"name": "CourseName", "text": {}},
                     {"name": "TopicID", "text": {}},
                     {"name": "TopicName", "text": {}},
-                    {"name": "TopicType", "choice": {"choices": ["scorm", "video", "document", "text", "audio", "web", "quiz", "assignment", "discussion"]}},
                     {"name": "ProgressPercent", "number": {}},
                     {"name": "CompletionDate", "dateTime": {}},
                     {"name": "TimeSpent", "number": {}},

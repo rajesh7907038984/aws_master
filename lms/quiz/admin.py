@@ -7,6 +7,7 @@ class AnswerInline(admin.TabularInline):
     extra = 4
     fields = ('answer_text', 'is_correct', 'answer_order', 'learning_style')
 
+@admin.register(Question)
 class QuestionAdmin(admin.ModelAdmin):
     inlines = [AnswerInline]
     list_display = ('question_text', 'quiz', 'question_type', 'points', 'order')
@@ -18,6 +19,7 @@ class QuestionInline(admin.TabularInline):
     extra = 1
     show_change_link = True
 
+@admin.register(Quiz)
 class QuizAdmin(admin.ModelAdmin):
     inlines = [QuestionInline]
     list_display = ('title', 'creator', 'time_limit', 'passing_score', 'is_active', 'created_at')
@@ -120,6 +122,7 @@ class UserAnswerInline(admin.TabularInline):
     display_answer_details.short_description = "User's Answer"
     display_answer_details.allow_tags = True
 
+@admin.register(QuizAttempt)
 class QuizAttemptAdmin(admin.ModelAdmin):
     inlines = [UserAnswerInline]
     list_display = ('user', 'quiz', 'score', 'is_completed', 'start_time', 'end_time')
@@ -149,25 +152,29 @@ class QuizAttemptAdmin(admin.ModelAdmin):
                     )
         return obj
 
+@admin.register(Answer)
 class AnswerAdmin(admin.ModelAdmin):
     list_display = ('answer_text', 'question', 'is_correct', 'answer_order')
     list_filter = ('question__quiz', 'is_correct')
     search_fields = ('answer_text', 'question__question_text')
     ordering = ('question', 'answer_order')
 
+@admin.register(QuizGradeOverride)
 class QuizGradeOverrideAdmin(admin.ModelAdmin):
     list_display = ('quiz_attempt', 'original_score', 'override_score', 'override_by', 'created_at')
     list_filter = ('override_by',)
     search_fields = ('quiz_attempt__user__username', 'quiz_attempt__quiz__title', 'override_reason')
 
+@admin.register(QuizTag)
 class QuizTagAdmin(admin.ModelAdmin):
     list_display = ('name', 'slug')
     search_fields = ('name',)
     prepopulated_fields = {'slug': ('name',)}
 
-admin.site.register(Quiz, QuizAdmin)
-admin.site.register(Question, QuestionAdmin)
-admin.site.register(QuizAttempt, QuizAttemptAdmin)
-admin.site.register(Answer, AnswerAdmin)
-admin.site.register(QuizGradeOverride, QuizGradeOverrideAdmin)
-admin.site.register(QuizTag, QuizTagAdmin)
+# Old admin registrations removed - using @admin.register decorators instead
+# admin.site.register(Quiz, QuizAdmin)
+# admin.site.register(Question, QuestionAdmin)
+# admin.site.register(QuizAttempt, QuizAttemptAdmin)
+# admin.site.register(Answer, AnswerAdmin)
+# admin.site.register(QuizGradeOverride, QuizGradeOverrideAdmin)
+# admin.site.register(QuizTag, QuizTagAdmin)

@@ -35,8 +35,6 @@ def populate_default_roles(apps, schema_editor):
                 'view_rubrics', 'manage_rubrics', 'create_rubrics', 'delete_rubrics',
                 'view_discussions', 'manage_discussions', 'create_discussions', 'delete_discussions',
                 'view_conferences', 'manage_conferences', 'create_conferences', 'delete_conferences',
-                # SCORM Management
-                'view_scorm', 'manage_scorm', 'create_scorm', 'delete_scorm', 'track_scorm_progress',
                 # Outcomes Management
                 'view_outcomes', 'manage_outcomes', 'create_outcomes', 'delete_outcomes', 'align_outcomes',
                 # Gradebook Management
@@ -78,8 +76,6 @@ def populate_default_roles(apps, schema_editor):
                 'create_messages', 'manage_messages', 'view_messages',
                 'view_categories', 'manage_categories', 'create_categories', 'delete_categories',
                 'view_certificates_templates', 'manage_certificates',
-                # SCORM Management
-                'view_scorm', 'manage_scorm', 'create_scorm', 'delete_scorm', 'track_scorm_progress',
                 # Outcomes Management
                 'view_outcomes', 'manage_outcomes', 'create_outcomes', 'delete_outcomes', 'align_outcomes',
                 # Gradebook Management
@@ -116,8 +112,6 @@ def populate_default_roles(apps, schema_editor):
                 'create_messages', 'manage_messages', 'view_messages',
                 'view_categories', 'manage_categories', 'create_categories', 'delete_categories',
                 'view_certificates_templates', 'manage_certificates',
-                # SCORM Management
-                'view_scorm', 'manage_scorm', 'create_scorm', 'track_scorm_progress',
                 # Outcomes Management
                 'view_outcomes', 'manage_outcomes', 'create_outcomes', 'align_outcomes',
                 # Gradebook Management
@@ -149,8 +143,6 @@ def populate_default_roles(apps, schema_editor):
                 'view_reports',
                 'view_categories',
                 'view_certificates_templates', 'manage_certificates',
-                # SCORM Management
-                'view_scorm', 'manage_scorm', 'create_scorm', 'track_scorm_progress',
                 # Outcomes Management
                 'view_outcomes', 'manage_outcomes', 'align_outcomes',
                 # Gradebook Management
@@ -182,8 +174,6 @@ def populate_default_roles(apps, schema_editor):
                 'view_certificates_templates',
                 'view_reports',
                 'view_categories',
-                # SCORM Management
-                'view_scorm', 'track_scorm_progress',
                 # Outcomes Management
                 'view_outcomes',
                 # Gradebook Management

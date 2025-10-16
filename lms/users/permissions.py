@@ -4,7 +4,6 @@ from django.db.models import Q
 
 def check_course_edit_permission(user, course):
     """
-    Check if the user has permission to edit a SCORM course.
     """
     # Explicitly deny access to learners
     if user.role == 'learner':

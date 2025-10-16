@@ -69,12 +69,14 @@ class RubricCriterionAdmin(admin.ModelAdmin):
         return qs.none()
 
 
+@admin.register(RubricRating)
 class RubricRatingAdmin(admin.ModelAdmin):
     list_display = ['title', 'criterion', 'description', 'points', 'position']
     list_filter = ['criterion__rubric']
     ordering = ['criterion', 'position']
 
 
+@admin.register(RubricEvaluation)
 class RubricEvaluationAdmin(admin.ModelAdmin):
     list_display = ['get_submission_or_discussion', 'criterion', 'rating', 'points', 'evaluated_by', 'created_at']
     list_filter = ['created_at', 'evaluated_by']
@@ -90,6 +92,7 @@ class RubricEvaluationAdmin(admin.ModelAdmin):
     get_submission_or_discussion.short_description = 'Context'
 
 
+@admin.register(RubricEvaluationHistory)
 class RubricEvaluationHistoryAdmin(admin.ModelAdmin):
     list_display = ['get_context', 'criterion', 'version', 'points', 'evaluated_by', 'evaluation_date', 'is_current']
     list_filter = ['evaluation_date', 'is_current', 'version', 'evaluated_by']
@@ -106,6 +109,7 @@ class RubricEvaluationHistoryAdmin(admin.ModelAdmin):
     get_context.short_description = 'Context'
 
 
+@admin.register(RubricOverallFeedback)
 class RubricOverallFeedbackAdmin(admin.ModelAdmin):
     list_display = ['get_context', 'student', 'rubric', 'get_feedback_types', 'is_private', 'created_by', 'created_at']
     list_filter = ['is_private', 'created_at', 'created_by']
@@ -228,7 +232,8 @@ class RubricOverallFeedbackAdmin(admin.ModelAdmin):
         return True
 
 
-admin.site.register(RubricRating, RubricRatingAdmin)
-admin.site.register(RubricEvaluation, RubricEvaluationAdmin)
-admin.site.register(RubricEvaluationHistory, RubricEvaluationHistoryAdmin)
-admin.site.register(RubricOverallFeedback, RubricOverallFeedbackAdmin) 
+# Old admin registrations removed - using @admin.register decorators instead
+# admin.site.register(RubricRating, RubricRatingAdmin)
+# admin.site.register(RubricEvaluation, RubricEvaluationAdmin)
+# admin.site.register(RubricEvaluationHistory, RubricEvaluationHistoryAdmin)
+# admin.site.register(RubricOverallFeedback, RubricOverallFeedbackAdmin) 

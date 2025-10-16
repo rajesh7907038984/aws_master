@@ -131,7 +131,6 @@ function editTopic(topicId) {
                     case 'Audio':
                     case 'Video':
                     case 'Document':
-                    case 'SCORM':
                         if (data.topic.content_file) {
                             var fileContainer = document.querySelector('#' + data.topic.content_type.toLowerCase() + '-content .file-upload-container');
                             if (fileContainer) {
@@ -641,7 +640,6 @@ function autoMarkTopicAsComplete() {
         var topicType = topicTypeElement.textContent.trim();
         
         // Auto-complete for certain content types if we haven't already
-        if (['Text', 'Web', 'Video', 'Audio', 'Document', 'EmbedVideo', 'Assignment', 'SCORM', 'Quiz', 'Conference', 'Discussion'].indexOf(topicType) !== -1) {
             // Check if we've already marked this as complete
             if (localStorage.getItem('topic_' + topicId + '_completed') === 'true') {
                 console.log('Topic already marked as complete');

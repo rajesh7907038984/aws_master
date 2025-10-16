@@ -2163,8 +2163,6 @@
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             
-            // Check for SCORM upload completion notification
-            checkSCORMUploadCompletion();
             
             // Initialize topic status toggling
             initializeTopicStatusToggle();
@@ -2988,12 +2986,7 @@
             }, 4000);
         }
 
-        // Enhanced SCORM upload completion notification
-        function showSCORMUploadNotification(topicTitle, packageTitle) {
-            const message = ` SCORM upload completed successfully!<br>
                 <strong>Topic:</strong> ${topicTitle}<br>
-                <strong>Package:</strong> ${packageTitle || 'SCORM Content'}<br>
-                <small class="text-green-100">Your SCORM package is now ready for use.</small>`;
             
             const notification = document.createElement('div');
             notification.className = 'fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 max-w-md bg-green-500 text-white';
@@ -3021,7 +3014,6 @@
             
             document.body.appendChild(notification);
             
-            // Remove notification after 8 seconds (longer for SCORM success)
             setTimeout(() => {
                 if (notification.parentNode) {
                     notification.remove();
@@ -3029,36 +3021,22 @@
             }, 8000);
         }
 
-        // Check for SCORM upload completion on page load
-        function checkSCORMUploadCompletion() {
             const urlParams = new URLSearchParams(window.location.search);
-            const scormSuccess = urlParams.get('scorm_success');
             const topicTitle = urlParams.get('topic_title');
             const packageTitle = urlParams.get('package_title');
             
-            // Only show notification if we have SCORM success AND it hasn't been shown before
-            if (scormSuccess === 'true') {
                 // Check if we've already shown this notification (prevent duplicate notifications)
-                const notificationKey = `scorm_notif_${Date.now()}`;
-                const hasShownNotification = sessionStorage.getItem('scorm_notification_shown');
                 
                 // Only show notification if it hasn't been shown in this session
                 if (!hasShownNotification) {
-                    console.log('Showing SCORM upload success notification...');
-                    showSCORMUploadNotification(
-                        topicTitle || 'SCORM Topic',
-                        packageTitle || 'SCORM Package'
                     );
                     
                     // Mark notification as shown for this session
-                    sessionStorage.setItem('scorm_notification_shown', notificationKey);
                 } else {
-                    console.log('SCORM notification already shown in this session, skipping...');
                 }
                 
                 // Always clean up URL parameters regardless
                 const newUrl = new URL(window.location);
-                newUrl.searchParams.delete('scorm_success');
                 newUrl.searchParams.delete('topic_title');
                 newUrl.searchParams.delete('package_title');
                 window.history.replaceState({}, '', newUrl);
@@ -4055,7 +4033,6 @@
                                                             </span>
                                                             <!-- Topic type icon -->
                                                             <span class="content-type-icon content-type-{{ topic.content_type|lower }} mr-2 h-5 w-5 flex-shrink-0">
-                                                                {% if topic.content_type == 'SCORM' %}
                                                                     <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
                                                                         <path d="M4 6h16v12H4V6zm2 2v8h12V8H6zm5 2h2v4h-2v-4z"/>
                                                                     </svg>
@@ -4189,7 +4166,6 @@
                                                             </span>
                                                             <!-- Topic type icon -->
                                                             <span class="content-type-icon content-type-{{ topic.content_type|lower }} mr-2 h-5 w-5 flex-shrink-0">
-                                                                {% if topic.content_type == 'SCORM' %}
                                                                     <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
                                                                         <path d="M4 6h16v12H4V6zm2 2v8h12V8H6zm5 2h2v4h-2v-4z"/>
                                                                     </svg>

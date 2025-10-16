@@ -34,12 +34,12 @@ backlog = 2048
 # Worker processes - optimized for performance
 worker_class = "sync"
 worker_connections = 1000
-timeout = max(GUNICORN_TIMEOUT, 600)  # Minimum 600 seconds (10 minutes) for large SCORM uploads
 keepalive = 5  # Increased for better connection reuse
 
 # Restart workers after this many requests, to prevent memory leaks
-max_requests = 500  # Reduced to recycle workers more often and free memory
-max_requests_jitter = 100  # Increased jitter for better distribution
+# SESSION-AWARE: Reduced worker recycling to preserve user sessions
+max_requests = 1000  # Increased to reduce session disruption
+max_requests_jitter = 200  # Increased jitter for better distribution
 
 # Logging - use environment variable for log directory
 accesslog = f"{LOGS_DIR}/gunicorn_access.log"
@@ -61,7 +61,6 @@ tmp_upload_dir = None
 # keyfile = "/path/to/keyfile"
 # certfile = "/path/to/certfile"
 
-# Security - increased limits for large SCORM uploads
 limit_request_line = 8190
 limit_request_fields = 200
 limit_request_field_size = 16380
@@ -100,6 +99,15 @@ def pre_fork(server, worker):
 def post_fork(server, worker):
     """Called just after a worker has been forked."""
     server.log.info(" Worker spawned (pid: %s)", worker.pid)
+    
+    # SESSION-AWARE: Initialize session recovery for new workers
+    try:
+        from django.contrib.sessions.models import Session
+        from django.utils import timezone
+        active_sessions = Session.objects.filter(expire_date__gt=timezone.now()).count()
+        worker.log.info(" Active sessions: %s", active_sessions)
+    except Exception as e:
+        worker.log.warning(" Could not check active sessions: %s", e)
 
 def worker_abort(worker):
     """Called when a worker receives the SIGABRT signal."""

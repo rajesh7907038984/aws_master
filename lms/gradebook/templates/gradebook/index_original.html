@@ -116,12 +116,10 @@
     color: #3B82F6;
   }
   
-  .activity-scorm {
     background-color: rgba(139, 92, 246, 0.1);
     border: 1px solid rgba(139, 92, 246, 0.2);
   }
   
-  .activity-scorm .activity-type {
     color: #8B5CF6;
   }
   
@@ -382,7 +380,6 @@ NOTE: Using safe lookup functions that fallback to linear search if needed
 {% endcomment %}
 {% build_grade_lookup grades as grade_lookup %}
 {% build_quiz_attempt_lookup quiz_attempts as quiz_lookup %}
-{% build_scorm_lookup scorm_registrations as scorm_lookup %}
 
 <!-- Breadcrumbs -->
 {% include 'components/breadcrumb.html' with breadcrumbs=breadcrumbs %}
@@ -627,18 +624,9 @@ NOTE: Using safe lookup functions that fallback to linear search if needed
                     </div>
                     {% endif %}
                     
-                    <!-- SCORM -->
-                    {% course_has_activities course 'scorm' scorm_registrations=scorm_registrations as has_scorm_activities %}
-                    {% if has_scorm_activities %}
                     <div class="activity-category">
-                      <div class="activity-category-title">SCORM</div>
                       <div class="activities-container">
-                        {% comment %}Show all SCORM topics in the course{% endcomment %}
-                        {% for topic in scorm_topics %}
                           {% if topic.section.course.id == course.id %}
-                            {% get_scorm_registration_for_topic scorm_registrations student.id topic.id as registration %}
-                            <div class="activity-item activity-scorm {% if registration %}{% if registration.completion_status == 'completed' or registration.success_status == 'passed' %}status-submitted{% elif registration.completion_status == 'incomplete' %}status-resubmitted{% else %}status-not-submitted{% endif %}{% else %}status-not-submitted{% endif %}">
-                              <div class="activity-type">SCORM</div>
                               <div class="activity-title" title="{{ topic.title }}">{{ topic.title }}</div>
                               {% if registration %}
                                 {% if registration.score %}
@@ -791,18 +779,9 @@ NOTE: Using safe lookup functions that fallback to linear search if needed
                     </div>
                     {% endif %}
                     
-                    <!-- SCORM -->
-                    {% course_has_activities course 'scorm' scorm_registrations=scorm_registrations as has_scorm_activities %}
-                    {% if has_scorm_activities %}
                     <div class="activity-category">
-                      <div class="activity-category-title">SCORM</div>
                       <div class="activities-container">
-                        {% comment %}Show all SCORM topics in the course{% endcomment %}
-                        {% for topic in scorm_topics %}
                           {% if topic.section.course.id == course.id %}
-                            {% get_scorm_registration_for_topic scorm_registrations student.id topic.id as registration %}
-                            <div class="activity-item activity-scorm {% if registration %}{% if registration.completion_status == 'completed' or registration.success_status == 'passed' %}status-submitted{% elif registration.completion_status == 'incomplete' %}status-resubmitted{% else %}status-not-submitted{% endif %}{% else %}status-not-submitted{% endif %}">
-                              <div class="activity-type">SCORM</div>
                               <div class="activity-title" title="{{ topic.title }}">{{ topic.title }}</div>
                               {% if registration %}
                                 {% if registration.score %}

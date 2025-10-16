@@ -96,17 +96,17 @@ if [ ! -z "$MEDIA_ROOT" ] && [ ! -d "$MEDIA_ROOT" ]; then
     mkdir -p "$MEDIA_ROOT"
 fi
 
-# Create SCORM uploads directory
-if [ ! -z "$SCORM_ROOT_FOLDER" ] && [ ! -d "$SCORM_ROOT_FOLDER" ]; then
-    echo "   Creating SCORM uploads directory: $SCORM_ROOT_FOLDER"
-    mkdir -p "$SCORM_ROOT_FOLDER"
+# Create removed uploads directory
+if [ ! -z "$removed_ROOT_FOLDER" ] && [ ! -d "$removed_ROOT_FOLDER" ]; then
+    echo "   Creating removed uploads directory: $removed_ROOT_FOLDER"
+    mkdir -p "$removed_ROOT_FOLDER"
 fi
 
 # Set permissions
 chmod 755 "$LOGS_DIR"
 chmod 755 "$STATIC_ROOT"
 [ ! -z "$MEDIA_ROOT" ] && [ -d "$MEDIA_ROOT" ] && chmod 755 "$MEDIA_ROOT"
-[ ! -z "$SCORM_ROOT_FOLDER" ] && [ -d "$SCORM_ROOT_FOLDER" ] && chmod 755 "$SCORM_ROOT_FOLDER"
+[ ! -z "$removed_ROOT_FOLDER" ] && [ -d "$removed_ROOT_FOLDER" ] && chmod 755 "$removed_ROOT_FOLDER"
 
 echo " Directories created successfully"
 

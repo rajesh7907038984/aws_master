@@ -19,13 +19,13 @@ server {
     ssl_ciphers HIGH:!aNULL:!MD5;
     
     # Security headers (default for most content)
-    # add_header X-Frame-Options "DENY" always; # Disabled globally to allow SCORM
+    # add_header X-Frame-Options "DENY" always; # Disabled globally to allow removed
     add_header X-Content-Type-Options "nosniff" always;
     add_header X-XSS-Protection "1; mode=block" always;
     add_header Referrer-Policy "strict-origin-when-cross-origin" always;
     add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
     
-    # Client max body size for file uploads (2GB for large SCORM packages and zip files)
+    # Client max body size for file uploads (2GB for large removed packages and zip files)
     client_max_body_size 2G;
     client_body_timeout 300s;
     client_header_timeout 300s;
@@ -64,9 +64,9 @@ server {
         add_header Content-Type text/plain;
     }
     
-    # SCORM player and content - NO CSP restrictions (handled by Django)
-    location ~ ^/(scorm|media/scorm_content)/ {
-        # Large file upload support for SCORM packages
+    # removed player and content - NO CSP restrictions (handled by Django)
+    location ~ ^/removed/ {
+        # Large file upload support for removed packages
         client_max_body_size 2G;
         client_body_timeout 600s;
         
@@ -78,10 +78,10 @@ server {
         proxy_set_header X-Forwarded-Host $host;
         proxy_set_header X-Forwarded-Port $server_port;
         
-        # Set permissive CSP for SCORM content to allow JavaScript execution
-        # Commented out for SCORM: add_header X-Frame-Options "SAMEORIGIN" always;
+        # Set permissive CSP for removed content to allow JavaScript execution
+        # Commented out for removed: add_header X-Frame-Options "SAMEORIGIN" always;
         
-        # Extended timeouts for large SCORM uploads
+        # Extended timeouts for large removed uploads
         proxy_connect_timeout 600s;
         proxy_send_timeout 600s;
         proxy_read_timeout 600s;

@@ -136,15 +136,6 @@ LOGGING = {
             'level': 'ERROR',
             'propagate': False,
         },
-        'lms_scorm_error': {
-            'handlers': ['error_file'],
-            'level': 'ERROR',
-            'propagate': False,
-        },
-    },
-    'root': {
-        'handlers': ['file', 'console'],
-        'level': 'INFO',
     },
 }
 
@@ -152,22 +143,17 @@ LOGGING = {
 # CORE DJANGO SETTINGS
 # ==============================================
 
-# Session: Require SECRET_KEY to be set from environment
-SECRET_KEY = get_env('DJANGO_SECRET_KEY')
-if not SECRET_KEY:
-    # Generate a secure secret key if not provided
-    SECRET_KEY = get_random_secret_key()
-    print("Generated new SECRET_KEY - set DJANGO_SECRET_KEY environment variable for production")
-else:
-    # Validate SECRET_KEY length and complexity
-    if len(SECRET_KEY) < 50:
-        print("SECRET_KEY is too short - generating a secure replacement")
-        SECRET_KEY = get_random_secret_key()
-    elif SECRET_KEY.startswith('django-insecure-'):
-        print("SECRET_KEY uses insecure prefix - generating a secure replacement")
-        SECRET_KEY = get_random_secret_key()
-    else:
-        print(" Using provided SECRET_KEY from environment")
+# Session: Use SECRET_KEY from environment variables
+SECRET_KEY = get_env('DJANGO_SECRET_KEY', required=True)
+
+# Validate SECRET_KEY length and complexity
+if len(SECRET_KEY) < 50:
+    raise ValueError("SECRET_KEY must be at least 50 characters long for security")
+elif SECRET_KEY.startswith('django-insecure-'):
+    raise ValueError("SECRET_KEY cannot use insecure 'django-insecure-' prefix")
+
+print("✅ Using SECRET_KEY from environment variables")
+print("   Sessions will persist across server restarts")
 
 # Site framework
 SITE_ID = 1
@@ -197,7 +183,6 @@ INSTALLED_APPS = [
     'groups',
     'branches',
     'business',
-    'scorm',  # Native SCORM support with S3 and multiple player types
     'branch_portal',
     'LMS_Project',
     'core',
@@ -234,10 +219,7 @@ INSTALLED_APPS = [
 # ==============================================
 
 MIDDLEWARE = [
-    'django.middleware.gzip.GZipMiddleware',  # Enable GZIP compression for large SCORM files
     'django.middleware.security.SecurityMiddleware',
-    'scorm.middleware.ScormCSPMiddleware',  # Permissive CSP for SCORM content
-    'scorm.middleware.ScormCORSMiddleware',  # CORS for SCORM API
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -488,7 +470,7 @@ CACHES = {
 OUTLOOK_CLIENT_ID = get_env('OUTLOOK_CLIENT_ID')
 OUTLOOK_CLIENT_SECRET = get_env('OUTLOOK_CLIENT_SECRET')
 OUTLOOK_TENANT_ID = get_env('OUTLOOK_TENANT_ID')
-OUTLOOK_FROM_EMAIL = get_env('OUTLOOK_FROM_EMAIL', 'noreply@nexsy.io')
+OUTLOOK_FROM_EMAIL = get_env('OUTLOOK_FROM_EMAIL', get_env('DEFAULT_FROM_EMAIL', 'noreply@example.com'))
 
 # Email Backend - Use OAuth2 if configured, otherwise use Global Admin Settings
 if all([OUTLOOK_CLIENT_ID, OUTLOOK_CLIENT_SECRET, OUTLOOK_TENANT_ID]):
@@ -501,7 +483,7 @@ else:
     # No hardcoded fallbacks - all email configuration must be done via Global Admin Settings
     print("📧 Email configuration via Global Admin Settings")
 
-DEFAULT_FROM_EMAIL = OUTLOOK_FROM_EMAIL if OUTLOOK_FROM_EMAIL else 'noreply@nexsy.io'
+DEFAULT_FROM_EMAIL = OUTLOOK_FROM_EMAIL if OUTLOOK_FROM_EMAIL else get_env('DEFAULT_FROM_EMAIL', 'noreply@example.com')
 
 # ==============================================
 # INTERNATIONALIZATION
@@ -519,25 +501,14 @@ USE_TZ = True
 # Primary domain for the application
 PRIMARY_DOMAIN = get_env('PRIMARY_DOMAIN', 'localhost:8000')
 
-# Base URL for the application (used for email links, SCORM redirects, etc.)
 # Auto-constructs HTTPS URL if not explicitly provided
 BASE_URL = get_env('BASE_URL', f'http{"s" if ENVIRONMENT == "production" else ""}://{PRIMARY_DOMAIN}')
 
 # ==============================================
-# SCORM CONFIGURATION (New Implementation)
 # ==============================================
 
-# SCORM Upload Behavior - kept for worker management
-SCORM_IMMEDIATE_SYNC = get_bool_env('SCORM_IMMEDIATE_SYNC', True)
-SCORM_WORKER_AUTO_START = get_bool_env('SCORM_WORKER_AUTO_START', True)
 
-# SCORM Root Folder Configuration
-SCORM_ROOT_FOLDER = get_env('SCORM_ROOT_FOLDER', os.path.join(str(BASE_DIR), 'scorm_uploads'))
-SCORM_AUTO_CLEANUP = get_bool_env('SCORM_AUTO_CLEANUP', True)
-SCORM_CLEANUP_MAX_AGE_HOURS = get_int_env('SCORM_CLEANUP_MAX_AGE_HOURS', 24)
 
-# Note: SCORM functionality now uses local TopicProgress model
-# See courses.models.TopicProgress for SCORM progress tracking
 
 # ==============================================
 # AI INTEGRATION (ANTHROPIC)
@@ -558,14 +529,12 @@ IDEAL_POSTCODES_API_KEY = get_env('IDEAL_POSTCODES_API_KEY')
 # Session SETTINGS
 # ==============================================
 
+# Get trusted IPs from environment variables
 # Default trusted IPs for local development and admin access
-DEFAULT_TRUSTED_IPS = [
-    # Local development IPs
-    # Public IP addresses for admin access
-    '103.149.158.14',  # IPv4 public IP
-    '2403:a080:1d:dca1:2006:c571:7bd3:6472',  # IPv6 public IP
-    '2403:a080:1d:dca1:1884:1e4c:2cff:2e6a'  # IPv6 public IP (previous)
-]
+DEFAULT_TRUSTED_IPS = get_list_env('DEFAULT_TRUSTED_IPS', default=[
+    '127.0.0.1',
+    'localhost'
+])
 
 # Add environment-specified trusted IPs
 env_trusted_ips = get_list_env('TRUSTED_IPS', default=[])
@@ -574,26 +543,19 @@ env_trusted_ips = get_list_env('TRUSTED_IPS', default=[])
 TRUSTED_IPS = DEFAULT_TRUSTED_IPS + env_trusted_ips
 
 # Content Session Settings
-X_FRAME_OPTIONS = 'SAMEORIGIN'  # Allow SCORM content while maintaining security
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 SECURE_REFERRER_POLICY = 'strict-origin-when-cross-origin'
 
-# Content Security Policy - Allow SCORM content while maintaining security
-# DISABLED: These settings are overridden by individual views for SCORM content
 # CSP_DEFAULT_SRC = ("'self'",)
 # CSP_SCRIPT_SRC = ("'self'", "'unsafe-inline'", "'unsafe-eval'", "*.amazonaws.com")
 # CSP_STYLE_SRC = ("'self'", "'unsafe-inline'", "*.amazonaws.com")
 # CSP_IMG_SRC = ("'self'", "data:", "*.amazonaws.com")
 # CSP_FONT_SRC = ("'self'", "*.amazonaws.com")
 # CSP_CONNECT_SRC = ("'self'", "*.amazonaws.com")
-# CSP_FRAME_SRC = ("'self'", "*.amazonaws.com")  # Allow SCORM content from S3
-# CSP_OBJECT_SRC = ("'self'", "*.amazonaws.com")  # Allow SCORM objects
 # CSP_BASE_URI = ("'self'",)
-# CSP_FRAME_ANCESTORS = ("'self'", "*.amazonaws.com")  # Allow SCORM content embedding
 
 
-# Content Security Policy - Allow S3 content for SCORM
 # Note: Individual views can override this with more permissive policies
 SECURE_CONTENT_SECURITY_POLICY = None  # Disable default CSP, let views handle it
 SECURE_CONTENT_SECURITY_POLICY_REPORT_ONLY = False  # Disable CSP report mode
@@ -629,9 +591,6 @@ DATA_UPLOAD_MAX_NUMBER_FIELDS = 1000
 FILE_UPLOAD_PERMISSIONS = 0o644
 FILE_UPLOAD_DIRECTORY_PERMISSIONS = 0o755
 
-# Large file upload support for SCORM packages (1GB+)
-FILE_UPLOAD_MAX_MEMORY_SIZE = 2 * 1024 * 1024 * 1024  # 2GB - supports large SCORM packages
-DATA_UPLOAD_MAX_MEMORY_SIZE = 2 * 1024 * 1024 * 1024   # 2GB - supports large SCORM packages
 DATA_UPLOAD_MAX_NUMBER_FIELDS = 1000
 
 # Temporary file handling for large uploads

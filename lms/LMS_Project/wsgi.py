@@ -32,10 +32,11 @@ def ensure_media_directories():
         # Get MEDIA_ROOT from settings
         MEDIA_ROOT = getattr(settings, 'MEDIA_ROOT', None)
         if not MEDIA_ROOT:
-            logger.info(" MEDIA_ROOT not configured, skipping directory creation")
+            logger.info(" Using S3 storage - no local MEDIA_ROOT directory creation needed")
+            logger.info(f" S3 Bucket: {getattr(settings, 'AWS_STORAGE_BUCKET_NAME', 'Not configured')}")
             return
     
-        logger.info(f" MEDIA_ROOT: {MEDIA_ROOT}")
+        logger.info(f" Using local storage - MEDIA_ROOT: {MEDIA_ROOT}")
     
         # Check if media directory is accessible
         if not os.path.exists(MEDIA_ROOT):

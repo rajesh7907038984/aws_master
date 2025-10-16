@@ -116,7 +116,6 @@ class Migration(migrations.Migration):
                         choices=[
                             ("quiz", "Quiz"),
                             ("assignment", "Assignment"),
-                            ("scorm", "SCORM"),
                             ("ilt_conference", "ILT/Conference"),
                             ("discussion", "Discussion"),
                         ],

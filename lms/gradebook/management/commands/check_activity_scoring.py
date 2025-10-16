@@ -11,9 +11,7 @@ from courses.models import Course
 
 try:
     from courses.models import Topic, TopicProgress
-    SCORM_AVAILABLE = True
 except ImportError:
-    SCORM_AVAILABLE = False
 
 
 class Command(BaseCommand):
@@ -184,34 +182,20 @@ class Command(BaseCommand):
             else:
                 self.stdout.write(f'ℹ️  Conference "{conference.title}": No rubric (no scoring)')
 
-        # 5. SCORM (Auto Score)
-        if SCORM_AVAILABLE:
-            self.stdout.write('\n--- SCORM ---')
             try:
                 from courses.models import Topic
-                scorm_topics = Topic.objects.filter(
                     coursetopic__course=course,
-                    content_type='SCORM'
                 )
                 
-                for topic in scorm_topics:
                     try:
-                        # Use new SCORM implementation - topic itself is SCORM content
-                        scorm_content = topic if topic.content_type == 'SCORM' else None
                         
-                        if scorm_content and hasattr(scorm_content, 'scorm_package') and scorm_content.scorm_package:
-                            # Use new SCORM implementation - check for SCORM package
-                            registrations = []  # No longer using SCORMRegistration model
                         else:
                             registrations = []
                     except Exception:
                         registrations = []
-                    self.stdout.write(f' SCORM Topic "{topic.title}": Auto scoring ({len(registrations)} registrations)')
                     
             except Exception as e:
-                self.stdout.write(f'  SCORM: Error checking: {e}')
         else:
-            self.stdout.write('ℹ️  SCORM: Module not available')
 
         if not assignments.exists() and not quizzes.exists() and not discussions.exists() and not conferences.exists():
             self.stdout.write('ℹ️  No gradeable activities found in this course')

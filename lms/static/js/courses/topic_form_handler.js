@@ -124,16 +124,13 @@ document.addEventListener('DOMContentLoaded', function() {
         input.addEventListener('change', function() {
             handleFileUpload(this);
             
-            // Special handling for SCORM file
             if (this.id === 'content_file') {
                 const file = this.files[0];
                 if (file) {
-                    const preview = document.getElementById('scorm-file-preview');
                     if (preview) {
                         preview.textContent = `Selected file: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`;
                         preview.classList.remove('hidden');
                     }
-                    console.log('SCORM file selected:', file.name);
                 }
             }
         });

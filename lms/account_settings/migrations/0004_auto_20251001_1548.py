@@ -66,12 +66,7 @@ class Migration(migrations.Migration):
             field=models.OneToOneField(blank=True, help_text='The branch these portal settings belong to', null=True, on_delete=django.db.models.deletion.CASCADE, related_name='portal_settings', to='branches.branch'),
         ),
         migrations.AddField(
-            model_name='scormintegration',
-            name='branch',
-            field=models.ForeignKey(blank=True, help_text='The branch this SCORM integration belongs to', null=True, on_delete=django.db.models.deletion.CASCADE, to='branches.branch'),
-        ),
-        migrations.AddField(
-            model_name='scormintegration',
+            model_name='portalsettings',
             name='user',
             field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, to=settings.AUTH_USER_MODEL),
         ),

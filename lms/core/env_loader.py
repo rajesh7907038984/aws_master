@@ -191,12 +191,22 @@ def get_list_env(key: str, separator: str = ',', default: list = None) -> list:
 
 def validate_environment():
     """Validate that all required environment variables are set"""
+    # Get current environment
+    current_env = os.environ.get('DJANGO_ENV', 'development')
+    
+    # Base required variables for all environments
     required_vars = [
         'DJANGO_SECRET_KEY',
-        'AWS_DB_PASSWORD',
-        'AWS_DB_HOST',
-        'AWS_DB_USER',
-        'AWS_DB_NAME',
     ]
+    
+    # Add production-specific required variables
+    if current_env == 'production':
+        required_vars.extend([
+            'AWS_DB_PASSWORD',
+            'AWS_DB_HOST',
+            'AWS_DB_USER',
+            'AWS_DB_NAME',
+            'AWS_STORAGE_BUCKET_NAME',
+        ])
     
     env_loader.validate_required_variables(required_vars)

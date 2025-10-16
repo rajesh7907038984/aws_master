@@ -9,8 +9,6 @@ from courses.models import Course, CourseEnrollment, Topic
 from quiz.models import Quiz, QuizAttempt, QuizRubricEvaluation
 from discussions.models import Discussion
 from conferences.models import Conference, ConferenceRubricEvaluation
-# SCORM imports for new implementation
-# from scorm.models import ScormAttempt  # temporarily disabled
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from decimal import Decimal
@@ -34,50 +32,8 @@ from django.shortcuts import redirect
 
 logger = logging.getLogger(__name__)
 
-def has_scorm_progress(attempt):
-    """
-    Check if a SCORM attempt represents actual progress (not just an initial attempt)
-    """
-    if not attempt:
-        return False
-    
-    # Consider it progress if any of these conditions are met:
-    # 1. Has been accessed (last_accessed is set) - this indicates user actually opened the content
-    # 2. Has spent some time (more than 0 seconds) - this indicates user interaction
-    # 3. Lesson status is completed or passed - this indicates actual completion
-    # 4. Has a score AND last_accessed (score without access suggests programmatic assignment)
-    
-    # First check: User actually accessed the content
-    if attempt.last_accessed:
-        return True
-    
-    # Second check: User spent time on the content
-    if attempt.total_time and attempt.total_time != '0000:00:00.00':
-        return True
-    
-    # Third check: Content is completed or passed (regardless of access time)
-    if attempt.lesson_status in ['completed', 'passed']:
-        return True
-        
-    # Fourth check: Has a score AND was accessed (prevents false positives from programmatic scores)
-    if attempt.score_raw and attempt.score_raw > 0 and attempt.last_accessed:
-        return True
-    
-    # Check if there's meaningful progress data that indicates actual user interaction
-    if attempt.cmi_data and isinstance(attempt.cmi_data, dict):
-        # Look for meaningful progress indicators that suggest user interaction
-        if attempt.cmi_data.get('progress', 0) > 0:
-            return True
-        if attempt.cmi_data.get('completion_percent', 0) > 0:
-            return True
-        # Only consider scorm_sync if there's also evidence of user interaction
-        if (attempt.cmi_data.get('scorm_sync', False) and 
-            (attempt.last_accessed or attempt.total_time != '0000:00:00.00')):
-            return True
-    
-    return False
 
-def pre_calculate_student_scores(students, activities, grades, quiz_attempts, scorm_attempts, conference_evaluations, initial_assessment_attempts=None):
+def pre_calculate_student_scores(students, activities, grades, quiz_attempts, conference_evaluations, initial_assessment_attempts=None):
     """
     Pre-calculate all student scores for activities to reduce template computation.
     Returns a dictionary structure: {student_id: {activity_id: score_data}}
@@ -107,32 +63,6 @@ def pre_calculate_student_scores(students, activities, grades, quiz_attempts, sc
                 if key not in quiz_attempt_lookup or attempt.end_time > quiz_attempt_lookup[key].end_time:
                     quiz_attempt_lookup[key] = attempt
         
-        scorm_lookup = {}
-        if scorm_attempts:
-            for attempt in scorm_attempts:
-                key = (attempt.user_id, attempt.scorm_package_id)
-                # CRITICAL FIX: Keep the BEST attempt for each student-scorm pair, not the latest
-                if key not in scorm_lookup:
-                    scorm_lookup[key] = attempt
-                else:
-                    current_attempt = scorm_lookup[key]
-                    # Compare attempts to find the best one
-                    current_score = current_attempt.score_raw or 0
-                    new_score = attempt.score_raw or 0
-                    
-                    # Prefer attempt with higher score
-                    if new_score > current_score:
-                        scorm_lookup[key] = attempt
-                    # If scores are equal, prefer completed/passed attempts
-                    elif new_score == current_score:
-                        if (attempt.lesson_status in ['completed', 'passed'] and 
-                            current_attempt.lesson_status not in ['completed', 'passed']):
-                            scorm_lookup[key] = attempt
-                        # If both have same status, prefer the one with more recent activity
-                        elif (attempt.lesson_status == current_attempt.lesson_status and 
-                              attempt.last_accessed and current_attempt.last_accessed and
-                              attempt.last_accessed > current_attempt.last_accessed):
-                            scorm_lookup[key] = attempt
         
         conference_lookup = {}
         for evaluation in conference_evaluations:
@@ -360,407 +290,6 @@ def pre_calculate_student_scores(students, activities, grades, quiz_attempts, sc
                                     'type': 'conference'
                                 }
                         
-                        elif activity_type == 'scorm':
-                            key = (student.id, activity_id)
-                            if key in scorm_lookup:
-                                attempt = scorm_lookup[key]
-                                
-                                # Check if attempt has meaningful data (including TOC navigation data)
-                                has_attempt_data = (
-                                    attempt.score_raw is not None or 
-                                    attempt.lesson_status in ['completed', 'passed'] or
-                                    attempt.last_accessed is not None or
-                                    attempt.total_time != '0000:00:00.00' or
-                                    attempt.lesson_location or  # TOC navigation bookmark
-                                    attempt.suspend_data or    # TOC progress data
-                                    (attempt.navigation_history and len(attempt.navigation_history) > 0)  # Navigation history
-                                )
-                                
-                                if has_attempt_data:
-                                    # CRITICAL FIX: Only show scores in gradebook when SCORM is completed
-                                    # For in-progress attempts, show "In Progress" instead
-                                    try:
-                                        from courses.models import TopicProgress
-                                        topic = activity['object'].topic if hasattr(activity['object'], 'topic') else None
-                                        topic_progress = TopicProgress.objects.filter(
-                                            topic=topic,
-                                            user=student
-                                        ).first() if topic else None
-                                        
-                                        # Check if SCORM is completed
-                                        is_completed = attempt.lesson_status in ['completed', 'passed', 'failed']
-                                        
-                                        # CRITICAL FIX: Use actual SCORM score, not best score
-                                        score_value = None
-                                        
-                                        # ENHANCED: Get the BEST score from all attempts for this student and SCORM package
-                                        # This ensures gradebook shows the highest achievement, not just the latest attempt
-                                        all_attempts = ScormAttempt.objects.filter(
-                                            user=student,
-                                            scorm_package=attempt.scorm_package
-                                        ).order_by('-score_raw')
-                                        
-                                        best_attempt = None
-                                        best_score = None
-                                        
-                                        # Find the attempt with the highest score
-                                        for att in all_attempts:
-                                            if att.score_raw is not None and att.score_raw > 0:
-                                                if best_score is None or att.score_raw > best_score:
-                                                    best_score = float(att.score_raw)
-                                                    best_attempt = att
-                                        
-                                        # Use the best score found
-                                        if best_score is not None:
-                                            score_value = best_score
-                                            logger.debug(f"GRADEBOOK: Using BEST score from all attempts: {score_value} (from attempt {best_attempt.id})")
-                                        # Fallback to TopicProgress.best_score if no attempt scores
-                                        elif topic_progress and topic_progress.best_score is not None:
-                                            score_value = float(topic_progress.best_score)
-                                            logger.debug(f"GRADEBOOK: Using TopicProgress.best_score as fallback: {score_value}")
-                                        # Final fallback to TopicProgress.last_score
-                                        elif topic_progress and topic_progress.last_score is not None:
-                                            score_value = float(topic_progress.last_score)
-                                            logger.debug(f"GRADEBOOK: Using TopicProgress.last_score as final fallback: {score_value}")
-                                            
-                                        # REMOVED: Don't force completion just because there's a score
-                                        # In-progress SCORM should not show scores in gradebook
-                                        # if score_value is not None and not is_completed:
-                                        #     logger.warning(f"GRADEBOOK: Score {score_value} found but SCORM not completed for attempt {attempt.id}. This may indicate a sync issue.")
-                                        #     is_completed = True
-                                        
-                                        # Determine completion status
-                                        if is_completed:
-                                            if score_value is not None:
-                                                if score_value >= 70:  # Passing threshold
-                                                    completion_status = 'passed'
-                                                    success_status = 'passed'
-                                                else:
-                                                    completion_status = 'failed'
-                                                    success_status = 'failed'
-                                            elif attempt.lesson_status in ['completed', 'passed']:
-                                                completion_status = 'completed'
-                                                success_status = 'passed'
-                                            else:
-                                                completion_status = attempt.lesson_status
-                                                success_status = attempt.success_status
-                                        else:
-                                            # SCORM in progress - don't show score yet
-                                            completion_status = 'incomplete'
-                                            success_status = 'unknown'
-                                            score_value = None  # Force no score for in-progress
-                                            
-                                    except Exception as e:
-                                        logger.error(f"Error getting TopicProgress for SCORM: {str(e)}")
-                                        is_completed = attempt.lesson_status in ['completed', 'passed', 'failed']
-                                        score_value = float(attempt.score_raw) if (is_completed and attempt.score_raw) else None
-                                        completion_status = attempt.lesson_status
-                                        success_status = attempt.success_status
-                                    
-                                    # CRITICAL FIX: For SCORM, show mastery achievement status instead of raw scores
-                                    # mastery_score is the pass/fail threshold, and we should display achievement relative to mastery
-                                    passing_threshold = float(attempt.scorm_package.mastery_score) if attempt.scorm_package.mastery_score else 70
-                                    
-                                    # ENHANCED: Handle different SCORM package types with appropriate scoring logic
-                                    package_metadata = attempt.scorm_package.package_metadata or {}
-                                    package_type = package_metadata.get('package_type', 'unknown')
-                                    scoring_method = package_metadata.get('scoring_method', 'unknown')
-                                    
-                                    # For SCORM content, show mastery achievement status
-                                    # CRITICAL FIX: Handle completion-based scoring for SCORM packages
-                                    # Some SCORM packages don't properly calculate scores based on completion
-                                    if score_value is not None:
-                                        # ENHANCED: Handle different SCORM package types with appropriate completion logic
-                                        is_completion_based = False
-                                        
-                                        # For Articulate Storyline packages (slide_completion method)
-                                        if package_type == 'articulate_storyline' and scoring_method == 'slide_completion':
-                                            # Check if slides are completed (stored in suspend_data)
-                                            if attempt.suspend_data:
-                                                try:
-                                                    import json
-                                                    suspend_data = json.loads(attempt.suspend_data)
-                                                    slides_completed = len(suspend_data.get('slides', {}))
-                                                    total_slides = suspend_data.get('totalSlides', 0)
-                                                    
-                                                    # If we have slide data and slides are completed, consider it completion-based
-                                                    if slides_completed > 0 and (total_slides == 0 or slides_completed >= total_slides):
-                                                        is_completion_based = True
-                                                except:
-                                                    pass
-                                        
-                                        # For generic packages or fallback logic
-                                        if not is_completion_based:
-                                            is_completion_based = (
-                                                attempt.lesson_status in ['completed', 'passed'] or
-                                                (attempt.lesson_status == 'failed' and 
-                                                 attempt.total_time and 
-                                                 attempt.total_time != '0000:00:00.00' and
-                                                 attempt.lesson_location and
-                                                 score_value < passing_threshold and
-                                                 # ADDITIONAL CHECKS: Ensure meaningful completion
-                                                 (attempt.progress_percentage and attempt.progress_percentage > 50) or  # At least 50% progress
-                                                 (attempt.completed_slides and len(attempt.completed_slides) > 0) or  # Has completed slides
-                                                 (attempt.total_time and attempt.total_time > '0000:02:00.00'))  # At least 2 minutes spent
-                                            )
-                                        
-                                        if is_completion_based or score_value >= passing_threshold:
-                                            # Passed: Show as 100% (mastery achieved)
-                                            # For completion-based, always show 100/100
-                                            display_score = 100
-                                            display_max = 100
-                                            achievement_status = 'passed'
-                                        else:
-                                            # Failed: Show actual score vs mastery threshold
-                                            display_score = score_value
-                                            display_max = passing_threshold
-                                            achievement_status = 'failed'
-                                    else:
-                                        # No score available - check completion status
-                                        if attempt.lesson_status in ['completed', 'passed']:
-                                            # Completion-based: show 100/100
-                                            display_score = 100
-                                            display_max = 100
-                                            achievement_status = 'passed'
-                                        else:
-                                            display_score = None
-                                            display_max = passing_threshold
-                                            achievement_status = completion_status
-                                    
-                                    student_scores[activity_id] = {
-                                        'score': display_score,
-                                        'max_score': display_max,  # Show mastery threshold as max for failed attempts
-                                        'raw_score': score_value,  # Keep original score for reference
-                                        'mastery_threshold': passing_threshold,  # Add mastery threshold for reference
-                                        'achievement_status': achievement_status,  # Add achievement status
-                                        'date': attempt.last_accessed,
-                                        'type': 'scorm',
-                                        'attempt': attempt,
-                                        'lesson_status': completion_status,
-                                        'success_status': success_status,
-                                        'completed': completion_status in ['completed', 'passed'],
-                                        'in_progress': not is_completed and has_attempt_data,  # New flag for in-progress state
-                                        'has_bookmark': bool(attempt.lesson_location or attempt.suspend_data),  # Show bookmark if resume data exists
-                                        'show_resume': bool(attempt.lesson_location or attempt.suspend_data) and not is_completed,  # Allow resume if resume data exists and topic is not completed
-                                        'is_passed': is_completed and (score_value is None or score_value >= passing_threshold)  # Use package mastery score
-                                    }
-                                else:
-                                    # Registration exists but has no meaningful data
-                                    # Check TopicProgress as fallback
-                                    try:
-                                        from courses.models import TopicProgress
-                                        
-                                        # Find the topic linked to this SCORM package
-                                        # SCORM packages are directly linked to topics
-                                        topic = activity['object'].topic if hasattr(activity['object'], 'topic') else None
-                                        
-                                        if topic:
-                                            topic_progress = TopicProgress.objects.filter(
-                                                topic=topic,
-                                                user=student
-                                            ).first()
-                                            
-                                            if topic_progress and (topic_progress.completed or topic_progress.best_score is not None or topic_progress.last_score is not None):
-                                                # Use TopicProgress data
-                                                completion_status = 'completed' if topic_progress.completed else 'incomplete'
-                                                success_status = 'unknown'
-                                                
-                                                # FIXED: Get score from best_score (best achievement - UX priority)
-                                                score_value = None
-                                                if topic_progress.best_score is not None:
-                                                    score_value = float(topic_progress.best_score)
-                                                elif topic_progress.last_score is not None:
-                                                    score_value = float(topic_progress.last_score)
-                                                else:
-                                                    # Fallback: check progress_data for SCORM score
-                                                    progress_data = topic_progress.progress_data or {}
-                                                    score_raw = progress_data.get('score_raw')
-                                                    if score_raw is not None:
-                                                        try:
-                                                            score_value = float(score_raw)
-                                                        except (ValueError, TypeError):
-                                                            pass
-                                                
-                                                if score_value is not None:
-                                                    if score_value >= 70:
-                                                        success_status = 'passed'
-                                                    else:
-                                                        success_status = 'failed'
-                                                elif topic_progress.completed:
-                                                    success_status = 'passed'
-                                                
-                                                # CRITICAL FIX: For SCORM, max_score should ALWAYS be 100
-                                                # mastery_score is only used for pass/fail threshold
-                                                scorm_package = activity['object']
-                                                
-                                                student_scores[activity_id] = {
-                                                    'score': score_value,
-                                                    'max_score': 100,  # SCORM scores are always 0-100 percentages
-                                                    'date': topic_progress.last_accessed,
-                                                    'type': 'scorm',
-                                                    'topic_progress': topic_progress,
-                                                    'completion_status': completion_status,
-                                                    'success_status': success_status,
-                                                    'completed': topic_progress.completed
-                                                }
-                                            else:
-                                                scorm_package = activity['object']
-                                                student_scores[activity_id] = {
-                                                    'score': None,
-                                                    'max_score': 100,  # SCORM scores are always 0-100 percentages
-                                                    'type': 'scorm'
-                                                }
-                                        else:
-                                            scorm_package = activity['object']
-                                            student_scores[activity_id] = {
-                                                'score': None,
-                                                'max_score': 100,  # SCORM scores are always 0-100 percentages
-                                                'type': 'scorm'
-                                            }
-                                    except Exception as e:
-                                        logger.error(f"Error checking TopicProgress for scorm {activity_id}, student {student.id}: {str(e)}")
-                                        scorm_package = activity['object']
-                                        student_scores[activity_id] = {
-                                            'score': None,
-                                            'max_score': 100,  # SCORM scores are always 0-100 percentages
-                                            'type': 'scorm'
-                                        }
-                            else:
-                                # No registration found - check TopicProgress as fallback
-                                try:
-                                    from courses.models import TopicProgress
-                                    
-                                    # Find the topic linked to this SCORM package
-                                    # SCORM packages are directly linked to topics
-                                    topic = activity['object']
-                                    scorm_package = topic.scorm_package if hasattr(topic, 'scorm_package') else None
-                                    # mastery_score is used only for pass/fail threshold, NOT as max_score
-                                    passing_threshold = float(scorm_package.mastery_score) if scorm_package and scorm_package.mastery_score else 70
-                                    
-                                    if topic:
-                                        topic_progress = TopicProgress.objects.filter(
-                                            topic=topic,
-                                            user=student
-                                        ).first()
-                                        
-                                        if topic_progress and (topic_progress.completed or topic_progress.best_score is not None or topic_progress.last_score is not None):
-                                            # Use TopicProgress data
-                                            completion_status = 'completed' if topic_progress.completed else 'incomplete'
-                                            success_status = 'unknown'
-                                            
-                                            # CRITICAL FIX: Use actual SCORM score from TopicProgress
-                                            # TopicProgress.last_score should now contain the actual SCORM score
-                                            score_value = topic_progress.last_score
-                                            
-                                            if score_value is not None:
-                                                if float(score_value) >= passing_threshold:
-                                                    success_status = 'passed'
-                                                else:
-                                                    success_status = 'failed'
-                                            elif topic_progress.completed:
-                                                success_status = 'passed'
-                                            
-                                            student_scores[activity_id] = {
-                                                'score': float(score_value) if score_value else None,
-                                                'max_score': 100,  # SCORM scores are always 0-100 percentages
-                                                'date': topic_progress.last_accessed,
-                                                'type': 'scorm',
-                                                'topic_progress': topic_progress,
-                                                'completion_status': completion_status,
-                                                'success_status': success_status,
-                                                'completed': topic_progress.completed
-                                            }
-                                        else:
-                                            student_scores[activity_id] = {
-                                                'score': None,
-                                                'max_score': 100,  # SCORM scores are always 0-100 percentages
-                                                'type': 'scorm'
-                                            }
-                                    else:
-                                        student_scores[activity_id] = {
-                                            'score': None,
-                                            'max_score': 100,  # SCORM scores are always 0-100 percentages
-                                            'type': 'scorm'
-                                        }
-                                except Exception as e:
-                                    logger.error(f"Error checking TopicProgress for scorm {activity_id}, student {student.id}: {str(e)}")
-                                    scorm_package = activity['object']
-                                    student_scores[activity_id] = {
-                                        'score': None,
-                                        'max_score': 100,  # SCORM scores are always 0-100 percentages
-                                        'type': 'scorm'
-                                    }
-                        
-                        elif activity_type == 'scorm_topic':
-                            # Handle SCORM topics that track progress via TopicProgress model
-                            try:
-                                from courses.models import TopicProgress
-                                
-                                topic_progress = TopicProgress.objects.filter(
-                                    topic=activity['object'],
-                                    user=student
-                                ).first()
-                                
-                                if topic_progress and (topic_progress.best_score is not None or topic_progress.last_score is not None or topic_progress.completed or topic_progress.attempts > 0 or topic_progress.last_accessed):
-                                    # Calculate completion status
-                                    completion_status = 'completed' if topic_progress.completed else 'incomplete'
-                                    
-                                    # CRITICAL FIX: Use best_score for gradebook display (best achievement)
-                                    score_value = None
-                                    if topic_progress.best_score is not None:
-                                        score_value = float(topic_progress.best_score)
-                                    elif topic_progress.last_score is not None:
-                                        score_value = float(topic_progress.last_score)
-                                    else:
-                                        # Fallback: check progress_data for SCORM score
-                                        progress_data = topic_progress.progress_data or {}
-                                        score_raw = progress_data.get('score_raw')
-                                        if score_raw is not None:
-                                            try:
-                                                score_value = float(score_raw)
-                                            except (ValueError, TypeError):
-                                                pass
-                                    
-                                    # Determine success status based on score
-                                    success_status = 'unknown'
-                                    if score_value is not None:
-                                        # Consider passed if score is 70% or higher (typical passing threshold)
-                                        if score_value >= 70:
-                                            success_status = 'passed'
-                                        else:
-                                            success_status = 'failed'
-                                    elif topic_progress.completed:
-                                        success_status = 'passed'
-                                    elif topic_progress.last_accessed and not topic_progress.completed and score_value is None:
-                                        # Learner has accessed but not completed or scored - show as in progress
-                                        success_status = 'in_progress'
-                                    
-                                    student_scores[activity_id] = {
-                                        'score': score_value,
-                                        'max_score': 100,  # SCORM scores are typically 0-100 scale
-                                        'date': topic_progress.last_accessed,
-                                        'type': 'scorm_topic',
-                                        'topic_progress': topic_progress,
-                                        'completion_status': completion_status,
-                                        'success_status': success_status,
-                                        'completed': topic_progress.completed,
-                                        'in_progress': topic_progress.last_accessed and not topic_progress.completed,
-                                        'has_bookmark': bool(topic_progress.bookmark or (topic_progress.progress_data and (topic_progress.progress_data.get('lesson_location') or topic_progress.progress_data.get('suspend_data')))),
-                                        'last_accessed': topic_progress.last_accessed  # For template compatibility
-                                    }
-                                else:
-                                    student_scores[activity_id] = {
-                                        'score': None,
-                                        'max_score': 100,
-                                        'type': 'scorm_topic'
-                                    }
-                            except Exception as e:
-                                logger.error(f"Error fetching TopicProgress for scorm_topic {activity_id}, student {student.id}: {str(e)}")
-                                student_scores[activity_id] = {
-                                    'score': None,
-                                    'max_score': 100,
-                                    'type': 'scorm_topic'
-                                }
                     
                     except Exception as e:
                         logger.error(f"Error processing activity {activity_id} for student {student.id}: {str(e)}")
@@ -813,9 +342,7 @@ def prepare_activity_display_data(activities, user_role):
                 'assignment': 'ASG',
                 'quiz': 'QUZ',
                 'discussion': 'DSC',
-                'conference': 'CNF',
-                'scorm': 'SCO',
-                'scorm_topic': 'SCO'
+                'conference': 'CNF'
             }.get(activity['type'], 'UNK'),
             
             'type_class': f"activity-type-{activity['type']}",
@@ -1037,20 +564,6 @@ def gradebook_index(request):
             Q(topics__isnull=True)
         ).distinct().prefetch_related('course', 'topics__courses').order_by('created_at')
 
-        # Get SCORM topics with course associations
-        scorm_topics = []
-        try:
-            # Get SCORM topics from accessible courses
-            scorm_topics = Topic.objects.filter(
-                content_type='SCORM',
-                status='active',  # Only active SCORM topics
-                coursetopic__course__in=courses  # Through CourseTopic relationship
-            ).distinct().prefetch_related(
-                'coursetopic_set__course'  # Prefetch course relationships
-            ).order_by('created_at')
-        except Exception as e:
-            logger.error(f"Error filtering SCORM topics: {str(e)}")
-            scorm_topics = []
 
         # Helper function to get course info for activities
         def get_activity_course_info(activity, activity_type):
@@ -1071,12 +584,6 @@ def gradebook_index(request):
                     topic = activity.topics.first()
                     if hasattr(topic, 'courses') and topic.courses.exists():
                         course_info = topic.courses.first()
-            elif activity_type == 'scorm_topic':
-                # For SCORM topics, get course through CourseTopic relationship
-                if hasattr(activity, 'coursetopic_set'):
-                    course_topic = activity.coursetopic_set.first()
-                    if course_topic:
-                        course_info = course_topic.course
             return course_info
 
         # Process activities based on filter
@@ -1153,18 +660,6 @@ def gradebook_index(request):
                         'max_score': max_score,
                     })
 
-        if activity_filter == 'all' or activity_filter == 'scorm':
-            for scorm_topic in scorm_topics:
-                course_info = get_activity_course_info(scorm_topic, 'scorm_topic')
-                if course_info:  # Only include if has course association
-                    activities_data.append({
-                        'object': scorm_topic,
-                        'type': 'scorm_topic',
-                        'title': scorm_topic.title,
-                        'course': course_info,
-                        'created_at': scorm_topic.created_at if hasattr(scorm_topic, 'created_at') else timezone.now(),
-                        'max_score': 100,
-                    })
 
     # Apply search filter if provided
     if search_query:
@@ -1275,28 +770,6 @@ def gradebook_index(request):
                         logger.error(f"Error checking conference attendance: {str(e)}")
                         return "Not Started"
                         
-                elif activity_type == 'scorm_topic':
-                    progress = TopicProgress.objects.filter(
-                        topic=activity_obj,
-                        user_id=user_id
-                    ).first()
-                    
-                    if progress:
-                        if progress.completed:
-                            return "Completed"
-                        elif progress.last_score is not None:
-                            # Check if passed or failed based on score
-                            if float(progress.last_score) >= 70:
-                                return "Completed"
-                            else:
-                                return "Failed"
-                        elif (progress.attempts > 0 or progress.last_accessed) and not progress.completed:
-                            # Learner has attempted/accessed but not completed - consider as failed
-                            return "Failed"
-                        else:
-                            return "Not Started"
-                    else:
-                        return "Not Started"
                 
                 return "Not Started"
                 
@@ -1343,7 +816,6 @@ def gradebook_index(request):
         ('initial_assessment', 'Initial Assessments'),
         ('discussion', 'Discussions'),
         ('conference', 'Conferences'),
-        ('scorm', 'SCORM Content'),
     ]
     
     # Course choices for filter dropdown
@@ -1544,33 +1016,6 @@ def course_gradebook_detail(request, course_id):
         discussions = Discussion.objects.none()
         conferences = Conference.objects.none()
     
-    # Get SCORM topics for this course
-    scorm_packages = []
-    scorm_topics_without_packages = []  # Keep track of topics without packages
-    try:
-        # Get topics that contain SCORM content for this course
-        scorm_topics = Topic.objects.filter(
-            coursetopic__course=course,
-            content_type='SCORM',
-            status='active'  # Only include active/published SCORM topics
-        ).prefetch_related('coursetopic_set__course').order_by('created_at')
-        
-        for topic in scorm_topics:
-            # Check if topic has a SCORM package
-            try:
-                if hasattr(topic, 'scorm_package') and topic.scorm_package:
-                    scorm_packages.append(topic.scorm_package)
-                else:
-                    # Topic exists but has no package - still include it in activities
-                    scorm_topics_without_packages.append(topic)
-            except Exception as e:
-                logger.error(f"Error processing SCORM topic {topic.id}: {str(e)}")
-                # If there's an error, still include the topic
-                scorm_topics_without_packages.append(topic)
-    except Exception as e:
-        logger.error(f"Error fetching SCORM content for course {course_id}: {str(e)}")
-        # Continue without SCORM content
-        pass
     
     # Calculate overview metrics
     # Use paginated students count for accurate overview metrics
@@ -1578,7 +1023,7 @@ def course_gradebook_detail(request, course_id):
     # Count only discussions and conferences that have rubrics
     discussions_with_rubrics = discussions.filter(rubric__isnull=False).count()
     conferences_with_rubrics = conferences.filter(rubric__isnull=False).count()
-    total_activities = assignments.count() + quizzes.count() + discussions_with_rubrics + conferences_with_rubrics + len(scorm_packages) + len(scorm_topics_without_packages)
+    total_activities = assignments.count() + quizzes.count() + discussions_with_rubrics + conferences_with_rubrics
     
     # Calculate activity status counts
     # Get all submissions and attempts with optimized queries
@@ -1606,60 +1051,18 @@ def course_gradebook_detail(request, course_id):
 
     # Initial assessment attempts are now included in the main quiz_attempts query above
     
-    # SCORM attempts with optimized queries
-    all_scorm_attempts = ScormAttempt.objects.filter(
-        scorm_package__in=scorm_packages,
-        user__in=students
-    ).select_related('scorm_package', 'user').order_by('-last_accessed')
-    
     # Calculate total possible activity instances (students × activities)
     total_possible_instances = students_count * total_activities
     
     # Count submitted activities - include 'not_graded' as it represents submitted work awaiting grading
     submitted_assignments = all_submissions.filter(status__in=['submitted', 'not_graded', 'graded', 'returned']).count()
     submitted_quizzes = quiz_attempts.count()  # This now includes initial assessment attempts
-    # Only count completed SCORM activities as submitted
-    submitted_scorm = all_scorm_attempts.filter(lesson_status='completed').count()
     
-    # Count SCORM topics (tracked via TopicProgress) as submitted if completed
-    submitted_scorm_topics = 0
-    if scorm_topics_without_packages:
-        from courses.models import TopicProgress
-        for topic in scorm_topics_without_packages:
-            submitted_scorm_topics += TopicProgress.objects.filter(
-                topic=topic,
-                user__in=students,
-                completed=True
-            ).count()
-    
-    total_submitted = submitted_assignments + submitted_quizzes + submitted_scorm + submitted_scorm_topics
+    total_submitted = submitted_assignments + submitted_quizzes
     
     # Count in-progress activities (for more accurate metrics)
-    # Only count SCORM attempts that have actual progress
-    in_progress_scorm = 0
-    for attempt in all_scorm_attempts:
-        if attempt.lesson_status == 'incomplete':
-            # Check if there's actual progress
-            has_progress = has_scorm_progress(attempt)
-            if has_progress:
-                in_progress_scorm += 1
-    
-    # Count SCORM topics in progress (accessed but not completed)
-    in_progress_scorm_topics = 0
-    if scorm_topics_without_packages:
-        from courses.models import TopicProgress
-        for topic in scorm_topics_without_packages:
-            # Count as in progress if accessed or has attempts but not completed
-            in_progress_scorm_topics += TopicProgress.objects.filter(
-                topic=topic,
-                user__in=students,
-                completed=False
-            ).filter(
-                Q(last_accessed__isnull=False) | Q(attempts__gt=0)
-            ).count()
-    
     # Adjust not started calculation to account for in-progress activities
-    total_started = total_submitted + in_progress_scorm + in_progress_scorm_topics
+    total_started = total_submitted
     total_not_started = total_possible_instances - total_started
     
     # Ensure not started count is non-negative
@@ -1670,7 +1073,7 @@ def course_gradebook_detail(request, course_id):
         'total_activities': total_activities,
         'total_not_started': total_not_started,
         'total_submitted': total_submitted,
-        'total_in_progress': in_progress_scorm + in_progress_scorm_topics,
+        'total_in_progress': 0,
     }
     
     # Create organized activities list with type-specific numbering
@@ -1761,39 +1164,6 @@ def course_gradebook_detail(request, course_id):
             })
             conference_counter += 1
     
-    # Add SCORM packages with numbering
-    scorm_counter = 1
-    for scorm_package in scorm_packages:
-        # FIXED: Use the actual topic title instead of generic "SCORM Course"
-        scorm_title = 'SCORM Content'  # Default fallback
-        if hasattr(scorm_package, 'topic') and scorm_package.topic:
-            scorm_title = scorm_package.topic.title
-        elif hasattr(scorm_package, 'title') and scorm_package.title:
-            scorm_title = scorm_package.title
-        
-        activities.append({
-            'object': scorm_package,
-            'type': 'scorm',
-            'created_at': scorm_package.upload_date if hasattr(scorm_package, 'upload_date') else timezone.now(),
-            'title': scorm_title,
-            'max_score': float(scorm_package.mastery_score) if scorm_package.mastery_score else 100,
-            'activity_number': scorm_counter,
-            'activity_name': f"SCORM {scorm_counter}"
-        })
-        scorm_counter += 1
-    
-    # Add SCORM topics without packages
-    for scorm_topic in scorm_topics_without_packages:
-        activities.append({
-            'object': scorm_topic,  # Use the topic object instead of package
-            'type': 'scorm_topic',  # Different type to distinguish from packages
-            'created_at': scorm_topic.created_at if hasattr(scorm_topic, 'created_at') else timezone.now(),
-            'title': scorm_topic.title,
-            'max_score': 100,  # SCORM scores are typically on a 0-100 scale
-            'activity_number': scorm_counter,
-            'activity_name': f"SCORM {scorm_counter}"
-        })
-        scorm_counter += 1
     
     # Sort activities by creation date to ensure consistent ordering
     activities.sort(key=lambda x: x['created_at'])
@@ -1810,7 +1180,6 @@ def course_gradebook_detail(request, course_id):
     logger.debug(f"Course {course.id} ({course.title}) activities found: "
                 f"Assignments: {assignments.count()}, Quizzes: {quizzes.count()}, "
                 f"Discussions: {discussions.count()}, Conferences: {conferences.count()}, "
-                f"SCORM packages: {len(scorm_packages)}, SCORM topics without packages: {len(scorm_topics_without_packages)}, "
                 f"Total activities: {len(activities)}, User role: {user.role}")
     
     # Calculate total possible points (convert all to Decimal to avoid type mismatch)
@@ -1863,14 +1232,6 @@ def course_gradebook_detail(request, course_id):
             # 'useranswer_set__answer'  # Commented out - invalid prefetch_related parameter
         ).order_by('-end_time')
         
-        # Get SCORM attempts for this course with optimized queries
-        scorm_attempts = ScormAttempt.objects.filter(
-            user__in=students,
-            scorm_package__in=scorm_packages
-        ).select_related(
-            'scorm_package',
-            'user'
-        ).order_by('-last_accessed')
         
         # Get conference rubric evaluations for this course with optimized queries
         conference_evaluations = ConferenceRubricEvaluation.objects.filter(
@@ -1883,7 +1244,6 @@ def course_gradebook_detail(request, course_id):
         # Initialize empty lists/querysets as fallback
         grades = []
         quiz_attempts = QuizAttempt.objects.none()
-        scorm_attempts = ScormAttempt.objects.none()
         conference_evaluations = ConferenceRubricEvaluation.objects.none()
     
     # Define breadcrumbs for this view
@@ -1909,7 +1269,7 @@ def course_gradebook_detail(request, course_id):
             # Note: initial_assessment_attempts are included in quiz_attempts now
             student_scores = pre_calculate_student_scores(
                 students, activities, grades, quiz_attempts, 
-                scorm_attempts, conference_evaluations, None
+                [], conference_evaluations, None
             )
             # Cache for 5 minutes (reduced for more frequent updates)
             cache.set(cache_key, student_scores, timeout=300)
@@ -2062,8 +1422,6 @@ def course_gradebook_detail(request, course_id):
         'quizzes': quizzes,
         'grades': grades,
         'quiz_attempts': quiz_attempts,
-        'scorm_attempts': scorm_attempts,
-        'scorm_packages': scorm_packages,
         'discussions': discussions,
         'conferences': conferences,
         'conference_evaluations': conference_evaluations,
@@ -3039,28 +2397,6 @@ def export_gradebook_csv(request, course_id):
             Q(topics__status='active') | Q(topics__isnull=True)
         ).distinct().select_related('course', 'created_by', 'rubric').prefetch_related('topics').order_by('created_at')
         
-        # Get SCORM packages
-        scorm_packages = []
-        scorm_topics_without_packages = []
-        try:
-            scorm_topics = Topic.objects.filter(
-                coursetopic__course=course,
-                content_type='SCORM',
-                status='active'
-            ).prefetch_related('coursetopic_set__course').order_by('created_at')
-            
-            for topic in scorm_topics:
-                try:
-                    # Check if topic has a SCORM package
-                    if hasattr(topic, 'scorm_package') and topic.scorm_package:
-                        scorm_packages.append(topic.scorm_package)
-                    else:
-                        scorm_topics_without_packages.append(topic)
-                except Exception as e:
-                    logger.error(f"Error processing SCORM topic {topic.id}: {str(e)}")
-                    scorm_topics_without_packages.append(topic)
-        except Exception as e:
-            logger.error(f"Error fetching SCORM content for course {course_id}: {str(e)}")
         
         # Create CSV response
         response = HttpResponse(content_type='text/csv')
@@ -3087,13 +2423,6 @@ def export_gradebook_csv(request, course_id):
         for conference in conferences.filter(rubric__isnull=False):
             headers.append(f'Conference: {conference.title}')
         
-        # Add SCORM columns - FIXED: Use actual topic title
-        for package in scorm_packages:
-            scorm_title = package.topic.title if hasattr(package, 'topic') and package.topic else package.title
-            headers.append(f'SCORM: {scorm_title}')
-        
-        for topic in scorm_topics_without_packages:
-            headers.append(f'SCORM Topic: {topic.title}')
         
         # Add overall grade column
         headers.append('Overall Grade')
@@ -3120,11 +2449,6 @@ def export_gradebook_csv(request, course_id):
             end_time__in=Subquery(latest_attempts.values('end_time')[:1])
         ).select_related('quiz', 'user', 'quiz__rubric')
         
-        # Get SCORM attempts
-        all_scorm_attempts = ScormAttempt.objects.filter(
-            scorm_package__in=scorm_packages,
-            user__in=students
-        ).select_related('scorm_package', 'user')
         
         # Write data rows
         for student in students:
@@ -3179,52 +2503,6 @@ def export_gradebook_csv(request, course_id):
                 # This is a simplified version - you might want to add more detailed grading logic
                 row.append('N/A')  # Placeholder for conference grades
             
-            # Add SCORM grades
-            for package in scorm_packages:
-                attempt = all_scorm_attempts.filter(
-                    scorm_package=package,
-                    user=student
-                ).first()
-                
-                if attempt:
-                    if attempt.lesson_status == 'completed':
-                        row.append('Completed')
-                    elif attempt.lesson_status == 'incomplete':
-                        row.append('In Progress')
-                    else:
-                        row.append(attempt.lesson_status.title())
-                else:
-                    row.append('Not Started')
-            
-            # Add SCORM topics without packages - check TopicProgress
-            for topic in scorm_topics_without_packages:
-                from courses.models import TopicProgress
-                topic_progress = TopicProgress.objects.filter(
-                    topic=topic,
-                    user=student
-                ).first()
-                
-                if topic_progress:
-                    if topic_progress.completed:
-                        row.append('Completed')
-                    elif topic_progress.last_score is not None:
-                        # Use last_score (most recent/live) to match SCORM results page
-                        if float(topic_progress.last_score) >= 70:
-                            row.append(f"Completed ({topic_progress.last_score}%)")
-                        else:
-                            row.append(f"Failed ({topic_progress.last_score}%)")
-                    elif topic_progress.best_score is not None:
-                        # Fallback to best_score if last_score not available
-                        if float(topic_progress.best_score) >= 70:
-                            row.append(f"Completed ({topic_progress.best_score}%)")
-                        else:
-                            row.append(f"Failed ({topic_progress.last_score}%)")
-                    elif (topic_progress.attempts > 0 or topic_progress.last_accessed) and not topic_progress.completed:
-                        row.append('Failed')
-                    else:
-                        row.append('Not Started')
-                else:
-                    row.append('Not Started')
             
             # Calculate overall grade (simplified)
             # Grade calculation logic

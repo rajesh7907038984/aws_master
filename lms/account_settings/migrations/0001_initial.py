@@ -736,7 +736,7 @@ class Migration(migrations.Migration):
             },
         ),
         migrations.CreateModel(
-            name="SCORMIntegration",
+            name="IntegrationCredential",
             fields=[
                 (
                     "id",
@@ -760,20 +760,17 @@ class Migration(migrations.Migration):
                 (
                     "app_id",
                     models.CharField(
-                        help_text="SCORM Cloud Application ID", max_length=255
                     ),
                 ),
                 (
                     "secret_key",
                     models.CharField(
-                        help_text="SCORM Cloud Secret Key", max_length=255
                     ),
                 ),
                 (
                     "pens_key",
                     models.CharField(
                         blank=True,
-                        help_text="SCORM Cloud PENS (Package Exchange Notification Services) Key for notifications",
                         max_length=255,
                         null=True,
                     ),
@@ -781,15 +778,12 @@ class Migration(migrations.Migration):
                 (
                     "base_url",
                     models.URLField(
-                        default="https://cloud.scorm.com/api/v2",
-                        help_text="SCORM Cloud API Base URL",
                     ),
                 ),
                 (
                     "verify_ssl",
                     models.BooleanField(
                         default=True,
-                        help_text="Verify SSL certificates for SCORM Cloud API",
                     ),
                 ),
                 (
@@ -817,14 +811,12 @@ class Migration(migrations.Migration):
                     "is_tested",
                     models.BooleanField(
                         default=False,
-                        help_text="Whether SCORM Cloud configuration has been tested successfully",
                     ),
                 ),
                 (
                     "last_test_date",
                     models.DateTimeField(
                         blank=True,
-                        help_text="Date when SCORM Cloud configuration was last tested",
                         null=True,
                     ),
                 ),
@@ -832,7 +824,6 @@ class Migration(migrations.Migration):
                     "test_error",
                     models.TextField(
                         blank=True,
-                        help_text="Last SCORM Cloud test error message if any",
                         null=True,
                     ),
                 ),

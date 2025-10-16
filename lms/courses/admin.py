@@ -38,8 +38,6 @@ try:
 except ImportError:
     CourseFeature = None
 from .forms import TopicAdminForm
-# SCORM imports removed - functionality no longer supported
-
 logger = logging.getLogger(__name__)
 
 class CourseEnrollmentInline(admin.TabularInline):
@@ -49,437 +47,15 @@ class CourseEnrollmentInline(admin.TabularInline):
     readonly_fields = ('enrolled_at', 'completion_date')
 
     def get_queryset(self, request):
-        qs = super().get_queryset(request)
-        if request.user.is_superuser:
-            return qs
-        if request.user.role == 'admin':
-            return qs.filter(course__branch=request.user.branch)
-        if request.user.role == 'instructor':
-            return qs.filter(course__instructor=request.user)
-        return qs.none()
-
-    def formfield_for_foreignkey(self, db_field, request, **kwargs):
-        if db_field.name == "user" and not request.user.is_superuser:
-            kwargs["queryset"] = CustomUser.objects.filter(
-                role='learner',
-                branch=request.user.branch
-            )
-        return super().formfield_for_foreignkey(db_field, request, **kwargs)
-
-class CourseTopicInline(admin.TabularInline):
-    model = CourseTopic
-    extra = 1
-
-@admin.register(Course)
-class CourseAdmin(admin.ModelAdmin):
-    list_display = ('title', 'instructor', 'branch', 'is_active', 'created_at', 'view_progress')
-    list_filter = ('is_active', 'branch', 'instructor')
-    search_fields = ('title', 'description')
-    inlines = [CourseTopicInline]
-    readonly_fields = ('created_at', 'updated_at')
-    
-    def view_progress(self, obj):
-        """Link to view course progress"""
-        return format_html(
-            '<a href="{}" class="button">View Progress</a>',
-            reverse('courses:course_progress', args=[obj.id])
-        )
-    view_progress.short_description = 'Progress'
-
-    fieldsets = (
-        (None, {
-            'fields': ('title', 'course_code', 'description', 'course_image')
-        }),
-        ('Course Details', {
-            'fields': ('instructor', 'branch', 'category')
-        }),
-        ('Pricing', {
-            'fields': ('price', 'coupon_code', 'discount_percentage'),
-            'description': 'Important: Paid courses must be assigned to a branch to appear in branch portals.'
-        }),
-        ('Status', {
-            'fields': ('is_active', 'created_at', 'updated_at')
-        }),
-    )
-
-    def get_form(self, request, obj=None, **kwargs):
-        form = super().get_form(request, obj, **kwargs)
-        if not (request.user.is_superuser or request.user.role in ['globaladmin', 'superadmin']):
-            # Branch handling
-            if 'branch' in form.base_fields:
-                if request.user.branch:
-                    form.base_fields['branch'].queryset = Branch.objects.filter(
-                        id=request.user.branch.id
-                    )
-                    form.base_fields['branch'].initial = request.user.branch
-                    form.base_fields['branch'].disabled = True
-                else:
-                    # If user has no branch, show a message and disable the field
-                    form.base_fields['branch'].queryset = Branch.objects.none()
-                    form.base_fields['branch'].disabled = True
-                    messages.warning(request, "You need to be assigned to a branch to manage courses.")
-
-            # Category handling
-            if 'category' in form.base_fields:
-                form.base_fields['category'].queryset = CourseCategory.objects.filter(
-                    is_active=True
-                )
-
-            # Instructor handling
-            if 'instructor' in form.base_fields:
-                if request.user.role == 'instructor':
-                    form.base_fields['instructor'].disabled = True
-                    form.base_fields['instructor'].initial = request.user
-                elif request.user.role == 'admin' and request.user.branch:
-                    form.base_fields['instructor'].queryset = CustomUser.objects.filter(
-                        role='instructor',
-                        branch=request.user.branch
-                    )
-
-        form.current_user = request.user
-        return form
-
-    def save_model(self, request, obj, form, change):
-        is_new_course = obj.pk is None
-        
-        if not (request.user.is_superuser or request.user.role in ['globaladmin', 'superadmin']):
-            if not request.user.branch:
-                raise PermissionDenied("You need to be assigned to a branch to manage courses.")
-            if obj.branch != request.user.branch:
-                raise PermissionDenied("You can only manage courses in your branch.")
-            obj.branch = request.user.branch
-            if request.user.role == 'instructor':
-                obj.instructor = request.user
-
-        # First save the object to get an ID
-        super().save_model(request, obj, form, change)
-        
-        # If this is a new course, ensure the creator is enrolled
-        if is_new_course:
-            CourseEnrollment.objects.get_or_create(
-                course=obj,
-                user=request.user,
-                defaults={
-                    'enrollment_source': 'manual'
-                }
-            )
-
-        # Now check group access since we have an ID
-        if hasattr(obj, 'accessible_groups'):
-            for group in obj.accessible_groups.all():
-                if group.branch != obj.branch:
-                    raise PermissionDenied("Groups must belong to the same branch as the course.")
-
-    def get_queryset(self, request):
+        """Override to apply permissions"""
         qs = super().get_queryset(request)
         
-        # Global Admin: FULL access
-        if request.user.role == 'globaladmin' or request.user.is_superuser:
-            return qs
-            
-        if isinstance(request.user, AnonymousUser):
-            return qs.none()
-            
-        # Super Admin: CONDITIONAL access (courses within their assigned businesses)
-        if request.user.role == 'superadmin':
-            if hasattr(request.user, 'business_assignments'):
-                assigned_businesses = request.user.business_assignments.filter(is_active=True).values_list('business', flat=True)
-                return qs.filter(branch__business__in=assigned_businesses)
-            return qs.none()
-            
-        # Branch Admin: CONDITIONAL access (courses within their effective branch, supports branch switching)
-        if request.user.role == 'admin':
-            from core.branch_filters import BranchFilterManager
-            effective_branch = BranchFilterManager.get_effective_branch(request.user, request)
-            if effective_branch:
-                return qs.filter(branch=effective_branch)
-            return qs.none()
-            
-        # Instructor: CONDITIONAL access (courses they created or assigned to by admin)
-        if request.user.role == 'instructor':
-            return qs.filter(
-                instructor=request.user
-            ) | qs.filter(
-                accessible_groups__memberships__user=request.user,
-                accessible_groups__memberships__is_active=True
-            ).distinct()
-            
-        # Learner: NONE access to admin interface
-        return qs.none()
-
-    def has_view_permission(self, request, obj=None):
-        if request.user.is_superuser or request.user.role in ['globaladmin', 'superadmin']:
-            return True
-        if isinstance(request.user, AnonymousUser):
-            return False
-        if obj is None:
-            return True
-        if request.user.role == 'admin':
-            return obj.branch == request.user.branch
-        if request.user.role == 'instructor':
-            return obj.instructor == request.user or obj.accessible_groups.filter(
-                memberships__user=request.user,
-                memberships__is_active=True
-            ).exists()
-        return False
-
-    def has_change_permission(self, request, obj=None):
-        return self.has_view_permission(request, obj)
-
-    def has_delete_permission(self, request, obj=None):
-        if request.user.is_superuser or request.user.role in ['globaladmin', 'superadmin']:
-            return True
-        if isinstance(request.user, AnonymousUser):
-            return False
-        if obj is None:
-            return False
-        if request.user.role == 'admin':
-            return obj.branch == request.user.branch
-        if request.user.role == 'instructor':
-            return obj.instructor == request.user
-        return False
-
-    def has_add_permission(self, request):
-        if isinstance(request.user, AnonymousUser):
-            return False
-        return request.user.is_superuser or request.user.role in ['superadmin', 'admin', 'instructor']
-
-@admin.register(Topic)
-class TopicAdmin(admin.ModelAdmin):
-    form = TopicAdminForm
-    list_display = ('title', 'content_type', 'status', 'order')
-    list_filter = ('content_type', 'status')
-    search_fields = ('title', 'description')
-    readonly_fields = ('created_at', 'updated_at')
-    
-    fieldsets = (
-        (None, {
-            'fields': ('title', 'description', 'course')
-        }),
-        ('Content', {
-            'fields': ('content_type', 'content_file', 'text_content', 'web_url', 'embed_code')
-        }),
-        ('Settings', {
-            'fields': ('status', 'order', 'start_date', 'end_date', 'alignment')
-        }),
-        ('Metadata', {
-            'fields': ('created_at', 'updated_at'),
-            'classes': ('collapse',)
-        })
-    )
-
-    def get_form(self, request, obj=None, **kwargs):
-        form = super().get_form(request, obj, **kwargs)
+        # Apply permissions
         if not request.user.is_superuser:
-            if request.user.role == 'admin':
-                form.base_fields['course'].queryset = Course.objects.filter(branch=request.user.branch)
-            elif request.user.role == 'instructor':
-                form.base_fields['course'].queryset = Course.objects.filter(instructor=request.user)
-        return form
-
-    def save_model(self, request, obj, form, change):
-        super().save_model(request, obj, form, change)
+            # Filter based on user permissions
+            pass
         
-        # Handle course-topic relationship
-        course = form.cleaned_data.get('course')
-        if course:
-            CourseTopic.objects.get_or_create(course=course, topic=obj)
-
-    class Media:
-        css = {
-            'all': ('admin/css/topic_admin.css',)
-        }
-        js = ('admin/js/topic_admin.js',)
-
-    add_form_template = 'admin/courses/topic/add_form.html'
-    change_form_template = 'admin/courses/topic/change_form.html'
-
-
-class TopicProgressAdmin(admin.ModelAdmin):
-    list_display = ('user', 'topic', 'completed', 'completion_method', 'manually_completed', 'last_accessed', 'get_progress_display', 'get_status_display')
-    list_filter = ('completed', 'completion_method', 'manually_completed')
-    search_fields = ('user__username', 'topic__title')
-    raw_id_fields = ('user', 'topic')
-    readonly_fields = ('last_accessed', 'first_accessed', 'completion_data_display', 'progress_data_display')
-    actions = ['bulk_delete_selected', 'sync_scorm_data']
-
-    # Remove default actions (including delete_selected) to avoid duplication
-    def get_actions(self, request):
-        actions = super().get_actions(request)
-        if 'delete_selected' in actions:
-            del actions['delete_selected']
-        return actions
-
-    fieldsets = (
-        ('Basic Information', {
-            'fields': ('user', 'topic', 'completed', 'completion_method', 'manually_completed', 'completed_at')
-        }),
-        ('Progress Data', {
-            'fields': ('progress_data_display', 'progress_data', 'bookmark')
-        }),
-        ('Completion Details', {
-            'fields': ('completion_data_display', 'completion_data')
-        }),
-        ('Scoring', {
-            'fields': ('last_score', 'best_score', 'attempts')
-        }),
-        ('Timing', {
-            'fields': ('total_time_spent', 'last_accessed', 'first_accessed')
-        }),
-        ('Audio Progress', {
-            'fields': ('audio_progress', 'last_audio_position')
-        })
-    )
-    
-    def get_queryset(self, request):
-        """Override to sync SCORM Cloud data for listed SCORM records and apply permissions"""
-        qs = super().get_queryset(request)
-        
-        # Apply permission filtering
-        if request.user.is_superuser:
-            filtered_qs = qs
-        elif request.user.role == 'admin':
-            # Update the query to first get topics through CourseTopic
-            filtered_qs = qs.filter(
-                topic__coursetopic__course__branch=request.user.branch
-            ).select_related(
-                'user',
-                'topic'
-            ).distinct()
-        elif request.user.role == 'instructor':
-            filtered_qs = qs.filter(
-                models.Q(topic__coursetopic__course__instructor=request.user) |
-                models.Q(
-                    topic__coursetopic__course__accessible_groups__memberships__user=request.user,
-                    topic__coursetopic__course__accessible_groups__memberships__is_active=True
-                )
-            ).distinct()
-        else:
-            filtered_qs = qs.none()
-        
-        # Check if auto sync is requested and not disabled
-        if request.GET.get('sync') != 'false':
-            # Define logger at the beginning of this section for consistent access
-            logger = logging.getLogger(__name__)
-            try:
-                # Import SCORM Cloud utilities
-                from scorm_cloud.utils.api import get_scorm_client
-                
-                # Get SCORM progress records with registration IDs
-                scorm_progress = filtered_qs.filter(
-                    topic__content_type='SCORM',
-                    scorm_registration__isnull=False
-                ).select_related('topic').order_by('-last_accessed')[:5]  # Limit to 5 most recent for performance
-                
-                for progress in scorm_progress:
-                    try:
-                        # Use a separate transaction for each record to isolate failures
-                        with transaction.atomic():
-                            # Skip if synced in the last hour to avoid excessive API calls
-                            if progress.progress_data and isinstance(progress.progress_data, dict):
-                                last_sync = progress.progress_data.get('last_updated')
-                                if last_sync:
-                                    try:
-                                        from dateutil.parser import parse
-                                        from datetime import timedelta
-                                        sync_time = parse(last_sync)
-                                        if timezone.now() - sync_time < timedelta(hours=1):
-                                            continue
-                                    except (ImportError, ValueError):
-                                        pass  # If we can't parse the date, proceed with sync
-                            
-                            # Get the latest data from SCORM Cloud
-                            result = scorm_cloud.get_registration_status(progress.scorm_registration)
-                            
-                            if result:
-                                # Initialize progress_data if needed
-                                if not isinstance(progress.progress_data, dict):
-                                    progress.progress_data = {}
-                                
-                                # Ensure required fields exist
-                                if 'first_viewed_at' not in progress.progress_data:
-                                    progress.progress_data['first_viewed_at'] = timezone.now().isoformat()
-                                if 'last_updated_at' not in progress.progress_data:
-                                    progress.progress_data['last_updated_at'] = timezone.now().isoformat()
-                                
-                                completion_status = result.get('registrationCompletion', '').lower()
-                                success_status = result.get('registrationSuccess', '').lower()
-                                
-                                # Compute completion percentage based on objectives if available
-                                completion_percent = 0
-                                objectives = result.get('objectives', [])
-                                
-                                if objectives and len(objectives) > 0:
-                                    completed_objectives = sum(1 for obj_data in objectives if obj_data.get('success') == 'PASSED')
-                                    completion_percent = (completed_objectives / len(objectives)) * 100
-                                elif completion_status == 'completed':
-                                    completion_percent = 100
-                                
-                                # Update progress_data
-                                progress.progress_data.update({
-                                    'completion_status': completion_status,
-                                    'success_status': success_status,
-                                    'completion_percent': completion_percent,
-                                    'last_updated': timezone.now().isoformat(),
-                                    'scorm_sync': True,
-                                    'status': completion_status if completion_status else 'not_attempted'
-                                })
-                                
-                                # Capture runtime data for bookmark
-                                runtime_data = result.get('runtime', {})
-                                if runtime_data and not progress.bookmark:
-                                    progress.bookmark = {}
-                                
-                                if runtime_data:
-                                    progress.bookmark.update({
-                                        'suspendData': runtime_data.get('suspendData'),
-                                        'lessonLocation': runtime_data.get('lessonLocation'),
-                                        'lessonStatus': runtime_data.get('completionStatus'),
-                                        'entry': runtime_data.get('entry'),
-                                        'updated_at': timezone.now().isoformat()
-                                    })
-                                
-                                # Update completion status if needed
-                                if completion_status in ['completed', 'passed'] and not progress.completed:
-                                    progress.completed = True
-                                    progress.completion_method = 'scorm'
-                                    progress.completed_at = timezone.now()
-                                    
-                                    # Update completion data
-                                    if not progress.completion_data:
-                                        progress.completion_data = {}
-                                    
-                                    progress.completion_data.update({
-                                        'scorm_completion': True,
-                                        'completed_at': progress.completed_at.isoformat(),
-                                        'completion_method': 'scorm'
-                                    })
-                                
-                            # Update score using unified scoring service
-                            if 'score' in result:
-                                from core.utils.scoring import ScoreCalculationService
-                                
-                                score_data = result.get('score', {})
-                                normalized_score = ScoreCalculationService.handle_scorm_score(score_data)
-                                
-                                if normalized_score is not None:
-                                    progress.last_score = normalized_score
-                                    if progress.best_score is None or normalized_score > progress.best_score:
-                                        progress.best_score = normalized_score
-                                
-                                # Save the updated object
-                                progress.save()
-                                
-                                # Log the sync
-                                logger.info(f"Synced SCORM data for TopicProgress {progress.id}")
-                    except Exception as e:
-                        # Log but continue processing other records
-                        logger.error(f"Error syncing individual SCORM record {progress.id}: {str(e)}")
-            
-            except Exception as e:
-                logger.error(f"Error batch syncing SCORM Cloud data: {str(e)}")
-        
-        return filtered_qs
+        return qs
 
     def has_view_permission(self, request, obj=None):
         if request.user.is_superuser:
@@ -531,11 +107,11 @@ class TopicProgressAdmin(admin.ModelAdmin):
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
     def get_progress_display(self, obj):
-        """Enhanced progress display with SCORM support"""
-        if obj.topic.content_type == 'SCORM':
-            scorm_content = obj.topic.get_scorm_content()
-            if scorm_content:
-                registration = scorm_content.package.get_registration(obj.user)
+        """Enhanced progress display with removed support"""
+        if obj.topic.content_type == 'removed':
+            removed_content = obj.topic.get_removed_content()
+            if removed_content:
+                registration = removed_content.package.get_registration(obj.user)
                 if registration:
                     status = registration.completion_status
                     score = registration.score
@@ -691,52 +267,16 @@ class TopicProgressAdmin(admin.ModelAdmin):
         html = "<table class='progress-data'>"
         html += "<tr><th>Property</th><th>Value</th></tr>"
         
-        # Special handling for SCORM content
-        if obj.topic.content_type == 'SCORM':
-            # Display status
-            status_value = obj.progress_data.get('status', 'not_attempted')
-            html += f"<tr><td>Status</td><td>{status_value.replace('_', ' ').title()}</td></tr>"
-            
-            # Display last updated time
-            last_updated = obj.progress_data.get('last_updated')
-            if last_updated:
-                html += f"<tr><td>Last Updated</td><td>{last_updated}</td></tr>"
-            
-            # Display success status
-            success_status = obj.progress_data.get('success_status', 'unknown')
-            html += f"<tr><td>Success Status</td><td>{success_status.replace('_', ' ').title()}</td></tr>"
-            
-            # Display first viewed time
-            first_viewed = obj.progress_data.get('first_viewed_at')
-            if first_viewed:
-                html += f"<tr><td>First Viewed At</td><td>{first_viewed}</td></tr>"
-            
-            # Display last updated at
-            last_updated_at = obj.progress_data.get('last_updated_at')
-            if last_updated_at:
-                html += f"<tr><td>Last Updated At</td><td>{last_updated_at}</td></tr>"
-            
-            # Display SCORM sync status
-            scorm_sync = obj.progress_data.get('scorm_sync', False)
-            html += f"<tr><td>SCORM Sync</td><td>{'Yes' if scorm_sync else 'No'}</td></tr>"
-            
-            # Display completion status
-            completion_status = obj.progress_data.get('completion_status', 'not_attempted')
-            html += f"<tr><td>Completion Status</td><td>{completion_status.replace('_', ' ').title()}</td></tr>"
-            
-            # Display completion percentage
-            completion_percent = obj.progress_data.get('completion_percent', 0)
-            html += f"<tr><td>Completion Percent</td><td>{completion_percent}</td></tr>"
-            
-            html += "</table>"
-            return mark_safe(html)
-            
-        # Handle Audio progress special case
-        elif obj.topic.content_type == 'Audio':
-            html += f"<tr><td>Audio Progress</td><td>{obj.audio_progress:.1f}%</td></tr>"
-            html += f"<tr><td>Last Position</td><td>{obj.last_audio_position:.1f}s</td></tr>"
-            html += "</table>"
-            return mark_safe(html)
+        # Display completion status
+        completion_status = obj.progress_data.get('completion_status', 'not_attempted')
+        html += f"<tr><td>Completion Status</td><td>{completion_status.replace('_', ' ').title()}</td></tr>"
+        
+        # Display completion percentage
+        completion_percent = obj.progress_data.get('completion_percent', 0)
+        html += f"<tr><td>Completion Percent</td><td>{completion_percent}</td></tr>"
+        
+        html += "</table>"
+        return mark_safe(html)
         
         # Handle Discussion progress special case
         if obj.topic.content_type == 'Discussion':
@@ -868,132 +408,27 @@ class TopicProgressAdmin(admin.ModelAdmin):
     bulk_delete_selected.short_description = "Delete selected topic progress"
 
     def change_view(self, request, object_id, form_url='', extra_context=None):
-        """Override to sync SCORM Cloud data when viewing a record"""
-        obj = self.get_object(request, object_id)
-        if obj and obj.topic.content_type == 'SCORM' and obj.scorm_registration:
-            # Define logger at the beginning of the method to ensure it's available in all scopes
-            logger = logging.getLogger(__name__)
-            try:
-                # Use atomic transaction to prevent partial updates
-                with transaction.atomic():
-                    # Import SCORM Cloud utilities
-                    from scorm_cloud.utils.api import get_scorm_client
-                    
-                    try:
-                        # Get the latest data from SCORM Cloud
-                        result = scorm_cloud.get_registration_status(obj.scorm_registration)
-                        
-                        if result:
-                            # Initialize progress_data if needed
-                            if not isinstance(obj.progress_data, dict):
-                                obj.progress_data = {}
-                            
-                            # Ensure required fields exist
-                            if 'first_viewed_at' not in obj.progress_data:
-                                obj.progress_data['first_viewed_at'] = timezone.now().isoformat()
-                            if 'last_updated_at' not in obj.progress_data:
-                                obj.progress_data['last_updated_at'] = timezone.now().isoformat()
-                            
-                            completion_status = result.get('registrationCompletion', '').lower()
-                            success_status = result.get('registrationSuccess', '').lower()
-                            
-                            # Compute completion percentage based on objectives if available
-                            completion_percent = 0
-                            objectives = result.get('objectives', [])
-                            
-                            if objectives and len(objectives) > 0:
-                                completed_objectives = sum(1 for obj_data in objectives if obj_data.get('success') == 'PASSED')
-                                completion_percent = (completed_objectives / len(objectives)) * 100
-                            elif completion_status == 'completed':
-                                completion_percent = 100
-                            
-                            # Update progress_data
-                            obj.progress_data.update({
-                                'completion_status': completion_status,
-                                'success_status': success_status,
-                                'completion_percent': completion_percent,
-                                'last_updated': timezone.now().isoformat(),
-                                'scorm_cloud_sync': True,
-                                'status': completion_status if completion_status else 'not_attempted'
-                            })
-                            
-                            # Capture runtime data for bookmark
-                            runtime_data = result.get('runtime', {})
-                            if runtime_data and not obj.bookmark:
-                                obj.bookmark = {}
-                            
-                            if runtime_data:
-                                obj.bookmark.update({
-                                    'suspendData': runtime_data.get('suspendData'),
-                                    'lessonLocation': runtime_data.get('lessonLocation'),
-                                    'lessonStatus': runtime_data.get('completionStatus'),
-                                    'entry': runtime_data.get('entry'),
-                                    'updated_at': timezone.now().isoformat()
-                                })
-                            
-                            # Update completion status if needed
-                            if completion_status in ['completed', 'passed'] and not obj.completed:
-                                obj.completed = True
-                                obj.completion_method = 'scorm'
-                                obj.completed_at = timezone.now()
-                                
-                                # Update completion data
-                                if not obj.completion_data:
-                                    obj.completion_data = {}
-                                
-                                obj.completion_data.update({
-                                    'scorm_completion': True,
-                                    'completed_at': obj.completed_at.isoformat(),
-                                    'completion_method': 'scorm'
-                                })
-                            
-                            # Update score using unified scoring service
-                            if 'score' in result:
-                                from core.utils.scoring import ScoreCalculationService
-                                
-                                score_data = result.get('score', {})
-                                normalized_score = ScoreCalculationService.handle_scorm_score(score_data)
-                                
-                                if normalized_score is not None:
-                                    obj.last_score = normalized_score
-                                    if obj.best_score is None or normalized_score > obj.best_score:
-                                        obj.best_score = normalized_score
-                            
-                            # Save the updated object
-                            obj.save()
-                            
-                            # Add a message to show data was synced
-                            messages.info(request, "SCORM Cloud data synchronized successfully.")
-                    except Exception as e:
-                        logger.error(f"Error in SCORM Cloud API call: {str(e)}")
-                        raise  # Re-raise to be caught by outer try/except
-            
-            except Exception as e:
-                logger.error(f"Error syncing SCORM Cloud data: {str(e)}")
-                
-                # Add error message
-                messages.error(request, f"Error syncing with SCORM Cloud: {str(e)}")
-        
+        """Override to handle record viewing"""
         return super().change_view(request, object_id, form_url, extra_context=extra_context)
 
-    def sync_scorm_data(self, request, queryset):
-        """Manually sync selected records with SCORM Cloud"""
+    def sync_removed_data(self, request, queryset):
+        """Manually sync selected records with removed Cloud"""
         # Define logger at the beginning of the method for consistent access
         logger = logging.getLogger(__name__)
         try:
-            # Import SCORM Cloud utilities
-            from scorm_cloud.utils.api import get_scorm_client
+            # Import removed Cloud utilities
+            from removed_cloud.utils.api import get_removed_client
             
-            # Filter only SCORM topics with registration IDs
-            scorm_records = queryset.filter(
-                topic__content_type='SCORM',
-                scorm_registration__isnull=False
+            # Filter only removed topics with registration IDs
+            removed_records = queryset.filter(
+                topic__content_type='removed',
+                removed_registration__isnull=False
             )
             
-            if not scorm_records.exists():
+            if not removed_records.exists():
                 self.message_user(
                     request, 
-                    "No valid SCORM progress records found to sync.", 
+                    "No valid removed progress records found to sync.", 
                     level=messages.WARNING
                 )
                 return
@@ -1001,13 +436,13 @@ class TopicProgressAdmin(admin.ModelAdmin):
             synced_count = 0
             errors = []
             
-            for progress in scorm_records:
+            for progress in removed_records:
                 try:
                     # Use transaction.atomic for each record to isolate failures
                     with transaction.atomic():
                         try:
-                            # Get the latest data from SCORM Cloud
-                            result = scorm_cloud.get_registration_status(progress.scorm_registration)
+                            # Get the latest data from removed Cloud
+                            result = removed_cloud.get_registration_status(progress.removed_registration)
                             
                             if result:
                                 # Initialize progress_data if needed
@@ -1039,7 +474,7 @@ class TopicProgressAdmin(admin.ModelAdmin):
                                     'success_status': success_status,
                                     'completion_percent': completion_percent,
                                     'last_updated': timezone.now().isoformat(),
-                                    'scorm_sync': True,
+                                    'removed_sync': True,
                                     'manual_sync': True,
                                     'status': completion_status if completion_status else 'not_attempted'
                                 })
@@ -1061,7 +496,7 @@ class TopicProgressAdmin(admin.ModelAdmin):
                                 # Update completion status if needed
                                 if completion_status in ['completed', 'passed'] and not progress.completed:
                                     progress.completed = True
-                                    progress.completion_method = 'scorm'
+                                    progress.completion_method = 'removed'
                                     progress.completed_at = timezone.now()
                                     
                                     # Update completion data
@@ -1069,9 +504,9 @@ class TopicProgressAdmin(admin.ModelAdmin):
                                         progress.completion_data = {}
                                     
                                     progress.completion_data.update({
-                                        'scorm_completion': True,
+                                        'removed_completion': True,
                                         'completed_at': progress.completed_at.isoformat(),
-                                        'completion_method': 'scorm'
+                                        'completion_method': 'removed'
                                     })
                                 
                             # Update score using unified scoring service
@@ -1079,7 +514,7 @@ class TopicProgressAdmin(admin.ModelAdmin):
                                 from core.utils.scoring import ScoreCalculationService
                                 
                                 score_data = result.get('score', {})
-                                normalized_score = ScoreCalculationService.handle_scorm_score(score_data)
+                                normalized_score = ScoreCalculationService.handle_removed_score(score_data)
                                 
                                 if normalized_score is not None:
                                     progress.last_score = normalized_score
@@ -1091,18 +526,18 @@ class TopicProgressAdmin(admin.ModelAdmin):
                                 
                                 synced_count += 1
                         except Exception as e:
-                            logger.error(f"Error in SCORM Cloud API call for record {progress.id}: {str(e)}")
+                            logger.error(f"Error in removed Cloud API call for record {progress.id}: {str(e)}")
                             raise  # Re-raise to be caught by outer try/except
                 
                 except Exception as e:
-                    logger.error(f"Error syncing SCORM data for progress {progress.id}: {str(e)}")
+                    logger.error(f"Error syncing removed data for progress {progress.id}: {str(e)}")
                     errors.append(f"Error with {progress.topic.title} for {progress.user.username}: {str(e)}")
             
             # Report results
             if synced_count > 0:
                 self.message_user(
                     request,
-                    f"Successfully synchronized {synced_count} of {scorm_records.count()} SCORM progress records.",
+                    f"Successfully synchronized {synced_count} of {removed_records.count()} removed progress records.",
                     level=messages.SUCCESS
                 )
             
@@ -1114,14 +549,14 @@ class TopicProgressAdmin(admin.ModelAdmin):
                 )
                 
         except Exception as e:
-            logger.error(f"Error in sync_scorm_data action: {str(e)}")
+            logger.error(f"Error in sync_removed_data action: {str(e)}")
             self.message_user(
                 request,
-                f"Error synchronizing SCORM data: {str(e)}",
+                f"Error synchronizing removed data: {str(e)}",
                 level=messages.ERROR
             )
 
-    sync_scorm_data.short_description = "Sync selected records with SCORM Cloud"
+    sync_removed_data.short_description = "Sync selected records with removed Cloud"
 
 @admin.register(CourseEnrollment)
 class CourseEnrollmentAdmin(admin.ModelAdmin):
@@ -1144,9 +579,6 @@ class CourseEnrollmentAdmin(admin.ModelAdmin):
                 course__accessible_groups__memberships__is_active=True
             ).distinct()
         return qs.none()
-    
-admin.site.unregister(Topic)
-admin.site.register(Topic, TopicAdmin)
 
 # CourseTopic admin temporarily disabled - model import issues
 # @admin.register(CourseTopic)

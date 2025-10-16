@@ -13,8 +13,6 @@ class IntegrationCredential(models.Model):
     class Meta:
         abstract = True
 
-
-
 class PortalSettings(models.Model):
     """Model for storing portal settings"""
     branch = models.OneToOneField('branches.Branch', on_delete=models.CASCADE, related_name='portal_settings', 
@@ -82,57 +80,20 @@ class PayPalIntegration(IntegrationCredential):
     def __str__(self):
         return f"PayPal - {self.name}"
 
-class SCORMIntegration(IntegrationCredential):
-    """Model for storing branch-specific SCORM Cloud API credentials"""
-    app_id = models.CharField(max_length=255, help_text="SCORM Cloud Application ID")
-    secret_key = models.CharField(max_length=255, help_text="SCORM Cloud Secret Key")
-    pens_key = models.CharField(max_length=255, blank=True, null=True, help_text="SCORM Cloud PENS (Package Exchange Notification Services) Key for notifications")
-    base_url = models.URLField(
-        default='https://cloud.scorm.com/api/v2', 
-        help_text="SCORM Cloud API Base URL"
-    )
-    verify_ssl = models.BooleanField(default=True, help_text="Verify SSL certificates for SCORM Cloud API")
-    request_timeout = models.PositiveIntegerField(
-        default=900, 
-        help_text="Request timeout in seconds (15 minutes default)"
-    )
-    upload_timeout = models.PositiveIntegerField(
-        default=1800, 
-        help_text="Upload timeout in seconds (30 minutes default)"
-    )
-    max_upload_size = models.PositiveIntegerField(
-        default=629145600, 
-        help_text="Maximum upload size in bytes (600MB default)"
-    )
-    branch = models.ForeignKey(
-        'branches.Branch', 
-        on_delete=models.CASCADE, 
-        null=True, 
-        blank=True,
-        help_text="The branch this SCORM integration belongs to"
-    )
-    
-    # Test status tracking
-    is_tested = models.BooleanField(default=False, help_text="Whether SCORM Cloud configuration has been tested successfully")
-    last_test_date = models.DateTimeField(null=True, blank=True, help_text="Date when SCORM Cloud configuration was last tested")
-    test_error = models.TextField(blank=True, null=True, help_text="Last SCORM Cloud test error message if any")
-    
-    def __str__(self):
-        return f"SCORM - {self.name}"
     
     def test_connection(self):
-        """Test the SCORM Cloud configuration"""
+        """Test the removed Cloud configuration"""
         if not self.app_id or not self.secret_key:
-            return False, "SCORM Cloud credentials are missing"
+            return False, "removed Cloud credentials are missing"
         
         try:
-            # Import the SCORM Cloud API class
-            from scorm_cloud.utils.api import SCORMCloudAPI
+            # Import the removed Cloud API class
+            from removed_cloud.utils.api import removedCloudAPI
             from django.utils import timezone
             import requests
             
             # Create API instance with configured credentials
-            api = SCORMCloudAPI(
+            api = removedCloudAPI(
                 app_id=self.app_id,
                 secret_key=self.secret_key
             )
@@ -144,7 +105,7 @@ class SCORMIntegration(IntegrationCredential):
             
             # Check if API is properly configured first
             if not api.is_configured:
-                error_msg = "SCORM Cloud API initialization failed - check your credentials"
+                error_msg = "removed Cloud API initialization failed - check your credentials"
                 self.is_tested = False
                 self.test_error = error_msg
                 self.save(update_fields=['is_tested', 'test_error'])
@@ -168,9 +129,9 @@ class SCORMIntegration(IntegrationCredential):
                     self.last_test_date = timezone.now()
                     self.test_error = ""
                     self.save(update_fields=['is_tested', 'last_test_date', 'test_error'])
-                    return True, "SCORM Cloud connection successful"
+                    return True, "removed Cloud connection successful"
                 else:
-                    error_msg = f"SCORM Cloud API returned status {response.status_code}"
+                    error_msg = f"removed Cloud API returned status {response.status_code}"
                     if response.status_code == 401:
                         error_msg += " - Invalid credentials"
                     elif response.status_code == 403:
@@ -191,18 +152,17 @@ class SCORMIntegration(IntegrationCredential):
                 return False, error_str
                 
         except ImportError:
-            error_msg = "SCORM Cloud API module not available"
+            error_msg = "removed Cloud API module not available"
             self.is_tested = False
             self.test_error = error_msg
             self.save(update_fields=['is_tested', 'test_error'])
             return False, error_msg
         except Exception as e:
-            error_msg = f"Failed to test SCORM Cloud connection: {str(e)}"
+            error_msg = f"Failed to test removed Cloud connection: {str(e)}"
             self.is_tested = False
             self.test_error = error_msg
             self.save(update_fields=['is_tested', 'test_error'])
             return False, error_msg
-
 
 class SharePointIntegration(IntegrationCredential):
     """Model for storing SharePoint integration credentials and configuration"""
@@ -459,7 +419,7 @@ class GlobalAdminSettings(models.Model):
 
     
     def save(self, *args, **kwargs):
-        """Override save to update Django settings when OAuth/SCORM credentials are changed"""
+        """Override save to update Django settings when OAuth/removed credentials are changed"""
         super().save(*args, **kwargs)
         
         # Update Django settings for backward compatibility
@@ -476,8 +436,8 @@ class GlobalAdminSettings(models.Model):
                 django_settings.GOOGLE_OAUTH_CLIENT_ID = os.getenv('GOOGLE_OAUTH_CLIENT_ID', '')
                 django_settings.GOOGLE_OAUTH_CLIENT_SECRET = os.getenv('GOOGLE_OAUTH_CLIENT_SECRET', '')
             
-            # SCORM Cloud settings are now handled by branch-specific SCORMIntegration model
-            # SCORM settings are now branch-specific
+            # removed Cloud settings are now handled by branch-specific removedIntegration model
+            # removed settings are now branch-specific
                     
         except Exception:
             # Silently fail if settings update doesn't work

@@ -48,10 +48,7 @@
 .field-web_url,
 .field-quizzes,
 .field-assignments,
-.field-embed_code,
-.field-scorm_implementation {
-    display: none;  /* Hide by default */
-    margin: 1em 0;
+.field-embed_code {
     padding: 1em;
     border: 1px solid #333;
     border-radius: 4px;

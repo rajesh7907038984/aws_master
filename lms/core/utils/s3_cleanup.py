@@ -281,39 +281,64 @@ class S3CleanupManager:
         """
         logger.info(f"Starting S3 cleanup for topic {topic_id}")
         
-        # Define topic-specific directories to clean up
+        all_results = {}
+        
+        # 1. Clean up topic-specific directories
         topic_directories = [
             f"topic_content/{topic_id}",
             f"topic_attachments/{topic_id}",
             f"topic_media/{topic_id}",
             f"editor_uploads/topics/{topic_id}",
-            f"scorm_content/{topic_id}",
             f"topic_files/{topic_id}"
         ]
-        
-        all_results = {}
         
         for directory in topic_directories:
             results = self.delete_directory_contents(directory)
             all_results.update(results)
         
+        # Look for files that might be associated with this topic
+        try:
+            if self.is_s3_storage():
+                search_patterns = [
+                    f"topic_content/",  # Topic content
+                ]
+                
+                for pattern in search_patterns:
+                    try:
+                        paginator = self.s3_client.get_paginator('list_objects_v2')
+                        pages = paginator.paginate(
+                            Bucket=self.bucket_name, 
+                            Prefix=f"{self.media_location}/{pattern}"
+                        )
+                        
+                        for page in pages:
+                            if 'Contents' in page:
+                                for obj in page['Contents']:
+                                    key = obj['Key']
+                                    # Check if this file might be related to our topic
+                                    # Look for files that might be associated with this topic
+                                    if (f"topic_{topic_id}" in key or 
+                                        f"/{topic_id}/" in key or 
+                                        key.endswith(f"/{topic_id}") or
+                                        logger.info(f"Found potential topic-related file: {key}")
+                                        result = self.delete_file(key)
+                                        all_results[key] = result
+                    except Exception as e:
+                        logger.warning(f"Error searching for topic files in {pattern}: {e}")
+        except Exception as e:
+            logger.warning(f"Error in pattern-based topic file cleanup: {e}")
+        
         logger.info(f"Completed S3 cleanup for topic {topic_id}")
         return all_results
     
-    def cleanup_scorm_package_files(self, scorm_package_id: int, topic_id: Optional[int] = None, package_file_path: Optional[str] = None) -> Dict[str, bool]:
         """
-        ENHANCED: Comprehensive cleanup of all files associated with a SCORM package
         with additional pattern-based scanning to catch orphaned files
         
         Args:
-            scorm_package_id: ID of the SCORM package whose files should be deleted
-            topic_id: Optional topic ID to clean up additional topic-related SCORM files
-            package_file_path: Optional path to the SCORM package file (for targeted deletion)
             
         Returns:
             Dict mapping file paths to deletion success status
         """
-        logger.info(f"Starting comprehensive S3 cleanup for SCORM package {scorm_package_id}")
         
         all_results = {}
         
@@ -326,51 +351,28 @@ class S3CleanupManager:
             # This catches cases where the file was uploaded with a different name format
             if '/' in package_file_path:
                 base_filename = package_file_path.split('/')[-1]
-                alt_path = f"scorm_packages/{base_filename}"
                 alt_result = self.delete_file(alt_path)
                 all_results[alt_path] = alt_result
                 
-                # Try with scorm_package_id in the path
-                alt_path = f"scorm_packages/{scorm_package_id}/{base_filename}"
                 alt_result = self.delete_file(alt_path)
                 all_results[alt_path] = alt_result
         
-        # 2. Define SCORM package-specific directories to clean up
-        scorm_directories = [
             # Primary directories
-            f"scorm_packages/{scorm_package_id}",
-            f"scorm_content/{scorm_package_id}",
             
             # Alternate formats that might exist
-            f"scorm_packages/package_{scorm_package_id}",
-            f"scorm_content/package_{scorm_package_id}",
-            f"scorm/packages/{scorm_package_id}",
-            f"scorm/content/{scorm_package_id}",
             
             # Legacy formats
-            f"scorm/{scorm_package_id}",
-            f"scorm_extracted/{scorm_package_id}",
         ]
         
-        # 3. Add topic-specific SCORM directories if topic_id is provided
         if topic_id:
-            scorm_directories.extend([
                 # Primary topic directories
-                f"scorm_content/{topic_id}",
-                f"scorm_packages/topic_{topic_id}",
                 
                 # Alternate formats
-                f"topic_content/{topic_id}/scorm",
-                f"topic_files/{topic_id}/scorm",
-                f"scorm/topics/{topic_id}",
                 
                 # Combined formats
-                f"scorm_content/{topic_id}/{scorm_package_id}",
-                f"scorm_packages/{topic_id}/{scorm_package_id}",
             ])
         
         # 4. Clean up each directory
-        for directory in scorm_directories:
             results = self.delete_directory_contents(directory)
             all_results.update(results)
         
@@ -378,10 +380,7 @@ class S3CleanupManager:
         try:
             if self.is_s3_storage():
                 # Search for any keys containing the package ID
-                package_id_str = str(scorm_package_id)
                 
-                # List all objects in the scorm directories
-                search_prefixes = ["scorm", "scorm_packages", "scorm_content"]
                 
                 for prefix in search_prefixes:
                     try:
@@ -398,7 +397,6 @@ class S3CleanupManager:
                                     # Check if the key contains the package ID as a distinct segment
                                     if f"/{package_id_str}/" in key or f"_{package_id_str}/" in key or key.endswith(f"/{package_id_str}"):
                                         # This is likely an orphaned file related to this package
-                                        logger.info(f"Found potential orphaned SCORM file: {key}")
                                         result = self.delete_file(key)
                                         all_results[key] = result
                     except Exception as e:
@@ -408,7 +406,6 @@ class S3CleanupManager:
         
         # 6. Log summary
         successful_deletions = sum(1 for success in all_results.values() if success)
-        logger.info(f"Completed comprehensive S3 cleanup for SCORM package {scorm_package_id}: {successful_deletions}/{len(all_results)} files deleted")
         
         return all_results
     
@@ -469,6 +466,41 @@ class S3CleanupManager:
         
         logger.info(f"Completed S3 cleanup for quiz {quiz_id}")
         return all_results
+    
+    def cleanup_content_file(self, content_file_path: str) -> bool:
+        """
+        Clean up a specific content file from S3
+        
+        Args:
+            content_file_path: Path to the content file (as stored in database)
+            
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        if not content_file_path:
+            return True
+            
+        logger.info(f"Cleaning up content file: {content_file_path}")
+        
+        # The content_file_path from database doesn't include 'media/' prefix
+        # but S3 storage automatically adds it, so we need to handle this correctly
+        try:
+            # Try to delete the file as-is first (in case it's already the full path)
+            result1 = self.delete_file(content_file_path)
+            
+            # Also try with media/ prefix (the actual S3 path)
+            if not content_file_path.startswith('media/'):
+                media_path = f"media/{content_file_path}"
+                result2 = self.delete_file(media_path)
+                
+                # Return True if either deletion succeeded
+                return result1 or result2
+            else:
+                return result1
+                
+        except Exception as e:
+            logger.error(f"Error cleaning up content file {content_file_path}: {str(e)}")
+            return False
 
 # Global instance for easy access
 s3_cleanup = S3CleanupManager()
@@ -533,19 +565,13 @@ def cleanup_topic_s3_files(topic_id: int) -> Dict[str, bool]:
     """
     return s3_cleanup.cleanup_topic_files(topic_id)
 
-def cleanup_scorm_package_s3_files(scorm_package_id: int, topic_id: Optional[int] = None, package_file_path: Optional[str] = None) -> Dict[str, bool]:
     """
-    Convenience function to clean up all files associated with a SCORM package
     
     Args:
-        scorm_package_id: ID of the SCORM package whose files should be deleted
-        topic_id: Optional topic ID to clean up additional topic-related SCORM files
-        package_file_path: Optional path to the SCORM package file (for targeted deletion)
         
     Returns:
         Dict mapping file paths to deletion success status
     """
-    return s3_cleanup.cleanup_scorm_package_files(scorm_package_id, topic_id, package_file_path)
 
 def cleanup_assignment_s3_files(assignment_id: int) -> Dict[str, bool]:
     """
@@ -570,3 +596,15 @@ def cleanup_quiz_s3_files(quiz_id: int) -> Dict[str, bool]:
         Dict mapping file paths to deletion success status
     """
     return s3_cleanup.cleanup_quiz_files(quiz_id)
+
+def cleanup_content_file_s3(content_file_path: str) -> bool:
+    """
+    Convenience function to clean up a specific content file from S3
+    
+    Args:
+        content_file_path: Path to the content file (as stored in database)
+        
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    return s3_cleanup.cleanup_content_file(content_file_path)

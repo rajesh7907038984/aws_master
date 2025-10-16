@@ -564,9 +564,6 @@ def test_error_handling(request):
     elif error_type == 'database':
         # Simulate database error
         raise Exception("Database connection failed")
-    elif error_type == 'scorm':
-        # Simulate SCORM error  
-        raise Exception("SCORM content could not be loaded")
     elif error_type == 'file':
         # Simulate file error
         raise Exception("File upload failed")

@@ -147,8 +147,8 @@ def register_tinymce_for_model(model_class, admin_class=None, widget_type='defau
     if admin.site.is_registered(model_class):
         admin.site.unregister(model_class)
     
-    # Register with TinyMCE admin
-    admin.site.register(model_class, admin_class)
+    # Register with TinyMCE admin - using decorator instead
+    # admin.site.register(model_class, admin_class)
 
 
 # Register AI token management models

@@ -529,7 +529,6 @@ class Migration(migrations.Migration):
                     "content_type",
                     models.CharField(
                         choices=[
-                            ("SCORM", "SCORM"),
                             ("Video", "Video"),
                             ("Document", "Document"),
                             ("Text", "Text"),
@@ -573,7 +572,6 @@ class Migration(migrations.Migration):
                     "content_file",
                     models.FileField(
                         blank=True,
-                        help_text="Upload file for Video, Audio, Document, or SCORM content",
                         max_length=255,
                         null=True,
                         upload_to=courses.models.content_file_path,
@@ -636,12 +634,11 @@ class Migration(migrations.Migration):
                     ),
                 ),
                 (
-                    "scorm_registration",
-                    models.CharField(
-                        blank=True,
-                        help_text="SCORM Cloud registration ID",
-                        max_length=255,
-                        null=True,
+                    "user",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="topic_progress",
+                        to="users.customuser",
                     ),
                 ),
                 (
@@ -674,7 +671,6 @@ class Migration(migrations.Migration):
                         choices=[
                             ("auto", "Automatic"),
                             ("manual", "Manual"),
-                            ("scorm", "SCORM"),
                         ],
                         default="auto",
                         max_length=20,
@@ -716,7 +712,7 @@ class Migration(migrations.Migration):
                 ),
             ],
             options={
-                "ordering": ["-last_accessed"],
+                "ordering": ["-last_updated"],
             },
         ),
     ]

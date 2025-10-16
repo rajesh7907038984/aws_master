@@ -8,6 +8,7 @@ from django.test import TestCase, Client
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.urls import reverse
+from core.env_loader import get_env
 from courses.models import Course
 from assignments.models import Assignment
 from .models import Grade
@@ -28,13 +29,13 @@ class GradeModelTypesSafetyTestCase(TestCase):
         self.user = User.objects.create_user(
             username='testuser',
             email='test@example.com',
-            password='testpass123',
+            password=get_env('TEST_PASSWORD', 'testpass123'),
             role='student'
         )
         self.instructor = User.objects.create_user(
             username='instructor',
             email='instructor@example.com',
-            password='testpass123',
+            password=get_env('TEST_PASSWORD', 'testpass123'),
             role='instructor'
         )
         self.course = Course.objects.create(
@@ -245,13 +246,13 @@ class AjaxGradeSaveTypesSafetyTestCase(TestCase):
         self.instructor = User.objects.create_user(
             username='instructor',
             email='instructor@example.com',
-            password='testpass123',
+            password=get_env('TEST_PASSWORD', 'testpass123'),
             role='instructor'
         )
         self.student = User.objects.create_user(
             username='student',
             email='student@example.com',
-            password='testpass123',
+            password=get_env('TEST_PASSWORD', 'testpass123'),
             role='student'
         )
         self.course = Course.objects.create(
@@ -266,7 +267,7 @@ class AjaxGradeSaveTypesSafetyTestCase(TestCase):
         )
         
         # Login as instructor
-        self.client.login(username='instructor', password='testpass123')
+        self.client.login(username='instructor', password=get_env('TEST_PASSWORD', 'testpass123'))
     
     def test_ajax_save_grade_valid_data(self):
         """Test AJAX grade save with valid data."""

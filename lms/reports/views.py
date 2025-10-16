@@ -62,103 +62,50 @@ def activity_report_overview(request, activity_id):
         # Users who haven't started (no first_accessed or very old first_accessed with no progress)
         not_started_users = progress_data.filter(first_accessed__isnull=True).count()
         
-        # Check if this is SCORM content for proper score handling
-        is_scorm = hasattr(topic, 'scorm_package') and topic.scorm_package is not None
-        
-        # Calculate average score with proper SCORM handling
         completed_with_scores = progress_data.filter(completed=True, last_score__isnull=False)
         average_score = None
-        scorm_stats = None
+        removed_stats = None
         
         if completed_with_scores.exists():
-            if is_scorm:
-                # For SCORM content, use last_score directly from TopicProgress
-                scorm_scores = []
-                for progress in completed_with_scores:
-                    if progress.last_score is not None:
-                        scorm_scores.append(float(progress.last_score))
-                
-                average_score = sum(scorm_scores) / len(scorm_scores) if scorm_scores else 0
-                
-                # Get SCORM-specific statistics from progress_data
-                scorm_progress = progress_data.filter(progress_data__isnull=False)
-                passed_count = 0
-                for progress in scorm_progress:
-                    progress_data_dict = progress.progress_data or {}
-                    if progress_data_dict.get('lesson_status') in ['passed', 'completed']:
-                        passed_count += 1
-                
-                scorm_stats = {
-                    'total_scorm_users': scorm_progress.count(),
-                    'completion_status_complete': completed_users,
-                    'success_status_passed': passed_count,
-                    'avg_completion_percent': average_score if average_score else 0
-                }
-            else:
-                total_score = sum(normalize_score(progress.last_score) for progress in completed_with_scores)
-                average_score = total_score / completed_with_scores.count() if completed_with_scores.count() > 0 else None
+            # removed functionality removed
+            pass
         else:
+            total_score = sum(normalize_score(progress.last_score) for progress in completed_with_scores)
+            average_score = total_score / completed_with_scores.count() if completed_with_scores.count() > 0 else None
             # If no completed users with scores, try to get scores from all users with scores
             all_users_with_scores = progress_data.filter(last_score__isnull=False)
-            if all_users_with_scores.exists() and is_scorm:
-                scorm_scores = []
+            if all_users_with_scores.exists() and is_removed:
+                removed_scores = []
                 for progress in all_users_with_scores:
                     if progress.last_score is not None:
-                        scorm_scores.append(float(progress.last_score))
+                        removed_scores.append(float(progress.last_score))
                 
-                average_score = sum(scorm_scores) / len(scorm_scores) if scorm_scores else 0
+                average_score = sum(removed_scores) / len(removed_scores) if removed_scores else 0
                 
-                # Get SCORM-specific statistics
-                scorm_progress = progress_data.filter(progress_data__isnull=False)
+                # Get removed-specific statistics
+                removed_progress = progress_data.filter(progress_data__isnull=False)
                 passed_count = 0
-                for progress in scorm_progress:
+                for progress in removed_progress:
                     progress_data_dict = progress.progress_data or {}
                     if progress_data_dict.get('lesson_status') in ['passed', 'completed']:
                         passed_count += 1
                 
-                scorm_stats = {
-                    'total_scorm_users': scorm_progress.count(),
+                removed_stats = {
+                    'total_removed_users': removed_progress.count(),
                     'completion_status_complete': completed_users,
                     'success_status_passed': passed_count,
                     'avg_completion_percent': average_score if average_score else 0
                 }
         
-        # Fallback: If no scores found in last_score, check progress_data for SCORM scores
-        if is_scorm and (average_score is None or average_score == 0):
-            scorm_scores = []
-            scorm_progress = progress_data.filter(progress_data__isnull=False)
-            passed_count = 0
-            
-            for progress in scorm_progress:
-                progress_data_dict = progress.progress_data or {}
-                score_raw = progress_data_dict.get('score_raw')
-                
-                if score_raw is not None:
-                    try:
-                        scorm_scores.append(float(score_raw))
-                    except (ValueError, TypeError):
-                        pass
-                
-                if progress_data_dict.get('lesson_status') in ['passed', 'completed']:
-                    passed_count += 1
-            
-            if scorm_scores:
-                average_score = sum(scorm_scores) / len(scorm_scores)
-                
-                scorm_stats = {
-                    'total_scorm_users': scorm_progress.count(),
-                    'completion_status_complete': completed_users,
-                    'success_status_passed': passed_count,
-                    'avg_completion_percent': average_score
-                }
+        # removed functionality removed
         
         # Calculate total progress records (attempts field doesn't exist)
         total_attempts = progress_data.count()
         
-        # Use SCORM average if available and main average is not
+        # Use removed average if available and main average is not
         final_average_score = average_score
-        if is_scorm and scorm_stats and scorm_stats.get('avg_completion_percent') and not average_score:
-            final_average_score = scorm_stats.get('avg_completion_percent')
+        if is_removed and removed_stats and removed_stats.get('avg_completion_percent') and not average_score:
+            final_average_score = removed_stats.get('avg_completion_percent')
         
         progress_stats = {
             'total_users': total_users,
@@ -169,18 +116,11 @@ def activity_report_overview(request, activity_id):
             'total_attempts': total_attempts,
         }
         
-        # Debug logging for SCORM scores
-        if is_scorm:
-            logger.info(f"SCORM Activity Report Debug for topic {topic.id}:")
-            logger.info(f"  - Total users: {total_users}")
-            logger.info(f"  - Completed users: {completed_users}")
-            logger.info(f"  - Completed with scores: {completed_with_scores.count()}")
-            logger.info(f"  - Average score: {average_score}")
-            logger.info(f"  - SCORM stats: {scorm_stats}")
-            
-            # Log individual progress records for debugging
-            for progress in progress_data[:5]:  # Log first 5 records
-                logger.info(f"  - User {progress.user.username}: completed={progress.completed}, last_score={progress.last_score}, progress_data={progress.progress_data}")
+        # removed functionality removed
+        
+        # Log individual progress records for debugging
+        for progress in progress_data[:5]:  # Log first 5 records
+            logger.info(f"  - User {progress.user.username}: completed={progress.completed}, last_score={progress.last_score}, progress_data={progress.progress_data}")
         
         context = {
             'activity': topic,  # Use 'activity' to match template expectations
@@ -190,8 +130,7 @@ def activity_report_overview(request, activity_id):
             'total_enrollments': total_users,
             'completed_count': completed_users,
             'section_title': 'Overview',
-            'is_scorm': is_scorm,
-            'scorm_stats': scorm_stats,
+
             'breadcrumbs': [
                 {'url': reverse('users:role_based_redirect'), 'label': 'Dashboard', 'icon': 'fa-home'},
                 {'url': reverse('reports:overview'), 'label': 'Reports', 'icon': 'fa-chart-bar'},
@@ -924,74 +863,40 @@ class LearningActivitiesView(LoginRequiredMixin, TemplateView):
         for topic in activities:
             topic_progress = progress_base_query.filter(topic=topic)
             
-            # Check if this is SCORM content
-            is_scorm = hasattr(topic, 'scorm_content') and topic.scorm_content is not None
+            # Check if this is removed content
+            is_removed = hasattr(topic, 'removed_content') and topic.removed_content is not None
             
             # Filter: Only show scenarios when learner has passed them
-            # For SCORM content, check if user has passed status
-            if is_scorm:
-                from scorm.models import ScormAttempt
-                # Check if current user has passed this SCORM scenario
-                user_passed = ScormAttempt.objects.filter(
-                    user=user,
-                    scorm_package__topic=topic,
-                    lesson_status='passed'
-                ).exists()
-                
-                # Skip this activity if user hasn't passed it
-                if not user_passed:
-                    continue
+            # For removed content, check if user has passed status
+            # removed functionality removed
+            not_attempted = total_progress - completed
             
-            # Calculate progress statistics
-            total_progress = topic_progress.count()
-            completed = topic_progress.filter(completed=True).count()
+            # Calculate average score with proper removed score normalization
+            from core.utils.scoring import ScoreCalculationService
             
-            if is_scorm:
-                # For SCORM content, use proper status checking
-                # Get SCORM registrations for more accurate status
-                scorm_progress = topic_progress.exclude(scorm_registration__isnull=True)
-                
-                # Count progress based on SCORM completion status
-                in_progress = scorm_progress.filter(
-                    completed=False,
-                    scorm_registration__isnull=False
-                ).count()
-                
-                # For SCORM, "not_passed" means attempted but failed or incomplete with attempts
-                not_passed = scorm_progress.filter(
-                    completed=False,
-                    attempts__gt=0
-                ).count() - in_progress
-                
-                not_attempted = total_progress - completed - in_progress - not_passed
-                
-                # Calculate average score with proper SCORM score normalization
-                from core.utils.scoring import ScoreCalculationService
-                
-                scorm_scores = []
-                scorm_registrations_with_scores = scorm_progress.exclude(last_score__isnull=True)
-                for progress in scorm_registrations_with_scores:
-                    normalized_score = ScoreCalculationService.normalize_score(progress.last_score)
-                    if normalized_score is not None:
-                        scorm_scores.append(float(normalized_score))
-                
-                average_score = sum(scorm_scores) / len(scorm_scores) if scorm_scores else 0
-                
-            else:
-                # Standard content progress calculation
-                in_progress = topic_progress.filter(completed=False, last_score__gt=0).count()
-                not_passed = topic_progress.filter(completed=False, last_score=0).count()
-                not_attempted = total_progress - completed - in_progress - not_passed
-                
-                # Calculate average score with normalization
-                scores = topic_progress.exclude(last_score__isnull=True).values_list('last_score', flat=True)
-                normalized_scores = []
-                for score in scores:
-                    norm_score = normalize_score(score)
-                    if norm_score is not None:
-                        normalized_scores.append(norm_score)
-                
-                average_score = sum(normalized_scores) / len(normalized_scores) if normalized_scores else 0
+            removed_scores = []
+            removed_registrations_with_scores = removed_progress.exclude(last_score__isnull=True)
+            for progress in removed_registrations_with_scores:
+                normalized_score = ScoreCalculationService.normalize_score(progress.last_score)
+                if normalized_score is not None:
+                    removed_scores.append(float(normalized_score))
+            
+            average_score = sum(removed_scores) / len(removed_scores) if removed_scores else 0
+        else:
+            # Standard content progress calculation
+            in_progress = topic_progress.filter(completed=False, last_score__gt=0).count()
+            not_passed = topic_progress.filter(completed=False, last_score=0).count()
+            not_attempted = total_progress - completed - in_progress - not_passed
+            
+            # Calculate average score with normalization
+            scores = topic_progress.exclude(last_score__isnull=True).values_list('last_score', flat=True)
+            normalized_scores = []
+            for score in scores:
+                norm_score = normalize_score(score)
+                if norm_score is not None:
+                    normalized_scores.append(norm_score)
+            
+            average_score = sum(normalized_scores) / len(normalized_scores) if normalized_scores else 0
             
             activity_data.append({
                 'topic': topic,
@@ -1000,8 +905,7 @@ class LearningActivitiesView(LoginRequiredMixin, TemplateView):
                 'not_passed': not_passed,
                 'not_attempted': not_attempted,
                 'average_score': round(average_score, 1),
-                'is_scorm': is_scorm,
-                'scorm_data': None  # Will be populated if SCORM content exists
+
             })
         
         # Pagination
@@ -1783,7 +1687,6 @@ def overview(request):
     }
     
     return render(request, 'reports/overview.html', context)
-
 
 @login_required
 @reports_access_required
@@ -3109,7 +3012,6 @@ def reports_dashboard(request):
     }
     return render(request, 'reports/dashboard.html', context)
 
-
     def dispatch(self, request, *args, **kwargs):
         # Use centralized permission checking function
         if not check_user_report_access(request.user):
@@ -3759,14 +3661,14 @@ def user_detail_report(request, user_id):
     ).count()
     
     # Calculate average activity score with robust handling
-    # Calculate average activity score with proper SCORM handling
+    # Calculate average activity score
     from core.utils.scoring import ScoreCalculationService
     
     scored_progress = topic_progress.filter(last_score__isnull=False, last_score__gte=0)
     scored_activities_count = scored_progress.count()
     
     if scored_activities_count > 0:
-        # Calculate properly normalized scores including SCORM
+        # Calculate properly normalized scores
         normalized_scores = []
         for progress in scored_progress:
             normalized_score = ScoreCalculationService.normalize_score(progress.last_score)
@@ -3934,7 +3836,6 @@ def user_detail_report(request, user_id):
     
     # Redirect to overview page instead of showing tabs
     return redirect('reports:user_report_overview', user_id=user_id)
-
 
 def _get_user_report_data(request, user_id):
     """
@@ -4151,27 +4052,8 @@ def _get_user_report_data(request, user_id):
         )
     ).distinct().order_by('-last_accessed')
     
-    # Filter: Only show SCORM scenarios when learner has passed them
-    from scorm.models import ScormAttempt
-    filtered_topic_progress = []
-    for progress in topic_progress:
-        # Check if this is SCORM content
-        is_scorm = hasattr(progress.topic, 'scorm_content') and progress.topic.scorm_content is not None
-        
-        if is_scorm:
-            # For SCORM content, check if user has passed this scenario
-            user_passed = ScormAttempt.objects.filter(
-                user=user,
-                scorm_package__topic=progress.topic,
-                lesson_status='passed'
-            ).exists()
-            
-            # Only include if user has passed
-            if user_passed:
-                filtered_topic_progress.append(progress)
-        else:
-            # Include non-SCORM content as usual
-            filtered_topic_progress.append(progress)
+    # removed functionality removed
+    filtered_topic_progress = topic_progress
     
     # Update topic_progress with filtered results
     topic_progress = filtered_topic_progress
@@ -4182,14 +4064,14 @@ def _get_user_report_data(request, user_id):
     activities_in_progress = len([p for p in topic_progress if not p.completed and p.attempts > 0])
     activities_not_started = len([p for p in topic_progress if not p.completed and p.attempts == 0])
     
-    # Calculate average activity score with proper SCORM handling
+    # Calculate average activity score
     from core.utils.scoring import ScoreCalculationService
     
     scored_progress = [p for p in topic_progress if p.last_score is not None and p.last_score >= 0]
     scored_activities_count = len(scored_progress)
     
     if scored_activities_count > 0:
-        # Calculate properly normalized scores including SCORM
+        # Calculate properly normalized scores
         normalized_scores = []
         for progress in scored_progress:
             normalized_score = ScoreCalculationService.normalize_score(progress.last_score)
@@ -4335,7 +4217,6 @@ def _get_user_report_data(request, user_id):
         'user_stats': user_stats,
     }
 
-
 # Individual section views
 @login_required
 @user_detail_report_access_required
@@ -4359,7 +4240,6 @@ def user_report_overview(request, user_id):
     
     return render(request, 'reports/user_report_sections/overview.html', data)
 
-
 @login_required
 @user_detail_report_access_required
 def user_report_courses(request, user_id):
@@ -4381,7 +4261,6 @@ def user_report_courses(request, user_id):
     })
     
     return render(request, 'reports/user_report_sections/courses.html', data)
-
 
 @login_required
 @user_detail_report_access_required
@@ -4405,7 +4284,6 @@ def user_report_activities(request, user_id):
     
     return render(request, 'reports/user_report_sections/learning_activities.html', data)
 
-
 @login_required
 @user_detail_report_access_required
 def user_report_assessments(request, user_id):
@@ -4427,7 +4305,6 @@ def user_report_assessments(request, user_id):
     })
     
     return render(request, 'reports/user_report_sections/assessments.html', data)
-
 
 @login_required
 @user_detail_report_access_required
@@ -4451,7 +4328,6 @@ def user_report_certificates(request, user_id):
     
     return render(request, 'reports/user_report_sections/certificates.html', data)
 
-
 @login_required
 @user_detail_report_access_required
 def user_report_timeline(request, user_id):
@@ -4474,7 +4350,6 @@ def user_report_timeline(request, user_id):
     
     return render(request, 'reports/user_report_sections/timeline.html', data)
 
-
 # My learning report section views (for learners accessing their own reports)
 @login_required
 def my_report_overview(request):
@@ -4494,7 +4369,6 @@ def my_report_overview(request):
     
     return render(request, 'reports/user_report_sections/overview.html', data)
 
-
 @login_required
 def my_report_courses(request):
     """My learning report - Courses section"""
@@ -4512,7 +4386,6 @@ def my_report_courses(request):
     })
     
     return render(request, 'reports/user_report_sections/courses.html', data)
-
 
 @login_required
 def my_report_activities(request):
@@ -4532,7 +4405,6 @@ def my_report_activities(request):
     
     return render(request, 'reports/user_report_sections/learning_activities.html', data)
 
-
 @login_required
 def my_report_assessments(request):
     """My learning report - Initial Assessments section"""
@@ -4550,7 +4422,6 @@ def my_report_assessments(request):
     })
     
     return render(request, 'reports/user_report_sections/assessments.html', data)
-
 
 @login_required
 def my_report_certificates(request):
@@ -4570,7 +4441,6 @@ def my_report_certificates(request):
     
     return render(request, 'reports/user_report_sections/certificates.html', data)
 
-
 @login_required
 def my_report_timeline(request):
     """My learning report - Timeline section"""
@@ -4588,7 +4458,6 @@ def my_report_timeline(request):
     })
     
     return render(request, 'reports/user_report_sections/timeline.html', data)
-
 
 @login_required
 @user_detail_report_access_required
@@ -4638,9 +4507,6 @@ def load_more_activities(request, user_id):
     except Exception as e:
         logger.error(f"Error loading more activities for user {user_id}: {str(e)}")
         return JsonResponse({'error': 'Failed to load activities'}, status=500)
-
-
-
 
 @login_required
 @reports_access_required
@@ -4713,7 +4579,6 @@ def group_detail(request, group_id):
     }
     
     return render(request, 'reports/group_detail.html', context)
-
 
 @login_required
 @reports_access_required
@@ -5660,7 +5525,6 @@ def course_report_overview(request, course_id):
         'section_title': 'Overview'
     })
     return render(request, 'reports/course_report_sections/overview.html', data)
-
 
 @login_required
 @reports_access_required
