@@ -597,24 +597,16 @@ var API = {
         // Also call LMSFinish to properly terminate the session
         this.LMSFinish('');
         
-        // Redirect to topic view after a short delay to ensure data is saved
-        setTimeout(function() {
-            const backButton = document.querySelector('.back-to-topic-btn');
-            if (backButton && backButton.href) {
-                window.location.href = backButton.href;
-            } else {
-                // Fallback: Show exit message
-                const iframe = document.getElementById('scorm-iframe');
-                if (iframe) {
-                    iframe.style.display = 'none';
-                    const exitMessage = document.createElement('div');
-                    exitMessage.className = 'scorm-exit-message';
-                    exitMessage.innerHTML = '<h2>Assessment Completed</h2><p>You have successfully exited the assessment.</p><a href="{% url 'courses:topic_view' topic.id %}" class="back-to-topic-btn">Return to Topic</a>';
-                    exitMessage.style.cssText = 'text-align: center; padding: 50px; background: white;';
-                    iframe.parentNode.appendChild(exitMessage);
-                }
-            }
-        }, 500);
+        // CRITICAL: Redirect the parent window to the topic view immediately
+        // This prevents the SCORM package from showing goodbye.html
+        const backToTopicUrl = "{% url 'courses:topic_view' topic.id %}";
+        
+        // Use parent window location to ensure we exit the iframe completely
+        if (window.parent && window.parent !== window) {
+            window.parent.location.href = backToTopicUrl;
+        } else {
+            window.location.href = backToTopicUrl;
+        }
         
         return "true";
     },
@@ -1159,7 +1151,14 @@ window.API = API;
 
 // CRITICAL FIX: Make ConcedeControl directly accessible on window
 window.ConcedeControl = function() {
-    return API.ConcedeControl.call(API);
+    // Directly redirect to prevent goodbye.html from showing
+    const backToTopicUrl = "{% url 'courses:topic_view' topic.id %}";
+    if (window.parent && window.parent !== window) {
+        window.parent.location.href = backToTopicUrl;
+    } else {
+        window.location.href = backToTopicUrl;
+    }
+    return "true";
 };
 
 // Set API in parent windows with error handling
@@ -1220,14 +1219,20 @@ function injectAPIIntoIframe() {
             if (iframe.contentWindow.parent) {
                 iframe.contentWindow.parent.SD = API;
                 iframe.contentWindow.parent.ConcedeControl = function() {
-                    return API.ConcedeControl.call(API);
+                    // Directly redirect to prevent goodbye.html from showing
+                    const backToTopicUrl = "{% url 'courses:topic_view' topic.id %}";
+                    window.parent.location.href = backToTopicUrl;
+                    return "true";
                 };
             }
             
             // Also set SD in the iframe content window itself
             iframe.contentWindow.SD = API;
             iframe.contentWindow.ConcedeControl = function() {
-                return API.ConcedeControl.call(API);
+                // Directly redirect to prevent goodbye.html from showing
+                const backToTopicUrl = "{% url 'courses:topic_view' topic.id %}";
+                window.parent.location.href = backToTopicUrl;
+                return "true";
             };
             
             // Additional direct function exposure for compatibility
@@ -1294,9 +1299,39 @@ window.onload = function () {
         console.log('SCORM API: Pre-injection error:', e.message);
     }
     
+    // Intercept iframe navigation to prevent goodbye.html
+    iframe.addEventListener('beforeunload', function(e) {
+        console.log('SCORM API: Iframe attempting to navigate');
+        // Check if it's trying to navigate to goodbye.html
+        if (iframe.contentWindow && iframe.contentWindow.location) {
+            const currentUrl = iframe.contentWindow.location.href;
+            if (currentUrl.includes('goodbye.html')) {
+                console.log('SCORM API: Preventing navigation to goodbye.html');
+                e.preventDefault();
+                // Redirect parent window instead
+                window.location.href = "{% url 'courses:topic_view' topic.id %}";
+                return false;
+            }
+        }
+    });
+    
     // Send SCORM data to iframe when ready
     iframe.addEventListener('load', function() {
         console.log('SCORM API: Iframe loaded');
+        
+        // Check if iframe loaded goodbye.html
+        try {
+            if (iframe.contentWindow && iframe.contentWindow.location) {
+                const currentUrl = iframe.contentWindow.location.href;
+                if (currentUrl.includes('goodbye.html')) {
+                    console.log('SCORM API: Detected goodbye.html, redirecting to topic view');
+                    window.location.href = "{% url 'courses:topic_view' topic.id %}";
+                    return;
+                }
+            }
+        } catch (e) {
+            // Cross-origin, can't check URL
+        }
         
         // Inject API into iframe
         injectAPIIntoIframe();
@@ -1312,10 +1347,16 @@ window.onload = function () {
                     iframe.contentWindow.SD = API;
                     iframe.contentWindow.parent.SD = API;
                     iframe.contentWindow.ConcedeControl = function() {
-                        return API.ConcedeControl.call(API);
+                        // Directly redirect to prevent goodbye.html from showing
+                        const backToTopicUrl = "{% url 'courses:topic_view' topic.id %}";
+                        window.parent.location.href = backToTopicUrl;
+                        return "true";
                     };
                     iframe.contentWindow.parent.ConcedeControl = function() {
-                        return API.ConcedeControl.call(API);
+                        // Directly redirect to prevent goodbye.html from showing
+                        const backToTopicUrl = "{% url 'courses:topic_view' topic.id %}";
+                        window.parent.location.href = backToTopicUrl;
+                        return "true";
                     };
                 }
             } catch (e) {
