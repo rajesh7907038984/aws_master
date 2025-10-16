@@ -2205,9 +2205,11 @@
             
             // Initialize sections sortable functionality
             function initializeSectionsSortable() {
+                console.log('Initializing sections sortable...');
                 
                 // Check if Sortable is available
                 if (typeof Sortable === 'undefined') {
+                    console.error('Sortable.js not loaded');
                     return;
                 }
                 
@@ -2215,15 +2217,20 @@
                 const sectionsContainer = document.getElementById('sections-container');
                 
                 if (!sectionsContainer) {
+                    console.error('Sections container not found');
                     return;
                 }
                 
+                console.log('Sections container found:', sectionsContainer);
+                
                 // Skip if already initialized
                 if (sectionsContainer.hasAttribute('data-sortable-initialized')) {
+                    console.log('Sections sortable already initialized');
                     return;
                 }
                 
                 try {
+                    console.log('Creating Sortable instance for sections...');
                     new Sortable(sectionsContainer, {
                         animation: 150,
                         ghostClass: 'sortable-ghost',
@@ -2231,11 +2238,13 @@
                         dragClass: 'sortable-drag',
                         handle: '.section-drag-handle',
                         onStart: function(evt) {
+                            console.log('Section drag started');
                             document.body.classList.add('section-dragging-active');
                             evt.item.classList.add('is-dragging');
                             evt.item.setAttribute('data-drag-active', 'true');
                         },
                         onEnd: function(evt) {
+                            console.log('Section drag ended');
                             document.body.classList.remove('section-dragging-active');
                             evt.item.classList.remove('is-dragging');
                             evt.item.removeAttribute('data-drag-active');
@@ -2248,20 +2257,25 @@
                     });
                     
                     sectionsContainer.setAttribute('data-sortable-initialized', 'true');
+                    console.log('Sections sortable initialized successfully');
                 } catch (error) {
+                    console.error('Error initializing sections sortable:', error);
                 }
             }
             
             // Initialize topics sortable functionality with cross-section support
             function initializeTopicsSortable() {
+                console.log('Initializing topics sortable...');
                 
                 // Check if Sortable is available
                 if (typeof Sortable === 'undefined') {
+                    console.error('Sortable.js not loaded');
                     return;
                 }
                 
                 // Find all topic containers
                 const topicContainers = document.querySelectorAll('.topic-list, .topics-container, [data-sortable="true"]');
+                console.log('Found topic containers:', topicContainers.length);
                 
                 // Create a group for cross-section dragging
                 const sortableOptions = {
@@ -2272,6 +2286,7 @@
                     dragClass: 'sortable-drag',
                     handle: '.topic-drag-handle, .drag-handle',
                     onStart: function(evt) {
+                        console.log('Topic drag started');
                         document.body.classList.add('topic-dragging-active');
                         evt.item.classList.add('is-dragging');
                         evt.item.setAttribute('data-drag-active', 'true');
@@ -2280,8 +2295,10 @@
                         const originalContainer = evt.from;
                         const originalSectionId = originalContainer.getAttribute('data-section-id');
                         evt.item.setAttribute('data-original-section', originalSectionId);
+                        console.log('Original section ID:', originalSectionId);
                     },
                     onEnd: function(evt) {
+                        console.log('Topic drag ended');
                         document.body.classList.remove('topic-dragging-active');
                         evt.item.classList.remove('is-dragging');
                         evt.item.removeAttribute('data-drag-active');
@@ -2291,6 +2308,8 @@
                         const newContainer = evt.to;
                         const newSectionId = newContainer.getAttribute('data-section-id');
                         
+                        console.log('Original section:', originalSectionId, 'New section:', newSectionId);
+                        console.log('Old index:', evt.oldIndex, 'New index:', evt.newIndex);
                         
                         // Save the new order and section
                         if (originalSectionId !== newSectionId || evt.oldIndex !== evt.newIndex) {
@@ -2302,16 +2321,21 @@
                     }
                 };
                 
-                topicContainers.forEach(container => {
+                topicContainers.forEach((container, index) => {
+                    console.log(`Processing topic container ${index}:`, container);
                     // Skip if already initialized
                     if (container.hasAttribute('data-sortable-initialized')) {
+                        console.log(`Container ${index} already initialized`);
                         return;
                     }
                     
                     try {
+                        console.log(`Initializing sortable for container ${index}`);
                         new Sortable(container, sortableOptions);
                         container.setAttribute('data-sortable-initialized', 'true');
+                        console.log(`Container ${index} initialized successfully`);
                     } catch (error) {
+                        console.error('Error initializing sortable for container:', error);
                     }
                 });
                 
@@ -2513,16 +2537,22 @@
             // Ensure the sortable initialization happens after the page is fully loaded
             // Also wait for sections and topics to be properly rendered
             function initializeSortableWhenReady() {
+                console.log('Checking if sortable containers are ready...');
                 // Check if sections and topics containers exist
                 const sectionsContainer = document.getElementById('sections-container');
                 const topicContainers = document.querySelectorAll('.topic-list, .topics-container, [data-sortable="true"]');
                 
+                console.log('Sections container:', sectionsContainer);
+                console.log('Topic containers found:', topicContainers.length);
+                
                 if (sectionsContainer && topicContainers.length > 0) {
+                    console.log('Containers ready, initializing sortable...');
                     // Initialize sections sortable
                     initializeSectionsSortable();
                     // Initialize topics sortable
                     initializeTopicsSortable();
                 } else {
+                    console.log('Containers not ready, retrying...');
                     // Retry after a short delay
                     setTimeout(initializeSortableWhenReady, 200);
                 }

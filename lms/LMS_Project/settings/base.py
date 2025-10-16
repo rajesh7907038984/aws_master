@@ -199,6 +199,7 @@ INSTALLED_APPS = [
     'gradebook',
     'calendar_app',
     'certificates',
+    'scorm',
     
     # Advanced Features
     'lms_outcomes',
@@ -211,6 +212,7 @@ INSTALLED_APPS = [
     'role_management',
     'reports',
     'account_settings',
+    'media_library',
     'sharepoint_integration',
 ]
 

@@ -283,6 +283,7 @@ header .flex-1.md\:hidden {
 #profile-container {
     position: relative;
     z-index: 60;
+    overflow: visible;
 }
 
 #profile-dropdown {
@@ -296,15 +297,20 @@ header .flex-1.md\:hidden {
     background-color: white;
     border-radius: 0.75rem;
     border: 1px solid #e5e7eb;
-    display: none;
-    visibility: hidden;
-    opacity: 0;
     max-height: calc(100vh - 5rem);
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
-    transition: opacity 0.2s ease-in-out, visibility 0.2s ease-in-out;
+    transition: all 0.2s ease-in-out;
 }
 
+/* Hidden state - controlled by JavaScript */
+#profile-dropdown.hidden {
+    display: none;
+    visibility: hidden;
+    opacity: 0;
+}
+
+/* Visible state - controlled by JavaScript */
 #profile-dropdown:not(.hidden) {
     display: block;
     visibility: visible;
@@ -351,40 +357,15 @@ header .flex-1.md\:hidden {
         pointer-events: none !important;
     }
     
-    /* Show mobile search toggle - ensure proper positioning */
-    #mobile-search-toggle {
-        display: flex !important;
-        visibility: visible !important;
-        opacity: 1 !important;
-        flex-shrink: 0;
-        position: relative !important;
-        z-index: 10 !important;
-    }
-    
-    /* Mobile search container - keep hidden until toggled */
-    #mobile-search-container {
-        display: none !important;
-        visibility: hidden;
-        position: relative;
-        width: 100%;
-        clear: both;
-    }
-    
-    #mobile-search-container:not(.hidden) {
-        display: block !important;
-        visibility: visible;
-    }
-    
-    /* Ensure mobile search form is properly styled */
-    #mobile-search-container form {
-        width: 100%;
-        max-width: 100%;
-    }
-    
-    /* Header spacing adjustments for mobile */
+    /* Header layout fixes for mobile */
     header {
         min-height: 4rem;
         height: auto;
+        overflow: visible !important;
+    }
+    
+    header > div {
+        overflow: visible !important;
     }
     
     header .flex.items-center.justify-between {
@@ -392,53 +373,62 @@ header .flex-1.md\:hidden {
         overflow: visible !important;
         flex-wrap: nowrap;
         width: 100%;
+        position: relative;
     }
     
     header .flex.items-center.gap-1 {
         gap: 0.25rem;
         flex-shrink: 0;
+        overflow: visible !important;
     }
     
-    /* Ensure proper spacing for left section */
+    /* Left section - logo and menu toggle */
     header .flex.items-center.gap-1.sm\:gap-2.md\:gap-4.flex-shrink-0:first-child {
         flex-shrink: 0;
         min-width: auto;
+        overflow: visible !important;
     }
     
-    /* Ensure proper spacing for right section */
+    /* Right section - notifications and profile */
     header .flex.items-center.gap-1.sm\:gap-2.md\:gap-3.flex-shrink-0:last-child {
         flex-shrink: 0;
         min-width: auto;
         margin-left: auto;
+        overflow: visible !important;
     }
     
     /* Profile dropdown mobile fixes */
     #profile-container {
         position: relative !important;
         overflow: visible !important;
+        z-index: 60 !important;
     }
     
     #profile-button {
         min-width: 44px !important;
         min-height: 44px !important;
         touch-action: manipulation !important;
+        -webkit-tap-highlight-color: transparent !important;
     }
     
     #profile-dropdown {
         position: absolute !important;
-        top: 3rem !important;
-        right: -0.25rem !important;
+        top: 3.5rem !important;
+        right: 0 !important;
         left: auto !important;
         max-width: calc(100vw - 1rem) !important;
         width: max-content !important;
         min-width: 12rem !important;
         z-index: 9999 !important;
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04) !important;
     }
     
     #profile-dropdown a,
     #profile-dropdown button[type="submit"] {
         padding: 14px 16px !important;
         min-height: 48px !important;
+        touch-action: manipulation !important;
+        -webkit-tap-highlight-color: transparent !important;
     }
     
     /* Mobile submenu improvements */
@@ -462,12 +452,28 @@ header .flex-1.md\:hidden {
         header img {
             max-height: 1.5rem;
         }
+        
+        /* Ensure header elements don't overflow */
+        header .flex.items-center {
+            overflow: visible !important;
+        }
     }
     
     /* Extra small screens - hide messages icon if needed */
     @media (max-width: 480px) {
         .discussion-icon.hidden.xs\:flex {
             display: none !important;
+        }
+        
+        /* Further reduce gaps but allow dropdown overflow */
+        header .flex.items-center.gap-1 {
+            gap: 0.125rem;
+            overflow: visible !important;
+        }
+        
+        /* Ensure profile container allows overflow */
+        #profile-container {
+            overflow: visible !important;
         }
     }
 }

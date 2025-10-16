@@ -394,6 +394,7 @@
                             const metaTokenValue = metaToken.getAttribute('content');
                             xhr.setRequestHeader('X-CSRFToken', metaTokenValue);
                         } else {
+                            console.log('CSRF token not found. Available sources:', {
                                 cookie: document.cookie.includes('csrftoken='),
                                 formInput: !!document.querySelector('input[name="csrfmiddlewaretoken"]'),
                                 metaTag: !!document.querySelector('meta[name="csrf-token"]'),
@@ -512,6 +513,7 @@
                             const metaTokenValue = metaToken.getAttribute('content');
                             xhr.setRequestHeader('X-CSRFToken', metaTokenValue);
                         } else {
+                            console.log('CSRF token not found. Available sources:', {
                                 cookie: document.cookie.includes('csrftoken='),
                                 formInput: !!document.querySelector('input[name="csrfmiddlewaretoken"]'),
                                 metaTag: !!document.querySelector('meta[name="csrf-token"]'),

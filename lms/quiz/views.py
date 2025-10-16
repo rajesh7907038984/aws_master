@@ -498,147 +498,146 @@ def add_question(request, quiz_id):
             if not form.is_valid():
                 return JsonResponse({'success': False, 'error': 'Form is not valid'}, status=400)
             
-            if form.is_valid():
-                try:
-                    question = form.save(commit=False)
-                    question.quiz = quiz
+            try:
+                question = form.save(commit=False)
+                question.quiz = quiz
+                
+                # Get the question type
+                question_type = form.cleaned_data['question_type']
+                
+                # Set question order
+                if not question.order:
+                    max_order = quiz.questions.aggregate(Max('order'))['order__max']
+                    question.order = (max_order or 0) + 1
+                
+                # Save question
+                question.save()
+                
+                # Update answers based on question type
+                question.answers.all().delete()
+                
+                # Clean up matching pairs if question type is not matching
+                if question_type not in ['matching', 'drag_drop_matching']:
+                    question.matching_pairs.all().delete()
+                
+                # Create answers based on question type
+                if question_type in ['multiple_choice', 'multiple_select']:
+                    options = request.POST.getlist('options[]')
+                    is_vak_test = quiz.is_vak_test
                     
-                    # Get the question type
-                    question_type = form.cleaned_data['question_type']
-                    
-                    # Set question order
-                    if not question.order:
-                        max_order = quiz.questions.aggregate(Max('order'))['order__max']
-                        question.order = (max_order or 0) + 1
-                    
-                    # Save question
-                    question.save()
-                    
-                    # Update answers based on question type
-                    question.answers.all().delete()
-                    
-                    # Clean up matching pairs if question type is not matching
-                    if question_type not in ['matching', 'drag_drop_matching']:
-                        question.matching_pairs.all().delete()
-                    
-                    # Create answers based on question type
-                    if question_type in ['multiple_choice', 'multiple_select']:
-                        options = request.POST.getlist('options[]')
-                        is_vak_test = quiz.is_vak_test
-                        
-                        if is_vak_test:
-                            # For VAK tests, create answers with learning styles
-                            learning_styles = request.POST.getlist('learning_styles[]')
+                    if is_vak_test:
+                        # For VAK tests, create answers with learning styles
+                        learning_styles = request.POST.getlist('learning_styles[]')
+                        for i, option in enumerate(options):
+                            if option.strip():
+                                learning_style = learning_styles[i] if i < len(learning_styles) else None
+                                Answer.objects.create(
+                                    question=question,
+                                    answer_text=option.strip(),
+                                    is_correct=False,  # VAK tests don't have "correct" answers
+                                    answer_order=i,
+                                    learning_style=learning_style
+                                )
+                    else:
+                        # For regular quizzes, create answers with correct/incorrect flags
+                        if question_type == 'multiple_choice':
+                            # For multiple choice, use correct_answers[] (single value from radio buttons)
+                            correct_answers = request.POST.getlist('correct_answers[]')
                             for i, option in enumerate(options):
                                 if option.strip():
-                                    learning_style = learning_styles[i] if i < len(learning_styles) else None
+                                    is_correct = str(i) in correct_answers or f'{i}' in correct_answers
                                     Answer.objects.create(
                                         question=question,
                                         answer_text=option.strip(),
-                                        is_correct=False,  # VAK tests don't have "correct" answers
-                                        answer_order=i,
-                                        learning_style=learning_style
+                                        is_correct=is_correct,
+                                        answer_order=i
                                     )
                         else:
-                            # For regular quizzes, create answers with correct/incorrect flags
-                            if question_type == 'multiple_choice':
-                                # For multiple choice, use correct_answers[] (single value from radio buttons)
-                                correct_answers = request.POST.getlist('correct_answers[]')
-                                for i, option in enumerate(options):
-                                    if option.strip():
-                                        is_correct = str(i) in correct_answers or f'{i}' in correct_answers
-                                        Answer.objects.create(
-                                            question=question,
-                                            answer_text=option.strip(),
-                                            is_correct=is_correct,
-                                            answer_order=i
-                                        )
-                            else:
-                                # For multiple select, use correct_answers[] (multiple values)
-                                correct_answers = request.POST.getlist('correct_answers[]')
-                                for i, option in enumerate(options):
-                                    if option.strip():
-                                        is_correct = str(i) in correct_answers or f'{i}' in correct_answers
-                                        Answer.objects.create(
-                                            question=question,
-                                            answer_text=option.strip(),
-                                            is_correct=is_correct,
-                                            answer_order=i
-                                        )
-                    
-                    elif question_type == 'true_false':
-                        correct_answer = request.POST.get('correct_answer')
+                            # For multiple select, use correct_answers[] (multiple values)
+                            correct_answers = request.POST.getlist('correct_answers[]')
+                            for i, option in enumerate(options):
+                                if option.strip():
+                                    is_correct = str(i) in correct_answers or f'{i}' in correct_answers
+                                    Answer.objects.create(
+                                        question=question,
+                                        answer_text=option.strip(),
+                                        is_correct=is_correct,
+                                        answer_order=i
+                                    )
+                
+                elif question_type == 'true_false':
+                    correct_answer = request.POST.get('correct_answer')
+                    Answer.objects.create(
+                        question=question,
+                        answer_text='True',
+                        is_correct=(correct_answer == 'True'),
+                        answer_order=0
+                    )
+                    Answer.objects.create(
+                        question=question,
+                        answer_text='False',
+                        is_correct=(correct_answer == 'False'),
+                        answer_order=1
+                    )
+                
+                elif question_type == 'fill_blank':
+                    blank_answer = request.POST.get('blank_answer', '').strip()
+                    if blank_answer:
                         Answer.objects.create(
                             question=question,
-                            answer_text='True',
-                            is_correct=(correct_answer == 'True'),
+                            answer_text=blank_answer,
+                            is_correct=True,
                             answer_order=0
                         )
-                        Answer.objects.create(
-                            question=question,
-                            answer_text='False',
-                            is_correct=(correct_answer == 'False'),
-                            answer_order=1
-                        )
                     
-                    elif question_type == 'fill_blank':
-                        blank_answer = request.POST.get('blank_answer', '').strip()
-                        if blank_answer:
+                elif question_type == 'multi_blank':
+                    multi_blank_answers = request.POST.getlist('multi_blank_answers[]')
+                    for i, answer in enumerate(multi_blank_answers):
+                        if answer.strip():
                             Answer.objects.create(
                                 question=question,
-                                answer_text=blank_answer,
+                                answer_text=answer.strip(),
                                 is_correct=True,
-                                answer_order=0
+                                answer_order=i
+                            )
+                
+                elif question_type == 'short_answer':
+                    # Short answer questions may have multiple acceptable answers
+                    short_answers = request.POST.getlist('short_answers[]')
+                    for i, answer in enumerate(short_answers):
+                        if answer.strip():
+                            Answer.objects.create(
+                                question=question,
+                                answer_text=answer.strip(),
+                                is_correct=True,
+                                answer_order=i
                             )
                     
-                    elif question_type == 'multi_blank':
-                        multi_blank_answers = request.POST.getlist('multi_blank_answers[]')
-                        for i, answer in enumerate(multi_blank_answers):
-                            if answer.strip():
-                                Answer.objects.create(
-                                    question=question,
-                                    answer_text=answer.strip(),
-                                    is_correct=True,
-                                    answer_order=i
-                                )
+                elif question_type in ['matching', 'drag_drop_matching']:
+                    # Handle matching questions
+                    left_items = request.POST.getlist('matching_left[]')
+                    right_items = request.POST.getlist('matching_right[]')
                     
-                    elif question_type == 'short_answer':
-                        # Short answer questions may have multiple acceptable answers
-                        short_answers = request.POST.getlist('short_answers[]')
-                        for i, answer in enumerate(short_answers):
-                            if answer.strip():
-                                Answer.objects.create(
-                                    question=question,
-                                    answer_text=answer.strip(),
-                                    is_correct=True,
-                                    answer_order=i
-                                )
+                    # Create MatchingPair objects
+                    from .models import MatchingPair
+                    for i, (left, right) in enumerate(zip(left_items, right_items)):
+                        if left.strip() and right.strip():
+                            MatchingPair.objects.create(
+                                question=question,
+                                left_item=left.strip(),
+                                right_item=right.strip(),
+                                pair_order=i
+                            )
                     
-                    elif question_type in ['matching', 'drag_drop_matching']:
-                        # Handle matching questions
-                        left_items = request.POST.getlist('matching_left[]')
-                        right_items = request.POST.getlist('matching_right[]')
-                        
-                        # Create MatchingPair objects
-                        from .models import MatchingPair
-                        for i, (left, right) in enumerate(zip(left_items, right_items)):
-                            if left.strip() and right.strip():
-                                MatchingPair.objects.create(
-                                    question=question,
-                                    left_item=left.strip(),
-                                    right_item=right.strip(),
-                                    pair_order=i
-                                )
-                        
-                        # Also store in Answer format for compatibility
-                        for i, (left, right) in enumerate(zip(left_items, right_items)):
-                            if left.strip() and right.strip():
-                                Answer.objects.create(
-                                    question=question,
-                                    answer_text=f"{left.strip()}|{right.strip()}",
-                                    is_correct=True,
-                                    answer_order=i
-                                )
+                    # Also store in Answer format for compatibility
+                    for i, (left, right) in enumerate(zip(left_items, right_items)):
+                        if left.strip() and right.strip():
+                            Answer.objects.create(
+                                question=question,
+                                answer_text=f"{left.strip()}|{right.strip()}",
+                                is_correct=True,
+                                answer_order=i
+                            )
                     
                     messages.success(request, f'Question "{question.question_text[:50]}..." added successfully!')
                     
@@ -648,13 +647,13 @@ def add_question(request, quiz_id):
                             'success': True,
                             'message': 'Question added successfully!',
                             'question_id': question.id,
-                            'redirect_url': reverse('quiz:edit_quiz', args=[quiz.id])
+                            'redirect_url': reverse('quiz:edit_quiz', kwargs={'quiz_id': quiz.id})
                         })
                     else:
                         # Regular form submission - redirect to edit quiz page
                         return redirect('quiz:edit_quiz', quiz_id=quiz.id)
                     
-                except Exception as e:
+            except Exception as e:
                     import logging
                     logger = logging.getLogger(__name__)
                     logger.error(f"Error creating question: {str(e)}", exc_info=True)

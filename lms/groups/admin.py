@@ -229,7 +229,7 @@ class BranchGroupAdmin(admin.ModelAdmin):
     def save_model(self, request, obj, form, change):
         if not change:  # Only for new objects
             obj.created_by = request.user
-            if not (request.user.is_superuser or request.user.role in ['globaladmin', 'superadmin']):
+            if not (request.user.is_superuser or (hasattr(request.user, 'role') and request.user.role in ['globaladmin', 'superadmin'])):
                 obj.branch = request.user.branch
         super().save_model(request, obj, form, change)
 
@@ -250,7 +250,9 @@ class BranchGroupAdmin(admin.ModelAdmin):
         return self.has_view_permission(request, obj)
 
     def has_delete_permission(self, request, obj=None):
-        if request.user.is_superuser or request.user.role in ['globaladmin', 'superadmin']:
+        if not request.user.is_authenticated:
+            return False
+        if request.user.is_superuser or (hasattr(request.user, 'role') and request.user.role in ['globaladmin', 'superadmin']):
             return True
         if obj is None:
             return False
@@ -259,7 +261,7 @@ class BranchGroupAdmin(admin.ModelAdmin):
     def has_add_permission(self, request):
         if not request.user.is_authenticated:
             return False
-        return request.user.is_superuser or request.user.role in ['superadmin', 'admin']
+        return request.user.is_superuser or (hasattr(request.user, 'role') and request.user.role in ['superadmin', 'admin'])
 
     def response_add(self, request, obj, post_url_continue=None):
         """Customize response after adding a new object"""

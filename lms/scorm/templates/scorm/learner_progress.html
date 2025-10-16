@@ -1,0 +1,319 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ learner.get_full_name|default:learner.username }} - SCORM Progress{% endblock %}
+
+{% block extra_css %}
+<style>
+    .learner-progress-container {
+        max-width: 1000px;
+        margin: 0 auto;
+        padding: 2rem;
+    }
+    
+    .learner-header {
+        background: #1c2260;
+        color: white;
+        padding: 2rem;
+        border-radius: 8px;
+        margin-bottom: 2rem;
+    }
+    
+    .learner-header h1 {
+        margin: 0 0 0.5rem 0;
+        font-size: 1.8rem;
+    }
+    
+    .learner-info {
+        display: flex;
+        gap: 2rem;
+        align-items: center;
+    }
+    
+    .learner-avatar {
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+    }
+    
+    .learner-details h3 {
+        margin: 0 0 0.5rem 0;
+    }
+    
+    .learner-details p {
+        margin: 0;
+        opacity: 0.9;
+    }
+    
+    .progress-records {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        overflow: hidden;
+    }
+    
+    .record-header {
+        background: #f8f9fa;
+        padding: 1rem;
+        border-bottom: 1px solid #dee2e6;
+        font-weight: 600;
+        color: #1c2260;
+    }
+    
+    .record-item {
+        padding: 1.5rem;
+        border-bottom: 1px solid #dee2e6;
+    }
+    
+    .record-item:last-child {
+        border-bottom: none;
+    }
+    
+    .record-title {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: #333;
+        margin-bottom: 0.5rem;
+    }
+    
+    .record-meta {
+        display: flex;
+        gap: 2rem;
+        margin-bottom: 1rem;
+        flex-wrap: wrap;
+    }
+    
+    .meta-item {
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .meta-label {
+        font-size: 0.8rem;
+        color: #666;
+        margin-bottom: 0.2rem;
+    }
+    
+    .meta-value {
+        font-weight: 600;
+        color: #333;
+    }
+    
+    .status-badge {
+        padding: 0.25rem 0.75rem;
+        border-radius: 12px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+    
+    .status-completed {
+        background: #d4edda;
+        color: #155724;
+    }
+    
+    .status-incomplete {
+        background: #fff3cd;
+        color: #856404;
+    }
+    
+    .status-not-attempted {
+        background: #f8d7da;
+        color: #721c24;
+    }
+    
+    .status-passed {
+        background: #d1ecf1;
+        color: #0c5460;
+    }
+    
+    .status-failed {
+        background: #f8d7da;
+        color: #721c24;
+    }
+    
+    .progress-bar {
+        width: 100%;
+        height: 8px;
+        background: #e9ecef;
+        border-radius: 4px;
+        overflow: hidden;
+        margin: 0.5rem 0;
+    }
+    
+    .progress-fill {
+        height: 100%;
+        background: #28a745;
+        transition: width 0.3s ease;
+    }
+    
+    .score-display {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .score-value {
+        font-size: 1.2rem;
+        font-weight: 600;
+        color: #1c2260;
+    }
+    
+    .score-range {
+        font-size: 0.9rem;
+        color: #666;
+    }
+    
+    .time-display {
+        font-family: monospace;
+        background: #f8f9fa;
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        font-size: 0.9rem;
+    }
+    
+    .no-records {
+        text-align: center;
+        padding: 3rem;
+        color: #666;
+    }
+    
+    .no-records i {
+        font-size: 3rem;
+        color: #ddd;
+        margin-bottom: 1rem;
+    }
+    
+    .back-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        color: #1c2260;
+        text-decoration: none;
+        margin-bottom: 1rem;
+    }
+    
+    .back-link:hover {
+        text-decoration: underline;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="learner-progress-container">
+    <a href="{% url 'scorm:reports' course.id %}" class="back-link">
+        <i class="fas fa-arrow-left"></i>
+        Back to Reports
+    </a>
+    
+    <div class="learner-header">
+        <h1>SCORM Progress</h1>
+        <div class="learner-info">
+            <div class="learner-avatar">
+                <i class="fas fa-user"></i>
+            </div>
+            <div class="learner-details">
+                <h3>{{ learner.get_full_name|default:learner.username }}</h3>
+                <p>{{ learner.email }}</p>
+                <p>Course: {{ course.title }}</p>
+            </div>
+        </div>
+    </div>
+    
+    {% if tracking_records %}
+    <div class="progress-records">
+        <div class="record-header">
+            Progress Records
+        </div>
+        
+        {% for record in tracking_records %}
+        <div class="record-item">
+            <div class="record-title">
+                {{ record.scorm_package.topic.title }}
+            </div>
+            
+            <div class="record-meta">
+                <div class="meta-item">
+                    <div class="meta-label">Completion Status</div>
+                    <div class="meta-value">
+                        <span class="status-badge status-{{ record.completion_status|slugify }}">
+                            {{ record.completion_status|title }}
+                        </span>
+                    </div>
+                </div>
+                
+                <div class="meta-item">
+                    <div class="meta-label">Success Status</div>
+                    <div class="meta-value">
+                        <span class="status-badge status-{{ record.success_status|slugify }}">
+                            {{ record.success_status|title }}
+                        </span>
+                    </div>
+                </div>
+                
+                {% if record.score_raw is not None %}
+                <div class="meta-item">
+                    <div class="meta-label">Score</div>
+                    <div class="meta-value">
+                        <div class="score-display">
+                            <span class="score-value">{{ record.score_raw|floatformat:1 }}</span>
+                            {% if record.score_max %}
+                            <span class="score-range">/ {{ record.score_max|floatformat:1 }}</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+                
+                <div class="meta-item">
+                    <div class="meta-label">Progress</div>
+                    <div class="meta-value">
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: {{ record.get_progress_percentage }}%"></div>
+                        </div>
+                        {{ record.get_progress_percentage|floatformat:1 }}%
+                    </div>
+                </div>
+                
+                {% if record.total_time %}
+                <div class="meta-item">
+                    <div class="meta-label">Total Time</div>
+                    <div class="meta-value">
+                        <span class="time-display">{{ record.total_time }}</span>
+                    </div>
+                </div>
+                {% endif %}
+                
+                {% if record.last_launch %}
+                <div class="meta-item">
+                    <div class="meta-label">Last Access</div>
+                    <div class="meta-value">{{ record.last_launch|date:"M d, Y H:i" }}</div>
+                </div>
+                {% endif %}
+            </div>
+            
+            <div style="margin-top: 1rem;">
+                <a href="{% url 'scorm:launch' record.scorm_package.topic.id %}" class="btn btn-primary" target="_blank">
+                    Launch SCORM
+                </a>
+                <a href="{% url 'courses:topic_view' record.scorm_package.topic.id %}" class="btn btn-secondary">
+                    View Topic
+                </a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="no-records">
+        <i class="fas fa-chart-line"></i>
+        <h3>No SCORM Progress</h3>
+        <p>{{ learner.get_full_name|default:learner.username }} hasn't attempted any SCORM content yet.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

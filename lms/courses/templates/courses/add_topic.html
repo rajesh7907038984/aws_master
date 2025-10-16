@@ -15,8 +15,10 @@
 {% block extra_css %}
 <!-- Add error handling script -->
 <script>
-    // Global error handler for better user experience
+    console.log('Setting up global error handler');
     window.addEventListener('error', function(event) {
+        console.error('JavaScript Error:', event.message, 'at', event.filename, 'line', event.lineno, 'column', event.colno);
+        console.error('Error details:', event.error);
     });
 </script>
 
@@ -43,19 +45,19 @@
     #text-content .tox.tox-tinymce {
         min-height: 450px !important;
         height: 450px !important;
-        border: 1px solid #e5e7eb !important;
+        border: 2px solid #3b82f6 !important; /* Debug border */
     }
     
     #text-content .tox-edit-area__iframe {
         min-height: 400px !important;
         height: 400px !important;
-        border: 1px solid #e5e7eb !important;
+        border: 1px solid #10b981 !important; /* Debug border */
     }
     
     #text_content.tinymce-editor {
         min-height: 450px !important;
         height: 450px !important;
-        border: 1px solid #e5e7eb !important;
+        border: 1px solid #f59e0b !important; /* Debug border */
     }
     
     /* Ensure TinyMCE container has proper dimensions */
@@ -191,7 +193,7 @@
         }
     }
     
-    /* Grid class for topic form layout */
+    /* Legacy grid class for backward compatibility */
     .topic-form-grid {
         display: grid;
         grid-template-columns: 1fr 1fr;
@@ -1380,8 +1382,8 @@
             </div>
             {% endif %}
 
-            <!-- Debug Form Data - Only show in development -->
-            {% if debug_mode and request.user.is_superuser %}
+            <!-- Debug Form Data -->
+            {% if debug_mode %}
             <div class="bg-gray-100 p-4 rounded mb-4">
                 <h3 class="font-bold">Debug Form Data</h3>
                 <pre>{{ form.data|pprint }}</pre>
@@ -1460,6 +1462,7 @@
                                 <div class="tab-content" id="assessments">
                                     <div class="content-type-options">
                                         {% for type, label in content_types %}
+                                            {% if type in 'Quiz,Assignment,SCORM,Conference,Discussion'|split:',' %}
                                             <div class="content-type-option">
                                                 {# Quiz topics are now unlimited per course - no restriction notice needed #}
                                                 {# Assignment topics are now unlimited per course - no restriction notice needed #}
@@ -1468,12 +1471,14 @@
                                                 <label for="type_{{ type }}">
                                                     {% if type == 'Quiz' %}<i class="fas fa-question-circle"></i>
                                                     {% elif type == 'Assignment' %}<i class="fas fa-tasks"></i>
+                                                    {% elif type == 'SCORM' %}<i class="fas fa-box"></i>
                                                     {% elif type == 'Conference' %}<i class="fas fa-users"></i>
                                                     {% elif type == 'Discussion' %}<i class="fas fa-comments"></i>
                                                     {% endif %}
                                                     {{ label }}
                                                 </label>
                                             </div>
+                                            {% endif %}
                                         {% endfor %}
                                     </div>
                                 </div>
@@ -1608,6 +1613,69 @@
                         <!-- Removed Quiz Description and Instructions section -->
                     </div>
 
+                    <!-- E-Learning Content (SCORM, xAPI, cmi5) -->
+                    <div id="scorm-content" class="content-type-field">
+                        <div class="file-upload-container">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">E-Learning Package (ZIP file)</label>
+                            {% if topic.content_file and topic.content_type.lower == 'scorm' %}
+                            <!-- Existing SCORM file -->
+                            <div class="mt-1 p-4 bg-gray-50 border-2 border-gray-300 rounded-md">
+                                <div class="flex items-center space-x-3">
+                                    <i class="fas fa-file-archive text-3xl text-blue-500"></i>
+                                    <div class="flex-1">
+                                        <p class="text-sm font-medium text-gray-900">{{ topic.content_file|last_part }}</p>
+                                        <p class="text-xs text-gray-500 mt-1">
+                                            {% if topic.elearning_package %}
+                                                {{ topic.elearning_package.get_package_type_display }} package uploaded
+                                            {% else %}
+                                                E-learning package uploaded
+                                            {% endif %}
+                                        </p>
+                                    </div>
+                                </div>
+                                <div class="mt-3 flex gap-2">
+                                    <a href="{% url 'courses:topic_view' topic.id %}" target="_blank" class="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors">
+                                        <i class="fas fa-play mr-2"></i>
+                                        Launch Content
+                                    </a>
+                                    <a href="{% url 'courses:topic_view' topic.id %}" class="inline-flex items-center px-4 py-2 bg-gray-600 text-white text-sm font-medium rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-colors">
+                                        <i class="fas fa-external-link-alt mr-2"></i>
+                                        View Topic Page
+                                    </a>
+                                </div>
+                                <div class="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded">
+                                    <p class="text-sm text-yellow-800">
+                                        <i class="fas fa-exclamation-triangle mr-1"></i>
+                                        E-learning packages cannot be replaced once uploaded. To use a different package, please create a new topic.
+                                    </p>
+                                </div>
+                            </div>
+                            {% else %}
+                            <!-- Simple file upload like video topics -->
+                            <div class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md hover:border-gray-400 transition-colors">
+                                <div class="space-y-1 text-center">
+                                    <i class="fas fa-file-archive text-5xl text-gray-400 mb-3"></i>
+                                    <div class="flex text-sm text-gray-600">
+                                        <label for="scorm-file-input" class="relative cursor-pointer bg-white rounded-md font-medium text-indigo-600 hover:text-indigo-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-indigo-500">
+                                            <span>Upload an e-learning package</span>
+                                            <input id="scorm-file-input" name="scorm_file" type="file" accept=".zip,application/zip" class="file-input sr-only">
+                                        </label>
+                                        <p class="pl-1">or drag and drop</p>
+                                    </div>
+                                    <p class="text-xs text-gray-500">
+                                        Supported formats: SCORM 1.2, SCORM 2004, xAPI (Tin Can), cmi5, AICC<br>
+                                        ZIP files up to 600MB
+                                    </p>
+                                    <div class="mt-2 text-xs text-gray-400">
+                                        <i class="fas fa-info-circle mr-1"></i>
+                                        The system will automatically detect the package type
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="selected-filename mt-2 text-sm text-gray-600 hidden"></div>
+                            <div class="file-preview mt-4 hidden"></div>
+                            {% endif %}
+                        </div>
                     </div>
                     
                     <!-- Assignment Selection -->
@@ -1978,7 +2046,7 @@
 <!-- Check if Quill is already loaded from base.html -->
 <script>
     // We're using TinyMCE instead of Quill, so we don't need to load Quill
-    // Using TinyMCE for rich text editing
+    console.log('Using TinyMCE for rich text editing, Quill is not needed');
     window.quillLoaded = true; // Prevent Quill from being loaded
 </script>
 
@@ -1990,24 +2058,26 @@
 <!-- Debug script for web URL issue -->
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Web URL handling script
+    console.log('=== Web URL Debug Script ===');
     
     // Monitor content type changes
     const contentTypeRadios = document.querySelectorAll('input[name="content_type"]');
-    // Found content type radios
+    console.log('Found content type radios:', contentTypeRadios.length);
     
     contentTypeRadios.forEach(radio => {
         radio.addEventListener('change', function() {
             if (this.checked && this.value === 'Web') {
-                // Web content selected
+                console.log('Web content selected!');
                 
                 // Check web content div
                 const webDiv = document.getElementById('web-content');
-                // Check web content div visibility
+                console.log('Web content div:', webDiv);
+                console.log('Web div display:', webDiv ? window.getComputedStyle(webDiv).display : 'N/A');
                 
                 // Check web URL field
                 const webUrlField = document.querySelector('[name="web_url"]');
-                // Check web URL field
+                console.log('Web URL field:', webUrlField);
+                console.log('Web URL value:', webUrlField ? webUrlField.value : 'N/A');
                 
                 // Force show the field
                 if (webDiv) {
@@ -2024,16 +2094,18 @@ document.addEventListener('DOMContentLoaded', function() {
     const form = document.getElementById('topicForm');
     if (form) {
         form.addEventListener('submit', function(e) {
-            // Form submission handling
+            console.log('=== Form Submission Debug ===');
             const selectedType = document.querySelector('input[name="content_type"]:checked');
-            // Selected content type
+            console.log('Selected content type:', selectedType ? selectedType.value : 'None');
             
             if (selectedType && selectedType.value === 'Web') {
                 const webUrlField = document.querySelector('[name="web_url"]');
-                // Check web URL field on submit
-                // Check web URL field status
+                console.log('Web URL field exists:', !!webUrlField);
+                console.log('Web URL value on submit:', webUrlField ? webUrlField.value : 'N/A');
+                console.log('Web URL field disabled:', webUrlField ? webUrlField.disabled : 'N/A');
+                
                 const webDiv = document.getElementById('web-content');
-                // Check web div display status
+                console.log('Web div display on submit:', webDiv ? window.getComputedStyle(webDiv).display : 'N/A');
             }
         });
     }
@@ -2044,12 +2116,13 @@ document.addEventListener('DOMContentLoaded', function() {
 <script>
     // This function is intentionally left empty as we've replaced Quill with TinyMCE
     function initializeTopicForm() {
-        // Quill initialization skipped - using TinyMCE instead
+        console.log('Quill initialization skipped - using TinyMCE instead');
     }
     
     // Execute initialization when DOM is loaded
     document.addEventListener('DOMContentLoaded', function() {
         // TinyMCE is initialized in the TinyMCE Setup section
+        console.log('Using TinyMCE for text content editing');
         
         // Initialize tabs - show the tab containing the selected content type
         initializeTabs();
@@ -2101,6 +2174,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Tab switching function - Enhanced with better targeting
     function switchTab(tabId) {
+        console.log('switchTab called with tabId:', tabId);
         
         // Preserve title field value before switching tabs
         const titleField = document.querySelector('input[name="title"], #topic_title');
@@ -2109,6 +2183,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Remove active class from all tab headers and contents within the content-type-tabs container
         const tabContainer = document.getElementById('contentTypeTabs');
         if (!tabContainer) {
+            console.error('Content type tabs container not found!');
             return;
         }
         
@@ -2136,12 +2211,15 @@ document.addEventListener('DOMContentLoaded', function() {
         if (clickedHeader && targetContent) {
             clickedHeader.classList.add('active');
             targetContent.classList.add('active');
+            console.log('Tab switched to:', tabId);
         } else {
+            console.error('Failed to find clicked header or target content for:', tabId);
         }
         
         // Restore title field value if it was cleared during tab switch
         if (titleField && titleValue && !titleField.value) {
             titleField.value = titleValue;
+            console.log('Restored title field value after tab switch');
         }
         
         // Force a style recalculation to ensure CSS changes take effect
@@ -2179,6 +2257,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (selectedRadio) {
             const selectedType = selectedRadio.value;
             const learningTypes = ['Text', 'Audio', 'Video', 'Web', 'Document', 'EmbedVideo'];
+            const assessmentTypes = ['Quiz', 'Assignment', 'SCORM', 'Conference', 'Discussion'];
             
             // Show the appropriate tab
             if (assessmentTypes.includes(selectedType)) {
@@ -2199,11 +2278,13 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Function to toggle instructions field visibility based on content type
     function toggleInstructionsVisibility(contentType) {
+        console.log('toggleInstructionsVisibility called with:', contentType);
         const instructionsWrapper = document.getElementById('instructions-field-wrapper');
         const hideInstructionsTypes = ['Quiz', 'Assignment', 'Conference', 'Discussion'];
         
         if (instructionsWrapper) {
             if (hideInstructionsTypes.includes(contentType)) {
+                console.log('Hiding instructions for content type:', contentType);
                 // Force hide with important styles
                 instructionsWrapper.style.setProperty('display', 'none', 'important');
                 instructionsWrapper.style.setProperty('visibility', 'hidden', 'important');
@@ -2225,6 +2306,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     label.style.setProperty('display', 'none', 'important');
                 }
             } else {
+                console.log('Showing instructions for content type:', contentType);
                 instructionsWrapper.style.removeProperty('display');
                 instructionsWrapper.style.removeProperty('visibility');
                 instructionsWrapper.style.removeProperty('opacity');
@@ -2246,18 +2328,22 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }
         } else {
+            console.log('Instructions wrapper not found!');
         }
     }
 
+    // SCORM file selection - now handled like video uploads (no direct S3 upload needed)
     // File will be uploaded with form submission
 
     // Function to toggle description field visibility based on content type
     function toggleDescriptionVisibility(contentType) {
+        console.log('toggleDescriptionVisibility called with:', contentType);
         const descriptionWrapper = document.getElementById('description-field-wrapper');
         const showDescriptionTypes = ['Video', 'Document', 'Audio', 'Web', 'EmbedVideo'];
         
         if (descriptionWrapper) {
             if (showDescriptionTypes.includes(contentType)) {
+                console.log('Showing description for content type:', contentType);
                 // Show with proper styles
                 descriptionWrapper.style.removeProperty('display');
                 descriptionWrapper.style.removeProperty('visibility');
@@ -2279,6 +2365,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     label.style.removeProperty('display');
                 }
             } else {
+                console.log('Hiding description for content type:', contentType);
                 // Force hide with important styles
                 descriptionWrapper.style.setProperty('display', 'none', 'important');
                 descriptionWrapper.style.setProperty('visibility', 'hidden', 'important');
@@ -2301,6 +2388,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }
         } else {
+            console.log('Description wrapper not found!');
         }
     }
     
@@ -2324,6 +2412,7 @@ document.addEventListener('DOMContentLoaded', function() {
             toggleDescriptionVisibility(selectedRadio.value);
         }
         
+        // SCORM file input now uses standard file upload (no special handler needed)
     });
 </script>
 
@@ -2331,6 +2420,7 @@ document.addEventListener('DOMContentLoaded', function() {
 <script>
     // Define global toggleSidebar function if not already defined
     if (typeof window.toggleSidebar !== 'function') {
+        console.log('Initializing global toggleSidebar function');
         window.toggleSidebar = function() {
             const sidebar = document.getElementById('sidebar');
             const mainContent = document.getElementById('main-content');
@@ -2340,12 +2430,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Store sidebar state in localStorage
                 const isCollapsed = sidebar.classList.contains('collapsed');
                 localStorage.setItem('sidebar_collapsed', isCollapsed);
+                console.log('Sidebar toggled:', isCollapsed ? 'collapsed' : 'expanded');
             }
         };
     }
     
     // Define global toggleSubmenu function if not already defined
     if (typeof window.toggleSubmenu !== 'function') {
+        console.log('Initializing global toggleSubmenu function');
         window.toggleSubmenu = function(submenuId, event) {
             // Prevent the event from propagating up to parent elements
             if (event) {
@@ -2353,9 +2445,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 event.stopPropagation();
             }
             
+            console.log(`Toggling submenu: ${submenuId}`);
             
             const submenu = document.getElementById(submenuId);
             if (!submenu) {
+                console.error(`Submenu with ID ${submenuId} not found`);
                 return;
             }
             
@@ -2375,6 +2469,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             if (!button) {
+                console.error('Could not find button for submenu:', submenuId);
                 return;
             }
             
@@ -2387,6 +2482,7 @@ document.addEventListener('DOMContentLoaded', function() {
             } else {
                 submenu.classList.add('hidden');
             }
+            console.log(`Submenu ${submenuId} was hidden: ${wasHidden}, is now hidden: ${submenu.classList.contains('hidden')}`);
             
             // Toggle button active state and arrow rotation
             if (wasHidden) {
@@ -2470,6 +2566,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const checkbox = document.getElementById('topic_restrict_learners');
     if (checkbox && checkbox.checked) {
         // Learner list is already rendered in template
+        console.log('Learner restrictions checkbox is checked');
     }
     
     // Select all restricted learners before form submission
@@ -2491,6 +2588,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const container = document.querySelector('.topic-form-custom-grid');
     
     if (!resizer || !leftColumn || !rightColumn || !container) {
+        console.log('Column resizer elements not found');
         return;
     }
     
@@ -2575,17 +2673,20 @@ document.addEventListener('DOMContentLoaded', function() {
 <!-- Re-attach sidebar submenu event listeners in case sidebar JS was not properly initialized -->
 <script>
   document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM loaded - initializing sidebar submenu listeners');
     
     // Function to attach submenu listeners
     function attachSubmenuListeners() {
       // Target both desktop and mobile menu buttons
       const allSubmenuButtons = document.querySelectorAll('.menu-item.has-submenu[data-submenu]');
+      console.log(`Found ${allSubmenuButtons.length} submenu buttons to initialize`);
       
       allSubmenuButtons.forEach(button => {
         // Check if this button already has our event listener
         if (!button._submenuListenerAttached) {
           // Get the submenu ID
           const submenuId = button.getAttribute('data-submenu');
+          console.log(`Attaching listener to button for submenu: ${submenuId}`);
           
           // Clone and replace to remove any existing listeners
           const newButton = button.cloneNode(true);
@@ -2595,11 +2696,13 @@ document.addEventListener('DOMContentLoaded', function() {
           newButton.addEventListener('click', function(event) {
             event.preventDefault();
             event.stopPropagation();
+            console.log(`Button clicked for submenu: ${submenuId}`);
             
             // Call the toggleSubmenu function if it exists
             if (typeof window.toggleSubmenu === 'function') {
               window.toggleSubmenu(submenuId, event);
             } else {
+              console.error('toggleSubmenu function not found');
               // Fallback implementation
               const submenu = document.getElementById(submenuId);
               if (submenu) {
@@ -2649,6 +2752,7 @@ document.addEventListener('DOMContentLoaded', function() {
 <!-- Initialize everything after DOM load -->
 <script>
     document.addEventListener('DOMContentLoaded', function() {
+        console.log('DOM loaded, checking form fields:');
         const formFields = [
             'topic_title', 
             'topic_description', 
@@ -2660,18 +2764,27 @@ document.addEventListener('DOMContentLoaded', function() {
         
         formFields.forEach(fieldId => {
             const field = document.getElementById(fieldId);
+            console.log(`Field ${fieldId} exists: ${!!field}`);
         });
         
-        // Form validation and submission handling
+        // Additional debugging for form
         const topicForm = document.getElementById('topicForm');
         if (topicForm) {
+            console.log('Found form with action:', topicForm.action);
+            console.log('Form has data-ajax attribute:', topicForm.hasAttribute('data-ajax'));
+            console.log('Form data-ajax value:', topicForm.getAttribute('data-ajax'));
             
-            // Listen for submit events
+            // Listen for submit events directly here for debugging
             topicForm.addEventListener('submit', function(e) {
+                console.log('Form submit event detected in HTML template');
+                console.log('Form action URL:', this.action);
+                console.log('Form method:', this.method);
+                console.log('Form enctype:', this.enctype);
                 
                 // Don't prevent default, let the handler in topic_form_updated.js handle that
             });
         } else {
+            console.error('Could not find topic form!');
         }
 
         // Check if we're on an edit page
@@ -2679,11 +2792,14 @@ document.addEventListener('DOMContentLoaded', function() {
         const topicId = pathParts[pathParts.indexOf('topics') + 1];
         
         if (topicId && window.location.pathname.includes('/edit')) {
+            console.log('DOM loaded, waiting for editTopic function...');
             // Wait for editTopic function to be available
             const waitForEditFunction = function() {
                 if (typeof editTopic === 'function') {
+                    console.log('editTopic function found, proceeding with data loading');
                     editTopic(topicId);
                 } else {
+                    console.log('editTopic function not found yet, waiting...');
                     setTimeout(waitForEditFunction, 100);
                 }
             };
@@ -2701,6 +2817,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (topicSubmitButton) {
             topicSubmitButton.addEventListener('click', function(e) {
                 e.preventDefault();
+                console.log('Submit button clicked, submitting form directly');
                 
                 // Hide submit text, show spinner
                 const submitText = this.querySelector('.submit-text');
@@ -2747,9 +2864,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Unlike submit(), requestSubmit() properly handles multipart/form-data encoding
                 if (topicForm.requestSubmit) {
                     // Modern browsers support requestSubmit
+                    console.log('Using requestSubmit() for proper file upload handling');
                     topicForm.requestSubmit();
                 } else {
                     // Fallback for older browsers: create and click a submit button
+                    console.log('Using fallback submit method for file uploads');
                     const submitEvent = new Event('submit', {bubbles: true, cancelable: true});
                     if (topicForm.dispatchEvent(submitEvent)) {
                         // If not cancelled by validation, submit natively
@@ -2781,7 +2900,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 const sectionOption = Array.from(sectionSelect.options).find(option => option.value === sectionParam);
                 if (sectionOption) {
                     sectionOption.selected = true;
+                    console.log(`Auto-selected section: ${sectionOption.text}`);
                 } else {
+                    console.log(`Section ID ${sectionParam} not found in dropdown options`);
                 }
             }
         }
@@ -2795,12 +2916,14 @@ document.addEventListener('DOMContentLoaded', function() {
             // Function to toggle new section input visibility
             function toggleNewSectionInput() {
                 if (sectionSelect.value === 'new_section') {
+                    console.log('🆕 "Create New Section" selected - showing input field');
                     newSectionInput.style.display = 'block';
                     if (newSectionNameField) {
                         newSectionNameField.focus(); // Auto-focus the input field
                         newSectionNameField.required = true; // Make it required when visible
                     }
                 } else {
+                    console.log(' Regular section selected - hiding new section input');
                     newSectionInput.style.display = 'none';
                     if (newSectionNameField) {
                         newSectionNameField.value = ''; // Clear the input
@@ -2815,12 +2938,18 @@ document.addEventListener('DOMContentLoaded', function() {
             // Check initial state (in case "new_section" is pre-selected)
             toggleNewSectionInput();
             
+            console.log(' Section dropdown change handler initialized');
             
             // Debug: Log current section selection state for editing
             if (sectionSelect.value) {
+                console.log(' Section currently selected:', sectionSelect.value, sectionSelect.selectedOptions[0]?.text);
             } else {
+                console.log(' No section selected (standalone topic)');
             }
         } else {
+            console.warn('  Section dropdown or new section input not found');
+            console.log('Debug - sectionSelect:', sectionSelect);
+            console.log('Debug - newSectionInput:', newSectionInput);
         }
         
         // Clean any unwanted characters from the textarea directly
@@ -2830,6 +2959,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (content === '{' || content === '{' || content.trim() === '{' || 
                 content === '}' || content.trim() === '}' || 
                 content === '{}' || content.trim() === '{}') {
+                console.log('Removing unwanted braces from textarea content');
                 textContentArea.value = '';
             }
         }
@@ -2840,6 +2970,7 @@ document.addEventListener('DOMContentLoaded', function() {
 <script>
     // Fix for sidebar and header issues on topic creation page
     document.addEventListener('DOMContentLoaded', function() {
+        console.log('Running sidebar and header fix script');
         
         // Fix for sidebar toggle button
         const sidebarToggle = document.getElementById('sidebarToggle');
@@ -2882,6 +3013,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 headerSearch.style.display = 'flex';
                 headerSearch.style.visibility = 'visible';
                 headerSearch.style.opacity = '1';
+                console.log('Header search visibility fixed');
             }
         }
         
@@ -2960,13 +3092,16 @@ document.addEventListener('DOMContentLoaded', function() {
         `;
         document.head.appendChild(styleEl);
     } catch (e) {
+        console.log("Style application error:", e);
     }
     
     // CHROME-SPECIFIC FIX: Direct DOM manipulation approach
     function setupDirectMenuHandlers() {
+        console.log("Setting up direct menu handlers for Chrome");
         
         // Get all menu buttons with submenus
         var menuButtons = document.querySelectorAll('#sidebar [data-submenu]');
+        console.log(`Found ${menuButtons.length} menu buttons`);
         
         // For each button, set up a completely direct event handler
         menuButtons.forEach(function(button) {
@@ -2974,6 +3109,7 @@ document.addEventListener('DOMContentLoaded', function() {
             var submenu = document.getElementById(submenuId);
             
             if (!submenu) {
+                console.error(`Could not find submenu ${submenuId}`);
                 return;
             }
             
@@ -2989,6 +3125,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (e && e.stopPropagation) e.stopPropagation();
                     if (e && e.preventDefault) e.preventDefault();
                     
+                    console.log(`Clicked menu: ${submenuId}`);
                     
                     // Direct manipulation of DOM - force show/hide
                     var isHidden = submenu.classList.contains('hidden');
@@ -3109,12 +3246,18 @@ document.addEventListener('DOMContentLoaded', function() {
 
 <!-- Emergency button fix - console access for manual operation -->
 <script>
+console.log("MENU EMERGENCY ACCESS: Use these in your console if needed:");
+console.log("window.toggleMenu('coursesSubmenu') - Toggle Courses menu");
+console.log("window.toggleMenu('userManagementSubmenu') - Toggle User Management menu");
+console.log("window.toggleMenu('communicationSubmenu') - Toggle Communication menu");
+console.log("window.toggleMenu('reportsSubmenu') - Toggle Reports menu");
 </script>
 
 <!-- Fix for sidebar submenu visibility issue -->
 <script>
 // Fix for sidebar submenu visibility issue
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('Initializing submenu fix on topic creation page');
     
     // Force re-initialization of submenu toggles
     if (window.reinitializeSubmenuToggles) {
@@ -3127,6 +3270,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (submenuId) {
             const submenu = document.getElementById(submenuId);
             if (submenu) {
+                console.log('Force showing submenu:', submenuId);
                 submenu.classList.remove('hidden');
                 item.classList.add('expanded');
                 
@@ -3146,6 +3290,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (submenuId) {
                 const submenu = document.getElementById(submenuId);
                 if (submenu && submenu.classList.contains('hidden')) {
+                    console.log('Re-showing hidden submenu:', submenuId);
                     submenu.classList.remove('hidden');
                 }
             }
@@ -3162,6 +3307,7 @@ document.addEventListener('DOMContentLoaded', function() {
 <script>
 // Additional topic-specific TinyMCE handling - Same pattern as course edit page
 (function() {
+    console.log('=== TinyMCE Setup for Topic Creation (Standardized) ===');
     
     // Wait for TinyMCE to be available
     function waitForTinyMCE(callback) {
@@ -3171,10 +3317,12 @@ document.addEventListener('DOMContentLoaded', function() {
         function checkTinyMCE() {
             attempts++;
             if (typeof tinymce !== 'undefined' && tinymce.init) {
+                console.log('TinyMCE available, proceeding with initialization');
                 callback();
             } else if (attempts < maxAttempts) {
                 setTimeout(checkTinyMCE, 100);
             } else {
+                console.error('TinyMCE failed to load after maximum attempts');
             }
         }
         checkTinyMCE();
@@ -3186,18 +3334,23 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize TinyMCE editors using global widget system
     function initializeTinyMCEEditors() {
         if (tinymceInitialized) {
+            console.log('TinyMCE already initialized, skipping');
             return;
         }
         
+        console.log('Initializing TinyMCE editors for topic creation');
         
         // Use TinyMCE widget system for text content field - Same as course edit
         if (typeof window.TinyMCEWidget !== 'undefined' && window.TinyMCEWidget.initializeAll) {
+            console.log('Initializing TinyMCE widgets');
             window.TinyMCEWidget.initializeAll();
         }
         
         const textareas = document.querySelectorAll('textarea.tinymce-editor:not([data-tinymce-config])');
+        console.log('Found textareas for manual TinyMCE init:', textareas.length);
         
         if (textareas.length === 0) {
+            console.log('No textareas found for manual TinyMCE initialization');
             tinymceInitialized = true;
             return;
         }
@@ -3205,14 +3358,17 @@ document.addEventListener('DOMContentLoaded', function() {
         textareas.forEach(function(textarea) {
             // Skip if already initialized
             if (textarea.classList.contains('tinymce-initialized')) {
+                console.log('Textarea already initialized:', textarea.id);
                 return;
             }
             
             // Skip if no ID
             if (!textarea.id) {
+                console.log('Textarea has no ID, skipping:', textarea);
                 return;
             }
             
+            console.log('Initializing TinyMCE for:', textarea.id);
             
             // Mark as being initialized
             textarea.classList.add('tinymce-initialized');
@@ -3229,6 +3385,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 license_key: 'gpl',
                 setup: function(editor) {
                     editor.on('init', function() {
+                        console.log('TinyMCE editor initialized:', editor.id);
                         // Force height after initialization
                         setTimeout(function() {
                             const container = editor.getContainer();
@@ -3250,12 +3407,15 @@ document.addEventListener('DOMContentLoaded', function() {
             try {
                 tinymce.init(config).then(function(editors) {
                     if (editors && editors.length > 0) {
+                        console.log('TinyMCE initialized successfully for:', textarea.id);
                     }
                 }).catch(function(error) {
+                    console.error('Failed to initialize TinyMCE for:', textarea.id, error);
                     // Remove the initialization flag so it can be retried
                     textarea.classList.remove('tinymce-initialized');
                 });
             } catch (error) {
+                console.error('Error calling tinymce.init for:', textarea.id, error);
                 textarea.classList.remove('tinymce-initialized');
             }
         });
@@ -3265,11 +3425,13 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Initialize when DOM is ready
     document.addEventListener('DOMContentLoaded', function() {
+        console.log('DOM loaded, waiting for TinyMCE');
         waitForTinyMCE(initializeTinyMCEEditors);
     });
     
     // Global function to force TinyMCE visibility for text content
     window.ensureTinyMCEVisible = function() {
+        console.log('Ensuring TinyMCE is visible for text content...');
         const textContentField = document.getElementById('text-content');
         if (textContentField && textContentField.classList.contains('active')) {
             const textArea = textContentField.querySelector('textarea');
@@ -3277,6 +3439,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 const editorId = textArea.id || 'id_text_content';
                 const editor = tinymce.get(editorId);
                 if (editor) {
+                    console.log('TinyMCE editor found, making visible:', editorId);
                     
                     // Force height settings
                     const container = editor.getContainer();
@@ -3293,7 +3456,9 @@ document.addEventListener('DOMContentLoaded', function() {
                             iframe.style.height = '400px';
                         }
                     }
+                    console.log('TinyMCE container made visible');
                 } else {
+                    console.log('TinyMCE editor not found for:', editorId);
                 }
             }
         }
@@ -3301,6 +3466,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Expose function globally for reinitializing if needed
     window.reinitializeTinyMCE = function() {
+        console.log('Reinitializing TinyMCE...');
         tinymceInitialized = false;
         
         // Remove initialization flags
@@ -3320,6 +3486,7 @@ document.addEventListener('DOMContentLoaded', function() {
 if (typeof formHasUnsavedChanges === 'undefined') {
     document.write('<script src="{% static "js/courses/course_edit.js" %}"><\/script>');
 } else {
+    console.log('Course edit JS already loaded, skipping duplicate load');
 }
 </script>
 
@@ -3335,7 +3502,9 @@ if (typeof formHasUnsavedChanges === 'undefined') {
                     tinymce.editors.forEach(function(editor) {
                         try {
                             editor.save();
+                            console.log('Saved content for editor:', editor.id);
                         } catch (error) {
+                            console.warn('Error saving editor content:', editor.id, error);
                         }
                     });
                 }
@@ -3354,6 +3523,7 @@ if (typeof formHasUnsavedChanges === 'undefined') {
             if (content === '{' || content === '{' || content.trim() === '{' || 
                 content === '}' || content.trim() === '}' || 
                 content === '{}' || content.trim() === '{}') {
+                console.log('Removing unwanted braces from textarea content');
                 textContentArea.value = '';
             }
         }
@@ -3369,7 +3539,12 @@ if (typeof formHasUnsavedChanges === 'undefined') {
         // Function to show/hide content type fields
         function showContentTypeField(contentType) {
             // Define content types that should hide the Instructions field
+            const hideInstructionsTypes = ['video', 'document', 'text', 'audio', 'web', 'embedvideo', 'scorm', 'quiz', 'assignment', 'conference', 'discussion'];
             
+            console.log('showContentTypeField called with:', contentType);
+            console.log('contentType type:', typeof contentType);
+            console.log('contentType.toLowerCase():', contentType.toLowerCase());
+            console.log('hideInstructionsTypes contains:', hideInstructionsTypes);
             
             // Handle Instructions field visibility - multiple selector attempts
             let instructionsDiv = null;
@@ -3380,20 +3555,25 @@ if (typeof formHasUnsavedChanges === 'undefined') {
             
             if (instructionsField) {
                 instructionsDiv = instructionsField.parentElement;
+                console.log('Found instructions field via label, parent div:', instructionsDiv);
             } else {
                 // Fallback: look for the textarea directly
                 const instructionsTextarea = document.querySelector('textarea[name="instructions"]') ||
                                             document.querySelector('#id_instructions');
                 if (instructionsTextarea) {
                     instructionsDiv = instructionsTextarea.closest('div');
+                    console.log('Found instructions field via textarea, closest div:', instructionsDiv);
                 }
             }
             
             const shouldHide = hideInstructionsTypes.includes(contentType.toLowerCase());
+            console.log('Should hide instructions for', contentType + ':', shouldHide);
             
             if (shouldHide) {
+                console.log(' Using force hide for content type:', contentType);
                 forceHideInstructionsField();
             } else {
+                console.log(' Using force show for content type:', contentType);
                 forceShowInstructionsField();
             }
             
@@ -3407,8 +3587,10 @@ if (typeof formHasUnsavedChanges === 'undefined') {
             
             // Show the selected content type field
             const fieldId = contentType.toLowerCase() + '-content';
+            console.log('Looking for field with ID:', fieldId);
             const selectedField = document.getElementById(fieldId);
             if (selectedField) {
+                console.log('Found field:', selectedField);
                 selectedField.style.display = 'block';
                 selectedField.style.visibility = 'visible';
                 selectedField.style.opacity = '1';
@@ -3416,25 +3598,32 @@ if (typeof formHasUnsavedChanges === 'undefined') {
                 
                 // If Text content type is selected, make sure TinyMCE editor is ready
                 if (contentType.toLowerCase() === 'text') {
+                    console.log('Text content selected, ensuring TinyMCE is ready');
                     setTimeout(function() {
                         // Force reinitialize TinyMCE for text content when field becomes visible
                         const textArea = selectedField.querySelector('textarea');
                         if (textArea && typeof tinymce !== 'undefined') {
                             const editorId = textArea.id || 'id_text_content';
+                            console.log('Looking for TinyMCE editor with ID:', editorId);
                             
                             if (tinymce.get(editorId)) {
+                                console.log('TinyMCE already initialized for:', editorId);
                                 // Make sure the editor container is visible
                                 const editorContainer = tinymce.get(editorId).getContainer();
                                 if (editorContainer) {
                                     editorContainer.style.display = 'block';
                                     editorContainer.style.visibility = 'visible';
                                     editorContainer.style.opacity = '1';
+                                    console.log('TinyMCE container made visible');
                                 }
                             } else {
+                                console.log('TinyMCE not found for:', editorId, 'Initializing...');
                                 // Initialize TinyMCE if not already done
                                 if (typeof window.TinyMCEWidget !== 'undefined' && window.TinyMCEWidget.initialize) {
+                                    console.log('Using TinyMCEWidget to initialize');
                                     window.TinyMCEWidget.initialize(textArea);
                                 } else {
+                                    console.log('TinyMCEWidget not available, trying direct initialization');
                                     // Direct TinyMCE initialization
                                     tinymce.init({
                                         selector: '#' + editorId,
@@ -3452,13 +3641,17 @@ if (typeof formHasUnsavedChanges === 'undefined') {
                                         promotion: false,
                                         base_url: '/static/tinymce_editor/tinymce/'
                                     }).then(function(editors) {
+                                        console.log('TinyMCE initialized successfully for:', editorId);
                                         if (editors && editors.length > 0) {
+                                            console.log('Editor instance created:', editors[0].id);
                                         }
                                     }).catch(function(error) {
+                                        console.error('Failed to initialize TinyMCE for:', editorId, error);
                                     });
                                 }
                             }
                         } else {
+                            console.log('Textarea not found or TinyMCE not available');
                         }
                         
                         // Additional attempt to ensure visibility
@@ -3470,21 +3663,29 @@ if (typeof formHasUnsavedChanges === 'undefined') {
                     }, 200); // Increased timeout to ensure DOM is ready
                 }
             } else {
+                console.log('Field not found with ID:', fieldId);
+                console.log('Available fields:');
+                document.querySelectorAll('.content-type-field').forEach(field => console.log('ID:', field.id));
             }
         }
         
         // Function to handle instructions field visibility on page load
         function handleInitialInstructionsVisibility() {
+            console.log('Handling initial instructions visibility...');
             const checkedRadio = document.querySelector('input[name="content_type"]:checked');
             if (checkedRadio) {
+                console.log('Found checked radio with value:', checkedRadio.value);
                 showContentTypeField(checkedRadio.value);
             } else {
+                console.log('No content type radio is checked');
             }
         }
         
         // Add change event listener to all content type radios
         contentTypeRadios.forEach(function(radio) {
             radio.addEventListener('change', function() {
+                console.log('Radio button changed to:', this.value);
+                console.log('Radio button checked:', this.checked);
                 if (this.checked) {
                     showContentTypeField(this.value);
                 }
@@ -3499,6 +3700,7 @@ if (typeof formHasUnsavedChanges === 'undefined') {
         
         // Enhanced function to force hide instructions field (including TinyMCE)
         function forceHideInstructionsField() {
+            console.log(' Force hiding instructions field...');
             
             // Method 1: Hide by label
             const instructionsLabel = document.querySelector('label[for="topic_instructions"]') || 
@@ -3509,6 +3711,7 @@ if (typeof formHasUnsavedChanges === 'undefined') {
                 if (instructionsContainer) {
                     instructionsContainer.style.cssText = 'display: none !important; visibility: hidden !important; opacity: 0 !important; height: 0 !important; overflow: hidden !important;';
                     instructionsContainer.setAttribute('hidden', 'hidden');
+                    console.log(' Instructions container hidden via label');
                 }
             }
             
@@ -3520,6 +3723,7 @@ if (typeof formHasUnsavedChanges === 'undefined') {
                 if (parentDiv) {
                     parentDiv.style.cssText = 'display: none !important; visibility: hidden !important; opacity: 0 !important; height: 0 !important; overflow: hidden !important;';
                     parentDiv.setAttribute('hidden', 'hidden');
+                    console.log(' Instructions TinyMCE container hidden');
                 }
             }
             
@@ -3530,6 +3734,7 @@ if (typeof formHasUnsavedChanges === 'undefined') {
                 if (textareaContainer) {
                     textareaContainer.style.cssText = 'display: none !important; visibility: hidden !important; opacity: 0 !important; height: 0 !important; overflow: hidden !important;';
                     textareaContainer.setAttribute('hidden', 'hidden');
+                    console.log(' Instructions textarea container hidden');
                 }
             }
             
@@ -3540,12 +3745,14 @@ if (typeof formHasUnsavedChanges === 'undefined') {
                 if (label && label.textContent && label.textContent.includes('Instructions')) {
                     div.style.cssText = 'display: none !important; visibility: hidden !important; opacity: 0 !important; height: 0 !important; overflow: hidden !important;';
                     div.setAttribute('hidden', 'hidden');
+                    console.log(' Instructions div hidden by text content');
                 }
             });
         }
         
         // Enhanced function to show instructions field
         function forceShowInstructionsField() {
+            console.log(' Force showing instructions field...');
             
             // Method 1: Show by label
             const instructionsLabel = document.querySelector('label[for="topic_instructions"]') || 
@@ -3556,6 +3763,7 @@ if (typeof formHasUnsavedChanges === 'undefined') {
                 if (instructionsContainer) {
                     instructionsContainer.style.cssText = 'display: block !important; visibility: visible !important; opacity: 1 !important; height: auto !important; overflow: visible !important;';
                     instructionsContainer.removeAttribute('hidden');
+                    console.log(' Instructions container shown via label');
                 }
             }
             
@@ -3567,6 +3775,7 @@ if (typeof formHasUnsavedChanges === 'undefined') {
                 if (parentDiv) {
                     parentDiv.style.cssText = 'display: block !important; visibility: visible !important; opacity: 1 !important; height: auto !important; overflow: visible !important;';
                     parentDiv.removeAttribute('hidden');
+                    console.log(' Instructions TinyMCE container shown');
                 }
             }
             
@@ -3577,29 +3786,36 @@ if (typeof formHasUnsavedChanges === 'undefined') {
                 if (textareaContainer) {
                     textareaContainer.style.cssText = 'display: block !important; visibility: visible !important; opacity: 1 !important; height: auto !important; overflow: visible !important;';
                     textareaContainer.removeAttribute('hidden');
+                    console.log(' Instructions textarea container shown');
                 }
             }
         }
         
         // Also run after a short delay to ensure DOM is fully ready
         setTimeout(function() {
+            console.log('Running delayed instructions visibility check...');
             handleInitialInstructionsVisibility();
         }, 500);
         
         // Additional aggressive check after TinyMCE loads
         setTimeout(function() {
+            console.log(' Running post-TinyMCE instructions visibility check...');
             const checkedRadio = document.querySelector('input[name="content_type"]:checked');
             if (checkedRadio) {
                 const contentType = checkedRadio.value.toLowerCase();
+                const hideInstructionsTypes = ['video', 'document', 'text', 'audio', 'web', 'embedvideo', 'scorm', 'quiz', 'assignment', 'conference', 'discussion'];
                 
                 if (hideInstructionsTypes.includes(contentType)) {
+                    console.log(' Force hiding instructions for:', contentType);
                     forceHideInstructionsField();
                 } else {
+                    console.log(' Force showing instructions for:', contentType);
                     forceShowInstructionsField();
                 }
             }
         }, 2000);
         
+        // Handle file input changes for audio, video, document, and SCORM uploads
         function setupFileInputHandlers() {
             const fileInputs = document.querySelectorAll('.file-input');
             
@@ -3667,6 +3883,7 @@ if (typeof formHasUnsavedChanges === 'undefined') {
                             filePreviewElement.style.display = 'block';
                         }
                         
+                        console.log(`File selected: ${file.name} (${file.type}, ${file.size} bytes)`);
                     } else {
                         // No file selected - reset to default state
                         if (uploadArea) {
@@ -3743,6 +3960,8 @@ if (typeof formHasUnsavedChanges === 'undefined') {
             });
         });
         
+        // SCORM Upload Progress Monitoring
+        function setupSCORMUploadProgress() {
             const topicForm = document.getElementById('topicForm');
             if (!topicForm) return;
             
@@ -3750,19 +3969,23 @@ if (typeof formHasUnsavedChanges === 'undefined') {
             
             // Create progress container (initially hidden)
             const progressContainer = document.createElement('div');
+            progressContainer.id = 'scormUploadProgress';
             progressContainer.className = 'mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg';
             progressContainer.style.display = 'none';
             progressContainer.innerHTML = `
                 <div class="text-center">
                     <div class="text-lg font-semibold text-blue-800 mb-2">
                         <i class="fas fa-cloud-upload-alt mr-2"></i>
+                        SCORM Upload in Progress
                     </div>
                     <div class="progress-bar-container mb-4">
                         <div class="w-full bg-blue-200 rounded-full h-6">
+                            <div id="scormProgressBar" class="bg-primary-600 h-6 rounded-full transition-all duration-300 relative overflow-hidden" style="width: 10%">
                                 <div class="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent opacity-30 animate-pulse"></div>
                             </div>
                         </div>
                     </div>
+                    <div id="scormProgressMessage" class="text-blue-700 mb-2">
                         <span class="inline-block animate-spin mr-2"></span>
                         Initializing upload...
                     </div>
@@ -3779,11 +4002,16 @@ if (typeof formHasUnsavedChanges === 'undefined') {
                 formTitle.parentNode.insertBefore(progressContainer, formTitle.nextSibling);
             }
             
+            // Override form submission for SCORM topics
             topicForm.addEventListener('submit', function(e) {
                 const contentTypeRadio = document.querySelector('input[name="content_type"]:checked');
+                const scormFile = document.querySelector('input[name="content_file"]');
                 
+                // SCORM now uses standard file upload like video - no special handling needed
+                console.log(' Standard form submission for all content types');
             });
             
+            function handleSCORMUpload() {
                 // Show progress container
                 progressContainer.style.display = 'block';
                 
@@ -3803,8 +4031,11 @@ if (typeof formHasUnsavedChanges === 'undefined') {
                 // The browser will automatically set it to multipart/form-data with boundary
                 
                 // Log what we're sending
+                console.log('📤 Submitting SCORM form via AJAX');
+                console.log('Files in FormData:');
                 for (let pair of formData.entries()) {
                     if (pair[1] instanceof File) {
+                        console.log(`  - ${pair[0]}: ${pair[1].name} (${pair[1].size} bytes)`);
                     }
                 }
                 
@@ -3821,14 +4052,18 @@ if (typeof formHasUnsavedChanges === 'undefined') {
         return response.json();
     })
                 .then(data => {
+                    if (data.success && data.is_scorm) {
                         // Start progress monitoring
+                        monitorSCORMUpload(data.topic_id, data.upload_status_url, data.redirect_url);
                     } else if (data.success) {
+                        // Non-SCORM topic, redirect immediately
                         window.location.href = data.redirect_url;
                     } else {
                         throw new Error(data.error || 'Upload failed');
                     }
                 })
                 .catch(error => {
+                    console.error('Upload error:', error);
                     let errorMessage = 'Upload failed. Please try again.';
                     
                     // Check for specific error types
@@ -3847,6 +4082,7 @@ if (typeof formHasUnsavedChanges === 'undefined') {
                 });
             }
             
+            function handleSCORMDirectUpload() {
                 // Create topic first without file
                 const formData = new FormData(topicForm);
                 
@@ -3866,15 +4102,18 @@ if (typeof formHasUnsavedChanges === 'undefined') {
         return response.json();
     })
                 .then(data => {
+                    if (data.success && data.is_scorm_direct) {
                         // Topic created successfully, now prompt for file upload
                         showDirectUploadInterface(data.topic_id, data.direct_upload_url, data.redirect_url);
                     } else if (data.success) {
+                        // Non-SCORM topic, redirect immediately
                         window.location.href = data.redirect_url;
                     } else {
                         throw new Error(data.error || 'Topic creation failed');
                     }
                 })
                 .catch(error => {
+                    console.error('Topic creation error:', error);
                     let errorMessage = 'Failed to create topic. Please try again.';
                     
                     if (error.message) {
@@ -3886,6 +4125,8 @@ if (typeof formHasUnsavedChanges === 'undefined') {
                         errorMessage.includes('connection') || 
                         errorMessage.includes('redis')) {
                         errorMessage = ' System temporarily unavailable. Please try again in a few moments.';
+                    } else if (errorMessage.includes('SCORM integration is not configured')) {
+                        errorMessage = ' SCORM integration is not configured. Please contact your administrator.';
                     }
                     
                     showUploadError(errorMessage);
@@ -3901,14 +4142,23 @@ if (typeof formHasUnsavedChanges === 'undefined') {
                 const directUploadHtml = `
                     <div class="text-center p-6 bg-white rounded-lg shadow-md">
                         <h3 class="text-lg font-semibold text-gray-800 mb-4">
+                            <i class="fas fa-upload text-blue-600 mr-2"></i>SCORM Topic Created
                         </h3>
+                        <p class="text-gray-600 mb-4">Now upload your SCORM package:</p>
                         
                         <div class="mb-4">
+                            <input type="file" id="directScormFile" accept=".zip" 
+                                   class="hidden" onchange="handleDirectFileSelection(event)">
+                            <label for="directScormFile" 
+                                   class="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 cursor-pointer">
+                                <i class="fas fa-file-archive mr-2"></i>Choose SCORM Package
+                            </label>
                         </div>
                         
                         <div id="selectedFileInfo" class="mb-4 text-sm text-gray-600 hidden"></div>
                         
                         <div class="space-x-4">
+                            <button id="uploadDirectBtn" onclick="uploadDirectSCORM('${topicId}', '${uploadUrl}', '${redirectUrl}')" 
                                     class="px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:bg-gray-400" 
                                     disabled>
                                 <i class="fas fa-cloud-upload-alt mr-2"></i>Upload to Cloud
@@ -3957,9 +4207,12 @@ if (typeof formHasUnsavedChanges === 'undefined') {
                 }
             }
             
+            function uploadDirectSCORM(topicId, uploadUrl, redirectUrl) {
+                const fileInput = document.getElementById('directScormFile');
                 const file = fileInput.files[0];
                 
                 if (!file) {
+                    alert('Please select a SCORM package first.');
                     return;
                 }
                 
@@ -3975,9 +4228,11 @@ if (typeof formHasUnsavedChanges === 'undefined') {
                 
                 // Prepare form data
                 const formData = new FormData();
+                formData.append('scorm_file', file);
                 formData.append('topic_title', document.querySelector('[name="title"]').value);
                 formData.append('topic_id', topicId);
                 
+                // Upload SCORM package
                 fetch(uploadUrl, {
                     method: 'POST',
                     body: formData,
@@ -3998,6 +4253,9 @@ if (typeof formHasUnsavedChanges === 'undefined') {
                         
                         // Add success parameters to redirect URL
                         const redirectUrlObj = new URL(redirectUrl);
+                        redirectUrlObj.searchParams.set('scorm_success', 'true');
+                        redirectUrlObj.searchParams.set('topic_title', document.querySelector('[name="title"]').value || 'SCORM Topic');
+                        redirectUrlObj.searchParams.set('package_title', data.package_title || 'SCORM Package');
                         
                         setTimeout(() => {
                             window.location.href = redirectUrlObj.toString();
@@ -4007,6 +4265,7 @@ if (typeof formHasUnsavedChanges === 'undefined') {
                     }
                 })
                 .catch(error => {
+                    console.error('Direct upload error:', error);
                     let errorMessage = error.message;
                     
                     // Check if it's a system error (Redis/connection issues)
@@ -4014,6 +4273,8 @@ if (typeof formHasUnsavedChanges === 'undefined') {
                         errorMessage.includes('connection') || 
                         errorMessage.includes('redis')) {
                         errorMessage = ' System temporarily unavailable. Please try again in a few moments.';
+                    } else if (errorMessage.includes('SCORM integration is not configured')) {
+                        errorMessage = ' SCORM integration is not configured. Please contact your administrator.';
                     } else if (errorMessage.includes('timeout')) {
                         errorMessage = ' Upload timed out. Please try with a smaller file or check your internet connection.';
                     }
@@ -4025,15 +4286,19 @@ if (typeof formHasUnsavedChanges === 'undefined') {
             }
             
             function cancelDirectUpload(redirectUrl) {
+                if (confirm('Are you sure you want to skip the SCORM upload? You can upload it later from the course edit page.')) {
                     window.location.href = redirectUrl;
                 }
             }
             
+            function monitorSCORMUpload(topicId, statusUrl, redirectUrl) {
                 let pollCount = 0;
                 const maxPolls = 900; // 30 minutes at 2-second intervals
                 let progressValue = 10;
                 
                 function updateProgress(percentage, message) {
+                    const progressBar = document.getElementById('scormProgressBar');
+                    const progressMessage = document.getElementById('scormProgressMessage');
                     
                     if (progressBar) progressBar.style.width = percentage + '%';
                     if (progressMessage) progressMessage.innerHTML = message;
@@ -4056,6 +4321,9 @@ if (typeof formHasUnsavedChanges === 'undefined') {
                                 
                                 // Add success parameters to redirect URL
                                 const redirectUrlObj = new URL(redirectUrl);
+                                redirectUrlObj.searchParams.set('scorm_success', 'true');
+                                redirectUrlObj.searchParams.set('topic_title', data.topic_title || 'SCORM Topic');
+                                redirectUrlObj.searchParams.set('package_title', data.package_title || 'SCORM Package');
                                 
                                 setTimeout(() => {
                                     window.location.href = redirectUrlObj.toString();
@@ -4063,11 +4331,13 @@ if (typeof formHasUnsavedChanges === 'undefined') {
                                 
                             } else if (data.status === 'error') {
                                 // Upload failed
+                                showUploadError(data.message || 'SCORM upload failed');
                                 resetForm();
                                 
                             } else if (data.status === 'processing') {
                                 // Still processing
                                 progressValue = Math.min(90, 10 + (pollCount * 0.5)); // Gradually increase to 90%
+                                let message = data.message || 'Processing SCORM package...';
                                 
                                 if (data.file_size_mb) {
                                     const estimatedMinutes = Math.ceil(data.file_size_mb / 10);
@@ -4088,6 +4358,7 @@ if (typeof formHasUnsavedChanges === 'undefined') {
                             }
                         })
                         .catch(error => {
+                            console.error('Status check error:', error);
                             updateProgress(progressValue, '<i class="fas fa-exclamation-triangle text-yellow-600 mr-2"></i>Connection error, retrying...');
                             
                             // Retry after delay
@@ -4103,6 +4374,7 @@ if (typeof formHasUnsavedChanges === 'undefined') {
             }
             
             function showUploadError(message) {
+                const progressContainer = document.getElementById('scormUploadProgress');
                 if (progressContainer) {
                     progressContainer.className = 'mt-6 p-4 bg-red-50 border border-red-200 rounded-lg';
                     progressContainer.innerHTML = `
@@ -4134,6 +4406,8 @@ if (typeof formHasUnsavedChanges === 'undefined') {
             }
         }
         
+        // Initialize SCORM upload progress monitoring
+        setupSCORMUploadProgress();
     });
 </script>
 

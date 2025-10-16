@@ -6773,6 +6773,30 @@ def topic_create(request, course_id):
                     order=CourseTopic.objects.filter(course=course).count() + 1
                 )
                 
+                # Handle e-learning package creation (SCORM, xAPI, cmi5)
+                if new_topic.content_type == 'SCORM' and 'scorm_file' in request.FILES:
+                    from scorm.models import ELearningPackage
+                    
+                    # Create the e-learning package
+                    elearning_package = ELearningPackage.objects.create(
+                        topic=new_topic,
+                        package_file=request.FILES['scorm_file']
+                    )
+                    
+                    # Auto-detect package type
+                    detected_type = elearning_package.detect_package_type()
+                    if detected_type:
+                        elearning_package.package_type = detected_type
+                        elearning_package.save()
+                    
+                    # Extract the package
+                    if elearning_package.extract_package():
+                        package_type_display = elearning_package.get_package_type_display()
+                        messages.success(request, f"{package_type_display} package uploaded and extracted successfully!")
+                    else:
+                        error_msg = elearning_package.extraction_error or "Unknown extraction error"
+                        messages.error(request, f"E-learning package uploaded but extraction failed: {error_msg}")
+                
             except Exception as e:
                 logger.error(f"Error creating topic: {str(e)}")
                 messages.error(request, f"Error creating topic: {str(e)}")

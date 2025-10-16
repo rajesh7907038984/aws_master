@@ -185,19 +185,23 @@ class UserQuestionnaireAdmin(admin.ModelAdmin):
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)
-        if request.user.is_superuser or request.user.role in ['globaladmin', 'superadmin']:
+        if not request.user.is_authenticated:
+            return qs.none()
+        if request.user.is_superuser or (hasattr(request.user, 'role') and request.user.role in ['globaladmin', 'superadmin']):
             return qs
         if isinstance(request.user, AnonymousUser):
             return qs.none()
         return qs.filter(branch=request.user.branch).exclude(role='superadmin')
 
     def save_model(self, request, obj, form, change):
-        if not (request.user.is_superuser or request.user.role in ['globaladmin', 'superadmin']):
+        if not (request.user.is_superuser or (hasattr(request.user, 'role') and request.user.role in ['globaladmin', 'superadmin'])):
             obj.branch = request.user.branch
         super().save_model(request, obj, form, change)
 
     def has_view_permission(self, request, obj=None):
-        if request.user.is_superuser or request.user.role in ['globaladmin', 'superadmin']:
+        if not request.user.is_authenticated:
+            return False
+        if request.user.is_superuser or (hasattr(request.user, 'role') and request.user.role in ['globaladmin', 'superadmin']):
             return True
         if isinstance(request.user, AnonymousUser):
             return False
@@ -206,7 +210,9 @@ class UserQuestionnaireAdmin(admin.ModelAdmin):
         return obj.branch == request.user.branch
 
     def has_change_permission(self, request, obj=None):
-        if request.user.is_superuser or request.user.role in ['globaladmin', 'superadmin']:
+        if not request.user.is_authenticated:
+            return False
+        if request.user.is_superuser or (hasattr(request.user, 'role') and request.user.role in ['globaladmin', 'superadmin']):
             return True
         if isinstance(request.user, AnonymousUser):
             return False
@@ -215,7 +221,9 @@ class UserQuestionnaireAdmin(admin.ModelAdmin):
         return obj.branch == request.user.branch
 
     def has_delete_permission(self, request, obj=None):
-        if request.user.is_superuser or request.user.role in ['globaladmin', 'superadmin']:
+        if not request.user.is_authenticated:
+            return False
+        if request.user.is_superuser or (hasattr(request.user, 'role') and request.user.role in ['globaladmin', 'superadmin']):
             return True
         if isinstance(request.user, AnonymousUser):
             return False
@@ -224,9 +232,11 @@ class UserQuestionnaireAdmin(admin.ModelAdmin):
         return obj.branch == request.user.branch
 
     def has_add_permission(self, request):
+        if not request.user.is_authenticated:
+            return False
         if isinstance(request.user, AnonymousUser):
             return False
-        return request.user.is_superuser or request.user.role in ['superadmin', 'admin']
+        return request.user.is_superuser or (hasattr(request.user, 'role') and request.user.role in ['superadmin', 'admin'])
 
 
 @admin.register(UserQuizAssignment)
@@ -279,13 +289,15 @@ class UserQuizAssignmentAdmin(admin.ModelAdmin):
         return obj.user.branch == request.user.branch and request.user.role in ['admin', 'instructor']
     
     def has_delete_permission(self, request, obj=None):
-        if request.user.is_superuser or request.user.role in ['globaladmin', 'superadmin']:
+        if not request.user.is_authenticated:
+            return False
+        if request.user.is_superuser or (hasattr(request.user, 'role') and request.user.role in ['globaladmin', 'superadmin']):
             return True
         if isinstance(request.user, AnonymousUser):
             return False
         if obj is None:
             return True
-        return obj.user.branch == request.user.branch and request.user.role in ['admin', 'instructor']
+        return obj.user.branch == request.user.branch and (hasattr(request.user, 'role') and request.user.role in ['admin', 'instructor'])
     
     def has_add_permission(self, request):
         if isinstance(request.user, AnonymousUser):

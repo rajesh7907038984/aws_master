@@ -24,13 +24,15 @@ class RubricAdmin(admin.ModelAdmin):
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)
-        if request.user.is_superuser or request.user.role in ['globaladmin', 'superadmin']:
+        if not request.user.is_authenticated:
+            return qs.none()
+        if request.user.is_superuser or (hasattr(request.user, 'role') and request.user.role in ['globaladmin', 'superadmin']):
             return qs
         # Branch admins can only see rubrics from their branch
-        if request.user.role == 'admin' and request.user.branch:
+        if hasattr(request.user, 'role') and request.user.role == 'admin' and request.user.branch:
             return qs.filter(branch=request.user.branch)
         # Instructors can see rubrics they created or from their branch
-        elif request.user.role == 'instructor' and request.user.branch:
+        elif hasattr(request.user, 'role') and request.user.role == 'instructor' and request.user.branch:
             return qs.filter(
                 models.Q(created_by=request.user) |
                 models.Q(branch=request.user.branch)
@@ -39,7 +41,7 @@ class RubricAdmin(admin.ModelAdmin):
 
     def save_model(self, request, obj, form, change):
         # Automatically set branch and created_by for non-superusers
-        if not (request.user.is_superuser or request.user.role in ['globaladmin', 'superadmin']):
+        if not (request.user.is_superuser or (hasattr(request.user, 'role') and request.user.role in ['globaladmin', 'superadmin'])):
             if not obj.created_by:
                 obj.created_by = request.user
             if not obj.branch and request.user.branch:
@@ -219,14 +221,16 @@ class RubricOverallFeedbackAdmin(admin.ModelAdmin):
     
     def has_delete_permission(self, request, obj=None):
         """Allow delete permission for admins and above"""
-        if not request.user.role in ['globaladmin', 'superadmin', 'admin']:
+        if not request.user.is_authenticated:
+            return False
+        if not (hasattr(request.user, 'role') and request.user.role in ['globaladmin', 'superadmin', 'admin']):
             return False
         
         if obj is None:
             return True
         
         # Admins can delete feedback from their branch
-        if request.user.role == 'admin':
+        if hasattr(request.user, 'role') and request.user.role == 'admin':
             return obj.rubric.branch == request.user.branch
         
         return True

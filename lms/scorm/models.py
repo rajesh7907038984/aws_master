@@ -29,9 +29,9 @@ def elearning_package_path(instance, filename):
         name = name[:50]
     
     # Construct the new filename
-    new_filename = f"{name}_{unique_id}{ext.lower()}"
+    new_filename = "{}_{}{}".format(name, unique_id, ext.lower())
     
-    return f"elearning/packages/{new_filename}"
+    return "elearning/packages/{}".format(new_filename)
 
 class ELearningPackage(models.Model):
     """Model for e-learning packages (SCORM, xAPI, cmi5)"""
@@ -93,7 +93,7 @@ class ELearningPackage(models.Model):
         ordering = ['-created_at']
     
     def __str__(self):
-        return f"{self.get_package_type_display()} Package: {self.title or self.topic.title}"
+        return "{} Package: {}".format(self.get_package_type_display(), self.title or self.topic.title)
     
     def extract_package(self):
         """Extract e-learning package to local media directory"""
@@ -113,7 +113,7 @@ class ELearningPackage(models.Model):
                     self.save()
             
             # Create topic-based directory structure using the custom storage
-            topic_dir = f"packages/{self.topic.id}"
+            topic_dir = "packages/{}".format(self.topic.id)
             
             # Ensure the directory exists using the storage system
             if not self.package_file.storage.exists(topic_dir):
@@ -164,8 +164,8 @@ class ELearningPackage(models.Model):
                                     content = bytes(self.package_file)
                                     temp_file.write(content)
                             except Exception as inner_e:
-                                logger.error(f"Error reading package file: {str(inner_e)}")
-                                raise ValidationError(f"Could not read package file: {str(inner_e)}")
+                                logger.error("Error reading package file: {}".format(str(inner_e)))
+                                raise ValidationError("Could not read package file: {}".format(str(inner_e)))
                     zip_path = temp_file.name
             
             with zipfile.ZipFile(zip_path, 'r') as zip_ref:
@@ -189,11 +189,11 @@ class ELearningPackage(models.Model):
             self.extraction_error = ""
             self.save()
             
-            logger.info(f"Successfully extracted {self.package_type} package for topic {self.topic.id}")
+            logger.info("Successfully extracted {} package for topic {}".format(self.package_type, self.topic.id))
             return True
             
         except Exception as e:
-            error_msg = f"Error extracting {getattr(self, 'package_type', 'unknown')} package: {str(e)}"
+            error_msg = "Error extracting {} package: {}".format(getattr(self, 'package_type', 'unknown'), str(e))
             logger.error(error_msg)
             self.extraction_error = error_msg
             self.save()
@@ -233,7 +233,7 @@ class ELearningPackage(models.Model):
             self.save()
             
         except Exception as e:
-            logger.error(f"Error parsing {self.package_type} manifest: {str(e)}")
+            logger.error("Error parsing {} manifest: {}".format(self.package_type, str(e)))
     
     def _parse_scorm_manifest(self, manifest_path):
         """Parse SCORM manifest to extract metadata"""
@@ -419,7 +419,7 @@ class ELearningPackage(models.Model):
                 os.unlink(zip_path)
                 
         except Exception as e:
-            logger.error(f"Error detecting package type: {str(e)}")
+            logger.error("Error detecting package type: {}".format(str(e)))
         
         return None
     
@@ -428,14 +428,14 @@ class ELearningPackage(models.Model):
         if not self.is_extracted or not self.launch_file:
             return None
         
-        return f"/scorm/launch/{self.topic.id}/"
+        return "/scorm/launch/{}/".format(self.topic.id)
     
     def get_content_url(self):
         """Get the URL to access the e-learning content"""
         if not self.is_extracted or not self.launch_file:
             return None
         
-        return f"/scorm/content/{self.topic.id}/{self.launch_file}"
+        return "/scorm/content/{}/{}".format(self.topic.id, self.launch_file)
 
 # Backward compatibility alias
 SCORMPackage = ELearningPackage
@@ -506,7 +506,7 @@ class ELearningTracking(models.Model):
         ordering = ['-updated_at']
     
     def __str__(self):
-        return f"{self.user.username} - {self.elearning_package.title}"
+        return "{} - {}".format(self.user.username, self.elearning_package.title)
     
     def update_progress(self, scorm_data):
         """Update progress based on SCORM data"""
@@ -590,7 +590,7 @@ class ELearningTracking(models.Model):
             return timedelta(hours=hours, minutes=minutes, seconds=seconds)
             
         except Exception as e:
-            logger.error(f"Error parsing SCORM time: {time_str} - {str(e)}")
+            logger.error("Error parsing SCORM time: {} - {}".format(time_str, str(e)))
             return None
     
     def get_progress_percentage(self):
@@ -645,7 +645,7 @@ class SCORMReport(models.Model):
         ordering = ['-generated_at']
     
     def __str__(self):
-        return f"{self.course.title} - {self.get_report_type_display()}"
+        return "{} - {}".format(self.course.title, self.get_report_type_display())
 
 # Backward compatibility aliases
 SCORMPackage = ELearningPackage

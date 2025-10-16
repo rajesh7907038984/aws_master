@@ -136,10 +136,31 @@
     <!-- Files List -->
     <div class="bg-white rounded-lg shadow">
         {% if page_obj %}
+            <!-- Bulk Actions Bar -->
+            <div class="px-4 py-3 border-b bg-gray-50" id="bulk-actions-bar" style="display: none;">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-4">
+                        <span class="text-sm text-gray-600" id="selected-count">0 files selected</span>
+                        <button onclick="selectAllFiles()" class="text-sm text-blue-600 hover:text-blue-800">
+                            Select All
+                        </button>
+                        <button onclick="clearSelection()" class="text-sm text-gray-600 hover:text-gray-800">
+                            Clear Selection
+                        </button>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <button onclick="bulkDeleteFiles()" class="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 text-sm">
+                            🗑️ Delete Selected
+                        </button>
+                    </div>
+                </div>
+            </div>
+
             {% for file in page_obj %}
             <div class="file-item">
                 <div class="flex items-center justify-between">
                     <div class="flex items-center space-x-4">
+                        <input type="checkbox" class="file-checkbox" value="{{ file.id }}" onchange="updateBulkActions()">
                         <div class="file-icon {{ file.file_type }}">
                             {% if file.file_type == 'image' %}🖼️
                             {% elif file.file_type == 'video' %}🎥
@@ -261,6 +282,72 @@ function syncFiles() {
         })
         .catch(error => {
             alert('Error syncing files: ' + error);
+        });
+    }
+}
+
+// Bulk operations functions
+function updateBulkActions() {
+    const checkboxes = document.querySelectorAll('.file-checkbox');
+    const selectedCount = document.querySelectorAll('.file-checkbox:checked').length;
+    const bulkActionsBar = document.getElementById('bulk-actions-bar');
+    const selectedCountSpan = document.getElementById('selected-count');
+    
+    if (selectedCount > 0) {
+        bulkActionsBar.style.display = 'block';
+        selectedCountSpan.textContent = `${selectedCount} file${selectedCount > 1 ? 's' : ''} selected`;
+    } else {
+        bulkActionsBar.style.display = 'none';
+    }
+}
+
+function selectAllFiles() {
+    const checkboxes = document.querySelectorAll('.file-checkbox');
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = true;
+    });
+    updateBulkActions();
+}
+
+function clearSelection() {
+    const checkboxes = document.querySelectorAll('.file-checkbox');
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = false;
+    });
+    updateBulkActions();
+}
+
+function bulkDeleteFiles() {
+    const selectedCheckboxes = document.querySelectorAll('.file-checkbox:checked');
+    const fileIds = Array.from(selectedCheckboxes).map(cb => cb.value);
+    
+    if (fileIds.length === 0) {
+        alert('Please select files to delete.');
+        return;
+    }
+    
+    if (confirm(`Are you sure you want to delete ${fileIds.length} file(s)? This action cannot be undone.`)) {
+        const formData = new FormData();
+        fileIds.forEach(id => formData.append('file_ids', id));
+        
+        fetch('{% url "media_library:bulk_delete" %}', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+            },
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+                location.reload();
+            } else {
+                alert('Error: ' + data.message);
+            }
+        })
+        .catch(error => {
+            alert('Error deleting files: ' + error);
         });
     }
 }

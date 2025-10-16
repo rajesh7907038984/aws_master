@@ -21,6 +21,7 @@ async function safeJsonResponse(response) {
     if (!contentType || !contentType.includes('application/json')) {
         // Try to get text response for debugging
         const text = await response.text();
+        console.log({
             status: response.status,
             statusText: response.statusText,
             contentType: contentType,

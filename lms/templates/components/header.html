@@ -119,11 +119,16 @@
                     aria-label="Profile menu"
                     id="profile-button"
                     type="button"
+                    onclick="toggleProfileDropdown()"
                 >
                     {% if user.profile_image %}
                     <img src="{{ user.profile_image.url }}" alt="{{ user.username }}" class="w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-full object-cover">
                     {% else %}
-                    <img src="{% static 'img/default-avatar.svg' %}" alt="Profile" class="w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-full object-cover">
+                    <div class="w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-full bg-gray-300 flex items-center justify-center">
+                        <svg class="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 text-gray-600" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"/>
+                        </svg>
+                    </div>
                     {% endif %}
                 </button>
 
@@ -835,48 +840,20 @@
     }
     
     
-    /* Profile dropdown fixes - Simple approach */
+    /* Profile dropdown - simplified styles */
     #profile-container {
-        position: relative !important;
-        z-index: 60 !important;
-        overflow: visible !important;
+        position: relative;
+        z-index: 60;
+        overflow: visible;
     }
     
     #profile-button {
-        touch-action: manipulation !important;
-        -webkit-tap-highlight-color: transparent !important;
-        cursor: pointer !important;
-        min-height: 44px !important;
-        min-width: 44px !important;
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: transparent;
+        cursor: pointer;
     }
     
-    #profile-dropdown {
-        position: absolute !important;
-        top: 3rem !important;
-        right: 0 !important;
-        z-index: 9999 !important;
-        min-width: 12rem !important;
-        max-width: calc(100vw - 2rem) !important;
-        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04) !important;
-        background-color: white !important;
-        border-radius: 0.75rem !important;
-        border: 1px solid #e5e7eb !important;
-        transition: all 0.2s ease-in-out !important;
-    }
-    
-    #profile-dropdown.hidden {
-        display: none !important;
-        visibility: hidden !important;
-        opacity: 0 !important;
-    }
-    
-    #profile-dropdown:not(.hidden) {
-        display: block !important;
-        visibility: visible !important;
-        opacity: 1 !important;
-    }
-    
-    /* Mobile specific fixes */
+    /* Mobile specific fixes - Resolved conflicts */
     @media (max-width: 768px) {
         /* Ensure header allows overflow for dropdown */
         header .flex.items-center {
@@ -889,43 +866,31 @@
         
         #profile-container {
             overflow: visible !important;
+            position: relative !important;
         }
         
+        /* Mobile dropdown adjustments */
         #profile-dropdown {
-            max-width: calc(100vw - 1rem) !important;
-            right: -0.25rem !important;
-            width: max-content !important;
+            max-width: calc(100vw - 1rem);
+            right: 0;
+            width: max-content;
         }
         
-        /* Ensure dropdown menu items are touch-friendly on mobile */
+        /* Touch-friendly menu items on mobile */
         #profile-dropdown a,
         #profile-dropdown button[type="submit"] {
-            min-height: 48px !important;
-            touch-action: manipulation !important;
-            -webkit-tap-highlight-color: transparent !important;
-            padding: 14px 16px !important;
-        }
-        
-        /* Better visual feedback for touch on menu items */
-        #profile-dropdown a:active,
-        #profile-dropdown button[type="submit"]:active {
-            background-color: #e5e7eb !important;
-            transform: scale(0.98) !important;
-        }
-        
-        /* Ensure dropdown stays within viewport on small screens */
-        #profile-dropdown {
-            max-height: calc(100vh - 5rem) !important;
-            overflow-y: auto !important;
-            -webkit-overflow-scrolling: touch !important;
+            min-height: 48px;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
+            padding: 14px 16px;
         }
     }
     
     /* Extra small screens - adjust dropdown positioning */
     @media (max-width: 480px) {
         #profile-dropdown {
-            right: -0.25rem !important;
-            max-width: calc(100vw - 1rem) !important;
+            right: -0.25rem;
+            max-width: calc(100vw - 1rem);
         }
     }
     
@@ -963,6 +928,18 @@
 
 <!-- Ensure all header icons are visible script -->
 <script>
+// Define global functions immediately - before DOMContentLoaded
+window.toggleProfileDropdown = function() {
+    console.log('Global toggleProfileDropdown called');
+    const dropdown = document.getElementById('profile-dropdown');
+    if (dropdown) {
+        dropdown.classList.toggle('hidden');
+        console.log('Dropdown toggled, classes:', dropdown.className);
+    } else {
+        console.log('Profile dropdown not found');
+    }
+};
+
 // Consolidated header JavaScript
 document.addEventListener('DOMContentLoaded', function() {
     // Branch Switcher JavaScript
@@ -1796,29 +1773,35 @@ document.addEventListener('DOMContentLoaded', function() {
     window.addEventListener('beforeunload', cleanupPolling);
     window.addEventListener('pagehide', cleanupPolling);
     
-    // Simple profile dropdown - no Alpine.js needed
-    
-    // Profile dropdown functionality
-    const profileButton = document.getElementById('profile-button');
-    const profileDropdown = document.getElementById('profile-dropdown');
-    const profileContainer = document.getElementById('profile-container');
-    
-    if (profileButton && profileDropdown && profileContainer) {
+    // Profile dropdown functionality - Consolidated and fixed
+    function initializeProfileDropdown() {
+        const profileButton = document.getElementById('profile-button');
+        const profileDropdown = document.getElementById('profile-dropdown');
+        const profileContainer = document.getElementById('profile-container');
+        
+        if (!profileButton || !profileDropdown || !profileContainer) {
+            console.log('Profile dropdown elements not found');
+            return;
+        }
+        
+        // Prevent duplicate initialization
+        if (profileButton.hasAttribute('data-initialized')) {
+            return;
+        }
+        
         let isProfileOpen = false;
+        
+        // Ensure dropdown starts hidden
+        profileDropdown.classList.add('hidden');
         
         // Toggle profile dropdown
         function toggleProfileDropdown() {
             isProfileOpen = !isProfileOpen;
+            
             if (isProfileOpen) {
                 profileDropdown.classList.remove('hidden');
-                profileDropdown.style.display = 'block';
-                profileDropdown.style.visibility = 'visible';
-                profileDropdown.style.opacity = '1';
             } else {
                 profileDropdown.classList.add('hidden');
-                profileDropdown.style.display = 'none';
-                profileDropdown.style.visibility = 'hidden';
-                profileDropdown.style.opacity = '0';
             }
         }
         
@@ -1826,32 +1809,118 @@ document.addEventListener('DOMContentLoaded', function() {
         function closeProfileDropdown() {
             isProfileOpen = false;
             profileDropdown.classList.add('hidden');
-            profileDropdown.style.display = 'none';
-            profileDropdown.style.visibility = 'hidden';
-            profileDropdown.style.opacity = '0';
         }
         
-        // Profile button click handler
-        profileButton.addEventListener('click', function(e) {
+        // Unified click handler
+        function handleProfileClick(e) {
             e.preventDefault();
             e.stopPropagation();
             toggleProfileDropdown();
-        });
+        }
         
-        // Close dropdown when clicking outside
-        document.addEventListener('click', function(e) {
+        // Remove any existing event listeners to prevent conflicts
+        profileButton.removeEventListener('click', handleProfileClick);
+        
+        // Add click event listener
+        profileButton.addEventListener('click', handleProfileClick);
+        
+        // Close dropdown when clicking outside - Enhanced with proper event handling
+        function handleOutsideClick(e) {
             if (isProfileOpen && !profileContainer.contains(e.target)) {
                 closeProfileDropdown();
             }
-        });
+        }
         
         // Close dropdown on escape key
-        document.addEventListener('keydown', function(e) {
+        function handleEscapeKey(e) {
             if (e.key === 'Escape' && isProfileOpen) {
                 closeProfileDropdown();
             }
-        });
+        }
+        
+        // Remove existing event listeners to prevent duplicates
+        document.removeEventListener('click', handleOutsideClick, true);
+        document.removeEventListener('keydown', handleEscapeKey);
+        
+        // Add event listeners with proper cleanup
+        document.addEventListener('click', handleOutsideClick, true);
+        document.addEventListener('keydown', handleEscapeKey);
+        
+        // Mark as initialized
+        profileButton.setAttribute('data-initialized', 'true');
+        
+        // Make functions globally available
+        window.toggleProfileDropdown = toggleProfileDropdown;
+        window.closeProfileDropdown = closeProfileDropdown;
+        
+        console.log('Profile dropdown initialized successfully');
     }
+    
+    // Initialize profile dropdown with debugging
+    console.log('Attempting to initialize profile dropdown...');
+    
+    function tryInitialize() {
+        console.log('Trying to initialize profile dropdown...');
+        initializeProfileDropdown();
+    }
+    
+    if (document.readyState === 'loading') {
+        console.log('Document still loading, adding DOMContentLoaded listener');
+        document.addEventListener('DOMContentLoaded', tryInitialize);
+    } else {
+        console.log('Document already loaded, initializing immediately');
+        tryInitialize();
+    }
+    
+    // Also try after a short delay as backup
+    setTimeout(tryInitialize, 500);
+    
+    // Function already defined globally at the top of the script
+    
+    // Debug function for profile dropdown
+    window.debugProfileDropdown = function() {
+        const profileButton = document.getElementById('profile-button');
+        const profileDropdown = document.getElementById('profile-dropdown');
+        const profileContainer = document.getElementById('profile-container');
+        
+        console.log('Profile Dropdown Debug:');
+        console.log('- Button found:', !!profileButton);
+        console.log('- Dropdown found:', !!profileDropdown);
+        console.log('- Container found:', !!profileContainer);
+        console.log('- Dropdown classes:', profileDropdown ? profileDropdown.className : 'N/A');
+        console.log('- Dropdown style display:', profileDropdown ? profileDropdown.style.display : 'N/A');
+        console.log('- Dropdown style visibility:', profileDropdown ? profileDropdown.style.visibility : 'N/A');
+        console.log('- Dropdown style opacity:', profileDropdown ? profileDropdown.style.opacity : 'N/A');
+        
+        if (profileDropdown) {
+            const rect = profileDropdown.getBoundingClientRect();
+            console.log('- Dropdown position:', {
+                top: rect.top,
+                right: rect.right,
+                bottom: rect.bottom,
+                left: rect.left,
+                width: rect.width,
+                height: rect.height
+            });
+        }
+        
+        // Test click functionality
+        if (profileButton) {
+            console.log('- Button onclick attribute:', profileButton.getAttribute('onclick'));
+            console.log('- Button event listeners:', profileButton.onclick ? 'Has onclick' : 'No onclick');
+        }
+    };
+    
+    // Test function to manually trigger dropdown
+    window.testProfileDropdown = function() {
+        const profileButton = document.getElementById('profile-button');
+        if (profileButton) {
+            console.log('Manually triggering profile dropdown...');
+            profileButton.click();
+        } else {
+            console.log('Profile button not found');
+        }
+    };
     
     // Branch switcher functionality
     const branchSwitcherButton = document.getElementById('branch-switcher-button');

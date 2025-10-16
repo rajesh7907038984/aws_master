@@ -29,6 +29,9 @@
 
         // Setup global error handling for production
         setupGlobalErrorHandling: function() {
+            const originalConsoleError = console.error;
+            
+            console.error = function(...args) {
                 const timestamp = new Date().toISOString();
                 const context = {
                     timestamp: timestamp,

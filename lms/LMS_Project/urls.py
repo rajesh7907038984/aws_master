@@ -30,6 +30,7 @@ from django.views.static import serve
 from django.shortcuts import redirect
 from django.contrib.auth import views as auth_views
 from users.views import role_based_redirect, home, learner_dashboard, instructor_dashboard, admin_dashboard, global_admin_dashboard, users_admin_dashboard, custom_login, register, forgot_password
+from test_profile_view import test_profile_dropdown
 from core.views import health_check
 from admin_dashboard.views import SuperAdminDashboardView
 from django.views.generic.base import RedirectView
@@ -83,6 +84,7 @@ urlpatterns = [
     path('dashboard/instructor/', instructor_dashboard, name='dashboard_instructor'),
     path('dashboard/admin/', admin_dashboard, name='dashboard_admin'),
     path('health/', health_check, name='health_check'),
+    path('test-profile/', test_profile_dropdown, name='test_profile_dropdown'),
     
     # Global authentication URLs (fallback)
     path('login/', custom_login, name='login'),
@@ -119,12 +121,14 @@ urlpatterns = [
     path('rubrics/', include('lms_rubrics.urls', namespace='lms_rubrics')),
     path('outcomes/', include('lms_outcomes.urls', namespace='lms_outcomes')),
     path('certificates/', include('certificates.urls', namespace='certificates')),
+    path('scorm/', include('scorm.urls', namespace='scorm')),
     path('notifications/', include('lms_notifications.urls', namespace='lms_notifications')),
     path('account/', include('account_settings.urls', namespace='account_settings')),
     path('individual-learning-plan/', include('individual_learning_plan.urls', namespace='individual_learning_plan')),
     path('role-management/', include('role_management.urls', namespace='role_management')),
     path('course-reviews/', include('course_reviews.urls', namespace='course_reviews')),
     path('tinymce/', include('tinymce_editor.urls')),
+    path('media-library/', include('media_library.urls', namespace='media_library')),
     path('accounts/login/', redirect_accounts_login, name='accounts_login_redirect'),
     
     

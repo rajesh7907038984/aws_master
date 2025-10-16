@@ -1028,8 +1028,13 @@ class Course(models.Model):
             logger.info("User is primary instructor - allowing modification")
             return True
             
-        # Invited instructor check (instructors assigned by admin)
+        # Instructor check (instructors from same branch can modify courses)
         if user.role == 'instructor':
+            # Check if instructor is from the same branch as the course
+            if hasattr(user, 'branch') and user.branch == self.branch:
+                logger.info("User is instructor with matching branch - allowing modification")
+                return True
+                
             # Check if instructor is enrolled in the course (invited instructor)
             is_enrolled = self.enrolled_users.filter(id=user.id).exists()
             if is_enrolled:
@@ -1457,6 +1462,7 @@ class Topic(models.Model):
         ('Web', 'Web Content'),
         ('Quiz', 'Quiz'),
         ('Assignment', 'Assignment'),
+        ('SCORM', 'SCORM Package'),
         ('EmbedVideo', 'Embedded Video'),
         ('Conference', 'ILT/Conference'),
         ('Discussion', 'Discussion')

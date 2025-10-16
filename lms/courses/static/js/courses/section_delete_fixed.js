@@ -209,6 +209,8 @@ window.showNotification = showNotification;
 
 // Initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('Section Delete Handler initialized');
+    console.log('Available functions:', {
         deleteSection: typeof window.deleteSection,
         testSectionDelete: typeof window.testSectionDelete,
         getCSRFToken: typeof window.getCSRFToken,

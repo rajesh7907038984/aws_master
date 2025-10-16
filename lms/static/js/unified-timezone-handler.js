@@ -34,11 +34,11 @@ if (typeof console === 'undefined') {
         },
         
         setupTimezoneDisplay: function() {
-            // Convert timestamps on page if needed;
-const timestamps = document.querySelectorAll('[data-timestamp]');
+            // Convert timestamps on page if needed
+            const timestamps = document.querySelectorAll('[data-timestamp]');
             timestamps.forEach(element => {
                 const timestamp = element.getAttribute('data-timestamp');
-                if if (timestamp) {
+                if (timestamp) {
                     try {
                         const date = new Date(parseInt(timestamp) * 1000);
                         element.textContent = date.toLocaleString();
@@ -61,8 +61,8 @@ const timestamps = document.querySelectorAll('[data-timestamp]');
         }
     };
     
-// Initialize when DOM is ready;
-    if if (document.readyState === 'loading') {
+// Initialize when DOM is ready
+    if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', () => TimezoneHandler.init());
     } else {
         TimezoneHandler.init();

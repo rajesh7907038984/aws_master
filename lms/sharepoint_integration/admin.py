@@ -301,18 +301,18 @@ class SharePointIntegrationAdmin(admin.ModelAdmin):
         qs = super().get_queryset(request)
         
         # Global admins can see all integrations
-        if request.user.role == 'globaladmin':
+        if hasattr(request.user, 'role') and request.user.role == 'globaladmin':
             return qs
         
         # Super admins can see integrations in their assigned businesses
-        elif request.user.role == 'superadmin':
+        elif hasattr(request.user, 'role') and request.user.role == 'superadmin':
             if hasattr(request.user, 'assigned_businesses'):
                 business_ids = request.user.assigned_businesses.values_list('id', flat=True)
                 return qs.filter(branch__business_id__in=business_ids)
             return qs.filter(branch__isnull=True)
         
         # Branch admins can only see their branch integrations
-        elif request.user.role == 'admin' and request.user.branch:
+        elif hasattr(request.user, 'role') and request.user.role == 'admin' and request.user.branch:
             return qs.filter(branch=request.user.branch)
         
         # Other users cannot manage integrations
@@ -321,14 +321,18 @@ class SharePointIntegrationAdmin(admin.ModelAdmin):
     
     def has_add_permission(self, request):
         """Check if user can add SharePoint integrations"""
-        return request.user.role in ['globaladmin', 'superadmin', 'admin']
+        if not request.user.is_authenticated:
+            return False
+        return hasattr(request.user, 'role') and request.user.role in ['globaladmin', 'superadmin', 'admin']
     
     def has_change_permission(self, request, obj=None):
         """Check if user can change SharePoint integrations"""
-        if not request.user.role in ['globaladmin', 'superadmin', 'admin']:
+        if not request.user.is_authenticated:
+            return False
+        if not (hasattr(request.user, 'role') and request.user.role in ['globaladmin', 'superadmin', 'admin']):
             return False
         
-        if obj and request.user.role == 'admin':
+        if obj and hasattr(request.user, 'role') and request.user.role == 'admin':
             # Branch admins can only modify their branch integrations
             return obj.branch == request.user.branch
         
@@ -336,7 +340,9 @@ class SharePointIntegrationAdmin(admin.ModelAdmin):
     
     def has_delete_permission(self, request, obj=None):
         """Check if user can delete SharePoint integrations"""
-        if not request.user.role in ['globaladmin', 'superadmin']:
+        if not request.user.is_authenticated:
+            return False
+        if not (hasattr(request.user, 'role') and request.user.role in ['globaladmin', 'superadmin']):
             return False
         
         return True

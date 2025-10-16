@@ -66,6 +66,19 @@
     <script src="{% static 'js/mobile-course-settings.js' %}" defer></script>
     
     <!-- Simple Profile Dropdown - handled in header.html -->
+    <script>
+    // Global profile dropdown function - fallback for all pages
+    window.toggleProfileDropdown = function() {
+        console.log('Base template toggleProfileDropdown called');
+        const dropdown = document.getElementById('profile-dropdown');
+        if (dropdown) {
+            dropdown.classList.toggle('hidden');
+            console.log('Dropdown toggled, classes:', dropdown.className);
+        } else {
+            console.log('Profile dropdown not found');
+        }
+    };
+    </script>
     
     <!-- Global fix for UI issues - ensure sidebar/header components are displayed across all pages -->
     <script>
@@ -227,8 +240,6 @@
     <script src="{% static 'js/session-timeout.js' %}"></script>
     
     <!-- Unified Chart System - Load chart components -->
-    <script src="{% static 'core/js/chart-http-service.js' %}"></script>
-    <script src="{% static 'core/js/unified-chart-service.js' %}"></script>
     <script src="{% static 'core/js/chart-initializer.js' %}"></script>
     <!-- user-progress-chart.js removed - causing syntax errors -->
     
