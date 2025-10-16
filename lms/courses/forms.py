@@ -358,6 +358,12 @@ class CourseForm(BaseModelFormWithTinyMCE):
             self.fields['accessible_groups'].queryset = BranchGroup.objects.filter(
                 branch=user.branch
             ).order_by('name')
+        elif user and user.role in ['globaladmin', 'superadmin']:
+            # For globaladmin/superadmin users without a specific branch, show all groups
+            self.fields['accessible_groups'].queryset = BranchGroup.objects.all().order_by('name')
+        else:
+            # Default fallback: empty queryset to avoid template rendering errors
+            self.fields['accessible_groups'].queryset = BranchGroup.objects.none()
         
         # Handle pricing fields based on order management settings
         self._configure_pricing_fields()
