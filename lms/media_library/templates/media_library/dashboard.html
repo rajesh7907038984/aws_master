@@ -1,0 +1,268 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Media Library Dashboard{% endblock %}
+
+{% block extra_css %}
+<style>
+    .stats-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 10px;
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+    }
+    .stats-card h3 {
+        margin: 0 0 0.5rem 0;
+        font-size: 2rem;
+        font-weight: bold;
+    }
+    .stats-card p {
+        margin: 0;
+        opacity: 0.9;
+    }
+    .file-item {
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        padding: 1rem;
+        margin-bottom: 0.5rem;
+        transition: all 0.2s;
+    }
+    .file-item:hover {
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        transform: translateY(-1px);
+    }
+    .file-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: bold;
+    }
+    .file-icon.image { background-color: #10b981; }
+    .file-icon.video { background-color: #f59e0b; }
+    .file-icon.audio { background-color: #8b5cf6; }
+    .file-icon.document { background-color: #3b82f6; }
+    .file-icon.archive { background-color: #6b7280; }
+    .file-icon.other { background-color: #9ca3af; }
+    .filter-tabs {
+        background: #f9fafb;
+        border-radius: 8px;
+        padding: 0.5rem;
+        margin-bottom: 1rem;
+    }
+    .filter-tab {
+        padding: 0.5rem 1rem;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: inline-block;
+        margin-right: 0.5rem;
+    }
+    .filter-tab.active {
+        background: #3b82f6;
+        color: white;
+    }
+    .filter-tab:hover {
+        background: #e5e7eb;
+    }
+    .filter-tab.active:hover {
+        background: #2563eb;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-3xl font-bold text-gray-900">Media Library</h1>
+        <div class="flex space-x-2">
+            <button onclick="syncFiles()" class="bg-purple-500 text-white px-4 py-2 rounded-lg hover:bg-purple-600">
+                🔄 Sync Files
+            </button>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div class="stats-card">
+            <h3>{{ stats.s3.total_files|add:stats.local.total_files }}</h3>
+            <p>Total Files</p>
+        </div>
+        <div class="stats-card">
+            <h3>{{ stats.s3.total_size_gb|add:stats.local.total_size_gb|floatformat:2 }} GB</h3>
+            <p>Total Storage</p>
+        </div>
+        <div class="stats-card">
+            <h3>{{ stats.s3.total_files }}</h3>
+            <p>S3 Files</p>
+        </div>
+        <div class="stats-card">
+            <h3>{{ stats.local.total_files }}</h3>
+            <p>Local Files</p>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="filter-tabs">
+        <span class="font-medium mr-4">Storage:</span>
+        <a href="?storage=all" class="filter-tab {% if storage_type == 'all' %}active{% endif %}">All</a>
+        <a href="?storage=s3" class="filter-tab {% if storage_type == 's3' %}active{% endif %}">S3</a>
+        <a href="?storage=local" class="filter-tab {% if storage_type == 'local' %}active{% endif %}">Local</a>
+        
+        <span class="font-medium mr-4 ml-6">Type:</span>
+        <a href="?storage={{ storage_type }}&type=all" class="filter-tab {% if file_type == 'all' %}active{% endif %}">All</a>
+        {% for type_code, type_name in file_types %}
+        <a href="?storage={{ storage_type }}&type={{ type_code }}" class="filter-tab {% if file_type == type_code %}active{% endif %}">{{ type_name }}</a>
+        {% endfor %}
+    </div>
+
+    <!-- Search -->
+    <div class="mb-4">
+        <form method="get" class="flex">
+            <input type="text" name="search" value="{{ search }}" placeholder="Search files..." 
+                   class="flex-1 px-4 py-2 border border-gray-300 rounded-l-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+            <input type="hidden" name="storage" value="{{ storage_type }}">
+            <input type="hidden" name="type" value="{{ file_type }}">
+            <button type="submit" class="bg-blue-500 text-white px-6 py-2 rounded-r-lg hover:bg-blue-600">
+                🔍 Search
+            </button>
+        </form>
+    </div>
+
+    <!-- Files List -->
+    <div class="bg-white rounded-lg shadow">
+        {% if page_obj %}
+            {% for file in page_obj %}
+            <div class="file-item">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-4">
+                        <div class="file-icon {{ file.file_type }}">
+                            {% if file.file_type == 'image' %}🖼️
+                            {% elif file.file_type == 'video' %}🎥
+                            {% elif file.file_type == 'audio' %}🎵
+                            {% elif file.file_type == 'document' %}📄
+                            {% elif file.file_type == 'archive' %}📦
+                            {% else %}📁
+                            {% endif %}
+                        </div>
+                        <div>
+                            <h4 class="font-medium text-gray-900">{{ file.filename }}</h4>
+                            <p class="text-sm text-gray-500">
+                                {{ file.file_size_mb }} MB • {{ file.storage_type|upper }} • {{ file.uploaded_at|date:"M d, Y" }}
+                            </p>
+                            {% if file.description %}
+                            <p class="text-sm text-gray-600 mt-1">{{ file.description }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <span class="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs">
+                            {{ file.file_type|title }}
+                        </span>
+                        <a href="{% url 'media_library:file_detail' file.id %}" 
+                           class="text-blue-500 hover:text-blue-700 text-sm">
+                            View Details
+                        </a>
+                        {% if file.get_absolute_url %}
+                        <a href="{{ file.get_absolute_url }}" target="_blank" 
+                           class="text-green-500 hover:text-green-700 text-sm">
+                            Download
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+
+            <!-- Pagination -->
+            {% if page_obj.has_other_pages %}
+            <div class="px-4 py-3 border-t">
+                <div class="flex justify-between items-center">
+                    <div class="text-sm text-gray-500">
+                        Showing {{ page_obj.start_index }} to {{ page_obj.end_index }} of {{ page_obj.paginator.count }} files
+                    </div>
+                    <div class="flex space-x-2">
+                        {% if page_obj.has_previous %}
+                        <a href="?page={{ page_obj.previous_page_number }}&storage={{ storage_type }}&type={{ file_type }}&search={{ search }}" 
+                           class="px-3 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200">
+                            Previous
+                        </a>
+                        {% endif %}
+                        {% if page_obj.has_next %}
+                        <a href="?page={{ page_obj.next_page_number }}&storage={{ storage_type }}&type={{ file_type }}&search={{ search }}" 
+                           class="px-3 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200">
+                            Next
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        {% else %}
+            <div class="text-center py-12">
+                <div class="text-gray-400 text-6xl mb-4">📁</div>
+                <h3 class="text-lg font-medium text-gray-900 mb-2">No files found</h3>
+                <p class="text-gray-500">Try adjusting your filters or search terms.</p>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Recent Uploads -->
+    {% if recent_uploads %}
+    <div class="mt-8">
+        <h2 class="text-xl font-semibold text-gray-900 mb-4">Recent Uploads</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {% for file in recent_uploads %}
+            <div class="bg-white border rounded-lg p-4 hover:shadow-md transition-shadow">
+                <div class="flex items-center space-x-3">
+                    <div class="file-icon {{ file.file_type }} text-xs">
+                        {% if file.file_type == 'image' %}🖼️
+                        {% elif file.file_type == 'video' %}🎥
+                        {% elif file.file_type == 'audio' %}🎵
+                        {% elif file.file_type == 'document' %}📄
+                        {% elif file.file_type == 'archive' %}📦
+                        {% else %}📁
+                        {% endif %}
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-sm font-medium text-gray-900 truncate">{{ file.filename }}</p>
+                        <p class="text-xs text-gray-500">{{ file.file_size_mb }} MB</p>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+function syncFiles() {
+    if (confirm('This will sync all media files from existing models. Continue?')) {
+        fetch('{% url "media_library:sync_files" %}', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                'Content-Type': 'application/json',
+            },
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Files synced successfully!');
+                location.reload();
+            } else {
+                alert('Error: ' + data.message);
+            }
+        })
+        .catch(error => {
+            alert('Error syncing files: ' + error);
+        });
+    }
+}
+</script>
+{% endblock %}

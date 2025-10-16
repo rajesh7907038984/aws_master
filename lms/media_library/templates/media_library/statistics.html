@@ -1,0 +1,277 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Storage Statistics{% endblock %}
+
+{% block extra_css %}
+<style>
+    .stat-card {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        border: 1px solid #e5e7eb;
+    }
+    .stat-card h3 {
+        font-size: 2rem;
+        font-weight: bold;
+        margin: 0 0 0.5rem 0;
+    }
+    .stat-card p {
+        color: #6b7280;
+        margin: 0;
+    }
+    .progress-bar {
+        background: #e5e7eb;
+        border-radius: 10px;
+        height: 8px;
+        overflow: hidden;
+    }
+    .progress-fill {
+        height: 100%;
+        border-radius: 10px;
+        transition: width 0.3s ease;
+    }
+    .chart-container {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        border: 1px solid #e5e7eb;
+    }
+    .activity-item {
+        display: flex;
+        align-items: center;
+        padding: 0.75rem;
+        border-bottom: 1px solid #f3f4f6;
+    }
+    .activity-item:last-child {
+        border-bottom: none;
+    }
+    .activity-icon {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 0.75rem;
+        font-size: 0.875rem;
+    }
+    .activity-icon.image { background-color: #d1fae5; color: #065f46; }
+    .activity-icon.video { background-color: #fef3c7; color: #92400e; }
+    .activity-icon.audio { background-color: #ede9fe; color: #5b21b6; }
+    .activity-icon.document { background-color: #dbeafe; color: #1e40af; }
+    .activity-icon.archive { background-color: #f3f4f6; color: #374151; }
+    .activity-icon.other { background-color: #f9fafb; color: #6b7280; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-3xl font-bold text-gray-900">Storage Statistics</h1>
+    </div>
+
+    <!-- Overview Stats -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div class="stat-card">
+            <h3 class="text-blue-600">{{ stats.s3.total_files|add:stats.local.total_files }}</h3>
+            <p>Total Files</p>
+        </div>
+        <div class="stat-card">
+            <h3 class="text-green-600">{{ stats.s3.total_size_gb|add:stats.local.total_size_gb|floatformat:2 }} GB</h3>
+            <p>Total Storage Used</p>
+        </div>
+        <div class="stat-card">
+            <h3 class="text-purple-600">{{ stats.s3.total_files }}</h3>
+            <p>S3 Files</p>
+        </div>
+        <div class="stat-card">
+            <h3 class="text-orange-600">{{ stats.local.total_files }}</h3>
+            <p>Local Files</p>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <!-- Storage Breakdown -->
+        <div class="chart-container">
+            <h2 class="text-xl font-semibold text-gray-900 mb-4">Storage Breakdown</h2>
+            <div class="space-y-4">
+                <div>
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-sm font-medium text-gray-700">S3 Storage</span>
+                        <span class="text-sm text-gray-500">{{ stats.s3.total_size_gb|floatformat:2 }} GB</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill bg-blue-500" style="width: {% if stats.s3.total_size_gb|add:stats.local.total_size_gb > 0 %}{{ stats.s3.total_size_gb|mul:100|div:stats.s3.total_size_gb|add:stats.local.total_size_gb|floatformat:0 }}{% else %}0{% endif %}%"></div>
+                    </div>
+                </div>
+                <div>
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-sm font-medium text-gray-700">Local Storage</span>
+                        <span class="text-sm text-gray-500">{{ stats.local.total_size_gb|floatformat:2 }} GB</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill bg-green-500" style="width: {% if stats.s3.total_size_gb|add:stats.local.total_size_gb > 0 %}{{ stats.local.total_size_gb|mul:100|div:stats.s3.total_size_gb|add:stats.local.total_size_gb|floatformat:0 }}{% else %}0{% endif %}%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- File Type Breakdown -->
+        <div class="chart-container">
+            <h2 class="text-xl font-semibold text-gray-900 mb-4">File Types</h2>
+            <div class="space-y-3">
+                {% for stat in file_type_stats %}
+                <div class="flex justify-between items-center">
+                    <div class="flex items-center">
+                        <div class="activity-icon {{ stat.file_type }} mr-3">
+                            {% if stat.file_type == 'image' %}🖼️
+                            {% elif stat.file_type == 'video' %}🎥
+                            {% elif stat.file_type == 'audio' %}🎵
+                            {% elif stat.file_type == 'document' %}📄
+                            {% elif stat.file_type == 'archive' %}📦
+                            {% else %}📁
+                            {% endif %}
+                        </div>
+                        <span class="text-sm font-medium text-gray-700">{{ stat.file_type|title }}</span>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-sm font-medium text-gray-900">{{ stat.count }} files</div>
+                        <div class="text-xs text-gray-500">{{ stat.total_size|floatformat:0|div:1048576|floatformat:1 }} MB</div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Storage Type Details -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-8">
+        <!-- S3 Storage Details -->
+        <div class="chart-container">
+            <h2 class="text-xl font-semibold text-gray-900 mb-4">S3 Storage Details</h2>
+            <div class="space-y-4">
+                <div class="flex justify-between">
+                    <span class="text-gray-600">Total Files:</span>
+                    <span class="font-medium">{{ stats.s3.total_files }}</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-600">Total Size:</span>
+                    <span class="font-medium">{{ stats.s3.total_size_gb|floatformat:2 }} GB</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-600">Images:</span>
+                    <span class="font-medium">{{ stats.s3.image_count }}</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-600">Videos:</span>
+                    <span class="font-medium">{{ stats.s3.video_count }}</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-600">Documents:</span>
+                    <span class="font-medium">{{ stats.s3.document_count }}</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-600">Archives:</span>
+                    <span class="font-medium">{{ stats.s3.archive_count }}</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-600">Other:</span>
+                    <span class="font-medium">{{ stats.s3.other_count }}</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Local Storage Details -->
+        <div class="chart-container">
+            <h2 class="text-xl font-semibold text-gray-900 mb-4">Local Storage Details</h2>
+            <div class="space-y-4">
+                <div class="flex justify-between">
+                    <span class="text-gray-600">Total Files:</span>
+                    <span class="font-medium">{{ stats.local.total_files }}</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-600">Total Size:</span>
+                    <span class="font-medium">{{ stats.local.total_size_gb|floatformat:2 }} GB</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-600">Images:</span>
+                    <span class="font-medium">{{ stats.local.image_count }}</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-600">Videos:</span>
+                    <span class="font-medium">{{ stats.local.video_count }}</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-600">Documents:</span>
+                    <span class="font-medium">{{ stats.local.document_count }}</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-600">Archives:</span>
+                    <span class="font-medium">{{ stats.local.archive_count }}</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-600">Other:</span>
+                    <span class="font-medium">{{ stats.local.other_count }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Top Uploaders -->
+    {% if top_uploaders %}
+    <div class="chart-container mt-8">
+        <h2 class="text-xl font-semibold text-gray-900 mb-4">Top Uploaders</h2>
+        <div class="space-y-3">
+            {% for uploader in top_uploaders %}
+            <div class="flex justify-between items-center">
+                <div>
+                    <div class="font-medium text-gray-900">
+                        {{ uploader.uploaded_by__first_name }} {{ uploader.uploaded_by__last_name }}
+                        <span class="text-gray-500">(@{{ uploader.uploaded_by__username }})</span>
+                    </div>
+                </div>
+                <div class="text-right">
+                    <div class="text-sm font-medium text-gray-900">{{ uploader.file_count }} files</div>
+                    <div class="text-xs text-gray-500">{{ uploader.total_size|floatformat:0|div:1048576|floatformat:1 }} MB</div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Recent Activity -->
+    {% if recent_activity %}
+    <div class="chart-container mt-8">
+        <h2 class="text-xl font-semibold text-gray-900 mb-4">Recent Activity</h2>
+        <div class="space-y-0">
+            {% for file in recent_activity %}
+            <div class="activity-item">
+                <div class="activity-icon {{ file.file_type }}">
+                    {% if file.file_type == 'image' %}🖼️
+                    {% elif file.file_type == 'video' %}🎥
+                    {% elif file.file_type == 'audio' %}🎵
+                    {% elif file.file_type == 'document' %}📄
+                    {% elif file.file_type == 'archive' %}📦
+                    {% else %}📁
+                    {% endif %}
+                </div>
+                <div class="flex-1">
+                    <div class="font-medium text-gray-900">{{ file.filename }}</div>
+                    <div class="text-sm text-gray-500">
+                        {{ file.file_size_mb }} MB • {{ file.storage_type|upper }} • {{ file.uploaded_at|date:"M d, Y H:i" }}
+                    </div>
+                </div>
+                <div class="text-sm text-gray-500">
+                    by {{ file.uploaded_by.username }}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
