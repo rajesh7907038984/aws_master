@@ -612,6 +612,56 @@ class StateView(LRSBaseView):
         
         return HttpResponse(status=204 if created else 200)
     
+    def get_resume_state(self, request, activity_id):
+        """Get resume state for xAPI content"""
+        auth_success, auth_result = self.authenticate(request)
+        if not auth_success:
+            return JsonResponse({'error': auth_result}, status=401)
+        
+        agent = request.GET.get('agent')
+        if not agent:
+            return JsonResponse({'error': 'agent parameter required'}, status=400)
+        
+        agent_data = json.loads(agent)
+        
+        # Check for existing state that indicates resume
+        states = State.objects.filter(
+            activity_id=activity_id, 
+            agent=agent_data
+        ).order_by('-updated_at')
+        
+        if states.exists():
+            # Check if state indicates progress/resume
+            latest_state = states.first()
+            state_content = latest_state.content
+            
+            # Determine if this is a resume scenario
+            has_progress = self._check_progress_indicators(state_content)
+            
+            if has_progress:
+                return JsonResponse({
+                    'resume': True,
+                    'stateId': latest_state.state_id,
+                    'content': state_content,
+                    'contentType': latest_state.content_type,
+                    'etag': latest_state.etag,
+                    'updated': latest_state.updated_at.isoformat()
+                })
+        
+        return JsonResponse({'resume': False})
+
+    def _check_progress_indicators(self, state_content):
+        """Check if state content indicates progress for resume"""
+        if isinstance(state_content, dict):
+            # Check for progress indicators
+            progress_indicators = [
+                'completion', 'progress', 'bookmark', 'location', 
+                'score', 'time_spent', 'interactions', 'suspend_data',
+                'lesson_location', 'total_time', 'session_time'
+            ]
+            return any(indicator in str(state_content).lower() for indicator in progress_indicators)
+        return False
+    
     def delete(self, request, activity_id):
         """DELETE /xapi/activities/state - Delete state"""
         auth_success, auth_result = self.authenticate(request)

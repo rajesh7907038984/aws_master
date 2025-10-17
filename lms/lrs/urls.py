@@ -11,6 +11,7 @@ urlpatterns = [
     path('xapi/activities/<str:activity_id>/', views.ActivitiesView.as_view(), name='activity_detail'),
     path('xapi/activities/<str:activity_id>/profile/', views.ActivityProfilesView.as_view(), name='activity_profiles'),
     path('xapi/activities/<str:activity_id>/state/', views.StateView.as_view(), name='activity_state'),
+    path('xapi/activities/<str:activity_id>/resume/', views.StateView.as_view(), name='activity_resume'),
     path('xapi/agents/profile/', views.AgentProfilesView.as_view(), name='agent_profiles'),
     
     # CMI5 endpoints

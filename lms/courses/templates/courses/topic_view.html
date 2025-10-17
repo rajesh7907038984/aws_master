@@ -628,10 +628,38 @@
                             </div>
                             
                             {% if topic.elearning_package.is_extracted %}
+                                <!-- Enhanced SCORM Button Logic -->
                                 <div class="flex flex-col sm:flex-row gap-4">
-                                    <a href="{% url 'scorm:launch' topic.id %}" class="btn btn-primary">
-                                        <i class="fas fa-{% if can_resume_scorm %}redo{% else %}play{% endif %} mr-2"></i>{{ scorm_action_text|default:"Launch Content" }}
-                                    </a>
+                                    {% if scorm_tracking %}
+                                        <!-- User has SCORM tracking data -->
+                                        {% if scorm_tracking.completion_status == 'completed' or scorm_tracking.success_status == 'passed' %}
+                                            <!-- Topic completed - show Result and Retake buttons -->
+                                            <a href="{% url 'scorm:result' topic.id %}" class="btn btn-success">
+                                                <i class="fas fa-chart-line mr-2"></i>View Result
+                                            </a>
+                                            <a href="{% url 'scorm:retake' topic.id %}" class="btn btn-warning">
+                                                <i class="fas fa-redo mr-2"></i>Retake
+                                            </a>
+                                        {% elif scorm_tracking.completion_status == 'incomplete' or scorm_tracking.success_status == 'failed' %}
+                                            <!-- Topic incomplete/failed - show Resume and Retake buttons -->
+                                            <a href="{% url 'scorm:launch' topic.id %}" class="btn btn-primary">
+                                                <i class="fas fa-play mr-2"></i>Resume
+                                            </a>
+                                            <a href="{% url 'scorm:retake' topic.id %}" class="btn btn-warning">
+                                                <i class="fas fa-redo mr-2"></i>Retake
+                                            </a>
+                                        {% else %}
+                                            <!-- Topic in progress - show Resume button -->
+                                            <a href="{% url 'scorm:launch' topic.id %}" class="btn btn-primary">
+                                                <i class="fas fa-play mr-2"></i>Resume
+                                            </a>
+                                        {% endif %}
+                                    {% else %}
+                                        <!-- First time - show Launch button -->
+                                        <a href="{% url 'scorm:launch' topic.id %}" class="btn btn-primary">
+                                            <i class="fas fa-play mr-2"></i>Launch Content
+                                        </a>
+                                    {% endif %}
                                     
                                     {% if user.is_staff or user.is_instructor %}
                                         <a href="{% url 'scorm:reports' course.id %}" class="btn btn-secondary">
@@ -639,6 +667,46 @@
                                         </a>
                                     {% endif %}
                                 </div>
+                                
+                                <!-- SCORM Progress Information -->
+                                {% if scorm_tracking %}
+                                <div class="mt-4 p-4 bg-gray-50 rounded-lg">
+                                    <h4 class="text-sm font-semibold text-gray-700 mb-2">Progress Information</h4>
+                                    <div class="grid grid-cols-2 gap-4 text-sm">
+                                        <div>
+                                            <span class="font-medium">Status:</span>
+                                            <span class="ml-2 capitalize">{{ scorm_tracking.completion_status|default:"Not Started" }}</span>
+                                        </div>
+                                        <div>
+                                            <span class="font-medium">Score:</span>
+                                            <span class="ml-2">
+                                                {% if scorm_tracking.score_raw is not None %}
+                                                    {{ scorm_tracking.score_raw }}/{{ scorm_tracking.score_max|default:"100" }}
+                                                {% else %}
+                                                    N/A
+                                                {% endif %}
+                                            </span>
+                                        </div>
+                                        <div>
+                                            <span class="font-medium">Time Spent:</span>
+                                            <span class="ml-2">
+                                                {% load scorm_filters %}
+                                                {{ scorm_tracking.total_time|format_time_spent }}
+                                            </span>
+                                        </div>
+                                        <div>
+                                            <span class="font-medium">Last Accessed:</span>
+                                            <span class="ml-2">
+                                                {% if scorm_tracking.last_launch %}
+                                                    {{ scorm_tracking.last_launch|date:"M j, Y g:i A" }}
+                                                {% else %}
+                                                    Never
+                                                {% endif %}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endif %}
                                 
                             {% else %}
                                 <div class="text-center">

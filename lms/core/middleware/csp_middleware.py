@@ -18,18 +18,18 @@ class CSPMiddleware:
     def __call__(self, request: HttpRequest) -> HttpResponse:
         response = self.get_response(request)
         
-        # Set permissive CSP header to allow eval() and other JavaScript features
+        # Set comprehensive CSP header to allow eval() and other JavaScript features
         # This is necessary for SCORM content, TinyMCE editor, and other JavaScript libraries
         csp_policy = (
             "default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob:; "
-            "frame-src 'self' 'unsafe-inline'; "
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval' *.amazonaws.com; "
-            "style-src 'self' 'unsafe-inline' *.amazonaws.com fonts.googleapis.com; "
-            "img-src 'self' data: blob: *.amazonaws.com; "
+            "frame-src 'self' 'unsafe-inline' 'unsafe-eval'; "
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval' *.amazonaws.com *.articulate.com *.adobe.com *.captivate.com *.googleapis.com *.gstatic.com; "
+            "style-src 'self' 'unsafe-inline' *.amazonaws.com fonts.googleapis.com *.gstatic.com; "
+            "img-src 'self' data: blob: *.amazonaws.com *.articulate.com *.adobe.com *.captivate.com; "
             "font-src 'self' *.amazonaws.com fonts.gstatic.com fonts.googleapis.com; "
-            "connect-src 'self' *.amazonaws.com metrics.articulate.com *.articulate.com *.adobe.com *.captivate.com https://metrics.articulate.com; "
+            "connect-src 'self' *.amazonaws.com metrics.articulate.com *.articulate.com *.adobe.com *.captivate.com https://metrics.articulate.com *.googleapis.com; "
             "worker-src 'self' blob:; "
-            "object-src 'none'; "
+            "object-src 'self' data: blob:; "
             "base-uri 'self';"
         )
         

@@ -42,6 +42,16 @@ def order_management_context(request):
     }
 
 
+def right_sidebar_context(request):
+    """
+    Right sidebar context processor.
+    """
+    return {
+        'right_sidebar_enabled': True,
+        'right_sidebar_content': [],
+    }
+
+
 def breadcrumbs(request):
     """
     Generate breadcrumbs based on the current URL path.

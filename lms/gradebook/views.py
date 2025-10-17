@@ -72,10 +72,14 @@ def pre_calculate_student_scores(students, activities, grades, quiz_attempts, co
                 conference_lookup[key] = []
             conference_lookup[key].append(evaluation)
         
+        # Initialize student_scores dictionary
+        student_scores = {}
+        
         # Calculate scores for each student-activity pair
         for student in students:
+            logger.info(f"Processing student: {student.username} (ID: {student.id})")
             try:
-                student_scores = {}
+                student_scores[student.id] = {}
                 
                 for activity in activities:
                     try:
@@ -87,7 +91,7 @@ def pre_calculate_student_scores(students, activities, grades, quiz_attempts, co
                             if key in grade_lookup:
                                 grade = grade_lookup[key]
                                 if grade.excused:
-                                    student_scores[activity_id] = {
+                                    student_scores[student.id][activity_id] = {
                                         'score': None,
                                         'max_score': activity['max_score'],
                                         'excused': True,
@@ -102,7 +106,7 @@ def pre_calculate_student_scores(students, activities, grades, quiz_attempts, co
                                     if grade.submission and activity['object'].due_date and grade.submission.submitted_at:
                                         is_late = grade.submission.submitted_at > activity['object'].due_date
                                     
-                                    student_scores[activity_id] = {
+                                    student_scores[student.id][activity_id] = {
                                         'score': grade.score,
                                         'max_score': activity['max_score'],
                                         'date': grade.updated_at,
@@ -128,7 +132,7 @@ def pre_calculate_student_scores(students, activities, grades, quiz_attempts, co
                                         # BUGFIX: Check if submission has been graded
                                         # If submission.grade is None but submission exists with status submitted/not_graded,
                                         # we should still show that there's a submission (not "Not Submitted")
-                                        student_scores[activity_id] = {
+                                        student_scores[student.id][activity_id] = {
                                             'score': submission.grade,  # Can be None if not graded yet
                                             'max_score': activity['max_score'],
                                             'date': submission.submitted_at,
@@ -139,7 +143,7 @@ def pre_calculate_student_scores(students, activities, grades, quiz_attempts, co
                                             'score_source': 'manual'  # Add this field
                                         }
                                     else:
-                                        student_scores[activity_id] = {
+                                        student_scores[student.id][activity_id] = {
                                             'score': None,
                                             'max_score': activity['max_score'],
                                             'type': 'assignment',
@@ -148,7 +152,7 @@ def pre_calculate_student_scores(students, activities, grades, quiz_attempts, co
                                         }
                                 except Exception as e:
                                     logger.error(f"Error processing assignment submission for student {student.id}, activity {activity_id}: {str(e)}")
-                                    student_scores[activity_id] = {
+                                    student_scores[student.id][activity_id] = {
                                         'score': None,
                                         'max_score': activity['max_score'],
                                         'type': 'assignment',
@@ -252,7 +256,7 @@ def pre_calculate_student_scores(students, activities, grades, quiz_attempts, co
                                         total_score = sum(evaluation.points for evaluation in evaluations)
                                         latest_evaluation = evaluations.order_by('-created_at').first()
                                         
-                                        student_scores[activity_id] = {
+                                        student_scores[student.id][activity_id] = {
                                             'score': total_score,
                                             'max_score': max_score,
                                             'date': latest_evaluation.created_at,
@@ -261,7 +265,7 @@ def pre_calculate_student_scores(students, activities, grades, quiz_attempts, co
                                             'score_source': 'rubric'  # Add this field
                                         }
                                     else:
-                                        student_scores[activity_id] = {
+                                        student_scores[student.id][activity_id] = {
                                             'score': None,
                                             'max_score': max_score,
                                             'type': 'discussion',
@@ -269,7 +273,7 @@ def pre_calculate_student_scores(students, activities, grades, quiz_attempts, co
                                         }
                                 except Exception as e:
                                     logger.error(f"Error processing discussion rubric evaluation for student {student.id}, discussion {activity_id}: {str(e)}")
-                                    student_scores[activity_id] = {
+                                    student_scores[student.id][activity_id] = {
                                         'score': None,
                                         'max_score': max_score,
                                         'type': 'discussion',
@@ -312,6 +316,7 @@ def pre_calculate_student_scores(students, activities, grades, quiz_attempts, co
                         elif activity_type == 'scorm':
                             scorm_package = activity['object']
                             max_score = activity['max_score']
+                            logger.info(f"SCORM Processing: Student {student.id}, Package {scorm_package.id}, Title: {scorm_package.title}")
                             
                             # Get SCORM tracking record for this student
                             try:
@@ -320,9 +325,16 @@ def pre_calculate_student_scores(students, activities, grades, quiz_attempts, co
                                     elearning_package=scorm_package
                                 ).first()
                                 
-                                # Only show scores for completed SCORM content
-                                if tracking and tracking.score_raw is not None and tracking.completion_status == 'completed':
-                                    student_scores[activity_id] = {
+                                # Sync data from raw_data to individual fields if needed
+                                if tracking:
+                                    from scorm.views import _sync_tracking_data
+                                    _sync_tracking_data(tracking)
+                                    logger.info(f"SCORM Sync: Student {student.id}, Package {scorm_package.id}, Score after sync: {tracking.score_raw}")
+                                
+                                # Show scores for SCORM content when they exist, regardless of completion status
+                                if tracking and tracking.score_raw is not None:
+                                    logger.info(f"SCORM Score Display: Student {student.id}, Package {scorm_package.id}, Score: {tracking.score_raw}, Status: {tracking.completion_status}")
+                                    student_scores[student.id][activity_id] = {
                                         'score': tracking.score_raw,
                                         'max_score': max_score,
                                         'date': tracking.updated_at,
@@ -330,14 +342,26 @@ def pre_calculate_student_scores(students, activities, grades, quiz_attempts, co
                                         'completion_status': tracking.completion_status,
                                         'success_status': tracking.success_status,
                                         'tracking': tracking,
-                                        'score_source': 'auto'  # Add this field
+                                        'score_source': 'auto'
                                     }
-                                else:
-                                    student_scores[activity_id] = {
+                                elif tracking:
+                                    # Show tracking info even without score for debugging
+                                    logger.info(f"SCORM No Score: Student {student.id}, Package {scorm_package.id}, Status: {tracking.completion_status}, Has Score: {tracking.score_raw is not None}")
+                                    student_scores[student.id][activity_id] = {
                                         'score': None,
                                         'max_score': max_score,
                                         'type': 'scorm',
-                                        'score_source': 'auto'  # Add this field
+                                        'completion_status': tracking.completion_status,
+                                        'success_status': tracking.success_status,
+                                        'tracking': tracking,
+                                        'score_source': 'auto'
+                                    }
+                                else:
+                                    student_scores[student.id][activity_id] = {
+                                        'score': None,
+                                        'max_score': max_score,
+                                        'type': 'scorm',
+                                        'score_source': 'auto'
                                     }
                             except Exception as e:
                                 logger.error(f"Error getting SCORM tracking for student {student.id}: {str(e)}")

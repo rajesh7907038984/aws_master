@@ -222,24 +222,46 @@ def get_scorm_scores_for_user(user, course=None):
         score_count = 0
         
         for tracking in scorm_tracking:
+            # Enhanced score calculation with multiple fallback methods
+            score_percentage = None
+            
+            # Try multiple methods to get score percentage
             if tracking.score_raw is not None:
-                # Get score percentage
+                # Method 1: Use enhanced get_score_percentage
                 score_percentage = tracking.get_score_percentage()
-                if score_percentage is not None:
-                    scorm_scores.append({
-                        'topic_title': tracking.elearning_package.topic.title,
-                        'score_raw': tracking.score_raw,
-                        'score_max': tracking.score_max,
-                        'score_percentage': score_percentage,
-                        'completion_status': tracking.completion_status,
-                        'success_status': tracking.success_status,
-                        'total_time': tracking.total_time,
-                        'progress_percentage': tracking.get_progress_percentage(),
-                        'last_launch': tracking.last_launch,
-                        'completion_date': tracking.completion_date
-                    })
-                    total_score += score_percentage
-                    score_count += 1
+                
+                # Method 2: If still None, try manual calculation
+                if score_percentage is None:
+                    if tracking.score_max is not None and tracking.score_max > 0:
+                        score_percentage = (tracking.score_raw / tracking.score_max) * 100
+                    elif tracking.score_raw <= 100:
+                        # Assume it's already a percentage
+                        score_percentage = tracking.score_raw
+                    else:
+                        # Use scaled score if available
+                        if tracking.score_scaled is not None:
+                            score_percentage = tracking.score_scaled * 100
+            
+            # Method 3: Use scaled score if raw score is not available
+            if score_percentage is None and tracking.score_scaled is not None:
+                score_percentage = tracking.score_scaled * 100
+            
+            if score_percentage is not None:
+                scorm_scores.append({
+                    'topic_title': tracking.elearning_package.topic.title,
+                    'score_raw': tracking.score_raw,
+                    'score_max': tracking.score_max,
+                    'score_scaled': tracking.score_scaled,
+                    'score_percentage': score_percentage,
+                    'completion_status': tracking.completion_status,
+                    'success_status': tracking.success_status,
+                    'total_time': tracking.total_time,
+                    'progress_percentage': tracking.get_progress_percentage(),
+                    'last_launch': tracking.last_launch,
+                    'completion_date': tracking.completion_date
+                })
+                total_score += score_percentage
+                score_count += 1
         
         # Calculate average SCORM score
         average_scorm_score = total_score / score_count if score_count > 0 else None
@@ -3990,8 +4012,8 @@ def user_detail_report(request, user_id):
 
 def _get_user_report_data(request, user_id):
     """
-    Helper function to get all user report data.
-    This avoids code duplication between the main report and section views.
+    Enhanced helper function to get all user report data with improved accuracy.
+    Includes data validation, consistency checks, and better error handling.
     """
     try:
         user = get_object_or_404(User, id=user_id)
@@ -4013,6 +4035,9 @@ def _get_user_report_data(request, user_id):
         logger.warning(f"User with ID {user_id} not found")
         messages.error(request, f"User with ID {user_id} not found")
         return None
+    
+    # Ensure data consistency before calculations
+    _ensure_data_consistency(user)
     
     # Get user course statistics with improved logic
     # Use UTC for consistent date calculations
@@ -4070,17 +4095,8 @@ def _get_user_report_data(request, user_id):
             topic__courses=enrollment.course
         )
         
-        # Calculate average score from completed topics
-        completed_topic_progress = course_topic_progress.filter(
-            completed=True,
-            last_score__isnull=False
-        )
-        if completed_topic_progress.exists():
-            enrollment.calculated_score = round(completed_topic_progress.aggregate(
-                avg_score=Avg('last_score')
-            )['avg_score'] or 0)
-        else:
-            enrollment.calculated_score = None
+        # Calculate accurate average score from completed topics
+        enrollment.calculated_score = _calculate_accurate_course_score(course_topic_progress)
         
         # Calculate total time spent on course (sum of all topic time)
         course_stats = course_topic_progress.aggregate(
@@ -6254,4 +6270,70 @@ class CourseReportView(LoginRequiredMixin, TemplateView):
             'page_obj': courses_page,
         })
         return context
+
+def _ensure_data_consistency(user):
+    """
+    Ensure data consistency for a user's progress records
+    """
+    try:
+        # Fix negative time values
+        TopicProgress.objects.filter(
+            user=user,
+            total_time_spent__lt=0
+        ).update(total_time_spent=0)
+        
+        # Fix null scores for completed records
+        TopicProgress.objects.filter(
+            user=user,
+            completed=True,
+            last_score__isnull=True
+        ).update(last_score=0.00)
+        
+        # Validate and normalize scores
+        progress_records = TopicProgress.objects.filter(
+            user=user,
+            last_score__isnull=False
+        )
+        
+        for progress in progress_records:
+            normalized_score = ScoreCalculationService.normalize_score(progress.last_score)
+            if normalized_score is not None and normalized_score != progress.last_score:
+                progress.last_score = normalized_score
+                progress.save()
+        
+        logger.info(f"Data consistency ensured for user {user.username}")
+        
+    except Exception as e:
+        logger.error(f"Error ensuring data consistency for user {user.id}: {e}")
+
+def _calculate_accurate_course_score(course_topic_progress):
+    """
+    Calculate accurate course score with proper validation
+    """
+    try:
+        # Get completed topics with valid scores
+        completed_progress = course_topic_progress.filter(
+            completed=True,
+            last_score__isnull=False
+        )
+        
+        if not completed_progress.exists():
+            return None
+        
+        # Calculate average score with proper normalization
+        scores = []
+        for progress in completed_progress:
+            normalized_score = ScoreCalculationService.normalize_score(progress.last_score)
+            if normalized_score is not None:
+                scores.append(float(normalized_score))
+        
+        if scores:
+            avg_score = sum(scores) / len(scores)
+            return round(avg_score, 2)
+        
+        return None
+        
+    except Exception as e:
+        logger.error(f"Error calculating course score: {e}")
+        return None
 

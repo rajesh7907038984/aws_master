@@ -649,6 +649,9 @@ class ELearningTracking(models.Model):
         help_text="Raw SCORM data from the package"
     )
     
+    # Attempt tracking
+    attempt_count = models.PositiveIntegerField(default=0, help_text="Number of attempts made on this SCORM package")
+    
     # Timestamps
     first_launch = models.DateTimeField(null=True, blank=True)
     last_launch = models.DateTimeField(null=True, blank=True)
@@ -676,18 +679,64 @@ class ELearningTracking(models.Model):
         if 'cmi.success_status' in scorm_data:
             self.success_status = scorm_data['cmi.success_status']
         
-        # Update scores - Use correct SCORM 1.2 data model elements
+        # Enhanced score processing - handle both SCORM 1.2 and 2004 elements
+        score_updated = False
+        
+        # SCORM 1.2 score elements
         if 'cmi.core.score.raw' in scorm_data:
-            self.score_raw = float(scorm_data['cmi.core.score.raw']) if scorm_data['cmi.core.score.raw'] else None
+            try:
+                self.score_raw = float(scorm_data['cmi.core.score.raw']) if scorm_data['cmi.core.score.raw'] else None
+                score_updated = True
+            except (ValueError, TypeError):
+                pass
         
         if 'cmi.core.score.min' in scorm_data:
-            self.score_min = float(scorm_data['cmi.core.score.min']) if scorm_data['cmi.core.score.min'] else None
+            try:
+                self.score_min = float(scorm_data['cmi.core.score.min']) if scorm_data['cmi.core.score.min'] else None
+            except (ValueError, TypeError):
+                pass
         
         if 'cmi.core.score.max' in scorm_data:
-            self.score_max = float(scorm_data['cmi.core.score.max']) if scorm_data['cmi.core.score.max'] else None
+            try:
+                self.score_max = float(scorm_data['cmi.core.score.max']) if scorm_data['cmi.core.score.max'] else None
+            except (ValueError, TypeError):
+                pass
         
-        if 'cmi.core.score.scaled' in scorm_data:
-            self.score_scaled = float(scorm_data['cmi.core.score.scaled']) if scorm_data['cmi.core.score.scaled'] else None
+        # SCORM 2004 score elements
+        if 'cmi.score.raw' in scorm_data:
+            try:
+                self.score_raw = float(scorm_data['cmi.score.raw']) if scorm_data['cmi.score.raw'] else None
+                score_updated = True
+            except (ValueError, TypeError):
+                pass
+        
+        if 'cmi.score.min' in scorm_data:
+            try:
+                self.score_min = float(scorm_data['cmi.score.min']) if scorm_data['cmi.score.min'] else None
+            except (ValueError, TypeError):
+                pass
+        
+        if 'cmi.score.max' in scorm_data:
+            try:
+                self.score_max = float(scorm_data['cmi.score.max']) if scorm_data['cmi.score.max'] else None
+            except (ValueError, TypeError):
+                pass
+        
+        if 'cmi.score.scaled' in scorm_data:
+            try:
+                self.score_scaled = float(scorm_data['cmi.score.scaled']) if scorm_data['cmi.score.scaled'] else None
+                score_updated = True
+            except (ValueError, TypeError):
+                pass
+        
+        # Set default max score if we have raw score but no max
+        if self.score_raw is not None and self.score_max is None:
+            if 0 <= self.score_raw <= 1:
+                self.score_max = 1.0
+            elif 0 <= self.score_raw <= 100:
+                self.score_max = 100
+            else:
+                self.score_max = 100  # Default fallback
         
         # Update progress measure
         if 'cmi.progress_measure' in scorm_data:
@@ -713,49 +762,145 @@ class ELearningTracking(models.Model):
         self.save()
     
     def _parse_scorm_time(self, time_str):
-        """Parse SCORM time format (PT1H30M15S) to timedelta"""
-        if not time_str or time_str == 'PT0S':
+        """ENHANCED: Parse SCORM time format (PT1H30M15.5S) to timedelta with comprehensive format support"""
+        if not time_str or time_str == 'PT0S' or time_str.strip() == '':
             return None
         
         try:
-            # Remove PT prefix
-            time_str = time_str[2:]
+            # Clean the time string
+            time_str = time_str.strip()
+            original_time_str = time_str
+            
+            # Handle different time formats
+            if time_str.startswith('PT'):
+                # Standard SCORM format: PT1H30M15.5S
+                time_str = time_str[2:]  # Remove PT prefix
+            elif ':' in time_str:
+                # Handle HH:MM:SS format
+                return self._parse_colon_time(time_str)
+            elif time_str.isdigit():
+                # Handle seconds only
+                return timedelta(seconds=float(time_str))
+            elif time_str.replace('.', '').isdigit():
+                # Handle decimal seconds
+                return timedelta(seconds=float(time_str))
             
             hours = 0
             minutes = 0
             seconds = 0
             
-            # Parse hours
+            # ENHANCED: Parse hours with better error handling
             if 'H' in time_str:
-                h_part = time_str.split('H')[0]
-                hours = int(h_part)
-                time_str = time_str.split('H')[1]
+                try:
+                    h_part = time_str.split('H')[0]
+                    if h_part:  # Only parse if there's content before H
+                        hours = float(h_part)
+                    time_str = time_str.split('H')[1] if 'H' in time_str else time_str
+                except (ValueError, IndexError):
+                    logger.warning(f"SCORM: Error parsing hours from: {original_time_str}")
             
-            # Parse minutes
+            # ENHANCED: Parse minutes with better error handling
             if 'M' in time_str:
-                m_part = time_str.split('M')[0]
-                minutes = int(m_part)
-                time_str = time_str.split('M')[1]
+                try:
+                    m_part = time_str.split('M')[0]
+                    if m_part:  # Only parse if there's content before M
+                        minutes = float(m_part)
+                    time_str = time_str.split('M')[1] if 'M' in time_str else time_str
+                except (ValueError, IndexError):
+                    logger.warning(f"SCORM: Error parsing minutes from: {original_time_str}")
             
-            # Parse seconds
+            # ENHANCED: Parse seconds with better error handling
             if 'S' in time_str:
-                s_part = time_str.split('S')[0]
-                seconds = int(s_part)
+                try:
+                    s_part = time_str.split('S')[0]
+                    if s_part:  # Only parse if there's content before S
+                        seconds = float(s_part)
+                except (ValueError, IndexError):
+                    logger.warning(f"SCORM: Error parsing seconds from: {original_time_str}")
             
             from datetime import timedelta
-            return timedelta(hours=hours, minutes=minutes, seconds=seconds)
+            result = timedelta(hours=hours, minutes=minutes, seconds=seconds)
+            
+            # ENHANCED: Log successful parsing with more details
+            logger.info(f"SCORM: Successfully parsed time '{original_time_str}' -> hours:{hours}, minutes:{minutes}, seconds:{seconds} -> {result}")
+            return result
             
         except Exception as e:
-            logger.error("Error parsing SCORM time: {} - {}".format(time_str, str(e)))
+            logger.error("SCORM: Error parsing time '{}': {}".format(original_time_str if 'original_time_str' in locals() else time_str, str(e)))
             return None
     
+    def _parse_colon_time(self, time_str):
+        """ENHANCED: Parse HH:MM:SS format to timedelta with better error handling"""
+        try:
+            parts = time_str.split(':')
+            if len(parts) == 3:
+                hours = int(parts[0])
+                minutes = int(parts[1])
+                seconds = float(parts[2])
+                result = timedelta(hours=hours, minutes=minutes, seconds=seconds)
+                logger.info(f"SCORM: Parsed colon time '{time_str}' -> {result}")
+                return result
+            elif len(parts) == 2:
+                minutes = int(parts[0])
+                seconds = float(parts[1])
+                result = timedelta(minutes=minutes, seconds=seconds)
+                logger.info(f"SCORM: Parsed colon time '{time_str}' -> {result}")
+                return result
+            else:
+                seconds = float(parts[0])
+                result = timedelta(seconds=seconds)
+                logger.info(f"SCORM: Parsed colon time '{time_str}' -> {result}")
+                return result
+        except (ValueError, TypeError) as e:
+            logger.error("SCORM: Error parsing colon time '{}': {}".format(time_str, str(e)))
+            return None
+        except Exception as e:
+            logger.error("SCORM: Unexpected error parsing colon time '{}': {}".format(time_str, str(e)))
+            return None
+    
+    def format_scorm_time(self, timedelta_obj):
+        """Convert timedelta to SCORM PT format"""
+        if not timedelta_obj:
+            return 'PT0S'
+        
+        total_seconds = timedelta_obj.total_seconds()
+        hours = int(total_seconds // 3600)
+        minutes = int((total_seconds % 3600) // 60)
+        seconds = total_seconds % 60
+        
+        # Handle decimal seconds properly
+        if seconds == int(seconds):
+            seconds = int(seconds)
+        
+        if hours > 0:
+            return f"PT{hours}H{minutes}M{seconds}S"
+        elif minutes > 0:
+            return f"PT{minutes}M{seconds}S"
+        else:
+            return f"PT{seconds}S"
+    
     def get_progress_percentage(self):
-        """Get progress as percentage"""
+        """Get progress as percentage with enhanced logic"""
+        # First check progress_measure
         if self.progress_measure is not None:
             return min(100, max(0, self.progress_measure * 100))
         
+        # Check completion status
         if self.completion_status == 'completed':
             return 100
+        
+        # Check if we have time spent (indicates some progress)
+        if self.total_time and self.total_time.total_seconds() > 0:
+            # If user spent time, assume at least some progress
+            return 25  # Minimum progress for time spent
+        
+        # Check if we have scores (indicates interaction)
+        if self.score_raw is not None:
+            return 50  # Progress for score interaction
+        
+        # Check if we have location or suspend data (indicates bookmarking)
+        if self.location or self.suspend_data:
+            return 75  # Progress for bookmarking
         
         return 0
     
@@ -776,10 +921,46 @@ class ELearningTracking(models.Model):
         return True
     
     def get_score_percentage(self):
-        """Get score as percentage (0-100)"""
+        """Enhanced score percentage calculation with comprehensive fallbacks"""
+        logger.info(f"SCORM: Calculating score percentage for user {self.user.id}")
+        logger.info(f"SCORM: Score data - raw: {self.score_raw}, min: {self.score_min}, max: {self.score_max}, scaled: {self.score_scaled}")
+        
+        # Method 1: Use raw and max scores if both available
         if self.score_raw is not None and self.score_max is not None and self.score_max > 0:
             percentage = (self.score_raw / self.score_max) * 100
-            return min(100, max(0, percentage))  # Clamp between 0-100
+            result = min(100, max(0, percentage))
+            logger.info(f"SCORM: Calculated percentage from raw/max: {result}%")
+            return result
+        
+        # Method 2: Use scaled score if available (0-1 range)
+        if self.score_scaled is not None:
+            result = min(100, max(0, self.score_scaled * 100))
+            logger.info(f"SCORM: Calculated percentage from scaled: {result}%")
+            return result
+        
+        # Method 3: Enhanced fallback logic
+        if self.score_raw is not None:
+            # Check if it's already a percentage (0-100 range)
+            if 0 <= self.score_raw <= 100:
+                logger.info(f"SCORM: Using raw score as percentage: {self.score_raw}%")
+                return self.score_raw
+            # If it's a decimal (0-1 range), convert to percentage
+            elif 0 <= self.score_raw <= 1:
+                result = self.score_raw * 100
+                logger.info(f"SCORM: Converted decimal to percentage: {result}%")
+                return result
+            # If it's a large number, assume it needs max score
+            else:
+                # Set default max score for percentage calculation
+                if self.score_max is None:
+                    self.score_max = 100  # Default max score
+                    self.save()
+                    logger.info(f"SCORM: Set default max score to 100")
+                result = min(100, max(0, (self.score_raw / self.score_max) * 100))
+                logger.info(f"SCORM: Calculated percentage with default max: {result}%")
+                return result
+        
+        logger.warning(f"SCORM: No valid score data found for user {self.user.id}")
         return None
     
     def get_score_grade(self, pass_threshold=70):
@@ -821,7 +1002,7 @@ class ELearningTracking(models.Model):
         return summary
     
     def get_bookmark_data(self):
-        """Get bookmark and suspend data for resume functionality"""
+        """ENHANCED: Get bookmark and suspend data for resume functionality"""
         bookmark_data = {
             'lesson_location': self.raw_data.get('cmi.core.lesson_location', ''),
             'suspend_data': self.raw_data.get('cmi.core.suspend_data', ''),
@@ -830,8 +1011,52 @@ class ELearningTracking(models.Model):
             'launch_data': self.raw_data.get('cmi.core.launch_data', ''),
             'has_bookmark': bool(self.raw_data.get('cmi.core.lesson_location', '')),
             'has_suspend_data': bool(self.raw_data.get('cmi.core.suspend_data', '')),
-            'can_resume': bool(self.raw_data.get('cmi.core.lesson_location', '')) or bool(self.raw_data.get('cmi.core.suspend_data', ''))
+            'can_resume': False
         }
+        
+        # ENHANCED: Check resume capability based on package type with proper field mapping
+        if self.elearning_package.package_type == 'SCORM_1_2':
+            bookmark_data['can_resume'] = bool(
+                self.raw_data.get('cmi.core.lesson_location', '') or 
+                self.raw_data.get('cmi.core.suspend_data', '') or
+                self.location or self.suspend_data
+            )
+        elif self.elearning_package.package_type == 'SCORM_2004':
+            bookmark_data['can_resume'] = bool(
+                self.raw_data.get('cmi.location', '') or 
+                self.raw_data.get('cmi.suspend_data', '') or
+                self.raw_data.get('cmi.core.lesson_location', '') or 
+                self.raw_data.get('cmi.core.suspend_data', '') or
+                self.location or self.suspend_data
+            )
+        elif self.elearning_package.package_type == 'XAPI':
+            bookmark_data['can_resume'] = bool(
+                self.raw_data.get('xapi.state', '') or 
+                self.raw_data.get('xapi.activity_state', '') or
+                self.raw_data.get('xapi.resume', False) or
+                self.location or self.suspend_data
+            )
+        elif self.elearning_package.package_type == 'CMI5':
+            bookmark_data['can_resume'] = bool(
+                self.raw_data.get('cmi5.au_state', '') or 
+                self.raw_data.get('cmi5.state', '') or
+                self.raw_data.get('cmi5.resume', False) or
+                self.location or self.suspend_data
+            )
+        elif self.elearning_package.package_type == 'AICC':
+            bookmark_data['can_resume'] = bool(
+                self.raw_data.get('aicc.lesson_location', '') or 
+                self.raw_data.get('aicc.suspend_data', '') or
+                self.location or self.suspend_data
+            )
+        else:
+            # Default fallback
+            bookmark_data['can_resume'] = bool(
+                self.raw_data.get('cmi.core.lesson_location', '') or 
+                self.raw_data.get('cmi.core.suspend_data', '') or
+                self.location or self.suspend_data
+            )
+        
         return bookmark_data
     
     def set_bookmark(self, location, suspend_data=''):
@@ -900,4 +1125,5 @@ class SCORMReport(models.Model):
 
 # Backward compatibility aliases
 SCORMPackage = ELearningPackage
+SCORMTracking = ELearningTracking
 SCORMTracking = ELearningTracking

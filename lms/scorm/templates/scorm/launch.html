@@ -57,6 +57,52 @@
         margin: 1rem;
         border-radius: 4px;
     }
+    
+    /* Ensure video controls are always visible in SCORM content */
+    .scorm-iframe video::-webkit-media-controls {
+        display: flex !important;
+    }
+    
+    .scorm-iframe video::-webkit-media-controls-panel {
+        display: flex !important;
+    }
+    
+    .scorm-iframe video::-webkit-media-controls-timeline {
+        display: flex !important;
+    }
+    
+    .scorm-iframe video::-webkit-media-controls-play-button {
+        display: flex !important;
+    }
+    
+    .scorm-iframe video::-webkit-media-controls-current-time-display {
+        display: flex !important;
+    }
+    
+    .scorm-iframe video::-webkit-media-controls-time-remaining-display {
+        display: flex !important;
+    }
+    
+    .scorm-iframe video::-webkit-media-controls-mute-button {
+        display: flex !important;
+    }
+    
+    .scorm-iframe video::-webkit-media-controls-volume-slider {
+        display: flex !important;
+    }
+    
+    .scorm-iframe video::-webkit-media-controls-fullscreen-button {
+        display: flex !important;
+    }
+    
+    /* Ensure video controls work in all browsers */
+    .scorm-iframe video {
+        pointer-events: auto !important;
+    }
+    
+    .scorm-iframe video::-webkit-media-controls-overlay-play-button {
+        display: flex !important;
+    }
 </style>
 {% endblock %}
 
@@ -83,7 +129,8 @@
         msallowfullscreen="msallowfullscreen" 
         oallowfullscreen="oallowfullscreen" 
         webkitallowfullscreen="webkitallowfullscreen"
-        allow="fullscreen; microphone; camera; autoplay; encrypted-media">
+        sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-presentation allow-top-navigation"
+        allow="fullscreen; microphone; camera; autoplay; encrypted-media; picture-in-picture; web-share; accelerometer; gyroscope">
     </iframe>
     {% else %}
     <div class="scorm-error">
@@ -152,6 +199,21 @@ var API = {
     user_id: {{ user.id|default:'null' }},
     topic_id: {{ topic.id }},
     user_email: "{{ user.email|default:''|escapejs }}",
+    session_key: "{{ request.session.session_key|default:''|escapejs }}",
+    
+    // ENHANCED: Auto-completion and progress tracking
+    autoComplete: true,
+    progressTracking: true,
+    timeTracking: true,
+    
+    // Enhanced authentication headers
+    getAuthHeaders: function() {
+        return {
+            'X-SCORM-User-ID': this.user_id,
+            'X-SCORM-Session-ID': this.session_key,
+            'X-Requested-With': 'XMLHttpRequest'
+        };
+    },
     
     // Error handling properties
     lastError: 0,
@@ -415,6 +477,42 @@ var API = {
         
         this.initialized = true;
         this.clearError();
+        
+        // ENHANCED: Initialize with proper default values
+        this.data = {
+            'cmi.core.lesson_status': 'incomplete',
+            'cmi.core.score.raw': '',
+            'cmi.core.score.min': '',
+            'cmi.core.score.max': '',
+            'cmi.core.total_time': 'PT0S',
+            'cmi.core.session_time': 'PT0S',
+            'cmi.core.lesson_location': '',
+            'cmi.core.exit': '',
+            'cmi.core.entry': 'ab-initio',
+            'cmi.core.student_id': this.user_id,
+            'cmi.core.student_name': this.user_email,
+            'cmi.core.credit': 'credit',
+            'cmi.core.lesson_mode': 'normal',
+            'cmi.core.suspend_data': '',
+            'cmi.core.launch_data': '',
+            'cmi.progress_measure': '0.0'
+        };
+        
+        // Start time tracking
+        this.startTime = new Date();
+        this.sessionStartTime = new Date();
+        
+        // ENHANCED: Start automatic progress tracking
+        this.startProgressTracking();
+        
+        // ENHANCED: Start periodic time tracking
+        this.startTimeTracking();
+        
+        // ENHANCED: Start completion detection
+        this.completionCheckInterval = setInterval(() => {
+            this.detectCompletion();
+        }, 5000); // Check every 5 seconds
+        
         this.logSCORMEvent('LMSInitialize', '', param, 'true');
         return "true";
     },
@@ -574,6 +672,44 @@ var API = {
         if (!this.initialized) {
             this.setError(301, "Not initialized");
             return "false";
+        }
+        
+        // ENHANCED: Auto-completion logic
+        if (this.autoComplete && this.data['cmi.core.lesson_status'] === 'incomplete') {
+            // Check if user has spent time on the content
+            const timeSpent = this.getTimeSpent();
+            if (timeSpent > 0) {
+                this.data['cmi.core.lesson_status'] = 'completed';
+                this.sendElementToServer('cmi.core.lesson_status', 'completed');
+                console.log('SCORM API: Auto-completed based on time spent:', timeSpent);
+            }
+        }
+        
+        // ENHANCED: Update progress measure if not set
+        if (this.progressTracking && (!this.data['cmi.progress_measure'] || this.data['cmi.progress_measure'] === '0.0')) {
+            if (this.data['cmi.core.lesson_status'] === 'completed') {
+                this.data['cmi.progress_measure'] = '1.0';
+                this.sendElementToServer('cmi.progress_measure', '1.0');
+                console.log('SCORM API: Auto-set progress_measure to 1.0');
+            }
+        }
+        
+        // ENHANCED: Update total time
+        if (this.timeTracking) {
+            const totalTime = this.getTimeSpent();
+            if (totalTime > 0) {
+                this.data['cmi.core.total_time'] = this.formatSCORMTime(totalTime);
+                this.sendElementToServer('cmi.core.total_time', this.data['cmi.core.total_time']);
+                console.log('SCORM API: Updated total_time:', this.data['cmi.core.total_time']);
+            }
+        }
+        
+        // ENHANCED: Stop tracking and cleanup
+        this.stopProgressTracking();
+        this.stopTimeTracking();
+        if (this.completionCheckInterval) {
+            clearInterval(this.completionCheckInterval);
+            this.completionCheckInterval = null;
         }
         
         this.sendDataToServer();
@@ -888,14 +1024,27 @@ var API = {
         formData.append('element', element);
         formData.append('value', value);
         
+        // ENHANCED: Better authentication headers
+        const authHeaders = this.getAuthHeaders();
+        const headers = {
+            'X-CSRFToken': this.getCSRFToken(),
+            'X-Requested-With': 'XMLHttpRequest',
+            'Content-Type': 'application/x-www-form-urlencoded',
+            ...authHeaders
+        };
+        
+        // ENHANCED: Add timeout and better error handling
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+        
         fetch(this.commit_url, {
             method: 'POST',
             body: formData,
             credentials: 'same-origin',
-            headers: {
-                'X-CSRFToken': this.getCSRFToken()
-            }
+            headers: headers,
+            signal: controller.signal
         }).then(response => {
+            clearTimeout(timeoutId);
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
@@ -903,7 +1052,14 @@ var API = {
         }).then(data => {
             console.log(`SCORM API: ${element} = ${value} sent successfully:`, data);
             this.clearError();
+            
+            // ENHANCED: Validate response
+            if (data.result === 'false') {
+                console.warning(`SCORM API: Server rejected ${element}:`, data.error);
+                this.setError(101, "Server error: " + (data.error || 'Unknown error'));
+            }
         }).catch(error => {
+            clearTimeout(timeoutId);
             console.error(`SCORM API: Error sending ${element}:`, error);
             
             if (retryCount < maxRetries) {
@@ -947,6 +1103,129 @@ var API = {
     getCSRFToken: function() {
         const token = document.querySelector('[name=csrfmiddlewaretoken]');
         return token ? token.value : '';
+    },
+    
+    // ENHANCED: Time tracking methods
+    getTimeSpent: function() {
+        if (!this.startTime) return 0;
+        const now = new Date();
+        return Math.floor((now - this.startTime) / 1000); // Return seconds
+    },
+    
+    // ENHANCED: Start periodic time tracking
+    startTimeTracking: function() {
+        if (!this.timeTracking) return;
+        
+        // Update time every 30 seconds during session
+        this.timeUpdateInterval = setInterval(() => {
+            const timeSpent = this.getTimeSpent();
+            if (timeSpent > 0) {
+                this.data['cmi.core.total_time'] = this.formatSCORMTime(timeSpent);
+                this.sendElementToServer('cmi.core.total_time', this.data['cmi.core.total_time']);
+                console.log('SCORM API: Periodic time update:', this.data['cmi.core.total_time']);
+            }
+        }, 30000); // Update every 30 seconds
+        
+        console.log('SCORM API: Time tracking started with 30-second intervals');
+    },
+    
+    // ENHANCED: Stop time tracking
+    stopTimeTracking: function() {
+        if (this.timeUpdateInterval) {
+            clearInterval(this.timeUpdateInterval);
+            this.timeUpdateInterval = null;
+            console.log('SCORM API: Time tracking stopped');
+        }
+    },
+    
+    formatSCORMTime: function(seconds) {
+        const hours = Math.floor(seconds / 3600);
+        const minutes = Math.floor((seconds % 3600) / 60);
+        const secs = seconds % 60;
+        
+        let timeStr = 'PT';
+        if (hours > 0) timeStr += hours + 'H';
+        if (minutes > 0) timeStr += minutes + 'M';
+        timeStr += secs + 'S';
+        
+        return timeStr;
+    },
+    
+    // ENHANCED: Auto-update progress based on user interaction
+    updateProgress: function(progress) {
+        if (this.progressTracking && progress >= 0 && progress <= 1) {
+            this.data['cmi.progress_measure'] = progress.toString();
+            this.sendElementToServer('cmi.progress_measure', progress.toString());
+            console.log('SCORM API: Updated progress to:', progress);
+        }
+    },
+    
+    // ENHANCED: Auto-complete when user reaches end
+    markCompleted: function() {
+        if (this.autoComplete) {
+            this.data['cmi.core.lesson_status'] = 'completed';
+            this.data['cmi.progress_measure'] = '1.0';
+            this.sendElementToServer('cmi.core.lesson_status', 'completed');
+            this.sendElementToServer('cmi.progress_measure', '1.0');
+            console.log('SCORM API: Marked as completed');
+        }
+    },
+    
+    // ENHANCED: Automatic progress tracking
+    startProgressTracking: function() {
+        if (!this.progressTracking) return;
+        
+        // Track user interaction
+        const trackInteraction = () => {
+            const timeSpent = this.getTimeSpent();
+            if (timeSpent > 0) {
+                // Update progress based on time spent (simple heuristic)
+                const progress = Math.min(0.9, timeSpent / 300); // 5 minutes = 90% progress
+                this.updateProgress(progress);
+            }
+        };
+        
+        // Track every 30 seconds
+        this.progressInterval = setInterval(trackInteraction, 30000);
+        
+        // Track on user interaction
+        document.addEventListener('click', trackInteraction);
+        document.addEventListener('keydown', trackInteraction);
+        document.addEventListener('scroll', trackInteraction);
+        
+        console.log('SCORM API: Started progress tracking');
+    },
+    
+    stopProgressTracking: function() {
+        if (this.progressInterval) {
+            clearInterval(this.progressInterval);
+            this.progressInterval = null;
+        }
+        console.log('SCORM API: Stopped progress tracking');
+    },
+    
+    // ENHANCED: Auto-completion detection
+    detectCompletion: function() {
+        if (!this.autoComplete) return;
+        
+        // Check for completion indicators
+        const completionIndicators = [
+            'goodbye.html',
+            'exit.html',
+            'complete.html',
+            'finished.html',
+            'end.html'
+        ];
+        
+        const currentUrl = window.location.href.toLowerCase();
+        const isAtCompletionPage = completionIndicators.some(indicator => 
+            currentUrl.includes(indicator)
+        );
+        
+        if (isAtCompletionPage) {
+            this.markCompleted();
+            console.log('SCORM API: Detected completion page, marking as completed');
+        }
     },
     
     // Enhanced logging
@@ -1470,6 +1749,57 @@ window.addEventListener('load', function() {
     }
 });
 
+// Enhanced video control support for SCORM content
+function enableVideoControls() {
+    const iframe = document.getElementById('scorm-iframe');
+    
+    if (iframe) {
+        iframe.addEventListener('load', function() {
+            try {
+                // Try to access iframe content and enable video controls
+                const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+                if (iframeDoc) {
+                    const videos = iframeDoc.querySelectorAll('video');
+                    videos.forEach(video => {
+                        // Enable all video controls
+                        video.controls = true;
+                        video.controlsList = 'nodownload';
+                        video.preload = 'metadata';
+                        
+                        // Enable seeking/scrubbing
+                        video.addEventListener('loadedmetadata', function() {
+                            this.currentTime = 0;
+                            console.log('SCORM: Video metadata loaded, controls enabled');
+                        });
+                        
+                        // Allow time updates and seeking
+                        video.addEventListener('timeupdate', function() {
+                            // Allow seeking to any time
+                            this.seekable = true;
+                        });
+                        
+                        // Enable seeking on click
+                        video.addEventListener('click', function(e) {
+                            if (e.target.tagName === 'VIDEO') {
+                                this.currentTime = e.offsetX / this.offsetWidth * this.duration;
+                            }
+                        });
+                        
+                        console.log('SCORM: Video controls enabled for', video.src);
+                    });
+                }
+            } catch (e) {
+                console.log('SCORM: Cross-origin iframe, using postMessage for video controls');
+                // Use postMessage to communicate with iframe content
+                iframe.contentWindow.postMessage({
+                    type: 'ENABLE_VIDEO_CONTROLS',
+                    action: 'enable_seeking'
+                }, '*');
+            }
+        });
+    }
+}
+
 // Initialize SCORM when page loads
 window.onload = function () {
     console.log('SCORM API: Page loaded, initializing...');
@@ -1477,6 +1807,9 @@ window.onload = function () {
     // CRITICAL FIX: Initialize the API immediately
     API.initialized = true;
     console.log('SCORM API: API initialized for proper SCORM communication');
+    
+    // Enable video controls
+    enableVideoControls();
     
     const iframe = document.getElementById('scorm-iframe');
     

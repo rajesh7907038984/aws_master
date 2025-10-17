@@ -68,6 +68,9 @@ class CMI5LaunchHandler:
             return None, "Failed to initialize launch handler"
         
         try:
+            # Check for resume state first
+            resume_state = self.check_resume_state()
+            
             # Create new session
             self.session = CMI5Session.objects.create(
                 registration=self.registration,
@@ -93,6 +96,19 @@ class CMI5LaunchHandler:
                 'activityId': self.au.au_id,
                 'sessionId': self.session.session_id
             })
+            
+            # Add resume state if available
+            if resume_state.get('resume'):
+                launch_params.update({
+                    'resume': 'true',
+                    'resumeState': json.dumps(resume_state.get('state', {}))
+                })
+                logger.info(f"cmi5: Launching with resume state for AU {self.au.au_id}")
+            else:
+                launch_params.update({
+                    'resume': 'false'
+                })
+                logger.info(f"cmi5: Launching fresh for AU {self.au.au_id}")
             
             # Generate launch URL with parameters
             launch_url_with_params = self._build_launch_url(launch_url, launch_params)
@@ -239,6 +255,81 @@ class CMI5LaunchHandler:
         }
         
         return statement
+    
+    def check_resume_state(self):
+        """Check if AU should resume from previous state"""
+        try:
+            # Check for existing session with progress
+            previous_sessions = CMI5Session.objects.filter(
+                registration=self.registration
+            ).order_by('-launch_time')
+            
+            if previous_sessions.exists():
+                last_session = previous_sessions.first()
+                
+                # Check for progress indicators
+                has_progress = self._check_cmi5_progress(last_session)
+                
+                if has_progress:
+                    # Get state from xAPI
+                    state_data = self._get_activity_state()
+                    return {
+                        'resume': True,
+                        'state': state_data,
+                        'session_id': last_session.session_id,
+                        'previous_session': last_session
+                    }
+            
+            return {'resume': False}
+            
+        except Exception as e:
+            logger.error(f"Error checking cmi5 resume state: {str(e)}")
+            return {'resume': False}
+
+    def _check_cmi5_progress(self, session):
+        """Check if cmi5 session has progress indicators"""
+        # Check for completion, score, time spent, etc.
+        return (
+            session.completion_status == 'completed' or
+            session.score_raw is not None or
+            (session.total_time and session.total_time.total_seconds() > 0) or
+            bool(session.suspend_data) or
+            bool(session.location)
+        )
+
+    def _get_activity_state(self):
+        """Get activity state from xAPI for resume"""
+        try:
+            # Query xAPI state API for resume data
+            from django.test import Client
+            from django.urls import reverse
+            
+            # Create a test client to query xAPI state
+            client = Client()
+            
+            # Build agent data for xAPI query
+            agent_data = {
+                'account': {
+                    'homePage': f"{settings.LMS_BASE_URL}/",
+                    'name': str(self.learner.id)
+                }
+            }
+            
+            # Query state API
+            state_url = f"/lrs/xapi/activities/{self.au.au_id}/state/"
+            response = client.get(state_url, {
+                'agent': json.dumps(agent_data)
+            })
+            
+            if response.status_code == 200:
+                return response.json()
+            else:
+                logger.warning(f"Failed to get cmi5 activity state: {response.status_code}")
+                return None
+                
+        except Exception as e:
+            logger.error(f"Error getting cmi5 activity state: {str(e)}")
+            return None
     
     def _store_statement(self, statement_data):
         """Store xAPI statement"""

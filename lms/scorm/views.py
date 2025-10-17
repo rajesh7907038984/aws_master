@@ -94,6 +94,9 @@ def scorm_launch(request, topic_id):
         elearning_package=scorm_package
     )
     
+    # Increment attempt count on each launch
+    tracking.attempt_count += 1
+    
     # Update launch timestamps
     if not tracking.first_launch:
         tracking.first_launch = timezone.now()
@@ -763,7 +766,7 @@ if (typeof window.API === 'undefined') {{
             # Remove restrictive headers for SCORM content
             response['X-Frame-Options'] = 'SAMEORIGIN'
             # Allow inline scripts and eval for SCORM packages (Articulate requires this)
-            response['Content-Security-Policy'] = "default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob:; frame-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' metrics.articulate.com https://metrics.articulate.com; worker-src 'self' blob:;"
+            response['Content-Security-Policy'] = "default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob:; frame-src 'self' 'unsafe-inline' 'unsafe-eval'; script-src 'self' 'unsafe-inline' 'unsafe-eval' *.amazonaws.com *.articulate.com *.adobe.com *.captivate.com *.googleapis.com *.gstatic.com; style-src 'self' 'unsafe-inline' *.amazonaws.com fonts.googleapis.com *.gstatic.com; img-src 'self' data: blob: *.amazonaws.com *.articulate.com *.adobe.com *.captivate.com; font-src 'self' *.amazonaws.com fonts.gstatic.com fonts.googleapis.com; media-src 'self' data: blob:; connect-src 'self' *.amazonaws.com metrics.articulate.com *.articulate.com *.adobe.com *.captivate.com https://metrics.articulate.com *.googleapis.com; worker-src 'self' blob:; object-src 'self' data: blob:; base-uri 'self';"
             # Additional headers for Articulate content
             response['Cache-Control'] = 'no-cache, no-store, must-revalidate'
             response['Pragma'] = 'no-cache'
@@ -794,8 +797,7 @@ if (typeof window.API === 'undefined') {{
 @csrf_exempt
 @require_http_methods(["GET", "POST"])
 def scorm_api(request, topic_id):
-    """SCORM API endpoint for communication with SCORM packages"""
-    # ENHANCED AUTHENTICATION - FIXED FOR SCORM IFRAME SCENARIOS
+    """SCORM API endpoint for communication with SCORM packages - ENHANCED AUTHENTICATION"""
     user = None
     
     # Method 1: Standard authentication
@@ -815,11 +817,21 @@ def scorm_api(request, topic_id):
         except User.DoesNotExist:
             logger.warning(f"SCORM API: Invalid session user ID: {request.session.get('_auth_user_id')}")
     
-    # Method 3: Check for referer header (for iframe content)
+    # Method 3: Header-based authentication (for SCORM content)
+    elif request.META.get('HTTP_X_SCORM_USER_ID'):
+        try:
+            from django.contrib.auth import get_user_model
+            User = get_user_model()
+            user = User.objects.get(id=request.META.get('HTTP_X_SCORM_USER_ID'))
+            request.user = user
+            logger.info(f"SCORM API: User authenticated via header: {user.username}")
+        except (User.DoesNotExist, ValueError):
+            logger.warning(f"SCORM API: Invalid header user ID: {request.META.get('HTTP_X_SCORM_USER_ID')}")
+    
+    # Method 4: Enhanced referer-based authentication
     elif request.META.get('HTTP_REFERER'):
         referer = request.META.get('HTTP_REFERER', '')
-        if 'scorm/launch' in referer or 'scorm/content' in referer:
-            # If coming from SCORM content, try to get user from session
+        if any(x in referer for x in ['scorm/launch', 'scorm/content', 'scorm/api']):
             if request.session.get('_auth_user_id'):
                 try:
                     from django.contrib.auth import get_user_model
@@ -830,8 +842,23 @@ def scorm_api(request, topic_id):
                 except User.DoesNotExist:
                     pass
     
+    # Method 5: Check for SCORM-specific headers
+    elif request.META.get('HTTP_X_REQUESTED_WITH') == 'XMLHttpRequest':
+        if request.session.get('_auth_user_id'):
+            try:
+                from django.contrib.auth import get_user_model
+                User = get_user_model()
+                user = User.objects.get(id=request.session.get('_auth_user_id'))
+                request.user = user
+                logger.info(f"SCORM API: User authenticated via AJAX: {user.username}")
+            except User.DoesNotExist:
+                pass
+    
     if not user:
         logger.warning(f"SCORM API: No authentication found for topic {topic_id}")
+        logger.warning(f"SCORM API: Session user ID: {request.session.get('_auth_user_id')}")
+        logger.warning(f"SCORM API: Referer: {request.META.get('HTTP_REFERER')}")
+        logger.warning(f"SCORM API: Headers: {dict(request.META)}")
         return JsonResponse({'error': 'Authentication required'}, status=401)
     
     # Add user to request for use in handlers
@@ -843,6 +870,246 @@ def scorm_api(request, topic_id):
         return _handle_scorm_get(request, topic_id)
     elif request.method == 'POST':
         return _handle_scorm_post(request, topic_id)
+
+def _sync_tracking_data(tracking):
+    """Enhanced sync with comprehensive data validation and error handling for all SCORM package types"""
+    if not tracking.raw_data:
+        logger.warning(f"SCORM: No raw_data found for user {tracking.user.id}")
+        return
+    
+    changes_made = False
+    package_type = tracking.elearning_package.package_type
+    logger.info(f"SCORM: Starting data sync for user {tracking.user.id}, package type: {package_type}")
+    logger.info(f"SCORM: Raw data keys: {list(tracking.raw_data.keys())}")
+    
+    # Package type-specific completion status sources
+    if package_type in ['SCORM_1_2', 'SCORM_2004']:
+        completion_sources = [
+            'cmi.core.lesson_status', 'cmi.completion_status', 'cmi.lesson_status'
+        ]
+    elif package_type == 'XAPI':
+        completion_sources = [
+            'cmi.completion_status', 'cmi.lesson_status', 'cmi.core.lesson_status'
+        ]
+    elif package_type == 'CMI5':
+        completion_sources = [
+            'cmi5.completion_status', 'cmi.completion_status', 'cmi.lesson_status'
+        ]
+    elif package_type == 'AICC':
+        completion_sources = [
+            'cmi.core.lesson_status', 'cmi.lesson_status'
+        ]
+    else:
+        completion_sources = [
+            'cmi.core.lesson_status', 'cmi.completion_status', 'cmi.lesson_status'
+        ]
+    
+    # Enhanced completion status sync with package-specific validation
+    for source in completion_sources:
+        if source in tracking.raw_data:
+            raw_status = tracking.raw_data[source]
+            if raw_status and raw_status.strip() and raw_status != tracking.completion_status:
+                # Package-specific valid statuses
+                if package_type in ['SCORM_1_2', 'SCORM_2004']:
+                    valid_statuses = ['completed', 'incomplete', 'not attempted', 'passed', 'failed', 'browsed']
+                elif package_type == 'XAPI':
+                    valid_statuses = ['completed', 'incomplete', 'not attempted', 'passed', 'failed']
+                elif package_type == 'CMI5':
+                    valid_statuses = ['completed', 'incomplete', 'not attempted', 'passed', 'failed']
+                elif package_type == 'AICC':
+                    valid_statuses = ['completed', 'incomplete', 'not attempted', 'passed', 'failed']
+                else:
+                    valid_statuses = ['completed', 'incomplete', 'not attempted', 'passed', 'failed', 'browsed']
+                
+                if raw_status in valid_statuses:
+                    tracking.completion_status = raw_status
+                    changes_made = True
+                    logger.info(f"SCORM: Synced completion_status from {source}: {raw_status} (package: {package_type})")
+                    break
+                else:
+                    logger.warning(f"SCORM: Invalid completion_status value for {package_type}: {raw_status}")
+    
+    # Package type-specific success status sources
+    if package_type in ['SCORM_2004', 'XAPI', 'CMI5']:
+        success_sources = ['cmi.success_status', 'cmi.core.success_status']
+    else:
+        # SCORM 1.2 and AICC don't have separate success status
+        success_sources = []
+    
+    for source in success_sources:
+        if source in tracking.raw_data:
+            raw_success = tracking.raw_data[source]
+            if raw_success and raw_success.strip() and raw_success != tracking.success_status:
+                valid_success = ['passed', 'failed', 'unknown']
+                if raw_success in valid_success:
+                    tracking.success_status = raw_success
+                    changes_made = True
+                    logger.info(f"SCORM: Synced success_status from {source}: {raw_success} (package: {package_type})")
+                    break
+    
+    # Package type-specific score mappings
+    if package_type in ['SCORM_1_2', 'AICC']:
+        score_mappings = {
+            'cmi.core.score.raw': 'score_raw',
+            'cmi.core.score.min': 'score_min', 
+            'cmi.core.score.max': 'score_max',
+            'cmi.core.score.scaled': 'score_scaled'
+        }
+    elif package_type in ['SCORM_2004', 'XAPI', 'CMI5']:
+        score_mappings = {
+            'cmi.score.raw': 'score_raw',
+            'cmi.score.min': 'score_min', 
+            'cmi.score.max': 'score_max',
+            'cmi.score.scaled': 'score_scaled',
+            'cmi.core.score.raw': 'score_raw',  # Fallback for SCORM 1.2 compatibility
+            'cmi.core.score.min': 'score_min',
+            'cmi.core.score.max': 'score_max',
+            'cmi.core.score.scaled': 'score_scaled'
+        }
+    else:
+        # Default to SCORM 1.2 format
+        score_mappings = {
+            'cmi.core.score.raw': 'score_raw',
+            'cmi.core.score.min': 'score_min', 
+            'cmi.core.score.max': 'score_max',
+            'cmi.core.score.scaled': 'score_scaled'
+        }
+    
+    # ENHANCED: Score sync with package-specific validation and better error handling
+    for source, field in score_mappings.items():
+        if source in tracking.raw_data:
+            raw_value = tracking.raw_data[source]
+            if raw_value and raw_value.strip():
+                try:
+                    float_value = float(raw_value)
+                    current_value = getattr(tracking, field)
+                    if current_value != float_value:
+                        setattr(tracking, field, float_value)
+                        changes_made = True
+                        logger.info(f"SCORM: Synced {field} from {source}: {raw_value} (package: {package_type})")
+                        
+                        # ENHANCED: Set default max score if needed
+                        if field == 'score_raw' and tracking.score_max is None:
+                            if 0 <= float_value <= 1:
+                                tracking.score_max = 1.0
+                            elif 0 <= float_value <= 100:
+                                tracking.score_max = 100.0
+                            else:
+                                tracking.score_max = 100.0  # Default fallback
+                            logger.info(f"SCORM: Set default max score to {tracking.score_max}")
+                except (ValueError, TypeError) as e:
+                    logger.warning(f"SCORM: Invalid score value from {source}: {raw_value} - {str(e)}")
+                    # Don't fail completely, just log the issue
+    
+    # Package type-specific time mappings
+    if package_type in ['SCORM_1_2', 'AICC']:
+        time_mappings = {
+            'cmi.core.total_time': 'total_time',
+            'cmi.core.session_time': 'session_time'
+        }
+    elif package_type in ['SCORM_2004', 'XAPI', 'CMI5']:
+        time_mappings = {
+            'cmi.total_time': 'total_time',
+            'cmi.session_time': 'session_time',
+            'cmi.core.total_time': 'total_time',  # Fallback for SCORM 1.2 compatibility
+            'cmi.core.session_time': 'session_time'
+        }
+    else:
+        # Default to SCORM 1.2 format
+        time_mappings = {
+            'cmi.core.total_time': 'total_time',
+            'cmi.core.session_time': 'session_time'
+        }
+    
+    # ENHANCED: Time sync with package-specific parsing and better error handling
+    for source, field in time_mappings.items():
+        if source in tracking.raw_data:
+            raw_time = tracking.raw_data[source]
+            if raw_time and raw_time.strip() and raw_time != 'PT0S':
+                try:
+                    parsed_time = tracking._parse_scorm_time(raw_time)
+                    if parsed_time:
+                        if getattr(tracking, field) != parsed_time:
+                            setattr(tracking, field, parsed_time)
+                            changes_made = True
+                            logger.info(f"SCORM: Synced {field} from {source}: {raw_time} -> {parsed_time} (package: {package_type})")
+                    else:
+                        logger.warning(f"SCORM: Failed to parse time from {source}: {raw_time}")
+                except Exception as e:
+                    logger.warning(f"SCORM: Error parsing time from {source}: {raw_time} - {str(e)}")
+    
+    # Package type-specific progress measure sources
+    if package_type in ['SCORM_2004', 'XAPI', 'CMI5']:
+        progress_sources = ['cmi.progress_measure', 'cmi.core.progress_measure']
+    else:
+        # SCORM 1.2 and AICC don't have progress measure
+        progress_sources = []
+    
+    for source in progress_sources:
+        if source in tracking.raw_data:
+            raw_progress = tracking.raw_data[source]
+            if raw_progress and raw_progress.strip():
+                try:
+                    progress_value = float(raw_progress)
+                    if tracking.progress_measure != progress_value:
+                        tracking.progress_measure = progress_value
+                        changes_made = True
+                        logger.info(f"SCORM: Synced progress_measure from {source}: {raw_progress} (package: {package_type})")
+                        break
+                except (ValueError, TypeError):
+                    logger.warning(f"SCORM: Invalid progress value from {source}: {raw_progress}")
+    
+    # Package type-specific location and suspend data sources
+    if package_type in ['SCORM_1_2', 'AICC']:
+        location_sources = ['cmi.core.lesson_location']
+        suspend_sources = ['cmi.core.suspend_data']
+    elif package_type in ['SCORM_2004', 'XAPI', 'CMI5']:
+        location_sources = ['cmi.location', 'cmi.core.lesson_location']
+        suspend_sources = ['cmi.suspend_data', 'cmi.core.suspend_data']
+    else:
+        # Default to SCORM 1.2 format
+        location_sources = ['cmi.core.lesson_location']
+        suspend_sources = ['cmi.core.suspend_data']
+    
+    # Enhanced location sync
+    for source in location_sources:
+        if source in tracking.raw_data:
+            raw_location = tracking.raw_data[source]
+            if raw_location and raw_location.strip() and raw_location != tracking.location:
+                tracking.location = raw_location
+                changes_made = True
+                logger.info(f"SCORM: Synced location from {source}: {raw_location} (package: {package_type})")
+                break
+    
+    # Enhanced suspend data sync
+    for source in suspend_sources:
+        if source in tracking.raw_data:
+            raw_suspend = tracking.raw_data[source]
+            if raw_suspend and raw_suspend.strip() and raw_suspend != tracking.suspend_data:
+                tracking.suspend_data = raw_suspend
+                changes_made = True
+                logger.info(f"SCORM: Synced suspend_data from {source}: {raw_suspend[:100]}... (package: {package_type})")
+                break
+    
+    # Package type-specific additional fields
+    if package_type == 'CMI5':
+        # Handle cmi5-specific fields
+        cmi5_fields = ['cmi5.exit', 'cmi5.completion_status']
+        for field in cmi5_fields:
+            if field in tracking.raw_data:
+                raw_value = tracking.raw_data[field]
+                if raw_value and raw_value.strip():
+                    # Store in raw_data for cmi5-specific handling
+                    tracking.raw_data[f'cmi5.{field.split(".")[-1]}'] = raw_value
+                    changes_made = True
+                    logger.info(f"SCORM: Synced cmi5 field {field}: {raw_value}")
+    
+    # Save if any changes were made
+    if changes_made:
+        tracking.save()
+        logger.info(f"SCORM: Data synchronization completed for user {tracking.user.id} (package: {package_type})")
+    else:
+        logger.info(f"SCORM: No data synchronization needed for user {tracking.user.id} (package: {package_type})")
 
 def _handle_scorm_get(request, topic_id):
     """Handle SCORM GET requests (Initialize, GetValue) - Enhanced for SCORM 2004"""
@@ -873,29 +1140,22 @@ def _handle_scorm_get(request, topic_id):
         elif element == 'cmi.core.session_time':
             return JsonResponse({'value': str(tracking.session_time) if tracking.session_time else 'PT0S'})
         elif element == 'cmi.core.entry':
-            # Return 'resume' if user has bookmarked content, 'ab-initio' for first time
-            # Enhanced resume detection logic
+            # ENHANCED: More specific resume detection logic for SCORM 1.2
             has_bookmark = bool(tracking.location or tracking.raw_data.get('cmi.core.lesson_location', ''))
             has_suspend_data = bool(tracking.suspend_data or tracking.raw_data.get('cmi.core.suspend_data', ''))
-            has_progress = tracking.completion_status not in ['not attempted', 'unknown']
-            has_time = tracking.total_time and tracking.total_time.total_seconds() > 0
-            has_score = tracking.score is not None and tracking.score > 0
             
-            # Multiple indicators for resume
+            # ENHANCED: Only resume if there's actual bookmark data, not just any progress
             should_resume = (
-                (has_bookmark or has_suspend_data or has_progress or has_time or has_score) 
-                and tracking.first_launch is not None
+                (has_bookmark or has_suspend_data) and 
+                tracking.first_launch is not None
             )
             
             entry_value = 'resume' if should_resume else 'ab-initio'
             
             # Enhanced logging for resume detection
-            logger.info(f"SCORM Enhanced Resume Detection for user {request.scorm_user.id}:")
-            logger.info(f"  - Has bookmark: {has_bookmark}")
-            logger.info(f"  - Has suspend data: {has_suspend_data}")
-            logger.info(f"  - Has progress: {has_progress}")
-            logger.info(f"  - Has time: {has_time}")
-            logger.info(f"  - Has score: {has_score}")
+            logger.info(f"SCORM 1.2 Enhanced Resume Detection for user {request.scorm_user.id}:")
+            logger.info(f"  - Has bookmark: {has_bookmark} (location: {tracking.location})")
+            logger.info(f"  - Has suspend data: {has_suspend_data} (length: {len(tracking.suspend_data) if tracking.suspend_data else 0})")
             logger.info(f"  - Should resume: {should_resume}")
             logger.info(f"  - Entry value: {entry_value}")
             return JsonResponse({'value': entry_value})
@@ -967,7 +1227,25 @@ def _handle_scorm_get(request, topic_id):
         elif element == 'cmi.launch_data':
             return JsonResponse({'value': tracking.launch_data})
         elif element == 'cmi.entry':
-            return JsonResponse({'value': tracking.entry})
+            # ENHANCED: More specific resume detection logic for SCORM 2004
+            has_bookmark = bool(tracking.location or tracking.raw_data.get('cmi.location', ''))
+            has_suspend_data = bool(tracking.suspend_data or tracking.raw_data.get('cmi.suspend_data', ''))
+            
+            # ENHANCED: Only resume if there's actual bookmark data, not just any progress
+            should_resume = (
+                (has_bookmark or has_suspend_data) and 
+                tracking.first_launch is not None
+            )
+            
+            entry_value = 'resume' if should_resume else 'ab-initio'
+            
+            logger.info(f"SCORM 2004 Enhanced Resume Detection for user {request.scorm_user.id}:")
+            logger.info(f"  - Has bookmark: {has_bookmark} (location: {tracking.location})")
+            logger.info(f"  - Has suspend data: {has_suspend_data} (length: {len(tracking.suspend_data) if tracking.suspend_data else 0})")
+            logger.info(f"  - Should resume: {should_resume}")
+            logger.info(f"  - Entry value: {entry_value}")
+            
+            return JsonResponse({'value': entry_value})
         elif element == 'cmi.exit':
             return JsonResponse({'value': tracking.exit_value})
         elif element == 'cmi.credit':
@@ -1041,64 +1319,117 @@ def _handle_scorm_post(request, topic_id):
             
             logger.info(f"SCORM: SetValue request - element: {element}, value: {value} for user {request.scorm_user.id}")
             
-            # Enhanced element validation for SCORM 1.2, 2004, and cmi5 - 100% COMPLIANCE
-            valid_elements = [
-                # SCORM 1.2 Core elements (23 elements)
-                'cmi.core.lesson_status', 'cmi.core.score.raw', 'cmi.core.score.min', 'cmi.core.score.max',
-                'cmi.core.total_time', 'cmi.core.session_time', 'cmi.core.lesson_location', 'cmi.core.exit',
-                'cmi.core.entry', 'cmi.core.student_id', 'cmi.core.student_name', 'cmi.core.credit',
-                'cmi.core.lesson_mode', 'cmi.core.max_time_allowed', 'cmi.core.mastery_score',
-                'cmi.core.suspend_data', 'cmi.core.launch_data', 'cmi.core.comments',
-                'cmi.core.comments_from_lms', 'cmi.core.objectives', 'cmi.core.student_data',
-                'cmi.core.student_preference', 'cmi.core.interactions', 'cmi.core.navigation',
-                
-                # SCORM 2004 elements (50+ elements) - COMPLETE IMPLEMENTATION
-                'cmi.completion_status', 'cmi.success_status', 'cmi.score.scaled', 'cmi.score.raw',
-                'cmi.score.min', 'cmi.score.max', 'cmi.progress_measure', 'cmi.location',
-                'cmi.suspend_data', 'cmi.launch_data', 'cmi.entry', 'cmi.exit', 'cmi.credit',
-                'cmi.mode', 'cmi.learner_id', 'cmi.learner_name', 'cmi.completion_threshold',
-                'cmi.scaled_passing_score', 'cmi.total_time', 'cmi.session_time',
-                
-                # Learner preferences (4 elements)
-                'cmi.learner_preference.audio_level', 'cmi.learner_preference.language',
-                'cmi.learner_preference.delivery_speed', 'cmi.learner_preference.audio_captioning',
-                
-                # Student data (3 elements)
-                'cmi.student_data.mastery_score', 'cmi.student_data.max_time_allowed',
-                'cmi.student_data.time_limit_action',
-                
-                # Objectives (7 elements)
-                'cmi.objectives._count', 'cmi.objectives._children', 'cmi.objectives.id',
-                'cmi.objectives.score', 'cmi.objectives.success_status',
-                'cmi.objectives.completion_status', 'cmi.objectives.progress_measure',
-                'cmi.objectives.description',
-                
-                # Interactions (10 elements)
-                'cmi.interactions._count', 'cmi.interactions._children', 'cmi.interactions.id',
-                'cmi.interactions.type', 'cmi.interactions.objectives', 'cmi.interactions.timestamp',
-                'cmi.interactions.correct_responses', 'cmi.interactions.weighting',
-                'cmi.interactions.learner_response', 'cmi.interactions.result',
-                'cmi.interactions.latency', 'cmi.interactions.description',
-                
-                # Comments from learner (4 elements)
-                'cmi.comments_from_learner._count', 'cmi.comments_from_learner._children',
-                'cmi.comments_from_learner.id', 'cmi.comments_from_learner.timestamp',
-                'cmi.comments_from_learner.comment', 'cmi.comments_from_learner.location',
-                
-                # Comments from LMS (4 elements)
-                'cmi.comments_from_lms._count', 'cmi.comments_from_lms._children',
-                'cmi.comments_from_lms.id', 'cmi.comments_from_lms.timestamp',
-                'cmi.comments_from_lms.comment', 'cmi.comments_from_lms.location',
-                
-                # Navigation elements (SCORM 2004)
-                'adl.nav.request', 'adl.nav.request_valid',
-                
-                # Exit assessment elements
-                'cmi.core.exit_assessment_required', 'cmi.core.exit_assessment_completed',
-                
-                # cmi5 elements
-                'cmi5.exit', 'cmi5.completion_status', 'cmi5.exit_assessment_completed'
-            ]
+            # Package type-specific element validation
+            package_type = scorm_package.package_type
+            
+            if package_type == 'SCORM_1_2':
+                valid_elements = [
+                    # SCORM 1.2 Core elements (23 elements)
+                    'cmi.core.lesson_status', 'cmi.core.score.raw', 'cmi.core.score.min', 'cmi.core.score.max',
+                    'cmi.core.total_time', 'cmi.core.session_time', 'cmi.core.lesson_location', 'cmi.core.exit',
+                    'cmi.core.entry', 'cmi.core.student_id', 'cmi.core.student_name', 'cmi.core.credit',
+                    'cmi.core.lesson_mode', 'cmi.core.max_time_allowed', 'cmi.core.mastery_score',
+                    'cmi.core.suspend_data', 'cmi.core.launch_data', 'cmi.core.comments',
+                    'cmi.core.comments_from_lms', 'cmi.core.objectives', 'cmi.core.student_data',
+                    'cmi.core.student_preference', 'cmi.core.interactions', 'cmi.core.navigation',
+                    'cmi.core.exit_assessment_required', 'cmi.core.exit_assessment_completed'
+                ]
+            elif package_type == 'SCORM_2004':
+                valid_elements = [
+                    # SCORM 2004 elements (50+ elements) - COMPLETE IMPLEMENTATION
+                    'cmi.completion_status', 'cmi.success_status', 'cmi.score.scaled', 'cmi.score.raw',
+                    'cmi.score.min', 'cmi.score.max', 'cmi.progress_measure', 'cmi.location',
+                    'cmi.suspend_data', 'cmi.launch_data', 'cmi.entry', 'cmi.exit', 'cmi.credit',
+                    'cmi.mode', 'cmi.learner_id', 'cmi.learner_name', 'cmi.completion_threshold',
+                    'cmi.scaled_passing_score', 'cmi.total_time', 'cmi.session_time',
+                    
+                    # Learner preferences (4 elements)
+                    'cmi.learner_preference.audio_level', 'cmi.learner_preference.language',
+                    'cmi.learner_preference.delivery_speed', 'cmi.learner_preference.audio_captioning',
+                    
+                    # Student data (3 elements)
+                    'cmi.student_data.mastery_score', 'cmi.student_data.max_time_allowed',
+                    'cmi.student_data.time_limit_action',
+                    
+                    # Objectives (7 elements)
+                    'cmi.objectives._count', 'cmi.objectives._children', 'cmi.objectives.id',
+                    'cmi.objectives.score', 'cmi.objectives.success_status',
+                    'cmi.objectives.completion_status', 'cmi.objectives.progress_measure',
+                    'cmi.objectives.description',
+                    
+                    # Interactions (10 elements)
+                    'cmi.interactions._count', 'cmi.interactions._children', 'cmi.interactions.id',
+                    'cmi.interactions.type', 'cmi.interactions.objectives', 'cmi.interactions.timestamp',
+                    'cmi.interactions.correct_responses', 'cmi.interactions.weighting',
+                    'cmi.interactions.learner_response', 'cmi.interactions.result',
+                    'cmi.interactions.latency', 'cmi.interactions.description',
+                    
+                    # Comments from learner (4 elements)
+                    'cmi.comments_from_learner._count', 'cmi.comments_from_learner._children',
+                    'cmi.comments_from_learner.id', 'cmi.comments_from_learner.timestamp',
+                    'cmi.comments_from_learner.comment', 'cmi.comments_from_learner.location',
+                    
+                    # Comments from LMS (4 elements)
+                    'cmi.comments_from_lms._count', 'cmi.comments_from_lms._children',
+                    'cmi.comments_from_lms.id', 'cmi.comments_from_lms.timestamp',
+                    'cmi.comments_from_lms.comment', 'cmi.comments_from_lms.location',
+                    
+                    # Navigation elements (SCORM 2004)
+                    'adl.nav.request', 'adl.nav.request_valid'
+                ]
+            elif package_type == 'XAPI':
+                valid_elements = [
+                    # xAPI (Tin Can) elements
+                    'cmi.completion_status', 'cmi.success_status', 'cmi.score.scaled', 'cmi.score.raw',
+                    'cmi.score.min', 'cmi.score.max', 'cmi.progress_measure', 'cmi.location',
+                    'cmi.suspend_data', 'cmi.launch_data', 'cmi.entry', 'cmi.exit', 'cmi.credit',
+                    'cmi.mode', 'cmi.learner_id', 'cmi.learner_name', 'cmi.completion_threshold',
+                    'cmi.scaled_passing_score', 'cmi.total_time', 'cmi.session_time',
+                    
+                    # xAPI specific elements
+                    'cmi.learner_preference.audio_level', 'cmi.learner_preference.language',
+                    'cmi.learner_preference.delivery_speed', 'cmi.learner_preference.audio_captioning',
+                    'cmi.student_data.mastery_score', 'cmi.student_data.max_time_allowed',
+                    'cmi.student_data.time_limit_action'
+                ]
+            elif package_type == 'CMI5':
+                valid_elements = [
+                    # cmi5 elements
+                    'cmi5.exit', 'cmi5.completion_status', 'cmi5.exit_assessment_completed',
+                    'cmi.completion_status', 'cmi.success_status', 'cmi.score.scaled', 'cmi.score.raw',
+                    'cmi.score.min', 'cmi.score.max', 'cmi.progress_measure', 'cmi.location',
+                    'cmi.suspend_data', 'cmi.launch_data', 'cmi.entry', 'cmi.exit', 'cmi.credit',
+                    'cmi.mode', 'cmi.learner_id', 'cmi.learner_name', 'cmi.completion_threshold',
+                    'cmi.scaled_passing_score', 'cmi.total_time', 'cmi.session_time',
+                    
+                    # cmi5 specific elements
+                    'cmi.learner_preference.audio_level', 'cmi.learner_preference.language',
+                    'cmi.learner_preference.delivery_speed', 'cmi.learner_preference.audio_captioning',
+                    'cmi.student_data.mastery_score', 'cmi.student_data.max_time_allowed',
+                    'cmi.student_data.time_limit_action'
+                ]
+            elif package_type == 'AICC':
+                valid_elements = [
+                    # AICC elements
+                    'cmi.core.lesson_status', 'cmi.core.score.raw', 'cmi.core.score.min', 'cmi.core.score.max',
+                    'cmi.core.total_time', 'cmi.core.session_time', 'cmi.core.lesson_location', 'cmi.core.exit',
+                    'cmi.core.entry', 'cmi.core.student_id', 'cmi.core.student_name', 'cmi.core.credit',
+                    'cmi.core.lesson_mode', 'cmi.core.max_time_allowed', 'cmi.core.mastery_score',
+                    'cmi.core.suspend_data', 'cmi.core.launch_data', 'cmi.core.comments',
+                    'cmi.core.comments_from_lms', 'cmi.core.objectives', 'cmi.core.student_data',
+                    'cmi.core.student_preference', 'cmi.core.interactions', 'cmi.core.navigation'
+                ]
+            else:
+                # Default to SCORM 1.2 format
+                valid_elements = [
+                    'cmi.core.lesson_status', 'cmi.core.score.raw', 'cmi.core.score.min', 'cmi.core.score.max',
+                    'cmi.core.total_time', 'cmi.core.session_time', 'cmi.core.lesson_location', 'cmi.core.exit',
+                    'cmi.core.entry', 'cmi.core.student_id', 'cmi.core.student_name', 'cmi.core.credit',
+                    'cmi.core.lesson_mode', 'cmi.core.max_time_allowed', 'cmi.core.mastery_score',
+                    'cmi.core.suspend_data', 'cmi.core.launch_data', 'cmi.core.comments',
+                    'cmi.core.comments_from_lms', 'cmi.core.objectives', 'cmi.core.student_data',
+                    'cmi.core.student_preference', 'cmi.core.interactions', 'cmi.core.navigation'
+                ]
             
             # Enhanced element validation with 100% compliance
             if not (element.startswith('cmi.core.') or element.startswith('cmi.interactions.') or 
@@ -1115,55 +1446,105 @@ def _handle_scorm_post(request, topic_id):
                 else:
                     return JsonResponse({'result': 'false', 'error': 'Invalid element'})
             
-            # Update tracking based on the element
+            # CRITICAL FIX: Update raw_data immediately for all elements
+            tracking.raw_data[element] = value
+            logger.info(f"SCORM: Set raw_data[{element}] = {value}")
+            
+            # ENHANCED DATA SYNCHRONIZATION: Update individual fields based on element
+            field_updated = False
+            
+            # Update completion status
             if element == 'cmi.core.lesson_status' or element == 'cmi.completion_status':
                 # Validate lesson status values
                 valid_statuses = ['passed', 'completed', 'failed', 'incomplete', 'browsed', 'not attempted']
                 if value in valid_statuses:
                     tracking.completion_status = value
+                    field_updated = True
                     logger.info(f"SCORM: Set completion_status to {value}")
                 else:
                     logger.warning(f"SCORM: Invalid completion_status value: {value}")
+            
+            # Update success status for SCORM 2004
+            elif element == 'cmi.success_status':
+                valid_success_statuses = ['passed', 'failed', 'unknown']
+                if value in valid_success_statuses:
+                    tracking.success_status = value
+                    field_updated = True
+                    logger.info(f"SCORM: Set success_status to {value}")
+                else:
+                    logger.warning(f"SCORM: Invalid success_status value: {value}")
+            # Update score fields - ENHANCED VALIDATION
             elif element == 'cmi.core.score.raw' or element == 'cmi.score.raw':
                 try:
-                    new_score = float(value) if value else None
-                    tracking.score_raw = new_score
-                    logger.info(f"SCORM: Set score.raw to {value}")
-                    
-                    # Validate score after setting
-                    if new_score is not None:
+                    if value and value.strip():
+                        new_score = float(value)
+                        tracking.score_raw = new_score
+                        field_updated = True
+                        logger.info(f"SCORM: Set score.raw to {value}")
+                        
+                        # ENHANCED: Set default max score if not set
+                        if tracking.score_max is None:
+                            if 0 <= new_score <= 1:
+                                tracking.score_max = 1.0
+                            elif 0 <= new_score <= 100:
+                                tracking.score_max = 100.0
+                            else:
+                                tracking.score_max = 100.0  # Default fallback
+                            logger.info(f"SCORM: Set default max score to {tracking.score_max}")
+                        
+                        # ENHANCED: Validate score with more lenient rules
                         if not tracking.validate_score():
-                            logger.warning(f"SCORM: Score validation failed for user {request.scorm_user.id}: {new_score}")
-                except ValueError:
-                    logger.warning(f"SCORM: Invalid score.raw value: {value}")
+                            logger.warning(f"SCORM: Score validation warning for user {request.scorm_user.id}: {new_score} (range: {tracking.score_min}-{tracking.score_max})")
+                            # Don't fail completely, just log the warning
+                    else:
+                        logger.info(f"SCORM: Empty score value received for {element}")
+                except (ValueError, TypeError) as e:
+                    logger.warning(f"SCORM: Invalid score.raw value: {value} - {str(e)}")
+                    # Don't fail completely, just log the issue
             elif element == 'cmi.core.score.min' or element == 'cmi.score.min':
                 try:
-                    tracking.score_min = float(value) if value else None
-                    logger.info(f"SCORM: Set score.min to {value}")
-                except ValueError:
-                    logger.warning(f"SCORM: Invalid score.min value: {value}")
+                    if value and value.strip():
+                        tracking.score_min = float(value)
+                        field_updated = True
+                        logger.info(f"SCORM: Set score.min to {value}")
+                    else:
+                        logger.info(f"SCORM: Empty score.min value received")
+                except (ValueError, TypeError) as e:
+                    logger.warning(f"SCORM: Invalid score.min value: {value} - {str(e)}")
             elif element == 'cmi.core.score.max' or element == 'cmi.score.max':
                 try:
-                    tracking.score_max = float(value) if value else None
-                    logger.info(f"SCORM: Set score.max to {value}")
-                    
-                    # Log score summary after setting max score
-                    if tracking.score_raw is not None:
-                        summary = tracking.get_score_summary()
-                        logger.info(f"SCORM: Score summary for user {request.scorm_user.id}: {summary}")
-                except ValueError:
-                    logger.warning(f"SCORM: Invalid score.max value: {value}")
+                    if value and value.strip():
+                        tracking.score_max = float(value)
+                        field_updated = True
+                        logger.info(f"SCORM: Set score.max to {value}")
+                        
+                        # ENHANCED: Log score summary after setting max score
+                        if tracking.score_raw is not None:
+                            summary = tracking.get_score_summary()
+                            logger.info(f"SCORM: Score summary for user {request.scorm_user.id}: {summary}")
+                    else:
+                        logger.info(f"SCORM: Empty score.max value received")
+                except (ValueError, TypeError) as e:
+                    logger.warning(f"SCORM: Invalid score.max value: {value} - {str(e)}")
             elif element == 'cmi.core.score.scaled' or element == 'cmi.score.scaled':
                 try:
-                    tracking.score_scaled = float(value) if value else None
-                    logger.info(f"SCORM: Set score.scaled to {value}")
-                except ValueError:
-                    logger.warning(f"SCORM: Invalid score.scaled value: {value}")
+                    if value and value.strip():
+                        tracking.score_scaled = float(value)
+                        field_updated = True
+                        logger.info(f"SCORM: Set score.scaled to {value}")
+                    else:
+                        logger.info(f"SCORM: Empty score.scaled value received")
+                except (ValueError, TypeError) as e:
+                    logger.warning(f"SCORM: Invalid score.scaled value: {value} - {str(e)}")
+            
+            # Update time tracking
             elif element == 'cmi.core.total_time' or element == 'cmi.total_time':
                 tracking.total_time = tracking._parse_scorm_time(value)
+                field_updated = True
                 logger.info(f"SCORM: Set total_time to {value}")
             elif element == 'cmi.core.session_time' or element == 'cmi.session_time':
                 tracking.session_time = tracking._parse_scorm_time(value)
+                field_updated = True
                 logger.info(f"SCORM: Set session_time to {value}")
             elif element == 'cmi.core.lesson_location' or element == 'cmi.location':
                 # Store lesson location for bookmarking
@@ -1253,10 +1634,18 @@ def _handle_scorm_post(request, topic_id):
                     logger.info(f"SCORM: Set mode to {value}")
                 else:
                     logger.warning(f"SCORM: Invalid mode value: {value}")
+            # Update progress measure - CRITICAL FOR ACCURATE PROGRESS DISPLAY
             elif element == 'cmi.progress_measure':
                 try:
                     tracking.progress_measure = float(value) if value else None
+                    field_updated = True
                     logger.info(f"SCORM: Set progress_measure to {value}")
+                    
+                    # Auto-update completion status based on progress
+                    if tracking.progress_measure is not None and tracking.progress_measure >= 1.0:
+                        if tracking.completion_status != 'completed':
+                            tracking.completion_status = 'completed'
+                            logger.info(f"SCORM: Auto-updated completion_status to 'completed' based on progress_measure: {tracking.progress_measure}")
                 except ValueError:
                     logger.warning(f"SCORM: Invalid progress_measure value: {value}")
             elif element == 'cmi.completion_threshold':
@@ -1326,7 +1715,27 @@ def _handle_scorm_post(request, topic_id):
             if tracking.completion_status == 'completed':
                 tracking.completion_date = timezone.now()
             
-            tracking.save()
+            # ENHANCED: Always save if any field was updated or if raw_data was updated
+            # Also save for critical SCORM elements even if field_updated is False
+            critical_elements = [
+                'cmi.core.score.raw', 'cmi.score.raw', 'cmi.core.total_time', 'cmi.total_time',
+                'cmi.core.session_time', 'cmi.session_time', 'cmi.core.lesson_status', 'cmi.completion_status',
+                'cmi.core.lesson_location', 'cmi.location', 'cmi.core.suspend_data', 'cmi.suspend_data',
+                'cmi.progress_measure', 'cmi.core.exit', 'cmi.exit'
+            ]
+            
+            should_save = (
+                field_updated or 
+                element in tracking.raw_data or 
+                element in critical_elements or
+                value.strip()  # Save if there's actual data
+            )
+            
+            if should_save:
+                tracking.save()
+                logger.info(f"SCORM: Tracking data saved for user {request.scorm_user.id}, element: {element}, field_updated: {field_updated}")
+            else:
+                logger.warning(f"SCORM: No fields updated for element {element}, value: {value}")
             
             # Generate xAPI statement if LRS is available
             _generate_xapi_statement(tracking, element, value)
@@ -1811,6 +2220,443 @@ def cmi5_launch(request, topic_id):
         'launch_url': launch_url,
         'package_type': 'cmi5'
     })
+
+@login_required
+def scorm_result(request, topic_id):
+    """Enhanced result view with comprehensive data handling and debugging"""
+    user = request.user
+    topic = get_object_or_404(Topic, id=topic_id)
+    
+    logger.info(f"SCORM Result: Processing result for user {user.id}, topic {topic_id}")
+    
+    # Check if user has access to this topic
+    if not topic.course.user_has_access(user):
+        messages.error(request, "You don't have access to this content.")
+        return redirect('courses:course_list')
+    
+    try:
+        scorm_package = ELearningPackage.objects.get(topic=topic)
+        scorm_tracking = ELearningTracking.objects.filter(
+            user=user,
+            elearning_package=scorm_package
+        ).first()
+        
+        if not scorm_tracking:
+            messages.error(request, "No SCORM tracking data found.")
+            return redirect('courses:topic_view', topic_id=topic_id)
+        
+        # Enhanced debugging
+        logger.info(f"SCORM Result Debug for user {user.id}, topic {topic_id}:")
+        logger.info(f"  Raw data keys: {list(scorm_tracking.raw_data.keys())}")
+        logger.info(f"  Completion status: {scorm_tracking.completion_status}")
+        logger.info(f"  Success status: {scorm_tracking.success_status}")
+        logger.info(f"  Score raw: {scorm_tracking.score_raw}")
+        logger.info(f"  Score max: {scorm_tracking.score_max}")
+        logger.info(f"  Total time: {scorm_tracking.total_time}")
+        logger.info(f"  Progress measure: {scorm_tracking.progress_measure}")
+        
+        # Enhanced data synchronization with error handling
+        try:
+            _sync_tracking_data(scorm_tracking)
+            # Refresh the object after sync
+            scorm_tracking.refresh_from_db()
+        except Exception as e:
+            logger.error(f"SCORM: Error syncing tracking data: {str(e)}")
+        
+        # Enhanced progress data with comprehensive fallbacks
+        progress_data = {
+            'completion_status': scorm_tracking.completion_status,
+            'success_status': scorm_tracking.success_status,
+            'score_raw': scorm_tracking.score_raw,
+            'score_min': scorm_tracking.score_min,
+            'score_max': scorm_tracking.score_max,
+            'score_scaled': scorm_tracking.score_scaled,
+            'total_time': scorm_tracking.total_time,
+            'session_time': scorm_tracking.session_time,
+            'first_launch': scorm_tracking.first_launch,
+            'last_launch': scorm_tracking.last_launch,
+            'completion_date': scorm_tracking.completion_date,
+            'location': scorm_tracking.location,
+            'suspend_data': scorm_tracking.suspend_data,
+            'raw_data': scorm_tracking.raw_data,
+            'attempt_count': scorm_tracking.attempt_count,
+        }
+        
+        # Enhanced progress percentage calculation
+        progress_percentage = scorm_tracking.get_progress_percentage()
+        logger.info(f"SCORM: Progress percentage: {progress_percentage}%")
+        
+        # Enhanced completion status detection with better logic
+        if scorm_tracking.completion_status == 'not attempted':
+            # Check if we have indicators of completion
+            has_time = scorm_tracking.total_time and scorm_tracking.total_time.total_seconds() > 0
+            has_progress = scorm_tracking.progress_measure and scorm_tracking.progress_measure >= 1.0
+            has_score = scorm_tracking.score_raw is not None
+            has_location = bool(scorm_tracking.location)
+            
+            logger.info(f"SCORM: Completion indicators - time: {has_time}, progress: {has_progress}, score: {has_score}, location: {has_location}")
+            
+            # More conservative completion detection
+            if has_progress or (has_time and has_score and has_location):
+                scorm_tracking.completion_status = 'completed'
+                scorm_tracking.save()
+                logger.info(f"SCORM: Auto-detected completion for user {request.user.id}")
+        
+        # Enhanced score summary with comprehensive fallbacks
+        score_summary = scorm_tracking.get_score_summary()
+        logger.info(f"SCORM: Score summary: {score_summary}")
+        
+        # Enhanced fallback for missing score data
+        if not score_summary.get('raw_score') or score_summary.get('raw_score') == '' or score_summary.get('raw_score') is None:
+            logger.info("SCORM: Attempting score data recovery from raw_data")
+            # Check multiple sources for score data
+            score_sources = [
+                ('cmi.core.score.raw', 'SCORM 1.2 raw score'),
+                ('cmi.score.raw', 'SCORM 2004 raw score'),
+                ('cmi.core.score.scaled', 'SCORM 1.2 scaled score'),
+                ('cmi.score.scaled', 'SCORM 2004 scaled score')
+            ]
+            
+            for source, description in score_sources:
+                if source in scorm_tracking.raw_data:
+                    raw_score = scorm_tracking.raw_data[source]
+                    if raw_score and raw_score.strip():
+                        try:
+                            score_value = float(raw_score)
+                            scorm_tracking.score_raw = score_value
+                            scorm_tracking.save()
+                            score_summary = scorm_tracking.get_score_summary()
+                            logger.info(f"SCORM: Recovered score data from {description}: {raw_score}")
+                            break
+                        except (ValueError, TypeError) as e:
+                            logger.warning(f"SCORM: Error recovering score from {source}: {raw_score} - {str(e)}")
+                            continue
+        
+        # Enhanced time data recovery
+        if not progress_data.get('total_time') or progress_data.get('total_time') == 'PT0S':
+            logger.info("SCORM: Attempting time data recovery from raw_data")
+            time_sources = [
+                ('cmi.core.total_time', 'SCORM 1.2 total time'),
+                ('cmi.total_time', 'SCORM 2004 total time'),
+                ('cmi.core.session_time', 'SCORM 1.2 session time'),
+                ('cmi.session_time', 'SCORM 2004 session time')
+            ]
+            
+            for source, description in time_sources:
+                if source in scorm_tracking.raw_data:
+                    raw_time = scorm_tracking.raw_data[source]
+                    if raw_time and raw_time.strip() and raw_time != 'PT0S':
+                        try:
+                            parsed_time = scorm_tracking._parse_scorm_time(raw_time)
+                            if parsed_time and parsed_time.total_seconds() > 0:
+                                scorm_tracking.total_time = parsed_time
+                                scorm_tracking.save()
+                                progress_data['total_time'] = parsed_time
+                                logger.info(f"SCORM: Recovered time data from {description}: {raw_time}")
+                                break
+                        except Exception as e:
+                            logger.warning(f"SCORM: Error recovering time from {source}: {raw_time} - {str(e)}")
+        
+        # Get bookmark data for resume functionality
+        bookmark_data = scorm_tracking.get_bookmark_data()
+        
+        # Final data validation and logging
+        logger.info(f"SCORM: Final result data for user {user.id}:")
+        logger.info(f"  Completion: {progress_data['completion_status']}")
+        logger.info(f"  Success: {progress_data['success_status']}")
+        logger.info(f"  Score: {score_summary.get('raw_score')}/{score_summary.get('max_score')} ({score_summary.get('percentage')}%)")
+        logger.info(f"  Time: {progress_data['total_time']}")
+        logger.info(f"  Progress: {progress_percentage}%")
+        
+        context = {
+            'topic': topic,
+            'course': topic.course,
+            'scorm_package': scorm_package,
+            'scorm_tracking': scorm_tracking,
+            'progress_data': progress_data,
+            'progress_percentage': progress_percentage,
+            'score_summary': score_summary,
+            'bookmark_data': bookmark_data,
+            'breadcrumbs': [
+                {'label': 'Courses', 'url': '/courses/', 'icon': 'fa-book'},
+                {'label': topic.course.title, 'url': f'/courses/{topic.course.id}/details/', 'icon': 'fa-graduation-cap'},
+                {'label': topic.title, 'url': f'/courses/topic/{topic.id}/view/', 'icon': 'fa-file'},
+                {'label': 'SCORM Result', 'icon': 'fa-chart-line'}
+            ],
+        }
+        
+        return render(request, 'scorm/result.html', context)
+        
+    except ELearningPackage.DoesNotExist:
+        messages.error(request, "SCORM package not found.")
+        return redirect('courses:topic_view', topic_id=topic_id)
+
+@login_required
+def scorm_retake(request, topic_id):
+    """Reset SCORM tracking data for retake"""
+    user = request.user
+    topic = get_object_or_404(Topic, id=topic_id)
+    
+    # Check if user has access to this topic
+    if not topic.course.user_has_access(user):
+        messages.error(request, "You don't have access to this content.")
+        return redirect('courses:course_list')
+    
+    try:
+        scorm_package = ELearningPackage.objects.get(topic=topic)
+        
+        with transaction.atomic():
+            # Get or create tracking record
+            scorm_tracking, created = ELearningTracking.objects.get_or_create(
+                user=user,
+                elearning_package=scorm_package,
+                defaults={
+                    'completion_status': 'not attempted',
+                    'success_status': 'unknown',
+                    'entry': 'ab-initio'
+                }
+            )
+            
+            if not created:
+                # Reset tracking data for retake
+                scorm_tracking.completion_status = 'not attempted'
+                scorm_tracking.success_status = 'unknown'
+                scorm_tracking.score_raw = None
+                scorm_tracking.score_min = None
+                scorm_tracking.score_max = None
+                scorm_tracking.score_scaled = None
+                scorm_tracking.progress_measure = None
+                scorm_tracking.total_time = None
+                scorm_tracking.session_time = None
+                scorm_tracking.location = ''
+                scorm_tracking.suspend_data = ''
+                scorm_tracking.launch_data = ''
+                scorm_tracking.entry = 'ab-initio'
+                scorm_tracking.exit_value = ''
+                scorm_tracking.completion_date = None
+                scorm_tracking.raw_data = {}
+                scorm_tracking.objectives = {}
+                scorm_tracking.interactions = {}
+                scorm_tracking.comments_from_learner = []
+                scorm_tracking.attempt_count = 0
+                scorm_tracking.comments_from_lms = []
+                
+                # Clear bookmark data
+                scorm_tracking.clear_bookmark()
+                
+                scorm_tracking.save()
+                
+                logger.info(f"SCORM Retake: Reset tracking data for user {user.username} on topic {topic_id}")
+                messages.success(request, "SCORM content has been reset for retake.")
+            else:
+                logger.info(f"SCORM Retake: Created new tracking record for user {user.username} on topic {topic_id}")
+                messages.info(request, "Ready to start SCORM content.")
+        
+        # Redirect to launch page
+        return redirect('scorm:launch', topic_id=topic_id)
+        
+    except ELearningPackage.DoesNotExist:
+        messages.error(request, "SCORM package not found.")
+        return redirect('courses:topic_view', topic_id=topic_id)
+    except Exception as e:
+        logger.error(f"SCORM Retake Error: {str(e)}")
+        messages.error(request, "Error resetting SCORM content. Please try again.")
+        return redirect('courses:topic_view', topic_id=topic_id)
+
+@login_required
+def scorm_resume(request, topic_id):
+    """Resume SCORM content from bookmark location"""
+    user = request.user
+    topic = get_object_or_404(Topic, id=topic_id)
+    
+    # Check if user has access to this topic
+    if not topic.course.user_has_access(user):
+        messages.error(request, "You don't have access to this content.")
+        return redirect('courses:course_list')
+    
+    try:
+        scorm_package = ELearningPackage.objects.get(topic=topic)
+        scorm_tracking = ELearningTracking.objects.filter(
+            user=user,
+            elearning_package=scorm_package
+        ).first()
+        
+        if not scorm_tracking:
+            messages.error(request, "No SCORM tracking data found.")
+            return redirect('courses:topic_view', topic_id=topic_id)
+        
+        # Check if content can be resumed
+        bookmark_data = scorm_tracking.get_bookmark_data()
+        if not bookmark_data['can_resume']:
+            messages.warning(request, "No bookmark data available to resume from.")
+            return redirect('scorm:launch', topic_id=topic_id)
+        
+        # Set entry mode to resume
+        scorm_tracking.raw_data['cmi.core.entry'] = 'resume'
+        scorm_tracking.save()
+        
+        logger.info(f"SCORM Resume: Setting resume mode for user {user.username} on topic {topic_id}")
+        messages.success(request, "Resuming SCORM content from your last position.")
+        
+        # Redirect to launch with resume mode
+        return redirect('scorm:launch', topic_id=topic_id)
+        
+    except ELearningPackage.DoesNotExist:
+        messages.error(request, "SCORM package not found.")
+        return redirect('courses:topic_view', topic_id=topic_id)
+    except Exception as e:
+        logger.error(f"SCORM Resume Error: {str(e)}")
+        messages.error(request, "Error resuming SCORM content. Please try again.")
+        return redirect('courses:topic_view', topic_id=topic_id)
+
+@login_required
+def xapi_resume(request, topic_id):
+    """Resume xAPI content from state data"""
+    user = request.user
+    topic = get_object_or_404(Topic, id=topic_id)
+    
+    # Check if user has access to this topic
+    if not topic.course.user_has_access(user):
+        messages.error(request, "You don't have access to this content.")
+        return redirect('courses:course_list')
+    
+    try:
+        scorm_package = ELearningPackage.objects.get(topic=topic)
+        scorm_tracking = ELearningTracking.objects.filter(
+            user=user,
+            elearning_package=scorm_package
+        ).first()
+        
+        if not scorm_tracking:
+            messages.error(request, "No xAPI tracking data found.")
+            return redirect('courses:topic_view', topic_id=topic_id)
+        
+        # Check if content can be resumed (xAPI state-based)
+        bookmark_data = scorm_tracking.get_bookmark_data()
+        if not bookmark_data['can_resume']:
+            messages.warning(request, "No state data available to resume from.")
+            return redirect('scorm:xapi_launch', topic_id=topic_id)
+        
+        # Set xAPI resume mode
+        scorm_tracking.raw_data['xapi.resume'] = True
+        scorm_tracking.save()
+        
+        logger.info(f"xAPI Resume: Setting resume mode for user {user.username} on topic {topic_id}")
+        messages.success(request, "Resuming xAPI content from your last position.")
+        
+        # Redirect to xAPI launch with resume mode
+        return redirect('scorm:xapi_launch', topic_id=topic_id)
+        
+    except ELearningPackage.DoesNotExist:
+        messages.error(request, "xAPI package not found.")
+        return redirect('courses:topic_view', topic_id=topic_id)
+    except Exception as e:
+        logger.error(f"xAPI Resume Error: {str(e)}")
+        messages.error(request, "Error resuming xAPI content. Please try again.")
+        return redirect('courses:topic_view', topic_id=topic_id)
+
+@login_required
+def cmi5_resume(request, topic_id):
+    """Resume cmi5 content from AU state"""
+    user = request.user
+    topic = get_object_or_404(Topic, id=topic_id)
+    
+    # Check if user has access to this topic
+    if not topic.course.user_has_access(user):
+        messages.error(request, "You don't have access to this content.")
+        return redirect('courses:course_list')
+    
+    try:
+        scorm_package = ELearningPackage.objects.get(topic=topic)
+        scorm_tracking = ELearningTracking.objects.filter(
+            user=user,
+            elearning_package=scorm_package
+        ).first()
+        
+        if not scorm_tracking:
+            messages.error(request, "No cmi5 tracking data found.")
+            return redirect('courses:topic_view', topic_id=topic_id)
+        
+        # Check if content can be resumed (cmi5 AU state-based)
+        bookmark_data = scorm_tracking.get_bookmark_data()
+        if not bookmark_data['can_resume']:
+            messages.warning(request, "No AU state data available to resume from.")
+            return redirect('scorm:cmi5_launch', topic_id=topic_id)
+        
+        # Set cmi5 resume mode
+        scorm_tracking.raw_data['cmi5.resume'] = True
+        scorm_tracking.save()
+        
+        logger.info(f"cmi5 Resume: Setting resume mode for user {user.username} on topic {topic_id}")
+        messages.success(request, "Resuming cmi5 content from your last position.")
+        
+        # Redirect to cmi5 launch with resume mode
+        return redirect('scorm:cmi5_launch', topic_id=topic_id)
+        
+    except ELearningPackage.DoesNotExist:
+        messages.error(request, "cmi5 package not found.")
+        return redirect('courses:topic_view', topic_id=topic_id)
+    except Exception as e:
+        logger.error(f"cmi5 Resume Error: {str(e)}")
+        messages.error(request, "Error resuming cmi5 content. Please try again.")
+        return redirect('courses:topic_view', topic_id=topic_id)
+
+@login_required
+def scorm_progress(request, topic_id):
+    """Get SCORM progress data via AJAX"""
+    user = request.user
+    topic = get_object_or_404(Topic, id=topic_id)
+    
+    try:
+        scorm_package = ELearningPackage.objects.get(topic=topic)
+        scorm_tracking = ELearningTracking.objects.filter(
+            user=user,
+            elearning_package=scorm_package
+        ).first()
+        
+        if scorm_tracking:
+            progress_data = {
+                'completion_status': scorm_tracking.completion_status,
+                'success_status': scorm_tracking.success_status,
+                'score_raw': scorm_tracking.score_raw,
+                'score_max': scorm_tracking.score_max,
+                'progress_percentage': scorm_tracking.get_progress_percentage(),
+                'total_time': str(scorm_tracking.total_time) if scorm_tracking.total_time else None,
+                'last_launch': scorm_tracking.last_launch.isoformat() if scorm_tracking.last_launch else None,
+                'can_resume': bool(scorm_tracking.location or scorm_tracking.suspend_data),
+                'is_completed': scorm_tracking.is_completed(),
+                'is_passed': scorm_tracking.is_passed(),
+            }
+        else:
+            progress_data = {
+                'completion_status': 'not attempted',
+                'success_status': 'unknown',
+                'score_raw': None,
+                'score_max': None,
+                'progress_percentage': 0,
+                'total_time': None,
+                'last_launch': None,
+                'can_resume': False,
+                'is_completed': False,
+                'is_passed': False,
+            }
+        
+        return JsonResponse({
+            'success': True,
+            'progress': progress_data
+        })
+        
+    except ELearningPackage.DoesNotExist:
+        return JsonResponse({
+            'success': False,
+            'error': 'SCORM package not found'
+        })
+    except Exception as e:
+        logger.error(f"SCORM Progress Error: {str(e)}")
+        return JsonResponse({
+            'success': False,
+            'error': 'Error retrieving progress data'
+        })
 
 def validate_elearning_package(package_path, package_type):
     """Validate eLearning packages for all standards"""
@@ -2498,34 +3344,24 @@ def _is_valid_scorm_element(element):
 def _is_valid_scorm_time(time_string):
     """Check if time string is valid SCORM time format"""
     try:
-        if not time_string:
-            return False
+        if not time_string or time_string == 'PT0S':
+            return True
         
-        # SCORM time format: HH:MM:SS.SS
-        parts = time_string.split(':')
-        if len(parts) != 3:
+        # SCORM time format: PT[nH][nM][nS]
+        if not time_string.startswith('PT'):
             return False
+            
+        # Remove PT prefix
+        time_str = time_string[2:]
         
-        hours, minutes, seconds = parts
-        if not hours.isdigit() or not minutes.isdigit():
+        # Must end with S, M, or H
+        if not time_str.endswith(('S', 'M', 'H')):
             return False
-        
-        # Check seconds part (can have decimal)
-        if '.' in seconds:
-            sec_parts = seconds.split('.')
-            if len(sec_parts) != 2 or not sec_parts[0].isdigit() or not sec_parts[1].isdigit():
-                return False
-        else:
-            if not seconds.isdigit():
-                return False
-        
-        # Validate ranges
-        if int(hours) < 0 or int(hours) > 23:
-            return False
-        if int(minutes) < 0 or int(minutes) > 59:
-            return False
-        
-        return True
+            
+        # Check for valid format using regex
+        import re
+        pattern = r'^PT(?:(\d+(?:\.\d+)?)H)?(?:(\d+(?:\.\d+)?)M)?(?:(\d+(?:\.\d+)?)S)?$'
+        return bool(re.match(pattern, time_string))
         
     except Exception:
         return False
@@ -2582,3 +3418,41 @@ def _handle_scorm2004_navigation(request, topic_id):
     except Exception as e:
         logger.error(f"Error in SCORM 2004 navigation: {str(e)}")
         return JsonResponse({'result': 'false', 'error': str(e)})
+
+@login_required
+def scorm_debug(request, topic_id):
+    """Debug endpoint to check SCORM data"""
+    user = request.user
+    topic = get_object_or_404(Topic, id=topic_id)
+    
+    try:
+        scorm_package = ELearningPackage.objects.get(topic=topic)
+        scorm_tracking = ELearningTracking.objects.filter(
+            user=user,
+            elearning_package=scorm_package
+        ).first()
+        
+        if not scorm_tracking:
+            return JsonResponse({'error': 'No tracking data found'})
+        
+        debug_data = {
+            'user_id': user.id,
+            'topic_id': topic_id,
+            'completion_status': scorm_tracking.completion_status,
+            'success_status': scorm_tracking.success_status,
+            'score_raw': scorm_tracking.score_raw,
+            'score_min': scorm_tracking.score_min,
+            'score_max': scorm_tracking.score_max,
+            'score_scaled': scorm_tracking.score_scaled,
+            'total_time': str(scorm_tracking.total_time) if scorm_tracking.total_time else None,
+            'progress_measure': scorm_tracking.progress_measure,
+            'raw_data_keys': list(scorm_tracking.raw_data.keys()),
+            'raw_data': scorm_tracking.raw_data,
+            'score_summary': scorm_tracking.get_score_summary(),
+            'progress_percentage': scorm_tracking.get_progress_percentage()
+        }
+        
+        return JsonResponse(debug_data)
+        
+    except Exception as e:
+        return JsonResponse({'error': str(e)})

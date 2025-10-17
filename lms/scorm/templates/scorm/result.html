@@ -1,0 +1,232 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}SCORM Result - {{ topic.title }}{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4">
+    <!-- Breadcrumb -->
+    <div class="flex items-center text-sm text-gray-600 mb-6">
+        {% for item in breadcrumbs %}
+            {% if not forloop.first %}
+                <svg class="mx-2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                </svg>
+            {% endif %}
+            
+            {% if item.url and not forloop.last %}
+                <a href="{{ item.url }}" class="group flex items-center hover:text-blue-600 transition-colors">
+                    {% if item.icon %}
+                    <div class="w-6 md:w-8 h-6 md:h-8 rounded-full bg-[#EBF3FE] flex items-center justify-center group-hover:bg-[#dce8fc] transition-colors mr-2">
+                        <i class="fas {{ item.icon }} text-[#2F80ED] text-xs md:text-sm"></i>
+                    </div>
+                    {% endif %}
+                    <span>{{ item.label }}</span>
+                </a>
+            {% else %}
+                <span class="flex items-center text-gray-800 font-medium">
+                    {% if item.icon %}
+                    <div class="w-6 md:w-8 h-6 md:h-8 rounded-full bg-[#EBF3FE] flex items-center justify-center mr-2">
+                        <i class="fas {{ item.icon }} text-[#2F80ED] text-xs md:text-sm"></i>
+                    </div>
+                    {% endif %}
+                    <span>{{ item.label }}</span>
+                </span>
+            {% endif %}
+        {% endfor %}
+    </div>
+    
+    <div class="max-w-4xl mx-auto">
+        <div class="bg-white rounded-lg shadow-sm p-6">
+            <h1 class="text-2xl font-bold text-gray-800 mb-6">SCORM Result</h1>
+            
+            <!-- Completion Status -->
+            <div class="mb-6">
+                <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                    <div>
+                        <h3 class="text-lg font-semibold text-gray-800">Completion Status</h3>
+                        <p class="text-gray-600">{{ progress_data.completion_status|title }}</p>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-2xl font-bold text-green-600">
+                            {% if progress_data.completion_status == 'completed' %}
+                                <i class="fas fa-check-circle"></i>
+                            {% elif progress_data.completion_status == 'incomplete' %}
+                                <i class="fas fa-clock"></i>
+                            {% else %}
+                                <i class="fas fa-times-circle"></i>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Enhanced Score Information -->
+            {% if score_summary.raw_score is not None and score_summary.raw_score != "" and score_summary.raw_score != 0 %}
+            <div class="mb-6">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4">Score Information</h3>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="p-4 bg-blue-50 rounded-lg">
+                        <div class="text-2xl font-bold text-blue-600">
+                            {{ score_summary.raw_score }}/{{ score_summary.max_score|default:"100" }}
+                        </div>
+                        <div class="text-sm text-gray-600">Raw Score</div>
+                    </div>
+                    <div class="p-4 bg-green-50 rounded-lg">
+                        <div class="text-2xl font-bold text-green-600">
+                            {% if score_summary.percentage %}
+                                {{ score_summary.percentage|floatformat:1 }}%
+                            {% else %}
+                                N/A
+                            {% endif %}
+                        </div>
+                        <div class="text-sm text-gray-600">Percentage</div>
+                    </div>
+                    <div class="p-4 bg-purple-50 rounded-lg">
+                        <div class="text-2xl font-bold text-purple-600">
+                            {{ score_summary.grade|default:"N/A" }}
+                        </div>
+                        <div class="text-sm text-gray-600">Grade</div>
+                    </div>
+                </div>
+                
+                <!-- Enhanced Pass/Fail Status -->
+                <div class="mt-4 p-4 bg-gray-50 rounded-lg">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h4 class="text-md font-semibold text-gray-800">Pass/Fail Status</h4>
+                            <p class="text-gray-600">
+                                {% if progress_data.success_status == 'passed' %}
+                                    <span class="text-green-600 font-semibold">✓ Passed</span>
+                                {% elif progress_data.success_status == 'failed' %}
+                                    <span class="text-red-600 font-semibold">✗ Failed</span>
+                                {% else %}
+                                    <span class="text-gray-500">Unknown</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                        <div class="text-right">
+                            {% if score_summary.is_passing %}
+                                <div class="text-2xl font-bold text-green-600">
+                                    <i class="fas fa-check-circle"></i>
+                                </div>
+                            {% else %}
+                                <div class="text-2xl font-bold text-red-600">
+                                    <i class="fas fa-times-circle"></i>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <div class="mb-6">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4">Score Information</h3>
+                <div class="p-4 bg-gray-50 rounded-lg">
+                    <div class="text-center">
+                        <div class="text-2xl font-bold text-gray-500 mb-2">
+                            <i class="fas fa-info-circle"></i>
+                        </div>
+                        <div class="text-lg text-gray-600">No Score Data Available</div>
+                        <div class="text-sm text-gray-500 mt-2">
+                            This SCORM content does not provide scoring information.
+                            {% if progress_data.completion_status == 'completed' %}
+                            However, the content has been completed successfully.
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            
+            <!-- Enhanced Progress Information -->
+            <div class="mb-6">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4">Progress Information</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="p-4 bg-gray-50 rounded-lg">
+                        <div class="text-sm text-gray-600">Progress</div>
+                        <div class="text-xl font-semibold">{{ progress_percentage|floatformat:1 }}%</div>
+                    </div>
+                    <div class="p-4 bg-gray-50 rounded-lg">
+                        <div class="text-sm text-gray-600">Time Spent</div>
+                        <div class="text-xl font-semibold">
+                            {% load scorm_filters %}
+                            {% if progress_data.total_time and progress_data.total_time != "PT0S" %}
+                                {{ progress_data.total_time|format_time_spent }}
+                            {% else %}
+                                <span class="text-gray-500">
+                                    <i class="fas fa-clock mr-1"></i>
+                                    {% if progress_data.completion_status == 'completed' %}
+                                        Completed (No time tracking)
+                                    {% else %}
+                                        No time data available
+                                    {% endif %}
+                                </span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="p-4 bg-gray-50 rounded-lg">
+                        <div class="text-sm text-gray-600">Completion Status</div>
+                        <div class="text-xl font-semibold">
+                            {% if progress_data.completion_status == 'completed' %}
+                                <span class="text-green-600">✓ Completed</span>
+                            {% elif progress_data.completion_status == 'incomplete' %}
+                                <span class="text-yellow-600">⏳ Incomplete</span>
+                            {% else %}
+                                <span class="text-gray-500">{{ progress_data.completion_status|title }}</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="p-4 bg-gray-50 rounded-lg">
+                        <div class="text-sm text-gray-600">Attempts</div>
+                        <div class="text-xl font-semibold">{{ progress_data.attempt_count|default:0 }}</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Attempt Information -->
+            <div class="mb-6">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4">Attempt Information</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="p-4 bg-gray-50 rounded-lg">
+                        <div class="text-sm text-gray-600">Total Attempts</div>
+                        <div class="text-xl font-semibold">{{ progress_data.attempt_count|default:0 }}</div>
+                    </div>
+                    <div class="p-4 bg-gray-50 rounded-lg">
+                        <div class="text-sm text-gray-600">Current Status</div>
+                        <div class="text-xl font-semibold">{{ progress_data.completion_status|title }}</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Action Buttons -->
+            <div class="flex flex-col sm:flex-row gap-4">
+                {% if bookmark_data.can_resume %}
+                    {% if scorm_package.package_type == 'SCORM_1_2' or scorm_package.package_type == 'SCORM_2004' %}
+                        <a href="{% url 'scorm:resume' topic.id %}" class="btn btn-success">
+                            <i class="fas fa-play-circle mr-2"></i>Resume
+                        </a>
+                    {% elif scorm_package.package_type == 'XAPI' %}
+                        <a href="{% url 'scorm:xapi_resume' topic.id %}" class="btn btn-success">
+                            <i class="fas fa-play-circle mr-2"></i>Resume
+                        </a>
+                    {% elif scorm_package.package_type == 'CMI5' %}
+                        <a href="{% url 'scorm:cmi5_resume' topic.id %}" class="btn btn-success">
+                            <i class="fas fa-play-circle mr-2"></i>Resume
+                        </a>
+                    {% endif %}
+                {% endif %}
+                <a href="{% url 'scorm:launch' topic.id %}" class="btn btn-primary">
+                    <i class="fas fa-play mr-2"></i>Launch Again
+                </a>
+                <a href="{% url 'scorm:retake' topic.id %}" class="btn btn-warning">
+                    <i class="fas fa-redo mr-2"></i>Retake
+                </a>
+                <a href="{% url 'courses:topic_view' topic.id %}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left mr-2"></i>Back to Topic
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
