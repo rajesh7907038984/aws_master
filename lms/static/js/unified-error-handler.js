@@ -156,18 +156,11 @@ class UnifiedErrorHandler {
     }
     
     /**
-     * Show user notification
+     * Show user notification - Console logging only, no browser popups
      */
     showUserNotification(message, category) {
-        const notificationType = this.getNotificationType(category);
-        
-        if (typeof showToast === 'function') {
-            showToast(message, notificationType);
-        } else if (typeof alert === 'function') {
-            alert(message);
-        } else {
-            console.warn('No notification system available:', message);
-        }
+        // Only log to console - no browser popups or notifications
+        console.warn(`[${category}] ${message}`);
     }
     
     /**
@@ -270,7 +263,7 @@ class UnifiedErrorHandler {
     handleNetworkError(error) {
         // Check if user is online
         if (!navigator.onLine) {
-            showToast('You are offline. Please check your connection.', 'error');
+            console.warn('You are offline. Please check your connection.');
         }
     }
     
