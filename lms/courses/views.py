@@ -636,7 +636,8 @@ def course_list(request):
                 )
                 
             elif progress_filter == 'completed':
-                # Get all courses without slicing to avoid order_by issues
+                # FIXED: Use a separate queryset to avoid slicing the main queryset
+                # Get all course IDs without evaluating the main queryset
                 all_course_ids = list(courses.values_list('id', flat=True))
                 completed_courses = []
                 
@@ -656,7 +657,11 @@ def course_list(request):
                     if completed_count == total_topics:
                         completed_courses.append(course_id)
                 
-                courses = courses.filter(id__in=completed_courses)
+                # FIXED: Create a new queryset instead of modifying the existing one
+                if completed_courses:
+                    courses = Course.objects.filter(id__in=completed_courses)
+                else:
+                    courses = Course.objects.none()
                 
         except Exception as e:
             logger.warning(f"Error applying progress filter: {str(e)}")
@@ -688,10 +693,12 @@ def course_list(request):
     course_count = courses.count()
     logger.info(f"Total courses found: {course_count}")
     
-    # Log first few courses without slicing the queryset
-    # Get first 5 courses for logging without affecting the main queryset
+    # FIXED: Log first few courses without affecting the main queryset
+    # Create a separate queryset for logging to avoid slicing the main one
     try:
-        first_courses = list(courses.all()[:5])
+        # Use a copy of the queryset for logging
+        logging_queryset = courses.all()
+        first_courses = list(logging_queryset[:5])
         for i, course in enumerate(first_courses):
             logger.info(f"Course {i+1}: ID={course.id}, Title='{course.title}', Active={course.is_active}, Visibility={course.catalog_visibility}")
     except Exception as e:

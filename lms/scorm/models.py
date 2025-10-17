@@ -96,10 +96,19 @@ class ELearningPackage(models.Model):
         return "{} Package: {}".format(self.get_package_type_display(), self.title or self.topic.title)
     
     def extract_package(self):
-        """Extract e-learning package to local media directory"""
+        """Extract e-learning package to local media directory with enhanced error handling"""
         try:
             if not self.package_file:
                 raise ValidationError("No package file to extract")
+            
+            # Enhanced file existence check
+            if not self.package_file.storage.exists(self.package_file.name):
+                error_msg = f"Package file not found in storage: {self.package_file.name}"
+                logger.error(error_msg)
+                self.extraction_error = error_msg
+                self.is_extracted = False
+                self.save()
+                return False
             
             # Auto-detect package type if not set
             if not self.package_type:
@@ -113,6 +122,7 @@ class ELearningPackage(models.Model):
                     self.save()
             
             # Create topic-based directory structure using the custom storage
+            # Note: SCORMS3Storage already has location='elearning', so we don't need to add it again
             topic_dir = "packages/{}".format(self.topic.id)
             
             # Ensure the directory exists using the storage system
@@ -124,56 +134,41 @@ class ELearningPackage(models.Model):
                 self.package_file.storage.delete(temp_file)
             
             # Get the full path for extraction
-            full_topic_dir = self.package_file.storage.path(topic_dir)
+            # For S3 storage, we need to create a local directory for extraction
+            # since we can't extract directly to S3
+            local_media_root = getattr(settings, 'MEDIA_ROOT', None)
+            if local_media_root:
+                full_topic_dir = os.path.join(local_media_root, 'elearning', topic_dir)
+            else:
+                # Fallback to temp directory if no local media root
+                import tempfile
+                full_topic_dir = os.path.join(tempfile.gettempdir(), 'elearning', topic_dir)
+            
+            # Ensure the local extraction directory exists
+            os.makedirs(full_topic_dir, exist_ok=True)
             
             # Extract the ZIP file
-            # Handle case where file might be in S3 but we need local access
-            if hasattr(self.package_file.storage, 'path'):
-                # S3 storage - use path directly
-                zip_path = self.package_file.path
-            else:
-                # Remote storage (S3) - download to temp file first
-                import tempfile
-                import io
-                with tempfile.NamedTemporaryFile(suffix='.zip', delete=False) as temp_file:
+            # For S3 storage, we need to download the file to a temporary location first
+            import tempfile
+            import io
+            
+            # Create a temporary file for the ZIP
+            with tempfile.NamedTemporaryFile(suffix='.zip', delete=False) as temp_file:
+                try:
                     # Download from S3 to temp file
-                    # Handle both file-like objects and bytes properly
-                    try:
-                        # Try to open as file-like object first
-                        with self.package_file.open('rb') as source:
-                            content = source.read()
-                            temp_file.write(content)
-                    except (AttributeError, TypeError) as e:
-                        # If that fails, handle different cases
-                        if hasattr(self.package_file, 'read'):
-                            # It's a file-like object
-                            content = self.package_file.read()
-                            temp_file.write(content)
-                        elif isinstance(self.package_file, bytes):
-                            # It's already bytes
-                            temp_file.write(self.package_file)
-                        else:
-                            # Try to get the file content another way
-                            try:
-                                # For Django FileField, try to get the file content
-                                if hasattr(self.package_file, 'file'):
-                                    content = self.package_file.file.read()
-                                    temp_file.write(content)
-                                else:
-                                    # Last resort: try to read as bytes
-                                    content = bytes(self.package_file)
-                                    temp_file.write(content)
-                            except Exception as inner_e:
-                                logger.error("Error reading package file: {}".format(str(inner_e)))
-                                raise ValidationError("Could not read package file: {}".format(str(inner_e)))
-                    zip_path = temp_file.name
+                    with self.package_file.open('rb') as source:
+                        content = source.read()
+                        temp_file.write(content)
+                except Exception as e:
+                    logger.error("Error reading package file from S3: {}".format(str(e)))
+                    raise ValidationError("Could not read package file from S3: {}".format(str(e)))
+                zip_path = temp_file.name
             
             with zipfile.ZipFile(zip_path, 'r') as zip_ref:
                 zip_ref.extractall(full_topic_dir)
             
-            # Clean up temp file if we created one
-            if not hasattr(self.package_file.storage, 'path'):
-                os.unlink(zip_path)
+            # Clean up temp file
+            os.unlink(zip_path)
             
             # Find and parse the manifest based on package type
             manifest_path = self._find_manifest(full_topic_dir)
@@ -188,7 +183,7 @@ class ELearningPackage(models.Model):
                 logger.info(f"SCORM: Launch file detected: {self.launch_file} for package type {self.package_type}")
             else:
                 logger.warning(f"SCORM: No launch file found for package type {self.package_type}")
-            self.extracted_path = topic_dir  # Store relative path
+            self.extracted_path = f"elearning/{topic_dir}"  # Store relative path with elearning prefix
             self.is_extracted = True
             self.extraction_error = ""
             self.save()
@@ -336,7 +331,7 @@ class ELearningPackage(models.Model):
                         self.title = line.split('=')[1].strip() if '=' in line else ""
     
     def _find_launch_file(self, base_path):
-        """Find the main launch file based on package type with intelligent priority selection"""
+        """Find the main launch file based on package type with enhanced priority selection"""
         launch_files = []
         
         if self.package_type in ['SCORM_1_2', 'SCORM_2004']:

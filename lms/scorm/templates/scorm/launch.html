@@ -211,7 +211,8 @@ var API = {
         return {
             'X-SCORM-User-ID': this.user_id,
             'X-SCORM-Session-ID': this.session_key,
-            'X-Requested-With': 'XMLHttpRequest'
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': this.getCSRFToken()
         };
     },
     
@@ -1035,7 +1036,7 @@ var API = {
         
         // ENHANCED: Add timeout and better error handling
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+        const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
         
         fetch(this.commit_url, {
             method: 'POST',
@@ -1066,7 +1067,7 @@ var API = {
                 console.log(`SCORM API: Retrying ${element} (attempt ${retryCount + 1})`);
                 setTimeout(() => {
                     this.sendElementToServer(element, value, retryCount + 1);
-                }, 1000 * (retryCount + 1)); // Exponential backoff
+                }, 2000 * (retryCount + 1)); // Exponential backoff with longer delays
             } else {
                 this.setError(101, "Network error: " + error.message);
                 this.queueForOffline(element, value);

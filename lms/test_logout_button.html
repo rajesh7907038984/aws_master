@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Logout Button Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        button { padding: 10px 15px; margin: 5px; cursor: pointer; }
+        #logout-form { display: inline-block; }
+    </style>
+</head>
+<body>
+    <h1>Logout Button Test</h1>
+    
+    <div class="test-section">
+        <h3>Test 1: Basic Logout Form</h3>
+        <form action="/logout/" method="POST" id="logout-form">
+            <input type="hidden" name="csrfmiddlewaretoken" value="test-token">
+            <button type="submit" id="logout-button">Logout</button>
+        </form>
+        <p>Click the logout button above to test form submission.</p>
+    </div>
+    
+    <div class="test-section">
+        <h3>Test 2: JavaScript Event Interference</h3>
+        <p>This simulates the JavaScript event listeners that were causing issues:</p>
+        <button id="test-button">Test Button (with preventDefault)</button>
+        <button id="test-button-2">Test Button (without preventDefault)</button>
+    </div>
+    
+    <div class="test-section">
+        <h3>Test Results</h3>
+        <div id="results"></div>
+    </div>
+
+    <script>
+        // Simulate the problematic event listeners
+        document.addEventListener('click', function(e) {
+            // This was the problem - preventing ALL clicks
+            if (e.target.id === 'test-button') {
+                e.preventDefault();
+                e.stopPropagation();
+                addResult('❌ Test button click was prevented (this was the problem)');
+            }
+        });
+        
+        // Fixed version - only prevent for non-form elements
+        document.addEventListener('click', function(e) {
+            if (e.target.id === 'test-button-2') {
+                // Don't interfere with form submissions or submit buttons
+                if (e.target.type === 'submit' || e.target.closest('form') || e.target.tagName === 'BUTTON' && e.target.type === 'submit') {
+                    addResult('✅ Form submission would be allowed');
+                    return;
+                }
+                e.preventDefault();
+                e.stopPropagation();
+                addResult('✅ Non-form click was handled correctly');
+            }
+        });
+        
+        // Test logout form submission
+        document.getElementById('logout-form').addEventListener('submit', function(e) {
+            addResult('✅ Logout form submit event fired');
+        });
+        
+        document.getElementById('logout-button').addEventListener('click', function(e) {
+            addResult('✅ Logout button click event fired');
+        });
+        
+        function addResult(message) {
+            const results = document.getElementById('results');
+            const div = document.createElement('div');
+            div.textContent = new Date().toLocaleTimeString() + ': ' + message;
+            results.appendChild(div);
+        }
+        
+        addResult('✅ Test page loaded successfully');
+    </script>
+</body>
+</html>

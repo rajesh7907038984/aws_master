@@ -566,6 +566,7 @@ function initFormChangeDetection() {
         
         const descriptionField = form.querySelector('#id_description') || form.querySelector('[name="description"]');
         if (descriptionField) {
+            console.log('Description field found:', {
                 id: descriptionField.id,
                 name: descriptionField.name,
                 tagName: descriptionField.tagName,

@@ -47,6 +47,9 @@ class SCORMS3Storage(S3Boto3Storage):
     
     def path(self, name):
         """Return the S3 key path (not a local path)"""
+        # Avoid double prefixing if name already includes the location
+        if name.startswith(f"{self.location}/"):
+            return name
         return f"{self.location}/{name}"
     
     def exists(self, name):

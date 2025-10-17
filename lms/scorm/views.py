@@ -143,8 +143,7 @@ def scorm_launch(request, topic_id):
     return render(request, 'scorm/launch.html', context)
 
 def scorm_content(request, topic_id, file_path):
-    """Serve SCORM content files"""
-    # ENHANCED AUTHENTICATION FOR SCORM CONTENT - FIXED FOR IFRAME SCENARIOS
+    """Serve SCORM content files with enhanced authentication"""
     user = None
     
     # Method 1: Standard authentication
@@ -163,26 +162,38 @@ def scorm_content(request, topic_id, file_path):
             logger.info(f"SCORM Content: User authenticated via session: {user.username}")
         except User.DoesNotExist:
             logger.warning(f"SCORM Content: Invalid session user ID: {request.session.get('_auth_user_id')}")
-            raise Http404("Invalid session")
     
     # Method 3: Check for referer header (for iframe content)
     elif request.META.get('HTTP_REFERER'):
         referer = request.META.get('HTTP_REFERER', '')
-        if 'scorm/launch' in referer:
-            # If coming from SCORM launch, try to get user from session
-            if request.session.get('_auth_user_id'):
-                try:
-                    from django.contrib.auth import get_user_model
-                    User = get_user_model()
-                    user = User.objects.get(id=request.session.get('_auth_user_id'))
-                    request.user = user
-                    logger.info(f"SCORM Content: User authenticated via referer: {user.username}")
-                except User.DoesNotExist:
-                    pass
+        if 'scorm/launch' in referer and request.session.get('_auth_user_id'):
+            try:
+                from django.contrib.auth import get_user_model
+                User = get_user_model()
+                user = User.objects.get(id=request.session.get('_auth_user_id'))
+                request.user = user
+                logger.info(f"SCORM Content: User authenticated via referer: {user.username}")
+            except User.DoesNotExist:
+                pass
+    
+    # Method 4: Check for SCORM-specific headers
+    elif request.META.get('HTTP_X_SCORM_USER_ID'):
+        try:
+            from django.contrib.auth import get_user_model
+            User = get_user_model()
+            user = User.objects.get(id=request.META.get('HTTP_X_SCORM_USER_ID'))
+            request.user = user
+            logger.info(f"SCORM Content: User authenticated via header: {user.username}")
+        except (User.DoesNotExist, ValueError):
+            logger.warning(f"SCORM Content: Invalid header user ID: {request.META.get('HTTP_X_SCORM_USER_ID')}")
     
     if not user:
         logger.warning(f"SCORM Content: No authentication found for topic {topic_id}, file {file_path}")
-        raise Http404("Authentication required")
+        # Return 401 for API calls, redirect for browser requests
+        if request.META.get('HTTP_ACCEPT', '').startswith('application/json'):
+            return JsonResponse({'error': 'Authentication required'}, status=401)
+        else:
+            return redirect('login')
     
     topic = get_object_or_404(Topic, id=topic_id)
     
@@ -198,44 +209,34 @@ def scorm_content(request, topic_id, file_path):
     if not elearning_package.is_extracted:
         raise Http404("SCORM package not extracted")
     
-    # Construct the full file path using the storage system
-    if elearning_package.package_file.storage.exists(elearning_package.extracted_path):
-        # Try the direct path first
-        full_path = os.path.join(elearning_package.package_file.storage.path(elearning_package.extracted_path), file_path)
-        logger.info(f"SCORM Content: Trying direct path: {full_path}")
-        
-        # If not found, try different directory structures
-        if not os.path.exists(full_path):
-            # Try scormdriver directory (where goodbye.html is located)
-            scormdriver_path = os.path.join(elearning_package.package_file.storage.path(elearning_package.extracted_path), 'scormdriver', file_path)
-            logger.info(f"SCORM Content: Trying scormdriver path: {scormdriver_path}")
-            if os.path.exists(scormdriver_path):
-                full_path = scormdriver_path
-                logger.info(f"SCORM Content: Found file at scormdriver path: {full_path}")
-            else:
-                # Try with scormcontent prefix (common for Articulate)
-                scormcontent_path = os.path.join(elearning_package.package_file.storage.path(elearning_package.extracted_path), 'scormcontent', file_path)
-                logger.info(f"SCORM Content: Trying scormcontent path: {scormcontent_path}")
-                if os.path.exists(scormcontent_path):
-                    full_path = scormcontent_path
-                    logger.info(f"SCORM Content: Found file at scormcontent path: {full_path}")
-                else:
-                    # Try other common SCORM content directories
-                    for content_dir in ['content', 'data', 'story_content']:
-                        alt_path = os.path.join(elearning_package.package_file.storage.path(elearning_package.extracted_path), content_dir, file_path)
-                        logger.info(f"SCORM Content: Trying {content_dir} path: {alt_path}")
-                        if os.path.exists(alt_path):
-                            full_path = alt_path
-                            logger.info(f"SCORM Content: Found file at {content_dir} path: {full_path}")
-                            break
+    # Simplified file path resolution
+    local_media_root = getattr(settings, 'MEDIA_ROOT', None)
+    if local_media_root:
+        extracted_base_path = os.path.join(local_media_root, elearning_package.extracted_path)
     else:
-        raise Http404("SCORM package not found")
+        import tempfile
+        extracted_base_path = os.path.join(tempfile.gettempdir(), elearning_package.extracted_path)
+    
+    # Try direct path first
+    full_path = os.path.join(extracted_base_path, file_path)
+    logger.info(f"SCORM Content: Trying direct path: {full_path}")
+    
+    # If not found, try common SCORM directories
+    if not os.path.exists(full_path):
+        for content_dir in ['', 'scormcontent', 'scormdriver', 'content', 'data', 'story_content']:
+            alt_path = os.path.join(extracted_base_path, content_dir, file_path)
+            logger.info(f"SCORM Content: Trying {content_dir} path: {alt_path}")
+            if os.path.exists(alt_path):
+                full_path = alt_path
+                logger.info(f"SCORM Content: Found file at {content_dir} path: {full_path}")
+                break
     
     if not os.path.exists(full_path):
+        logger.error(f"SCORM Content: File not found: {file_path} in {extracted_base_path}")
         raise Http404("File not found")
     
-    # Determine content type with proper MIME types for Articulate
-    content_type = 'text/html'
+    # Enhanced MIME type detection
+    content_type = 'text/html'  # Default
     if file_path.endswith('.css'):
         content_type = 'text/css'
     elif file_path.endswith('.js'):
@@ -262,6 +263,16 @@ def scorm_content(request, topic_id, file_path):
         content_type = 'application/vnd.ms-fontobject'
     elif file_path.endswith('.otf'):
         content_type = 'font/otf'
+    elif file_path.endswith('.mp4'):
+        content_type = 'video/mp4'
+    elif file_path.endswith('.webm'):
+        content_type = 'video/webm'
+    elif file_path.endswith('.ogg'):
+        content_type = 'video/ogg'
+    elif file_path.endswith('.mp3'):
+        content_type = 'audio/mpeg'
+    elif file_path.endswith('.wav'):
+        content_type = 'audio/wav'
     
     # Read and serve the file
     try:
@@ -788,6 +799,11 @@ if (typeof window.API === 'undefined') {{
             response['Pragma'] = 'no-cache'
             response['Expires'] = '0'
         
+        # Add CORS headers for SCORM content
+        response['Access-Control-Allow-Origin'] = '*'
+        response['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
+        response['Access-Control-Allow-Headers'] = 'Content-Type, X-Requested-With, X-CSRFToken, X-SCORM-User-ID'
+        
         return response
         
     except Exception as e:
@@ -843,6 +859,17 @@ def scorm_api(request, topic_id):
                     pass
     
     # Method 5: Check for SCORM-specific headers
+    elif request.META.get('HTTP_X_SCORM_USER_ID'):
+        try:
+            from django.contrib.auth import get_user_model
+            User = get_user_model()
+            user = User.objects.get(id=request.META.get('HTTP_X_SCORM_USER_ID'))
+            request.user = user
+            logger.info(f"SCORM API: User authenticated via SCORM header: {user.username}")
+        except (User.DoesNotExist, ValueError):
+            logger.warning(f"SCORM API: Invalid SCORM header user ID: {request.META.get('HTTP_X_SCORM_USER_ID')}")
+    
+    # Method 6: Check for AJAX requests
     elif request.META.get('HTTP_X_REQUESTED_WITH') == 'XMLHttpRequest':
         if request.session.get('_auth_user_id'):
             try:
@@ -2907,8 +2934,14 @@ def validate_elearning_package_endpoint(request, topic_id):
                 'package_type': package.package_type
             })
         
-        # Get package path
-        package_path = package.package_file.storage.path(package.extracted_path)
+        # Get package path - use local media directory for extracted content
+        local_media_root = getattr(settings, 'MEDIA_ROOT', None)
+        if local_media_root:
+            package_path = os.path.join(local_media_root, package.extracted_path)
+        else:
+            # Fallback to temp directory if no local media root
+            import tempfile
+            package_path = os.path.join(tempfile.gettempdir(), package.extracted_path)
         
         # Validate package
         is_valid = validate_elearning_package(package_path, package.package_type)

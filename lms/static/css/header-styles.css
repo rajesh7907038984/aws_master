@@ -305,16 +305,16 @@ header .flex-1.md\:hidden {
 
 /* Hidden state - controlled by JavaScript */
 #profile-dropdown.hidden {
-    display: none !important;
-    visibility: hidden !important;
-    opacity: 0 !important;
+    display: none;
+    visibility: hidden;
+    opacity: 0;
 }
 
 /* Visible state - controlled by JavaScript */
 #profile-dropdown:not(.hidden) {
-    display: block !important;
-    visibility: visible !important;
-    opacity: 1 !important;
+    display: block;
+    visibility: visible;
+    opacity: 1;
 }
 
 #profile-dropdown a,
