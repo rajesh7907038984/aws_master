@@ -20,6 +20,15 @@
     <!-- Standardized API Client - 100% Frontend-Backend Alignment -->
     <script src="{% static 'js/standardized-api-client.js' %}"></script>
     
+    <!-- Unified Error Handler - 100% Frontend-Backend Alignment -->
+    <script src="{% static 'js/unified-error-handler.js' %}"></script>
+    
+    <!-- Unified Validation System - 100% Frontend-Backend Alignment -->
+    <script src="{% static 'js/unified-validation-system.js' %}"></script>
+    
+    <!-- Performance Optimizer - 100% Frontend-Backend Alignment -->
+    <script src="{% static 'js/performance-optimizer.js' %}"></script>
+    
     <!-- Enhanced Fetch with CSRF handling - wraps all fetch calls -->
     <script src="{% static 'js/csrf-enhanced-fetch.js' %}"></script>
     
@@ -126,7 +135,7 @@
         window.userAuthenticated = {% if user.is_authenticated %}true{% else %}false{% endif %};
         window.userName = "{{ user.username|escapejs }}";
         window.userRole = "{{ user.role|default:'anonymous'|escapejs }}";
-        window.userBranch = "{{ user.branch.name|default:'none'|escapejs }}";
+        window.userBranch = "{% if user.branch %}{{ user.branch.name|escapejs }}{% else %}none{% endif %}";
     </script>
     
     <!-- Favicon -->
@@ -283,6 +292,8 @@
     <link href="{% static 'courses/css/course_create.css' %}" rel="stylesheet" type="text/css">
     <!-- Font Awesome fixes and fallbacks -->
     <link href="{% static 'core/css/font-awesome-fixes.css' %}" rel="stylesheet" type="text/css">
+    <!-- Unified Button System -->
+    <link href="{% static 'css/unified-button-system.css' %}" rel="stylesheet" type="text/css">
     <!-- Sidebar styles handled by sidebar-unified.css -->
     <link href="{% static 'css/styles.css' %}" rel="stylesheet" type="text/css">
     <link href="{% static 'css/dashboard-shared.css' %}" rel="stylesheet" type="text/css">
@@ -314,7 +325,7 @@
                 left: 0;
                 width: 100%;
                 height: calc(100vh - 4rem);
-                background-color: #1C2260;
+                background-color: var(--brand-primary);
                 z-index: 40;
                 transform: translateX(-100%);
                 transition: transform 0.3s ease;

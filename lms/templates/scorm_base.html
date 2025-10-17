@@ -50,7 +50,7 @@
         window.userAuthenticated = {% if user.is_authenticated %}true{% else %}false{% endif %};
         window.userName = "{{ user.username|escapejs }}";
         window.userRole = "{{ user.role|default:'anonymous'|escapejs }}";
-        window.userBranch = "{{ user.branch.name|default:'none'|escapejs }}";
+        window.userBranch = "{% if user.branch %}{{ user.branch.name|escapejs }}{% else %}none{% endif %}";
     </script>
     
     <!-- CSRF token setup -->
