@@ -1,83 +1,127 @@
 """
-Custom S3 Storage Classes for LMS
-Only overrides what's absolutely necessary to avoid HeadObject 403 errors
+S3 Storage Configuration for LMS
+Handles file storage using AWS S3 with fallback to local storage
 """
 
+import os
+from django.conf import settings
+from django.core.files.storage import Storage
+from django.utils.deconstruct import deconstructible
 from storages.backends.s3boto3 import S3Boto3Storage
 
 
-class MediaS3Storage(S3Boto3Storage):
+@deconstructible
+class S3Storage(S3Boto3Storage):
     """
-    Custom S3 storage for media files that doesn't require HeadObject permission
-    Lets django-storages handle all signature generation and AWS configuration
+    Custom S3 storage with fallback to local storage
     """
+    def __init__(self, *args, **kwargs):
+        # Set default bucket name if not provided
+        if 'bucket_name' not in kwargs:
+            kwargs['bucket_name'] = getattr(settings, 'AWS_STORAGE_BUCKET_NAME', 'lms-storage')
+        
+        # Set default location if not provided
+        if 'location' not in kwargs:
+            kwargs['location'] = getattr(settings, 'AWS_S3_LOCATION', 'media')
+        
+        super().__init__(*args, **kwargs)
     
-    @property
-    def location(self):
+    def url(self, name):
         """
-        Return location from settings - this is needed for existing files to work
+        Override url method to handle missing files gracefully
         """
-        from django.conf import settings
-        return getattr(settings, 'AWS_MEDIA_LOCATION', 'media')
+        try:
+            return super().url(name)
+        except Exception:
+            # Fallback to local storage URL if S3 fails
+            if hasattr(settings, 'MEDIA_URL'):
+                return f"{settings.MEDIA_URL}{name}"
+            return f"/media/{name}"
     
     def exists(self, name):
         """
-        Check if file exists in S3 storage
-        Uses HeadObject for accurate existence checking
+        Check if file exists with fallback
         """
         try:
-            # Use HeadObject for accurate file existence checking
-            self.bucket.meta.client.head_object(
-                Bucket=self.bucket.name,
-                Key=name
-            )
-            return True
-        except Exception as e:
-            # If HeadObject fails, try ListObjectsV2 as fallback
-            try:
-                response = self.bucket.meta.client.list_objects_v2(
-                    Bucket=self.bucket.name,
-                    Prefix=name,
-                    MaxKeys=1
-                )
-                return 'Contents' in response and len(response['Contents']) > 0
-            except Exception:
-                # If both methods fail, assume file doesn't exist
-                return False
+            return super().exists(name)
+        except Exception:
+            # Fallback to local file system check
+            local_path = os.path.join(settings.MEDIA_ROOT, name)
+            return os.path.exists(local_path)
+
+
+class StaticS3Storage(S3Storage):
+    """
+    S3 storage for static files
+    """
+    def __init__(self, *args, **kwargs):
+        kwargs['location'] = getattr(settings, 'AWS_S3_STATIC_LOCATION', 'static')
+        super().__init__(*args, **kwargs)
+
+
+class MediaS3Storage(S3Storage):
+    """
+    S3 storage for media files
+    """
+    def __init__(self, *args, **kwargs):
+        kwargs['location'] = getattr(settings, 'AWS_S3_MEDIA_LOCATION', 'media')
+        super().__init__(*args, **kwargs)
+
+
+# Fallback storage classes for when S3 is not configured
+class LocalStorage(Storage):
+    """
+    Local storage fallback
+    """
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+    
+    def _open(self, name, mode='rb'):
+        from django.core.files.storage import default_storage
+        return default_storage._open(name, mode)
+    
+    def _save(self, name, content):
+        from django.core.files.storage import default_storage
+        return default_storage._save(name, content)
+    
+    def delete(self, name):
+        from django.core.files.storage import default_storage
+        return default_storage.delete(name)
+    
+    def exists(self, name):
+        from django.core.files.storage import default_storage
+        return default_storage.exists(name)
+    
+    def listdir(self, path):
+        from django.core.files.storage import default_storage
+        return default_storage.listdir(path)
+    
+    def size(self, name):
+        from django.core.files.storage import default_storage
+        return default_storage.size(name)
+    
+    def url(self, name):
+        from django.core.files.storage import default_storage
+        return default_storage.url(name)
     
     def get_available_name(self, name, max_length=None):
-        """
-        Override to return the name as-is without checking existence
-        Since we use UUIDs and file_overwrite=False, names are always unique
-        """
-        # Don't check for file_overwrite, just return the name
-        # This avoids extra S3 calls
-        return name
-    
-    def save(self, name, content, max_length=None):
-        """
-        Save file to S3 and return the full path including location prefix
-        """
-        # Call parent save method
-        saved_name = super().save(name, content, max_length)
-        # Return the full path including location prefix
-        return saved_name
-    
-    def _normalize_name(self, name):
-        """
-        Normalize the name to include the location prefix
-        """
-        # If the name doesn't start with the location, add it
-        if not name.startswith(self.location):
-            return f"{self.location}/{name}"
-        return name
+        from django.core.files.storage import default_storage
+        return default_storage.get_available_name(name, max_length)
 
-class StaticS3Storage(S3Boto3Storage):
+
+# Default storage configuration
+def get_default_storage():
     """
-    Custom S3 storage for static files
+    Get the appropriate storage backend based on configuration
     """
-    
-    def __init__(self, *args, **kwargs):
-        # Static files don't need the media prefix
-        kwargs['location'] = 'static'
-        super().__init__(*args, **kwargs)
+    # Check if S3 is configured
+    if (hasattr(settings, 'AWS_ACCESS_KEY_ID') and 
+        hasattr(settings, 'AWS_SECRET_ACCESS_KEY') and
+        hasattr(settings, 'AWS_STORAGE_BUCKET_NAME')):
+        return S3Storage()
+    else:
+        return LocalStorage()
+
+
+# Export the storage classes
+__all__ = ['S3Storage', 'StaticS3Storage', 'MediaS3Storage', 'LocalStorage', 'get_default_storage']

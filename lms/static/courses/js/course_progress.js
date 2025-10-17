@@ -72,8 +72,8 @@ function initCourseProgress() {
     // Load initial progress data
     loadProgressData();
     
-    // Set up periodic refresh (every 30 seconds for reasonable balance between updates and performance)
-    setInterval(loadProgressData, 30000);
+    // Auto-refresh removed - progress data will be loaded on page load and manual refresh
+    // Users can manually refresh the page if needed
     
     function loadProgressData() {
         fetch(`/courses/${courseId}/progress/api/`)

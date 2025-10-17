@@ -15,6 +15,6 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='elearningpackage',
             name='package_file',
-            field=models.FileField(help_text='The e-learning package ZIP file', storage=scorm.storage.SCORMLocalStorage(), upload_to=scorm.models.elearning_package_path),
+            field=models.FileField(help_text='The e-learning package ZIP file', storage=scorm.storage.SCORMS3Storage(), upload_to=scorm.models.elearning_package_path),
         ),
     ]

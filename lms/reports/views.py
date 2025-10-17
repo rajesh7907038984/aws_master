@@ -947,6 +947,7 @@ class LearningActivitiesView(LoginRequiredMixin, TemplateView):
                 # Global Admin can see all topics
                 activities = Topic.objects.all()
                 progress_base_query = TopicProgress.objects.all()
+                scorm_base_query = ELearningTracking.objects.all()
             elif user.role == 'superadmin':
                 # Super Admin can see topics from courses in their assigned businesses
                 from core.utils.business_filtering import filter_courses_by_business
@@ -955,6 +956,9 @@ class LearningActivitiesView(LoginRequiredMixin, TemplateView):
                 progress_base_query = TopicProgress.objects.filter(
                     topic__coursetopic__course__in=accessible_courses
                 ).distinct()
+                scorm_base_query = ELearningTracking.objects.filter(
+                    elearning_package__topic__coursetopic__course__in=accessible_courses
+                ).distinct()
             elif user.role == 'admin':
                 # Branch Admin can only see topics from their branch
                 if user.branch:
@@ -962,9 +966,13 @@ class LearningActivitiesView(LoginRequiredMixin, TemplateView):
                     progress_base_query = TopicProgress.objects.filter(
                         topic__coursetopic__course__branch=user.branch
                     ).distinct()
+                    scorm_base_query = ELearningTracking.objects.filter(
+                        elearning_package__topic__coursetopic__course__branch=user.branch
+                    ).distinct()
                 else:
                     activities = Topic.objects.none()
                     progress_base_query = TopicProgress.objects.none()
+                    scorm_base_query = ELearningTracking.objects.none()
             elif user.role == 'instructor':
                 # Instructor can see topics from courses they teach or from their branch
                 if user.branch:
@@ -976,15 +984,23 @@ class LearningActivitiesView(LoginRequiredMixin, TemplateView):
                         Q(topic__coursetopic__course__instructor=user) |
                         Q(topic__coursetopic__course__branch=user.branch)
                     ).distinct()
+                    scorm_base_query = ELearningTracking.objects.filter(
+                        Q(elearning_package__topic__coursetopic__course__instructor=user) |
+                        Q(elearning_package__topic__coursetopic__course__branch=user.branch)
+                    ).distinct()
                 else:
                     activities = Topic.objects.filter(coursetopic__course__instructor=user).distinct()
                     progress_base_query = TopicProgress.objects.filter(
                         topic__coursetopic__course__instructor=user
                     ).distinct()
+                    scorm_base_query = ELearningTracking.objects.filter(
+                        elearning_package__topic__coursetopic__course__instructor=user
+                    ).distinct()
             else:
                 # Other roles have no access
                 activities = Topic.objects.none()
                 progress_base_query = TopicProgress.objects.none()
+                scorm_base_query = ELearningTracking.objects.none()
             
             # Apply search filter if provided
             if search_query:
@@ -994,10 +1010,19 @@ class LearningActivitiesView(LoginRequiredMixin, TemplateView):
             activity_data = []
             for topic in activities:
                 topic_progress = progress_base_query.filter(topic=topic)
+                scorm_tracking = scorm_base_query.filter(elearning_package__topic=topic)
                 
                 # Calculate basic progress statistics
                 total_progress = topic_progress.count()
                 completed = topic_progress.filter(completed=True).count()
+                
+                # Add SCORM tracking statistics
+                scorm_total = scorm_tracking.count()
+                scorm_completed = scorm_tracking.filter(completion_status='completed').count()
+                
+                # Combined statistics
+                total_attempts = total_progress + scorm_total
+                total_completed = completed + scorm_completed
                 
                 # Check if this is removed content
                 is_removed = hasattr(topic, 'removed_content') and topic.removed_content is not None
@@ -1007,7 +1032,7 @@ class LearningActivitiesView(LoginRequiredMixin, TemplateView):
                     removed_progress = topic_progress.filter(progress_data__isnull=False)
                     in_progress = 0
                     not_passed = 0
-                    not_attempted = total_progress - completed
+                    not_attempted = total_attempts - total_completed
                     
                     # Calculate average score with proper removed score normalization
                     from core.utils.scoring import ScoreCalculationService
@@ -1024,25 +1049,36 @@ class LearningActivitiesView(LoginRequiredMixin, TemplateView):
                     # Standard content progress calculation
                     in_progress = topic_progress.filter(completed=False, last_score__gt=0).count()
                     not_passed = topic_progress.filter(completed=False, last_score=0).count()
-                    not_attempted = total_progress - completed - in_progress - not_passed
+                    not_attempted = total_attempts - total_completed - in_progress - not_passed
                     
-                    # Calculate average score with new SCORM implementation
-                    scores = topic_progress.exclude(last_score__isnull=True)
-                    normalized_scores = []
-                    for progress in scores:
+                    # Calculate average score combining both TopicProgress and SCORM data
+                    all_scores = []
+                    
+                    # Get scores from TopicProgress
+                    topic_scores = topic_progress.exclude(last_score__isnull=True)
+                    for progress in topic_scores:
                         unified_score = get_unified_score(progress)
                         if unified_score is not None and unified_score > 0:
-                            normalized_scores.append(unified_score)
+                            all_scores.append(unified_score)
                     
-                    average_score = sum(normalized_scores) / len(normalized_scores) if normalized_scores else 0
+                    # Get scores from SCORM tracking
+                    for tracking in scorm_tracking:
+                        scorm_score = tracking.get_score_percentage()
+                        if scorm_score is not None and scorm_score > 0:
+                            all_scores.append(scorm_score)
+                    
+                    average_score = sum(all_scores) / len(all_scores) if all_scores else 0
                 
                 activity_data.append({
                     'topic': topic,
-                    'completed': completed,
+                    'completed': total_completed,
                     'in_progress': in_progress,
                     'not_passed': not_passed,
                     'not_attempted': not_attempted,
                     'average_score': round(average_score, 1),
+                    'has_scorm_data': scorm_total > 0,  # Flag to indicate SCORM data exists
+                    'scorm_completed': scorm_completed,
+                    'scorm_total': scorm_total,
                 })
             
             # Pagination
@@ -3805,7 +3841,10 @@ def user_detail_report(request, user_id):
     # Get topic progress only for courses the user is enrolled in
     # Include course information for each topic
     enrolled_course_ids = CourseEnrollment.objects.filter(user=user).values_list('course_id', flat=True)
-    topic_progress = TopicProgress.objects.filter(
+    print(f"DEBUG: Enrolled course IDs: {list(enrolled_course_ids)}")
+    
+    # Get regular topic progress
+    regular_topic_progress = TopicProgress.objects.filter(
         user=user,
         topic__courses__in=enrolled_course_ids
     ).select_related('topic').annotate(
@@ -3815,38 +3854,113 @@ def user_detail_report(request, user_id):
                 course__in=enrolled_course_ids
             ).values('course__title')[:1]
         )
-    ).distinct().order_by('-last_accessed')
+    ).distinct()
+    
+    print(f"DEBUG: Regular topic progress count: {regular_topic_progress.count()}")
+    
+    # Get SCORM tracking data for the same courses
+    print(f"DEBUG: Starting SCORM tracking query for user {user.id}")
+    from scorm.models import ELearningTracking
+    scorm_tracking = ELearningTracking.objects.filter(
+        user=user,
+        elearning_package__topic__courses__in=enrolled_course_ids
+    ).select_related('elearning_package__topic').annotate(
+        course_title=Subquery(
+            CourseTopic.objects.filter(
+                topic=OuterRef('elearning_package__topic'),
+                course__in=enrolled_course_ids
+            ).values('course__title')[:1]
+        )
+    ).distinct()
+    
+    # Debug logging
+    print(f"DEBUG: SCORM tracking query found {scorm_tracking.count()} records for user {user.id}")
+    for tracking in scorm_tracking:
+        print(f"DEBUG: SCORM tracking: Topic {tracking.elearning_package.topic.title}, Score: {tracking.get_score_percentage()}")
+    
+    # Combine both regular progress and SCORM tracking into a unified list
+    topic_progress = []
+    
+    # Add regular topic progress
+    for progress in regular_topic_progress:
+        progress.is_scorm = False
+        progress.scorm_tracking = None
+        topic_progress.append(progress)
+    
+    # Add SCORM tracking as progress-like objects
+    for tracking in scorm_tracking:
+        try:
+            # Create a progress-like object from SCORM tracking
+            class SCORMProgress:
+                def __init__(self, tracking):
+                    self.topic = tracking.elearning_package.topic
+                    self.user = tracking.user
+                    self.completed = tracking.completion_status == 'completed'
+                    self.last_accessed = tracking.last_launch or tracking.first_launch
+                    self.attempts = tracking.attempt_count
+                    self.total_time_spent = tracking.total_time.total_seconds() if tracking.total_time else 0
+                    self.last_score = tracking.get_score_percentage()
+                    self.course_title = tracking.course_title
+                    self.is_scorm = True
+                    self.scorm_tracking = tracking
+                    
+                def get_progress_percentage(self):
+                    if self.completed:
+                        return 100
+                    elif self.scorm_tracking and self.scorm_tracking.get_progress_percentage():
+                        return self.scorm_tracking.get_progress_percentage()
+                    elif self.attempts > 0:
+                        return 25  # Some progress if attempted
+                    else:
+                        return 0
+                        
+                def get_best_score(self):
+                    return self.last_score
+                    
+                def sync_completion_status(self):
+                    pass  # SCORM tracking handles this internally
+            
+            scorm_progress = SCORMProgress(tracking)
+            topic_progress.append(scorm_progress)
+            logger.info(f"Created SCORMProgress for topic {scorm_progress.topic.title}, score: {scorm_progress.get_best_score()}")
+        except Exception as e:
+            logger.error(f"Error creating SCORMProgress for tracking {tracking.id}: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
+    
+    # Sort by last accessed (most recent first)
+    topic_progress.sort(key=lambda x: x.last_accessed or timezone.now().replace(year=1900), reverse=True)
     
     # Calculate learning activities statistics with improved logic
-    total_activities = topic_progress.count()
-    completed_activities = topic_progress.filter(completed=True).count()
+    total_activities = len(topic_progress)
+    completed_activities = len([p for p in topic_progress if p.completed])
     
     # In progress: not completed but has been accessed recently or has attempts
-    activities_in_progress = topic_progress.filter(
-        completed=False,
-        attempts__gt=0  # Has made at least one attempt
-    ).count()
+    activities_in_progress = len([p for p in topic_progress if not p.completed and p.attempts > 0])
     
     # Not started: not completed and no attempts made
-    activities_not_started = topic_progress.filter(
-        completed=False,
-        attempts=0
-    ).count()
+    activities_not_started = len([p for p in topic_progress if not p.completed and p.attempts == 0])
     
     # Calculate average activity score with robust handling
     # Calculate average activity score
     from core.utils.scoring import ScoreCalculationService
     
-    scored_progress = topic_progress.filter(last_score__isnull=False, last_score__gte=0)
-    scored_activities_count = scored_progress.count()
+    scored_progress = [p for p in topic_progress if p.last_score is not None and p.last_score >= 0]
+    scored_activities_count = len(scored_progress)
     
     if scored_activities_count > 0:
         # Calculate properly normalized scores
         normalized_scores = []
         for progress in scored_progress:
-            normalized_score = ScoreCalculationService.normalize_score(progress.last_score)
-            if normalized_score is not None:
-                normalized_scores.append(float(normalized_score))
+            if hasattr(progress, 'is_scorm') and progress.is_scorm:
+                # For SCORM tracking, use the score directly
+                if progress.last_score is not None:
+                    normalized_scores.append(float(progress.last_score))
+            else:
+                # For regular progress, normalize the score
+                normalized_score = ScoreCalculationService.normalize_score(progress.last_score)
+                if normalized_score is not None:
+                    normalized_scores.append(float(normalized_score))
         
         avg_activity_score = round(sum(normalized_scores) / len(normalized_scores)) if normalized_scores else 0
     else:
@@ -4016,6 +4130,7 @@ def _get_user_report_data(request, user_id):
     Includes data validation, consistency checks, and better error handling.
     """
     try:
+        print(f"DEBUG: _get_user_report_data called for user_id {user_id}")
         user = get_object_or_404(User, id=user_id)
         logger.info(f"Found user: {user.username}")
         

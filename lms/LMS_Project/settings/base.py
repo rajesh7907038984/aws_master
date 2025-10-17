@@ -564,8 +564,12 @@ SECURE_REFERRER_POLICY = 'strict-origin-when-cross-origin'
 
 
 # Note: Individual views can override this with more permissive policies
-SECURE_CONTENT_SECURITY_POLICY = None  # Disable default CSP, let views handle it
+SECURE_CONTENT_SECURITY_POLICY = None  # Disable default CSP, let middleware handle it
 SECURE_CONTENT_SECURITY_POLICY_REPORT_ONLY = False  # Disable CSP report mode
+
+# CSP Configuration for debugging (uncomment to enable CSP violation reporting)
+# CSP_REPORT_URI = '/csp-report/'
+# CSP_REPORT_ONLY = True  # Set to False once issues are resolved
 
 # HTTPS/SSL Session Settings (addressing Django Session warnings)
 SECURE_HSTS_SECONDS = 31536000  # 1 year
@@ -635,7 +639,7 @@ STATICFILES_FINDERS = [
 # This is a fallback for development
 MEDIA_URL = '/media/'
 # Use environment variable for media root (server-independent)
-MEDIA_ROOT = get_env('MEDIA_ROOT', str(BASE_DIR / 'media_local'))  # Fallback for development only
+MEDIA_ROOT = get_env('MEDIA_ROOT', None)  # S3 storage - no local fallback needed
 
 # ==============================================
 # CELERY CONFIGURATION

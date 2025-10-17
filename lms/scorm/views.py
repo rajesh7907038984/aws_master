@@ -79,19 +79,19 @@ def scorm_launch(request, topic_id):
         pass
     
     try:
-        scorm_package = ELearningPackage.objects.get(topic=topic)
+        elearning_package = ELearningPackage.objects.get(topic=topic)
     except ELearningPackage.DoesNotExist:
         messages.error(request, "E-learning package not found.")
         return redirect('courses:topic_view', topic_id=topic_id)
     
-    if not scorm_package.is_extracted:
+    if not elearning_package.is_extracted:
         messages.error(request, "SCORM package is not properly extracted.")
         return redirect('courses:topic_view', topic_id=topic_id)
     
     # Get or create tracking record
     tracking, created = ELearningTracking.objects.get_or_create(
         user=user,
-        elearning_package=scorm_package
+        elearning_package=elearning_package
     )
     
     # Increment attempt count on each launch
@@ -104,7 +104,7 @@ def scorm_launch(request, topic_id):
     tracking.save()
     
     # Get the launch file URL
-    launch_url = scorm_package.get_content_url()
+    launch_url = elearning_package.get_content_url()
     if not launch_url:
         messages.error(request, "SCORM package launch file not found.")
         return redirect('courses:topic_view', topic_id=topic_id)
@@ -131,7 +131,7 @@ def scorm_launch(request, topic_id):
     
     context = {
         'topic': topic,
-        'scorm_package': scorm_package,
+        'elearning_package': elearning_package,
         'launch_url': launch_url,
         'tracking': tracking,
         'user_id': user.id,
@@ -191,30 +191,30 @@ def scorm_content(request, topic_id, file_path):
         raise Http404("Access denied")
     
     try:
-        scorm_package = ELearningPackage.objects.get(topic=topic)
+        elearning_package = ELearningPackage.objects.get(topic=topic)
     except ELearningPackage.DoesNotExist:
         raise Http404("E-learning package not found")
     
-    if not scorm_package.is_extracted:
+    if not elearning_package.is_extracted:
         raise Http404("SCORM package not extracted")
     
     # Construct the full file path using the storage system
-    if scorm_package.package_file.storage.exists(scorm_package.extracted_path):
+    if elearning_package.package_file.storage.exists(elearning_package.extracted_path):
         # Try the direct path first
-        full_path = os.path.join(scorm_package.package_file.storage.path(scorm_package.extracted_path), file_path)
+        full_path = os.path.join(elearning_package.package_file.storage.path(elearning_package.extracted_path), file_path)
         logger.info(f"SCORM Content: Trying direct path: {full_path}")
         
         # If not found, try different directory structures
         if not os.path.exists(full_path):
             # Try scormdriver directory (where goodbye.html is located)
-            scormdriver_path = os.path.join(scorm_package.package_file.storage.path(scorm_package.extracted_path), 'scormdriver', file_path)
+            scormdriver_path = os.path.join(elearning_package.package_file.storage.path(elearning_package.extracted_path), 'scormdriver', file_path)
             logger.info(f"SCORM Content: Trying scormdriver path: {scormdriver_path}")
             if os.path.exists(scormdriver_path):
                 full_path = scormdriver_path
                 logger.info(f"SCORM Content: Found file at scormdriver path: {full_path}")
             else:
                 # Try with scormcontent prefix (common for Articulate)
-                scormcontent_path = os.path.join(scorm_package.package_file.storage.path(scorm_package.extracted_path), 'scormcontent', file_path)
+                scormcontent_path = os.path.join(elearning_package.package_file.storage.path(elearning_package.extracted_path), 'scormcontent', file_path)
                 logger.info(f"SCORM Content: Trying scormcontent path: {scormcontent_path}")
                 if os.path.exists(scormcontent_path):
                     full_path = scormcontent_path
@@ -222,7 +222,7 @@ def scorm_content(request, topic_id, file_path):
                 else:
                     # Try other common SCORM content directories
                     for content_dir in ['content', 'data', 'story_content']:
-                        alt_path = os.path.join(scorm_package.package_file.storage.path(scorm_package.extracted_path), content_dir, file_path)
+                        alt_path = os.path.join(elearning_package.package_file.storage.path(elearning_package.extracted_path), content_dir, file_path)
                         logger.info(f"SCORM Content: Trying {content_dir} path: {alt_path}")
                         if os.path.exists(alt_path):
                             full_path = alt_path
@@ -766,7 +766,7 @@ if (typeof window.API === 'undefined') {{
             # Remove restrictive headers for SCORM content
             response['X-Frame-Options'] = 'SAMEORIGIN'
             # Allow inline scripts and eval for SCORM packages (Articulate requires this)
-            response['Content-Security-Policy'] = "default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob:; frame-src 'self' 'unsafe-inline' 'unsafe-eval'; script-src 'self' 'unsafe-inline' 'unsafe-eval' *.amazonaws.com *.articulate.com *.adobe.com *.captivate.com *.googleapis.com *.gstatic.com; style-src 'self' 'unsafe-inline' *.amazonaws.com fonts.googleapis.com *.gstatic.com; img-src 'self' data: blob: *.amazonaws.com *.articulate.com *.adobe.com *.captivate.com; font-src 'self' *.amazonaws.com fonts.gstatic.com fonts.googleapis.com; media-src 'self' data: blob:; connect-src 'self' *.amazonaws.com metrics.articulate.com *.articulate.com *.adobe.com *.captivate.com https://metrics.articulate.com *.googleapis.com; worker-src 'self' blob:; object-src 'self' data: blob:; base-uri 'self';"
+            response['Content-Security-Policy'] = "default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob:; frame-src 'self' 'unsafe-inline' 'unsafe-eval'; script-src 'self' 'unsafe-inline' 'unsafe-eval' *.amazonaws.com *.s3.amazonaws.com *.articulate.com *.adobe.com *.captivate.com *.googleapis.com *.gstatic.com; style-src 'self' 'unsafe-inline' *.amazonaws.com *.s3.amazonaws.com fonts.googleapis.com *.gstatic.com; img-src 'self' data: blob: *.amazonaws.com *.s3.amazonaws.com *.articulate.com *.adobe.com *.captivate.com; font-src 'self' *.amazonaws.com *.s3.amazonaws.com fonts.gstatic.com fonts.googleapis.com; media-src 'self' data: blob: *.amazonaws.com *.s3.amazonaws.com; connect-src 'self' *.amazonaws.com *.s3.amazonaws.com metrics.articulate.com *.articulate.com *.adobe.com *.captivate.com https://metrics.articulate.com *.googleapis.com; worker-src 'self' blob:; object-src 'self' data: blob:; base-uri 'self';"
             # Additional headers for Articulate content
             response['Cache-Control'] = 'no-cache, no-store, must-revalidate'
             response['Pragma'] = 'no-cache'
@@ -1115,12 +1115,12 @@ def _handle_scorm_get(request, topic_id):
     """Handle SCORM GET requests (Initialize, GetValue) - Enhanced for SCORM 2004"""
     try:
         topic = get_object_or_404(Topic, id=topic_id)
-        scorm_package = get_object_or_404(ELearningPackage, topic=topic)
+        elearning_package = get_object_or_404(ELearningPackage, topic=topic)
         
         # Get tracking record
         tracking, created = ELearningTracking.objects.get_or_create(
             user=request.scorm_user,
-            elearning_package=scorm_package
+            elearning_package=elearning_package
         )
         
         # Get the requested element
@@ -1302,12 +1302,12 @@ def _handle_scorm_post(request, topic_id):
     """Handle SCORM POST requests (Commit, SetValue) - Enhanced for full compliance"""
     try:
         topic = get_object_or_404(Topic, id=topic_id)
-        scorm_package = get_object_or_404(ELearningPackage, topic=topic)
+        elearning_package = get_object_or_404(ELearningPackage, topic=topic)
         
         # Get tracking record
         tracking, created = ELearningTracking.objects.get_or_create(
             user=request.scorm_user,
-            elearning_package=scorm_package
+            elearning_package=elearning_package
         )
         
         # Get the action
@@ -1320,7 +1320,7 @@ def _handle_scorm_post(request, topic_id):
             logger.info(f"SCORM: SetValue request - element: {element}, value: {value} for user {request.scorm_user.id}")
             
             # Package type-specific element validation
-            package_type = scorm_package.package_type
+            package_type = elearning_package.package_type
             
             if package_type == 'SCORM_1_2':
                 valid_elements = [
@@ -1496,6 +1496,12 @@ def _handle_scorm_post(request, topic_id):
                         if not tracking.validate_score():
                             logger.warning(f"SCORM: Score validation warning for user {request.scorm_user.id}: {new_score} (range: {tracking.score_min}-{tracking.score_max})")
                             # Don't fail completely, just log the warning
+                        
+                        # ENHANCED: Check mastery completion after score update
+                        if tracking.student_data_mastery_score and tracking.score_raw is not None:
+                            mastery_achieved = tracking.check_mastery_completion()
+                            if mastery_achieved:
+                                logger.info(f"SCORM: Auto-completed topic {tracking.elearning_package.topic.id} based on mastery score achievement")
                     else:
                         logger.info(f"SCORM: Empty score value received for {element}")
                 except (ValueError, TypeError) as e:
@@ -1646,6 +1652,12 @@ def _handle_scorm_post(request, topic_id):
                         if tracking.completion_status != 'completed':
                             tracking.completion_status = 'completed'
                             logger.info(f"SCORM: Auto-updated completion_status to 'completed' based on progress_measure: {tracking.progress_measure}")
+                    
+                    # ENHANCED: Auto-completion based on mastery score achievement
+                    if tracking.student_data_mastery_score and tracking.score_raw is not None:
+                        mastery_achieved = tracking.check_mastery_completion()
+                        if mastery_achieved:
+                            logger.info(f"SCORM: Auto-completed topic {tracking.elearning_package.topic.id} based on mastery score achievement")
                 except ValueError:
                     logger.warning(f"SCORM: Invalid progress_measure value: {value}")
             elif element == 'cmi.completion_threshold':
@@ -1814,7 +1826,7 @@ def scorm_reports(request, course_id):
     # Since course is a property on Topic, we need to filter through CourseTopic
     from courses.models import CourseTopic
     course_topics = CourseTopic.objects.filter(course=course).values_list('topic', flat=True)
-    scorm_packages = ELearningPackage.objects.filter(
+    elearning_packages = ELearningPackage.objects.filter(
         topic__in=course_topics
     ).select_related('topic')
     
@@ -1825,12 +1837,12 @@ def scorm_reports(request, course_id):
     
     # Calculate statistics
     total_learners = course.enrolled_users.count()
-    scorm_topics = scorm_packages.count()
+    scorm_topics = elearning_packages.count()
     
     completion_stats = {}
     score_stats = {}
     
-    for package in scorm_packages:
+    for package in elearning_packages:
         package_tracking = tracking_data.filter(elearning_package=package)
         completions = package_tracking.filter(completion_status='completed').count()
         
@@ -1868,7 +1880,7 @@ def scorm_reports(request, course_id):
     
     context = {
         'course': course,
-        'scorm_packages': scorm_packages,
+        'elearning_packages': elearning_packages,
         'tracking_data': tracking_data,
         'completion_stats': completion_stats,
         'score_stats': score_stats,
@@ -2162,24 +2174,24 @@ def xapi_launch(request, topic_id):
         return redirect('courses:course_list')
     
     try:
-        scorm_package = ELearningPackage.objects.get(topic=topic)
+        elearning_package = ELearningPackage.objects.get(topic=topic)
     except ELearningPackage.DoesNotExist:
         messages.error(request, "xAPI package not found.")
         return redirect('courses:topic_view', topic_id=topic_id)
     
-    if not scorm_package.is_extracted:
+    if not elearning_package.is_extracted:
         messages.error(request, "xAPI package is not properly extracted.")
         return redirect('courses:topic_view', topic_id=topic_id)
     
     # Generate xAPI launch URL
-    launch_url = scorm_package.get_content_url()
+    launch_url = elearning_package.get_content_url()
     
     logger.info(f"xAPI Launch: User {user.username} launching xAPI package for topic {topic_id}")
     logger.info(f"xAPI Launch: Launch URL: {launch_url}")
     
     return render(request, 'scorm/launch.html', {
         'topic': topic,
-        'scorm_package': scorm_package,
+        'elearning_package': elearning_package,
         'launch_url': launch_url,
         'package_type': 'xAPI'
     })
@@ -2199,24 +2211,24 @@ def cmi5_launch(request, topic_id):
         return redirect('courses:course_list')
     
     try:
-        scorm_package = ELearningPackage.objects.get(topic=topic)
+        elearning_package = ELearningPackage.objects.get(topic=topic)
     except ELearningPackage.DoesNotExist:
         messages.error(request, "cmi5 package not found.")
         return redirect('courses:topic_view', topic_id=topic_id)
     
-    if not scorm_package.is_extracted:
+    if not elearning_package.is_extracted:
         messages.error(request, "cmi5 package is not properly extracted.")
         return redirect('courses:topic_view', topic_id=topic_id)
     
     # Generate cmi5 launch URL
-    launch_url = scorm_package.get_content_url()
+    launch_url = elearning_package.get_content_url()
     
     logger.info(f"cmi5 Launch: User {user.username} launching cmi5 package for topic {topic_id}")
     logger.info(f"cmi5 Launch: Launch URL: {launch_url}")
     
     return render(request, 'scorm/launch.html', {
         'topic': topic,
-        'scorm_package': scorm_package,
+        'elearning_package': elearning_package,
         'launch_url': launch_url,
         'package_type': 'cmi5'
     })
@@ -2235,10 +2247,10 @@ def scorm_result(request, topic_id):
         return redirect('courses:course_list')
     
     try:
-        scorm_package = ELearningPackage.objects.get(topic=topic)
+        elearning_package = ELearningPackage.objects.get(topic=topic)
         scorm_tracking = ELearningTracking.objects.filter(
             user=user,
-            elearning_package=scorm_package
+            elearning_package=elearning_package
         ).first()
         
         if not scorm_tracking:
@@ -2371,7 +2383,7 @@ def scorm_result(request, topic_id):
         context = {
             'topic': topic,
             'course': topic.course,
-            'scorm_package': scorm_package,
+            'elearning_package': elearning_package,
             'scorm_tracking': scorm_tracking,
             'progress_data': progress_data,
             'progress_percentage': progress_percentage,
@@ -2403,13 +2415,13 @@ def scorm_retake(request, topic_id):
         return redirect('courses:course_list')
     
     try:
-        scorm_package = ELearningPackage.objects.get(topic=topic)
+        elearning_package = ELearningPackage.objects.get(topic=topic)
         
         with transaction.atomic():
             # Get or create tracking record
             scorm_tracking, created = ELearningTracking.objects.get_or_create(
                 user=user,
-                elearning_package=scorm_package,
+                elearning_package=elearning_package,
                 defaults={
                     'completion_status': 'not attempted',
                     'success_status': 'unknown',
@@ -2475,10 +2487,10 @@ def scorm_resume(request, topic_id):
         return redirect('courses:course_list')
     
     try:
-        scorm_package = ELearningPackage.objects.get(topic=topic)
+        elearning_package = ELearningPackage.objects.get(topic=topic)
         scorm_tracking = ELearningTracking.objects.filter(
             user=user,
-            elearning_package=scorm_package
+            elearning_package=elearning_package
         ).first()
         
         if not scorm_tracking:
@@ -2521,10 +2533,10 @@ def xapi_resume(request, topic_id):
         return redirect('courses:course_list')
     
     try:
-        scorm_package = ELearningPackage.objects.get(topic=topic)
+        elearning_package = ELearningPackage.objects.get(topic=topic)
         scorm_tracking = ELearningTracking.objects.filter(
             user=user,
-            elearning_package=scorm_package
+            elearning_package=elearning_package
         ).first()
         
         if not scorm_tracking:
@@ -2567,10 +2579,10 @@ def cmi5_resume(request, topic_id):
         return redirect('courses:course_list')
     
     try:
-        scorm_package = ELearningPackage.objects.get(topic=topic)
+        elearning_package = ELearningPackage.objects.get(topic=topic)
         scorm_tracking = ELearningTracking.objects.filter(
             user=user,
-            elearning_package=scorm_package
+            elearning_package=elearning_package
         ).first()
         
         if not scorm_tracking:
@@ -2608,10 +2620,10 @@ def scorm_progress(request, topic_id):
     topic = get_object_or_404(Topic, id=topic_id)
     
     try:
-        scorm_package = ELearningPackage.objects.get(topic=topic)
+        elearning_package = ELearningPackage.objects.get(topic=topic)
         scorm_tracking = ELearningTracking.objects.filter(
             user=user,
-            elearning_package=scorm_package
+            elearning_package=elearning_package
         ).first()
         
         if scorm_tracking:
@@ -2662,7 +2674,7 @@ def validate_elearning_package(package_path, package_type):
     """Validate eLearning packages for all standards"""
     try:
         if package_type in ['SCORM_1_2', 'SCORM_2004']:
-            return validate_scorm_package(package_path)
+            return validate_elearning_package(package_path)
         elif package_type == 'XAPI':
             return validate_xapi_package(package_path)
         elif package_type == 'CMI5':
@@ -2676,7 +2688,7 @@ def validate_elearning_package(package_path, package_type):
         logger.error(f"Error validating {package_type} package: {str(e)}")
         return False
 
-def validate_scorm_package(package_path):
+def validate_elearning_package(package_path):
     """Validate SCORM package integrity"""
     try:
         # Check for imsmanifest.xml
@@ -3375,12 +3387,12 @@ def _handle_scorm2004_navigation(request, topic_id):
     """Handle SCORM 2004 navigation requests with full compliance"""
     try:
         topic = get_object_or_404(Topic, id=topic_id)
-        scorm_package = get_object_or_404(ELearningPackage, topic=topic)
+        elearning_package = get_object_or_404(ELearningPackage, topic=topic)
         
         # Get tracking record
         tracking, created = ELearningTracking.objects.get_or_create(
             user=request.scorm_user,
-            elearning_package=scorm_package
+            elearning_package=elearning_package
         )
         
         navigation_action = request.POST.get('navigation_action', '')
@@ -3393,7 +3405,7 @@ def _handle_scorm2004_navigation(request, topic_id):
         
         # Process navigation request using sequencing processor
         sequencing_result = sequencing_processor.process_sequencing_rules(
-            scorm_package.id, request.scorm_user.id, navigation_action, context
+            elearning_package.id, request.scorm_user.id, navigation_action, context
         )
         
         if sequencing_result.get('result') == 'true':
@@ -3426,10 +3438,10 @@ def scorm_debug(request, topic_id):
     topic = get_object_or_404(Topic, id=topic_id)
     
     try:
-        scorm_package = ELearningPackage.objects.get(topic=topic)
+        elearning_package = ELearningPackage.objects.get(topic=topic)
         scorm_tracking = ELearningTracking.objects.filter(
             user=user,
-            elearning_package=scorm_package
+            elearning_package=elearning_package
         ).first()
         
         if not scorm_tracking:

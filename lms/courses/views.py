@@ -13,7 +13,7 @@ from django.utils import timezone
 from django.conf import settings
 from django.db import transaction, IntegrityError
 from django.core.files.uploadedfile import InMemoryUploadedFile
-from django.core.files.storage import default_storage, FileSystemStorage
+from django.core.files.storage import default_storage
 from django.http import Http404
 from django.utils.translation import gettext as _
 from django.core.paginator import Paginator, PageNotAnInteger, EmptyPage
@@ -578,6 +578,17 @@ def course_list(request):
         except (ValueError, TypeError):
             logger.warning(f"Invalid instructor filter value: {instructor_filter}")
     
+    # Apply sorting FIRST to avoid QuerySet slicing issues
+    if sort_by == 'title_asc':
+        courses = courses.order_by('title')
+    elif sort_by == 'title_desc':
+        courses = courses.order_by('-title')
+    elif sort_by == 'date_added':
+        courses = courses.order_by('-created_at')
+    else:
+        # Default sorting: recently accessed or title
+        courses = courses.order_by('title')  # Default fallback
+
     # Apply progress filter - requires additional query to course progress
     if progress_filter:
         try:
@@ -653,17 +664,6 @@ def course_list(request):
                 
         except Exception as e:
             logger.warning(f"Error applying progress filter: {str(e)}")
-    
-    # Apply sorting
-    if sort_by == 'title_asc':
-        courses = courses.order_by('title')
-    elif sort_by == 'title_desc':
-        courses = courses.order_by('-title')
-    elif sort_by == 'date_added':
-        courses = courses.order_by('-created_at')
-    else:
-        # Default sorting: recently accessed or title
-        courses = courses.order_by('title')  # Default fallback
 
     # Annotate courses with user's membership status
     # Note: Removed problematic annotation that caused SQL syntax error
@@ -682,10 +682,6 @@ def course_list(request):
         )
     ).distinct()
     
-    # Log first few courses to verify titles
-    for i, course in enumerate(courses[:5]):
-        logger.info(f"Course {i+1}: ID={course.id}, Title='{course.title}', Active={course.is_active}, Visibility={course.catalog_visibility}")
-    
     # Get categories for the filter dropdown with role-based filtering
     categories = get_user_accessible_categories(request.user)
     
@@ -694,6 +690,18 @@ def course_list(request):
     
     # Optimize queryset for pagination
     courses = optimize_queryset_for_pagination(courses, max_results=1000)
+    
+    # Log first few courses to verify titles (after all queryset operations)
+    # Note: Don't slice the queryset here as it causes order_by issues later
+    course_count = courses.count()
+    logger.info(f"Total courses found: {course_count}")
+    
+    # Log first few courses without slicing the queryset
+    # Create a copy of the queryset for logging to avoid slicing the main queryset
+    courses_for_logging = courses.all()[:5]
+    first_courses = list(courses_for_logging)
+    for i, course in enumerate(first_courses):
+        logger.info(f"Course {i+1}: ID={course.id}, Title='{course.title}', Active={course.is_active}, Visibility={course.catalog_visibility}")
     
     # Create optimized paginator
     paginator = OptimizedPaginator(
@@ -4411,6 +4419,18 @@ def course_settings(request, course_id):
                 course.passing_score = int(passing_score)
             except ValueError:
                 messages.error(request, "Invalid passing score value. Please enter a valid number.")
+        
+        # SCORM Mastery Score Settings
+        scorm_mastery_score = request.POST.get('scorm_mastery_score')
+        enable_mastery_auto_complete = request.POST.get('enable_mastery_auto_complete') == 'on'
+        
+        if scorm_mastery_score:
+            try:
+                course.scorm_mastery_score = float(scorm_mastery_score)
+            except ValueError:
+                messages.error(request, "Invalid SCORM mastery score value. Please enter a valid number.")
+        
+        course.enable_mastery_auto_complete = enable_mastery_auto_complete
         
         # Set TinyMCE fields
         if course_outcomes:

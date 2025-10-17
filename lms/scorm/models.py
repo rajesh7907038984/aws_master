@@ -11,7 +11,7 @@ from courses.models import Topic, Course
 from users.models import CustomUser
 import uuid
 import xml.etree.ElementTree as ET
-from .storage import SCORMLocalStorage
+from .storage import SCORMS3Storage
 
 logger = logging.getLogger(__name__)
 
@@ -53,7 +53,7 @@ class ELearningPackage(models.Model):
     
     package_file = models.FileField(
         upload_to=elearning_package_path,
-        storage=SCORMLocalStorage(),
+        storage=SCORMS3Storage(),
         help_text="The e-learning package ZIP file"
     )
     
@@ -129,7 +129,7 @@ class ELearningPackage(models.Model):
             # Extract the ZIP file
             # Handle case where file might be in S3 but we need local access
             if hasattr(self.package_file.storage, 'path'):
-                # Local storage - use path directly
+                # S3 storage - use path directly
                 zip_path = self.package_file.path
             else:
                 # Remote storage (S3) - download to temp file first
@@ -461,9 +461,9 @@ class ELearningPackage(models.Model):
             return None
         
         try:
-            # Handle both local and remote storage
+            # Handle both S3 and remote storage
             if hasattr(self.package_file.storage, 'path'):
-                # Local storage - use path directly
+                # S3 storage - use path directly
                 zip_path = self.package_file.path
             else:
                 # Remote storage - need to handle differently
@@ -1087,6 +1087,65 @@ class ELearningTracking(models.Model):
         self.save()
         logger.info(f"SCORM: Bookmark cleared for user {self.user.id}")
 
+    def check_mastery_completion(self):
+        """Check if learner meets mastery score requirements for auto-completion"""
+        if not self.student_data_mastery_score:
+            return False
+        
+        # Get current score percentage
+        score_percentage = self.get_score_percentage()
+        if score_percentage is None:
+            return False
+        
+        # Check if score meets or exceeds mastery score
+        mastery_threshold = self.student_data_mastery_score
+        if mastery_threshold <= 1.0:  # If mastery score is in 0-1 range
+            mastery_threshold = mastery_threshold * 100  # Convert to percentage
+        
+        meets_mastery = score_percentage >= mastery_threshold
+        
+        if meets_mastery and self.completion_status != 'completed':
+            self.completion_status = 'completed'
+            self.success_status = 'passed'
+            self.completion_date = timezone.now()
+            self.save()
+            
+            # Sync to course progress
+            self._sync_to_course_progress()
+            
+            logger.info(f"SCORM: Auto-completed based on mastery score. Score: {score_percentage}%, Mastery: {mastery_threshold}%")
+            return True
+        
+        return False
+
+    def _sync_to_course_progress(self):
+        """Sync SCORM completion to course topic progress"""
+        from courses.models import TopicProgress
+        
+        topic_progress, created = TopicProgress.objects.get_or_create(
+            user=self.user,
+            topic=self.elearning_package.topic
+        )
+        
+        if not topic_progress.completed:
+            topic_progress.mark_complete('auto')
+            logger.info(f"SCORM: Synced completion to course progress for user {self.user.id}, topic {self.elearning_package.topic.id}")
+
+    def is_mastery_achieved(self):
+        """Check if mastery score has been achieved"""
+        if not self.student_data_mastery_score or not self.score_raw:
+            return False
+        
+        score_percentage = self.get_score_percentage()
+        if score_percentage is None:
+            return False
+        
+        mastery_threshold = self.student_data_mastery_score
+        if mastery_threshold <= 1.0:
+            mastery_threshold = mastery_threshold * 100
+        
+        return score_percentage >= mastery_threshold
+
 class SCORMReport(models.Model):
     """Model for SCORM reports and analytics"""
     course = models.ForeignKey(
@@ -1123,7 +1182,4 @@ class SCORMReport(models.Model):
     def __str__(self):
         return "{} - {}".format(self.course.title, self.get_report_type_display())
 
-# Backward compatibility aliases
-SCORMPackage = ELearningPackage
-SCORMTracking = ELearningTracking
-SCORMTracking = ELearningTracking
+# Backward compatibility aliases removed - use ELearningPackage and ELearningTracking directly

@@ -36,7 +36,7 @@ def ensure_media_directories():
             logger.info(f" S3 Bucket: {getattr(settings, 'AWS_STORAGE_BUCKET_NAME', 'Not configured')}")
             return
     
-        logger.info(f" Using local storage - MEDIA_ROOT: {MEDIA_ROOT}")
+        logger.info(f" Using S3 storage - MEDIA_ROOT: {MEDIA_ROOT}")
     
         # Check if media directory is accessible
         if not os.path.exists(MEDIA_ROOT):

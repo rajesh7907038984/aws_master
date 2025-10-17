@@ -25,7 +25,7 @@ from django.utils.text import slugify
 from django.utils.html import strip_tags
 from django.views.decorators.csrf import csrf_exempt, csrf_protect, ensure_csrf_cookie
 from django.views.decorators.http import require_POST
-from django.core.files.storage import FileSystemStorage
+from django.core.files.storage import default_storage
 
 from courses.models import Course, Topic, CourseEnrollment
 

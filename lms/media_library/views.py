@@ -304,9 +304,18 @@ def serve_local_file(request, file_id):
     
     file_obj = get_object_or_404(MediaFile, id=file_id, storage_type='local', is_active=True)
     
-    # Construct full file path
-    local_media_path = '/home/ec2-user/lms/local_media'
-    full_path = os.path.join(local_media_path, file_obj.file_path)
+    # Construct full file path - handle both local and S3 storage
+    if hasattr(settings, 'AWS_STORAGE_BUCKET_NAME') and settings.AWS_STORAGE_BUCKET_NAME:
+        # S3 storage - use default storage
+        from django.core.files.storage import default_storage
+        try:
+            return default_storage.url(file_obj.file_path)
+        except Exception:
+            raise Http404("File not found in S3")
+    else:
+        # Local storage fallback
+        local_media_path = '/home/ec2-user/lms/media_local'
+        full_path = os.path.join(local_media_path, file_obj.file_path)
     
     if not os.path.exists(full_path):
         raise Http404("File not found")

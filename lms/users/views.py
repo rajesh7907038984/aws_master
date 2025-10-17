@@ -6380,10 +6380,12 @@ def get_dashboard_overview_data(request):
     # Add timestamp for last update
     stats['last_updated'] = timezone.now().strftime('%Y-%m-%d %H:%M:%S')
     
-    # Create response with optimized cache headers
+    # Create response with no-cache headers for live data
     response = JsonResponse(stats)
-    response['Cache-Control'] = 'public, max-age=300'  # 5 minutes cache
-    response['Vary'] = 'Accept-Encoding'
+    response['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    response['Pragma'] = 'no-cache'
+    response['Expires'] = '0'
+    response['Last-Modified'] = timezone.now().strftime('%a, %d %b %Y %H:%M:%S GMT')
     
     return response
 
@@ -6687,10 +6689,12 @@ def get_dashboard_activity_data(request):
             }
         }
         
-        # Create response with optimized cache headers
+        # Create response with no-cache headers for live data
         response = JsonResponse(activity_data)
-        response['Cache-Control'] = 'public, max-age=300'  # 5 minutes cache
-        response['Vary'] = 'Accept-Encoding'
+        response['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+        response['Pragma'] = 'no-cache'
+        response['Expires'] = '0'
+        response['Last-Modified'] = timezone.now().strftime('%a, %d %b %Y %H:%M:%S GMT')
         
         return response
         
@@ -6839,10 +6843,12 @@ def get_admin_course_progress_data(request):
         'last_updated': timezone.now().strftime('%Y-%m-%d %H:%M:%S')
     }
     
-    # Create response with optimized cache headers
+    # Create response with no-cache headers for live data
     response = JsonResponse(data)
-    response['Cache-Control'] = 'public, max-age=300'  # 5 minutes cache
-    response['Vary'] = 'Accept-Encoding'
+    response['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    response['Pragma'] = 'no-cache'
+    response['Expires'] = '0'
+    response['Last-Modified'] = timezone.now().strftime('%a, %d %b %Y %H:%M:%S GMT')
     
     return response
 
@@ -6859,10 +6865,12 @@ def get_instructor_dashboard_stats(request):
     # Add timestamp for last update
     stats['last_updated'] = timezone.now().strftime('%Y-%m-%d %H:%M:%S')
     
-    # Create response with optimized cache headers
+    # Create response with no-cache headers for live data
     response = JsonResponse(stats)
-    response['Cache-Control'] = 'public, max-age=600'  # 10 minutes cache for instructor stats
-    response['Vary'] = 'Accept-Encoding'
+    response['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    response['Pragma'] = 'no-cache'
+    response['Expires'] = '0'
+    response['Last-Modified'] = timezone.now().strftime('%a, %d %b %Y %H:%M:%S GMT')
     
     return response
 

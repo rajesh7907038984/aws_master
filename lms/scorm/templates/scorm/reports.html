@@ -193,13 +193,13 @@
         </div>
     </div>
     
-    {% if scorm_packages %}
+    {% if elearning_packages %}
     <div class="scorm-packages">
         <div class="package-header">
             SCORM Packages
         </div>
         
-        {% for package in scorm_packages %}
+        {% for package in elearning_packages %}
         <div class="package-item">
             <div class="package-info">
                 <h4>{{ package.topic.title }}</h4>

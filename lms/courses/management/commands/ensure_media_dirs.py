@@ -15,7 +15,7 @@ class Command(BaseCommand):
             self.stdout.write('Media files are stored in S3 bucket: {}'.format(getattr(settings, 'AWS_STORAGE_BUCKET_NAME', 'Not configured')))
             return
         
-        # List of directories to ensure exist (only for local storage)
+        # List of directories to ensure exist (only for local storage - S3 doesn't need this)
         directories = [
             os.path.join(settings.MEDIA_ROOT),
             os.path.join(settings.MEDIA_ROOT, 'temp'),

@@ -139,10 +139,10 @@
         <p><strong>Debug Information:</strong></p>
         <ul>
             <li>Topic ID: {{ topic.id }}</li>
-            <li>Package Type: {{ scorm_package.package_type|default:"Not set" }}</li>
-            <li>Is Extracted: {{ scorm_package.is_extracted|yesno:"Yes,No" }}</li>
-            <li>Launch File: {{ scorm_package.launch_file|default:"Not set" }}</li>
-            <li>Extracted Path: {{ scorm_package.extracted_path|default:"Not set" }}</li>
+            <li>Package Type: {{ elearning_package.package_type|default:"Not set" }}</li>
+            <li>Is Extracted: {{ elearning_package.is_extracted|yesno:"Yes,No" }}</li>
+            <li>Launch File: {{ elearning_package.launch_file|default:"Not set" }}</li>
+            <li>Extracted Path: {{ elearning_package.extracted_path|default:"Not set" }}</li>
         </ul>
         <p>Please contact your administrator to fix this issue.</p>
     </div>
@@ -1171,6 +1171,41 @@ var API = {
         }
     },
     
+    // ENHANCED: Mastery score tracking and auto-completion
+    checkMasteryCompletion: function() {
+        if (!this.autoComplete) return;
+        
+        // Check if mastery score is set and current score meets it
+        const masteryScore = this.data['cmi.core.mastery_score'] || this.data['cmi.student_data.mastery_score'];
+        const currentScore = this.data['cmi.core.score.raw'] || this.data['cmi.score.raw'];
+        
+        if (masteryScore && currentScore) {
+            const masteryThreshold = parseFloat(masteryScore);
+            const score = parseFloat(currentScore);
+            const maxScore = parseFloat(this.data['cmi.core.score.max'] || this.data['cmi.score.max'] || 100);
+            
+            // Calculate percentage
+            const scorePercentage = (score / maxScore) * 100;
+            
+            // Check if mastery is achieved
+            if (scorePercentage >= masteryThreshold) {
+                this.data['cmi.core.lesson_status'] = 'completed';
+                this.data['cmi.core.score.raw'] = currentScore;
+                this.sendElementToServer('cmi.core.lesson_status', 'completed');
+                console.log('SCORM API: Auto-completed based on mastery score achievement');
+                return true;
+            }
+        }
+        return false;
+    },
+    
+    // Call mastery check when score is updated
+    updateScore: function(score) {
+        this.data['cmi.core.score.raw'] = score;
+        this.sendElementToServer('cmi.core.score.raw', score);
+        this.checkMasteryCompletion(); // Check mastery after score update
+    },
+    
     // ENHANCED: Automatic progress tracking
     startProgressTracking: function() {
         if (!this.progressTracking) return;
@@ -1183,6 +1218,9 @@ var API = {
                 const progress = Math.min(0.9, timeSpent / 300); // 5 minutes = 90% progress
                 this.updateProgress(progress);
             }
+            
+            // Check mastery completion
+            this.checkMasteryCompletion();
         };
         
         // Track every 30 seconds

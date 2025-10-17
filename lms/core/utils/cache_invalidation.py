@@ -38,6 +38,18 @@ class CacheInvalidationManager:
             if user_id:
                 DashboardCache.clear_instructor_cache(user_id)
             
+            # Force clear all cache keys related to live data
+            cache_keys_to_clear = [
+                'dashboard_stats_*',
+                'user_activities_*',
+                'progress_data_*',
+                'live_data_*',
+                'realtime_*'
+            ]
+            
+            for pattern in cache_keys_to_clear:
+                cache.delete_many(cache.keys(pattern))
+            
             logger.info(f"Cache invalidated for branch_id={branch_id}, business_id={business_id}, user_id={user_id}")
             
         except Exception as e:

@@ -29,9 +29,10 @@ from django.conf.urls.static import static
 from django.views.static import serve
 from django.shortcuts import redirect
 from django.contrib.auth import views as auth_views
-from users.views import role_based_redirect, home, learner_dashboard, instructor_dashboard, admin_dashboard, global_admin_dashboard, users_admin_dashboard, custom_login, register, forgot_password
+from users.views import role_based_redirect, home, learner_dashboard, instructor_dashboard, admin_dashboard, global_admin_dashboard, users_admin_dashboard, custom_login, register, forgot_password, custom_logout
 # from test_profile_view import test_profile_dropdown
 from core.views import health_check
+from core.views.csp_report import csp_report_view
 from admin_dashboard.views import SuperAdminDashboardView
 from django.views.generic.base import RedirectView
 from branch_portal.views import marketing_landing_page
@@ -86,13 +87,13 @@ urlpatterns = [
     path('health/', health_check, name='health_check'),
     # path('test-profile/', test_profile_dropdown, name='test_profile_dropdown'),
     
+    # CSP violation reporting endpoint
+    path('csp-report/', csp_report_view, name='csp_report'),
+    
     # Global authentication URLs (fallback)
     path('login/', custom_login, name='login'),
     path('branch-login/', custom_login, name='branch_login'),
-    path('logout/', auth_views.LogoutView.as_view(
-        template_name='registration/logout.html',
-        next_page='login'
-    ), name='logout'),
+    path('logout/', custom_logout, name='logout'),
     path('register/', register, name='register'),  # Direct registration view
     path('forgot-password/', forgot_password, name='forgot_password'),
     path('resend-verification/', register, name='resend_verification'),  # Reuse register view for resend

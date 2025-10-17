@@ -15,9 +15,10 @@
 </style>
 
 <script>
-let currentTodoStart = {{ todo_items|length }};
+// Fixed JavaScript - remove problematic template variable injection
+let currentTodoStart = 0; // Initialize with safe default
 
-// Load more todos functionality
+// Load more todos functionality - simplified version
 function loadMoreTodos() {
     const loadButton = document.getElementById('load-more-todos');
     const todoList = document.getElementById('todo-list');
@@ -29,12 +30,14 @@ function loadMoreTodos() {
     loadButton.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Loading...';
     loadButton.disabled = true;
     
-    // Make AJAX request
-    fetch(`${window.location.pathname}?load_more_todos=1&start=${currentTodoStart}&limit=5`, {
+    // Make AJAX request with cache-busting
+    const timestamp = new Date().getTime();
+    fetch(`${window.location.pathname}?load_more_todos=1&start=${currentTodoStart}&limit=5&t=${timestamp}`, {
         method: 'GET',
         headers: {
             'X-Requested-With': 'XMLHttpRequest',
-            'Cache-Control': 'no-cache'
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache'
         }
     })
     .then(response => {
@@ -73,6 +76,7 @@ function loadMoreTodos() {
         loadButton.disabled = false;
     })
     .catch(error => {
+        console.log('Load more todos failed:', error);
         
         // Restore button state on error
         loadButton.innerHTML = originalText;
@@ -105,24 +109,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (loadMoreButton) {
         loadMoreButton.addEventListener('click', loadMoreTodos);
     }
-    
-    // Enable infinite scroll (optional - commented out for now)
-    /*
-    const todoWrapper = document.querySelector('.todo-content-wrapper');
-    if (todoWrapper) {
-        todoWrapper.addEventListener('scroll', function() {
-            if (todoWrapper.scrollTop + todoWrapper.clientHeight >= todoWrapper.scrollHeight - 10) {
-                const loadMoreContainer = document.getElementById('load-more-container');
-                if (loadMoreContainer && loadMoreContainer.style.display !== 'none') {
-                    loadMoreTodos();
-                }
-            }
-        });
-    }
-    */
 });
-
-// No custom initialization needed here
 </script>
 {% endblock %}
 
@@ -296,5 +283,7 @@ document.addEventListener('DOMContentLoaded', function() {
         </div>
     </div>
 </div>
+
+
 {% endblock %}
 

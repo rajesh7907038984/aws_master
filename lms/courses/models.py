@@ -600,6 +600,16 @@ class Course(models.Model):
         help_text="Issue certificates to learners upon completion"
     )
     
+    # SCORM Mastery Score Settings
+    scorm_mastery_score = models.FloatField(
+        default=70.0,
+        help_text="Default mastery score percentage for SCORM content (0-100)"
+    )
+    enable_mastery_auto_complete = models.BooleanField(
+        default=True,
+        help_text="Enable automatic completion based on mastery score achievement"
+    )
+    
     # Group Access Integration
     accessible_groups = models.ManyToManyField(
         'groups.BranchGroup',
@@ -1317,8 +1327,8 @@ class Course(models.Model):
                         # Delete extracted content directory
                         if elearning_package.extracted_path:
                             try:
-                                from scorm.storage import SCORMLocalStorage
-                                storage = SCORMLocalStorage()
+                                from scorm.storage import SCORMS3Storage
+                                storage = SCORMS3Storage()
                                 
                                 # Delete the extracted content directory
                                 extracted_dir = elearning_package.extracted_path
@@ -1435,7 +1445,7 @@ class Course(models.Model):
                     except Exception as e:
                         logger.error(f"Error deleting course content directory: {str(e)}")
                         
-                # Delete any media folders related to this course (local storage)
+                # Delete any media folders related to this course (S3 storage)
                 media_folders = [
                     f"course_images/{self.id}",
                     f"course_videos/{self.id}",
@@ -1576,8 +1586,8 @@ class Section(models.Model):
                         # Delete extracted content directory
                         if elearning_package.extracted_path:
                             try:
-                                from scorm.storage import SCORMLocalStorage
-                                storage = SCORMLocalStorage()
+                                from scorm.storage import SCORMS3Storage
+                                storage = SCORMS3Storage()
                                 
                                 # Delete the extracted content directory
                                 extracted_dir = elearning_package.extracted_path
@@ -1995,8 +2005,8 @@ class Topic(models.Model):
                     # Delete extracted content directory
                     if elearning_package.extracted_path:
                         try:
-                            from scorm.storage import SCORMLocalStorage
-                            storage = SCORMLocalStorage()
+                            from scorm.storage import SCORMS3Storage
+                            storage = SCORMS3Storage()
                             
                             # Delete the extracted content directory
                             extracted_dir = elearning_package.extracted_path

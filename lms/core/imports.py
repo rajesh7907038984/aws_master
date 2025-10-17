@@ -26,7 +26,7 @@ from django.utils import timezone
 from django.conf import settings
 from django.db import transaction, IntegrityError
 from django.core.files.uploadedfile import InMemoryUploadedFile
-from django.core.files.storage import default_storage, FileSystemStorage
+from django.core.files.storage import default_storage
 from django.utils.translation import gettext as _
 from django.core.paginator import Paginator, PageNotAnInteger, EmptyPage
 from django.apps import apps

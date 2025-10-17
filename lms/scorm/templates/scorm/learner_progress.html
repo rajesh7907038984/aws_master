@@ -223,6 +223,61 @@
         font-size: 0.9rem;
     }
     
+    .mastery-info {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .mastery-required, .mastery-achieved {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .mastery-label {
+        font-size: 0.9rem;
+        color: #666;
+        font-weight: 500;
+    }
+    
+    .mastery-value {
+        font-weight: 600;
+        font-size: 1rem;
+    }
+    
+    .mastery-passed {
+        color: #28a745;
+    }
+    
+    .mastery-not-passed {
+        color: #dc3545;
+    }
+    
+    .mastery-status {
+        margin-top: 0.5rem;
+    }
+    
+    .mastery-badge {
+        display: inline-block;
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        font-size: 0.8rem;
+        font-weight: 600;
+    }
+    
+    .mastery-badge.mastery-passed {
+        background-color: #d4edda;
+        color: #155724;
+        border: 1px solid #c3e6cb;
+    }
+    
+    .mastery-badge.mastery-not-passed {
+        background-color: #f8d7da;
+        color: #721c24;
+        border: 1px solid #f5c6cb;
+    }
+    
     .no-records {
         text-align: center;
         padding: 3rem;
@@ -280,7 +335,7 @@
         {% for record in tracking_records %}
         <div class="record-item">
             <div class="record-title">
-                {{ record.scorm_package.topic.title }}
+                {{ record.elearning_package.topic.title }}
             </div>
             
             <div class="record-meta">
@@ -322,6 +377,35 @@
                 </div>
                 {% endif %}
                 
+                {% if record.student_data_mastery_score %}
+                <div class="meta-item">
+                    <div class="meta-label">Mastery Score</div>
+                    <div class="meta-value">
+                        <div class="mastery-info">
+                            <div class="mastery-required">
+                                <span class="mastery-label">Required:</span>
+                                <span class="mastery-value">{{ record.student_data_mastery_score|floatformat:1 }}%</span>
+                            </div>
+                            {% if record.get_score_percentage %}
+                            <div class="mastery-achieved">
+                                <span class="mastery-label">Achieved:</span>
+                                <span class="mastery-value {% if record.is_mastery_achieved %}mastery-passed{% else %}mastery-not-passed{% endif %}">
+                                    {{ record.get_score_percentage|floatformat:1 }}%
+                                </span>
+                            </div>
+                            <div class="mastery-status">
+                                {% if record.is_mastery_achieved %}
+                                    <span class="mastery-badge mastery-passed">✓ Mastery Achieved</span>
+                                {% else %}
+                                    <span class="mastery-badge mastery-not-passed">⚠ Mastery Not Yet Achieved</span>
+                                {% endif %}
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+                
                 <div class="meta-item">
                     <div class="meta-label">Progress</div>
                     <div class="meta-value">
@@ -350,10 +434,10 @@
             </div>
             
             <div style="margin-top: 1rem;">
-                <a href="{% url 'scorm:launch' record.scorm_package.topic.id %}" class="btn btn-primary" target="_blank">
+                <a href="{% url 'scorm:launch' record.elearning_package.topic.id %}" class="btn btn-primary" target="_blank">
                     Launch SCORM
                 </a>
-                <a href="{% url 'courses:topic_view' record.scorm_package.topic.id %}" class="btn btn-secondary">
+                <a href="{% url 'courses:topic_view' record.elearning_package.topic.id %}" class="btn btn-secondary">
                     View Topic
                 </a>
             </div>

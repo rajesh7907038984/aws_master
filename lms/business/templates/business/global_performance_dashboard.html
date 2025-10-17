@@ -465,10 +465,8 @@
     }
     
     function startRealTimeRefresh() {
-        // Refresh charts every 30 seconds for more live data
-        setInterval(function() {
-            refreshChartData();
-        }, {{ refresh_interval|default:30000 }});
+        // Auto-refresh removed - users can manually refresh using the button
+        // Manual refresh functionality is available via the refresh button
     }
     
     function refreshChartData() {

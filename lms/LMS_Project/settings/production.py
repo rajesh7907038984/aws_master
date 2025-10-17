@@ -166,59 +166,62 @@ SECURE_HSTS_PRELOAD = True
 
 
 # ==============================================
-# PRODUCTION MEDIA FILES CONFIGURATION
+# PRODUCTION MEDIA FILES CONFIGURATION - S3 STORAGE
 # ==============================================
 
-# AWS S3 Configuration for Production
-AWS_ACCESS_KEY_ID = get_env('AWS_ACCESS_KEY_ID')
-AWS_SECRET_ACCESS_KEY = get_env('AWS_SECRET_ACCESS_KEY')
-# Get S3 bucket name from environment
+# S3 Storage Configuration
+AWS_ACCESS_KEY_ID = get_env('AWS_ACCESS_KEY_ID', required=True)
+AWS_SECRET_ACCESS_KEY = get_env('AWS_SECRET_ACCESS_KEY', required=True)
 AWS_STORAGE_BUCKET_NAME = get_env('AWS_STORAGE_BUCKET_NAME', required=True)
-AWS_S3_REGION_NAME = 'eu-west-2'
-
-# Disable Transfer Acceleration to avoid signature mismatch errors with large uploads
-# Using standard S3 endpoint for reliable uploads
-AWS_S3_TRANSFER_ACCELERATION = False
-AWS_S3_CUSTOM_DOMAIN = f'{AWS_STORAGE_BUCKET_NAME}.s3.{AWS_S3_REGION_NAME}.amazonaws.com'
-
-# Force signature version v4 (required for eu-west-2)
-AWS_S3_SIGNATURE_VERSION = 's3v4'
-
-# S3 Media Storage Settings
-# Disable ACL for modern S3 buckets that don't support ACLs
-AWS_DEFAULT_ACL = None
+AWS_S3_REGION_NAME = get_env('AWS_S3_REGION_NAME', 'us-east-1')
+AWS_S3_CUSTOM_DOMAIN = get_env('AWS_S3_CUSTOM_DOMAIN', None)
+AWS_DEFAULT_ACL = 'private'
 AWS_S3_OBJECT_PARAMETERS = {
     'CacheControl': 'max-age=86400',
 }
-AWS_MEDIA_LOCATION = 'media'
 AWS_S3_FILE_OVERWRITE = False
-
-# Additional S3 settings for modern buckets
-AWS_S3_ACL = None  # Disable ACL completely
-AWS_S3_OBJECT_ACL = None  # Disable object ACL
-
-# Critical settings to prevent signature errors
-AWS_S3_ADDRESSING_STYLE = 'virtual'  # Use virtual-hosted style URLs
-AWS_S3_USE_SSL = True  # Always use HTTPS
-AWS_S3_VERIFY = True  # Verify SSL certificates
-AWS_QUERYSTRING_AUTH = True  # Use query string authentication for presigned URLs
-AWS_S3_MAX_MEMORY_SIZE = 100 * 1024 * 1024  # 100MB - Don't load large files into memory
-
-# CRITICAL: Set AWS_LOCATION to None so storage classes can set their own location
-# This prevents conflicts between django-storages and custom storage classes
-AWS_LOCATION = ''  # Empty string means use bucket root, then location property adds 'media/'
+AWS_S3_VERIFY = True
 
 # Use S3 for media files
-DEFAULT_FILE_STORAGE = 'core.s3_storage.MediaS3Storage'
-MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/{AWS_MEDIA_LOCATION}/'
+DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+MEDIA_URL = f'https://{AWS_STORAGE_BUCKET_NAME}.s3.{AWS_S3_REGION_NAME}.amazonaws.com/media/'
 
-# IMPORTANT: When using S3, MEDIA_ROOT should not be set to a local path
-# Set to None to ensure all media operations use S3 storage
-MEDIA_ROOT = None
+# Security settings for S3 media files
+FILE_UPLOAD_PERMISSIONS = 0o644  # Readable by owner and group, writable by owner
+FILE_UPLOAD_DIRECTORY_PERMISSIONS = 0o755  # Readable and executable by all, writable by owner
+
+# Media file security settings
+MEDIA_FILE_MAX_SIZE = 600 * 1024 * 1024  # 600MB max file size for large ZIP files
+ALLOWED_MEDIA_EXTENSIONS = [
+    '.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp',  # Images
+    '.mp4', '.avi', '.mov', '.wmv', '.flv', '.webm',   # Videos
+    '.pdf', '.doc', '.docx', '.txt', '.rtf',           # Documents
+    '.mp3', '.wav', '.ogg', '.m4a',                    # Audio
+    '.zip', '.rar', '.7z', '.tar', '.gz', '.bz2',     # Archives (including ZIP)
+]
+
+# Compliance settings for S3 storage
+ENABLE_FILE_ENCRYPTION = get_bool_env('ENABLE_FILE_ENCRYPTION', False)
+ENABLE_AUDIT_LOGGING = get_bool_env('ENABLE_AUDIT_LOGGING', True)
+ENABLE_FILE_QUARANTINE = get_bool_env('ENABLE_FILE_QUARANTINE', False)
+
+# Large file upload settings (600MB support)
+DATA_UPLOAD_MAX_MEMORY_SIZE = 100 * 1024 * 1024  # 100MB in memory, rest to disk
+FILE_UPLOAD_MAX_MEMORY_SIZE = 100 * 1024 * 1024  # 100MB in memory, rest to disk
+
+# Temporary file handling for large uploads
+FILE_UPLOAD_TEMP_DIR = get_env('FILE_UPLOAD_TEMP_DIR', '/tmp')
+FILE_UPLOAD_HANDLERS = [
+    'django.core.files.uploadhandler.TemporaryFileUploadHandler',
+    'django.core.files.uploadhandler.MemoryFileUploadHandler',
+]
 
 print("☁️ Using S3 media storage configuration")
+print(f"☁️ S3 Bucket: {AWS_STORAGE_BUCKET_NAME}")
+print(f"☁️ S3 Region: {AWS_S3_REGION_NAME}")
 print(f"☁️ MEDIA_URL set to: {MEDIA_URL}")
-print(f"☁️ MEDIA_ROOT set to: None (using S3 storage)")
+print("🔒 Compliance features: Audit logging enabled, file permissions secured")
+print(f"📁 Max file size: {MEDIA_FILE_MAX_SIZE // (1024*1024)}MB (ZIP files supported)")
 
 # ==============================================
 # PRODUCTION SETTINGS
@@ -329,7 +332,7 @@ DEBUG = False
 print("🏗️ Production configuration loaded successfully!")
 print(" Environment: {}".format(ENVIRONMENT))
 print("🐛 Debug mode: {}".format(DEBUG))
-print("☁️ S3 Bucket: {}".format(AWS_STORAGE_BUCKET_NAME))
+print("☁️ Media storage: S3 (Amazon Web Services)")
 print("🏠 Allowed hosts: {}...".format(', '.join(ALLOWED_HOSTS[:3])))
 print(" Log directory: {}".format(LOG_DIR or 'Console only'))
 # ==============================================

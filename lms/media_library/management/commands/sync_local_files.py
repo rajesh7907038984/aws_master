@@ -30,7 +30,7 @@ class Command(BaseCommand):
         parser.add_argument(
             '--path',
             type=str,
-            default='/home/ec2-user/lms/local_media',
+            default='/home/ec2-user/lms/media_local',
             help='Path to scan for local media files',
         )
 

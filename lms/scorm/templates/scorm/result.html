@@ -202,15 +202,15 @@
             <!-- Action Buttons -->
             <div class="flex flex-col sm:flex-row gap-4">
                 {% if bookmark_data.can_resume %}
-                    {% if scorm_package.package_type == 'SCORM_1_2' or scorm_package.package_type == 'SCORM_2004' %}
+                    {% if elearning_package.package_type == 'SCORM_1_2' or elearning_package.package_type == 'SCORM_2004' %}
                         <a href="{% url 'scorm:resume' topic.id %}" class="btn btn-success">
                             <i class="fas fa-play-circle mr-2"></i>Resume
                         </a>
-                    {% elif scorm_package.package_type == 'XAPI' %}
+                    {% elif elearning_package.package_type == 'XAPI' %}
                         <a href="{% url 'scorm:xapi_resume' topic.id %}" class="btn btn-success">
                             <i class="fas fa-play-circle mr-2"></i>Resume
                         </a>
-                    {% elif scorm_package.package_type == 'CMI5' %}
+                    {% elif elearning_package.package_type == 'CMI5' %}
                         <a href="{% url 'scorm:cmi5_resume' topic.id %}" class="btn btn-success">
                             <i class="fas fa-play-circle mr-2"></i>Resume
                         </a>

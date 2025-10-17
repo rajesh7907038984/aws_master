@@ -129,8 +129,8 @@ def optimize_queryset(queryset, max_results: int = 1000):
     if many_to_many_fields:
         queryset = queryset.prefetch_related(*many_to_many_fields[:3])  # Limit to 3 relations
     
-    # Limit results
-    return queryset[:max_results]
+    # Don't slice here - let the pagination handle limiting
+    return queryset
 
 def get_performance_stats() -> Dict[str, Any]:
     """Get current performance statistics"""

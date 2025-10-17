@@ -211,8 +211,8 @@ def optimize_queryset_for_pagination(queryset: QuerySet, max_results: int = 1000
     if many_to_many_fields:
         queryset = queryset.prefetch_related(*many_to_many_fields[:3])
     
-    # Limit results for performance
-    return queryset[:max_results]
+    # Don't slice here - let the paginator handle it
+    return queryset
 
 def get_pagination_context(page: Page, request: HttpRequest) -> Dict[str, Any]:
     """Get pagination context for templates"""
