@@ -21,6 +21,10 @@ class SessionPersistenceMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
+        # Skip session persistence for logout requests
+        if request.path == '/logout/' and request.method == 'POST':
+            return self.get_response(request)
+        
         # Save the authenticated state before processing
         was_authenticated = hasattr(request, 'user') and request.user.is_authenticated
         

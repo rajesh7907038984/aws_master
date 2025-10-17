@@ -110,27 +110,6 @@ def monitor_performance(view_name: str = None):
         return wrapper
     return decorator
 
-def optimize_queryset(queryset, max_results: int = 1000):
-    """Optimize queryset for better performance"""
-    # Add select_related for foreign keys
-    if hasattr(queryset.model, '_meta'):
-        related_fields = [
-            field.name for field in queryset.model._meta.get_fields()
-            if field.many_to_one and not field.null
-        ]
-        if related_fields:
-            queryset = queryset.select_related(*related_fields[:5])  # Limit to 5 relations
-    
-    # Add prefetch_related for many-to-many fields
-    many_to_many_fields = [
-        field.name for field in queryset.model._meta.get_fields()
-        if field.many_to_many
-    ]
-    if many_to_many_fields:
-        queryset = queryset.prefetch_related(*many_to_many_fields[:3])  # Limit to 3 relations
-    
-    # Don't slice here - let the pagination handle limiting
-    return queryset
 
 def get_performance_stats() -> Dict[str, Any]:
     """Get current performance statistics"""

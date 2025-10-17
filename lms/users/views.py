@@ -598,10 +598,18 @@ def custom_logout(request):
         
         # Perform logout
         auth_logout(request)
-        messages.success(request, "You have been logged out successfully.")
         
-        # Redirect to login page
-        return redirect('login')
+        # Clear session completely
+        request.session.flush()
+        
+        # Clear session cookies and redirect
+        response = redirect('login')
+        response.delete_cookie('lms_sessionid')
+        response.delete_cookie('sessionid')
+        response.delete_cookie('csrftoken')
+        
+        messages.success(request, "You have been logged out successfully.")
+        return response
     else:
         # GET request - show confirmation page
         return render(request, 'registration/logout.html')
@@ -652,7 +660,7 @@ def get_or_assign_branch_for_global_admin(request):
 @login_required
 def user_list(request):
     """Display list of users based on permissions."""
-    from core.utils.performance_monitor import monitor_performance, optimize_queryset
+    from core.utils.performance_monitor import monitor_performance
     
     user = request.user
     
@@ -679,47 +687,32 @@ def user_list(request):
     # Get base queryset with optimization
     if request.user.role == 'globaladmin':
         # Global admin can see all users without restriction, except themselves
-        users = optimize_queryset(
-            CustomUser.objects.all().exclude(id=request.user.id).select_related('branch'),
-            max_results=2000
-        )
+        users = CustomUser.objects.all().exclude(id=request.user.id).select_related('branch')
         branches = Branch.objects.all().order_by('name')
     elif request.user.role == 'admin':
         # Filter users by effective branch (supports branch switching) and exclude superadmin and globaladmin users, and exclude current user
         from core.branch_filters import BranchFilterManager
         effective_branch = BranchFilterManager.get_effective_branch(request.user, request)
-        users = optimize_queryset(
-            CustomUser.objects.filter(branch=effective_branch)
-            .exclude(role__in=['superadmin', 'globaladmin'])
-            .exclude(id=request.user.id)
-            .select_related('branch'),
-            max_results=1000
-        )
+        users = CustomUser.objects.filter(branch=effective_branch)\
+            .exclude(role__in=['superadmin', 'globaladmin'])\
+            .exclude(id=request.user.id)\
+            .select_related('branch')
         branches = [effective_branch]
     elif request.user.role == 'instructor':
         # Instructors can only see learner users, excluding themselves
-        users = optimize_queryset(
-            CustomUser.objects.filter(
-                branch=request.user.branch,
-                role='learner'
-            ).exclude(id=request.user.id).select_related('branch'),
-            max_results=500
-        )
+        users = CustomUser.objects.filter(
+            branch=request.user.branch,
+            role='learner'
+        ).exclude(id=request.user.id).select_related('branch')
         branches = [request.user.branch]
     elif request.user.role == 'superadmin':
         # Super Admin: CONDITIONAL access (business-scoped users)
         # Note: filter_users_by_business already excludes global admin accounts
         from core.utils.business_filtering import filter_users_by_business, filter_branches_by_business
-        users = optimize_queryset(
-            filter_users_by_business(request.user).select_related('branch'),
-            max_results=1000
-        )
+        users = filter_users_by_business(request.user).select_related('branch')
         branches = filter_branches_by_business(request.user).order_by('name')
     else:
-        users = optimize_queryset(
-            CustomUser.objects.all().exclude(id=request.user.id).select_related('branch'),
-            max_results=1000
-        )
+        users = CustomUser.objects.all().exclude(id=request.user.id).select_related('branch')
         branches = Branch.objects.all().order_by('name')
 
     # Get groups based on user's business access

@@ -35,6 +35,10 @@ class SessionAuthMiddleware:
     def process_request(self, request):
         """Process request to ensure proper authentication state with enhanced recovery"""
         try:
+            # Skip session recovery for logout requests
+            if request.path == '/logout/' and request.method == 'POST':
+                return
+            
             # Skip if already authenticated
             if request.user.is_authenticated:
                 return

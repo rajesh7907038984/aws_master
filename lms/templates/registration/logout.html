@@ -13,9 +13,9 @@
                     <h2>Logout Confirmation</h2>
                     <p class="text-muted">Are you sure you want to logout from the Nexsy LMS?</p>
                     
-                    <form method="post" class="mt-4">
+                    <form method="post" class="mt-4" id="logout-form">
                         {% csrf_token %}
-                        <button type="submit" class="btn btn-danger me-2">Yes, Logout</button>
+                        <button type="submit" class="btn btn-danger me-2" id="logout-btn">Yes, Logout</button>
                         <a href="javascript:history.back()" class="btn btn-secondary">Cancel</a>
                     </form>
                     
@@ -29,4 +29,23 @@
         </div>
     </div>
 </div>
+
+<script>
+document.getElementById('logout-form').addEventListener('submit', function(e) {
+    const btn = document.getElementById('logout-btn');
+    btn.disabled = true;
+    btn.textContent = 'Logging out...';
+    
+    // Disable auto-logout prevention during logout
+    if (window.AutoLogoutPrevention) {
+        window.AutoLogoutPrevention.destroy();
+    }
+    
+    // Clear any cached user data
+    if (window.UnifiedAuthHandler) {
+        window.UnifiedAuthHandler.isAuthenticated = false;
+        window.UnifiedAuthHandler.user = null;
+    }
+});
+</script>
 {% endblock %}

@@ -391,7 +391,7 @@ def get_course_context(request, user, course):
 @require_capability('view_courses')
 def course_list(request):
     """Display list of courses based on user role and group access."""
-    from core.utils.performance_monitor import monitor_performance, optimize_queryset
+    from core.utils.performance_monitor import monitor_performance
     
     user = request.user
     
@@ -536,22 +536,19 @@ def course_list(request):
     # OPTIMIZATION: Add prefetch_related for enrollments to prevent N+1 queries
     from django.db.models import Prefetch
     
-    # Optimize queryset with performance monitoring
-    courses = optimize_queryset(
-        Course.objects.filter(id__in=course_ids).select_related(
-            'instructor',
-            'branch',
-            'category'
-        ).prefetch_related(
-            Prefetch(
-                'courseenrollment_set',
-                queryset=CourseEnrollment.objects.filter(user=request.user).select_related('user'),
-                to_attr='user_enrollments'
-            ),
-            'topics',  # Prefetch topics to avoid N+1 queries
-            'accessible_groups'  # Prefetch groups for permission checks
+    # Get courses with basic optimization (temporarily disable optimize_queryset)
+    courses = Course.objects.filter(id__in=course_ids).select_related(
+        'instructor',
+        'branch',
+        'category'
+    ).prefetch_related(
+        Prefetch(
+            'courseenrollment_set',
+            queryset=CourseEnrollment.objects.filter(user=request.user).select_related('user'),
+            to_attr='user_enrollments'
         ),
-        max_results=1000  # Limit results for performance
+        'topics',  # Prefetch topics to avoid N+1 queries
+        'accessible_groups'  # Prefetch groups for permission checks
     )
 
     # Log the number of courses found
@@ -640,12 +637,12 @@ def course_list(request):
                 )
                 
             elif progress_filter == 'completed':
-                # Get all courses
-                all_courses = courses.values_list('id', flat=True)
+                # Get all courses without slicing to avoid order_by issues
+                all_course_ids = list(courses.values_list('id', flat=True))
                 completed_courses = []
                 
                 # Check each course to see if all topics are completed
-                for course_id in all_courses:
+                for course_id in all_course_ids:
                     total_topics = Course.objects.get(id=course_id).topics.count()
                     if total_topics == 0:
                         continue  # Skip courses with no topics
@@ -697,11 +694,13 @@ def course_list(request):
     logger.info(f"Total courses found: {course_count}")
     
     # Log first few courses without slicing the queryset
-    # Create a copy of the queryset for logging to avoid slicing the main queryset
-    courses_for_logging = courses.all()[:5]
-    first_courses = list(courses_for_logging)
-    for i, course in enumerate(first_courses):
-        logger.info(f"Course {i+1}: ID={course.id}, Title='{course.title}', Active={course.is_active}, Visibility={course.catalog_visibility}")
+    # Get first 5 courses for logging without affecting the main queryset
+    try:
+        first_courses = list(courses.all()[:5])
+        for i, course in enumerate(first_courses):
+            logger.info(f"Course {i+1}: ID={course.id}, Title='{course.title}', Active={course.is_active}, Visibility={course.catalog_visibility}")
+    except Exception as e:
+        logger.warning(f"Error logging courses: {e}")
     
     # Create optimized paginator
     paginator = OptimizedPaginator(
@@ -714,7 +713,7 @@ def course_list(request):
     page_number = request.GET.get('page', 1)
     page_obj = paginator.get_page(page_number, request)
     
-    logger.info(f"Displaying page {page_obj.number} of {paginator.num_pages} pages")
+    logger.info(f"Displaying page {page_obj.number} of {page_obj.paginator.num_pages} pages")
 
     # Add enrollment status and permission information for each course in the page
     # OPTIMIZATION: Use prefetched data instead of querying the database
