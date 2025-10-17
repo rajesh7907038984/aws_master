@@ -7,7 +7,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('courses', '0012_remove_old_scorm_columns'),
+        ('courses', '0011_add_scorm_mastery_score_fields'),
     ]
 
     operations = [

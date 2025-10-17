@@ -478,37 +478,9 @@ class TabbedUserCreationForm(UserCreationForm):
     )
     
     # Initial Assessment Score Fields
-    initial_assessment_english_score = forms.DecimalField(
-        required=False,
-        max_digits=5,
-        decimal_places=2,
-        widget=forms.NumberInput(attrs={'class': 'form-input', 'min': '0', 'max': '100', 'step': '0.01', 'placeholder': 'Score (0-100)'}),
-        help_text="English assessment score (0-100)"
-    )
     
-    initial_assessment_maths_score = forms.DecimalField(
-        required=False,
-        max_digits=5,
-        decimal_places=2,
-        widget=forms.NumberInput(attrs={'class': 'form-input', 'min': '0', 'max': '100', 'step': '0.01', 'placeholder': 'Score (0-100)'}),
-        help_text="Maths assessment score (0-100)"
-    )
     
-    initial_assessment_subject_score = forms.DecimalField(
-        required=False,
-        max_digits=5,
-        decimal_places=2,
-        widget=forms.NumberInput(attrs={'class': 'form-input', 'min': '0', 'max': '100', 'step': '0.01', 'placeholder': 'Score (0-100)'}),
-        help_text="Subject Specific assessment score (0-100)"
-    )
     
-    initial_assessment_other_score = forms.DecimalField(
-        required=False,
-        max_digits=5,
-        decimal_places=2,
-        widget=forms.NumberInput(attrs={'class': 'form-input', 'min': '0', 'max': '100', 'step': '0.01', 'placeholder': 'Score (0-100)'}),
-        help_text="Other assessment score (0-100)"
-    )
     
     # Diagnostic Assessment section
     diagnostic_assessment_english = forms.BooleanField(
@@ -566,13 +538,6 @@ class TabbedUserCreationForm(UserCreationForm):
         help_text="Subject Specific diagnostic assessment score (0-100)"
     )
     
-    diagnostic_assessment_other_score = forms.DecimalField(
-        required=False,
-        max_digits=5,
-        decimal_places=2,
-        widget=forms.NumberInput(attrs={'class': 'form-input', 'min': '0', 'max': '100', 'step': '0.01', 'placeholder': 'Score (0-100)'}),
-        help_text="Other diagnostic assessment score (0-100)"
-    )
     
     # Functional Skills section
     functional_skills_english = forms.BooleanField(
@@ -599,30 +564,8 @@ class TabbedUserCreationForm(UserCreationForm):
         help_text="Functional Skills Assessment Date"
     )
     
-    # Functional Skills Score Fields
-    functional_skills_english_score = forms.DecimalField(
-        required=False,
-        max_digits=5,
-        decimal_places=2,
-        widget=forms.NumberInput(attrs={'class': 'form-input', 'min': '0', 'max': '100', 'step': '0.01', 'placeholder': 'Score (0-100)'}),
-        help_text="English functional skills score (0-100)"
-    )
     
-    functional_skills_maths_score = forms.DecimalField(
-        required=False,
-        max_digits=5,
-        decimal_places=2,
-        widget=forms.NumberInput(attrs={'class': 'form-input', 'min': '0', 'max': '100', 'step': '0.01', 'placeholder': 'Score (0-100)'}),
-        help_text="Maths functional skills score (0-100)"
-    )
     
-    functional_skills_other_score = forms.DecimalField(
-        required=False,
-        max_digits=5,
-        decimal_places=2,
-        widget=forms.NumberInput(attrs={'class': 'form-input', 'min': '0', 'max': '100', 'step': '0.01', 'placeholder': 'Score (0-100)'}),
-        help_text="Other functional skills score (0-100)"
-    )
     
     # Tab 5: Additional Information
     statement_of_purpose_file = forms.FileField(
@@ -680,16 +623,11 @@ class TabbedUserCreationForm(UserCreationForm):
             'initial_assessment_english', 'initial_assessment_maths',
             'initial_assessment_subject_specific', 'initial_assessment_other',
             'initial_assessment_date',
-            'initial_assessment_english_score', 'initial_assessment_maths_score',
-            'initial_assessment_subject_score', 'initial_assessment_other_score',
             'diagnostic_assessment_english', 'diagnostic_assessment_maths',
             'diagnostic_assessment_subject_specific', 'diagnostic_assessment_other',
             'diagnostic_assessment_date',
-            'diagnostic_assessment_english_score', 'diagnostic_assessment_maths_score',
-            'diagnostic_assessment_subject_score', 'diagnostic_assessment_other_score',
             'functional_skills_english', 'functional_skills_maths', 'functional_skills_other',
             'functional_skills_date',
-            'functional_skills_english_score', 'functional_skills_maths_score', 'functional_skills_other_score',
             
             # Additional info fields
             'statement_of_purpose_file', 'reason_for_pursuing_course',
@@ -1176,16 +1114,11 @@ class CustomUserChangeForm(forms.ModelForm):
             'initial_assessment_english', 'initial_assessment_maths',
             'initial_assessment_subject_specific', 'initial_assessment_other',
             'initial_assessment_date',
-            'initial_assessment_english_score', 'initial_assessment_maths_score',
-            'initial_assessment_subject_score', 'initial_assessment_other_score',
             'diagnostic_assessment_english', 'diagnostic_assessment_maths',
             'diagnostic_assessment_subject_specific', 'diagnostic_assessment_other',
             'diagnostic_assessment_date',
-            'diagnostic_assessment_english_score', 'diagnostic_assessment_maths_score',
-            'diagnostic_assessment_subject_score', 'diagnostic_assessment_other_score',
             'functional_skills_english', 'functional_skills_maths', 'functional_skills_other',
             'functional_skills_date',
-            'functional_skills_english_score', 'functional_skills_maths_score', 'functional_skills_other_score',
             
             # Additional info fields
             'statement_of_purpose_file', 'reason_for_pursuing_course',
@@ -1221,19 +1154,8 @@ class CustomUserChangeForm(forms.ModelForm):
             'key_skills': forms.Textarea(attrs={'class': 'form-textarea', 'rows': 3}),
             'cv_file': forms.FileInput(attrs={'class': 'form-file-input'}),
             'initial_assessment_date': forms.DateInput(attrs={'class': 'form-input', 'type': 'date'}),
-            'initial_assessment_english_score': forms.NumberInput(attrs={'class': 'form-input', 'min': '0', 'max': '100', 'step': '0.01'}),
-            'initial_assessment_maths_score': forms.NumberInput(attrs={'class': 'form-input', 'min': '0', 'max': '100', 'step': '0.01'}),
-            'initial_assessment_subject_score': forms.NumberInput(attrs={'class': 'form-input', 'min': '0', 'max': '100', 'step': '0.01'}),
-            'initial_assessment_other_score': forms.NumberInput(attrs={'class': 'form-input', 'min': '0', 'max': '100', 'step': '0.01'}),
             'diagnostic_assessment_date': forms.DateInput(attrs={'class': 'form-input', 'type': 'date'}),
-            'diagnostic_assessment_english_score': forms.NumberInput(attrs={'class': 'form-input', 'min': '0', 'max': '100', 'step': '0.01'}),
-            'diagnostic_assessment_maths_score': forms.NumberInput(attrs={'class': 'form-input', 'min': '0', 'max': '100', 'step': '0.01'}),
-            'diagnostic_assessment_subject_score': forms.NumberInput(attrs={'class': 'form-input', 'min': '0', 'max': '100', 'step': '0.01'}),
-            'diagnostic_assessment_other_score': forms.NumberInput(attrs={'class': 'form-input', 'min': '0', 'max': '100', 'step': '0.01'}),
             'functional_skills_date': forms.DateInput(attrs={'class': 'form-input', 'type': 'date'}),
-            'functional_skills_english_score': forms.NumberInput(attrs={'class': 'form-input', 'min': '0', 'max': '100', 'step': '0.01'}),
-            'functional_skills_maths_score': forms.NumberInput(attrs={'class': 'form-input', 'min': '0', 'max': '100', 'step': '0.01'}),
-            'functional_skills_other_score': forms.NumberInput(attrs={'class': 'form-input', 'min': '0', 'max': '100', 'step': '0.01'}),
             'statement_of_purpose_file': forms.FileInput(attrs={'class': 'form-file-input'}),
             'reason_for_pursuing_course': forms.Textarea(attrs={'class': 'form-textarea', 'rows': 3}),
             'career_objectives': forms.Textarea(attrs={'class': 'form-textarea', 'rows': 3}),

@@ -8,7 +8,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('users', '0001_initial'),
-        ('lms_rubrics', '0003_alter_rubricevaluation_unique_together'),
+        ('lms_rubrics', '0004_add_rubric_evaluation'),
     ]
 
     operations = [

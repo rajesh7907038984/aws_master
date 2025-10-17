@@ -179,15 +179,19 @@ class PerformanceOptimizer {
     setupScrollOptimization() {
         let scrollTimeout;
         
+        // Bind methods to preserve 'this' context
+        const boundHandleScroll = this.handleScroll.bind(this);
+        const boundHandleScrollEnd = this.handleScrollEnd.bind(this);
+        
         window.addEventListener('scroll', this.throttle(() => {
-            this.handleScroll();
+            boundHandleScroll();
         }, 16)); // ~60fps
         
         // Handle scroll end
         window.addEventListener('scroll', () => {
             clearTimeout(scrollTimeout);
             scrollTimeout = setTimeout(() => {
-                this.handleScrollEnd();
+                boundHandleScrollEnd();
             }, 150);
         });
     }
@@ -214,6 +218,95 @@ class PerformanceOptimizer {
     handleScrollEnd() {
         // Lazy load content that came into view
         this.lazyLoadContent();
+    }
+    
+    /**
+     * Lazy load content that came into view
+     */
+    lazyLoadContent() {
+        // Find elements that need lazy loading
+        const lazyElements = document.querySelectorAll('[data-lazy-load]');
+        
+        lazyElements.forEach(element => {
+            const rect = element.getBoundingClientRect();
+            const isInViewport = rect.top < window.innerHeight && rect.bottom > 0;
+            
+            if (isInViewport && !element.dataset.loaded) {
+                this.loadElement(element);
+            }
+        });
+    }
+    
+    /**
+     * Load a specific lazy element
+     */
+    loadElement(element) {
+        const loadType = element.dataset.lazyLoad;
+        
+        switch (loadType) {
+            case 'image':
+                this.loadLazyImage(element);
+                break;
+            case 'content':
+                this.loadLazyContent(element);
+                break;
+            case 'script':
+                this.loadLazyScript(element);
+                break;
+            default:
+                this.loadGenericLazyElement(element);
+        }
+        
+        element.dataset.loaded = 'true';
+    }
+    
+    /**
+     * Load lazy image
+     */
+    loadLazyImage(element) {
+        if (element.dataset.src) {
+            element.src = element.dataset.src;
+            element.classList.remove('lazy');
+        }
+    }
+    
+    /**
+     * Load lazy content
+     */
+    loadLazyContent(element) {
+        if (element.dataset.src) {
+            fetch(element.dataset.src)
+                .then(response => response.text())
+                .then(html => {
+                    element.innerHTML = html;
+                    element.classList.remove('lazy');
+                })
+                .catch(error => {
+                    console.warn('Failed to load lazy content:', error);
+                });
+        }
+    }
+    
+    /**
+     * Load lazy script
+     */
+    loadLazyScript(element) {
+        if (element.dataset.src) {
+            const script = document.createElement('script');
+            script.src = element.dataset.src;
+            script.async = true;
+            element.appendChild(script);
+        }
+    }
+    
+    /**
+     * Load generic lazy element
+     */
+    loadGenericLazyElement(element) {
+        // Trigger any custom lazy loading logic
+        if (typeof element.onLazyLoad === 'function') {
+            element.onLazyLoad();
+        }
     }
     
     /**

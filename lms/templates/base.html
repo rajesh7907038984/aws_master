@@ -134,7 +134,7 @@
     <script>
         window.userAuthenticated = {% if user.is_authenticated %}true{% else %}false{% endif %};
         window.userName = "{{ user.username|escapejs }}";
-        window.userRole = "{{ user.role|default:'anonymous'|escapejs }}";
+        window.userRole = "{% if user.role %}{{ user.role|escapejs }}{% else %}anonymous{% endif %}";
         window.userBranch = "{% if user.branch %}{{ user.branch.name|escapejs }}{% else %}none{% endif %}";
     </script>
     

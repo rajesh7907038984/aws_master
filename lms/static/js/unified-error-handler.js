@@ -25,6 +25,9 @@ class UnifiedErrorHandler {
             'BUSINESS_LOGIC': 'This action cannot be completed at this time'
         };
         
+        // Add error cooldown to prevent spam
+        this.errorCooldown = new Map();
+        
         this.setupGlobalErrorHandling();
     }
     
@@ -78,6 +81,19 @@ class UnifiedErrorHandler {
      * Handle errors with unified approach
      */
     handleError(error, context = 'Unknown') {
+        // Create error key for cooldown check
+        const errorKey = `${context}-${error.message || error.name}`;
+        const now = Date.now();
+        const lastError = this.errorCooldown.get(errorKey);
+        
+        // Skip if same error occurred within last 5 seconds
+        if (lastError && (now - lastError) < 5000) {
+            return;
+        }
+        
+        // Update cooldown
+        this.errorCooldown.set(errorKey, now);
+        
         console.error(`[${context}] Error:`, error);
         
         // Categorize error

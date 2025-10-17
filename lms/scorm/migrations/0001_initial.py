@@ -11,7 +11,7 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('courses', '0009_remove_all_scorm_tables'),
+        ('courses', '0006_course_survey'),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 

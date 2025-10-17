@@ -973,6 +973,7 @@ class MobileTabsAccordion {
         const allTabs = document.querySelectorAll('.tab-btn, .tab-button');
         const allContents = document.querySelectorAll('.tab-pane');
         
+        console.log('Desktop tabs update:', {
             activeTab: activeTab.id, 
             allTabs: allTabs.length, 
             allContents: allContents.length 
@@ -1016,6 +1017,7 @@ class MobileTabsAccordion {
                 targetContent.style.setProperty('height', 'auto', 'important');
                 targetContent.style.setProperty('overflow', 'visible', 'important');
                 
+                console.log('Content styles applied:', {
                     display: targetContent.style.display,
                     visibility: targetContent.style.visibility,
                     opacity: targetContent.style.opacity

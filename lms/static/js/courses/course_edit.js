@@ -790,7 +790,7 @@ function initializeExistingImagePreview() {
     const imagePreview = document.getElementById('course-image-preview');
     const imageContainer = document.querySelector('.course-image-container');
 
-    
+    console.log('Image preview elements:', {
         imagePreview: !!imagePreview,
         imageContainer: !!imageContainer
     });
@@ -842,6 +842,7 @@ function handleImageUpload(e) {
     const fileInfo = document.getElementById('image-file-info');
     const imagePreview = document.getElementById('course-image-preview');
     
+    console.log('File input elements:', {
         input: !!input,
         fileInfo: !!fileInfo,
         imagePreview: !!imagePreview

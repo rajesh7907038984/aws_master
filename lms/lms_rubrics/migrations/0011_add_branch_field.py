@@ -8,7 +8,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('branches', '0001_initial'),
-        ('lms_rubrics', '0006_merge_20250522_1413'),
+        ('lms_rubrics', '0005_rubricevaluation_student'),
     ]
 
     operations = [
