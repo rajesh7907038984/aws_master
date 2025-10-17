@@ -7,7 +7,6 @@ import logging
 from django.contrib.auth import get_user_model
 from django.contrib.sessions.models import Session
 from django.utils import timezone
-from django.core.cache import cache
 
 logger = logging.getLogger(__name__)
 User = get_user_model()

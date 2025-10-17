@@ -93,26 +93,18 @@ class SharePointChangeMonitor:
             # Get users from SharePoint
             sharepoint_users = self.api.get_list_items(self.config.user_list_name)
             
-            # Get cached version to compare
-            cache_key = f"{self.cache_prefix}_users_hash"
-            current_hash = self._calculate_list_hash(sharepoint_users)
-            cached_hash = cache.get(cache_key)
+            # Cache functionality removed - always process users
+            logger.info(f"Processing SharePoint users for {self.config.name}")
             
-            if cached_hash != current_hash:
-                logger.info(f"Detected changes in SharePoint users for {self.config.name}")
-                
-                # Process each user
-                for sp_user in sharepoint_users:
-                    try:
-                        if self._sync_sharepoint_user_to_lms(sp_user):
-                            results['synced'] += 1
-                    except Exception as e:
-                        error_msg = f"Error syncing user {sp_user.get('fields', {}).get('Email', 'unknown')}: {str(e)}"
-                        results['errors'].append(error_msg)
-                        logger.error(error_msg)
-                
-                # Update cache
-                cache.set(cache_key, current_hash, 300)  # Cache for 5 minutes
+            # Process each user
+            for sp_user in sharepoint_users:
+                try:
+                    if self._sync_sharepoint_user_to_lms(sp_user):
+                        results['synced'] += 1
+                except Exception as e:
+                    error_msg = f"Error syncing user {sp_user.get('fields', {}).get('Email', 'unknown')}: {str(e)}"
+                    results['errors'].append(error_msg)
+                    logger.error(error_msg)
             
             return results
             

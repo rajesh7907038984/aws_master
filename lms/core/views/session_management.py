@@ -12,7 +12,6 @@ from django.views.decorators.http import require_http_methods
 from django.contrib.auth.decorators import login_required
 from django.contrib.sessions.models import Session
 from django.utils import timezone
-from django.core.cache import cache
 from django.conf import settings
 from django.db import transaction
 
@@ -41,9 +40,8 @@ def session_heartbeat(request):
         except json.JSONDecodeError:
             data = {}
         
-        # Update user activity timestamp
-        activity_key = f"user_activity_{user.id}"
-        cache.set(activity_key, timezone.now().timestamp(), timeout=28800)  # 8 hours
+        # Update user activity timestamp (simplified without cache)
+        # In a real implementation, you might want to store this in the database
         
         # Check if session needs extension
         session = Session.objects.get(session_key=session_key)
@@ -167,9 +165,8 @@ def session_extend(request):
             session.expire_date = new_expiry
             session.save()
             
-            # Update activity timestamp
-            activity_key = f"user_activity_{user.id}"
-            cache.set(activity_key, timezone.now().timestamp(), timeout=28800)
+            # Update activity timestamp (simplified without cache)
+            # In a real implementation, you might want to store this in the database
             
             logger.info(f" Session manually extended for user {user.id}")
             
@@ -211,9 +208,9 @@ def session_status(request):
         session = Session.objects.get(session_key=session_key)
         time_until_expiry = (session.expire_date - timezone.now()).total_seconds()
         
-        # Check user activity
-        activity_key = f"user_activity_{user.id}"
-        last_activity = cache.get(activity_key)
+        # Check user activity (simplified without cache)
+        # In a real implementation, you might want to query the database
+        last_activity = None
         
         return JsonResponse({
             'active': True,

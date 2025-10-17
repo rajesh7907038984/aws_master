@@ -8,7 +8,6 @@ from django.utils import timezone
 from datetime import timedelta, datetime
 from django.contrib.admin.models import LogEntry
 from django.contrib.contenttypes.models import ContentType
-from django.core.cache import cache
 from django.conf import settings
 import json
 import logging
@@ -25,21 +24,9 @@ class BusinessStatisticsManager:
     Global business performance statistics manager with reusable methods
     """
     
-    CACHE_TIMEOUT = 60  # 1 minute for more live data
-    CACHE_PREFIX = "business_stats"
-    
     def __init__(self, user=None):
         self.user = user
-        self.cache_enabled = getattr(settings, 'CACHE_ENABLED', True)
     
-    def get_cache_key(self, method_name, *args, **kwargs):
-        """Generate cache key for statistics methods"""
-        key_parts = [self.CACHE_PREFIX, method_name]
-        if self.user:
-            key_parts.append(str(self.user.id))
-        key_parts.extend([str(arg) for arg in args])
-        key_parts.extend([f"{k}_{v}" for k, v in sorted(kwargs.items())])
-        return "_".join(key_parts)
     
     def get_login_statistics(self, timeframe='month', business_id=None):
         """
@@ -52,12 +39,6 @@ class BusinessStatisticsManager:
         Returns:
             dict: Login statistics with charts data
         """
-        cache_key = self.get_cache_key('login_stats', timeframe, business_id)
-        
-        if self.cache_enabled:
-            cached_data = cache.get(cache_key)
-            if cached_data:
-                return cached_data
         
         now = timezone.now()
         user_ct = ContentType.objects.get_for_model(CustomUser)
@@ -184,8 +165,6 @@ class BusinessStatisticsManager:
             'start_date': start_date,
         }
         
-        if self.cache_enabled:
-            cache.set(cache_key, statistics, self.CACHE_TIMEOUT)
         
         return statistics
     
@@ -200,12 +179,6 @@ class BusinessStatisticsManager:
         Returns:
             dict: Course completion statistics with charts data
         """
-        cache_key = self.get_cache_key('completion_stats', timeframe, business_id)
-        
-        if self.cache_enabled:
-            cached_data = cache.get(cache_key)
-            if cached_data:
-                return cached_data
         
         now = timezone.now()
         
@@ -333,8 +306,6 @@ class BusinessStatisticsManager:
             'start_date': start_date,
         }
         
-        if self.cache_enabled:
-            cache.set(cache_key, statistics, self.CACHE_TIMEOUT)
         
         return statistics
     
@@ -348,12 +319,6 @@ class BusinessStatisticsManager:
         Returns:
             dict: Business overview statistics
         """
-        cache_key = self.get_cache_key('business_overview', business_id)
-        
-        if self.cache_enabled:
-            cached_data = cache.get(cache_key)
-            if cached_data:
-                return cached_data
         
         # Get base querysets
         if business_id:
@@ -418,8 +383,6 @@ class BusinessStatisticsManager:
             }
         }
         
-        if self.cache_enabled:
-            cache.set(cache_key, statistics, self.CACHE_TIMEOUT)
         
         return statistics
     
@@ -430,12 +393,6 @@ class BusinessStatisticsManager:
         Returns:
             dict: Business comparison statistics
         """
-        cache_key = self.get_cache_key('business_comparison')
-        
-        if self.cache_enabled:
-            cached_data = cache.get(cache_key)
-            if cached_data:
-                return cached_data
         
         businesses = Business.objects.filter(is_active=True)
         comparison_data = []
@@ -461,27 +418,9 @@ class BusinessStatisticsManager:
             'avg_completion_rate': sum(b['completion_rate'] for b in comparison_data) / len(comparison_data) if comparison_data else 0
         }
         
-        if self.cache_enabled:
-            cache.set(cache_key, statistics, self.CACHE_TIMEOUT)
         
         return statistics
     
-    def clear_cache(self, method_name=None):
-        """
-        Clear cache for specific method or all methods
-        
-        Args:
-            method_name: Specific method name or None for all
-        """
-        if method_name:
-            # Clear specific method cache
-            pattern = f"{self.CACHE_PREFIX}_{method_name}_*"
-            # Note: This is a simplified approach. In production, you might want to use Redis with pattern deletion
-            logger.info(f"Cache cleared for pattern: {pattern}")
-        else:
-            # Clear all business statistics cache
-            pattern = f"{self.CACHE_PREFIX}_*"
-            logger.info(f"All business statistics cache cleared")
     
     def get_chart_data(self, chart_type, timeframe='month', business_id=None):
         """

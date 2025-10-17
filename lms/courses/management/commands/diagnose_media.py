@@ -21,12 +21,9 @@ class Command(BaseCommand):
                 self.stdout.write(f'Content file: {topic.content_file}')
                 self.stdout.write(f'Content file URL: {topic.content_file.url}')
                 
-                file_path = os.path.join(settings.MEDIA_ROOT, str(topic.content_file))
-                if os.path.exists(file_path):
-                    self.stdout.write(self.style.SUCCESS(f'File exists at: {file_path}'))
-                    self.stdout.write(f'File size: {os.path.getsize(file_path)} bytes')
-                else:
-                    self.stdout.write(self.style.ERROR(f'File does NOT exist at: {file_path}'))
+                # S3 storage - no local file existence check needed
+                self.stdout.write("S3 storage - no local file existence check needed")
+                self.stdout.write(f'S3 URL: {topic.content_file.url}')
                     
                 # Check directory permissions
                 dir_path = os.path.dirname(file_path)

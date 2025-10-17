@@ -259,7 +259,6 @@ server {{
     location /static/ {{
         alias {static_root}/;
         expires 1y;
-        add_header Cache-Control "public, immutable";
         
         # Gzip compression
         gzip on;
@@ -279,7 +278,6 @@ server {{
     location /media/ {{
         alias {media_root}/;
         expires 1y;
-        add_header Cache-Control "public, immutable";
     }}
     
     # Health check endpoint

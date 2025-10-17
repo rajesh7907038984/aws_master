@@ -12,7 +12,7 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 from core.utils.fields import TinyMCEField
 from django.core.files.storage import default_storage
-# Local file storage configuration
+# S3 file storage configuration
 from categories.models import CourseCategory
 
 import uuid
@@ -33,7 +33,7 @@ logger = logging.getLogger(__name__)
 
 def content_file_path(instance: Any, filename: str) -> str:
     """Generate file path for course content with safe filename handling for S3 storage"""
-    # Local file storage configuration
+    # S3 file storage configuration
     # Get the base filename and extension
     name, ext = os.path.splitext(filename)
     
@@ -735,29 +735,12 @@ class Course(models.Model):
         return self
 
     def _ensure_course_directories(self):
-        """Create necessary directories for course files"""
+        """S3 storage - no local directory creation needed"""
         if not self.pk:
             return
             
-        # Define paths for course files
-        media_root = settings.MEDIA_ROOT
-        
-        # Skip directory creation if using S3 storage (MEDIA_ROOT is None)
-        if media_root is None:
-            logger.info(f"Using S3 storage, skipping local directory creation for course {self.pk}")
-            return
-        
-        course_images_dir = os.path.join(media_root, 'course_images', str(self.pk))
-        course_videos_dir = os.path.join(media_root, 'course_videos', str(self.pk))
-        
-        # Create directories if they don't exist
-        for directory in [course_images_dir, course_videos_dir]:
-            if not os.path.exists(directory):
-                try:
-                    os.makedirs(directory, exist_ok=True)
-                    logger.info(f"Created directory: {directory}")
-                except Exception as e:
-                    logger.error(f"Error creating directory {directory}: {str(e)}")
+        # S3 storage - directories are created automatically when files are uploaded
+        logger.info(f"S3 storage - no local directory creation needed for course {self.pk}")
 
     def clean(self):
         """Validate course fields with improved error handling"""
@@ -1437,13 +1420,8 @@ class Course(models.Model):
                     except Exception as e:
                         logger.error(f"Error deleting course video: {str(e)}")
 
-                content_dir = os.path.join(settings.MEDIA_ROOT, 'course_content', str(self.id))
-                if os.path.exists(content_dir):
-                    try:
-                        shutil.rmtree(content_dir)
-                        logger.info(f"Deleted course content directory: {content_dir}")
-                    except Exception as e:
-                        logger.error(f"Error deleting course content directory: {str(e)}")
+                # S3 storage - no local directory cleanup needed
+                logger.info("S3 storage - skipping local course content directory cleanup")
                         
                 # Delete any media folders related to this course (S3 storage)
                 media_folders = [
@@ -3096,7 +3074,7 @@ class CourseTopic(models.Model):
 #         # For S3 storage, use the file name instead of path
 #         if instance.content_file:
 #             try:
-#                 # Try to get path for local storage
+#                 # S3 storage - no local path needed
 #                 file_path = instance.content_file.path
 #             except (ValueError, NotImplementedError):
 #                 # For S3 storage, use the file name
@@ -3204,7 +3182,7 @@ class CourseTopic(models.Model):
 #                         # Get the file path for upload (handle cloud storage properly)
 #                         upload_file_path = None
 #                         
-#                         # Use local storage for removed files - no need for cloud storage handling
+#                         # S3 storage - no local file handling needed
 #                         upload_file_path = instance.content_file.path
 #                         logger.info(f"Using local removed file path: {upload_file_path}")
 #                         

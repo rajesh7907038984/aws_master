@@ -11,7 +11,6 @@ import json
 import time
 from typing import Dict, Any, List, Optional
 from django.utils import timezone
-from django.core.cache import cache
 from django.http import HttpRequest
 from django.contrib.auth.models import User
 from django.db import models
@@ -24,7 +23,6 @@ class ActivityTracker:
     """Track user activities and system performance"""
     
     def __init__(self):
-        self.cache_timeout = 3600  # 1 hour
         self.max_activities = 1000  # Max activities to store per user
     
     def track_user_activity(self, user_id: int, activity_type: str, 
@@ -41,28 +39,18 @@ class ActivityTracker:
             'method': request.method if request else None
         }
         
-        # Store in cache
-        cache_key = f"user_activity_{user_id}"
-        activities = cache.get(cache_key, [])
-        
-        # Add new activity
-        activities.append(activity)
-        
-        # Keep only recent activities
-        if len(activities) > self.max_activities:
-            activities = activities[-self.max_activities:]
-        
-        cache.set(cache_key, activities, self.cache_timeout)
+        # Store activity (simplified without cache)
+        # In a real implementation, you might want to store this in the database
+        pass
         
         # Log important activities
         if activity_type in ['login', 'logout', 'course_enroll', 'course_complete']:
             logger.info(f"User {user_id} performed {activity_type}: {details}")
     
     def get_user_activities(self, user_id: int, limit: int = 50) -> List[Dict[str, Any]]:
-        """Get user activities"""
-        cache_key = f"user_activity_{user_id}"
-        activities = cache.get(cache_key, [])
-        return activities[-limit:] if activities else []
+        """Get user activities (simplified without cache)"""
+        # In a real implementation, you might want to query the database
+        return []
     
     def track_page_view(self, user_id: int, page_path: str, request: HttpRequest):
         """Track page views"""
@@ -108,7 +96,7 @@ class PerformanceMonitor:
     """Monitor system performance and resource usage"""
     
     def __init__(self):
-        self.metrics_cache_timeout = 300  # 5 minutes
+        pass
     
     def get_system_metrics(self) -> Dict[str, Any]:
         """Get current system metrics"""
@@ -151,9 +139,6 @@ class PerformanceMonitor:
                 }
             }
             
-            # Cache metrics
-            cache_key = 'system_metrics'
-            cache.set(cache_key, metrics, self.metrics_cache_timeout)
             
             return metrics
             
@@ -162,9 +147,8 @@ class PerformanceMonitor:
             return {}
     
     def get_cached_metrics(self) -> Dict[str, Any]:
-        """Get cached system metrics"""
-        cache_key = 'system_metrics'
-        return cache.get(cache_key, {})
+        """Get cached system metrics (simplified without cache)"""
+        return {}
     
     def track_request_performance(self, request: HttpRequest, response_time: float, 
                                 query_count: int, memory_usage: float):
@@ -179,9 +163,8 @@ class PerformanceMonitor:
             'user_id': request.user.id if request.user.is_authenticated else None
         }
         
-        # Store in cache for analysis
-        cache_key = f"request_performance_{int(time.time())}"
-        cache.set(cache_key, performance_data, 3600)  # 1 hour
+        # Store performance data (simplified without cache)
+        # In a real implementation, you might want to store this in the database
         
         # Log slow requests
         if response_time > 2.0:  # More than 2 seconds

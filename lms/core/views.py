@@ -275,11 +275,12 @@ def debug_media_info(request):
         from django.conf import settings
         
         media_info = {
-            'MEDIA_ROOT': getattr(settings, 'MEDIA_ROOT', 'Not set'),
             'MEDIA_URL': getattr(settings, 'MEDIA_URL', 'Not set'),
             'STATICFILES_STORAGE': getattr(settings, 'STATICFILES_STORAGE', 'Not set'),
             'DEFAULT_FILE_STORAGE': getattr(settings, 'DEFAULT_FILE_STORAGE', 'Not set'),
-            'media_root_exists': os.path.exists(getattr(settings, 'MEDIA_ROOT', '')) if getattr(settings, 'MEDIA_ROOT', None) else False,
+            'AWS_STORAGE_BUCKET_NAME': getattr(settings, 'AWS_STORAGE_BUCKET_NAME', 'Not set'),
+            'AWS_S3_REGION_NAME': getattr(settings, 'AWS_S3_REGION_NAME', 'Not set'),
+            's3_storage_mode': True,
         }
         
         return JsonResponse(media_info)

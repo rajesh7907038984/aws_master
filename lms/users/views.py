@@ -395,7 +395,6 @@ def custom_login(request):
         return render(request, "users/shared/login.html", context)
     
     if request.method == "POST":
-        from django.core.cache import cache
         import logging
         
         # Get Session logger
@@ -4495,14 +4494,86 @@ def global_admin_dashboard(request):
         return HttpResponseForbidden("Access Denied")
 
     import json
-    from core.utils.dashboard_cache import DashboardCache
     from business.models import Business
 
-    # Get cached global statistics
-    stats = DashboardCache.get_global_stats()
+    # Get global statistics directly from database
+    from django.db.models import Count, Q
+    from users.models import CustomUser
+    from courses.models import Course, CourseEnrollment
+    from branches.models import Branch
     
-    # Get cached activity data
-    activity_data = DashboardCache.get_activity_data('month')
+    stats = CustomUser.objects.aggregate(
+        total_users=Count('id'),
+        active_users=Count('id', filter=Q(is_active=True)),
+        globaladmin_count=Count('id', filter=Q(role='globaladmin')),
+        superadmin_count=Count('id', filter=Q(role='superadmin')),
+        admin_count=Count('id', filter=Q(role='admin')),
+        instructor_count=Count('id', filter=Q(role='instructor')),
+        learner_count=Count('id', filter=Q(role='learner'))
+    )
+    
+    # Add course and branch counts
+    stats['total_courses'] = Course.objects.count()
+    stats['total_branches'] = Branch.objects.count()
+    
+    # Add enrollment stats - only include learner role users
+    enrollment_stats = CourseEnrollment.objects.filter(user__role='learner').aggregate(
+        total_enrollments=Count('id'),
+        completed_enrollments=Count('id', filter=Q(completed=True))
+    )
+    stats.update(enrollment_stats)
+    
+    # Calculate completion rate
+    if stats['total_enrollments'] > 0:
+        stats['completion_rate'] = round(
+            (stats['completed_enrollments'] / stats['total_enrollments']) * 100
+        )
+    else:
+        stats['completion_rate'] = 0
+    
+    # Get activity data directly from database
+    from django.utils import timezone
+    from datetime import timedelta
+    
+    today = timezone.now().date()
+    start_date = today - timedelta(days=29)
+    days = 30
+    dates = [(start_date + timedelta(days=i)).strftime('%b %d') for i in range(days)]
+    
+    # Initialize data structures
+    login_counts = [0] * days
+    completion_counts = [0] * days
+    
+    # Get login data
+    logins = CustomUser.objects.filter(
+        last_login__date__gte=start_date,
+        last_login__date__lte=start_date + timedelta(days=days-1)
+    ).values('last_login__date').annotate(count=Count('id'))
+    
+    for login in logins:
+        login_date = login['last_login__date']
+        day_index = (login_date - start_date).days
+        if 0 <= day_index < days:
+            login_counts[day_index] = login['count']
+    
+    # Get completion data
+    completions = CourseEnrollment.objects.filter(
+        completed=True,
+        completion_date__date__gte=start_date,
+        completion_date__date__lte=start_date + timedelta(days=days-1)
+    ).values('completion_date__date').annotate(count=Count('id'))
+    
+    for completion in completions:
+        completion_date = completion['completion_date__date']
+        day_index = (completion_date - start_date).days
+        if 0 <= day_index < days:
+            completion_counts[day_index] = completion['count']
+    
+    activity_data = {
+        'logins': login_counts,
+        'completions': completion_counts,
+        'labels': dates
+    }
 
     # Get top businesses with optimized query
     try:
@@ -4807,7 +4878,6 @@ def admin_dashboard(request):
     from courses.models import CourseTopic, TopicProgress
     from calendar_app.models import CalendarEvent
     from branch_portal.models import BranchPortal
-    from core.utils.dashboard_cache import DashboardCache
     from core.branch_filters import BranchFilterManager
     import logging
     
@@ -4849,19 +4919,43 @@ def admin_dashboard(request):
         logger.error(f"Error handling branch assignment for admin user {request.user.username}: {str(e)}")
         return HttpResponseServerError("Dashboard configuration error. Please contact support.")
     
-    # Get cached branch statistics with error handling
-    try:
-        stats = DashboardCache.get_branch_stats(branch_id)
-    except Exception as e:
-        logger.error(f"Error getting cached branch stats for branch {branch_id}: {str(e)}")
-        # Fallback to basic stats calculation
-        stats = {
-            'total_users': CustomUser.objects.filter(branch_id=branch_id).count(),
-            'active_users': CustomUser.objects.filter(branch_id=branch_id, is_active=True).count(),
-            'total_courses': Course.objects.filter(branch_id=branch_id).count(),
-            'total_enrollments': 0,
-            'completion_rate': 0
-        }
+    # Get branch statistics directly from database
+    from django.db.models import Count, Q
+    from users.models import CustomUser
+    from courses.models import Course, CourseEnrollment
+    
+    # Branch user stats
+    branch_users = CustomUser.objects.filter(branch_id=branch_id)
+    stats = branch_users.aggregate(
+        total_users=Count('id'),
+        active_users=Count('id', filter=Q(is_active=True)),
+        instructor_count=Count('id', filter=Q(role='instructor')),
+        learner_count=Count('id', filter=Q(role='learner'))
+    )
+    
+    # Branch course stats
+    branch_courses = Course.objects.filter(branch_id=branch_id)
+    stats['total_courses'] = branch_courses.count()
+    
+    # Branch enrollment stats
+    branch_enrollments = CourseEnrollment.objects.filter(user__branch_id=branch_id, user__role='learner')
+    
+    # Sync completion status for branch enrollments before calculating stats
+    CourseEnrollment.sync_branch_completions(branch_id)
+    
+    enrollment_stats = branch_enrollments.aggregate(
+        total_enrollments=Count('id'),
+        completed_enrollments=Count('id', filter=Q(completed=True))
+    )
+    stats.update(enrollment_stats)
+    
+    # Calculate completion rate
+    if stats['total_enrollments'] > 0:
+        stats['completion_rate'] = round(
+            (stats['completed_enrollments'] / stats['total_enrollments']) * 100
+        )
+    else:
+        stats['completion_rate'] = 0
     
     # Use select_related and prefetch_related for efficient queries
     branch_courses = Course.objects.filter(branch=effective_branch).select_related('instructor')
@@ -5198,9 +5292,32 @@ def admin_dashboard(request):
         effective_branch = BranchFilterManager.get_effective_branch(request.user, request)
         admin_branch_id = effective_branch.id if effective_branch else None
         
-        # Get activity data for the requested timeframe
-        from core.utils.dashboard_cache import DashboardCache
-        activity_data = DashboardCache.get_activity_data(timeframe, admin_branch_id)
+        # Get activity data directly from database
+        from django.utils import timezone
+        from datetime import timedelta
+        from django.db.models import Count
+        
+        today = timezone.now().date()
+        
+        # Set date range based on timeframe
+        if timeframe == 'day':
+            start_date = today
+            hours = 24
+            dates = [(timezone.now() - timedelta(hours=i)).strftime('%I %p') for i in range(hours-1, -1, -1)]
+            # For hourly data, use different calculation
+            activity_data = _calculate_hourly_activity(dates, today, admin_branch_id)
+        elif timeframe == 'week':
+            start_date = today - timedelta(days=6)
+            days = 7
+            dates = [(start_date + timedelta(days=i)).strftime('%a') for i in range(days)]
+            activity_data = _calculate_daily_activity(dates, start_date, days, admin_branch_id)
+        else:  # month
+            start_date = today - timedelta(days=29)
+            days = 30
+            dates = [(start_date + timedelta(days=i)).strftime('%b %d') for i in range(days)]
+            activity_data = _calculate_daily_activity(dates, start_date, days, admin_branch_id)
+        
+        activity_data['labels'] = dates
         
         from django.http import JsonResponse
         return JsonResponse(activity_data)
@@ -5521,7 +5638,6 @@ def instructor_dashboard(request):
     
     from courses.models import Course, CourseEnrollment
     from assignments.models import Assignment
-    from core.utils.dashboard_cache import DashboardCache
     import logging
     
     logger = logging.getLogger(__name__)
@@ -5532,19 +5648,50 @@ def instructor_dashboard(request):
         {'label': 'Instructor Dashboard', 'icon': 'fa-tachometer-alt'}
     ]
     
-    # Get instructor statistics with real-time calculation to ensure accuracy
-    # Note: Using real-time calculation instead of cache to ensure overview stats are always current
-    try:
-        stats = DashboardCache.get_instructor_stats(request.user.id)
-    except Exception as e:
-        logger.error(f"Error getting cached instructor stats for user {request.user.id}: {str(e)}")
-        # Fallback to basic stats with all required keys
-        stats = {
-            'assigned_courses_count': 0,
-            'unique_learners_count': 0,
-            'instructor_groups_count': 0,
-            'completion_rate': 0
-        }
+    # Get instructor statistics directly from database
+    from django.db.models import Count, Q
+    from groups.models import BranchGroup
+    
+    # Get assigned courses efficiently
+    # Include courses where user is:
+    # 1. The direct instructor, OR
+    # 2. Member of accessible group with instructor role, OR
+    # 3. Member of accessible group with general access (admin assigned)
+    assigned_courses = Course.objects.filter(
+        Q(instructor_id=request.user.id) |
+        Q(accessible_groups__memberships__user_id=request.user.id,
+          accessible_groups__memberships__is_active=True,
+          accessible_groups__memberships__custom_role__name__icontains='instructor') |
+        Q(accessible_groups__memberships__user_id=request.user.id,
+          accessible_groups__memberships__is_active=True)
+    ).distinct()
+    
+    # Count groups this instructor has access to through their courses
+    instructor_groups_count = BranchGroup.objects.filter(
+        Q(memberships__user_id=request.user.id, memberships__is_active=True) |
+        Q(course_groups__course__in=assigned_courses)
+    ).distinct().count()
+    
+    stats = {
+        'assigned_courses_count': assigned_courses.count(),
+        'instructor_groups_count': instructor_groups_count
+    }
+    
+    # Get unique learners count
+    stats['unique_learners_count'] = CourseEnrollment.objects.filter(
+        course__in=assigned_courses,
+        user__role='learner'
+    ).values('user').distinct().count()
+    
+    # Calculate completion rate - only include learner role users
+    course_enrollments = CourseEnrollment.objects.filter(course__in=assigned_courses, user__role='learner')
+    total_enrollments = course_enrollments.count()
+    completed_enrollments = course_enrollments.filter(completed=True).count()
+    
+    if total_enrollments > 0:
+        stats['completion_rate'] = round((completed_enrollments / total_enrollments) * 100)
+    else:
+        stats['completion_rate'] = 0
     
     # Get assigned courses with optimized query
     # Include courses where user is:
@@ -5632,7 +5779,17 @@ def instructor_dashboard(request):
     branch_id = request.user.branch.id if request.user.branch else None
     business_id = request.GET.get('business')
     branch_filter_id = request.GET.get('branch')
-    activity_data = DashboardCache.get_activity_data('month', branch_filter_id or branch_id)
+    # Get activity data directly from database
+    from django.utils import timezone
+    from datetime import timedelta
+    
+    today = timezone.now().date()
+    start_date = today - timedelta(days=29)
+    days = 30
+    dates = [(start_date + timedelta(days=i)).strftime('%b %d') for i in range(days)]
+    
+    activity_data = _calculate_daily_activity(dates, start_date, days, branch_filter_id or branch_id)
+    activity_data['labels'] = dates
     
     # Prepare portal activity for template
     import json
@@ -5829,9 +5986,30 @@ def instructor_dashboard(request):
         # Get instructor's branch_id for activity filtering
         instructor_branch_id = request.user.branch.id if request.user.branch else None
         
-        # Get activity data for the requested timeframe
-        from core.utils.dashboard_cache import DashboardCache
-        activity_data = DashboardCache.get_activity_data(timeframe, instructor_branch_id)
+        # Get activity data directly from database
+        from django.utils import timezone
+        from datetime import timedelta
+        
+        today = timezone.now().date()
+        
+        # Set date range based on timeframe
+        if timeframe == 'day':
+            start_date = today
+            hours = 24
+            dates = [(timezone.now() - timedelta(hours=i)).strftime('%I %p') for i in range(hours-1, -1, -1)]
+            activity_data = _calculate_hourly_activity(dates, today, instructor_branch_id)
+        elif timeframe == 'week':
+            start_date = today - timedelta(days=6)
+            days = 7
+            dates = [(start_date + timedelta(days=i)).strftime('%a') for i in range(days)]
+            activity_data = _calculate_daily_activity(dates, start_date, days, instructor_branch_id)
+        else:  # month
+            start_date = today - timedelta(days=29)
+            days = 30
+            dates = [(start_date + timedelta(days=i)).strftime('%b %d') for i in range(days)]
+            activity_data = _calculate_daily_activity(dates, start_date, days, instructor_branch_id)
+        
+        activity_data['labels'] = dates
         
         from django.http import JsonResponse
         return JsonResponse(activity_data)
@@ -6365,19 +6543,46 @@ def get_dashboard_overview_data(request):
     if request.user.role != 'superadmin':
         return JsonResponse({"error": "Access Denied"}, status=403)
 
-    # Use cached global statistics
-    from core.utils.dashboard_cache import DashboardCache
-    stats = DashboardCache.get_global_stats()
+    # Get global statistics directly from database
+    from django.db.models import Count, Q
+    from users.models import CustomUser
+    from courses.models import Course, CourseEnrollment
+    from branches.models import Branch
+    
+    stats = CustomUser.objects.aggregate(
+        total_users=Count('id'),
+        active_users=Count('id', filter=Q(is_active=True)),
+        globaladmin_count=Count('id', filter=Q(role='globaladmin')),
+        superadmin_count=Count('id', filter=Q(role='superadmin')),
+        admin_count=Count('id', filter=Q(role='admin')),
+        instructor_count=Count('id', filter=Q(role='instructor')),
+        learner_count=Count('id', filter=Q(role='learner'))
+    )
+    
+    # Add course and branch counts
+    stats['total_courses'] = Course.objects.count()
+    stats['total_branches'] = Branch.objects.count()
+    
+    # Add enrollment stats - only include learner role users
+    enrollment_stats = CourseEnrollment.objects.filter(user__role='learner').aggregate(
+        total_enrollments=Count('id'),
+        completed_enrollments=Count('id', filter=Q(completed=True))
+    )
+    stats.update(enrollment_stats)
+    
+    # Calculate completion rate
+    if stats['total_enrollments'] > 0:
+        stats['completion_rate'] = round(
+            (stats['completed_enrollments'] / stats['total_enrollments']) * 100
+        )
+    else:
+        stats['completion_rate'] = 0
     
     # Add timestamp for last update
     stats['last_updated'] = timezone.now().strftime('%Y-%m-%d %H:%M:%S')
     
-    # Create response with no-cache headers for live data
+    # Create response
     response = JsonResponse(stats)
-    response['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-    response['Pragma'] = 'no-cache'
-    response['Expires'] = '0'
-    response['Last-Modified'] = timezone.now().strftime('%a, %d %b %Y %H:%M:%S GMT')
     
     return response
 
@@ -6681,13 +6886,8 @@ def get_dashboard_activity_data(request):
             }
         }
         
-        # Create response with no-cache headers for live data
+        # Create response
         response = JsonResponse(activity_data)
-        response['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-        response['Pragma'] = 'no-cache'
-        response['Expires'] = '0'
-        response['Last-Modified'] = timezone.now().strftime('%a, %d %b %Y %H:%M:%S GMT')
-        
         return response
         
     except Exception as e:
@@ -6729,7 +6929,6 @@ def get_admin_course_progress_data(request):
         return JsonResponse({"error": "Access Denied"}, status=403)
 
     # Get cached branch statistics 
-    from core.utils.dashboard_cache import DashboardCache
     from core.branch_filters import BranchFilterManager
     
     # Get the effective branch (considers session-based branch switching for admin users)
@@ -6837,9 +7036,6 @@ def get_admin_course_progress_data(request):
     
     # Create response with no-cache headers for live data
     response = JsonResponse(data)
-    response['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-    response['Pragma'] = 'no-cache'
-    response['Expires'] = '0'
     response['Last-Modified'] = timezone.now().strftime('%a, %d %b %Y %H:%M:%S GMT')
     
     return response
@@ -6850,19 +7046,52 @@ def get_instructor_dashboard_stats(request):
     if request.user.role != 'instructor':
         return JsonResponse({"error": "Access Denied"}, status=403)
     
-    # Use cached instructor statistics
-    from core.utils.dashboard_cache import DashboardCache
-    stats = DashboardCache.get_instructor_stats(request.user.id)
+    # Get instructor statistics directly from database
+    from django.db.models import Count, Q
+    from groups.models import BranchGroup
+    
+    # Get assigned courses efficiently
+    assigned_courses = Course.objects.filter(
+        Q(instructor_id=request.user.id) |
+        Q(accessible_groups__memberships__user_id=request.user.id,
+          accessible_groups__memberships__is_active=True,
+          accessible_groups__memberships__custom_role__name__icontains='instructor') |
+        Q(accessible_groups__memberships__user_id=request.user.id,
+          accessible_groups__memberships__is_active=True)
+    ).distinct()
+    
+    # Count groups this instructor has access to through their courses
+    instructor_groups_count = BranchGroup.objects.filter(
+        Q(memberships__user_id=request.user.id, memberships__is_active=True) |
+        Q(course_groups__course__in=assigned_courses)
+    ).distinct().count()
+    
+    stats = {
+        'assigned_courses_count': assigned_courses.count(),
+        'instructor_groups_count': instructor_groups_count
+    }
+    
+    # Get unique learners count
+    stats['unique_learners_count'] = CourseEnrollment.objects.filter(
+        course__in=assigned_courses,
+        user__role='learner'
+    ).values('user').distinct().count()
+    
+    # Calculate completion rate - only include learner role users
+    course_enrollments = CourseEnrollment.objects.filter(course__in=assigned_courses, user__role='learner')
+    total_enrollments = course_enrollments.count()
+    completed_enrollments = course_enrollments.filter(completed=True).count()
+    
+    if total_enrollments > 0:
+        stats['completion_rate'] = round((completed_enrollments / total_enrollments) * 100)
+    else:
+        stats['completion_rate'] = 0
     
     # Add timestamp for last update
     stats['last_updated'] = timezone.now().strftime('%Y-%m-%d %H:%M:%S')
     
-    # Create response with no-cache headers for live data
+    # Create response
     response = JsonResponse(stats)
-    response['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-    response['Pragma'] = 'no-cache'
-    response['Expires'] = '0'
-    response['Last-Modified'] = timezone.now().strftime('%a, %d %b %Y %H:%M:%S GMT')
     
     return response
 
@@ -7421,11 +7650,8 @@ def get_recent_activities(request):
             'time_ago': time_ago
         })
     
-    # Create response with cache-control headers
+    # Create response
     response = JsonResponse({'activities': activities})
-    response['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-    response['Pragma'] = 'no-cache'
-    response['Expires'] = '0'
     
     return response
 
@@ -10363,3 +10589,102 @@ def ping_view(request):
         'message': 'LMS server is running',
         'authenticated': request.user.is_authenticated if hasattr(request, 'user') else False
     })
+
+
+def _calculate_daily_activity(dates, start_date, days, branch_id=None):
+    """Calculate daily activity data efficiently"""
+    from django.db.models import Count
+    from users.models import CustomUser
+    from courses.models import CourseEnrollment
+    
+    # Initialize data structures
+    login_counts = [0] * days
+    completion_counts = [0] * days
+    
+    # Build base querysets
+    login_query = CustomUser.objects.filter(
+        last_login__date__gte=start_date,
+        last_login__date__lte=start_date + timedelta(days=days-1)
+    )
+    completion_query = CourseEnrollment.objects.filter(
+        completed=True,
+        completion_date__date__gte=start_date,
+        completion_date__date__lte=start_date + timedelta(days=days-1)
+    )
+    
+    if branch_id:
+        login_query = login_query.filter(branch_id=branch_id)
+        completion_query = completion_query.filter(user__branch_id=branch_id)
+    
+    # Get login data in batch
+    logins = login_query.values('last_login__date').annotate(count=Count('id'))
+    for login in logins:
+        login_date = login['last_login__date']
+        day_index = (login_date - start_date).days
+        if 0 <= day_index < days:
+            login_counts[day_index] = login['count']
+    
+    # Get completion data in batch
+    completions = completion_query.values('completion_date__date').annotate(count=Count('id'))
+    for completion in completions:
+        completion_date = completion['completion_date__date']
+        day_index = (completion_date - start_date).days
+        if 0 <= day_index < days:
+            completion_counts[day_index] = completion['count']
+    
+    return {
+        'logins': login_counts,
+        'completions': completion_counts
+    }
+
+
+def _calculate_hourly_activity(dates, today, branch_id=None):
+    """Calculate hourly activity data efficiently"""
+    from django.db.models import Count
+    from django.db.models.functions import ExtractHour
+    from users.models import CustomUser
+    from courses.models import CourseEnrollment
+    
+    hours = 24
+    login_counts = [0] * hours
+    completion_counts = [0] * hours
+    
+    # Get login data for today
+    login_query = CustomUser.objects.filter(last_login__date=today)
+    completion_query = CourseEnrollment.objects.filter(
+        completed=True,
+        completion_date__date=today
+    )
+    
+    if branch_id:
+        login_query = login_query.filter(branch_id=branch_id)
+        completion_query = completion_query.filter(user__branch_id=branch_id)
+    
+    # Get hourly login data
+    logins = login_query.annotate(
+        hour=ExtractHour('last_login')
+    ).values('hour').annotate(count=Count('id'))
+    
+    for login in logins:
+        hour = login['hour']
+        current_hour = timezone.now().hour
+        hour_index = (current_hour - hour) % 24
+        if 0 <= hour_index < hours:
+            login_counts[hours - 1 - hour_index] = login['count']
+    
+    # Get hourly completion data
+    completions = completion_query.annotate(
+        hour=ExtractHour('completion_date')
+    ).values('hour').annotate(count=Count('id'))
+    
+    for completion in completions:
+        hour = completion['hour']
+        current_hour = timezone.now().hour
+        hour_index = (current_hour - hour) % 24
+        if 0 <= hour_index < hours:
+            completion_counts[hours - 1 - hour_index] = completion['count']
+    
+    return {
+        'logins': login_counts,
+        'completions': completion_counts
+    }

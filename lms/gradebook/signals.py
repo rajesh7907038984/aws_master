@@ -3,7 +3,6 @@ Signal handlers for gradebook cache invalidation
 """
 from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
-from django.core.cache import cache
 from courses.models import TopicProgress
 from scorm.models import ELearningTracking
 import logging
@@ -16,25 +15,21 @@ logger = logging.getLogger(__name__)
 @receiver(post_save, sender=TopicProgress)
 def invalidate_gradebook_cache_on_topic_progress_update(sender, instance, **kwargs):
     """
-    Clear gradebook cache when TopicProgress is updated
+    Handle TopicProgress updates (cache functionality removed)
     """
     try:
-        # Clear all gradebook caches - topics are linked to courses via M2M so clear all
-        cache.clear()
-        logger.info(f"Cleared all caches after TopicProgress {instance.id} update")
+        logger.info(f"TopicProgress {instance.id} updated")
         
     except Exception as e:
-        logger.error(f"Error clearing gradebook cache after TopicProgress update: {str(e)}")
+        logger.error(f"Error handling TopicProgress update: {str(e)}")
 
 @receiver(post_save, sender=ELearningTracking)
 def invalidate_gradebook_cache_on_scorm_tracking_update(sender, instance, **kwargs):
     """
-    Clear gradebook cache when SCORM tracking is updated
+    Handle SCORM tracking updates (cache functionality removed)
     """
     try:
-        # Clear all gradebook caches - SCORM packages are linked to courses via topics
-        cache.clear()
-        logger.info(f"Cleared all caches after SCORM tracking {instance.id} update for user {instance.user.id}")
+        logger.info(f"SCORM tracking {instance.id} updated for user {instance.user.id}")
         
     except Exception as e:
-        logger.error(f"Error clearing gradebook cache after SCORM tracking update: {str(e)}")
+        logger.error(f"Error handling SCORM tracking update: {str(e)}")

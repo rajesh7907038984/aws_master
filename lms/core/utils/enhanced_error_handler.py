@@ -74,9 +74,7 @@ class EnhancedErrorHandler:
         
         logger.error(f"Error {error_id}: {error_info}")
         
-        # Store in cache for admin review
-        from django.core.cache import cache
-        cache.set(f"error_{error_id}", error_info, 3600)  # 1 hour
+        # Cache functionality removed - error information no longer cached
     
     def _handle_validation_error(self, request, error: ValidationError, error_id: str) -> HttpResponse:
         """Handle validation errors with user-friendly messages"""

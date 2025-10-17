@@ -96,7 +96,7 @@ class ELearningPackage(models.Model):
         return "{} Package: {}".format(self.get_package_type_display(), self.title or self.topic.title)
     
     def extract_package(self):
-        """Extract e-learning package to local media directory with enhanced error handling"""
+        """Extract e-learning package to temp directory for S3 storage"""
         try:
             if not self.package_file:
                 raise ValidationError("No package file to extract")
@@ -133,18 +133,11 @@ class ELearningPackage(models.Model):
                 self.package_file.storage.save(temp_file, ContentFile(b''))
                 self.package_file.storage.delete(temp_file)
             
-            # Get the full path for extraction
-            # For S3 storage, we need to create a local directory for extraction
-            # since we can't extract directly to S3
-            local_media_root = getattr(settings, 'MEDIA_ROOT', None)
-            if local_media_root:
-                full_topic_dir = os.path.join(local_media_root, 'elearning', topic_dir)
-            else:
-                # Fallback to temp directory if no local media root
-                import tempfile
-                full_topic_dir = os.path.join(tempfile.gettempdir(), 'elearning', topic_dir)
+            # S3 storage - use temp directory for extraction
+            import tempfile
+            full_topic_dir = os.path.join(tempfile.gettempdir(), 'elearning', topic_dir)
             
-            # Ensure the local extraction directory exists
+            # Ensure the temp extraction directory exists
             os.makedirs(full_topic_dir, exist_ok=True)
             
             # Extract the ZIP file

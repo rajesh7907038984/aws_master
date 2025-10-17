@@ -20,6 +20,5 @@ urlpatterns = [
     path('api/completion-stats/', api_views.get_completion_statistics_api, name='api_completion_statistics'),
     path('api/business-comparison/', api_views.get_business_comparison_api, name='api_business_comparison'),
     path('api/chart-data/', api_views.get_chart_data_api, name='api_chart_data'),
-    path('api/clear-cache/', api_views.clear_cache_api, name='api_clear_cache'),
     path('api/real-time-stats/', api_views.get_real_time_stats_api, name='api_real_time_stats'),
 ] 

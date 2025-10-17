@@ -6,7 +6,6 @@ Provides system performance monitoring and metrics collection
 import time
 import psutil
 from django.conf import settings
-from django.core.cache import cache
 from django.db import connection
 from django.utils import timezone
 
@@ -24,12 +23,8 @@ def get_performance_stats():
         # Database connection count
         db_connections = len(connection.queries) if hasattr(connection, 'queries') else 0
         
-        # Cache status
-        cache_status = 'connected'
-        try:
-            cache.get('test_key')
-        except Exception:
-            cache_status = 'disconnected'
+        # Cache status (removed - no longer using cache)
+        cache_status = 'disabled'
         
         return {
             'timestamp': timezone.now().isoformat(),

@@ -8,7 +8,7 @@ urlpatterns = [
     path('browser/', views.file_browser, name='browser'),
     path('statistics/', views.storage_statistics, name='statistics'),
     path('file/<int:file_id>/', views.file_detail, name='file_detail'),
-    path('serve/<int:file_id>/', views.serve_local_file, name='serve_local_file'),
+    path('serve/<int:file_id>/', views.serve_s3_file, name='serve_s3_file'),
     path('sync/', views.sync_media_files, name='sync_files'),
     path('bulk-delete/', views.bulk_delete_files, name='bulk_delete'),
 ]

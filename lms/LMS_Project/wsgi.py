@@ -29,53 +29,13 @@ def ensure_media_directories():
     from datetime import datetime, timedelta
     
     try:
-        # Get MEDIA_ROOT from settings
-        MEDIA_ROOT = getattr(settings, 'MEDIA_ROOT', None)
-        if not MEDIA_ROOT:
-            logger.info(" Using S3 storage - no local MEDIA_ROOT directory creation needed")
-            logger.info(f" S3 Bucket: {getattr(settings, 'AWS_STORAGE_BUCKET_NAME', 'Not configured')}")
-            return
-    
-        logger.info(f" Using S3 storage - MEDIA_ROOT: {MEDIA_ROOT}")
-    
-        # Check if media directory is accessible
-        if not os.path.exists(MEDIA_ROOT):
-            logger.info(f" Creating MEDIA_ROOT directory: {MEDIA_ROOT}")
-            os.makedirs(MEDIA_ROOT, exist_ok=True)
-        
-        if not os.access(MEDIA_ROOT, os.W_OK):
-            logger.warning(f" MEDIA_ROOT is not writable: {MEDIA_ROOT}")
-            return
-    
-        # Define required directories
-        media_dirs = [
-            'course_images', 'course_videos', 'course_content',
-            'editor_uploads', 'temp', 'messages/uploads',
-            'assignment_content', 'issued_certificates',
-            'certificate_templates',
-            'temp_uploads', 'exports', 'backups'
-        ]
-        
-        # Create directories
-        created_count = 0
-        for dir_name in media_dirs:
-            dir_path = os.path.join(MEDIA_ROOT, dir_name)
-            try:
-                if not os.path.exists(dir_path):
-                    os.makedirs(dir_path, exist_ok=True)
-                    created_count += 1
-                os.chmod(dir_path, 0o755)
-            except Exception as e:
-                logger.warning(f" Failed to create/set permissions for {dir_path}: {e}")
-        
-        if created_count > 0:
-            logger.info(f" Created {created_count} media directories")
-        else:
-            logger.info(" All media directories already exist")
+        # S3 storage - no local directory creation needed
+        logger.info(" Using S3 storage - no local MEDIA_ROOT directory creation needed")
+        logger.info(f" S3 Bucket: {getattr(settings, 'AWS_STORAGE_BUCKET_NAME', 'Not configured')}")
+        logger.info(f" S3 Region: {getattr(settings, 'AWS_S3_REGION_NAME', 'Not configured')}")
             
     except Exception as e:
-        logger.error(f" Error during media directory setup: {e}")
-        logger.info(" Media directories will be created at runtime when needed")
+        logger.error(f" Error checking S3 configuration: {e}")
 
 # Ensure media directories exist at application startup
 try:

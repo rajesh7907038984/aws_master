@@ -5,7 +5,7 @@ This module provides utility functions for role management including
 permission checking, caching, and role validation.
 """
 
-from django.core.cache import cache
+# Cache import removed - cache functionality disabled
 from django.contrib.auth import get_user_model
 from django.db.models import Q, Prefetch
 from django.utils import timezone
@@ -64,36 +64,7 @@ class PermissionManager:
         
         capabilities = []
         
-        if use_cache:
-            # Try to get cached capabilities with enhanced validation
-            success, cached_data = safe_cache_operation(
-                cache.get_many, 
-                [cache_key, cache_version_key, cache_integrity_key]
-            )
-            
-            if success and cached_data:
-                capabilities = cached_data.get(cache_key)
-                cache_version = cached_data.get(cache_version_key)
-                cache_integrity = cached_data.get(cache_integrity_key)
-                
-                # Enhanced cache integrity validation
-                if capabilities is not None and cache_version is not None and cache_integrity is not None:
-                    from core.utils.type_guards import validate_cache_capabilities
-                    
-                    # Use type-safe cache validation
-                    validated_capabilities = validate_cache_capabilities(capabilities)
-                    if validated_capabilities is None:
-                        logger.warning(f"Cache validation failed for user {user.pk}")
-                        PermissionManager._clear_corrupted_cache(user, session_suffix)
-                    # Integrity checksum validation
-                    elif not PermissionManager._validate_cache_integrity(validated_capabilities, cache_version, cache_integrity):
-                        logger.warning(f"Cache integrity validation failed for user {user.pk}: checksum mismatch")
-                        PermissionManager._clear_corrupted_cache(user, session_suffix)
-                    else:
-                        # Cache is valid, return capabilities
-                        return capabilities
-            elif not success:
-                logger.info(f"Cache unavailable for user {user.pk}, proceeding without cache")
+        # Cache functionality removed - always fetch fresh data
         
         # Fresh lookup - build capabilities from scratch
         capabilities = set()
@@ -156,18 +127,7 @@ class PermissionManager:
         # Cache with enhanced Session
         if use_cache and capabilities:
             cache_version = timezone.now().timestamp()
-            cache_integrity = PermissionManager._generate_cache_integrity(capabilities, cache_version)
-            
-            cache_data = {
-                cache_key: capabilities,
-                cache_version_key: cache_version,
-                cache_integrity_key: cache_integrity
-            }
-            
-            # Use shorter cache duration for Session-sensitive data
-            success, _ = safe_cache_operation(cache.set_many, cache_data, 1800)  # 30 minutes instead of 1 hour
-            if not success:
-                logger.info(f"Unable to cache capabilities for user {user.pk}, continuing without cache")
+            # Cache functionality removed
         
         return capabilities
     
@@ -192,19 +152,6 @@ class PermissionManager:
         
         return hashlib.sha256(content.encode()).hexdigest()
     
-    @staticmethod
-    def _clear_corrupted_cache(user, session_suffix=""):
-        """Clear corrupted cache entries for a user"""
-        cache_keys = [
-            f"user_capabilities_{user.pk}{session_suffix}",
-            f"user_capabilities_version_{user.pk}{session_suffix}",
-            f"user_capabilities_integrity_{user.pk}{session_suffix}"
-        ]
-        
-        success, _ = safe_cache_operation(cache.delete_many, cache_keys)
-        if not success:
-            for key in cache_keys:
-                safe_cache_operation(cache.delete, key)
     
     @staticmethod
     def user_has_capability(user, capability):
@@ -225,7 +172,7 @@ class PermissionManager:
             result = capability in fresh_capabilities
             # If fresh lookup finds the capability, clear and refresh cache
             if result:
-                PermissionManager.clear_user_cache(user)
+                # Cache functionality removed
                 PermissionManager.get_user_capabilities(user)  # Rebuild cache
         
         return result
@@ -248,7 +195,7 @@ class PermissionManager:
             result = any(cap in fresh_capabilities for cap in capabilities)
             # If fresh lookup finds capabilities, clear and refresh cache
             if result:
-                PermissionManager.clear_user_cache(user)
+                # Cache functionality removed
                 PermissionManager.get_user_capabilities(user)  # Rebuild cache
         
         return result
@@ -271,7 +218,7 @@ class PermissionManager:
             result = all(cap in fresh_capabilities for cap in capabilities)
             # If fresh lookup finds all capabilities, clear and refresh cache
             if result:
-                PermissionManager.clear_user_cache(user)
+                # Cache functionality removed
                 PermissionManager.get_user_capabilities(user)  # Rebuild cache
         
         return result
@@ -490,72 +437,7 @@ class PermissionManager:
         
         return True
     
-    @staticmethod
-    def clear_user_cache(user, session_id=None):
-        """Clear all cached data for a user with enhanced session support"""
-        if user and user.pk:
-            import hashlib
-            
-            # Clear both session-specific and general caches
-            cache_keys = [
-                f"user_capabilities_{user.pk}",
-                f"user_capabilities_version_{user.pk}",
-                f"user_session_capabilities_{user.pk}"
-            ]
-            
-            # Add session-specific cache keys if session provided
-            if session_id:
-                session_suffix = f"_{hashlib.md5(str(session_id).encode()).hexdigest()[:8]}"
-                cache_keys.extend([
-                    f"user_capabilities_{user.pk}{session_suffix}",
-                    f"user_capabilities_version_{user.pk}{session_suffix}",
-                    f"user_capabilities_integrity_{user.pk}{session_suffix}"
-                ])
-            else:
-                # If no specific session, try to clear common session patterns
-                import re
-                try:
-                    from django.core.cache import cache
-                    # Get all cache keys matching user pattern (if supported by cache backend)
-                    if hasattr(cache, 'keys'):
-                        pattern = f"user_capabilities_{user.pk}_*"
-                        matching_keys = [key for key in cache.keys(pattern) if re.match(f"user_capabilities_{user.pk}_[a-f0-9]{{8}}", key)]
-                        cache_keys.extend(matching_keys)
-                except:
-                    pass  # Some cache backends don't support key listing
-            
-            # Use safe cache operations
-            success, _ = safe_cache_operation(cache.delete_many, cache_keys)
-            if not success:
-                # Fallback to individual deletions
-                for key in cache_keys:
-                    safe_cache_operation(cache.delete, key)
     
-    @staticmethod
-    def clear_role_cache(role):
-        """Clear all cached data for a role with safe operations"""
-        if role and role.pk:
-            # Clear role capabilities cache
-            success, _ = safe_cache_operation(cache.delete, f"role_capabilities_{role.pk}")
-            
-            # Also clear cache for all users with this role
-            try:
-                user_roles = UserRole.objects.filter(role=role).values_list('user_id', flat=True)
-                user_cache_keys = []
-                for user_id in user_roles:
-                    user_cache_keys.extend([
-                        f"user_capabilities_{user_id}",
-                        f"user_capabilities_version_{user_id}"
-                    ])
-                
-                if user_cache_keys:
-                    success, _ = safe_cache_operation(cache.delete_many, user_cache_keys)
-                    if not success:
-                        # Try individual deletions as fallback
-                        for key in user_cache_keys:
-                            safe_cache_operation(cache.delete, key)
-            except Exception as e:
-                logger.error(f"Error clearing user caches for role {role.pk}: {str(e)}")
 
 class RoleValidator:
     """Role validation utilities"""

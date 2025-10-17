@@ -32,7 +32,6 @@ import logging
 from django.conf import settings
 from django.views.decorators.http import require_POST
 from datetime import timedelta, datetime
-from django.core.cache import cache
 from django.contrib.admin.models import LogEntry
 from django.contrib.contenttypes.models import ContentType
 from django.core.paginator import PageNotAnInteger, EmptyPage
@@ -1719,8 +1718,7 @@ def overview(request):
     
     # Get activity data with role-based filtering applied
     try:
-        # Use dashboard cache method but apply role-based filtering for consistency
-        from core.utils.dashboard_cache import DashboardCache
+        # Calculate activity data directly with role-based filtering
         from django.db.models.functions import ExtractHour
         from core.timezone_utils import TimezoneManager
         

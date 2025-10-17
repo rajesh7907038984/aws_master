@@ -90,11 +90,11 @@
     <!-- Statistics Cards -->
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <div class="stats-card">
-            <h3>{{ stats.s3.total_files|add:stats.local.total_files }}</h3>
+            <h3>{{ stats.s3.total_files }}</h3>
             <p>Total Files</p>
         </div>
         <div class="stats-card">
-            <h3>{{ stats.s3.total_size_gb|add:stats.local.total_size_gb|floatformat:2 }} GB</h3>
+            <h3>{{ stats.s3.total_size_gb|floatformat:2 }} GB</h3>
             <p>Total Storage</p>
         </div>
         <div class="stats-card">
@@ -102,7 +102,7 @@
             <p>S3 Files</p>
         </div>
         <div class="stats-card">
-            <h3>{{ stats.local.total_files }}</h3>
+            <h3>0</h3>
             <p>Local Files</p>
         </div>
     </div>
@@ -112,7 +112,6 @@
         <span class="font-medium mr-4">Storage:</span>
         <a href="?storage=all" class="filter-tab {% if storage_type == 'all' %}active{% endif %}">All</a>
         <a href="?storage=s3" class="filter-tab {% if storage_type == 's3' %}active{% endif %}">S3</a>
-        <a href="?storage=local" class="filter-tab {% if storage_type == 'local' %}active{% endif %}">Local</a>
         
         <span class="font-medium mr-4 ml-6">Type:</span>
         <a href="?storage={{ storage_type }}&type=all" class="filter-tab {% if file_type == 'all' %}active{% endif %}">All</a>

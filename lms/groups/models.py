@@ -321,11 +321,9 @@ def handle_group_membership_changes(sender, instance, created, **kwargs):
         logger.info(f"Is Active: {instance.is_active}")
         logger.info(f"Is New: {created}")
 
-        # Invalidate dashboard cache for instructors when group membership changes
+        # Log instructor group membership changes
         if instance.user.role == 'instructor':
-            from core.utils.dashboard_cache import DashboardCache
-            logger.info(f"Invalidating dashboard cache for instructor {instance.user.username}")
-            DashboardCache.clear_user_cache(instance.user.id)
+            logger.info(f"Instructor {instance.user.username} group membership changed")
 
         if instance.user.role == 'learner':
             from courses.models import CourseEnrollment
@@ -385,11 +383,9 @@ def handle_group_membership_delete(sender, instance, **kwargs):
     try:
         logger.info(f"GroupMembership deleted for user: {instance.user.username} ({instance.user.role})")
         
-        # Invalidate dashboard cache for instructors when group membership is removed
+        # Log instructor group membership removal
         if instance.user.role == 'instructor':
-            from core.utils.dashboard_cache import DashboardCache
-            logger.info(f"Invalidating dashboard cache for instructor {instance.user.username}")
-            DashboardCache.clear_user_cache(instance.user.id)
+            logger.info(f"Instructor {instance.user.username} group membership removed")
         
     except Exception as e:
         logger.error(f"Error in group membership delete signal handler: {str(e)}")
@@ -410,23 +406,20 @@ def update_course_access_modify_permission(sender, instance, **kwargs):
 def handle_course_group_access_changes(sender, instance, **kwargs):
     """Invalidate cache for instructors when course group access changes"""
     try:
-        from core.utils.dashboard_cache import DashboardCache
         logger.info(f"CourseGroupAccess changed for course: {instance.course.title}, group: {instance.group.name}")
         
-        # Invalidate cache for all instructors in the affected group
+        # Log changes for all instructors in the affected group
         instructor_memberships = instance.group.memberships.filter(
             user__role='instructor',
             is_active=True
         )
         
         for membership in instructor_memberships:
-            logger.info(f"Invalidating dashboard cache for instructor {membership.user.username}")
-            DashboardCache.clear_user_cache(membership.user.id)
+            logger.info(f"Course access changed for instructor {membership.user.username}")
             
-        # Also invalidate cache for the direct instructor of the course if any
+        # Also log for the direct instructor of the course if any
         if instance.course.instructor:
-            logger.info(f"Invalidating dashboard cache for course instructor {instance.course.instructor.username}")
-            DashboardCache.clear_user_cache(instance.course.instructor.id)
+            logger.info(f"Course access changed for course instructor {instance.course.instructor.username}")
         
     except Exception as e:
         logger.error(f"Error in course group access signal handler: {str(e)}")

@@ -220,7 +220,6 @@
                 headers: {
                     'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || '',
                     'Content-Type': 'application/json',
-                    'Cache-Control': 'no-cache'
                 },
                 credentials: 'same-origin',
                 signal: AbortSignal.timeout(30000)

@@ -14,7 +14,7 @@ import pytz
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, user_passes_test
-from django.core.cache import cache
+# Cache import removed - cache functionality disabled
 from django.core.exceptions import ValidationError, PermissionDenied
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.db import transaction
@@ -66,71 +66,7 @@ except ImportError:
 # Set up logger
 logger = logging.getLogger(__name__)
 
-def safe_cache_set(key, value, timeout=None):
-    """
-    Safely set a cache value with Redis error handling.
-    Returns True if successful, False if Redis is unavailable.
-    """
-    try:
-        cache.set(key, value, timeout=timeout)
-        return True
-    except Exception as e:
-        # Check for Redis connection errors specifically
-        error_msg = str(e).lower()
-        if any(keyword in error_msg for keyword in ['connection refused', 'redis', 'connecting to', 'connection error']):
-            logger.warning(f"Redis connection failed for cache set on key '{key}': {str(e)}. Continuing without cache.")
-        else:
-            logger.error(f"Unexpected cache error for key '{key}': {str(e)}. Continuing without cache.")
-        return False
-
-def safe_cache_get(key, default=None):
-    """
-    Safely get a cache value with Redis error handling.
-    Returns the cached value or default if Redis is unavailable.
-    """
-    try:
-        return cache.get(key, default)
-    except Exception as e:
-        # Check for Redis connection errors specifically  
-        error_msg = str(e).lower()
-        if any(keyword in error_msg for keyword in ['connection refused', 'redis', 'connecting to', 'connection error']):
-            logger.warning(f"Redis connection failed for cache get on key '{key}': {str(e)}. Returning default value.")
-        else:
-            logger.error(f"Unexpected cache error for key '{key}': {str(e)}. Returning default value.")
-        return default
-
-def safe_cache_delete(key):
-    """
-    Safely delete a cache value with Redis error handling.
-    Returns True if successful, False if Redis is unavailable.
-    """
-    try:
-        cache.delete(key)
-        return True
-    except Exception as e:
-        # Check for Redis connection errors specifically
-        error_msg = str(e).lower()
-        if any(keyword in error_msg for keyword in ['connection refused', 'redis', 'connecting to', 'connection error']):
-            logger.warning(f"Redis connection failed for cache delete on key '{key}': {str(e)}. Continuing without cache.")
-        else:
-            logger.error(f"Unexpected cache error for key '{key}': {str(e)}. Continuing without cache.")
-        return False
-
-def safe_cache_incr(key, delta=1):
-    """
-    Safely increment a cache value with Redis error handling.
-    Returns the new value if successful, delta if Redis is unavailable.
-    """
-    try:
-        return cache.incr(key, delta)
-    except Exception as e:
-        # Check for Redis connection errors specifically
-        error_msg = str(e).lower()
-        if any(keyword in error_msg for keyword in ['connection refused', 'redis', 'connecting to', 'connection error']):
-            logger.warning(f"Redis connection failed for cache incr on key '{key}': {str(e)}. Returning delta value.")
-        else:
-            logger.error(f"Unexpected cache error for key '{key}': {str(e)}. Returning delta value.")
-        return delta
+# Cache utility functions removed - cache functionality disabled
 
 def check_quiz_edit_permission(user, quiz):
     """

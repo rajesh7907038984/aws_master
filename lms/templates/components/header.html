@@ -1216,7 +1216,12 @@ document.addEventListener('DOMContentLoaded', function() {
                         // Create a new click handler with improved error handling
                         button.addEventListener('click', function(e) {
                             // Don't interfere with form submissions or submit buttons
-                            if (e.target.type === 'submit' || e.target.closest('form') || e.target.tagName === 'BUTTON' && e.target.type === 'submit') {
+                            if (e.target.type === 'submit' || 
+                                e.target.closest('form') || 
+                                (e.target.tagName === 'BUTTON' && e.target.type === 'submit') ||
+                                e.target.id === 'logout-button' ||
+                                e.target.closest('#logout-form') ||
+                                e.target.closest('#profile-dropdown')) {
                                 return;
                             }
                             
@@ -1306,7 +1311,12 @@ document.addEventListener('DOMContentLoaded', function() {
         // Toggle menu or sidebar
         mobileMenuToggle.addEventListener('click', function(e) {
             // Don't interfere with form submissions or submit buttons
-            if (e.target.type === 'submit' || e.target.closest('form') || e.target.tagName === 'BUTTON' && e.target.type === 'submit') {
+            if (e.target.type === 'submit' || 
+                e.target.closest('form') || 
+                (e.target.tagName === 'BUTTON' && e.target.type === 'submit') ||
+                e.target.id === 'logout-button' ||
+                e.target.closest('#logout-form') ||
+                e.target.closest('#profile-dropdown')) {
                 return;
             }
             
@@ -1447,8 +1457,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 headers: {
                     'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || '',
                     'Content-Type': 'application/json',
-                    'Cache-Control': 'no-cache',
-                    'Pragma': 'no-cache'
                 },
                 credentials: 'same-origin',
                 signal: AbortSignal.timeout(30000) // Increased to 30 seconds for production
@@ -1818,21 +1826,86 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Function already defined globally at the top of the script
     
+    // Global logout button protection - ensures logout buttons always work
+    function protectLogoutButtons() {
+        // Find all logout buttons and forms
+        const logoutButtons = document.querySelectorAll('button[id*="logout"], button[type="submit"][form*="logout"]');
+        const logoutForms = document.querySelectorAll('form[action*="logout"]');
+        
+        logoutButtons.forEach(button => {
+            // Add high-priority click handler that prevents interference
+            button.addEventListener('click', function(e) {
+                console.log('Logout button protected click:', e.target.id);
+                // Stop other handlers from interfering
+                e.stopImmediatePropagation();
+                // Don't prevent default - allow form submission
+            }, true); // Capture phase - runs first
+        });
+        
+        logoutForms.forEach(form => {
+            // Add form submit protection
+            form.addEventListener('submit', function(e) {
+                console.log('Logout form protected submit:', form.id);
+                // Don't prevent default - allow form submission
+            });
+        });
+    }
+    
+    // Run protection immediately and on DOM changes
+    protectLogoutButtons();
+    
+    // Re-run protection when new content is added
+    const observer = new MutationObserver(function(mutations) {
+        let shouldProtect = false;
+        mutations.forEach(function(mutation) {
+            if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
+                for (let node of mutation.addedNodes) {
+                    if (node.nodeType === Node.ELEMENT_NODE) {
+                        if (node.id && node.id.includes('logout') || 
+                            node.querySelector && node.querySelector('[id*="logout"]')) {
+                            shouldProtect = true;
+                            break;
+                        }
+                    }
+                }
+            }
+        });
+        if (shouldProtect) {
+            setTimeout(protectLogoutButtons, 100);
+        }
+    });
+    
+    observer.observe(document.body, {
+        childList: true,
+        subtree: true
+    });
+    
     // Ensure logout form works properly
     const logoutForm = document.getElementById('logout-form');
     const logoutButton = document.getElementById('logout-button');
     
     if (logoutForm && logoutButton) {
-        // Add specific event listener for logout button
+        // Add specific event listener for logout button with higher priority
         logoutButton.addEventListener('click', function(e) {
             console.log('Logout button clicked');
+            // Ensure the form submission is not prevented by other handlers
+            e.stopImmediatePropagation();
             // Don't prevent default - let the form submit naturally
-        });
+        }, true); // Use capture phase to ensure this runs first
         
         // Add form submit event listener
         logoutForm.addEventListener('submit', function(e) {
             console.log('Logout form submitting');
             // Don't prevent default - let the form submit naturally
+        });
+        
+        // Additional safety: ensure logout button is not affected by other handlers
+        logoutButton.addEventListener('click', function(e) {
+            // This handler runs in the bubble phase and ensures form submission
+            if (e.target.id === 'logout-button') {
+                console.log('Logout button confirmed - allowing form submission');
+                // Let the form submit naturally
+            }
         });
     }
     
@@ -1920,7 +1993,12 @@ document.addEventListener('DOMContentLoaded', function() {
         // Branch button click handler
         branchSwitcherButton.addEventListener('click', function(e) {
             // Don't interfere with form submissions or submit buttons
-            if (e.target.type === 'submit' || e.target.closest('form') || e.target.tagName === 'BUTTON' && e.target.type === 'submit') {
+            if (e.target.type === 'submit' || 
+                e.target.closest('form') || 
+                (e.target.tagName === 'BUTTON' && e.target.type === 'submit') ||
+                e.target.id === 'logout-button' ||
+                e.target.closest('#logout-form') ||
+                e.target.closest('#profile-dropdown')) {
                 return;
             }
             
@@ -1932,7 +2010,12 @@ document.addEventListener('DOMContentLoaded', function() {
         // Close branch menu when clicking outside
         document.addEventListener('click', function(e) {
             // Don't interfere with form submissions or submit buttons
-            if (e.target.type === 'submit' || e.target.closest('form') || e.target.tagName === 'BUTTON' && e.target.type === 'submit') {
+            if (e.target.type === 'submit' || 
+                e.target.closest('form') || 
+                (e.target.tagName === 'BUTTON' && e.target.type === 'submit') ||
+                e.target.id === 'logout-button' ||
+                e.target.closest('#logout-form') ||
+                e.target.closest('#profile-dropdown')) {
                 return;
             }
             

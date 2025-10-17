@@ -30,9 +30,6 @@ def handle_source_map(request, filename):
         content_type='application/json'
     )
     
-    # Add cache headers to prevent repeated requests
-    response['Cache-Control'] = 'public, max-age=3600'
-    response['Expires'] = 'Thu, 31 Dec 2025 23:59:59 GMT'
     
     return response
 

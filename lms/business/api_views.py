@@ -138,29 +138,6 @@ def get_chart_data_api(request):
         }, status=500)
 
 @require_http_methods(["POST"])
-@user_passes_test(is_global_admin)
-@csrf_protect
-def clear_cache_api(request):
-    """
-    API endpoint to clear performance data cache
-    """
-    try:
-        data = json.loads(request.body)
-        method_name = data.get('method_name')
-        
-        stats_manager = BusinessStatisticsManager(request.user)
-        stats_manager.clear_cache(method_name)
-        
-        return JsonResponse({
-            'success': True,
-            'message': 'Cache cleared successfully'
-        })
-    except Exception as e:
-        logger.error(f"Error in clear_cache_api: {str(e)}")
-        return JsonResponse({
-            'success': False,
-            'error': str(e)
-        }, status=500)
 
 @require_http_methods(["GET"])
 @user_passes_test(is_global_admin)
@@ -172,9 +149,8 @@ def get_real_time_stats_api(request):
         business_id = request.GET.get('business_id')
         timeframe = request.GET.get('timeframe', 'month')
         
-        # Create stats manager with cache disabled
+        # Create stats manager
         stats_manager = BusinessStatisticsManager(request.user)
-        stats_manager.cache_enabled = False
         
         # Get all statistics
         overview = stats_manager.get_business_overview_statistics(business_id)
@@ -253,16 +229,8 @@ class BusinessPerformanceAPIView(View):
             
             stats_manager = BusinessStatisticsManager(request.user)
             
-            if action == 'clear_cache':
-                method_name = data.get('method_name')
-                stats_manager.clear_cache(method_name)
-                return JsonResponse({
-                    'success': True,
-                    'message': 'Cache cleared successfully'
-                })
-            elif action == 'refresh_data':
-                # Force refresh by clearing cache and getting fresh data
-                stats_manager.clear_cache()
+            if action == 'refresh_data':
+                # Force refresh by getting fresh data
                 return JsonResponse({
                     'success': True,
                     'message': 'Data refreshed successfully'

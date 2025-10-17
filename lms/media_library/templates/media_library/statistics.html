@@ -76,11 +76,11 @@
     <!-- Overview Stats -->
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <div class="stat-card">
-            <h3 class="text-blue-600">{{ stats.s3.total_files|add:stats.local.total_files }}</h3>
+            <h3 class="text-blue-600">{{ stats.s3.total_files }}</h3>
             <p>Total Files</p>
         </div>
         <div class="stat-card">
-            <h3 class="text-green-600">{{ stats.s3.total_size_gb|add:stats.local.total_size_gb|floatformat:2 }} GB</h3>
+            <h3 class="text-green-600">{{ stats.s3.total_size_gb|floatformat:2 }} GB</h3>
             <p>Total Storage Used</p>
         </div>
         <div class="stat-card">
@@ -88,7 +88,7 @@
             <p>S3 Files</p>
         </div>
         <div class="stat-card">
-            <h3 class="text-orange-600">{{ stats.local.total_files }}</h3>
+            <h3 class="text-orange-600">0</h3>
             <p>Local Files</p>
         </div>
     </div>
@@ -104,16 +104,7 @@
                         <span class="text-sm text-gray-500">{{ stats.s3.total_size_gb|floatformat:2 }} GB</span>
                     </div>
                     <div class="progress-bar">
-                        <div class="progress-fill bg-blue-500" style="width: {% if stats.s3.total_size_gb|add:stats.local.total_size_gb > 0 %}{{ stats.s3.total_size_gb|mul:100|div:stats.s3.total_size_gb|add:stats.local.total_size_gb|floatformat:0 }}{% else %}0{% endif %}%"></div>
-                    </div>
-                </div>
-                <div>
-                    <div class="flex justify-between items-center mb-2">
-                        <span class="text-sm font-medium text-gray-700">Local Storage</span>
-                        <span class="text-sm text-gray-500">{{ stats.local.total_size_gb|floatformat:2 }} GB</span>
-                    </div>
-                    <div class="progress-bar">
-                        <div class="progress-fill bg-green-500" style="width: {% if stats.s3.total_size_gb|add:stats.local.total_size_gb > 0 %}{{ stats.local.total_size_gb|mul:100|div:stats.s3.total_size_gb|add:stats.local.total_size_gb|floatformat:0 }}{% else %}0{% endif %}%"></div>
+                        <div class="progress-fill bg-blue-500" style="width: 100%"></div>
                     </div>
                 </div>
             </div>
@@ -184,40 +175,6 @@
             </div>
         </div>
 
-        <!-- Local Storage Details -->
-        <div class="chart-container">
-            <h2 class="text-xl font-semibold text-gray-900 mb-4">Local Storage Details</h2>
-            <div class="space-y-4">
-                <div class="flex justify-between">
-                    <span class="text-gray-600">Total Files:</span>
-                    <span class="font-medium">{{ stats.local.total_files }}</span>
-                </div>
-                <div class="flex justify-between">
-                    <span class="text-gray-600">Total Size:</span>
-                    <span class="font-medium">{{ stats.local.total_size_gb|floatformat:2 }} GB</span>
-                </div>
-                <div class="flex justify-between">
-                    <span class="text-gray-600">Images:</span>
-                    <span class="font-medium">{{ stats.local.image_count }}</span>
-                </div>
-                <div class="flex justify-between">
-                    <span class="text-gray-600">Videos:</span>
-                    <span class="font-medium">{{ stats.local.video_count }}</span>
-                </div>
-                <div class="flex justify-between">
-                    <span class="text-gray-600">Documents:</span>
-                    <span class="font-medium">{{ stats.local.document_count }}</span>
-                </div>
-                <div class="flex justify-between">
-                    <span class="text-gray-600">Archives:</span>
-                    <span class="font-medium">{{ stats.local.archive_count }}</span>
-                </div>
-                <div class="flex justify-between">
-                    <span class="text-gray-600">Other:</span>
-                    <span class="font-medium">{{ stats.local.other_count }}</span>
-                </div>
-            </div>
-        </div>
     </div>
 
     <!-- Top Uploaders -->

@@ -427,13 +427,6 @@ def course_list(request):
         'sort': sort_by
     }
     
-    # Try to get cached results first
-    from core.utils.cache_manager import get_cached_course_list, cache_course_list
-    cached_courses = get_cached_course_list(user.id, filters)
-    if cached_courses:
-        logger.info(f"Using cached course list for user {user.username}")
-        # Return cached results (would need to implement full context)
-        # For now, continue with normal processing
     
     # Log course access for debugging
     logger.info(f"User {user.username} (role: {user.role}) accessing course list page")
@@ -1863,15 +1856,8 @@ def course_delete(request, course_id):
                 try:
                     logger.info(f"Deleting course image: {course.course_image.name}")
                     course.course_image.delete(save=False)
-                    # Delete the directory if it's empty (handle cloud storage)
-                    try:
-                        image_dir = os.path.dirname(course.course_image.path)
-                        if os.path.exists(image_dir) and not os.listdir(image_dir):
-                            os.rmdir(image_dir)
-                            logger.info(f"Deleted empty image directory: {image_dir}")
-                    except NotImplementedError:
-                        # Cloud storage doesn't support absolute paths, skip directory cleanup
-                        logger.info("Skipping directory cleanup for cloud storage")
+                    # S3 storage - no local directory cleanup needed
+                    logger.info("S3 storage - skipping local directory cleanup")
                 except Exception as e:
                     logger.error(f"Error deleting course image: {str(e)}")
 
@@ -1880,15 +1866,8 @@ def course_delete(request, course_id):
                 try:
                     logger.info(f"Deleting course video: {course.course_video.name}")
                     course.course_video.delete(save=False)
-                    # Delete the directory if it's empty (handle cloud storage)
-                    try:
-                        video_dir = os.path.dirname(course.course_video.path)
-                        if os.path.exists(video_dir) and not os.listdir(video_dir):
-                            os.rmdir(video_dir)
-                            logger.info(f"Deleted empty video directory: {video_dir}")
-                    except NotImplementedError:
-                        # Cloud storage doesn't support absolute paths, skip directory cleanup
-                        logger.info("Skipping directory cleanup for cloud storage")
+                    # S3 storage - no local directory cleanup needed
+                    logger.info("S3 storage - skipping local directory cleanup")
                 except Exception as e:
                     logger.error(f"Error deleting course video: {str(e)}")
 
@@ -5401,8 +5380,6 @@ def get_course_progress(request, course_id):
     API endpoint to get the current progress for a course
     ENHANCED: Better error handling, centralized caching, query optimization
     """
-    from django.core.cache import cache
-    from django.views.decorators.cache import cache_page
     
     try:
         course = get_object_or_404(Course, id=course_id)
@@ -5418,9 +5395,6 @@ def get_course_progress(request, course_id):
         logger.error(f"Error checking permissions for course {course_id}: {str(e)}")
         return JsonResponse({'success': False, 'error': 'Permission check failed'}, status=500)
     
-    # Check cache first using centralized cache manager
-    try:
-        pass
             
         # Get or create enrollment for this user
         from core.utils.enrollment import EnrollmentService
@@ -5709,7 +5683,6 @@ def stream_video(request, path):
             response['Content-Length'] = str(file_size)
         
         response['Accept-Ranges'] = 'bytes'
-        response['Cache-Control'] = 'public, max-age=3600'  # Cache for 1 hour
         return response
         
     except Exception as e:

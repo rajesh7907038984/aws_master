@@ -20,8 +20,24 @@
         color: white;
         padding: 1rem;
         display: flex;
-        justify-content: flex-end;
+        justify-content: space-between;
         align-items: center;
+    }
+    
+    .preview-mode-banner {
+        background: #ff9800;
+        color: white;
+        padding: 0.5rem 1rem;
+        border-radius: 4px;
+        font-size: 0.9rem;
+        font-weight: bold;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .preview-mode-banner i {
+        font-size: 1.1rem;
     }
     
     .back-to-topic-btn {
@@ -111,6 +127,12 @@
 {% csrf_token %}
 
 <div class="scorm-header">
+    {% if preview_mode %}
+    <div class="preview-mode-banner">
+        <i class="fas fa-eye"></i>
+        Preview Mode - Progress Not Saved
+    </div>
+    {% endif %}
     <a href="{% url 'courses:topic_view' topic.id %}" class="back-to-topic-btn">Back to Topic</a>
 </div>
 

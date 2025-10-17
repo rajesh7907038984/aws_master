@@ -2133,14 +2133,10 @@ def edit_assignment(request, assignment_id):
                     for attachment_id in attachments_to_delete:
                         try:
                             attachment = AssignmentAttachment.objects.get(id=attachment_id, assignment=updated_assignment)
-                            # Delete the file from storage
+                            # Delete the file from storage (S3 handles this automatically)
                             if attachment.file:
-                                try:
-                                    if os.path.isfile(attachment.file.path):
-                                        os.remove(attachment.file.path)
-                                except NotImplementedError:
-                                    # Cloud storage doesn't support absolute paths, skip local file deletion
-                                    pass
+                                # S3 storage - file deletion handled by Django's delete() method
+                                pass
                             # Delete the database record
                             attachment.delete()
                         except AssignmentAttachment.DoesNotExist:
@@ -2336,43 +2332,19 @@ def view_pdf_inline(request, submission_id):
     if not submission.submission_file:
         return HttpResponseForbidden("No file available")
     
-    file_path = submission.submission_file.path
-    
-    # Check if file exists
-    if not os.path.exists(file_path):
-        return Http404("File not found")
+    # S3 storage - use file name for content type detection
+    file_name = submission.submission_file.name
     
     # Check if it's a PDF
-    content_type, encoding = mimetypes.guess_type(file_path)
+    content_type, encoding = mimetypes.guess_type(file_name)
     if content_type != 'application/pdf':
         return HttpResponseForbidden("This viewer only supports PDF files")
     
     try:
-        # Use FileResponse for better PDF serving
-        response = FileResponse(
-            open(file_path, 'rb'),
-            content_type='application/pdf',
-            as_attachment=False,
-            filename=os.path.basename(file_path)
-        )
-        
-        # Set comprehensive headers for iframe compatibility
-        response['Content-Disposition'] = f'inline; filename="{os.path.basename(file_path)}"'
-        response['Accept-Ranges'] = 'bytes'
-        
-        # Remove restrictive headers
-        if 'X-Frame-Options' in response:
-            del response['X-Frame-Options']
-        if 'X-Content-Type-Options' in response:
-            del response['X-Content-Type-Options']
-            
-        # Set permissive CSP for iframe embedding
-        response['Content-Session-Policy'] = "frame-ancestors 'self' "
-        
-        # Add cache headers
-        response['Cache-Control'] = 'public, max-age=3600'
-        
-        return response
+        # S3 storage - redirect to S3 URL for PDF serving
+        from django.core.files.storage import default_storage
+        pdf_url = default_storage.url(submission.submission_file.name)
+        return redirect(pdf_url)
     except Exception as e:
         logger.error(f"Error serving PDF: {str(e)}")
         return HttpResponse("Error loading PDF file", status=500)

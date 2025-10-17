@@ -211,8 +211,7 @@ def role_create(request):
             if is_redis_error:
                 # Handle Redis errors gracefully
                 try:
-                    from django.core.cache import cache
-                    PermissionManager.clear_user_cache(request.user)
+                    # Cache functionality removed
                     
                     warning_msg = SessionErrorHandler.sanitize_error_message(
                         'Role created successfully, but caching may be temporarily unavailable.',

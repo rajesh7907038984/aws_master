@@ -1,6 +1,6 @@
 """
 S3 Storage Configuration for LMS
-Handles file storage using AWS S3 with fallback to local storage
+Handles file storage using AWS S3
 """
 
 import os
@@ -13,7 +13,7 @@ from storages.backends.s3boto3 import S3Boto3Storage
 @deconstructible
 class S3Storage(S3Boto3Storage):
     """
-    Custom S3 storage with fallback to local storage
+    Custom S3 storage for LMS
     """
     def __init__(self, *args, **kwargs):
         # Set default bucket name if not provided
@@ -28,26 +28,15 @@ class S3Storage(S3Boto3Storage):
     
     def url(self, name):
         """
-        Override url method to handle missing files gracefully
+        Get S3 URL for file
         """
-        try:
-            return super().url(name)
-        except Exception:
-            # Fallback to local storage URL if S3 fails
-            if hasattr(settings, 'MEDIA_URL'):
-                return f"{settings.MEDIA_URL}{name}"
-            return f"/media/{name}"
+        return super().url(name)
     
     def exists(self, name):
         """
-        Check if file exists with fallback
+        Check if file exists in S3
         """
-        try:
-            return super().exists(name)
-        except Exception:
-            # Fallback to local file system check
-            local_path = os.path.join(settings.MEDIA_ROOT, name)
-            return os.path.exists(local_path)
+        return super().exists(name)
 
 
 class StaticS3Storage(S3Storage):
@@ -71,7 +60,7 @@ class MediaS3Storage(S3Storage):
 # Fallback storage classes for when S3 is not configured
 class LocalStorage(Storage):
     """
-    Local storage fallback
+    Local storage fallback (deprecated - S3 only)
     """
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

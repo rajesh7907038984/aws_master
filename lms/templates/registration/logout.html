@@ -41,7 +41,7 @@ document.getElementById('logout-form').addEventListener('submit', function(e) {
         window.AutoLogoutPrevention.destroy();
     }
     
-    // Clear any cached user data
+    // Clear any user data
     if (window.UnifiedAuthHandler) {
         window.UnifiedAuthHandler.isAuthenticated = false;
         window.UnifiedAuthHandler.user = null;

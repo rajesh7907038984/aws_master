@@ -36,8 +36,6 @@ function loadMoreTodos() {
         method: 'GET',
         headers: {
             'X-Requested-With': 'XMLHttpRequest',
-            'Cache-Control': 'no-cache',
-            'Pragma': 'no-cache'
         }
     })
     .then(response => {

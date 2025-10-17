@@ -114,7 +114,9 @@ class Command(BaseCommand):
         """Prepare the import directory by extracting ZIP if needed"""
         if file_path.endswith('.zip'):
             # Extract ZIP file to temp directory
-            extract_dir = os.path.join(settings.MEDIA_ROOT, 'temp_imports', datetime.now().strftime('%Y%m%d_%H%M%S'))
+            # S3 storage - use temp directory for imports
+            import tempfile
+            extract_dir = os.path.join(tempfile.gettempdir(), 'temp_imports', datetime.now().strftime('%Y%m%d_%H%M%S'))
             os.makedirs(extract_dir, exist_ok=True)
             
             with zipfile.ZipFile(file_path, 'r') as zipf:
@@ -790,7 +792,9 @@ class Command(BaseCommand):
             src_path = os.path.join(import_dir, file_path)
             if os.path.exists(src_path):
                 # Create destination directory
-                dst_dir = os.path.join(settings.MEDIA_ROOT, 'user_files', field_name.replace('_file', ''), str(user.id))
+                # S3 storage - use temp directory for user files
+                import tempfile
+                dst_dir = os.path.join(tempfile.gettempdir(), 'user_files', field_name.replace('_file', ''), str(user.id))
                 os.makedirs(dst_dir, exist_ok=True)
                 
                 # Copy file
@@ -811,7 +815,9 @@ class Command(BaseCommand):
             src_path = os.path.join(import_dir, file_path)
             if os.path.exists(src_path):
                 # Create destination directory
-                dst_dir = os.path.join(settings.MEDIA_ROOT, f'course_{course.id}')
+                # S3 storage - use temp directory for course files
+                import tempfile
+                dst_dir = os.path.join(tempfile.gettempdir(), f'course_{course.id}')
                 os.makedirs(dst_dir, exist_ok=True)
                 
                 # Copy file
@@ -832,7 +838,9 @@ class Command(BaseCommand):
             src_path = os.path.join(import_dir, file_path)
             if os.path.exists(src_path):
                 # Create destination directory
-                dst_dir = os.path.join(settings.MEDIA_ROOT, f'topic_uploads', str(topic.id))
+                # S3 storage - use temp directory for topic files
+                import tempfile
+                dst_dir = os.path.join(tempfile.gettempdir(), f'topic_uploads', str(topic.id))
                 os.makedirs(dst_dir, exist_ok=True)
                 
                 # Copy file

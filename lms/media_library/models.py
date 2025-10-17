@@ -78,8 +78,8 @@ class MediaFile(models.Model):
         if self.storage_type == 's3' and self.file_url:
             return self.file_url
         elif self.storage_type == 'local':
-            from django.urls import reverse
-            return reverse('media_library:serve_local_file', args=[self.id])
+            # S3 storage only - no local file serving
+            return None
         return None
 
 

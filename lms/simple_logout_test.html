@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Logout Button Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; padding: 20px; border: 1px solid #ddd; }
+        .success { color: green; }
+        .error { color: red; }
+        #results { margin-top: 20px; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+    <h1>Logout Button Test - Fixed Version</h1>
+    
+    <div class="test-section">
+        <h3>Test: Profile Dropdown with Logout Button</h3>
+        <div id="profile-container">
+            <button id="profile-button" onclick="toggleProfileDropdown()">Profile</button>
+            <div id="profile-dropdown" class="hidden">
+                <form action="/logout/" method="POST" id="logout-form">
+                    <input type="hidden" name="csrfmiddlewaretoken" value="test-token">
+                    <button type="submit" id="logout-button">Logout</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="test-section">
+        <h3>Test: Mobile Menu Toggle (should not interfere with logout)</h3>
+        <button id="mobile-menu-toggle">Mobile Menu</button>
+    </div>
+    
+    <div id="results"></div>
+    
+    <script>
+        // Simulate the fixed JavaScript from header.html
+        function toggleProfileDropdown() {
+            const dropdown = document.getElementById('profile-dropdown');
+            if (dropdown) {
+                dropdown.classList.toggle('hidden');
+                addResult('Profile dropdown toggled');
+            }
+        }
+        
+        // Test results
+        function addResult(message, type = 'info') {
+            const results = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = type;
+            div.textContent = message;
+            results.appendChild(div);
+        }
+        
+        // Test logout form submission
+        document.getElementById('logout-form').addEventListener('submit', function(e) {
+            addResult('✅ Logout form submit event fired', 'success');
+        });
+        
+        document.getElementById('logout-button').addEventListener('click', function(e) {
+            addResult('✅ Logout button click event fired', 'success');
+        });
+        
+        // Simulate the mobile menu toggle that was causing issues
+        const mobileMenuToggle = document.getElementById('mobile-menu-toggle');
+        mobileMenuToggle.addEventListener('click', function(e) {
+            // This is the FIXED version that won't interfere with logout buttons
+            if (e.target.type === 'submit' || 
+                e.target.closest('form') || 
+                (e.target.tagName === 'BUTTON' && e.target.type === 'submit') ||
+                e.target.id === 'logout-button' ||
+                e.target.closest('#logout-form') ||
+                e.target.closest('#profile-dropdown')) {
+                addResult('✅ Mobile menu correctly ignored logout button', 'success');
+                return;
+            }
+            
+            e.preventDefault();
+            e.stopPropagation();
+            addResult('Mobile menu toggle clicked (would have prevented logout before fix)');
+        });
+        
+        // Test the logout button protection
+        document.getElementById('logout-button').addEventListener('click', function(e) {
+            addResult('✅ Logout button click detected - form should submit', 'success');
+        }, true); // Capture phase
+        
+        addResult('Test page loaded successfully', 'success');
+        addResult('Click the Profile button to open dropdown, then click Logout to test', 'info');
+    </script>
+</body>
+</html>

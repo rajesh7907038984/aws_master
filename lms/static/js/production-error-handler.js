@@ -99,8 +99,6 @@
             // Add production-specific headers
             options.headers = {
                 'X-Requested-With': 'XMLHttpRequest',
-                'Cache-Control': 'no-cache',
-                'Pragma': 'no-cache',
                 ...options.headers
             };
 

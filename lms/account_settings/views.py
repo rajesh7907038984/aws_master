@@ -5,7 +5,7 @@ from django.urls import reverse, NoReverseMatch
 from django.contrib import messages
 from django.http import HttpResponseForbidden, JsonResponse, FileResponse, Http404
 from django.db.models import Count, Prefetch, Q, Sum
-from django.core.cache import cache
+# Cache import removed - cache functionality disabled
 from smtplib import SMTPException
 from socket import timeout as SocketTimeout
 from .models import TeamsIntegration, ZoomIntegration, StripeIntegration, PayPalIntegration, SharePointIntegration, PortalSettings, ExportJob, ImportJob, DataBackup, GlobalAdminSettings, MenuControlSettings
@@ -2129,7 +2129,9 @@ def start_export(request):
     # Start export in background
     def run_export():
         try:
-            output_dir = os.path.join(settings.MEDIA_ROOT, 'exports')
+            # S3 storage - use temp directory for exports
+            import tempfile
+            output_dir = os.path.join(tempfile.gettempdir(), 'exports')
             os.makedirs(output_dir, exist_ok=True)
             
             # Use sys.executable to get the current Python interpreter path
@@ -2204,7 +2206,9 @@ def start_import(request):
         return JsonResponse({'success': False, 'error': 'Import file must be a ZIP archive'})
     
     # Save uploaded file
-    import_dir = os.path.join(settings.MEDIA_ROOT, 'imports')
+    # S3 storage - use temp directory for imports
+    import tempfile
+    import_dir = os.path.join(tempfile.gettempdir(), 'imports')
     os.makedirs(import_dir, exist_ok=True)
     
     file_path = os.path.join(import_dir, f'{timezone.now().strftime("%Y%m%d_%H%M%S")}_{import_file.name}')
@@ -2446,7 +2450,9 @@ def create_backup(request):
     
     try:
         # Create backup directory
-        backup_dir = os.path.join(settings.MEDIA_ROOT, 'backups')
+        # S3 storage - use temp directory for backups
+        import tempfile
+        backup_dir = os.path.join(tempfile.gettempdir(), 'backups')
         os.makedirs(backup_dir, exist_ok=True)
         
         # Generate backup filename with timestamp
@@ -3118,88 +3124,79 @@ def load_business_data(request):
         return JsonResponse({'success': False, 'error': 'Unauthorized'}, status=403)
     
     try:
-        # Use longer cache for business data - 15 minutes
-        cache_key = f'business_data_{request.user.id}'
-        cached_data = cache.get(cache_key)
+        # Cache functionality removed - always fetch fresh data
+        # Simplified query - get basic business data first
+        businesses = Business.objects.select_related().only(
+            'id', 'name', 'description'
+        ).order_by('name')
         
-        if cached_data is None:
-            # Simplified query - get basic business data first
-            businesses = Business.objects.select_related().only(
-                'id', 'name', 'description'
-            ).order_by('name')
+        # Get business limits in one query
+        business_limits_dict = {
+            bl.business_id: bl for bl in BusinessLimits.objects.select_related('business').only(
+                'id', 'business_id', 'total_user_limit', 'branch_creation_limit'
+            )
+        }
+        
+        # Get counts separately for better performance
+        User = get_user_model()
+        business_stats = {}
+        for business in businesses:
+            # Get branch count
+            branch_count = business.branches.filter(is_active=True).count()
             
-            # Get business limits in one query
-            business_limits_dict = {
-                bl.business_id: bl for bl in BusinessLimits.objects.select_related('business').only(
-                    'id', 'business_id', 'total_user_limit', 'branch_creation_limit'
+            # Get user count more efficiently
+            user_count = User.objects.filter(
+                branch__business=business,
+                branch__is_active=True,
+                is_active=True
+            ).count()
+            
+            business_stats[business.id] = {
+                'branch_count': branch_count,
+                'user_count': user_count
+            }
+        
+        businesses_with_limits = []
+        for business in businesses:
+            # Get or create business limits
+            business_limits = business_limits_dict.get(business.id)
+            if not business_limits:
+                business_limits = BusinessLimits.objects.create(
+                    business=business,
+                    total_user_limit=500,
+                    branch_creation_limit=10,
+                    updated_by=request.user
                 )
+            
+            stats = business_stats.get(business.id, {'branch_count': 0, 'user_count': 0})
+            
+            # Calculate usage data
+            usage_data = {
+                'users': {
+                    'current': stats['user_count'],
+                    'limit': business_limits.total_user_limit,
+                    'percentage': (stats['user_count'] / business_limits.total_user_limit * 100) if business_limits.total_user_limit > 0 else 0
+                },
+                'branches': {
+                    'current': stats['branch_count'],
+                    'limit': business_limits.branch_creation_limit,
+                    'percentage': (stats['branch_count'] / business_limits.branch_creation_limit * 100) if business_limits.branch_creation_limit > 0 else 0
+                }
             }
             
-            # Get counts separately for better performance
-            User = get_user_model()
-            business_stats = {}
-            for business in businesses:
-                # Get branch count
-                branch_count = business.branches.filter(is_active=True).count()
-                
-                # Get user count more efficiently
-                user_count = User.objects.filter(
-                    branch__business=business,
-                    branch__is_active=True,
-                    is_active=True
-                ).count()
-                
-                business_stats[business.id] = {
-                    'branch_count': branch_count,
-                    'user_count': user_count
-                }
-            
-            businesses_with_limits = []
-            for business in businesses:
-                # Get or create business limits
-                business_limits = business_limits_dict.get(business.id)
-                if not business_limits:
-                    business_limits = BusinessLimits.objects.create(
-                        business=business,
-                        total_user_limit=500,
-                        branch_creation_limit=10,
-                        updated_by=request.user
-                    )
-                
-                stats = business_stats.get(business.id, {'branch_count': 0, 'user_count': 0})
-                
-                # Calculate usage data
-                usage_data = {
-                    'users': {
-                        'current': stats['user_count'],
-                        'limit': business_limits.total_user_limit,
-                        'percentage': (stats['user_count'] / business_limits.total_user_limit * 100) if business_limits.total_user_limit > 0 else 0
-                    },
-                    'branches': {
-                        'current': stats['branch_count'],
-                        'limit': business_limits.branch_creation_limit,
-                        'percentage': (stats['branch_count'] / business_limits.branch_creation_limit * 100) if business_limits.branch_creation_limit > 0 else 0
-                    }
-                }
-                
-                businesses_with_limits.append({
-                    'business': {
-                        'id': business.id,
-                        'name': business.name,
-                        'description': business.description,
-                    },
-                    'business_limits': {
-                        'id': business_limits.id,
-                        'total_user_limit': business_limits.total_user_limit,
-                        'branch_creation_limit': business_limits.branch_creation_limit,
-                    },
-                    'usage_data': usage_data
-                })
-            
-            # Cache for 15 minutes for better performance
-            cache.set(cache_key, businesses_with_limits, 900)
-        else:
-            businesses_with_limits = cached_data
+            businesses_with_limits.append({
+                'business': {
+                    'id': business.id,
+                    'name': business.name,
+                    'description': business.description,
+                },
+                'business_limits': {
+                    'id': business_limits.id,
+                    'total_user_limit': business_limits.total_user_limit,
+                    'branch_creation_limit': business_limits.branch_creation_limit,
+                },
+                'usage_data': usage_data
+            })
         
         return JsonResponse({'success': True, 'businesses': businesses_with_limits})
     
@@ -3217,104 +3214,95 @@ def load_branches_data(request):
         return JsonResponse({'success': False, 'error': 'Unauthorized'}, status=403)
     
     try:
-        # Use longer cache for branches data - 15 minutes
-        cache_key = f'branches_data_{request.user.id}'
-        cached_branches = cache.get(cache_key)
+        # Cache functionality removed - always fetch fresh data
+        from core.utils.business_filtering import filter_branches_by_business
         
-        if cached_branches is None:
-            from core.utils.business_filtering import filter_branches_by_business
+        # Simplified query - get basic branch data first
+        branches = filter_branches_by_business(request.user).select_related('business').only(
+            'id', 'name', 'business__name', 'sharepoint_integration_enabled', 'created_at'
+        ).order_by('name')
+        
+        logger.info(f"Found {branches.count()} branches for user {request.user.username}")
+        
+        # Get user limits in one query with only needed fields
+        user_limits_dict = {
+            ul.branch_id: ul for ul in BranchUserLimits.objects.filter(
+                branch__in=branches
+            ).only('id', 'branch_id', 'user_limit', 'admin_limit', 'instructor_limit', 'learner_limit')
+        }
+        
+        # Get user counts separately for better performance
+        User = get_user_model()
+        branch_stats = {}
+        for branch in branches:
+            # Get user counts more efficiently
+            users_qs = User.objects.filter(branch=branch, is_active=True)
             
-            # Simplified query - get basic branch data first
-            branches = filter_branches_by_business(request.user).select_related('business').only(
-                'id', 'name', 'business__name', 'sharepoint_integration_enabled', 'created_at'
-            ).order_by('name')
+            total_users = users_qs.count()
+            admin_count = users_qs.filter(role='admin').count()
+            instructor_count = users_qs.filter(role='instructor').count()
+            learner_count = users_qs.filter(role='learner').count()
             
-            logger.info(f"Found {branches.count()} branches for user {request.user.username}")
+            branch_stats[branch.id] = {
+                'total_users': total_users,
+                'admin_count': admin_count,
+                'instructor_count': instructor_count,
+                'learner_count': learner_count
+            }
+        
+        branches_with_limits = []
+        for branch in branches:
+            # Get or create user limits for this branch
+            user_limits = user_limits_dict.get(branch.id)
+            if not user_limits:
+                user_limits = BranchUserLimits.objects.create(branch=branch)
             
-            # Get user limits in one query with only needed fields
-            user_limits_dict = {
-                ul.branch_id: ul for ul in BranchUserLimits.objects.filter(
-                    branch__in=branches
-                ).only('id', 'branch_id', 'user_limit', 'admin_limit', 'instructor_limit', 'learner_limit')
+            stats = branch_stats.get(branch.id, {
+                'total_users': 0, 'admin_count': 0, 'instructor_count': 0, 'learner_count': 0
+            })
+            
+            # Calculate usage data
+            usage_data = {
+                'total': {
+                    'current': stats['total_users'],
+                    'limit': user_limits.user_limit,
+                    'remaining': max(0, user_limits.user_limit - stats['total_users']),
+                    'percentage': min(100, (stats['total_users'] / user_limits.user_limit) * 100) if user_limits.user_limit > 0 else 0
+                },
+                'admin': {
+                    'current': stats['admin_count'],
+                    'limit': user_limits.admin_limit,
+                    'remaining': max(0, user_limits.admin_limit - stats['admin_count'])
+                },
+                'instructor': {
+                    'current': stats['instructor_count'],
+                    'limit': user_limits.instructor_limit,
+                    'remaining': max(0, user_limits.instructor_limit - stats['instructor_count'])
+                },
+                'learner': {
+                    'current': stats['learner_count'],
+                    'limit': user_limits.learner_limit,
+                    'remaining': max(0, user_limits.learner_limit - stats['learner_count'])
+                }
             }
             
-            # Get user counts separately for better performance
-            User = get_user_model()
-            branch_stats = {}
-            for branch in branches:
-                # Get user counts more efficiently
-                users_qs = User.objects.filter(branch=branch, is_active=True)
-                
-                total_users = users_qs.count()
-                admin_count = users_qs.filter(role='admin').count()
-                instructor_count = users_qs.filter(role='instructor').count()
-                learner_count = users_qs.filter(role='learner').count()
-                
-                branch_stats[branch.id] = {
-                    'total_users': total_users,
-                    'admin_count': admin_count,
-                    'instructor_count': instructor_count,
-                    'learner_count': learner_count
-                }
-            
-            branches_with_limits = []
-            for branch in branches:
-                # Get or create user limits for this branch
-                user_limits = user_limits_dict.get(branch.id)
-                if not user_limits:
-                    user_limits = BranchUserLimits.objects.create(branch=branch)
-                
-                stats = branch_stats.get(branch.id, {
-                    'total_users': 0, 'admin_count': 0, 'instructor_count': 0, 'learner_count': 0
-                })
-                
-                # Calculate usage data
-                usage_data = {
-                    'total': {
-                        'current': stats['total_users'],
-                        'limit': user_limits.user_limit,
-                        'remaining': max(0, user_limits.user_limit - stats['total_users']),
-                        'percentage': min(100, (stats['total_users'] / user_limits.user_limit) * 100) if user_limits.user_limit > 0 else 0
-                    },
-                    'admin': {
-                        'current': stats['admin_count'],
-                        'limit': user_limits.admin_limit,
-                        'remaining': max(0, user_limits.admin_limit - stats['admin_count'])
-                    },
-                    'instructor': {
-                        'current': stats['instructor_count'],
-                        'limit': user_limits.instructor_limit,
-                        'remaining': max(0, user_limits.instructor_limit - stats['instructor_count'])
-                    },
-                    'learner': {
-                        'current': stats['learner_count'],
-                        'limit': user_limits.learner_limit,
-                        'remaining': max(0, user_limits.learner_limit - stats['learner_count'])
-                    }
-                }
-                
-                branches_with_limits.append({
-                    'branch': {
-                        'id': branch.id,
-                        'name': branch.name,
-                        'business_name': branch.business.name if branch.business else 'No Business',
-                        'sharepoint_integration_enabled': branch.sharepoint_integration_enabled,
-                        'created_at': branch.created_at.isoformat() if hasattr(branch, 'created_at') and branch.created_at else None,
-                    },
-                    'user_limits': {
-                        'id': user_limits.id,
-                        'user_limit': user_limits.user_limit,
-                        'admin_limit': user_limits.admin_limit,
-                        'instructor_limit': user_limits.instructor_limit,
-                        'learner_limit': user_limits.learner_limit,
-                    },
-                    'usage_data': usage_data
-                })
-            
-            # Cache for 15 minutes for better performance
-            cache.set(cache_key, branches_with_limits, 900)
-        else:
-            branches_with_limits = cached_branches
+            branches_with_limits.append({
+                'branch': {
+                    'id': branch.id,
+                    'name': branch.name,
+                    'business_name': branch.business.name if branch.business else 'No Business',
+                    'sharepoint_integration_enabled': branch.sharepoint_integration_enabled,
+                    'created_at': branch.created_at.isoformat() if hasattr(branch, 'created_at') and branch.created_at else None,
+                },
+                'user_limits': {
+                    'id': user_limits.id,
+                    'user_limit': user_limits.user_limit,
+                    'admin_limit': user_limits.admin_limit,
+                    'instructor_limit': user_limits.instructor_limit,
+                    'learner_limit': user_limits.learner_limit,
+                },
+                'usage_data': usage_data
+            })
         
         logger.info(f"Returning {len(branches_with_limits)} branches to user {request.user.username}")
         return JsonResponse({'success': True, 'branches': branches_with_limits})

@@ -183,18 +183,13 @@ def get_storage_statistics():
         defaults={'total_files': 0, 'total_size_bytes': 0}
     )
     
-    # Get local statistics
-    local_stats, created = StorageStatistics.objects.get_or_create(
-        storage_type='local',
-        defaults={'total_files': 0, 'total_size_bytes': 0}
-    )
+    # S3 storage only - no local statistics needed
     
     # Update statistics from actual data
     update_storage_statistics()
     
     return {
         's3': StorageStatistics.objects.get(storage_type='s3'),
-        'local': StorageStatistics.objects.get(storage_type='local'),
     }
 
 
@@ -219,23 +214,7 @@ def update_storage_statistics():
     s3_stats.last_updated = timezone.now()
     s3_stats.save()
     
-    # Update local statistics
-    local_files = MediaFile.objects.filter(storage_type='local', is_active=True)
-    local_stats, created = StorageStatistics.objects.get_or_create(storage_type='local')
-    
-    local_stats.total_files = local_files.count()
-    local_stats.total_size_bytes = local_files.aggregate(Sum('file_size'))['file_size__sum'] or 0
-    
-    # Update file type counts for local
-    local_stats.image_count = local_files.filter(file_type='image').count()
-    local_stats.video_count = local_files.filter(file_type='video').count()
-    local_stats.audio_count = local_files.filter(file_type='audio').count()
-    local_stats.document_count = local_files.filter(file_type='document').count()
-    local_stats.archive_count = local_files.filter(file_type='archive').count()
-    local_stats.other_count = local_files.filter(file_type='other').count()
-    
-    local_stats.last_updated = timezone.now()
-    local_stats.save()
+    # S3 storage only - no local statistics to update
 
 
 @staff_member_required
@@ -248,7 +227,7 @@ def sync_media_files(request):
             conference_files = ConferenceFile.objects.all()
             for cf in conference_files:
                 MediaFile.objects.get_or_create(
-                    file_path=cf.local_file.name if cf.local_file else '',
+                    file_path=cf.file_url if cf.file_url else '',
                     defaults={
                         'filename': cf.filename,
                         'original_filename': cf.original_filename,
@@ -299,34 +278,26 @@ def sync_media_files(request):
 
 
 @staff_member_required
-def serve_local_file(request, file_id):
-    """Serve local media files"""
+def serve_s3_file(request, file_id):
+    """Serve S3 media files"""
     
-    file_obj = get_object_or_404(MediaFile, id=file_id, storage_type='local', is_active=True)
+    file_obj = get_object_or_404(MediaFile, id=file_id, storage_type='s3', is_active=True)
     
-    # Construct full file path - handle both local and S3 storage
-    if hasattr(settings, 'AWS_STORAGE_BUCKET_NAME') and settings.AWS_STORAGE_BUCKET_NAME:
-        # S3 storage - use default storage
-        from django.core.files.storage import default_storage
-        try:
-            return default_storage.url(file_obj.file_path)
-        except Exception:
-            raise Http404("File not found in S3")
-    else:
-        # Local storage fallback
-        local_media_path = '/home/ec2-user/lms/media_local'
-        full_path = os.path.join(local_media_path, file_obj.file_path)
-    
-    if not os.path.exists(full_path):
-        raise Http404("File not found")
-    
-    # Update access count
-    file_obj.access_count += 1
-    file_obj.last_accessed = timezone.now()
-    file_obj.save(update_fields=['access_count', 'last_accessed'])
-    
-    # Serve the file
-    return FileResponse(open(full_path, 'rb'), as_attachment=False)
+    # S3 storage - use default storage
+    from django.core.files.storage import default_storage
+    try:
+        # Get the file URL from S3
+        file_url = default_storage.url(file_obj.file_path)
+        
+        # Update access count
+        file_obj.access_count += 1
+        file_obj.last_accessed = timezone.now()
+        file_obj.save(update_fields=['access_count', 'last_accessed'])
+        
+        # Redirect to S3 URL
+        return redirect(file_url)
+    except Exception:
+        raise Http404("File not found in S3")
 
 
 @staff_member_required

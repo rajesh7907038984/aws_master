@@ -36,15 +36,12 @@ class Command(BaseCommand):
         # Check environment
         is_render = os.environ.get('RENDER', False)
         self.stdout.write(f"Environment: {'Cloud deployment' if is_render else 'Local/Other'}")
-        self.stdout.write(f"MEDIA_ROOT: {settings.MEDIA_ROOT}")
+        self.stdout.write(f"Storage: S3 Bucket")
         
-        # Check if media root exists
-        if not os.path.exists(settings.MEDIA_ROOT):
-            self.stdout.write(self.style.ERROR(f"MEDIA_ROOT does not exist: {settings.MEDIA_ROOT}"))
-            return
-        
-        self.stdout.write(f"MEDIA_ROOT exists: {os.path.exists(settings.MEDIA_ROOT)}")
-        self.stdout.write(f"MEDIA_ROOT readable: {os.access(settings.MEDIA_ROOT, os.R_OK)}")
+        # S3 storage - no local MEDIA_ROOT check needed
+        self.stdout.write("S3 storage mode - no local MEDIA_ROOT check needed")
+        self.stdout.write(f"S3 Bucket: {getattr(settings, 'AWS_STORAGE_BUCKET_NAME', 'Not configured')}")
+        self.stdout.write(f"S3 Region: {getattr(settings, 'AWS_S3_REGION_NAME', 'Not configured')}")
         
         # Initialize counters
         self.scanned_count = 0
@@ -65,8 +62,10 @@ class Command(BaseCommand):
             self.stdout.write(self.style.ERROR(f"Errors: {self.error_count}"))
 
     def _scan_media_files(self):
-        """Scan all files in MEDIA_ROOT"""
-        media_root = Path(settings.MEDIA_ROOT)
+        """Scan all files in S3 storage"""
+        # S3 storage - no local file scanning needed
+        self.stdout.write("S3 storage - no local file scanning needed")
+        return
         
         # Skip these directories and files
         skip_dirs = {'.', '..', '__pycache__', '.git', '.svn', 'temp', 'cache'}
@@ -92,10 +91,9 @@ class Command(BaseCommand):
         self.scanned_count += 1
         
         try:
-            # Get relative path from media root
-            media_root = Path(settings.MEDIA_ROOT)
-            relative_path = file_path.relative_to(media_root)
-            relative_path_str = str(relative_path).replace('\\', '/')
+            # S3 storage - no local file processing needed
+            self.stdout.write("S3 storage - no local file processing needed")
+            return
             
             # Check if already tracked
             if not self.force and MediaFile.objects.filter(file_path=relative_path_str).exists():

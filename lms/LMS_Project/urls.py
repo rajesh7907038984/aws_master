@@ -97,7 +97,6 @@ urlpatterns = [
     path('register/', register, name='register'),  # Direct registration view
     path('forgot-password/', forgot_password, name='forgot_password'),
     path('resend-verification/', register, name='resend_verification'),  # Reuse register view for resend
-    path('custom-users-admin/', users_admin_dashboard, name='custom_users_admin'),
     
     # Branch-specific authentication URLs
     path('auth/<slug:branch_slug>/', include('users.urls_auth')),
@@ -160,11 +159,10 @@ urlpatterns += [
     re_path(r'^wordpress/', custom_404_view, name='catch_wordpress_404'),
 ]
 
-# Add media and static file handling
+# Add static file handling for development
 if settings.DEBUG:
-    # In development, serve static and media files through Django
+    # In development, serve static files through Django
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 # In production, WhiteNoise middleware handles static files automatically
-# Media files are served via S3, no URL patterns needed
+# Media files are served via S3, no local URL patterns needed
 

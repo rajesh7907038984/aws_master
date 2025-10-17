@@ -6,7 +6,6 @@ Handles session persistence and prevents auto-logout after deployment
 import logging
 from django.contrib.sessions.models import Session
 from django.contrib.auth import get_user_model
-from django.core.cache import cache
 from django.conf import settings
 from django.utils import timezone
 from datetime import timedelta
@@ -123,9 +122,8 @@ def check_session_health():
     Check the health of session storage and Redis connection
     """
     try:
-        # Test Redis connection
-        cache.set('session_health_check', 'ok', 10)
-        redis_ok = cache.get('session_health_check') == 'ok'
+        # Test Redis connection (removed - no longer using cache)
+        redis_ok = False
         
         # Test database session storage
         active_sessions = get_active_session_count()
@@ -134,7 +132,6 @@ def check_session_health():
             'redis_connection': redis_ok,
             'database_sessions': active_sessions,
             'session_engine': settings.SESSION_ENGINE,
-            'session_cache_alias': getattr(settings, 'SESSION_CACHE_ALIAS', 'default'),
             'session_cookie_age': settings.SESSION_COOKIE_AGE,
         }
         

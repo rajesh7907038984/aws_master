@@ -11,7 +11,6 @@ from django.views.decorators.csrf import csrf_exempt
 from django.contrib.sessions.models import Session
 from django.utils import timezone
 from datetime import timedelta
-from django.core.cache import cache
 
 logger = logging.getLogger(__name__)
 
@@ -84,11 +83,7 @@ def extend_session(request):
             session.expire_date = new_expire_date
             session.save()
             
-            # Update cache if using cache backend
-            try:
-                cache.set(f'session:{session_key}', session.session_data, timeout=7200)
-            except Exception as e:
-                logger.warning(f"Failed to update cache: {e}")
+            # Update cache (removed - no longer using cache)
             
             logger.info(f"Session extended for user {request.user.username}")
             

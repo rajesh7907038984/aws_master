@@ -1,6 +1,6 @@
 """
 Comprehensive file validation utilities for the LMS
-Handles S3 storage, local storage, and error scenarios
+Handles S3 storage and error scenarios
 """
 import os
 import logging
@@ -47,11 +47,11 @@ def validate_file_exists(file_field, error_message=None):
 
 def get_safe_file_path(file_field, base_path=None):
     """
-    Get a safe file path for file operations, handling S3 and local storage
+    Get a safe file path for file operations (S3 storage only)
     
     Args:
         file_field: Django FileField instance
-        base_path: Optional base path for local storage
+        base_path: Optional base path (not used for S3)
         
     Returns:
         str: Safe file path for operations
@@ -59,19 +59,9 @@ def get_safe_file_path(file_field, base_path=None):
     if not file_field:
         raise FileValidationError("No file attached")
     
-    # For S3 storage, use local media directory
-    if hasattr(file_field.storage, 'location') and file_field.storage.location:
-        # This is S3 storage
-        local_media_root = getattr(settings, 'MEDIA_ROOT', None)
-        if local_media_root:
-            return os.path.join(local_media_root, file_field.name)
-        else:
-            # Fallback to temp directory
-            import tempfile
-            return os.path.join(tempfile.gettempdir(), file_field.name)
-    else:
-        # Local storage
-        return file_field.path
+    # S3 storage - use temp directory for local operations
+    import tempfile
+    return os.path.join(tempfile.gettempdir(), file_field.name)
 
 def validate_storage_consistency(file_field):
     """
@@ -163,12 +153,8 @@ def check_storage_health():
         hasattr(settings, 'AWS_STORAGE_BUCKET_NAME')):
         health['s3_configured'] = True
     
-    # Check local media root
-    media_root = getattr(settings, 'MEDIA_ROOT', None)
-    if media_root and os.path.exists(media_root):
-        health['local_media_available'] = True
-    elif not media_root:
-        health['issues'].append("MEDIA_ROOT not configured (S3 storage mode)")
+    # S3 storage - no local media root check needed
+    health['s3_storage_mode'] = True
     
     # Test storage accessibility
     try:

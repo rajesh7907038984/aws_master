@@ -43,8 +43,6 @@ DASHBOARD_MEMORY_THRESHOLD_MB = get_int_env('DASHBOARD_MEMORY_THRESHOLD_MB', 400
 # PDF processing limits
 MAX_CONCURRENT_PDF_OPERATIONS = get_int_env('MAX_CONCURRENT_PDF_OPERATIONS', 2)
 
-# Cache timeout for dashboard data (in seconds)
-DASHBOARD_CACHE_TIMEOUT = get_int_env('DASHBOARD_CACHE_TIMEOUT', 300)  # 5 minutes
 
 # ==============================================
 # LOGGING CONFIGURATION
@@ -397,77 +395,6 @@ CORS_ALLOWED_METHODS = [
 
 CORS_PREFLIGHT_MAX_AGE = 86400  # 24 hours
 
-# ==============================================
-# CACHE CONFIGURATION
-# ==============================================
-
-# Environment-specific Redis configuration
-ENVIRONMENT = get_env('DJANGO_ENV', 'development')
-
-# Environment-specific Redis database and key prefix
-REDIS_DB_MAP = {
-    'development': '1',
-    'testing': '2',
-    'staging': '2',  # Staging uses separate Redis DB
-    'production': '0'
-}
-
-# Get Redis database for current environment
-redis_db = REDIS_DB_MAP.get(ENVIRONMENT, '1')
-
-# Default Redis URL with environment-specific database
-# Use environment variable for Redis URL, with secure fallback
-default_redis_url = get_env('REDIS_URL', f'redis://127.0.0.1:6379/{redis_db}')
-
-# Environment-specific cache key prefix
-cache_key_prefix = get_env('CACHE_KEY_PREFIX', f'lms_{ENVIRONMENT}_')
-
-CACHES = {
-    'default': {
-        'BACKEND': 'core.utils.cache_backends.FallbackRedisCache',
-        'LOCATION': get_env('REDIS_URL', default_redis_url),
-        'OPTIONS': {
-            'retry_on_timeout': True,
-            'socket_connect_timeout': 5,
-            'socket_timeout': 5,
-            'max_connections': 50,
-            # Enhanced Redis options for better reliability
-            'health_check_interval': 30,
-            'retry_on_error': [ConnectionError, TimeoutError]
-        },
-        'KEY_PREFIX': cache_key_prefix,
-        'TIMEOUT': 300,  # 5 minutes default
-        'VERSION': 1,  # Cache versioning for invalidation
-    },
-    'sessions': {
-        'BACKEND': 'core.utils.cache_backends.FallbackRedisCache',
-        'LOCATION': get_env('REDIS_URL', default_redis_url),
-        'OPTIONS': {
-            'retry_on_timeout': True,
-            'socket_connect_timeout': 5,
-            'socket_timeout': 5,
-            'health_check_interval': 30,
-            'retry_on_error': [ConnectionError, TimeoutError],
-        },
-        'KEY_PREFIX': f'{cache_key_prefix}sessions_',
-        'TIMEOUT': 1800,  # 30 minutes for sessions
-        'VERSION': 1,
-    },
-    'long_term': {
-        'BACKEND': 'core.utils.cache_backends.FallbackRedisCache',
-        'LOCATION': get_env('REDIS_URL', default_redis_url),
-        'OPTIONS': {
-            'retry_on_timeout': True,
-            'socket_connect_timeout': 5,
-            'socket_timeout': 5,
-            'health_check_interval': 30,
-            'retry_on_error': [ConnectionError, TimeoutError],
-        },
-        'KEY_PREFIX': f'{cache_key_prefix}long_',
-        'TIMEOUT': 3600,  # 1 hour for heavy queries
-        'VERSION': 1,
-    }
-}
 
 # ==============================================
 # EMAIL CONFIGURATION
@@ -504,6 +431,9 @@ USE_TZ = True
 # ==============================================
 # DOMAIN & URL CONFIGURATION
 # ==============================================
+
+# Environment configuration
+ENVIRONMENT = get_env('DJANGO_ENV', 'development')
 
 # Primary domain for the application
 PRIMARY_DOMAIN = get_env('PRIMARY_DOMAIN', 'localhost:8000')
@@ -582,17 +512,11 @@ SECURE_SSL_REDIRECT = get_bool_env('SECURE_SSL_REDIRECT', False)
 # ==============================================
 
 # Template loading optimization
-# Cache template loaders for better performance in production
+# Use standard template loaders for better performance in production
 for template_backend in TEMPLATES:
     if template_backend['BACKEND'] == 'django.template.backends.django.DjangoTemplates':
         if 'loaders' not in template_backend.get('OPTIONS', {}):
-            template_backend['APP_DIRS'] = False
-            template_backend.setdefault('OPTIONS', {})['loaders'] = [
-                ('django.template.loaders.cached.Loader', [
-                    'django.template.loaders.filesystem.Loader',
-                    'django.template.loaders.app_directories.Loader',
-                ]),
-            ]
+            template_backend['APP_DIRS'] = True
 
 # Additional performance settings
 DATA_UPLOAD_MAX_NUMBER_FILES = 100

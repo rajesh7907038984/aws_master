@@ -77,7 +77,6 @@ def scorm_error_fixes(request):
     """
     
     response = HttpResponse(fixes_js, content_type='application/javascript')
-    response['Cache-Control'] = 'public, max-age=3600'
     return response
 
 
@@ -137,5 +136,4 @@ def scorm_console_cleaner(request):
     """
     
     response = HttpResponse(cleaner_js, content_type='application/javascript')
-    response['Cache-Control'] = 'public, max-age=3600'
     return response

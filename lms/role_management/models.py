@@ -1,7 +1,7 @@
 from django.db import models
 from django.conf import settings
 from django.core.exceptions import ValidationError
-from django.core.cache import cache
+# Cache import removed - cache functionality disabled
 from django.utils import timezone
 import logging
 from django.db import transaction
@@ -13,17 +13,11 @@ class RoleManager(models.Manager):
     
     def get_role_with_capabilities(self, role_id):
         """Get role with prefetched capabilities for performance"""
-        cache_key = f"role_capabilities_{role_id}"
-        result = cache.get(cache_key)
-        
-        if result is None:
-            try:
-                result = self.select_related().prefetch_related('capabilities').get(id=role_id)
-                cache.set(cache_key, result, 3600)  # Cache for 1 hour
-            except Role.DoesNotExist:
-                return None
-        
-        return result
+        # Cache functionality removed - always fetch fresh data
+        try:
+            return self.select_related().prefetch_related('capabilities').get(id=role_id)
+        except Role.DoesNotExist:
+            return None
     
     def get_default_capabilities(self, role_name):
         """Get default capabilities for a role type"""
@@ -358,10 +352,7 @@ class Role(models.Model):
 
     def save(self, *args, **kwargs):
         self.clean()
-        # Clear cache when role is saved
-        if self.pk:
-            cache.delete(f"role_capabilities_{self.pk}")
-            cache.delete(f"user_capabilities_{self.pk}")
+        # Cache functionality removed
         super().save(*args, **kwargs)
         
         # Log role creation/update
@@ -369,9 +360,7 @@ class Role(models.Model):
         logger.info(f"Role {self} was {action} by user {getattr(self, 'created_by', 'system')}")
 
     def delete(self, *args, **kwargs):
-        # Clear cache before deletion
-        cache.delete(f"role_capabilities_{self.pk}")
-        cache.delete(f"user_capabilities_{self.pk}")
+        # Cache functionality removed
         
         # Log role deletion
         logger.info(f"Role {self} was deleted")
@@ -391,15 +380,9 @@ class Role(models.Model):
         return self.hierarchy_level > other_level
 
     def get_capabilities(self):
-        """Get all capabilities for this role with caching"""
-        cache_key = f"role_capabilities_{self.pk}"
-        capabilities = cache.get(cache_key)
-        
-        if capabilities is None:
-            capabilities = list(self.capabilities.values_list('capability', flat=True))
-            cache.set(cache_key, capabilities, 3600)  # Cache for 1 hour
-        
-        return capabilities
+        """Get all capabilities for this role"""
+        # Cache functionality removed - always fetch fresh data
+        return list(self.capabilities.values_list('capability', flat=True))
 
     def has_capability(self, capability):
         """Check if this role has a specific capability"""
@@ -414,8 +397,7 @@ class Role(models.Model):
         )
         
         if created:
-            # Clear cache
-            cache.delete(f"role_capabilities_{self.pk}")
+            # Cache functionality removed
             logger.info(f"Capability '{capability}' added to role {self}")
         
         return role_capability
@@ -426,8 +408,7 @@ class Role(models.Model):
             role_capability = RoleCapability.objects.get(role=self, capability=capability)
             role_capability.delete()
             
-            # Clear cache
-            cache.delete(f"role_capabilities_{self.pk}")
+            # Cache functionality removed
             logger.info(f"Capability '{capability}' removed from role {self}")
             return True
         except RoleCapability.DoesNotExist:
@@ -479,8 +460,7 @@ class RoleCapability(models.Model):
 
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)
-        # Clear role capabilities cache
-        cache.delete(f"role_capabilities_{self.role.pk}")
+        # Cache functionality removed
         
         # Log capability assignment
         logger.info(f"Capability '{self.capability}' assigned to role {self.role}")
@@ -490,8 +470,7 @@ class RoleCapability(models.Model):
         capability = self.capability
         super().delete(*args, **kwargs)
         
-        # Clear cache
-        cache.delete(f"role_capabilities_{role_pk}")
+        # Cache functionality removed
         
         # Log capability removal
         logger.info(f"Capability '{capability}' removed from role {self.role}")
@@ -822,17 +801,9 @@ class UserRole(models.Model):
                 f"role_capabilities_{self.role.pk}"
             ]
             
-            # Use safe cache operations
-            from .utils import safe_cache_operation
-            success, _ = safe_cache_operation(cache.delete_many, cache_keys)
-            
-            if not success:
-                # Fallback to individual deletions
-                for key in cache_keys:
-                    safe_cache_operation(cache.delete, key)
-                    
+            # Cache functionality removed
         except Exception as e:
-            logger.error(f"Error invalidating Session caches for user {self.user.pk}: {str(e)}")
+            logger.error(f"Cache invalidation failed: {str(e)}")
 
     def delete(self, *args, **kwargs):
         user_pk = self.user.pk
@@ -924,8 +895,7 @@ class UserRole(models.Model):
             
             # Clear cache for affected users
             user_ids = expired_roles.values_list('user_id', flat=True).distinct()
-            for user_id in user_ids:
-                cache.delete(f"user_capabilities_{user_id}")
+            # Cache functionality removed
             
             # Log the deactivation
             logger.info(f"Automatically deactivated {expired_count} expired role assignments")

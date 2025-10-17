@@ -13,7 +13,6 @@ from django.core.files.storage import default_storage
 from django.utils import timezone
 from django.contrib import messages
 from django.db import transaction
-from django.core.cache import cache
 
 from .models import ELearningPackage, ELearningTracking, SCORMReport
 from courses.models import Topic, Course
@@ -22,6 +21,58 @@ from lrs.scorm2004_sequencing import sequencing_processor
 from lrs.models import SCORM2004Sequencing, SCORM2004ActivityState
 
 logger = logging.getLogger(__name__)
+
+def can_access_scorm_content(user, topic):
+    """
+    Check if user can access SCORM content (not just preview).
+    Only learners should be able to interact with SCORM content.
+    """
+    try:
+        # Check if user is enrolled in the course
+        course = topic.course
+        if course and not course.user_has_access(user):
+            return False
+        
+        # Check if user has learner role for this course
+        from role_management.models import UserRole
+        learner_roles = UserRole.objects.filter(
+            user=user,
+            role__name__in=['Learner', 'Student'],
+            course=course
+        ).exists()
+        
+        return learner_roles
+        
+    except Exception:
+        # If no course relationship, allow access for now
+        return True
+
+def can_preview_scorm_content(user, topic):
+    """
+    Check if user can preview SCORM content (read-only mode).
+    Non-learners can preview but not interact.
+    """
+    try:
+        # Check if user has any role that allows content viewing
+        from role_management.models import UserRole
+        course = topic.course
+        
+        if course:
+            # Check for any role that allows content access
+            has_access_role = UserRole.objects.filter(
+                user=user,
+                course=course,
+                role__name__in=['Instructor', 'Admin', 'Global Admin', 'Super Admin']
+            ).exists()
+            
+            return has_access_role
+        else:
+            # If no course relationship, check global permissions
+            return user.has_perm('scorm.view_elearning_package')
+        
+    except Exception:
+        # Fallback to basic permission check
+        return user.has_perm('scorm.view_elearning_package')
 
 def scorm_launch(request, topic_id):
     """Launch a SCORM package"""
@@ -78,6 +129,21 @@ def scorm_launch(request, topic_id):
         logger.info(f"SCORM Launch: Topic {topic_id} has no course relationship, allowing access")
         pass
     
+    # ENHANCED: Role-based access control for SCORM content
+    can_access = can_access_scorm_content(user, topic)
+    can_preview = can_preview_scorm_content(user, topic)
+    
+    if not can_access and not can_preview:
+        logger.warning(f"SCORM Launch: User {user.username} has no access to SCORM content for topic {topic_id}")
+        messages.error(request, "You don't have permission to access this SCORM content.")
+        return redirect('courses:course_list')
+    
+    # Set preview mode if user can only preview
+    preview_mode = not can_access and can_preview
+    if preview_mode:
+        logger.info(f"SCORM Launch: User {user.username} accessing SCORM content in preview mode for topic {topic_id}")
+        messages.info(request, "You are viewing this content in preview mode. Your progress will not be saved.")
+    
     try:
         elearning_package = ELearningPackage.objects.get(topic=topic)
     except ELearningPackage.DoesNotExist:
@@ -88,11 +154,21 @@ def scorm_launch(request, topic_id):
         messages.error(request, "SCORM package is not properly extracted.")
         return redirect('courses:topic_view', topic_id=topic_id)
     
-    # Get or create tracking record
-    tracking, created = ELearningTracking.objects.get_or_create(
-        user=user,
-        elearning_package=elearning_package
-    )
+    # Get or create tracking record (only if not in preview mode)
+    tracking = None
+    if not preview_mode:
+        tracking, created = ELearningTracking.objects.get_or_create(
+            user=user,
+            elearning_package=elearning_package
+        )
+    else:
+        # Create a dummy tracking object for preview mode
+        tracking = ELearningTracking(
+            user=user,
+            elearning_package=elearning_package,
+            completion_status='incomplete',
+            success_status='unknown'
+        )
     
     # Increment attempt count on each launch
     tracking.attempt_count += 1
@@ -137,7 +213,8 @@ def scorm_launch(request, topic_id):
         'user_id': user.id,
         'scorm_api_url': f'/scorm/api/{topic_id}/',
         'scorm_data': scorm_data,
-        'scorm_data_json': scorm_data_json
+        'scorm_data_json': scorm_data_json,
+        'preview_mode': preview_mode  # Add preview mode to context
     }
     
     return render(request, 'scorm/launch.html', context)
@@ -209,13 +286,9 @@ def scorm_content(request, topic_id, file_path):
     if not elearning_package.is_extracted:
         raise Http404("SCORM package not extracted")
     
-    # Simplified file path resolution
-    local_media_root = getattr(settings, 'MEDIA_ROOT', None)
-    if local_media_root:
-        extracted_base_path = os.path.join(local_media_root, elearning_package.extracted_path)
-    else:
-        import tempfile
-        extracted_base_path = os.path.join(tempfile.gettempdir(), elearning_package.extracted_path)
+    # S3 storage - use temp directory for extraction
+    import tempfile
+    extracted_base_path = os.path.join(tempfile.gettempdir(), elearning_package.extracted_path)
     
     # Try direct path first
     full_path = os.path.join(extracted_base_path, file_path)
@@ -779,25 +852,16 @@ if (typeof window.API === 'undefined') {{
             # Allow inline scripts and eval for SCORM packages (Articulate requires this)
             response['Content-Security-Policy'] = "default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob:; frame-src 'self' 'unsafe-inline' 'unsafe-eval'; script-src 'self' 'unsafe-inline' 'unsafe-eval' *.amazonaws.com *.s3.amazonaws.com *.articulate.com *.adobe.com *.captivate.com *.googleapis.com *.gstatic.com; style-src 'self' 'unsafe-inline' *.amazonaws.com *.s3.amazonaws.com fonts.googleapis.com *.gstatic.com; img-src 'self' data: blob: *.amazonaws.com *.s3.amazonaws.com *.articulate.com *.adobe.com *.captivate.com; font-src 'self' *.amazonaws.com *.s3.amazonaws.com fonts.gstatic.com fonts.googleapis.com; media-src 'self' data: blob: *.amazonaws.com *.s3.amazonaws.com; connect-src 'self' *.amazonaws.com *.s3.amazonaws.com metrics.articulate.com *.articulate.com *.adobe.com *.captivate.com https://metrics.articulate.com *.googleapis.com; worker-src 'self' blob:; object-src 'self' data: blob:; base-uri 'self';"
             # Additional headers for Articulate content
-            response['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-            response['Pragma'] = 'no-cache'
-            response['Expires'] = '0'
         elif file_path.endswith('.js'):
             # Special handling for JavaScript files
             response['Content-Type'] = 'application/javascript; charset=utf-8'
             # Remove X-Content-Type-Options for JS files to prevent MIME type issues
-            response['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-            response['Pragma'] = 'no-cache'
-            response['Expires'] = '0'
             # Don't add X-Content-Type-Options for JS files
             if 'X-Content-Type-Options' in response:
                 del response['X-Content-Type-Options']
         elif file_path.endswith('.css'):
             # Special handling for CSS files
             response['Content-Type'] = 'text/css; charset=utf-8'
-            response['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-            response['Pragma'] = 'no-cache'
-            response['Expires'] = '0'
         
         # Add CORS headers for SCORM content
         response['Access-Control-Allow-Origin'] = '*'
@@ -890,6 +954,14 @@ def scorm_api(request, topic_id):
     
     # Add user to request for use in handlers
     request.scorm_user = user
+    
+    # Check if user is in preview mode
+    topic = get_object_or_404(Topic, id=topic_id)
+    preview_mode = not can_access_scorm_content(user, topic) and can_preview_scorm_content(user, topic)
+    request.scorm_preview_mode = preview_mode
+    
+    if preview_mode:
+        logger.info(f"SCORM API: User {user.username} accessing SCORM content in preview mode")
     
     logger.info(f"SCORM API: Request from user {request.user.username} (ID: {request.user.id})")
     
@@ -1131,10 +1203,13 @@ def _sync_tracking_data(tracking):
                     changes_made = True
                     logger.info(f"SCORM: Synced cmi5 field {field}: {raw_value}")
     
-    # Save if any changes were made
+    # Save if any changes were made (only if not in preview mode)
     if changes_made:
-        tracking.save()
-        logger.info(f"SCORM: Data synchronization completed for user {tracking.user.id} (package: {package_type})")
+        if not getattr(tracking, '_preview_mode', False):
+            tracking.save()
+            logger.info(f"SCORM: Data synchronization completed for user {tracking.user.id} (package: {package_type})")
+        else:
+            logger.info(f"SCORM: Preview mode - data not saved for user {tracking.user.id} (package: {package_type})")
     else:
         logger.info(f"SCORM: No data synchronization needed for user {tracking.user.id} (package: {package_type})")
 
@@ -1771,8 +1846,11 @@ def _handle_scorm_post(request, topic_id):
             )
             
             if should_save:
-                tracking.save()
-                logger.info(f"SCORM: Tracking data saved for user {request.scorm_user.id}, element: {element}, field_updated: {field_updated}")
+                if not getattr(request, 'scorm_preview_mode', False):
+                    tracking.save()
+                    logger.info(f"SCORM: Tracking data saved for user {request.scorm_user.id}, element: {element}, field_updated: {field_updated}")
+                else:
+                    logger.info(f"SCORM: Preview mode - tracking data not saved for user {request.scorm_user.id}, element: {element}")
             else:
                 logger.warning(f"SCORM: No fields updated for element {element}, value: {value}")
             
@@ -2934,14 +3012,9 @@ def validate_elearning_package_endpoint(request, topic_id):
                 'package_type': package.package_type
             })
         
-        # Get package path - use local media directory for extracted content
-        local_media_root = getattr(settings, 'MEDIA_ROOT', None)
-        if local_media_root:
-            package_path = os.path.join(local_media_root, package.extracted_path)
-        else:
-            # Fallback to temp directory if no local media root
-            import tempfile
-            package_path = os.path.join(tempfile.gettempdir(), package.extracted_path)
+        # S3 storage - use temp directory for package validation
+        import tempfile
+        package_path = os.path.join(tempfile.gettempdir(), package.extracted_path)
         
         # Validate package
         is_valid = validate_elearning_package(package_path, package.package_type)

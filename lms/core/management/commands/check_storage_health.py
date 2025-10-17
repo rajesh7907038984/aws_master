@@ -57,7 +57,7 @@ class Command(BaseCommand):
             ('scorm.ELearningPackage', 'package_file'),
             ('courses.Topic', 'content_file'),
             ('certificates.CertificateTemplate', 'template_file'),
-            ('conferences.Conference', 'local_file'),
+            ('conferences.Conference', 'file_url'),
             ('lms_messages.Message', 'file'),
             ('discussions.Discussion', 'file'),
             ('reports.Report', 'file'),

@@ -11,7 +11,6 @@ from django.http import JsonResponse
 from django.utils import timezone
 from core.utils.activity_monitor import analytics_engine, performance_monitor
 # from core.utils.performance_monitor import get_performance_stats  # Removed - file not found
-from core.utils.cache_manager import cache_manager
 import logging
 
 logger = logging.getLogger(__name__)
@@ -31,8 +30,8 @@ def monitoring_dashboard(request):
         # Get performance stats
         performance_stats = performance_monitor.get_system_metrics() if hasattr(performance_monitor, 'get_system_metrics') else {}
         
-        # Get cache stats
-        cache_stats = cache_manager.get_cache_stats()
+        # Cache stats (removed - no longer using cache)
+        cache_stats = {'status': 'disabled'}
         
         # Get popular pages
         popular_pages = analytics_engine.get_popular_pages()

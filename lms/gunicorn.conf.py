@@ -21,9 +21,9 @@ if workers_env == 'auto':
     # For 2 CPUs with limited RAM, use fewer workers
     cpu_count = multiprocessing.cpu_count()
     if cpu_count <= 2:
-        workers = 2  # Reduced to prevent memory issues
+        workers = 1  # Further reduced to prevent memory issues and timeouts
     else:
-        workers = cpu_count + 1  # More conservative
+        workers = cpu_count  # More conservative
 else:
     workers = int(workers_env)
 
@@ -31,15 +31,15 @@ else:
 bind = GUNICORN_BIND
 backlog = 2048
 
-# Worker processes - optimized for performance
+# Worker processes - optimized for performance and memory
 worker_class = "sync"
-worker_connections = 1000
-keepalive = 5  # Increased for better connection reuse
+worker_connections = 500  # Reduced to prevent memory pressure
+keepalive = 2  # Reduced for better memory management
 
 # Restart workers after this many requests, to prevent memory leaks
 # SESSION-AWARE: Reduced worker recycling to preserve user sessions
-max_requests = 500  # Reduced to prevent memory buildup
-max_requests_jitter = 100  # Reduced jitter for better memory management
+max_requests = 200  # Further reduced to prevent memory buildup and timeouts
+max_requests_jitter = 50  # Reduced jitter for better memory management
 
 # Logging - use environment variable for log directory
 accesslog = f"{LOGS_DIR}/gunicorn_access.log"
@@ -65,13 +65,16 @@ limit_request_line = 8190
 limit_request_fields = 200
 limit_request_field_size = 16380
 
-# Performance
-preload_app = True
+# Performance and memory optimization
+preload_app = False  # Disabled to reduce memory usage at startup
 worker_tmp_dir = "/dev/shm"
 
 # Graceful timeout for worker restart
-graceful_timeout = 60  # Increased from 30 to 60 seconds
+graceful_timeout = 30  # Reduced for faster worker recycling
 timeout = GUNICORN_TIMEOUT  # Use the timeout setting
+
+# Additional timeout settings for better handling
+capture_output = True  # Capture worker output for debugging
 
 # Environment variables - dynamically set based on DJANGO_ENV
 raw_env = [

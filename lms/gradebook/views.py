@@ -23,7 +23,6 @@ from core.rbac_validators import ConditionalAccessValidator
 from core.utils.type_guards import safe_get_string, safe_get_int
 from .validators import validate_gradebook_request_data, GradebookValidationError
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
-from django.core.cache import cache
 import json
 import logging
 import hashlib
@@ -1400,13 +1399,6 @@ def course_gradebook_detail(request, course_id):
     # Sort activities by creation date to ensure consistent ordering
     activities.sort(key=lambda x: x['created_at'])
     
-    # Cache the activities for better performance
-    try:
-        activities_cache_key = f"gradebook:activities:course:{course_id}"
-        cache.set(activities_cache_key, activities, timeout=600)  # Cache for 10 minutes
-        logger.debug(f"Cached activities for course {course_id}")
-    except Exception as e:
-        logger.error(f"Error caching activities for course {course_id}: {str(e)}")
     
     # Log activity counts for debugging (using proper logger)
     logger.debug(f"Course {course.id} ({course.title}) activities found: "
@@ -1489,27 +1481,11 @@ def course_gradebook_detail(request, course_id):
     
     # Pre-calculate all student scores for better performance
     try:
-        # Generate cache key for student scores with proper invalidation support
-        from core.utils.cache_invalidation import CacheInvalidationManager
-        
-        students_hash = hashlib.md5(str(sorted([s.id for s in students])).encode()).hexdigest()[:8]
-        cache_key = f"gradebook:scores:course:{course_id}:students:{students_hash}"
-        
-        # Try to get from cache first
-        student_scores = cache.get(cache_key)
-        
-        if student_scores is None:
-            # Not in cache, calculate and cache
-            # Note: initial_assessment_attempts are included in quiz_attempts now
-            student_scores = pre_calculate_student_scores(
-                students, activities, grades, quiz_attempts, 
-                conference_evaluations, None
-            )
-            # Cache for 5 minutes (reduced for more frequent updates)
-            cache.set(cache_key, student_scores, timeout=300)
-            logger.debug(f"Cached student scores for course {course_id}")
-        else:
-            logger.debug(f"Retrieved cached student scores for course {course_id}")
+        # Calculate student scores directly
+        student_scores = pre_calculate_student_scores(
+            students, activities, grades, quiz_attempts, 
+            conference_evaluations, None
+        )
         
     except Exception as e:
         logger.error(f"Error pre-calculating student scores for course {course_id}: {str(e)}")
