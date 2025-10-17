@@ -2908,14 +2908,21 @@
         
         // Safe section rename handler
         window.handleRenameSection = function(button) {
+            console.log('handleRenameSection called with button:', button);
             const sectionId = button.getAttribute('data-section-id');
             const sectionName = button.getAttribute('data-section-name');
             
+            console.log('Section ID:', sectionId, 'Section Name:', sectionName);
+            
             if (typeof renameSection === 'function') {
+                console.log('Using renameSection function');
                 renameSection(sectionId, sectionName);
             } else if (typeof renameSectionGlobal === 'function') {
+                console.log('Using renameSectionGlobal function');
                 renameSectionGlobal(sectionId, sectionName);
             } else {
+                console.error('No rename function available');
+                showTopicNotification('Error: Rename functionality not available', 'error');
             }
         };
         
@@ -4379,6 +4386,19 @@
                 </button>
             </div>
         </form>
+        
+        <script>
+        // Add form submission debugging
+        document.addEventListener('DOMContentLoaded', function() {
+            const form = document.getElementById('newSectionForm');
+            if (form) {
+                form.addEventListener('submit', function(e) {
+                    console.log('Section form submitted');
+                    console.log('Form data:', new FormData(form));
+                });
+            }
+        });
+        </script>
     </div>
 </div>
 
@@ -5630,6 +5650,28 @@ document.addEventListener('DOMContentLoaded', function() {
             modal.classList.add('hidden');
         }
     }
+    
+    // Expose functions to global scope
+    window.showSectionModal = showSectionModal;
+    window.hideSectionModal = hideSectionModal;
+    
+    // Debug: Test if functions are accessible
+    console.log('Section modal functions exposed:', {
+        showSectionModal: typeof window.showSectionModal,
+        hideSectionModal: typeof window.hideSectionModal
+    });
+    
+    // Test modal functionality
+    window.testSectionModal = function() {
+        console.log('Testing section modal...');
+        const modal = document.getElementById('add-section-modal');
+        console.log('Modal element:', modal);
+        console.log('Modal classes:', modal ? modal.className : 'Modal not found');
+        if (modal) {
+            console.log('Modal display style:', window.getComputedStyle(modal).display);
+            console.log('Modal visibility:', window.getComputedStyle(modal).visibility);
+        }
+    };
     
     function hideMoveTopicModal() {
         const modal = document.getElementById('moveTopicModal');
