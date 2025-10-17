@@ -21,7 +21,10 @@ class SCORMS3Storage(S3Boto3Storage):
             location = 'elearning'
         
         if base_url is None:
-            base_url = f'https://{settings.AWS_STORAGE_BUCKET_NAME}.s3.{settings.AWS_S3_REGION_NAME}.amazonaws.com/elearning/'
+            # Use SCORM-specific media URL if available, otherwise construct it
+            base_url = getattr(settings, 'SCORM_MEDIA_URL', None)
+            if not base_url:
+                base_url = f'https://{settings.AWS_STORAGE_BUCKET_NAME}.s3.{settings.AWS_S3_REGION_NAME}.amazonaws.com/elearning/'
         
         # Set S3-specific options
         kwargs.update({
@@ -33,6 +36,7 @@ class SCORMS3Storage(S3Boto3Storage):
             'file_overwrite': False,
             'querystring_auth': True,  # Enable signed URLs for security
             'querystring_expire': 7200,  # 2 hours expiration for signed URLs (increased for SCORM content)
+            'custom_domain': getattr(settings, 'AWS_S3_CUSTOM_DOMAIN', None),
         })
         
         super().__init__(**kwargs)
@@ -88,10 +92,27 @@ class SCORMS3Storage(S3Boto3Storage):
     def url(self, name):
         """Get the URL for the file (signed URL for private files)"""
         try:
-            return super().url(name)
-        except Exception:
+            # Avoid double prefixing if name already includes the location
+            if not name.startswith(f"{self.location}/"):
+                name = f"{self.location}/{name}"
+            
+            # Generate signed URL
+            signed_url = super().url(name)
+            return signed_url
+        except Exception as e:
+            # Log the error for debugging
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error("Error generating S3 URL for {}: {}".format(name, e))
+            
             # Fallback to direct S3 URL
-            return f"https://{settings.AWS_STORAGE_BUCKET_NAME}.s3.{settings.AWS_S3_REGION_NAME}.amazonaws.com/{self.location}/{name}"
+            fallback_url = "https://{}.s3.{}.amazonaws.com/{}".format(
+                settings.AWS_STORAGE_BUCKET_NAME, 
+                settings.AWS_S3_REGION_NAME, 
+                name
+            )
+            logger.warning("Using fallback URL: {}".format(fallback_url))
+            return fallback_url
     
     def get_accessed_time(self, name):
         """Get file access time from S3"""

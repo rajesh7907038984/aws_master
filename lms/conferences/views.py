@@ -146,7 +146,7 @@ def conference_list(request):
         ).distinct().order_by('-date', '-start_time')
         
         conferences_list = conferences_queryset
-        can_create = False
+        can_create = True  # Allow learners to create conferences
         can_edit = False
         can_manage_all = False
     
@@ -226,6 +226,8 @@ def new_conference(request, course_id=None):
         can_create = True  # CONDITIONAL access (branch-scoped)
     elif user.role == 'instructor':
         can_create = True  # CONDITIONAL access (branch-scoped)
+    elif user.role == 'learner':
+        can_create = True  # Allow learners to create conferences
     
     if not can_create:
         return HttpResponseForbidden("You don't have permission to create conferences")

@@ -27,7 +27,7 @@ function loadMoreTodos() {
     
     // Show loading state
     const originalText = loadButton.innerHTML;
-    loadButton.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Loading...';
+    loadButton.innerHTML = '<i class="fas fa-spinner fa-spin icon-spin button-icon"></i>Loading...';
     loadButton.disabled = true;
     
     // Make AJAX request with cache-busting
@@ -130,7 +130,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         <div class="dashboard-section-header-wrapper">
                         <div class="dashboard-flex dashboard-flex-between dashboard-mb-sm">
                             <h2 class="dashboard-section-header dashboard-mb-0">
-                                <i class="fas fa-graduation-cap" style="color: #050c50; margin-right: 0.5rem; font-size: 1rem;"></i>
+                                <i class="fas fa-graduation-cap" style="color: var(--brand-primary); margin-right: 0.5rem; font-size: 1rem;"></i>
                                 My Enrolled Courses
                             </h2>
                             <a href="{% url 'courses:course_list' %}" class="dashboard-link">Browse All</a>
@@ -181,7 +181,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                         <div class="course-progress-wrapper">
                                             <div class="dashboard-flex dashboard-flex-between dashboard-mb-sm">
                                                 <span class="dashboard-text-xs dashboard-text-bold">Progress</span>
-                                                <span class="dashboard-text-xs dashboard-text-bold" style="color: #4262FF;">{{ enrollment.progress_percentage|default:0 }}%</span>
+                                                <span class="dashboard-text-xs dashboard-text-bold" style="color: var(--brand-primary-light);">{{ enrollment.progress_percentage|default:0 }}%</span>
                                             </div>
                                             <div class="w-full bg-gray-200 rounded-full h-2">
                                                 <div class="bg-primary-600 h-2 rounded-full" style="width: {{ enrollment.progress_percentage|default:0 }}%"></div>
@@ -214,7 +214,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             <span style="display: inline-block;">No courses enrolled yet</span>
                         </h3>
                         <p class="dashboard-text-small dashboard-text-muted dashboard-mb-lg" style="margin-bottom: 1.5rem; text-align: center;">Explore our course catalog and start learning!</p>
-                        <a href="{% url 'courses:course_list' %}" class="dashboard-quick-action" style="display: inline-flex; align-items: center; justify-content: center; padding: 0.75rem 2rem; text-decoration: none; background-color: #191f56; color: white; border-radius: 8px; font-weight: 500; transition: all 0.2s ease; white-space: nowrap;" onmouseover="this.style.backgroundColor='#141a4a'" onmouseout="this.style.backgroundColor='#191f56'">
+                        <a href="{% url 'courses:course_list' %}" class="dashboard-quick-action" style="display: inline-flex; align-items: center; justify-content: center; padding: 0.75rem 2rem; text-decoration: none; background-color: var(--brand-primary); color: white; border-radius: 8px; font-weight: 500; transition: all 0.2s ease; white-space: nowrap;" onmouseover="this.style.backgroundColor='#141a4a'" onmouseout="this.style.backgroundColor='var(--brand-primary)'">
                             <i class="fas fa-search" style="margin-right: 0.5rem; font-size: 1rem;"></i>
                             <span>Browse Courses</span>
                         </a>
@@ -226,7 +226,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 <div class="dashboard-section">
                     <div class="dashboard-section-header-wrapper">
                         <h2 class="dashboard-section-header dashboard-mb-0">
-                            <i class="fas fa-calendar-alt" style="color: #050c50; margin-right: 0.5rem; font-size: 1rem;"></i>
+                            <i class="fas fa-calendar-alt" style="color: var(--brand-primary); margin-right: 0.5rem; font-size: 1rem;"></i>
                             Learning Calendar
                         </h2>
                         <div class="dashboard-section-description">Track your learning activities</div>
@@ -242,7 +242,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         <div class="dashboard-section-header-wrapper">
                         <div class="dashboard-flex dashboard-flex-between dashboard-mb-sm">
                             <h2 class="dashboard-section-header dashboard-mb-0">
-                                <i class="fas fa-tasks" style="color: #050c50; margin-right: 0.5rem; font-size: 1rem;"></i>
+                                <i class="fas fa-tasks" style="color: var(--brand-primary); margin-right: 0.5rem; font-size: 1rem;"></i>
                                 To-do List
                             </h2>
                             <div class="dashboard-text-small dashboard-text-muted">

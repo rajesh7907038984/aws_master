@@ -31,6 +31,11 @@ urlpatterns = [
     path('progress/<int:topic_id>/', views.scorm_progress, name='progress'),
     path('debug/<int:topic_id>/', views.scorm_debug, name='debug'),
     
+    # Preview URLs for instructors/admins
+    path('preview/<int:topic_id>/', views.scorm_preview, name='preview'),
+    path('xapi/preview/<int:topic_id>/', views.xapi_preview, name='xapi_preview'),
+    path('cmi5/preview/<int:topic_id>/', views.cmi5_preview, name='cmi5_preview'),
+    
     # Package Validation
     path('validate/<int:topic_id>/', views.validate_elearning_package_endpoint, name='validate'),
     

@@ -411,7 +411,7 @@ function saveAssignmentEdit(assignmentId) {
     formData.append('admin_user_id', adminUserId);
     formData.append('branch_id', branchId);
     formData.append('notes', notes);
-    formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+    formData.append('csrfmiddlewaretoken', getCSRFToken());
     
     // Send AJAX request
     fetch('/branches/edit-admin-assignment/', {
@@ -454,6 +454,33 @@ function showMessage(message, type) {
     setTimeout(() => {
         messageDiv.remove();
     }, 3000);
+}
+
+// CSRF Token helper function with multiple fallback methods
+function getCSRFToken() {
+    // Method 1: Meta tag (preferred)
+    const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+    if (csrfMeta) {
+        return csrfMeta.getAttribute('content');
+    }
+    
+    // Method 2: Input field
+    const csrfInput = document.querySelector('input[name="csrfmiddlewaretoken"]');
+    if (csrfInput) {
+        return csrfInput.value;
+    }
+    
+    // Method 3: Cookie fallback
+    const cookies = document.cookie.split(';');
+    for (let cookie of cookies) {
+        const [name, value] = cookie.trim().split('=');
+        if (name === 'csrftoken') {
+            return value;
+        }
+    }
+    
+    console.error('CSRF token not found');
+    return '';
 }
 </script>
 {% endblock %}

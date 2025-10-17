@@ -86,9 +86,15 @@
                                         </div>
                                     </td>
                                     <td class="px-4 py-3">
-                                        <a href="{% url 'reports:activity_report_overview' activity_data.topic.id %}" class="text-blue-600 hover:text-blue-700">
+                                        {% if request.user.is_superuser or request.user.role == 'globaladmin' or request.user.role == 'superadmin' or request.user.role == 'admin' or request.user.role == 'instructor' %}
+                                        <a href="{% url 'reports:activity_report_overview' activity_data.topic.id %}" class="text-blue-600 hover:text-blue-700" title="View Activity Report">
                                             <i class="fas fa-eye"></i>
                                         </a>
+                                        {% else %}
+                                        <span class="text-gray-400" title="No permission to view activity reports">
+                                            <i class="fas fa-eye-slash"></i>
+                                        </span>
+                                        {% endif %}
                                     </td>
                                 </tr>
                                 {% empty %}

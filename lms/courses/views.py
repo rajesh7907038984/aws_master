@@ -6596,32 +6596,32 @@ def certificate_view(request, uuid):
 @login_required
 def get_branch_courses(request, branch_id):
     """API to get courses belonging to a specific branch"""
+    from core.utils.standardized_api_response import StandardizedAPIResponse
+    
     try:
         branch = Branch.objects.get(id=branch_id)
         
         # Check permissions - admin/instructor should only see their branch's courses
         if not request.user.is_superuser and request.user.branch != branch:
-            return JsonResponse({
-                'success': False, 
-                'message': 'You do not have permission to view courses for this branch'
-            }, status=403)
+            return StandardizedAPIResponse.forbidden(
+                message='You do not have permission to view courses for this branch'
+            )
         
         courses = Course.objects.filter(branch=branch).values('id', 'title')
         
-        return JsonResponse({
-            'success': True,
-            'courses': list(courses)
-        })
+        return StandardizedAPIResponse.success(
+            data={'courses': list(courses)},
+            message='Courses retrieved successfully'
+        )
     except Branch.DoesNotExist:
-        return JsonResponse({
-            'success': False,
-            'message': 'Branch not found'
-        }, status=404)
+        return StandardizedAPIResponse.not_found(
+            message='Branch not found',
+            resource='Branch'
+        )
     except Exception as e:
-        return JsonResponse({
-            'success': False,
-            'message': str(e)
-        }, status=500)
+        return StandardizedAPIResponse.server_error(
+            message=f'Error retrieving courses: {str(e)}'
+        )
 
 # Claude AI proxy endpoint
 @login_required

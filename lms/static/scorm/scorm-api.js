@@ -6,12 +6,25 @@
 (function() {
     'use strict';
     
-    // SCORM API Configuration
+    // Enhanced SCORM API Configuration with Browser Compatibility
     var SCORM_API = {
         initialized: false,
         commit_url: window.location.origin + '/scorm/api/' + getTopicIdFromUrl(),
         user_id: null,
         topic_id: null,
+        
+        // Browser compatibility detection
+        browserInfo: {
+            isIE: /MSIE|Trident/.test(navigator.userAgent),
+            isEdge: /Edge/.test(navigator.userAgent),
+            isChrome: /Chrome/.test(navigator.userAgent) && !/Edge/.test(navigator.userAgent),
+            isFirefox: /Firefox/.test(navigator.userAgent),
+            isSafari: /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent),
+            isMobile: /Mobile|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent),
+            supportsES6: typeof Symbol !== 'undefined' && typeof Map !== 'undefined',
+            supportsFetch: typeof fetch !== 'undefined',
+            supportsTouch: 'ontouchstart' in window || navigator.maxTouchPoints > 0
+        },
         
         // SCORM data storage
         data: {
@@ -208,6 +221,16 @@
                 return;
             }
             
+            // Browser-compatible data sending
+            if (this.browserInfo.supportsFetch && !this.browserInfo.isIE) {
+                this.sendDataWithFetch();
+            } else {
+                this.sendDataWithXHR();
+            }
+        },
+        
+        // Modern fetch implementation
+        sendDataWithFetch: function() {
             const formData = new FormData();
             formData.append('action', 'SetValue');
             
@@ -226,7 +249,43 @@
                 console.log('SCORM API: Data sent to server:', data);
             }).catch(error => {
                 console.error('SCORM API: Error sending data:', error);
+                // Fallback to XHR if fetch fails
+                this.sendDataWithXHR();
             });
+        },
+        
+        // XMLHttpRequest fallback for older browsers
+        sendDataWithXHR: function() {
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', this.commit_url, true);
+            xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+            
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === 4) {
+                    if (xhr.status === 200) {
+                        try {
+                            const data = JSON.parse(xhr.responseText);
+                            console.log('SCORM API: Data sent to server:', data);
+                        } catch (e) {
+                            console.log('SCORM API: Data sent to server (non-JSON response)');
+                        }
+                    } else {
+                        console.error('SCORM API: Error sending data, status:', xhr.status);
+                    }
+                }
+            };
+            
+            // Build form data
+            const formData = new URLSearchParams();
+            formData.append('action', 'SetValue');
+            
+            // Send all data
+            for (const [key, value] of Object.entries(this.data)) {
+                formData.append('element', key);
+                formData.append('value', value);
+            }
+            
+            xhr.send(formData);
         }
     };
     

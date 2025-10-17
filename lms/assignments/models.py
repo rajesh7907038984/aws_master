@@ -5,6 +5,7 @@ from courses.models import Course, Topic
 from users.models import CustomUser
 from django.core.exceptions import ValidationError
 from core.utils.fields import TinyMCEField
+from core.s3_storage import MediaS3Storage
 import os
 from pathlib import Path
 import re
@@ -36,10 +37,21 @@ def secure_filename(filename):
 
 def assignment_file_path(instance, filename):
     """Define path for assignment files with secure filename handling"""
+    from core.s3_storage import validate_s3_path, sanitize_s3_path
+    
     safe_name = secure_filename(filename)
     if hasattr(instance, 'assignment'):
-        return f"assignment_content/submissions/{instance.assignment.id}/{instance.user.id}/{safe_name}"
-    return f"assignment_content/assignments/{safe_name}"
+        full_path = f"assignment_content/submissions/{instance.assignment.id}/{instance.user.id}/{safe_name}"
+    else:
+        full_path = f"assignment_content/assignments/{safe_name}"
+    
+    # Validate and sanitize the path for S3 compatibility
+    is_valid, error = validate_s3_path(full_path)
+    if not is_valid:
+        logger.warning(f"S3 path validation failed: {error}. Sanitizing path.")
+        full_path = sanitize_s3_path(full_path)
+    
+    return full_path
 
 class Assignment(models.Model):
     """Model for assignments"""
@@ -61,6 +73,7 @@ class Assignment(models.Model):
     due_date = models.DateTimeField(null=True, blank=True)
     attachment = models.FileField(
         upload_to=assignment_file_path,
+        storage=MediaS3Storage(),
         null=True,
         blank=True,
         help_text="Supporting documents for the assignment (Use AssignmentAttachment for new documents)"

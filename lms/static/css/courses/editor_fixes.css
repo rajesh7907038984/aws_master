@@ -584,7 +584,7 @@
 
 /* Click feedback for buttons */
 .custom-editor-toolbar button.click-feedback {
-    background-color: #191f56 !important;
+    background-color: var(--brand-primary) !important;
     color: white !important;
     transform: scale(0.95);
     transition: all 0.1s ease;
@@ -592,7 +592,7 @@
 
 /* Improve button active state */
 .custom-editor-toolbar button.active {
-    background-color: #191f56 !important;
+    background-color: var(--brand-primary) !important;
     color: white !important;
     border-color: #2563eb !important;
 }

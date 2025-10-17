@@ -203,7 +203,7 @@ function showModal(options) {
 function buildModalButtons(buttons) {
     if (!buttons || buttons.length === 0) {
         // Default OK button
-        return `<button class="modal-button-0 px-4 py-2 text-white rounded-md transition-colors" style="background-color: #191f56;" onmouseover="this.style.backgroundColor='#141a4a'" onmouseout="this.style.backgroundColor='#191f56'">OK</button>`;
+        return `<button class="modal-button-0 px-4 py-2 text-white rounded-md transition-colors" style="background-color: var(--brand-primary);" onmouseover="this.style.backgroundColor='#141a4a'" onmouseout="this.style.backgroundColor='var(--brand-primary)'">OK</button>`;
     }
     
     return buttons.map((button, index) => {
@@ -213,9 +213,9 @@ function buildModalButtons(buttons) {
         switch (button.type) {
             case 'primary':
                 classes += ' text-white';
-                button.style = 'background-color: #191f56;';
+                button.style = 'background-color: var(--brand-primary);';
                 button.onmouseover = "this.style.backgroundColor='#141a4a'";
-                button.onmouseout = "this.style.backgroundColor='#191f56'";
+                button.onmouseout = "this.style.backgroundColor='var(--brand-primary)'";
                 break;
             case 'danger':
                 classes += ' bg-red-600 text-white hover:bg-red-700';

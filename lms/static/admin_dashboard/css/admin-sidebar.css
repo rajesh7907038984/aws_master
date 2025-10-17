@@ -330,20 +330,20 @@ header .flex.items-center {
 
 /* Button colors */
 .bg-\[#7DC668\] {
-    background-color: #191f56 !important;
+    background-color: var(--brand-primary) !important;
 }
 
 .hover\:bg-\[#6db459\]:hover {
-    background-color: #02071e !important;
+    background-color: var(--brand-primary-hover) !important;
 }
 
 /* Icon background colors */
 .bg-\[#EBF3FE\] {
-    background-color: #EBF3FE !important;
+    background-color: var(--brand-accent-light) !important;
 }
 
 .text-\[#2F80ED\] {
-    color: #2F80ED !important;
+    color: var(--brand-accent) !important;
 }
 
 /* Ensure all text in the dashboard is visible */
@@ -521,7 +521,7 @@ main.flex-1.bg-white {
 
 /* Ensure the background colors for progress bars */
 .bg-blue-500 {
-    background-color: #191f56 !important;
+    background-color: var(--brand-primary) !important;
 }
 
 .bg-red-500 {
@@ -624,7 +624,7 @@ main.flex-1.bg-white {
 
 /* Ensure the background colors for the chart */
 .bg-green-500 {
-    background-color: #191f56 !important;
+    background-color: var(--brand-primary) !important;
 }
 
 .bg-yellow-400 {

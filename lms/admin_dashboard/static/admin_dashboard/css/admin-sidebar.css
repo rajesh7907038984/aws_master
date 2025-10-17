@@ -339,11 +339,11 @@ header .flex.items-center {
 
 /* Icon background colors */
 .bg-\[#EBF3FE\] {
-    background-color: #EBF3FE !important;
+    background-color: var(--brand-accent-light) !important;
 }
 
 .text-\[#2F80ED\] {
-    color: #2F80ED !important;
+    color: var(--brand-accent) !important;
 }
 
 /* Ensure all text in the dashboard is visible */

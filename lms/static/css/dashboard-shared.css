@@ -4,7 +4,7 @@
 
 /* ========== Global Dashboard Variables ========== */
 :root {
-    --dashboard-primary-color: #050c50;
+    --dashboard-primary-color: var(--brand-primary);
     --dashboard-primary-hover: #02071e;
     --dashboard-accent-color: #2F80ED;
     --dashboard-accent-light: #EBF3FE;
@@ -919,7 +919,7 @@
 }
 
 .progress-course-title a:hover {
-    color: #050c50 !important;
+    color: var(--brand-primary) !important;
     text-decoration: underline !important;
 }
 
@@ -1106,7 +1106,7 @@
 }
 
 .instructor-name a:hover {
-    color: #050c50 !important;
+    color: var(--brand-primary) !important;
     text-decoration: underline !important;
 }
 
@@ -1359,22 +1359,22 @@
 }
 
 .dashboard-role-superadmin {
-    --dashboard-primary-color: #050c50;
+    --dashboard-primary-color: var(--brand-primary);
     --dashboard-primary-hover: #02071e;
 }
 
 .dashboard-role-admin {
-    --dashboard-primary-color: #050c50;
+    --dashboard-primary-color: var(--brand-primary);
     --dashboard-primary-hover: #02071e;
 }
 
 .dashboard-role-instructor {
-    --dashboard-primary-color: #050c50;
+    --dashboard-primary-color: var(--brand-primary);
     --dashboard-primary-hover: #02071e;
 }
 
 .dashboard-role-learner {
-    --dashboard-primary-color: #050c50;
+    --dashboard-primary-color: var(--brand-primary);
     --dashboard-primary-hover: #02071e;
 }
 

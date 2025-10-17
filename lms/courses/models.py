@@ -14,6 +14,7 @@ from core.utils.fields import TinyMCEField
 from django.core.files.storage import default_storage
 # S3 file storage configuration
 from categories.models import CourseCategory
+from core.s3_storage import MediaS3Storage
 
 import uuid
 import zipfile
@@ -33,6 +34,8 @@ logger = logging.getLogger(__name__)
 
 def content_file_path(instance: Any, filename: str) -> str:
     """Generate file path for course content with safe filename handling for S3 storage"""
+    from core.s3_storage import validate_s3_path, sanitize_s3_path
+    
     # S3 file storage configuration
     # Get the base filename and extension
     name, ext = os.path.splitext(filename)
@@ -84,7 +87,15 @@ def content_file_path(instance: Any, filename: str) -> str:
         course_id = 'misc'
     
     # Create the path with course ID as the main folder - compatible with S3 storage
-    return f"courses/{course_id}/topics/{instance.pk if isinstance(instance, Topic) else 'misc'}/{new_filename}"
+    full_path = f"courses/{course_id}/topics/{instance.pk if isinstance(instance, Topic) else 'misc'}/{new_filename}"
+    
+    # Validate and sanitize the path for S3 compatibility
+    is_valid, error = validate_s3_path(full_path)
+    if not is_valid:
+        logger.warning(f"S3 path validation failed: {error}. Sanitizing path.")
+        full_path = sanitize_s3_path(full_path)
+    
+    return full_path
 
 class CourseEnrollment(models.Model):
     """Model to track course enrollments with additional metadata"""
@@ -3307,7 +3318,7 @@ class Attachment(models.Model):
     """Model for discussion attachments"""
     discussion = models.ForeignKey(Discussion, on_delete=models.CASCADE, related_name='attachments', null=True, blank=True)
     comment = models.ForeignKey(Comment, on_delete=models.CASCADE, related_name='attachments', null=True, blank=True)
-    file = models.FileField(upload_to='discussion_attachments/')
+    file = models.FileField(upload_to='discussion_attachments/', storage=MediaS3Storage())
     file_type = models.CharField(max_length=10, choices=[
         ('image', 'Image'),
         ('video', 'Video'),

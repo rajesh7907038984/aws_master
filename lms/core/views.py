@@ -117,29 +117,29 @@ def calendar_activities(request):
 @csrf_exempt
 def health_check(request):
     """Comprehensive health check endpoint for deployment monitoring"""
+    from core.utils.standardized_api_response import StandardizedAPIResponse
+    
     try:
         # Test database connection
         from django.db import connection
         with connection.cursor() as cursor:
             cursor.execute('SELECT 1')
         
-        return JsonResponse({
-            'status': 'healthy',
-            'message': 'All systems operational', 
-            'timestamp': timezone.now().isoformat(),
-            'server': 'django',
-            'database': 'connected',
-            'version': '1.0.0'
-        })
+        return StandardizedAPIResponse.success(
+            data={
+                'status': 'healthy',
+                'server': 'django',
+                'database': 'connected',
+                'version': '1.0.0'
+            },
+            message='All systems operational'
+        )
     except Exception as e:
-        return JsonResponse({
-            'status': 'unhealthy',
-            'message': f'Health check failed: {str(e)}',
-            'timestamp': timezone.now().isoformat(),
-            'server': 'django',
-            'database': 'disconnected',
-            'version': '1.0.0'
-        }, status=503)
+        return StandardizedAPIResponse.error(
+            message=f'Health check failed: {str(e)}',
+            status_code=503,
+            error_code='HEALTH_CHECK_FAILED'
+        )
 
 
 @require_http_methods(["GET"])

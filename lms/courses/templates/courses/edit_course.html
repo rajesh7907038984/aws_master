@@ -2734,7 +2734,7 @@
                         const newStatus = currentStatus === 'draft' ? 'active' : 'draft';
                         
                         // Get CSRF token
-                        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+                        const csrfToken = getCSRFToken();
                         
                         // Show loading state on the button
                         const originalInnerHTML = this.innerHTML;
@@ -5628,7 +5628,7 @@ document.addEventListener('DOMContentLoaded', function() {
             fetch(`/courses/topic/${topicId}/toggle-status/`, {
                 method: 'POST',
                 headers: {
-                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                    'X-CSRFToken': getCSRFToken(),
                     'Content-Type': 'application/json',
                 },
                 credentials: 'same-origin'
@@ -5968,6 +5968,33 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
+
+// CSRF Token helper function with multiple fallback methods
+function getCSRFToken() {
+    // Method 1: Meta tag (preferred)
+    const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+    if (csrfMeta) {
+        return csrfMeta.getAttribute('content');
+    }
+    
+    // Method 2: Input field
+    const csrfInput = document.querySelector('input[name="csrfmiddlewaretoken"]');
+    if (csrfInput) {
+        return csrfInput.value;
+    }
+    
+    // Method 3: Cookie fallback
+    const cookies = document.cookie.split(';');
+    for (let cookie of cookies) {
+        const [name, value] = cookie.trim().split('=');
+        if (name === 'csrftoken') {
+            return value;
+        }
+    }
+    
+    console.error('CSRF token not found');
+    return '';
+}
 
 <!-- Category functionality removed as requested -->
 

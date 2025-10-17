@@ -51,7 +51,7 @@
 }
 
 .btn-primary {
-    background-color: #191f56;
+    background-color: var(--brand-primary);
     color: white;
     border: none;
 }

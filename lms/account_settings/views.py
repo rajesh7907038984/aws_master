@@ -3287,28 +3287,24 @@ def load_branches_data(request):
             }
             
             branches_with_limits.append({
-                'branch': {
-                    'id': branch.id,
-                    'name': branch.name,
-                    'business_name': branch.business.name if branch.business else 'No Business',
-                    'sharepoint_integration_enabled': branch.sharepoint_integration_enabled,
-                    'created_at': branch.created_at.isoformat() if hasattr(branch, 'created_at') and branch.created_at else None,
-                },
+                'id': branch.id,
+                'name': branch.name,
+                'business_name': branch.business.name if branch.business else '',
+                'sharepoint_integration_enabled': branch.sharepoint_integration_enabled,
+                'created_at': branch.created_at.isoformat() if branch.created_at else None,
                 'user_limits': {
-                    'id': user_limits.id,
-                    'user_limit': user_limits.user_limit,
+                    'total_limit': user_limits.user_limit,
                     'admin_limit': user_limits.admin_limit,
                     'instructor_limit': user_limits.instructor_limit,
-                    'learner_limit': user_limits.learner_limit,
+                    'learner_limit': user_limits.learner_limit
                 },
                 'usage_data': usage_data
             })
         
-        logger.info(f"Returning {len(branches_with_limits)} branches to user {request.user.username}")
-        return JsonResponse({'success': True, 'branches': branches_with_limits})
+        return JsonResponse({'success': True, 'businesses': branches_with_limits})
     
     except Exception as e:
-        logger.exception("Error loading branches data")
+        logger.exception("Error loading business data")
         return JsonResponse({'success': False, 'error': str(e)}, status=500)
 
 @login_required

@@ -9,6 +9,14 @@
     --transition-speed: 0.3s;
     --transition-easing: ease;
 
+    /* Brand Colors - Standardized Dark Blue Theme */
+    --brand-primary: #050c50;
+    --brand-primary-hover: #02071e;
+    --brand-primary-light: #4262FF;
+    --brand-primary-lighter: #7EB6F7;
+    --brand-accent: #2F80ED;
+    --brand-accent-light: #EBF3FE;
+    
     /* Colors - Light Theme (default) */
     --bg-primary: #ffffff;
     --bg-secondary: #f8fafc;
@@ -16,7 +24,7 @@
     --text-secondary: #6b7280;
     --text-tertiary: #9ca3af;
     --border-color: #e5e7eb;
-    --link-hover: #3b82f6;
+    --link-hover: var(--brand-primary);
     --header-bg-from: #ffffff;
     --header-bg-to: #f8fafc;
     --input-bg: #ffffff;

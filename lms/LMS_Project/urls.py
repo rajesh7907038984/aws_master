@@ -30,7 +30,7 @@ from django.views.static import serve
 from django.shortcuts import redirect
 from django.contrib.auth import views as auth_views
 from users.views import role_based_redirect, home, learner_dashboard, instructor_dashboard, admin_dashboard, global_admin_dashboard, users_admin_dashboard, custom_login, register, forgot_password, custom_logout
-from test_profile_view import test_profile_dropdown_fixed
+# from test_profile_view import test_profile_dropdown_fixed  # Commented out - file not found
 from core.views import health_check
 from core.views.csp_report import csp_report_view
 from admin_dashboard.views import SuperAdminDashboardView
@@ -85,7 +85,7 @@ urlpatterns = [
     path('dashboard/instructor/', instructor_dashboard, name='dashboard_instructor'),
     path('dashboard/admin/', admin_dashboard, name='dashboard_admin'),
     path('health/', health_check, name='health_check'),
-    path('test-profile-fixed/', test_profile_dropdown_fixed, name='test_profile_dropdown_fixed'),
+    # path('test-profile-fixed/', test_profile_dropdown_fixed, name='test_profile_dropdown_fixed'),  # Commented out - function not found
     
     # CSP violation reporting endpoint
     path('csp-report/', csp_report_view, name='csp_report'),

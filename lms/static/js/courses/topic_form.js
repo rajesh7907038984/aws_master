@@ -576,7 +576,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Create a new section via AJAX
                 const formData = new FormData();
                 formData.append('name', newSectionName);
-                formData.append('csrfmiddlewaretoken', document.querySelector('input[name="csrfmiddlewaretoken"]').value);
+                formData.append('csrfmiddlewaretoken', getCSRFToken());
                 
                 // Get course ID from URL
                 const urlParts = window.location.pathname.split('/');
@@ -1221,4 +1221,31 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
-}); 
+});
+
+// CSRF Token helper function with multiple fallback methods
+function getCSRFToken() {
+    // Method 1: Meta tag (preferred)
+    const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+    if (csrfMeta) {
+        return csrfMeta.getAttribute('content');
+    }
+    
+    // Method 2: Input field
+    const csrfInput = document.querySelector('input[name="csrfmiddlewaretoken"]');
+    if (csrfInput) {
+        return csrfInput.value;
+    }
+    
+    // Method 3: Cookie fallback
+    const cookies = document.cookie.split(';');
+    for (let cookie of cookies) {
+        const [name, value] = cookie.trim().split('=');
+        if (name === 'csrftoken') {
+            return value;
+        }
+    }
+    
+    console.error('CSRF token not found');
+    return '';
+} 

@@ -285,7 +285,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Load existing intervals from user settings
     function loadExistingIntervals() {
         // Try to get existing intervals from the form or settings
-        const existingIntervalsStr = '{{ request.user.notification_settings.certificate_expiry_reminder_intervals|default:"[]"|safe }}';
+        const existingIntervalsStr = '{% if request.user.notification_settings %}{{ request.user.notification_settings.certificate_expiry_reminder_intervals|default:"[]"|safe }}{% else %}[]{% endif %}';
         try {
             const existingIntervals = JSON.parse(existingIntervalsStr);
             if (Array.isArray(existingIntervals) && existingIntervals.length > 0) {
@@ -412,7 +412,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // Prepare form data
             const formData = new FormData();
             formData.append('notification_type_id', notificationTypeId);
-            formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+            formData.append('csrfmiddlewaretoken', getCSRFToken());
             
             // Send AJAX request
             fetch('{% url "lms_notifications:send_test_email" %}', {
@@ -514,5 +514,32 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 5000);
     }
 });
+
+// CSRF Token helper function with multiple fallback methods
+function getCSRFToken() {
+    // Method 1: Meta tag (preferred)
+    const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+    if (csrfMeta) {
+        return csrfMeta.getAttribute('content');
+    }
+    
+    // Method 2: Input field
+    const csrfInput = document.querySelector('input[name="csrfmiddlewaretoken"]');
+    if (csrfInput) {
+        return csrfInput.value;
+    }
+    
+    // Method 3: Cookie fallback
+    const cookies = document.cookie.split(';');
+    for (let cookie of cookies) {
+        const [name, value] = cookie.trim().split('=');
+        if (name === 'csrftoken') {
+            return value;
+        }
+    }
+    
+    console.error('CSRF token not found');
+    return '';
+}
 </script>
 {% endblock %} 

@@ -110,7 +110,7 @@ select::-webkit-scrollbar-thumb {
     left: 0;
     width: 16rem;
     height: 100%;
-    background: #1C2260;
+    background: var(--brand-primary);
     z-index: 51;
     transform: translateX(0);
     transition: transform 0.3s ease-in-out;
@@ -151,8 +151,8 @@ select::-webkit-scrollbar-thumb {
 
 #mobile-menu .menu-item:hover,
 #mobile-menu .menu-item.active {
-    background-color: #050c50;
-    border-left: 4px solid #02f711;
+    background-color: var(--brand-primary-hover);
+    border-left: 3px solid #02f711;
 }
 
 #mobile-menu .icon-container {
@@ -203,7 +203,7 @@ select::-webkit-scrollbar-thumb {
 }
 
 #mobile-menu .submenu .menu-item:hover {
-    background-color: #050c50;
+    background-color: var(--brand-primary-hover);
     opacity: 1;
     border-left: 3px solid #02f711;
 }

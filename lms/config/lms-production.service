@@ -16,7 +16,8 @@ EnvironmentFile=-/home/ec2-user/lms/production.env
 Environment="LOGS_DIR=/home/ec2-user/lmslogs"
 Environment="DJANGO_SETTINGS_MODULE=LMS_Project.settings.production"
 
-# No pre-start commands to avoid startup issues
+# Pre-start command to collect static files automatically
+ExecStartPre=/home/ec2-user/lms/venv/bin/python /home/ec2-user/lms/manage.py collectstatic --noinput --clear
 
 # Main service
 ExecStart=/home/ec2-user/lms/venv/bin/gunicorn --config /home/ec2-user/lms/gunicorn.conf.py LMS_Project.wsgi:application
@@ -31,9 +32,6 @@ StartLimitBurst=3
 # Security settings
 NoNewPrivileges=true
 PrivateTmp=true
-ReadWritePaths=/home/ec2-user/lms
-ReadWritePaths=/home/ec2-user/lmslogs
-ReadWritePaths=/home/ec2-user/lmsstaticfiles
 
 # Performance tuning
 LimitNOFILE=65536

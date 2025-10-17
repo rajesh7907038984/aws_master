@@ -54,6 +54,10 @@ def safe_json_loads(json_string: str) -> Optional[Dict[str, Any]]:
         logger.warning(f"JSON parsing failed: {e}")
         return None
 
+def has_branch(obj):
+    """Check if object has branch attribute"""
+    return hasattr(obj, 'branch') and obj.branch is not None
+
 def safe_get_string(data: Dict[str, Any], key: str, default: str = "") -> str:
     """
     Safely get a string value from a dictionary with type validation

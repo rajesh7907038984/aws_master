@@ -133,7 +133,7 @@
     
     /* Edit button styles */
     .course-edit-button {
-        background-color: #4262FF;
+        background-color: var(--brand-primary-light);
         color: white;
         box-shadow: 0 2px 10px rgba(66, 98, 255, 0.2);
     }
@@ -1637,8 +1637,8 @@
             form.method = 'POST';
             form.action = `/courses/${courseId}/delete/`;
             
-            // Add CSRF token
-            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+            // Add CSRF token with fallback methods
+            const csrfToken = getCSRFToken();
             const csrfInput = document.createElement('input');
             csrfInput.type = 'hidden';
             csrfInput.name = 'csrfmiddlewaretoken';
@@ -1939,6 +1939,33 @@
             closePrerequisiteModal();
         }
     });
+
+    // CSRF Token helper function with multiple fallback methods
+    function getCSRFToken() {
+        // Method 1: Meta tag (preferred)
+        const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+        if (csrfMeta) {
+            return csrfMeta.getAttribute('content');
+        }
+        
+        // Method 2: Input field
+        const csrfInput = document.querySelector('input[name="csrfmiddlewaretoken"]');
+        if (csrfInput) {
+            return csrfInput.value;
+        }
+        
+        // Method 3: Cookie fallback
+        const cookies = document.cookie.split(';');
+        for (let cookie of cookies) {
+            const [name, value] = cookie.trim().split('=');
+            if (name === 'csrftoken') {
+                return value;
+            }
+        }
+        
+        console.error('CSRF token not found');
+        return '';
+    }
 </script>
 {% endif %}
 

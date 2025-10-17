@@ -4,10 +4,14 @@ Handles file storage using AWS S3
 """
 
 import os
+import logging
 from django.conf import settings
 from django.core.files.storage import Storage
 from django.utils.deconstruct import deconstructible
 from storages.backends.s3boto3 import S3Boto3Storage
+from botocore.exceptions import ClientError, NoCredentialsError
+
+logger = logging.getLogger(__name__)
 
 
 @deconstructible
@@ -28,15 +32,40 @@ class S3Storage(S3Boto3Storage):
     
     def url(self, name):
         """
-        Get S3 URL for file
+        Get S3 URL for file with error handling
         """
-        return super().url(name)
+        try:
+            return super().url(name)
+        except ClientError as e:
+            error_code = e.response['Error']['Code']
+            logger.error(f"S3 URL generation failed for {name}: {e}")
+            # Return a fallback URL
+            bucket_name = getattr(settings, 'AWS_STORAGE_BUCKET_NAME', 'unknown')
+            region = getattr(settings, 'AWS_S3_REGION_NAME', 'us-east-1')
+            return f"https://{bucket_name}.s3.{region}.amazonaws.com/{name}"
+        except Exception as e:
+            logger.error(f"S3 URL generation error for {name}: {e}")
+            # Return a fallback URL
+            bucket_name = getattr(settings, 'AWS_STORAGE_BUCKET_NAME', 'unknown')
+            region = getattr(settings, 'AWS_S3_REGION_NAME', 'us-east-1')
+            return f"https://{bucket_name}.s3.{region}.amazonaws.com/{name}"
     
     def exists(self, name):
         """
-        Check if file exists in S3
+        Check if file exists in S3 with error handling
         """
-        return super().exists(name)
+        try:
+            return super().exists(name)
+        except ClientError as e:
+            error_code = e.response['Error']['Code']
+            if error_code == 'NoSuchKey':
+                return False
+            else:
+                logger.error(f"S3 exists check failed for {name}: {e}")
+                return False
+        except Exception as e:
+            logger.error(f"S3 exists check error for {name}: {e}")
+            return False
 
 
 class StaticS3Storage(S3Storage):
@@ -112,5 +141,101 @@ def get_default_storage():
         return LocalStorage()
 
 
-# Export the storage classes
-__all__ = ['S3Storage', 'StaticS3Storage', 'MediaS3Storage', 'LocalStorage', 'get_default_storage']
+# S3 Path Validation Utilities
+def validate_s3_path(path):
+    """
+    Validate S3 path for compatibility
+    Returns: (is_valid: bool, error_message: str)
+    """
+    if not path:
+        return False, "Path cannot be empty"
+    
+    # Check path length (S3 key limit is 1024 characters)
+    if len(path) > 1024:
+        return False, f"Path too long: {len(path)} characters (max 1024)"
+    
+    # Check for invalid characters
+    invalid_chars = ['\\', ':', '*', '?', '"', '<', '>', '|']
+    for char in invalid_chars:
+        if char in path:
+            return False, f"Invalid character '{char}' in path"
+    
+    # Check for consecutive dots (not allowed in S3)
+    if '..' in path:
+        return False, "Consecutive dots not allowed in S3 paths"
+    
+    # Check for leading/trailing spaces
+    if path != path.strip():
+        return False, "Path cannot have leading or trailing spaces"
+    
+    return True, None
+
+def sanitize_s3_path(path):
+    """
+    Sanitize path for S3 compatibility
+    Returns: sanitized_path: str
+    """
+    if not path:
+        return ""
+    
+    # Remove invalid characters
+    invalid_chars = ['\\', ':', '*', '?', '"', '<', '>', '|']
+    for char in invalid_chars:
+        path = path.replace(char, '_')
+    
+    # Replace consecutive dots
+    while '..' in path:
+        path = path.replace('..', '.')
+    
+    # Strip spaces
+    path = path.strip()
+    
+    # Ensure path doesn't exceed length limit
+    if len(path) > 1024:
+        # Truncate while preserving extension
+        name, ext = os.path.splitext(path)
+        max_name_length = 1024 - len(ext)
+        path = name[:max_name_length] + ext
+    
+    return path
+
+    def save(self, name, content, max_length=None):
+        """
+        Save file to S3 with error handling
+        """
+        try:
+            # Validate path before saving
+            is_valid, error = validate_s3_path(name)
+            if not is_valid:
+                logger.warning(f"S3 path validation failed: {error}. Sanitizing path.")
+                name = sanitize_s3_path(name)
+            
+            return super().save(name, content, max_length)
+        except ClientError as e:
+            error_code = e.response['Error']['Code']
+            logger.error(f"S3 save failed for {name}: {e}")
+            raise
+        except Exception as e:
+            logger.error(f"S3 save error for {name}: {e}")
+            raise
+    
+    def delete(self, name):
+        """
+        Delete file from S3 with error handling
+        """
+        try:
+            return super().delete(name)
+        except ClientError as e:
+            error_code = e.response['Error']['Code']
+            if error_code == 'NoSuchKey':
+                logger.info(f"File {name} already deleted or doesn't exist")
+                return True
+            else:
+                logger.error(f"S3 delete failed for {name}: {e}")
+                raise
+        except Exception as e:
+            logger.error(f"S3 delete error for {name}: {e}")
+            raise
+
+# Export the storage classes and utilities
+__all__ = ['S3Storage', 'StaticS3Storage', 'MediaS3Storage', 'LocalStorage', 'get_default_storage', 'validate_s3_path', 'sanitize_s3_path']

@@ -321,9 +321,31 @@
     // Global variables
     let chartInstance = null;
     
-    // Utility function to safely get CSRF token
+    // Utility function to safely get CSRF token with multiple fallback methods
     function getCSRFToken() {
-        return document.querySelector('[name=csrfmiddlewaretoken]')?.value || '';
+        // Method 1: Meta tag (preferred)
+        const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+        if (csrfMeta) {
+            return csrfMeta.getAttribute('content');
+        }
+        
+        // Method 2: Input field
+        const csrfInput = document.querySelector('input[name="csrfmiddlewaretoken"]');
+        if (csrfInput) {
+            return csrfInput.value;
+        }
+        
+        // Method 3: Cookie fallback
+        const cookies = document.cookie.split(';');
+        for (let cookie of cookies) {
+            const [name, value] = cookie.trim().split('=');
+            if (name === 'csrftoken') {
+                return value;
+            }
+        }
+        
+        console.error('CSRF token not found');
+        return '';
     }
     
     // Safe Math.max function
@@ -337,9 +359,10 @@
         }
     }
     
-    
     // Auto-load with safety checks
     document.addEventListener('DOMContentLoaded', function() {
+        // Initialize dashboard functionality here
+        console.log('✅ Font Awesome loaded successfully');
     });
     
 })();

@@ -2,11 +2,11 @@
 /* Content-Type: text/css */
 
 #sidebar {
-    background-color: #1C2260 !important;
+    background-color: var(--brand-primary) !important;
 }
 
 #sidebar nav {
-    background-color: #1C2260 !important;
+    background-color: var(--brand-primary) !important;
 }
 
 /* Default state - white text and icons */
@@ -44,7 +44,7 @@
 /* Active state - dark blue background with white text and icons */
 #sidebar a.menu-item.active,
 #sidebar button.menu-item.active {
-    background-color: #050c50 !important;
+    background-color: var(--brand-primary) !important;
     color: white !important;
     border-radius: 0 !important;
     border-left: 4px solid #02f711 !important;
@@ -67,7 +67,7 @@
 /* Hover state - dark blue background with white text and icons */
 #sidebar a.menu-item:hover,
 #sidebar button.menu-item:hover {
-    background-color: #050c50 !important;
+    background-color: var(--brand-primary) !important;
     color: white !important;
     border-radius: 0 !important;
     border-left: 4px solid #02f711 !important;
@@ -111,7 +111,7 @@
 
 #sidebar .submenu a.menu-item:hover,
 #sidebar .submenu button.menu-item:hover {
-    background-color: #050c50 !important;
+    background-color: var(--brand-primary) !important;
     opacity: 1;
 }
 
@@ -171,7 +171,7 @@ html body #sidebar button.menu-item:not(.active):not([class*="bg-[#f3f8fc]"]):no
 html body #sidebar a.menu-item.active,
 html body #sidebar button.menu-item.active {
     color: white !important;
-    background-color: #050c50 !important;
+    background-color: var(--brand-primary) !important;
     border-left: 4px solid #02f711 !important;
 }
 
@@ -188,7 +188,7 @@ html body #sidebar button.menu-item[class*="bg-[#f3f8fc]"] * {
 html body #sidebar a.menu-item:hover,
 html body #sidebar button.menu-item:hover {
     color: white !important;
-    background-color: #050c50 !important;
+    background-color: var(--brand-primary) !important;
     border-left: 4px solid #02f711 !important;
 }
 

@@ -54,6 +54,8 @@ urlpatterns = [
     # Storage Management URLs
     path('storage/manage/<int:branch_id>/', storage_views.manage_branch_storage, name='manage_branch_storage'),
     path('storage/analytics/', storage_views.storage_analytics, name='storage_analytics'),
+    path('storage/s3-management/', storage_views.s3_storage_management, name='s3_storage_management'),
+    path('storage/s3-cleanup/', storage_views.s3_cleanup_management, name='s3_cleanup_management'),
     path('storage/info/', storage_views.get_storage_info, name='get_storage_info'),
     path('storage/check-upload/', storage_views.check_upload_permission, name='check_upload_permission'),
     path('storage/report/<int:branch_id>/', storage_views.branch_storage_report, name='branch_storage_report'),

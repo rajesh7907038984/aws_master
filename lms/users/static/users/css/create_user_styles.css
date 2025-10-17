@@ -42,8 +42,8 @@
 
 .form-input:focus, .form-select:focus, .form-textarea:focus {
     outline: none;
-    border-color: #191f56;
-    box-shadow: 0 0 0 1px #191f56;
+    border-color: var(--brand-primary);
+    box-shadow: 0 0 0 1px var(--brand-primary);
 }
 
 .form-select {
@@ -138,8 +138,8 @@
 }
 
 .tab-button.active {
-    color: #191f56;
-    border-bottom: 2px solid #191f56;
+    color: var(--brand-primary);
+    border-bottom: 2px solid var(--brand-primary);
 }
 
 .tab-content {
@@ -228,8 +228,8 @@
 }
 
 .btn-primary {
-    background-color: #191f56;
-    border-color: #191f56;
+    background-color: var(--brand-primary);
+    border-color: var(--brand-primary);
     color: white;
     pointer-events: auto !important;
     cursor: pointer !important;
@@ -258,8 +258,8 @@
 }
 
 .btn-secondary {
-    background-color: #191f56;
-    border-color: #191f56;
+    background-color: var(--brand-primary);
+    border-color: var(--brand-primary);
     color: white;
 }
 
@@ -438,7 +438,7 @@
     
     .tab-button.active {
         background-color: #EBF5FF;
-        color: #191f56;
+        color: var(--brand-primary);
         border-bottom-color: #E5E7EB;
     }
     
@@ -454,7 +454,7 @@
     
     .tab-button.active::after {
         transform: rotate(180deg);
-        color: #191f56;
+        color: var(--brand-primary);
     }
     
     /* Tab content adjustments for mobile */
@@ -543,12 +543,12 @@
     
     .ilp-tab-button.active {
         background-color: #EBF5FF;
-        color: #191f56;
+        color: var(--brand-primary);
     }
     
     .ilp-tab-button.active::after {
         transform: rotate(180deg);
-        color: #191f56;
+        color: var(--brand-primary);
     }
     
     /* Learning profile nested tabs */
@@ -584,12 +584,12 @@
     
     .learning-profile-tab-button.active {
         background-color: #EBF5FF;
-        color: #191f56;
+        color: var(--brand-primary);
     }
     
     .learning-profile-tab-button.active::after {
         transform: rotate(180deg);
-        color: #191f56;
+        color: var(--brand-primary);
     }
 }
 
@@ -614,17 +614,17 @@
 .form-input:focus-visible,
 .form-select:focus-visible,
 .form-textarea:focus-visible {
-    outline: 2px solid #191f56;
+    outline: 2px solid var(--brand-primary);
     outline-offset: 2px;
 }
 
 .tab-button:focus-visible {
-    outline: 2px solid #191f56;
+    outline: 2px solid var(--brand-primary);
     outline-offset: -2px;
 }
 
 .btn:focus-visible {
-    outline: 2px solid #191f56;
+    outline: 2px solid var(--brand-primary);
     outline-offset: 2px;
 }
 
@@ -646,7 +646,7 @@
     height: 1rem;
     border: 2px solid #E5E7EB;
     border-radius: 50%;
-    border-top-color: #191f56;
+    border-top-color: var(--brand-primary);
     animation: spin 1s ease-in-out infinite;
 }
 

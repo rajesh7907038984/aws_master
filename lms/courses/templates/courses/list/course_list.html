@@ -137,7 +137,7 @@
 
     .filter-select:focus {
         outline: none;
-        border-color: #4262FF;
+        border-color: var(--brand-primary-light);
         box-shadow: 0 0 0 3px rgba(66, 98, 255, 0.15);
     }
 
@@ -192,7 +192,7 @@
         align-items: center;
         justify-content: center;
         font-size: 0.875rem;
-        color: #4262FF;
+        color: var(--brand-primary-light);
         border: none;
         z-index: 20;
         transition: all 0.2s ease-in-out;
@@ -202,7 +202,7 @@
     }
 
     .course-edit-btn:hover {
-        background-color: #4262FF;
+        background-color: var(--brand-primary-light);
         color: white;
     }
 
@@ -262,7 +262,7 @@
     }
 
     .course-link:hover .course-title {
-        color: #4262FF;
+        color: var(--brand-primary-light);
     }
 
     /* List view specific styles */
@@ -389,7 +389,7 @@
     }
     
     .course-grid .course-meta i {
-        color: #4262FF;
+        color: var(--brand-primary-light);
         margin-right: 0.5rem;
     }
 
@@ -438,7 +438,7 @@
     }
     
     .play-button-overlay:hover {
-        background-color: #4262FF;
+        background-color: var(--brand-primary-light);
         transform: translate(-50%, -50%) scale(1.1);
     }
     
@@ -448,7 +448,7 @@
     
     .play-icon {
         font-size: 24px;
-        color: #4262FF;
+        color: var(--brand-primary-light);
         margin-left: 3px; /* Slight offset to center the triangle */
         transition: color 0.3s ease;
     }
@@ -600,7 +600,7 @@
                             <h2 class="text-xl font-semibold text-gray-800">All Courses</h2>
                             <div class="flex items-center gap-4">
                                 {% if user.role != 'learner' %}
-                                <a href="{% url 'courses:course_manage' %}" class="px-4 py-2 text-white rounded-lg transition-colors flex items-center" style="background-color: #191f56;" onmouseover="this.style.backgroundColor='#141a4a'" onmouseout="this.style.backgroundColor='#191f56'">
+                                <a href="{% url 'courses:course_manage' %}" class="px-4 py-2 text-white rounded-lg transition-colors flex items-center" style="background-color: var(--brand-primary);" onmouseover="this.style.backgroundColor='#141a4a'" onmouseout="this.style.backgroundColor='var(--brand-primary)'">
                                     <i class="fas fa-plus mr-2"></i>
                                     Create Course
                                 </a>
@@ -748,7 +748,7 @@
                                                         <span class="text-xs font-medium text-blue-600">{{ enrollment.progress_percentage }}%</span>
                                                     </div>
                                                     <div class="w-full bg-gray-200 rounded-full h-2">
-                                                        <div class="h-2 rounded-full" style="background-color: #191f56; width: {{ enrollment.progress_percentage }}%"></div>
+                                                        <div class="h-2 rounded-full" style="background-color: var(--brand-primary); width: {{ enrollment.progress_percentage }}%"></div>
                                                     </div>
                                                     {% endwith %}
                                                 {% endif %}
@@ -833,7 +833,7 @@
 
                                 {% for num in courses.paginator.page_range %}
                                     {% if courses.number == num %}
-                                    <span class="px-3 py-1 rounded-md text-sm text-white" style="background-color: #191f56;">
+                                    <span class="px-3 py-1 rounded-md text-sm text-white" style="background-color: var(--brand-primary);">
                                         {{ num }}
                                     </span>
                                     {% else %}

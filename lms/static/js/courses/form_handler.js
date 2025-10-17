@@ -35,7 +35,7 @@ async function checkSlugExists(slug) {
             method: 'GET',
             headers: {
                 'X-Requested-With': 'XMLHttpRequest',
-                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                'X-CSRFToken': getCSRFToken()
             }
         });
         
@@ -101,7 +101,7 @@ if (categoryForm) {
                 body: formData,
                 headers: {
                     'X-Requested-With': 'XMLHttpRequest',
-                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                    'X-CSRFToken': getCSRFToken()
                 }
             });
             
@@ -170,14 +170,14 @@ if (sectionForm) {
             // Get form data
             const formData = new FormData(this);
             formData.append('course_id', document.querySelector('[name=course_id]').value);
-            formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+            formData.append('csrfmiddlewaretoken', getCSRFToken());
 
             const response = await fetch('/courses/api/sections/create/', {
                 method: 'POST',
                 body: formData,
                 headers: {
                     'X-Requested-With': 'XMLHttpRequest',
-                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                    'X-CSRFToken': getCSRFToken()
                 }
             });
             
@@ -234,4 +234,31 @@ if (sectionForm) {
             spinner.classList.add('hidden');
         }
     });
+}
+
+// CSRF Token helper function with multiple fallback methods
+function getCSRFToken() {
+    // Method 1: Meta tag (preferred)
+    const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+    if (csrfMeta) {
+        return csrfMeta.getAttribute('content');
+    }
+    
+    // Method 2: Input field
+    const csrfInput = document.querySelector('input[name="csrfmiddlewaretoken"]');
+    if (csrfInput) {
+        return csrfInput.value;
+    }
+    
+    // Method 3: Cookie fallback
+    const cookies = document.cookie.split(';');
+    for (let cookie of cookies) {
+        const [name, value] = cookie.trim().split('=');
+        if (name === 'csrftoken') {
+            return value;
+        }
+    }
+    
+    console.error('CSRF token not found');
+    return '';
 } 

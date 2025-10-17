@@ -280,7 +280,7 @@
                 <a href="{{ item.url }}" class="group flex items-center hover:text-blue-600 transition-colors">
                     {% if item.icon %}
                     <div class="w-6 md:w-8 h-6 md:h-8 rounded-full bg-[#EBF3FE] flex items-center justify-center group-hover:bg-[#dce8fc] transition-colors mr-2">
-                        <i class="fas {{ item.icon }} text-[#2F80ED] text-xs md:text-sm"></i>
+                        <i class="fas {{ item.icon }} text-[#2F80ED] icon-sm"></i>
                     </div>
                     {% endif %}
                     <span>{{ item.label }}</span>
@@ -289,7 +289,7 @@
                 <span class="flex items-center text-gray-800 font-medium">
                     {% if item.icon %}
                     <div class="w-6 md:w-8 h-6 md:h-8 rounded-full bg-[#EBF3FE] flex items-center justify-center mr-2">
-                        <i class="fas {{ item.icon }} text-[#2F80ED] text-xs md:text-sm"></i>
+                        <i class="fas {{ item.icon }} text-[#2F80ED] icon-sm"></i>
                     </div>
                     {% endif %}
                     <span>{{ item.label }}</span>
@@ -350,7 +350,7 @@
                                         <!-- Fallback PDF viewer -->
                                         <div id="pdf-fallback" class="hidden w-full h-full flex flex-col items-center justify-center bg-gray-50">
                                             <div class="text-center p-6">
-                                                <i class="fas fa-file-pdf text-6xl text-red-500 mb-4"></i>
+                                                <i class="fas fa-file-pdf hero-icon text-red-500 mb-4"></i>
                                                 <h3 class="text-lg font-semibold text-gray-700 mb-2">PDF Document</h3>
                                                 <p class="text-gray-600 mb-4">Your browser may not support inline PDF viewing.</p>
                                                 <div class="space-x-3">
@@ -427,7 +427,7 @@
                                     <!-- File not found - show error message -->
                                     <div class="w-full h-[600px] rounded overflow-hidden border border-gray-300 bg-gray-50 flex items-center justify-center">
                                         <div class="text-center p-8">
-                                            <i class="fas fa-file-pdf text-6xl text-red-400 mb-4"></i>
+                                            <i class="fas fa-file-pdf hero-icon text-red-400 mb-4"></i>
                                             <h3 class="text-xl font-semibold text-gray-700 mb-2">PDF File Not Found</h3>
                                             <p class="text-gray-600 mb-4">The PDF file for this topic appears to be missing or has been moved.</p>
                                             <div class="space-y-2">
@@ -643,21 +643,31 @@
                                         </div>
                                     </div>
                                     
-                                    <!-- Preview button for non-learners -->
+                                    <!-- ENHANCED: Preview buttons for non-learners with package type detection -->
                                     <div class="flex flex-col sm:flex-row gap-4">
-                                        <a href="{% url 'scorm:launch' topic.id %}" class="btn btn-warning">
-                                            <i class="fas fa-eye mr-2"></i>Preview Content
-                                        </a>
+                                        {% if elearning_package.package_type == 'XAPI' %}
+                                            <a href="{% url 'scorm:xapi_preview' topic.id %}" class="btn btn-warning">
+                                                <i class="fas fa-eye mr-2"></i>Preview xAPI Content
+                                            </a>
+                                        {% elif elearning_package.package_type == 'CMI5' %}
+                                            <a href="{% url 'scorm:cmi5_preview' topic.id %}" class="btn btn-warning">
+                                                <i class="fas fa-eye mr-2"></i>Preview cmi5 Content
+                                            </a>
+                                        {% else %}
+                                            <a href="{% url 'scorm:preview' topic.id %}" class="btn btn-warning">
+                                                <i class="fas fa-eye mr-2"></i>Preview SCORM Content
+                                            </a>
+                                        {% endif %}
                                         <a href="{% url 'scorm:reports' course.id %}" class="btn btn-secondary">
                                             <i class="fas fa-chart-bar mr-2"></i>View Reports
                                         </a>
                                     </div>
                                     
                                 {% else %}
-                                    <!-- Learner view (normal users) -->
+                                    <!-- ENHANCED: Learner view with unified button logic for all package types -->
                                     <div class="flex flex-col sm:flex-row gap-4">
                                         {% if scorm_tracking %}
-                                            <!-- User has SCORM tracking data -->
+                                            <!-- User has tracking data -->
                                             {% if scorm_tracking.completion_status == 'completed' or scorm_tracking.success_status == 'passed' %}
                                                 <!-- Topic completed - show Result and Retake buttons -->
                                                 <a href="{% url 'scorm:result' topic.id %}" class="btn btn-success">
@@ -668,23 +678,53 @@
                                                 </a>
                                             {% elif scorm_tracking.completion_status == 'incomplete' or scorm_tracking.success_status == 'failed' %}
                                                 <!-- Topic incomplete/failed - show Resume and Retake buttons -->
-                                                <a href="{% url 'scorm:launch' topic.id %}" class="btn btn-primary">
-                                                    <i class="fas fa-play mr-2"></i>Resume
-                                                </a>
+                                                {% if elearning_package.package_type == 'XAPI' %}
+                                                    <a href="{% url 'scorm:xapi_resume' topic.id %}" class="btn btn-primary">
+                                                        <i class="fas fa-play mr-2"></i>Resume xAPI Content
+                                                    </a>
+                                                {% elif elearning_package.package_type == 'CMI5' %}
+                                                    <a href="{% url 'scorm:cmi5_resume' topic.id %}" class="btn btn-primary">
+                                                        <i class="fas fa-play mr-2"></i>Resume cmi5 Content
+                                                    </a>
+                                                {% else %}
+                                                    <a href="{% url 'scorm:resume' topic.id %}" class="btn btn-primary">
+                                                        <i class="fas fa-play mr-2"></i>Resume SCORM Content
+                                                    </a>
+                                                {% endif %}
                                                 <a href="{% url 'scorm:retake' topic.id %}" class="btn btn-warning">
                                                     <i class="fas fa-redo mr-2"></i>Retake
                                                 </a>
                                             {% else %}
                                                 <!-- Topic in progress - show Resume button -->
-                                                <a href="{% url 'scorm:launch' topic.id %}" class="btn btn-primary">
-                                                    <i class="fas fa-play mr-2"></i>Resume
-                                                </a>
+                                                {% if elearning_package.package_type == 'XAPI' %}
+                                                    <a href="{% url 'scorm:xapi_resume' topic.id %}" class="btn btn-primary">
+                                                        <i class="fas fa-play mr-2"></i>Resume xAPI Content
+                                                    </a>
+                                                {% elif elearning_package.package_type == 'CMI5' %}
+                                                    <a href="{% url 'scorm:cmi5_resume' topic.id %}" class="btn btn-primary">
+                                                        <i class="fas fa-play mr-2"></i>Resume cmi5 Content
+                                                    </a>
+                                                {% else %}
+                                                    <a href="{% url 'scorm:resume' topic.id %}" class="btn btn-primary">
+                                                        <i class="fas fa-play mr-2"></i>Resume SCORM Content
+                                                    </a>
+                                                {% endif %}
                                             {% endif %}
                                         {% else %}
                                             <!-- First time - show Launch button -->
-                                            <a href="{% url 'scorm:launch' topic.id %}" class="btn btn-primary">
-                                                <i class="fas fa-play mr-2"></i>Launch Content
-                                            </a>
+                                            {% if elearning_package.package_type == 'XAPI' %}
+                                                <a href="{% url 'scorm:xapi_launch' topic.id %}" class="btn btn-primary">
+                                                    <i class="fas fa-play mr-2"></i>Launch xAPI Content
+                                                </a>
+                                            {% elif elearning_package.package_type == 'CMI5' %}
+                                                <a href="{% url 'scorm:cmi5_launch' topic.id %}" class="btn btn-primary">
+                                                    <i class="fas fa-play mr-2"></i>Launch cmi5 Content
+                                                </a>
+                                            {% else %}
+                                                <a href="{% url 'scorm:launch' topic.id %}" class="btn btn-primary">
+                                                    <i class="fas fa-play mr-2"></i>Launch SCORM Content
+                                                </a>
+                                            {% endif %}
                                         {% endif %}
                                     </div>
                                     

@@ -4,6 +4,7 @@ from django.utils import timezone
 from core.utils.fields import TinyMCEField
 from users.models import Branch
 from groups.models import BranchGroup
+from core.s3_storage import MediaS3Storage
 
 class Message(models.Model):
     """Model for storing messages"""
@@ -137,7 +138,7 @@ class MessageReadStatus(models.Model):
 
 class MessageAttachment(models.Model):
     message = models.ForeignKey(Message, on_delete=models.CASCADE, related_name='attachments')
-    file = models.FileField(upload_to='message_attachments/%Y/%m/%d/')
+    file = models.FileField(upload_to='message_attachments/%Y/%m/%d/', storage=MediaS3Storage())
     filename = models.CharField(max_length=255)
     file_type = models.CharField(max_length=50)
     uploaded_at = models.DateTimeField(auto_now_add=True)
@@ -150,3 +151,38 @@ class MessageAttachment(models.Model):
 
     def __str__(self):
         return self.filename
+
+    def delete(self, *args, **kwargs):
+        """Enhanced delete method with S3 cleanup for message attachments."""
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        try:
+            logger.info(f"Starting deletion for MessageAttachment: {self.filename} (ID: {self.id})")
+            
+            # Delete attachment file
+            if self.file:
+                try:
+                    self.file.delete(save=False)
+                    logger.info(f"Deleted message attachment: {self.file.name}")
+                except Exception as e:
+                    logger.error(f"Error deleting message attachment: {e}")
+            
+            # S3 cleanup
+            try:
+                from core.utils.s3_cleanup import cleanup_message_s3_files
+                s3_results = cleanup_message_s3_files(self.id)
+                successful_s3_deletions = sum(1 for success in s3_results.values() if success)
+                total_s3_files = len(s3_results)
+                if total_s3_files > 0:
+                    logger.info(f"S3 cleanup: {successful_s3_deletions}/{total_s3_files} message attachment files deleted successfully")
+            except Exception as e:
+                logger.error(f"Error during S3 cleanup for message attachment {self.id}: {str(e)}")
+            
+            # Call parent delete to remove the database record
+            super().delete(*args, **kwargs)
+            logger.info(f"Successfully completed deletion for MessageAttachment: {self.filename} (ID: {self.id})")
+            
+        except Exception as e:
+            logger.error(f"Error in MessageAttachment.delete(): {str(e)}")
+            raise

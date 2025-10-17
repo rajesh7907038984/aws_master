@@ -73,14 +73,14 @@
                 <div class="flex space-x-4">
                     {% if request.user.role == 'globaladmin' or request.user.is_superuser %}
                         <!-- Global admin can see orders button for all branches -->
-                        <a href="{% url 'branch_portal:branch_orders' %}" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-[#050c50] hover:bg-[#02071e]">
+                        <a href="{% url 'branch_portal:branch_orders' %}" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)]">
                             <i class="fas fa-shopping-bag mr-2"></i> Manage Orders
                         </a>
                     {% elif branch_stats %}
                         <!-- For other users, check if any branch has order management enabled -->
                         {% for stats in branch_stats %}
                             {% if stats.order_management_enabled %}
-                                <a href="{% url 'branch_portal:branch_orders' %}" class="manage-orders-btn inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-[#050c50] hover:bg-[#02071e]">
+                                <a href="{% url 'branch_portal:branch_orders' %}" class="manage-orders-btn inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)]">
                                     <i class="fas fa-shopping-bag mr-2"></i> Manage Orders
                                 </a>
                             {% endif %}
@@ -182,7 +182,7 @@
                     
                     <div class="flex space-x-2">
                         {% if stats.portal_url %}
-                        <a href="{{ stats.portal_url }}" target="_blank" class="inline-flex items-center px-3 py-1 border border-transparent rounded-md text-sm font-medium text-white bg-[#050c50] hover:bg-[#02071e]">
+                        <a href="{{ stats.portal_url }}" target="_blank" class="inline-flex items-center px-3 py-1 border border-transparent rounded-md text-sm font-medium text-white bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)]">
                             <i class="fas fa-external-link-alt mr-1"></i> View Portal
                         </a>
                         {% endif %}

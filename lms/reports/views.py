@@ -43,12 +43,80 @@ from role_management.models import Role, RoleCapability, UserRole
 User = get_user_model()
 logger = logging.getLogger(__name__)
 
+def reports_access_required(view_func):
+    """
+    Decorator to restrict access to users with report viewing capabilities.
+    This allows role-based access control to report pages.
+    """
+    @wraps(view_func)
+    def _wrapped_view(request, *args, **kwargs):
+        user = request.user
+        
+        # Superadmins and admins always have access
+        if user.is_superuser or user.role in ['globaladmin', 'superadmin']:
+            return view_func(request, *args, **kwargs)
+        
+        # Check if user has a system role with report access by default
+        if user.role in ['admin', 'instructor']:
+            return view_func(request, *args, **kwargs)
+        
+        # Check primary role capabilities using PermissionManager
+        try:
+            from role_management.utils import PermissionManager
+            
+            # Check for view_reports capability through primary role
+            if PermissionManager.user_has_capability(user, 'view_reports'):
+                return view_func(request, *args, **kwargs)
+                
+        except Exception as e:
+            logger.error(f"Error checking primary role report access for user {user.id}: {str(e)}")
+            
+        # Check for report-related capabilities through user roles
+        try:
+            user_roles = UserRole.objects.filter(user=user)
+            if user_roles.exists():
+                for user_role in user_roles:
+                    # Check for any report-related capability
+                    report_capabilities = [
+                        'view_reports',
+                        'reports_overview',
+                        'courses_reports',
+                        'users_reports',
+                        'branches_reports',
+                        'groups_reports',
+                        'timeline',
+                        'training_matrix',
+                        'custom_reports',
+                        'learning_activities'
+                    ]
+                    
+                    has_report_access = RoleCapability.objects.filter(
+                        role=user_role.role,
+                        capability__in=report_capabilities
+                    ).exists()
+                    
+                    if has_report_access:
+                        return view_func(request, *args, **kwargs)
+        except Exception as e:
+            logger.error(f"Error checking user role report access for user {user.id}: {str(e)}")
+        
+        # If we reach here, user doesn't have access
+        messages.error(request, "You don't have permission to access reports. This section is restricted to users with report viewing permissions.")
+        return redirect('users:role_based_redirect')
+    return _wrapped_view
+
 @login_required
+@reports_access_required
 def activity_report_overview(request, activity_id):
     """
     Display overview report for a specific learning activity/topic.
     """
     try:
+        # Validate activity_id parameter
+        if not activity_id or not isinstance(activity_id, int):
+            messages.error(request, "Invalid activity ID provided.")
+            return redirect('reports:learning_activities')
+            
         topic = get_object_or_404(Topic, id=activity_id)
         
         # Get topic progress data
@@ -422,68 +490,6 @@ def superadmin_required(view_func):
             messages.error(request, "You don't have permission to access reports. This section is restricted to super administrators only.")
             return redirect('users:role_based_redirect')
         return view_func(request, *args, **kwargs)
-    return _wrapped_view
-
-def reports_access_required(view_func):
-    """
-    Decorator to restrict access to users with report viewing capabilities.
-    This allows role-based access control to report pages.
-    """
-    @wraps(view_func)
-    def _wrapped_view(request, *args, **kwargs):
-        user = request.user
-        
-        # Superadmins and admins always have access
-        if user.is_superuser or user.role in ['globaladmin', 'superadmin']:
-            return view_func(request, *args, **kwargs)
-        
-        # Check if user has a system role with report access by default
-        if user.role in ['admin', 'instructor']:
-            return view_func(request, *args, **kwargs)
-        
-        # Check primary role capabilities using PermissionManager
-        try:
-            from role_management.utils import PermissionManager
-            
-            # Check for view_reports capability through primary role
-            if PermissionManager.user_has_capability(user, 'view_reports'):
-                return view_func(request, *args, **kwargs)
-                
-        except Exception as e:
-            logger.error(f"Error checking primary role report access for user {user.id}: {str(e)}")
-            
-        # Check for report-related capabilities through user roles
-        try:
-            user_roles = UserRole.objects.filter(user=user)
-            if user_roles.exists():
-                for user_role in user_roles:
-                    # Check for any report-related capability
-                    report_capabilities = [
-                        'view_reports',
-                        'reports_overview',
-                        'courses_reports',
-                        'users_reports',
-                        'branches_reports',
-                        'groups_reports',
-                        'timeline',
-                        'training_matrix',
-                        'custom_reports',
-                        'learning_activities'
-                    ]
-                    
-                    has_report_access = RoleCapability.objects.filter(
-                        role=user_role.role,
-                        capability__in=report_capabilities
-                    ).exists()
-                    
-                    if has_report_access:
-                        return view_func(request, *args, **kwargs)
-        except Exception as e:
-            logger.error(f"Error checking user role report access for user {user.id}: {str(e)}")
-        
-        # If we reach here, user doesn't have access
-        messages.error(request, "You don't have permission to access reports. This section is restricted to users with report viewing permissions.")
-        return redirect('users:role_based_redirect')
     return _wrapped_view
 
 class ReportForm(forms.Form):

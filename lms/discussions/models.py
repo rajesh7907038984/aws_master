@@ -1,5 +1,6 @@
 from django.db import models
 from django.conf import settings
+from core.s3_storage import MediaS3Storage
 
 class Discussion(models.Model):
     VISIBILITY_CHOICES = (
@@ -208,10 +209,45 @@ class Attachment(models.Model):
     
     discussion = models.ForeignKey(Discussion, on_delete=models.CASCADE, related_name='attachments', null=True, blank=True)
     comment = models.ForeignKey(Comment, on_delete=models.CASCADE, related_name='attachments', null=True, blank=True)
-    file = models.FileField(upload_to='discussions/attachments/%Y/%m/%d/')
+    file = models.FileField(upload_to='discussions/attachments/%Y/%m/%d/', storage=MediaS3Storage())
     file_type = models.CharField(max_length=10, choices=ATTACHMENT_TYPES)
     uploaded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     uploaded_at = models.DateTimeField(auto_now_add=True)
     
     def __str__(self):
         return f"Attachment for {self.discussion or self.comment}"
+
+    def delete(self, *args, **kwargs):
+        """Enhanced delete method with S3 cleanup for discussion attachments."""
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        try:
+            logger.info(f"Starting deletion for Attachment ID: {self.id}")
+            
+            # Delete attachment file
+            if self.file:
+                try:
+                    self.file.delete(save=False)
+                    logger.info(f"Deleted discussion attachment: {self.file.name}")
+                except Exception as e:
+                    logger.error(f"Error deleting discussion attachment: {e}")
+            
+            # S3 cleanup
+            try:
+                from core.utils.s3_cleanup import cleanup_discussion_s3_files
+                s3_results = cleanup_discussion_s3_files(self.id)
+                successful_s3_deletions = sum(1 for success in s3_results.values() if success)
+                total_s3_files = len(s3_results)
+                if total_s3_files > 0:
+                    logger.info(f"S3 cleanup: {successful_s3_deletions}/{total_s3_files} discussion attachment files deleted successfully")
+            except Exception as e:
+                logger.error(f"Error during S3 cleanup for discussion attachment {self.id}: {str(e)}")
+            
+            # Call parent delete to remove the database record
+            super().delete(*args, **kwargs)
+            logger.info(f"Successfully completed deletion for Attachment ID: {self.id}")
+            
+        except Exception as e:
+            logger.error(f"Error in Attachment.delete(): {str(e)}")
+            raise

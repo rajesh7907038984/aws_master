@@ -227,7 +227,7 @@
 }
 
 .dialog-buttons .apply-btn {
-  background-color: #191f56;
+  background-color: var(--brand-primary);
   border: 1px solid #2563eb;
   color: white;
 }

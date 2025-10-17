@@ -3,7 +3,7 @@
 
 /* ===== SIDEBAR BASE STYLES ===== */
 #sidebar {
-    background-color: #1C2260 !important;
+    background-color: var(--brand-primary) !important;
     width: 16rem !important; /* 256px */
     transition: width 0.3s ease, margin 0.3s ease;
     position: fixed;
@@ -19,7 +19,7 @@
 }
 
 #sidebar nav {
-    background-color: #1C2260 !important;
+    background-color: var(--brand-primary) !important;
     height: 100%;
     padding: 0.5rem 0;
 }
@@ -112,10 +112,12 @@
     background-color: transparent !important;
     border: none;
     outline: none;
-    padding: 0.75rem 1.5rem;
-    min-height: 3rem;
+    padding: 0.875rem 1.5rem;
+    min-height: 48px;
     font-size: 0.875rem;
     font-weight: 500;
+    border-radius: 0.375rem;
+    margin: 0.125rem 0.5rem;
 }
 
 #sidebar a.menu-item,
@@ -131,10 +133,12 @@
     border: none;
     outline: none;
     text-align: left;
-    padding: 0.75rem 1.5rem;
-    min-height: 3rem;
+    padding: 0.875rem 1.5rem;
+    min-height: 48px;
     font-size: 0.875rem;
     font-weight: 500;
+    border-radius: 0.375rem;
+    margin: 0.125rem 0.5rem;
 }
 
 /* ===== ICON CONTAINER STYLES ===== */
@@ -171,10 +175,11 @@
 
 /* ===== ACTIVE STATE ===== */
 #sidebar .menu-item.active {
-    background-color: #191f56 !important;
+    background-color: var(--brand-primary) !important;
     color: white !important;
     position: relative !important;
     font-weight: 600 !important;
+    border-left: 3px solid #02f711 !important;
 }
 
 #sidebar .menu-item.active svg,
@@ -200,7 +205,7 @@
 
 /* Enhanced active state for submenu items */
 #sidebar .submenu .menu-item.active {
-    background-color: #191f56 !important;
+    background-color: var(--brand-primary) !important;
     color: white !important;
     font-weight: 600 !important;
 }
@@ -221,7 +226,7 @@
 #sidebar .menu-item:hover:not(.active) {
     background-color: rgba(255, 255, 255, 0.1) !important;
     color: white !important;
-    border-left: none !important;
+    border-left: 3px solid #02f711 !important;
 }
 
 #sidebar .menu-item:hover:not(.active) svg,
@@ -269,7 +274,7 @@
 }
 
 #sidebar .submenu .menu-item:hover {
-    background-color: #191f56 !important;
+    background-color: var(--brand-primary) !important;
     opacity: 1;
     color: white !important;
 }
@@ -371,7 +376,7 @@ html body #sidebar .arrow-icon {
 
 /* ===== MOBILE MENU STYLES ===== */
 #mobile-menu {
-    background-color: #1C2260 !important;
+    background-color: var(--brand-primary) !important;
 }
 
 #mobile-menu .menu-item {
@@ -392,14 +397,15 @@ html body #sidebar .arrow-icon {
 }
 
 #mobile-menu .menu-item:hover {
-    background-color: #191f56 !important;
+    background-color: var(--brand-primary) !important;
     color: white !important;
-    border-left: none !important;
+    border-left: 3px solid #02f711 !important;
 }
 
 #mobile-menu .menu-item.active {
-    background-color: #191f56 !important;
+    background-color: var(--brand-primary) !important;
     color: white !important;
+    border-left: 3px solid #02f711 !important;
 }
 
 #mobile-menu .menu-item svg,
@@ -458,7 +464,7 @@ html body #sidebar .arrow-icon {
 }
 
 #mobile-menu .submenu .menu-item:hover {
-    background-color: #191f56 !important;
+    background-color: var(--brand-primary) !important;
     opacity: 1;
     color: white !important;
 }
@@ -480,7 +486,7 @@ html body #sidebar .arrow-icon {
 /* ===== TOOLTIP STYLES FOR COLLAPSED SIDEBAR ===== */
 .sidebar-hover-tooltip {
     position: fixed !important;
-    background-color: #1C2260 !important;
+    background-color: var(--brand-primary) !important;
     border: 1px solid #2d3e8f !important;
     border-radius: 8px !important;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4) !important;
@@ -553,14 +559,14 @@ html body #sidebar .arrow-icon {
 }
 
 .sidebar-hover-tooltip .tooltip-submenu-item:hover {
-    background-color: #050c50;
+    background-color: var(--brand-primary-hover);
     color: white;
     transform: translateX(2px);
     text-decoration: none;
 }
 
 .sidebar-hover-tooltip .tooltip-submenu-item:active {
-    background-color: #191f56;
+    background-color: var(--brand-primary);
 }
 
 .sidebar-hover-tooltip .tooltip-submenu-item:focus {
@@ -583,7 +589,7 @@ html body #sidebar .arrow-icon {
     height: 0;
     border-top: 8px solid transparent;
     border-bottom: 8px solid transparent;
-    border-right: 8px solid #1C2260;
+    border-right: 8px solid var(--brand-primary);
     z-index: 1001;
 }
 

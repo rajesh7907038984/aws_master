@@ -46,23 +46,26 @@
 }
 
 .sidebar-toggle-btn {
-    display: flex;
+    display: flex !important;
     align-items: center;
     justify-content: center;
-    width: 2rem;
-    height: 2rem;
-    border-radius: 50%;
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 0.5rem;
     background-color: transparent;
     border: none;
     color: #6b7280;
     transition: all 0.2s ease;
     flex-shrink: 0;
     cursor: pointer;
+    visibility: visible !important;
+    opacity: 1 !important;
 }
 
 .sidebar-toggle-btn:hover {
     background-color: #f3f4f6;
     color: #111827;
+    transform: scale(1.05);
 }
 
 .hamburger-icon {
@@ -97,6 +100,47 @@
     .header-left {
         gap: 1rem;
     }
+    
+    .sidebar-toggle-btn {
+        width: 2.75rem;
+        height: 2.75rem;
+    }
+}
+
+/* Enhanced button visibility fixes */
+.header-icon,
+.discussion-icon,
+.notification-icon,
+#mobile-menu-toggle,
+#profile-button {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    min-width: 44px !important;
+    min-height: 44px !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+/* Mobile button optimizations */
+@media (max-width: 768px) {
+    .header-icon,
+    .discussion-icon,
+    .notification-icon,
+    #mobile-menu-toggle,
+    #profile-button {
+        min-width: 48px !important;
+        min-height: 48px !important;
+        padding: 0.75rem !important;
+    }
+    
+    .sidebar-toggle-btn {
+        width: 3rem;
+        height: 3rem;
+        min-width: 48px !important;
+        min-height: 48px !important;
+    }
+}
     
     .logo-img {
         height: 2.25rem;

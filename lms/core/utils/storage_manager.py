@@ -160,40 +160,95 @@ class StorageManager:
             return 0
 
     @classmethod
+    def cleanup_s3_orphaned_files(cls, dry_run=True):
+        """Clean up orphaned files in S3 that are not tracked in database"""
+        from core.utils.s3_cleanup import S3CleanupManager
+        
+        s3_cleanup = S3CleanupManager()
+        
+        if not s3_cleanup.is_s3_storage():
+            logger.info("S3 storage not configured - skipping orphaned file cleanup")
+            return 0
+        
+        try:
+            # Get all tracked file paths
+            tracked_paths = set(FileStorageUsage.objects.filter(
+                is_deleted=False
+            ).values_list('file_path', flat=True))
+            
+            # Find orphaned files in S3
+            orphaned_files = s3_cleanup.find_orphaned_files(tracked_paths)
+            
+            if not dry_run:
+                # Delete orphaned files
+                results = s3_cleanup.delete_files(orphaned_files)
+                successful_deletions = sum(1 for success in results.values() if success)
+                logger.info(f"Cleaned up {successful_deletions} orphaned S3 files")
+                return successful_deletions
+            else:
+                logger.info(f"[DRY RUN] Found {len(orphaned_files)} orphaned S3 files")
+                return len(orphaned_files)
+                
+        except Exception as e:
+            logger.error(f"Error during S3 orphaned file cleanup: {e}")
+            return 0
+
+    @classmethod
+    def get_s3_cleanup_status(cls):
+        """Get S3 cleanup status and statistics"""
+        from core.utils.s3_cleanup import S3CleanupManager
+        
+        s3_cleanup = S3CleanupManager()
+        
+        if not s3_cleanup.is_s3_storage():
+            return {
+                's3_configured': False,
+                'message': 'S3 storage not configured'
+            }
+        
+        try:
+            from django.conf import settings
+            # Get S3 cleanup statistics
+            stats = {
+                's3_configured': True,
+                'bucket_name': getattr(settings, 'AWS_STORAGE_BUCKET_NAME', 'Not configured'),
+                'region': getattr(settings, 'AWS_S3_REGION_NAME', 'Not configured'),
+                'total_tracked_files': FileStorageUsage.objects.filter(is_deleted=False).count(),
+                'total_deleted_files': FileStorageUsage.objects.filter(is_deleted=True).count(),
+                'cleanup_available': True
+            }
+            
+            return stats
+            
+        except Exception as e:
+            logger.error(f"Error getting S3 cleanup status: {e}")
+            return {
+                's3_configured': True,
+                'error': str(e)
+            }
+
+    @classmethod
     def cleanup_deleted_files(cls, dry_run=True):
-        """Clean up file records for files that no longer exist on disk"""
-        import os
-        from django.conf import settings
+        """Clean up file records for files that no longer exist in S3"""
+        from core.s3_storage import MediaS3Storage
         
         deleted_count = 0
         usage_records = FileStorageUsage.objects.filter(is_deleted=False)
+        s3_storage = MediaS3Storage()
         
         for record in usage_records:
-            # Use S3 permission-safe approach - avoid exists() that triggers HeadObject
-            from django.core.files.storage import default_storage
-            
             try:
-                # Try to open file instead of checking existence
-                test_file = default_storage.open(record.file_path)
-                test_file.close()
-                # File exists and accessible
-            except Exception as file_error:
-                # File doesn't exist or permission denied
-                file_missing = True
-                if "403" in str(file_error) or "Forbidden" in str(file_error):
-                    logger.warning(f"S3 permission denied for file {record.file_path}: {file_error}")
-                    # Don't mark as deleted if it's just a permission issue
-                    continue
-                elif "NoSuchKey" in str(file_error) or "not found" in str(file_error):
+                # Use S3-specific exists check with proper error handling
+                if not s3_storage.exists(record.file_path):
                     if not dry_run:
                         record.mark_as_deleted()
                     deleted_count += 1
-                    logger.info(f"{'[DRY RUN] ' if dry_run else ''}File not found, marking as deleted: {record.file_path}")
-                else:
-                    logger.error(f"Error accessing file {record.file_path}: {file_error}")
-                    if not dry_run:
-                        record.mark_as_deleted()
-                    deleted_count += 1
+                    logger.info(f"{'[DRY RUN] ' if dry_run else ''}S3 file not found, marking as deleted: {record.file_path}")
+            except Exception as e:
+                logger.error(f"Error checking S3 file {record.file_path}: {e}")
+                if not dry_run:
+                    record.mark_as_deleted()
+                deleted_count += 1
         
         return deleted_count
 
@@ -227,6 +282,7 @@ class StorageManager:
     def get_storage_analytics(cls, days=30):
         """Get storage usage analytics for the last N days"""
         from datetime import timedelta
+        from django.db.models import Count
         
         start_date = timezone.now() - timedelta(days=days)
         
@@ -255,6 +311,54 @@ class StorageManager:
         }
         
         return analytics
+
+    @classmethod
+    def get_s3_storage_analytics(cls, days=30):
+        """Get S3-specific storage analytics"""
+        from datetime import timedelta
+        from django.db.models import Count
+        from django.conf import settings
+        from core.utils.s3_cleanup import S3CleanupManager
+        
+        start_date = timezone.now() - timedelta(days=days)
+        s3_cleanup = S3CleanupManager()
+        
+        analytics = {
+            's3_configured': s3_cleanup.is_s3_storage(),
+            's3_bucket_name': getattr(settings, 'AWS_STORAGE_BUCKET_NAME', 'Not configured'),
+            's3_region': getattr(settings, 'AWS_S3_REGION_NAME', 'Not configured'),
+            's3_media_url': getattr(settings, 'MEDIA_URL', 'Not configured'),
+            'total_s3_files': FileStorageUsage.objects.filter(
+                created_at__gte=start_date,
+                is_deleted=False
+            ).count(),
+            's3_usage_by_module': cls._get_s3_usage_by_module(days),
+            's3_storage_classes': {
+                'media': 'MediaS3Storage',
+                'static': 'StaticS3Storage', 
+                'scorm': 'SCORMS3Storage',
+            }
+        }
+        
+        return analytics
+
+    @classmethod
+    def _get_s3_usage_by_module(cls, days=30):
+        """Get S3 usage breakdown by module"""
+        from datetime import timedelta
+        from django.db.models import Count, Sum
+        
+        start_date = timezone.now() - timedelta(days=days)
+        
+        usage_by_module = FileStorageUsage.objects.filter(
+            created_at__gte=start_date,
+            is_deleted=False
+        ).values('source_app').annotate(
+            total_files=Count('id'),
+            total_size=Sum('file_size_bytes')
+        ).order_by('-total_size')
+        
+        return list(usage_by_module)
 
     @staticmethod
     def _format_bytes(bytes_value):

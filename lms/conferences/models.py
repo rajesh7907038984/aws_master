@@ -8,6 +8,7 @@ from django.db.models.signals import post_delete
 from django.dispatch import receiver
 from account_settings.zoom import get_zoom_client
 from account_settings.models import ZoomIntegration
+from core.s3_storage import MediaS3Storage
 
 
 class Conference(models.Model):
@@ -399,7 +400,7 @@ class ConferenceFile(models.Model):
     mime_type = models.CharField(max_length=100, blank=True, null=True)
     
     # Local storage (optional)
-    local_file = models.FileField(upload_to='conference_files/%Y/%m/%d/', blank=True, null=True)
+    local_file = models.FileField(upload_to='conference_files/%Y/%m/%d/', storage=MediaS3Storage(), blank=True, null=True)
     
     # Metadata
     shared_at = models.DateTimeField()
@@ -419,6 +420,41 @@ class ConferenceFile(models.Model):
 
     def __str__(self):
         return f"{self.filename} - {self.conference.title}"
+
+    def delete(self, *args, **kwargs):
+        """Enhanced delete method with S3 cleanup for conference files."""
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        try:
+            logger.info(f"Starting deletion for ConferenceFile: {self.filename} (ID: {self.id})")
+            
+            # Delete local file
+            if self.local_file:
+                try:
+                    self.local_file.delete(save=False)
+                    logger.info(f"Deleted conference file: {self.local_file.name}")
+                except Exception as e:
+                    logger.error(f"Error deleting conference file: {e}")
+            
+            # S3 cleanup
+            try:
+                from core.utils.s3_cleanup import cleanup_conference_s3_files
+                s3_results = cleanup_conference_s3_files(self.id)
+                successful_s3_deletions = sum(1 for success in s3_results.values() if success)
+                total_s3_files = len(s3_results)
+                if total_s3_files > 0:
+                    logger.info(f"S3 cleanup: {successful_s3_deletions}/{total_s3_files} conference files deleted successfully")
+            except Exception as e:
+                logger.error(f"Error during S3 cleanup for conference file {self.id}: {str(e)}")
+            
+            # Call parent delete to remove the database record
+            super().delete(*args, **kwargs)
+            logger.info(f"Successfully completed deletion for ConferenceFile: {self.filename} (ID: {self.id})")
+            
+        except Exception as e:
+            logger.error(f"Error in ConferenceFile.delete(): {str(e)}")
+            raise
 
 
 class ConferenceChat(models.Model):

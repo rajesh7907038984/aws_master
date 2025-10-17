@@ -237,6 +237,114 @@ def storage_analytics(request):
 
 @login_required
 @require_http_methods(["GET"])
+def s3_storage_management(request):
+    """S3-specific storage management interface"""
+    try:
+        if request.user.role != 'globaladmin':
+            return JsonResponse({
+                'success': False,
+                'error': 'Insufficient permissions'
+            }, status=403)
+        
+        from core.s3_storage import MediaS3Storage
+        from core.utils.s3_cleanup import S3CleanupManager
+        
+        s3_cleanup = S3CleanupManager()
+        
+        # Get S3 storage analytics
+        s3_analytics = StorageManager.get_s3_storage_analytics()
+        
+        return JsonResponse({
+            'success': True,
+            'data': {
+                's3_configured': s3_cleanup.is_s3_storage(),
+                'bucket_name': getattr(settings, 'AWS_STORAGE_BUCKET_NAME', 'Not configured'),
+                'region': getattr(settings, 'AWS_S3_REGION_NAME', 'Not configured'),
+                'media_url': getattr(settings, 'MEDIA_URL', 'Not configured'),
+                'storage_classes': {
+                    'media': 'MediaS3Storage',
+                    'static': 'StaticS3Storage',
+                    'scorm': 'SCORMS3Storage',
+                },
+                'analytics': s3_analytics
+            }
+        })
+        
+    except Exception as e:
+        logger.error(f"Error in s3_storage_management: {str(e)}")
+        return JsonResponse({
+            'success': False,
+            'error': f'An error occurred: {str(e)}'
+        }, status=500)
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def s3_cleanup_management(request):
+    """S3 cleanup management interface"""
+    try:
+        if request.user.role != 'globaladmin':
+            return JsonResponse({
+                'success': False,
+                'error': 'Insufficient permissions'
+            }, status=403)
+        
+        if request.method == 'GET':
+            # Get S3 cleanup status
+            cleanup_status = StorageManager.get_s3_cleanup_status()
+            
+            return JsonResponse({
+                'success': True,
+                'data': cleanup_status
+            })
+        
+        elif request.method == 'POST':
+            # Perform S3 cleanup operations
+            data = json.loads(request.body)
+            operation = data.get('operation')
+            
+            if operation == 'cleanup_orphaned':
+                dry_run = data.get('dry_run', True)
+                result = StorageManager.cleanup_s3_orphaned_files(dry_run=dry_run)
+                
+                return JsonResponse({
+                    'success': True,
+                    'message': f'{"[DRY RUN] " if dry_run else ""}S3 orphaned file cleanup completed',
+                    'data': {
+                        'files_processed': result,
+                        'dry_run': dry_run
+                    }
+                })
+            
+            elif operation == 'cleanup_deleted':
+                dry_run = data.get('dry_run', True)
+                result = StorageManager.cleanup_deleted_files(dry_run=dry_run)
+                
+                return JsonResponse({
+                    'success': True,
+                    'message': f'{"[DRY RUN] " if dry_run else ""}S3 deleted file cleanup completed',
+                    'data': {
+                        'files_processed': result,
+                        'dry_run': dry_run
+                    }
+                })
+            
+            else:
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Invalid operation'
+                }, status=400)
+        
+    except Exception as e:
+        logger.error(f"Error in s3_cleanup_management: {str(e)}")
+        return JsonResponse({
+            'success': False,
+            'error': f'An error occurred: {str(e)}'
+        }, status=500)
+
+
+@login_required
+@require_http_methods(["GET"])
 def get_storage_info(request):
     """
     Get storage information for the current user's branch

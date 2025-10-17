@@ -37,7 +37,12 @@ class Command(BaseCommand):
         try:
             # Initialize S3 client
             s3 = boto3.client('s3')
-            bucket_name = getattr(settings, 'AWS_STORAGE_BUCKET_NAME', 'lms-staging-nexsy-io')
+            bucket_name = getattr(settings, 'AWS_STORAGE_BUCKET_NAME', None)
+            if not bucket_name:
+                self.stdout.write(
+                    self.style.ERROR('AWS_STORAGE_BUCKET_NAME not configured')
+                )
+                return
             
             # Get a system user for uploads
             system_user = User.objects.filter(is_superuser=True).first()
@@ -92,7 +97,8 @@ class Command(BaseCommand):
                     file_type = self.get_file_type(key)
                     
                     # Get file URL
-                    file_url = f"https://{bucket_name}.s3.eu-west-2.amazonaws.com/{key}"
+                    region = getattr(settings, 'AWS_S3_REGION_NAME', 'eu-west-2')
+                    file_url = f"https://{bucket_name}.s3.{region}.amazonaws.com/{key}"
                     
                     if dry_run:
                         self.stdout.write(f'Would sync: {key} ({size} bytes, {file_type})')

@@ -6,27 +6,27 @@
 /* ========== Role-Specific Color Variables ========== */
 :root {
     /* Learner Colors */
-    --learner-primary: #050c50;
-    --learner-primary-hover: #02071e;
-    --learner-accent: #4262FF;
+    --learner-primary: var(--brand-primary);
+    --learner-primary-hover: var(--brand-primary-hover);
+    --learner-accent: var(--brand-primary-light);
     --learner-background: #ffffff;
     
     /* Instructor Colors */
-    --instructor-primary: #050c50;
-    --instructor-primary-hover: #02071e;
-    --instructor-accent: #4262FF;
+    --instructor-primary: var(--brand-primary);
+    --instructor-primary-hover: var(--brand-primary-hover);
+    --instructor-accent: var(--brand-primary-light);
     --instructor-background: #ffffff;
     
     /* Admin Colors */
-    --admin-primary: #050c50;
-    --admin-primary-hover: #02071e;
-    --admin-accent: #4262FF;
+    --admin-primary: var(--brand-primary);
+    --admin-primary-hover: var(--brand-primary-hover);
+    --admin-accent: var(--brand-primary-light);
     --admin-background: #ffffff;
     
     /* Super Admin Colors */
-    --superadmin-primary: #050c50;
-    --superadmin-primary-hover: #02071e;
-    --superadmin-accent: #4262FF;
+    --superadmin-primary: var(--brand-primary);
+    --superadmin-primary-hover: var(--brand-primary-hover);
+    --superadmin-accent: var(--brand-primary-light);
     --superadmin-background: #ffffff;
     
     /* Global Admin Colors */
@@ -210,7 +210,7 @@
     transform: translate(-50%, -50%);
     width: 60px;
     height: 60px;
-    background-color: #050c50;
+    background-color: var(--brand-primary);
     border-radius: 50%;
     display: flex;
     align-items: center;
@@ -289,14 +289,14 @@
 .todo-tab.text-blue-600,
 .todo-tab.active {
     background-color: transparent !important;
-    color: #050c50 !important;
-    border-bottom: 2px solid #050c50 !important;
+    color: var(--brand-primary) !important;
+    border-bottom: 2px solid var(--brand-primary) !important;
     font-weight: 600 !important;
 }
 
 .todo-tab:hover:not(.text-blue-600):not(.active) {
     background-color: transparent !important;
-    color: #050c50 !important;
+    color: var(--brand-primary) !important;
     border-bottom: 1px solid #e5e7eb !important;
 }
 

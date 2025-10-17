@@ -791,26 +791,13 @@ class UserRole(models.Model):
                     logger.error(f"Final attempt failed for user {self.user.username}: {str(e)}")
                     raise ValidationError("Unable to complete role assignment due to system constraints. Please try again.")
     
-    def _invalidate_Session_caches(self):
-        """Securely invalidate all related caches"""
-        try:
-            cache_keys = [
-                f"user_capabilities_{self.user.pk}",
-                f"user_capabilities_version_{self.user.pk}",
-                f"user_session_capabilities_{self.user.pk}",
-                f"role_capabilities_{self.role.pk}"
-            ]
-            
-            # Cache functionality removed
-        except Exception as e:
-            logger.error(f"Cache invalidation failed: {str(e)}")
+    # Cache functionality completely removed - no longer needed
 
     def delete(self, *args, **kwargs):
         user_pk = self.user.pk
         super().delete(*args, **kwargs)
         
-        # Clear cache
-        cache.delete(f"user_capabilities_{user_pk}")
+        # Cache functionality removed - no longer needed
         
         # Log role removal
         logger.info(f"Role {self.role} removed from user {self.user.username}")

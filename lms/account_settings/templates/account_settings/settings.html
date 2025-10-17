@@ -494,7 +494,7 @@
                                             
                                             <!-- Submit Button -->
                                             <div>
-                                                <button type="submit" class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white focus:outline-none focus:ring-2 focus:ring-offset-2" style="background-color: #191f56;" onmouseover="this.style.backgroundColor='#141a4a'" onmouseout="this.style.backgroundColor='#191f56'">
+                                                <button type="submit" class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white focus:outline-none focus:ring-2 focus:ring-offset-2" style="background-color: var(--brand-primary);" onmouseover="this.style.backgroundColor='#141a4a'" onmouseout="this.style.backgroundColor='var(--brand-primary)'">
                                                     Save Settings
                                                 </button>
                                             </div>
@@ -678,7 +678,7 @@
                                                             </div>
                                                             
                                                             <div class="flex items-center justify-end">
-                                                                <button type="submit" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white focus:outline-none focus:ring-2 focus:ring-offset-2" style="background-color: #191f56;" onmouseover="this.style.backgroundColor='#141a4a'" onmouseout="this.style.backgroundColor='#191f56'">
+                                                                <button type="submit" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white focus:outline-none focus:ring-2 focus:ring-offset-2" style="background-color: var(--brand-primary);" onmouseover="this.style.backgroundColor='#141a4a'" onmouseout="this.style.backgroundColor='var(--brand-primary)'">
                                                                     <svg class="-ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                                                                         <path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clip-rule="evenodd" />
                                                                     </svg>
@@ -4375,7 +4375,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 method: 'POST',
                 body: formData,
                 headers: {
-                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                    'X-CSRFToken': getCSRFToken()
                 }
             })
             .then(response => {
@@ -4479,7 +4479,7 @@ document.addEventListener('DOMContentLoaded', function() {
         fetch('/account/test-sharepoint-connection/', {
             method: 'POST',
             headers: {
-                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                'X-CSRFToken': getCSRFToken(),
                 'Content-Type': 'application/json'
             }
         })
@@ -4546,7 +4546,7 @@ document.addEventListener('DOMContentLoaded', function() {
         fetch('/account/test-sharepoint-connection/', {
             method: 'POST',
             headers: {
-                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                'X-CSRFToken': getCSRFToken(),
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify(testData)
@@ -4591,7 +4591,7 @@ document.addEventListener('DOMContentLoaded', function() {
         fetch('/account/sharepoint-manual-setup-guide/', {
             method: 'GET',
             headers: {
-                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                'X-CSRFToken': getCSRFToken(),
                 'Content-Type': 'application/json'
             }
         })
@@ -4962,7 +4962,7 @@ document.addEventListener('DOMContentLoaded', function() {
         fetch('/account/sharepoint-sync/', {
             method: 'POST',
             headers: {
-                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                'X-CSRFToken': getCSRFToken(),
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
@@ -5173,7 +5173,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 method: 'POST',
                 body: formData,
                 headers: {
-                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                    'X-CSRFToken': getCSRFToken()
                 }
             })
             .then(response => {
@@ -5231,7 +5231,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 method: 'POST',
                 body: formData,
                 headers: {
-                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                    'X-CSRFToken': getCSRFToken()
                 }
             })
             .then(response => {
@@ -5287,7 +5287,7 @@ function testZoomConnection() {
     fetch('/account/test-zoom-connection/', {
         method: 'POST',
         headers: {
-            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+            'X-CSRFToken': getCSRFToken(),
             'Content-Type': 'application/json'
         }
     })
@@ -5322,7 +5322,7 @@ function startExport() {
     const formData = new FormData();
     formData.append('export_type', exportType);
     formData.append('include_files', includeFiles);
-    formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+    formData.append('csrfmiddlewaretoken', getCSRFToken());
     
     fetch('/account/export/start/', {
         method: 'POST',
@@ -5363,7 +5363,7 @@ function startImport() {
     formData.append('import_type', importType);
     formData.append('replace_existing', replaceExisting);
     formData.append('import_file', importFile);
-    formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+    formData.append('csrfmiddlewaretoken', getCSRFToken());
     
     fetch('/account/import/start/', {
         method: 'POST',
@@ -5397,7 +5397,7 @@ function createBackup() {
     
     const formData = new FormData();
     formData.append('description', description);
-    formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+    formData.append('csrfmiddlewaretoken', getCSRFToken());
     
     fetch('/account/backup/create/', {
         method: 'POST',
@@ -5516,7 +5516,7 @@ function deleteBackup(backupId) {
     }
     
     const formData = new FormData();
-    formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+    formData.append('csrfmiddlewaretoken', getCSRFToken());
     
     fetch(`/account/backup/delete/${backupId}/`, {
         method: 'POST',
@@ -6173,7 +6173,7 @@ async function saveAITokenLimits() {
         formData.append('action', 'update_limits');
         formData.append('is_unlimited', isUnlimited ? 'on' : '');
         formData.append('monthly_token_limit', monthlyLimit);
-        formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+        formData.append('csrfmiddlewaretoken', getCSRFToken());
         
         const response = await fetch(`/tinymce/manage-branch-tokens/${branchId}/`, {
             method: 'POST',
@@ -6259,7 +6259,32 @@ function openManageTokensPopup(url) {
     }
 }
 
-
+// CSRF Token helper function with multiple fallback methods
+function getCSRFToken() {
+    // Method 1: Meta tag (preferred)
+    const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+    if (csrfMeta) {
+        return csrfMeta.getAttribute('content');
+    }
+    
+    // Method 2: Input field
+    const csrfInput = document.querySelector('input[name="csrfmiddlewaretoken"]');
+    if (csrfInput) {
+        return csrfInput.value;
+    }
+    
+    // Method 3: Cookie fallback
+    const cookies = document.cookie.split(';');
+    for (let cookie of cookies) {
+        const [name, value] = cookie.trim().split('=');
+        if (name === 'csrftoken') {
+            return value;
+        }
+    }
+    
+    console.error('CSRF token not found');
+    return '';
+}
 
 </script>
 {% endblock %}

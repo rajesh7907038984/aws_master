@@ -4,7 +4,7 @@ import json
 import logging
 from django.db import models
 from django.conf import settings
-from django.core.files.storage import default_storage
+# Removed unused default_storage import - using SCORMS3Storage instead
 from django.utils import timezone
 from django.core.exceptions import ValidationError
 from courses.models import Topic, Course
@@ -17,6 +17,8 @@ logger = logging.getLogger(__name__)
 
 def elearning_package_path(instance, filename):
     """Generate file path for e-learning packages (SCORM, xAPI, cmi5)"""
+    from core.s3_storage import validate_s3_path, sanitize_s3_path
+    
     # Get the base filename and extension
     name, ext = os.path.splitext(filename)
     
@@ -31,7 +33,15 @@ def elearning_package_path(instance, filename):
     # Construct the new filename
     new_filename = "{}_{}{}".format(name, unique_id, ext.lower())
     
-    return "elearning/packages/{}".format(new_filename)
+    full_path = "elearning/packages/{}".format(new_filename)
+    
+    # Validate and sanitize the path for S3 compatibility
+    is_valid, error = validate_s3_path(full_path)
+    if not is_valid:
+        logger.warning(f"S3 path validation failed: {error}. Sanitizing path.")
+        full_path = sanitize_s3_path(full_path)
+    
+    return full_path
 
 class ELearningPackage(models.Model):
     """Model for e-learning packages (SCORM, xAPI, cmi5)"""
@@ -42,6 +52,11 @@ class ELearningPackage(models.Model):
         ('XAPI', 'xAPI (Tin Can)'),
         ('CMI5', 'cmi5'),
         ('AICC', 'AICC'),
+        ('ARTICULATE', 'Articulate (Storyline/Rise)'),
+        ('CAPTIVATE', 'Adobe Captivate'),
+        ('LECTORA', 'Lectora'),
+        ('ISPRING', 'iSpring'),
+        ('ADOBE_PRESENTER', 'Adobe Presenter'),
     ]
     
     topic = models.OneToOneField(
@@ -180,7 +195,7 @@ class ELearningPackage(models.Model):
             # Upload extracted content to S3
             self._upload_extracted_content_to_s3(full_topic_dir, topic_dir)
             
-            self.extracted_path = f"elearning/{topic_dir}"  # Store relative path with elearning prefix
+            self.extracted_path = f"packages/{topic_dir}"  # Store without elearning prefix to avoid double prefixing
             self.is_extracted = True
             self.extraction_error = ""
             self.save()
@@ -555,6 +570,30 @@ class ELearningPackage(models.Model):
                 # Check for AICC manifests
                 elif any('coursestruct.cst' in f.lower() or 'au.txt' in f.lower() for f in file_list):
                     return 'AICC'
+                
+                # ENHANCED: Check for Articulate content
+                elif any('story_content' in f.lower() or 'story_html5' in f.lower() for f in file_list):
+                    return 'ARTICULATE'
+                
+                # Check for Rise content
+                elif any('rise_content' in f.lower() or 'rise_html5' in f.lower() for f in file_list):
+                    return 'ARTICULATE'
+                
+                # Check for Captivate content
+                elif any('captivate' in f.lower() or 'cp_' in f.lower() for f in file_list):
+                    return 'CAPTIVATE'
+                
+                # Check for Lectora content
+                elif any('lectora' in f.lower() or 'trivantis' in f.lower() for f in file_list):
+                    return 'LECTORA'
+                
+                # Check for iSpring content
+                elif any('ispring' in f.lower() or 'ispring_content' in f.lower() for f in file_list):
+                    return 'ISPRING'
+                
+                # Check for Adobe Presenter content
+                elif any('presenter' in f.lower() or 'adobe_presenter' in f.lower() for f in file_list):
+                    return 'ADOBE_PRESENTER'
             
             # Clean up temp file if we created one
             if not hasattr(self.package_file.storage, 'path'):
@@ -578,9 +617,17 @@ class ELearningPackage(models.Model):
             return None
         
         return "/scorm/content/{}/{}".format(self.topic.id, self.launch_file)
+    
+    def validate_s3_path(self):
+        """Validate and fix S3 path construction"""
+        if self.extracted_path and self.extracted_path.startswith('elearning/'):
+            # Fix double prefixing issue
+            self.extracted_path = self.extracted_path.replace('elearning/', '')
+            self.save()
+            logger.info(f"Fixed double prefixing for topic {self.topic.id}: {self.extracted_path}")
+        return self.extracted_path
 
-# Backward compatibility alias
-SCORMPackage = ELearningPackage
+# Backward compatibility alias removed - use ELearningPackage directly
 
 class ELearningTracking(models.Model):
     """Model for tracking e-learning learner interactions (SCORM, xAPI, cmi5)"""
@@ -1046,60 +1093,204 @@ class ELearningTracking(models.Model):
         return summary
     
     def get_bookmark_data(self):
-        """ENHANCED: Get bookmark and suspend data for resume functionality"""
+        """ENHANCED: Get bookmark and suspend data for resume functionality with comprehensive package type support"""
         bookmark_data = {
-            'lesson_location': self.raw_data.get('cmi.core.lesson_location', ''),
-            'suspend_data': self.raw_data.get('cmi.core.suspend_data', ''),
-            'entry': self.raw_data.get('cmi.core.entry', 'ab-initio'),
-            'exit': self.raw_data.get('cmi.core.exit', ''),
-            'launch_data': self.raw_data.get('cmi.core.launch_data', ''),
-            'has_bookmark': bool(self.raw_data.get('cmi.core.lesson_location', '')),
-            'has_suspend_data': bool(self.raw_data.get('cmi.core.suspend_data', '')),
-            'can_resume': False
+            'lesson_location': '',
+            'suspend_data': '',
+            'entry': 'ab-initio',
+            'exit': '',
+            'launch_data': '',
+            'has_bookmark': False,
+            'has_suspend_data': False,
+            'can_resume': False,
+            'package_type': self.elearning_package.package_type,
+            'progress_indicators': []
         }
         
-        # ENHANCED: Check resume capability based on package type with proper field mapping
+        # ENHANCED: Package type-specific field mapping and resume detection
         if self.elearning_package.package_type == 'SCORM_1_2':
-            bookmark_data['can_resume'] = bool(
-                self.raw_data.get('cmi.core.lesson_location', '') or 
-                self.raw_data.get('cmi.core.suspend_data', '') or
-                self.location or self.suspend_data
+            bookmark_data.update({
+                'lesson_location': self.raw_data.get('cmi.core.lesson_location', ''),
+                'suspend_data': self.raw_data.get('cmi.core.suspend_data', ''),
+                'entry': self.raw_data.get('cmi.core.entry', 'ab-initio'),
+                'exit': self.raw_data.get('cmi.core.exit', ''),
+                'launch_data': self.raw_data.get('cmi.core.launch_data', ''),
+            })
+            
+            # Check for resume indicators
+            has_lesson_location = bool(bookmark_data['lesson_location'])
+            has_suspend_data = bool(bookmark_data['suspend_data'])
+            has_progress = self.completion_status not in ['not attempted', 'unknown']
+            has_time = self.total_time and self.total_time.total_seconds() > 0
+            has_score = self.score_raw is not None and self.score_raw > 0
+            has_exit_suspend = bookmark_data['exit'] == 'suspend'
+            
+            bookmark_data['progress_indicators'] = [
+                f"Lesson Location: {has_lesson_location}",
+                f"Suspend Data: {has_suspend_data}",
+                f"Progress: {has_progress}",
+                f"Time: {has_time}",
+                f"Score: {has_score}",
+                f"Exit Suspend: {has_exit_suspend}"
+            ]
+            
+            bookmark_data['can_resume'] = (
+                has_lesson_location or has_suspend_data or 
+                has_progress or has_time or has_score or 
+                has_exit_suspend or self.location or self.suspend_data
             )
+            
         elif self.elearning_package.package_type == 'SCORM_2004':
-            bookmark_data['can_resume'] = bool(
-                self.raw_data.get('cmi.location', '') or 
-                self.raw_data.get('cmi.suspend_data', '') or
-                self.raw_data.get('cmi.core.lesson_location', '') or 
-                self.raw_data.get('cmi.core.suspend_data', '') or
-                self.location or self.suspend_data
+            # SCORM 2004 uses both cmi.location and cmi.core.lesson_location
+            bookmark_data.update({
+                'lesson_location': (
+                    self.raw_data.get('cmi.location', '') or 
+                    self.raw_data.get('cmi.core.lesson_location', '')
+                ),
+                'suspend_data': (
+                    self.raw_data.get('cmi.suspend_data', '') or 
+                    self.raw_data.get('cmi.core.suspend_data', '')
+                ),
+                'entry': self.raw_data.get('cmi.core.entry', 'ab-initio'),
+                'exit': self.raw_data.get('cmi.core.exit', ''),
+                'launch_data': self.raw_data.get('cmi.core.launch_data', ''),
+            })
+            
+            # Enhanced SCORM 2004 resume detection
+            has_lesson_location = bool(bookmark_data['lesson_location'])
+            has_suspend_data = bool(bookmark_data['suspend_data'])
+            has_progress = self.completion_status not in ['not attempted', 'unknown']
+            has_time = self.total_time and self.total_time.total_seconds() > 0
+            has_score = self.score_raw is not None and self.score_raw > 0
+            has_exit_suspend = bookmark_data['exit'] == 'suspend'
+            
+            bookmark_data['progress_indicators'] = [
+                f"Lesson Location: {has_lesson_location}",
+                f"Suspend Data: {has_suspend_data}",
+                f"Progress: {has_progress}",
+                f"Time: {has_time}",
+                f"Score: {has_score}",
+                f"Exit Suspend: {has_exit_suspend}"
+            ]
+            
+            bookmark_data['can_resume'] = (
+                has_lesson_location or has_suspend_data or 
+                has_progress or has_time or has_score or 
+                has_exit_suspend or self.location or self.suspend_data
             )
+            
         elif self.elearning_package.package_type == 'XAPI':
-            bookmark_data['can_resume'] = bool(
-                self.raw_data.get('xapi.state', '') or 
-                self.raw_data.get('xapi.activity_state', '') or
-                self.raw_data.get('xapi.resume', False) or
+            bookmark_data.update({
+                'lesson_location': self.raw_data.get('xapi.state', ''),
+                'suspend_data': self.raw_data.get('xapi.activity_state', ''),
+                'entry': 'ab-initio',
+                'exit': '',
+                'launch_data': '',
+            })
+            
+            # xAPI resume detection
+            has_state = bool(self.raw_data.get('xapi.state', ''))
+            has_activity_state = bool(self.raw_data.get('xapi.activity_state', ''))
+            has_resume_flag = self.raw_data.get('xapi.resume', False)
+            has_progress = self.completion_status not in ['not attempted', 'unknown']
+            has_time = self.total_time and self.total_time.total_seconds() > 0
+            has_score = self.score_raw is not None and self.score_raw > 0
+            
+            bookmark_data['progress_indicators'] = [
+                f"xAPI State: {has_state}",
+                f"Activity State: {has_activity_state}",
+                f"Resume Flag: {has_resume_flag}",
+                f"Progress: {has_progress}",
+                f"Time: {has_time}",
+                f"Score: {has_score}"
+            ]
+            
+            bookmark_data['can_resume'] = (
+                has_state or has_activity_state or has_resume_flag or
+                has_progress or has_time or has_score or 
                 self.location or self.suspend_data
             )
+            
         elif self.elearning_package.package_type == 'CMI5':
-            bookmark_data['can_resume'] = bool(
-                self.raw_data.get('cmi5.au_state', '') or 
-                self.raw_data.get('cmi5.state', '') or
-                self.raw_data.get('cmi5.resume', False) or
+            bookmark_data.update({
+                'lesson_location': self.raw_data.get('cmi5.au_state', ''),
+                'suspend_data': self.raw_data.get('cmi5.state', ''),
+                'entry': 'ab-initio',
+                'exit': '',
+                'launch_data': '',
+            })
+            
+            # cmi5 resume detection
+            has_au_state = bool(self.raw_data.get('cmi5.au_state', ''))
+            has_cmi5_state = bool(self.raw_data.get('cmi5.state', ''))
+            has_resume_flag = self.raw_data.get('cmi5.resume', False)
+            has_progress = self.completion_status not in ['not attempted', 'unknown']
+            has_time = self.total_time and self.total_time.total_seconds() > 0
+            has_score = self.score_raw is not None and self.score_raw > 0
+            
+            bookmark_data['progress_indicators'] = [
+                f"AU State: {has_au_state}",
+                f"cmi5 State: {has_cmi5_state}",
+                f"Resume Flag: {has_resume_flag}",
+                f"Progress: {has_progress}",
+                f"Time: {has_time}",
+                f"Score: {has_score}"
+            ]
+            
+            bookmark_data['can_resume'] = (
+                has_au_state or has_cmi5_state or has_resume_flag or
+                has_progress or has_time or has_score or 
                 self.location or self.suspend_data
             )
+            
         elif self.elearning_package.package_type == 'AICC':
-            bookmark_data['can_resume'] = bool(
-                self.raw_data.get('aicc.lesson_location', '') or 
-                self.raw_data.get('aicc.suspend_data', '') or
+            bookmark_data.update({
+                'lesson_location': self.raw_data.get('aicc.lesson_location', ''),
+                'suspend_data': self.raw_data.get('aicc.suspend_data', ''),
+                'entry': 'ab-initio',
+                'exit': '',
+                'launch_data': '',
+            })
+            
+            # AICC resume detection
+            has_lesson_location = bool(bookmark_data['lesson_location'])
+            has_suspend_data = bool(bookmark_data['suspend_data'])
+            has_progress = self.completion_status not in ['not attempted', 'unknown']
+            has_time = self.total_time and self.total_time.total_seconds() > 0
+            has_score = self.score_raw is not None and self.score_raw > 0
+            
+            bookmark_data['progress_indicators'] = [
+                f"Lesson Location: {has_lesson_location}",
+                f"Suspend Data: {has_suspend_data}",
+                f"Progress: {has_progress}",
+                f"Time: {has_time}",
+                f"Score: {has_score}"
+            ]
+            
+            bookmark_data['can_resume'] = (
+                has_lesson_location or has_suspend_data or
+                has_progress or has_time or has_score or 
                 self.location or self.suspend_data
             )
+            
         else:
-            # Default fallback
+            # Default fallback for unknown package types
+            bookmark_data.update({
+                'lesson_location': self.raw_data.get('cmi.core.lesson_location', ''),
+                'suspend_data': self.raw_data.get('cmi.core.suspend_data', ''),
+                'entry': self.raw_data.get('cmi.core.entry', 'ab-initio'),
+                'exit': self.raw_data.get('cmi.core.exit', ''),
+                'launch_data': self.raw_data.get('cmi.core.launch_data', ''),
+            })
+            
             bookmark_data['can_resume'] = bool(
-                self.raw_data.get('cmi.core.lesson_location', '') or 
-                self.raw_data.get('cmi.core.suspend_data', '') or
+                bookmark_data['lesson_location'] or bookmark_data['suspend_data'] or
                 self.location or self.suspend_data
             )
+        
+        # Set common fields
+        bookmark_data['has_bookmark'] = bool(bookmark_data['lesson_location'])
+        bookmark_data['has_suspend_data'] = bool(bookmark_data['suspend_data'])
         
         return bookmark_data
     
@@ -1192,80 +1383,234 @@ class ELearningTracking(models.Model):
 
     def get_articulate_bookmark_data(self):
         """
-        Enhanced Articulate-specific bookmark data extraction.
-        Handles various Articulate package formats and bookmark structures.
+        ENHANCED: Articulate-specific bookmark data extraction with comprehensive support.
+        Handles Storyline, Rise, Presenter, Quizmaker, and Articulate 360 packages.
         """
+        articulate_bookmarks = {
+            'storyline': {},
+            'rise': {},
+            'presenter': {},
+            'quizmaker': {},
+            'generic': {},
+            'can_resume': False,
+            'package_type': 'Articulate',
+            'progress_indicators': []
+        }
+        
         try:
             if not self.raw_data:
-                return None
-            
-            # Check for Articulate-specific bookmark data
-            articulate_bookmarks = {}
-            
-            # Method 1: Check for Articulate Storyline bookmark data
-            if 'articulate.bookmark' in self.raw_data:
-                articulate_bookmarks['storyline'] = self.raw_data['articulate.bookmark']
-            
-            # Method 2: Check for Articulate Rise bookmark data
-            if 'articulate.rise.bookmark' in self.raw_data:
-                articulate_bookmarks['rise'] = self.raw_data['articulate.rise.bookmark']
-            
-            # Method 3: Check for Articulate Presenter bookmark data
-            if 'articulate.presenter.bookmark' in self.raw_data:
-                articulate_bookmarks['presenter'] = self.raw_data['articulate.presenter.bookmark']
-            
-            # Method 4: Check for Articulate Quizmaker bookmark data
-            if 'articulate.quizmaker.bookmark' in self.raw_data:
-                articulate_bookmarks['quizmaker'] = self.raw_data['articulate.quizmaker.bookmark']
-            
-            # Method 5: Check for generic Articulate bookmark data
-            if 'articulate.bookmark_data' in self.raw_data:
-                articulate_bookmarks['generic'] = self.raw_data['articulate.bookmark_data']
-            
-            # Method 6: Check for Articulate-specific suspend data
-            if 'articulate.suspend_data' in self.raw_data:
-                articulate_bookmarks['suspend'] = self.raw_data['articulate.suspend_data']
-            
-            # Method 7: Check for Articulate-specific lesson location
-            if 'articulate.lesson_location' in self.raw_data:
-                articulate_bookmarks['location'] = self.raw_data['articulate.lesson_location']
-            
-            # Method 8: Check for Articulate-specific progress data
-            if 'articulate.progress' in self.raw_data:
-                articulate_bookmarks['progress'] = self.raw_data['articulate.progress']
-            
-            # Method 9: Check for Articulate-specific navigation data
-            if 'articulate.navigation' in self.raw_data:
-                articulate_bookmarks['navigation'] = self.raw_data['articulate.navigation']
-            
-            # Method 10: Check for Articulate-specific state data
-            if 'articulate.state' in self.raw_data:
-                articulate_bookmarks['state'] = self.raw_data['articulate.state']
-            
-            # Return the most relevant bookmark data
-            if articulate_bookmarks:
                 return articulate_bookmarks
             
-            # Fallback: Check for standard SCORM bookmark data that might be Articulate-specific
-            standard_bookmarks = {}
+            # ENHANCED: Articulate Storyline bookmark detection
+            storyline_indicators = [
+                'articulate.bookmark',
+                'articulate.storyline.bookmark',
+                'articulate.storyline.slide',
+                'articulate.storyline.scene',
+                'articulate.storyline.state',
+                'articulate.storyline.progress'
+            ]
             
-            if 'cmi.core.lesson_location' in self.raw_data:
-                standard_bookmarks['lesson_location'] = self.raw_data['cmi.core.lesson_location']
+            for indicator in storyline_indicators:
+                if indicator in self.raw_data:
+                    articulate_bookmarks['storyline'][indicator] = self.raw_data[indicator]
             
-            if 'cmi.core.suspend_data' in self.raw_data:
-                standard_bookmarks['suspend_data'] = self.raw_data['cmi.core.suspend_data']
+            # ENHANCED: Articulate Rise bookmark detection
+            rise_indicators = [
+                'articulate.rise.bookmark',
+                'articulate.rise.lesson',
+                'articulate.rise.block',
+                'articulate.rise.progress',
+                'articulate.rise.state',
+                'articulate.rise.navigation'
+            ]
             
-            if 'cmi.core.entry' in self.raw_data:
-                standard_bookmarks['entry'] = self.raw_data['cmi.core.entry']
+            for indicator in rise_indicators:
+                if indicator in self.raw_data:
+                    articulate_bookmarks['rise'][indicator] = self.raw_data[indicator]
             
-            if 'cmi.core.exit' in self.raw_data:
-                standard_bookmarks['exit'] = self.raw_data['cmi.core.exit']
+            # ENHANCED: Articulate Presenter bookmark detection
+            presenter_indicators = [
+                'articulate.presenter.bookmark',
+                'articulate.presenter.slide',
+                'articulate.presenter.timeline',
+                'articulate.presenter.state',
+                'articulate.presenter.progress'
+            ]
             
-            return standard_bookmarks if standard_bookmarks else None
+            for indicator in presenter_indicators:
+                if indicator in self.raw_data:
+                    articulate_bookmarks['presenter'][indicator] = self.raw_data[indicator]
+            
+            # ENHANCED: Articulate Quizmaker bookmark detection
+            quizmaker_indicators = [
+                'articulate.quizmaker.bookmark',
+                'articulate.quizmaker.question',
+                'articulate.quizmaker.answer',
+                'articulate.quizmaker.state',
+                'articulate.quizmaker.progress'
+            ]
+            
+            for indicator in quizmaker_indicators:
+                if indicator in self.raw_data:
+                    articulate_bookmarks['quizmaker'][indicator] = self.raw_data[indicator]
+            
+            # ENHANCED: Generic Articulate bookmark detection
+            generic_indicators = [
+                'articulate.bookmark_data',
+                'articulate.suspend_data',
+                'articulate.lesson_location',
+                'articulate.progress',
+                'articulate.navigation',
+                'articulate.state',
+                'articulate.resume'
+            ]
+            
+            for indicator in generic_indicators:
+                if indicator in self.raw_data:
+                    articulate_bookmarks['generic'][indicator] = self.raw_data[indicator]
+            
+            # ENHANCED: Resume capability detection for Articulate packages
+            has_storyline_bookmark = bool(articulate_bookmarks['storyline'])
+            has_rise_bookmark = bool(articulate_bookmarks['rise'])
+            has_presenter_bookmark = bool(articulate_bookmarks['presenter'])
+            has_quizmaker_bookmark = bool(articulate_bookmarks['quizmaker'])
+            has_generic_bookmark = bool(articulate_bookmarks['generic'])
+            
+            # Check for standard SCORM fields that might be Articulate-specific
+            has_lesson_location = bool(self.raw_data.get('cmi.core.lesson_location', ''))
+            has_suspend_data = bool(self.raw_data.get('cmi.core.suspend_data', ''))
+            has_progress = self.completion_status not in ['not attempted', 'unknown']
+            has_time = self.total_time and self.total_time.total_seconds() > 0
+            has_score = self.score_raw is not None and self.score_raw > 0
+            
+            articulate_bookmarks['progress_indicators'] = [
+                f"Storyline Bookmark: {has_storyline_bookmark}",
+                f"Rise Bookmark: {has_rise_bookmark}",
+                f"Presenter Bookmark: {has_presenter_bookmark}",
+                f"Quizmaker Bookmark: {has_quizmaker_bookmark}",
+                f"Generic Bookmark: {has_generic_bookmark}",
+                f"Lesson Location: {has_lesson_location}",
+                f"Suspend Data: {has_suspend_data}",
+                f"Progress: {has_progress}",
+                f"Time: {has_time}",
+                f"Score: {has_score}"
+            ]
+            
+            # Determine if Articulate package can resume
+            articulate_bookmarks['can_resume'] = (
+                has_storyline_bookmark or has_rise_bookmark or 
+                has_presenter_bookmark or has_quizmaker_bookmark or
+                has_generic_bookmark or has_lesson_location or 
+                has_suspend_data or has_progress or has_time or 
+                has_score or self.location or self.suspend_data
+            )
+            
+            return articulate_bookmarks
             
         except Exception as e:
             logger.error(f"SCORM: Error extracting Articulate bookmark data: {str(e)}")
-            return None
+            return {
+                'storyline': {},
+                'rise': {},
+                'presenter': {},
+                'quizmaker': {},
+                'generic': {},
+                'can_resume': False,
+                'package_type': 'Articulate',
+                'progress_indicators': [f"Error: {str(e)}"]
+            }
+
+    def validate_data_size(self, data, package_type):
+        """
+        ENHANCED: Validate data size limits for different SCORM package types.
+        Prevents data truncation and ensures proper resume functionality.
+        """
+        try:
+            if not data:
+                return True, "No data to validate"
+            
+            data_size = len(str(data))
+            
+            if package_type == 'SCORM_1_2':
+                max_size = 4096  # 4KB limit for SCORM 1.2
+                if data_size > max_size:
+                    logger.warning(f"SCORM 1.2: Data size {data_size} exceeds limit of {max_size} bytes")
+                    return False, f"Data size {data_size} bytes exceeds SCORM 1.2 limit of {max_size} bytes"
+                    
+            elif package_type == 'SCORM_2004':
+                max_size = 64000  # 64KB limit for SCORM 2004
+                if data_size > max_size:
+                    logger.warning(f"SCORM 2004: Data size {data_size} exceeds limit of {max_size} bytes")
+                    return False, f"Data size {data_size} bytes exceeds SCORM 2004 limit of {max_size} bytes"
+                    
+            elif package_type in ['XAPI', 'CMI5']:
+                # xAPI and cmi5 have much larger limits (practically unlimited)
+                max_size = 1000000  # 1MB practical limit
+                if data_size > max_size:
+                    logger.warning(f"{package_type}: Data size {data_size} exceeds practical limit of {max_size} bytes")
+                    return False, f"Data size {data_size} bytes exceeds practical limit of {max_size} bytes"
+                    
+            else:
+                # Default fallback
+                max_size = 64000
+                if data_size > max_size:
+                    logger.warning(f"Unknown package type {package_type}: Data size {data_size} exceeds default limit of {max_size} bytes")
+                    return False, f"Data size {data_size} bytes exceeds default limit of {max_size} bytes"
+            
+            return True, f"Data size {data_size} bytes is within limits"
+            
+        except Exception as e:
+            logger.error(f"Error validating data size: {str(e)}")
+            return False, f"Error validating data size: {str(e)}"
+
+    def set_bookmark_with_validation(self, location, suspend_data=''):
+        """
+        ENHANCED: Set bookmark data with size validation for different package types.
+        Automatically handles data truncation if necessary.
+        """
+        try:
+            package_type = self.elearning_package.package_type
+            
+            # Validate location data
+            location_valid, location_msg = self.validate_data_size(location, package_type)
+            if not location_valid:
+                logger.warning(f"SCORM: Location data validation failed: {location_msg}")
+                # Truncate if necessary
+                if package_type == 'SCORM_1_2':
+                    location = location[:4000]  # Leave some buffer
+                elif package_type == 'SCORM_2004':
+                    location = location[:63000]  # Leave some buffer
+            
+            # Validate suspend data
+            suspend_valid, suspend_msg = self.validate_data_size(suspend_data, package_type)
+            if not suspend_valid:
+                logger.warning(f"SCORM: Suspend data validation failed: {suspend_msg}")
+                # Truncate if necessary
+                if package_type == 'SCORM_1_2':
+                    suspend_data = suspend_data[:4000]  # Leave some buffer
+                elif package_type == 'SCORM_2004':
+                    suspend_data = suspend_data[:63000]  # Leave some buffer
+            
+            # Set the bookmark data
+            self.raw_data['cmi.core.lesson_location'] = location
+            if suspend_data:
+                self.raw_data['cmi.core.suspend_data'] = suspend_data
+            self.raw_data['cmi.core.entry'] = 'resume'
+            
+            # Also update the location field for easier querying
+            self.location = location
+            if suspend_data:
+                self.suspend_data = suspend_data
+                
+            self.save()
+            logger.info(f"SCORM: Bookmark set for user {self.user.id} at location: {location} (validated for {package_type})")
+            
+            return True, "Bookmark set successfully"
+            
+        except Exception as e:
+            logger.error(f"SCORM: Error setting bookmark with validation: {str(e)}")
+            return False, f"Error setting bookmark: {str(e)}"
 
     def _find_articulate_launch_file(self):
         """

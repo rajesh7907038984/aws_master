@@ -18,7 +18,7 @@
 
 .form-input:focus {
     outline: none;
-    border-color: #191f56;
+    border-color: var(--brand-primary);
     box-shadow: 0 0 0 2px rgba(25, 31, 86, 0.5);
 }
 
@@ -57,8 +57,8 @@
 }
 
 .tab-btn.active {
-    color: #191f56;
-    border-bottom-color: #191f56;
+    color: var(--brand-primary);
+    border-bottom-color: var(--brand-primary);
 }
 
 /* Topic list styles */
@@ -71,7 +71,7 @@
 }
 
 .topic-item:hover {
-    border-color: #191f56;
+    border-color: var(--brand-primary);
     background-color: #f8fafc;
 }
 
@@ -85,7 +85,7 @@
 }
 
 .section-item:hover {
-    border-color: #191f56;
+    border-color: var(--brand-primary);
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
@@ -190,7 +190,7 @@
 }
 
 .btn-primary {
-    background-color: #191f56;
+    background-color: var(--brand-primary);
     color: white;
     border: none;
 }

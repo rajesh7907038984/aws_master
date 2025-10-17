@@ -43,7 +43,7 @@
     }
 
     .quiz-results-header {
-        background: linear-gradient(135deg, #191f56 0%, #141a4a 100%);
+        background: linear-gradient(135deg, var(--brand-primary) 0%, var(--brand-primary-hover) 100%);
         color: white;
         padding: 2rem;
         border-radius: 12px;
@@ -59,13 +59,13 @@
     }
 
     .attempt-history-card:hover {
-        border-color: #191f56;
+        border-color: var(--brand-primary);
         box-shadow: 0 4px 12px rgba(25, 31, 86, 0.15);
         transform: translateY(-2px);
     }
 
     .attempt-badge {
-        background: linear-gradient(135deg, #191f56, #141a4a);
+        background: linear-gradient(135deg, var(--brand-primary), var(--brand-primary-hover));
         color: white;
         padding: 0.5rem 1rem;
         border-radius: 20px;
@@ -79,7 +79,7 @@
     }
 
     .view-button {
-        background: linear-gradient(135deg, #191f56, #141a4a);
+        background: linear-gradient(135deg, var(--brand-primary), var(--brand-primary-hover));
         color: white;
         padding: 0.5rem 1rem;
         border-radius: 6px;
@@ -433,7 +433,7 @@
                     {% if can_attempt %}
                         <div class="mt-4">
                             <a href="{% url 'quiz:attempt_quiz' quiz.id %}" 
-                               class="inline-flex items-center px-4 py-2" style="background-color: #191f56; color: white; border-radius: 0.5rem; transition: all 0.2s ease;" onmouseover="this.style.backgroundColor='#141a4a'" onmouseout="this.style.backgroundColor='#191f56'">
+                               class="inline-flex items-center px-4 py-2" style="background-color: var(--brand-primary); color: white; border-radius: 0.5rem; transition: all 0.2s ease;" onmouseover="this.style.backgroundColor='#141a4a'" onmouseout="this.style.backgroundColor='var(--brand-primary)'">
                                 <i class="fas fa-play mr-2"></i>
                                 Start Quiz
                             </a>
@@ -458,7 +458,7 @@
                     {% if can_attempt %}
                         <div class="mt-6">
                             <a href="{% url 'quiz:attempt_quiz' quiz.id %}" 
-                               class="inline-flex items-center px-4 py-2" style="background-color: #191f56; color: white; border-radius: 0.5rem; transition: all 0.2s ease;" onmouseover="this.style.backgroundColor='#141a4a'" onmouseout="this.style.backgroundColor='#191f56'">
+                               class="inline-flex items-center px-4 py-2" style="background-color: var(--brand-primary); color: white; border-radius: 0.5rem; transition: all 0.2s ease;" onmouseover="this.style.backgroundColor='#141a4a'" onmouseout="this.style.backgroundColor='var(--brand-primary)'">
                                 <i class="fas fa-redo mr-2"></i>
                                 Retake Quiz
                             </a>

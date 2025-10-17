@@ -40,7 +40,7 @@
     .breadcrumb-icon {
         width: 2rem;
         height: 2rem;
-        background: #EBF3FE;
+        background: var(--brand-accent-light);
         border-radius: 50%;
         display: flex;
         align-items: center;
@@ -353,7 +353,7 @@ function unassignUser(userId) {
         form.method = 'POST';
         form.action = `/business/${businessId}/unassign-user/${userId}/`;
         
-        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        const csrfToken = getCSRFToken();
         const csrfInput = document.createElement('input');
         csrfInput.type = 'hidden';
         csrfInput.name = 'csrfmiddlewaretoken';
@@ -379,8 +379,8 @@ function confirmDeleteBusiness(businessId, businessName) {
         form.method = 'POST';
         form.action = `/business/${businessId}/delete/`;
         
-        // Add CSRF token
-        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        // Add CSRF token with fallback methods
+        const csrfToken = getCSRFToken();
         const csrfInput = document.createElement('input');
         csrfInput.type = 'hidden';
         csrfInput.name = 'csrfmiddlewaretoken';
@@ -390,6 +390,33 @@ function confirmDeleteBusiness(businessId, businessName) {
         document.body.appendChild(form);
         form.submit();
     }
+}
+
+// CSRF Token helper function with multiple fallback methods
+function getCSRFToken() {
+    // Method 1: Meta tag (preferred)
+    const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+    if (csrfMeta) {
+        return csrfMeta.getAttribute('content');
+    }
+    
+    // Method 2: Input field
+    const csrfInput = document.querySelector('input[name="csrfmiddlewaretoken"]');
+    if (csrfInput) {
+        return csrfInput.value;
+    }
+    
+    // Method 3: Cookie fallback
+    const cookies = document.cookie.split(';');
+    for (let cookie of cookies) {
+        const [name, value] = cookie.trim().split('=');
+        if (name === 'csrftoken') {
+            return value;
+        }
+    }
+    
+    console.error('CSRF token not found');
+    return '';
 }
 </script>
 {% endblock %} 

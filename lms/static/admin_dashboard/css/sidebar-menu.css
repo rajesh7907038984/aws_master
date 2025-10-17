@@ -16,7 +16,7 @@
 
 /* Active state - consistent with unified styling */
 #sidebar a.menu-item.active {
-    background-color: #191f56 !important;
+    background-color: var(--brand-primary) !important;
     color: white !important;
     font-weight: 600 !important;
 }

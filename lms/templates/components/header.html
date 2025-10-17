@@ -10,12 +10,12 @@
             
             <!-- Sidebar Toggle Button (works for both mobile and desktop) -->
             <button id="mobile-menu-toggle" 
-                    class="sidebar-toggle-btn" 
+                    class="btn btn-icon sidebar-toggle-btn" 
                     type="button"
                     aria-label="Toggle navigation menu"
                     aria-expanded="false"
                     aria-controls="mobile-menu"
-                    style="display: flex !important; visibility: visible !important; opacity: 1 !important;">
+                    style="display: flex !important; visibility: visible !important; opacity: 1 !important; min-width: 44px !important; min-height: 44px !important;">
                 <!-- Hamburger menu icon (three horizontal lines) -->
                 <svg class="hamburger-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
@@ -63,20 +63,22 @@
         <div class="flex items-center gap-1 sm:gap-2 md:gap-3 flex-shrink-0">
             <!-- Mobile Search Link (Visible on mobile only) -->
             <a href="{% url 'users:search' %}" 
-               class="md:hidden flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-full hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition-all flex-shrink-0"
+               class="btn btn-icon btn-ghost md:hidden"
                title="Search"
-               aria-label="Search">
-                <svg class="w-4 h-4 sm:w-4 sm:h-4" viewBox="0 0 20 20" fill="currentColor">
+               aria-label="Search"
+               style="display: flex !important; visibility: visible !important; opacity: 1 !important; min-width: 44px !important; min-height: 44px !important;">
+                <svg class="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
                     <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/>
                 </svg>
             </a>
 
             <!-- Messages Button - Hidden on smallest screens -->
             <a href="{% url 'lms_messages:messages' %}" 
-               class="header-icon discussion-icon hidden xs:flex relative items-center justify-center w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-full hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition-all flex-shrink-0" 
+               class="btn btn-icon btn-ghost header-icon discussion-icon hidden xs:flex relative" 
                title="Messages ({{ unread_messages_count|default:0 }} unread)"
                aria-label="Messages ({{ unread_messages_count|default:0 }} unread)"
-               role="button">
+               role="button"
+               style="display: flex !important; visibility: visible !important; opacity: 1 !important; min-width: 44px !important; min-height: 44px !important;">
                 <svg class="w-4 h-4 sm:w-4 sm:h-4 md:w-5 md:h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                 </svg>
@@ -92,10 +94,11 @@
 
             <!-- Notification Bell Button -->
             <a href="{% url 'lms_notifications:notification_center' %}" 
-               class="header-icon notification-icon relative flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-full hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition-all flex-shrink-0" 
+               class="btn btn-icon btn-ghost header-icon notification-icon relative" 
                title="Notifications ({{ unread_notifications_count|default:0 }} unread{% if urgent_notifications_count and urgent_notifications_count > 0 %}, {{ urgent_notifications_count }} urgent{% endif %})"
                aria-label="Notifications ({{ unread_notifications_count|default:0 }} unread{% if urgent_notifications_count and urgent_notifications_count > 0 %}, {{ urgent_notifications_count }} urgent{% endif %})"
-               role="button">
+               role="button"
+               style="display: flex !important; visibility: visible !important; opacity: 1 !important; min-width: 44px !important; min-height: 44px !important;">
                 <svg class="w-4 h-4 sm:w-4 sm:h-4 md:w-5 md:h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
                 </svg>
@@ -114,8 +117,8 @@
             <!-- Profile Picture with Dropdown -->
             <div class="flex items-center relative flex-shrink-0" id="profile-container">
                 <button 
-                    class="relative flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-full hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition-all overflow-hidden flex-shrink-0"
-                    style="z-index: 60; -webkit-tap-highlight-color: transparent; touch-action: manipulation;"
+                    class="btn btn-icon btn-ghost relative overflow-hidden"
+                    style="z-index: 60; -webkit-tap-highlight-color: transparent; touch-action: manipulation; display: flex !important; visibility: visible !important; opacity: 1 !important; min-width: 44px !important; min-height: 44px !important;"
                     aria-label="Profile menu"
                     id="profile-button"
                     type="button"
@@ -238,7 +241,7 @@
     
     <!-- Menu Content -->
     <div class="absolute top-0 left-0 w-64 h-full bg-primary shadow-lg transform transition-all duration-300 ease-in-out">
-        <div class="flex items-center justify-between p-4 border-b border-gray-200" style="background-color: #191f56;">
+        <div class="flex items-center justify-between p-4 border-b border-gray-200" style="background-color: var(--brand-primary);">
             <a href="{% url 'users:role_based_redirect' %}" class="flex items-center">
                 <img src="{% static 'img/logo-dark.png' %}" alt="Nexsy LMS" class="h-8" style="display: block !important; visibility: visible !important; opacity: 1 !important;">
             </a>
@@ -353,7 +356,7 @@
         left: 0 !important;
         width: 16rem !important;
         height: 100% !important;
-        background: #1C2260 !important;
+        background: var(--brand-primary) !important;
         z-index: 51 !important;
         transform: translateX(0) !important;
     }
@@ -365,7 +368,7 @@
 
     /* Mobile menu styles to match sidebar */
     #mobile-menu .py-4 {
-        background-color: #1C2260 !important;
+        background-color: var(--brand-primary) !important;
     }
 
     #mobile-menu .menu-item {
@@ -427,7 +430,7 @@
     /* Active state - dark blue background with white text and icons */
     #mobile-menu a.menu-item.active,
     #mobile-menu button.menu-item.active {
-        background-color: #050c50 !important;
+        background-color: var(--brand-primary-hover) !important;
         color: white !important;
         border-radius: 0 !important;
         border-left: 4px solid #02f711 !important;
@@ -436,7 +439,7 @@
     /* Hover state - dark blue background with white text and icons */
     #mobile-menu a.menu-item:hover,
     #mobile-menu button.menu-item:hover {
-        background-color: #050c50 !important;
+        background-color: var(--brand-primary-hover) !important;
         color: white !important;
         border-radius: 0 !important;
         border-left: 4px solid #02f711 !important;
@@ -504,7 +507,7 @@
 
     #mobile-menu .submenu a.menu-item:hover,
     #mobile-menu .submenu button.menu-item:hover {
-        background-color: #050c50 !important;
+        background-color: var(--brand-primary-hover) !important;
         opacity: 1;
         color: white !important;
     }
@@ -574,7 +577,7 @@
 
     #mobile-menu .submenu .menu-item.active {
         border-left: 3px solid #02f711 !important;
-        background-color: #050c50 !important;
+        background-color: var(--brand-primary-hover) !important;
     }
 
     /* Ensure mobile submenu icons are properly sized */
@@ -1455,7 +1458,7 @@ document.addEventListener('DOMContentLoaded', function() {
             return fetch(url, {
                 method: 'GET',
                 headers: {
-                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || '',
+                    'X-CSRFToken': getCSRFToken(),
                     'Content-Type': 'application/json',
                 },
                 credentials: 'same-origin',
@@ -2039,4 +2042,31 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 250);
     });
 });
+
+// CSRF Token helper function with multiple fallback methods
+function getCSRFToken() {
+    // Method 1: Meta tag (preferred)
+    const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+    if (csrfMeta) {
+        return csrfMeta.getAttribute('content');
+    }
+    
+    // Method 2: Input field
+    const csrfInput = document.querySelector('input[name="csrfmiddlewaretoken"]');
+    if (csrfInput) {
+        return csrfInput.value;
+    }
+    
+    // Method 3: Cookie fallback
+    const cookies = document.cookie.split(';');
+    for (let cookie of cookies) {
+        const [name, value] = cookie.trim().split('=');
+        if (name === 'csrftoken') {
+            return value;
+        }
+    }
+    
+    console.error('CSRF token not found');
+    return '';
+}
 </script> 

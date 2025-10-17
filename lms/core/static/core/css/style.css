@@ -145,7 +145,7 @@ header button img.h-5 {
 button[type="submit"],
 .filters-button,
 .new-report-button {
-    background-color: #050c50 !important;
+    background-color: var(--brand-primary) !important;
     color: white !important;
     border: none;
     padding: 0.5rem 1rem;
@@ -171,7 +171,7 @@ button[type="submit"],
 button[type="submit"]:hover,
 .filters-button:hover,
 .new-report-button:hover {
-    background-color: #02071e !important;
+    background-color: var(--brand-primary-hover) !important;
     transform: translateY(-1px);
     box-shadow: 0 4px 6px rgba(5, 12, 80, 0.2);
     color: white !important;
@@ -200,7 +200,7 @@ button:disabled,
 
 .card:hover, .box:hover {
     background-color: white;
-    border-color: #4262FF;
+    border-color: var(--brand-primary-light);
     box-shadow: 0 4px 6px rgba(79, 70, 229, 0.1);
     transform: translateY(-1px);
 }
@@ -217,7 +217,7 @@ button:disabled,
 
 .quick-action:hover {
     background-color: white;
-    border-color: #4262FF;
+    border-color: var(--brand-primary-light);
     box-shadow: 0 4px 6px rgba(79, 70, 229, 0.1);
     transform: translateY(-2px);
 }
@@ -233,7 +233,7 @@ button:disabled,
 
 .stats-card:hover {
     background-color: white;
-    border-color: #4262FF;
+    border-color: var(--brand-primary-light);
     box-shadow: 0 4px 6px rgba(79, 70, 229, 0.1);
 }
 
@@ -276,7 +276,7 @@ input, textarea, select {
 }
 
 input:focus, textarea:focus, select:focus {
-    border-color: #4262FF;
+    border-color: var(--brand-primary-light);
     box-shadow: 0 0 0 3px rgba(66, 98, 255, 0.1);
     outline: none;
 }
@@ -298,7 +298,7 @@ header {
 }
 
 .search-input:focus {
-    border-color: #4262FF;
+    border-color: var(--brand-primary-light);
     box-shadow: 0 0 0 3px rgba(66, 98, 255, 0.1);
 }
 

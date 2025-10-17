@@ -186,6 +186,9 @@ AWS_S3_VERIFY = True
 DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
 MEDIA_URL = f'https://{AWS_STORAGE_BUCKET_NAME}.s3.{AWS_S3_REGION_NAME}.amazonaws.com/media/'
 
+# SCORM-specific S3 configuration
+SCORM_MEDIA_URL = f'https://{AWS_STORAGE_BUCKET_NAME}.s3.{AWS_S3_REGION_NAME}.amazonaws.com/elearning/'
+
 # Security settings for S3 media files
 FILE_UPLOAD_PERMISSIONS = 0o644  # Readable by owner and group, writable by owner
 FILE_UPLOAD_DIRECTORY_PERMISSIONS = 0o755  # Readable and executable by all, writable by owner

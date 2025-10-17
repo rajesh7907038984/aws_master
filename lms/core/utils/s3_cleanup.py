@@ -319,7 +319,7 @@ class S3CleanupManager:
                                     # Look for files that might be associated with this topic
                                     if (f"topic_{topic_id}" in key or 
                                         f"/{topic_id}/" in key or 
-                                        key.endswith(f"/{topic_id}") or
+                                        key.endswith(f"/{topic_id}")):
                                         logger.info(f"Found potential topic-related file: {key}")
                                         result = self.delete_file(key)
                                         all_results[key] = result
@@ -351,28 +351,12 @@ class S3CleanupManager:
             # This catches cases where the file was uploaded with a different name format
             if '/' in package_file_path:
                 base_filename = package_file_path.split('/')[-1]
+                alt_path = f"elearning/packages/{base_filename}"
                 alt_result = self.delete_file(alt_path)
                 all_results[alt_path] = alt_result
-                
-                alt_result = self.delete_file(alt_path)
-                all_results[alt_path] = alt_result
-        
-            # Primary directories
-            
-            # Alternate formats that might exist
-            
-            # Legacy formats
-        ]
-        
-        if topic_id:
-                # Primary topic directories
-                
-                # Alternate formats
-                
-                # Combined formats
-            ])
         
         # 4. Clean up each directory
+        for directory in topic_directories:
             results = self.delete_directory_contents(directory)
             all_results.update(results)
         
@@ -502,6 +486,174 @@ class S3CleanupManager:
             logger.error(f"Error cleaning up content file {content_file_path}: {str(e)}")
             return False
 
+    def cleanup_certificate_files(self, certificate_id: int) -> Dict[str, bool]:
+        """
+        Clean up all files associated with a certificate template
+        
+        Args:
+            certificate_id: ID of the certificate template whose files should be deleted
+            
+        Returns:
+            Dict mapping file paths to deletion success status
+        """
+        logger.info(f"Starting S3 cleanup for certificate template {certificate_id}")
+        
+        # Define certificate-specific directories to clean up
+        certificate_directories = [
+            f"media/certificate_templates/{certificate_id}",
+            f"certificate_templates/{certificate_id}",
+            f"certificate_files/{certificate_id}"
+        ]
+        
+        all_results = {}
+        
+        for directory in certificate_directories:
+            results = self.delete_directory_contents(directory)
+            all_results.update(results)
+        
+        logger.info(f"Completed S3 cleanup for certificate template {certificate_id}")
+        return all_results
+
+    def cleanup_issued_certificate_files(self, issued_certificate_id: int) -> Dict[str, bool]:
+        """
+        Clean up all files associated with an issued certificate
+        
+        Args:
+            issued_certificate_id: ID of the issued certificate whose files should be deleted
+            
+        Returns:
+            Dict mapping file paths to deletion success status
+        """
+        logger.info(f"Starting S3 cleanup for issued certificate {issued_certificate_id}")
+        
+        # Define issued certificate-specific directories to clean up
+        issued_certificate_directories = [
+            f"media/issued_certificates/{issued_certificate_id}",
+            f"issued_certificates/{issued_certificate_id}",
+            f"certificate_files/issued/{issued_certificate_id}"
+        ]
+        
+        all_results = {}
+        
+        for directory in issued_certificate_directories:
+            results = self.delete_directory_contents(directory)
+            all_results.update(results)
+        
+        logger.info(f"Completed S3 cleanup for issued certificate {issued_certificate_id}")
+        return all_results
+
+    def cleanup_discussion_files(self, attachment_id: int) -> Dict[str, bool]:
+        """
+        Clean up all files associated with a discussion attachment
+        
+        Args:
+            attachment_id: ID of the discussion attachment whose files should be deleted
+            
+        Returns:
+            Dict mapping file paths to deletion success status
+        """
+        logger.info(f"Starting S3 cleanup for discussion attachment {attachment_id}")
+        
+        # Define discussion-specific directories to clean up
+        discussion_directories = [
+            f"media/discussions/attachments/{attachment_id}",
+            f"discussions/attachments/{attachment_id}",
+            f"discussion_files/{attachment_id}"
+        ]
+        
+        all_results = {}
+        
+        for directory in discussion_directories:
+            results = self.delete_directory_contents(directory)
+            all_results.update(results)
+        
+        logger.info(f"Completed S3 cleanup for discussion attachment {attachment_id}")
+        return all_results
+
+    def cleanup_report_files(self, report_id: int) -> Dict[str, bool]:
+        """
+        Clean up all files associated with a report attachment
+        
+        Args:
+            report_id: ID of the report attachment whose files should be deleted
+            
+        Returns:
+            Dict mapping file paths to deletion success status
+        """
+        logger.info(f"Starting S3 cleanup for report attachment {report_id}")
+        
+        # Define report-specific directories to clean up
+        report_directories = [
+            f"media/report_attachments/{report_id}",
+            f"report_attachments/{report_id}",
+            f"report_files/{report_id}"
+        ]
+        
+        all_results = {}
+        
+        for directory in report_directories:
+            results = self.delete_directory_contents(directory)
+            all_results.update(results)
+        
+        logger.info(f"Completed S3 cleanup for report attachment {report_id}")
+        return all_results
+
+    def cleanup_message_files(self, message_id: int) -> Dict[str, bool]:
+        """
+        Clean up all files associated with a message attachment
+        
+        Args:
+            message_id: ID of the message attachment whose files should be deleted
+            
+        Returns:
+            Dict mapping file paths to deletion success status
+        """
+        logger.info(f"Starting S3 cleanup for message attachment {message_id}")
+        
+        # Define message-specific directories to clean up
+        message_directories = [
+            f"media/message_attachments/{message_id}",
+            f"message_attachments/{message_id}",
+            f"message_files/{message_id}"
+        ]
+        
+        all_results = {}
+        
+        for directory in message_directories:
+            results = self.delete_directory_contents(directory)
+            all_results.update(results)
+        
+        logger.info(f"Completed S3 cleanup for message attachment {message_id}")
+        return all_results
+
+    def cleanup_conference_files(self, conference_id: int) -> Dict[str, bool]:
+        """
+        Clean up all files associated with a conference file
+        
+        Args:
+            conference_id: ID of the conference file whose files should be deleted
+            
+        Returns:
+            Dict mapping file paths to deletion success status
+        """
+        logger.info(f"Starting S3 cleanup for conference file {conference_id}")
+        
+        # Define conference-specific directories to clean up
+        conference_directories = [
+            f"media/conference_files/{conference_id}",
+            f"conference_files/{conference_id}",
+            f"conference_media/{conference_id}"
+        ]
+        
+        all_results = {}
+        
+        for directory in conference_directories:
+            results = self.delete_directory_contents(directory)
+            all_results.update(results)
+        
+        logger.info(f"Completed S3 cleanup for conference file {conference_id}")
+        return all_results
+
 # Global instance for easy access
 s3_cleanup = S3CleanupManager()
 
@@ -564,6 +716,78 @@ def cleanup_topic_s3_files(topic_id: int) -> Dict[str, bool]:
         Dict mapping file paths to deletion success status
     """
     return s3_cleanup.cleanup_topic_files(topic_id)
+
+def cleanup_certificate_s3_files(certificate_id: int) -> Dict[str, bool]:
+    """
+    Convenience function to clean up all files associated with a certificate template
+    
+    Args:
+        certificate_id: ID of the certificate template whose files should be deleted
+        
+    Returns:
+        Dict mapping file paths to deletion success status
+    """
+    return s3_cleanup.cleanup_certificate_files(certificate_id)
+
+def cleanup_issued_certificate_s3_files(issued_certificate_id: int) -> Dict[str, bool]:
+    """
+    Convenience function to clean up all files associated with an issued certificate
+    
+    Args:
+        issued_certificate_id: ID of the issued certificate whose files should be deleted
+        
+    Returns:
+        Dict mapping file paths to deletion success status
+    """
+    return s3_cleanup.cleanup_issued_certificate_files(issued_certificate_id)
+
+def cleanup_discussion_s3_files(attachment_id: int) -> Dict[str, bool]:
+    """
+    Convenience function to clean up all files associated with a discussion attachment
+    
+    Args:
+        attachment_id: ID of the discussion attachment whose files should be deleted
+        
+    Returns:
+        Dict mapping file paths to deletion success status
+    """
+    return s3_cleanup.cleanup_discussion_files(attachment_id)
+
+def cleanup_report_s3_files(report_id: int) -> Dict[str, bool]:
+    """
+    Convenience function to clean up all files associated with a report attachment
+    
+    Args:
+        report_id: ID of the report attachment whose files should be deleted
+        
+    Returns:
+        Dict mapping file paths to deletion success status
+    """
+    return s3_cleanup.cleanup_report_files(report_id)
+
+def cleanup_message_s3_files(message_id: int) -> Dict[str, bool]:
+    """
+    Convenience function to clean up all files associated with a message attachment
+    
+    Args:
+        message_id: ID of the message attachment whose files should be deleted
+        
+    Returns:
+        Dict mapping file paths to deletion success status
+    """
+    return s3_cleanup.cleanup_message_files(message_id)
+
+def cleanup_conference_s3_files(conference_id: int) -> Dict[str, bool]:
+    """
+    Convenience function to clean up all files associated with a conference file
+    
+    Args:
+        conference_id: ID of the conference file whose files should be deleted
+        
+    Returns:
+        Dict mapping file paths to deletion success status
+    """
+    return s3_cleanup.cleanup_conference_files(conference_id)
 
     """
     
