@@ -660,7 +660,6 @@ def get_or_assign_branch_for_global_admin(request):
 @login_required
 def user_list(request):
     """Display list of users based on permissions."""
-    from core.utils.performance_monitor import monitor_performance
     
     user = request.user
     

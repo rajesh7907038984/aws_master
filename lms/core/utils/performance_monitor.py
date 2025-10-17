@@ -1,132 +1,117 @@
 """
-Performance Monitoring Utility for LMS
-=====================================
-
-This module provides performance monitoring and optimization tools
-for database queries, memory usage, and response times.
+Performance Monitor Utility
+Provides system performance monitoring and metrics collection
 """
 
 import time
 import psutil
-import logging
-from functools import wraps
 from django.conf import settings
-from django.db import connection
 from django.core.cache import cache
+from django.db import connection
 from django.utils import timezone
-from typing import Dict, Any, Optional
 
-logger = logging.getLogger(__name__)
 
-class PerformanceMonitor:
-    """Monitor and optimize system performance"""
-    
-    def __init__(self):
-        self.metrics = {
-            'query_count': 0,
-            'query_time': 0,
-            'memory_usage': 0,
-            'response_times': []
+def get_performance_stats():
+    """
+    Get current system performance statistics
+    """
+    try:
+        # Basic system metrics
+        cpu_percent = psutil.cpu_percent(interval=1)
+        memory = psutil.virtual_memory()
+        disk = psutil.disk_usage('/')
+        
+        # Database connection count
+        db_connections = len(connection.queries) if hasattr(connection, 'queries') else 0
+        
+        # Cache status
+        cache_status = 'connected'
+        try:
+            cache.get('test_key')
+        except Exception:
+            cache_status = 'disconnected'
+        
+        return {
+            'timestamp': timezone.now().isoformat(),
+            'cpu_percent': cpu_percent,
+            'memory': {
+                'total': memory.total,
+                'available': memory.available,
+                'percent': memory.percent,
+                'used': memory.used
+            },
+            'disk': {
+                'total': disk.total,
+                'used': disk.used,
+                'free': disk.free,
+                'percent': (disk.used / disk.total) * 100
+            },
+            'database': {
+                'connections': db_connections,
+                'status': 'connected'
+            },
+            'cache': {
+                'status': cache_status
+            }
         }
-    
-    def get_memory_usage(self) -> float:
-        """Get current memory usage in MB"""
-        process = psutil.Process()
-        return process.memory_info().rss / 1024 / 1024
-    
-    def get_query_count(self) -> int:
-        """Get current database query count"""
-        return len(connection.queries)
-    
-    def get_query_time(self) -> float:
-        """Get total query execution time"""
-        return sum(float(query['time']) for query in connection.queries)
-    
-    def log_performance_metrics(self, view_name: str, response_time: float):
-        """Log performance metrics for a view"""
-        memory_usage = self.get_memory_usage()
-        query_count = self.get_query_count()
-        query_time = self.get_query_time()
-        
-        metrics = {
-            'view': view_name,
-            'response_time': response_time,
-            'memory_mb': memory_usage,
-            'query_count': query_count,
-            'query_time': query_time,
-            'timestamp': timezone.now().isoformat()
+    except Exception as e:
+        return {
+            'timestamp': timezone.now().isoformat(),
+            'error': str(e),
+            'status': 'error'
         }
-        
-        # Log slow queries
-        if query_time > 1.0:  # More than 1 second
-            logger.warning(f"Slow query detected in {view_name}: {query_time:.2f}s")
-        
-        # Log high memory usage
-        if memory_usage > 500:  # More than 500MB
-            logger.warning(f"High memory usage in {view_name}: {memory_usage:.2f}MB")
-        
-        # Store metrics in cache for dashboard
-        cache_key = f"performance_metrics_{view_name}"
-        cache.set(cache_key, metrics, 300)  # 5 minutes
-        
-        return metrics
-
-def monitor_performance(view_name: str = None):
-    """Decorator to monitor view performance"""
-    def decorator(func):
-        @wraps(func)
-        def wrapper(request, *args, **kwargs):
-            start_time = time.time()
-            start_memory = psutil.Process().memory_info().rss / 1024 / 1024
-            start_queries = len(connection.queries)
-            
-            try:
-                response = func(request, *args, **kwargs)
-                return response
-            finally:
-                end_time = time.time()
-                end_memory = psutil.Process().memory_info().rss / 1024 / 1024
-                end_queries = len(connection.queries)
-                
-                response_time = end_time - start_time
-                memory_delta = end_memory - start_memory
-                query_count = end_queries - start_queries
-                
-                # Log performance metrics
-                monitor = PerformanceMonitor()
-                monitor.log_performance_metrics(
-                    view_name or func.__name__, 
-                    response_time
-                )
-                
-                # Log if performance is poor
-                if response_time > 2.0:  # More than 2 seconds
-                    logger.warning(
-                        f"Slow response in {view_name or func.__name__}: "
-                        f"{response_time:.2f}s, {query_count} queries, "
-                        f"{memory_delta:.2f}MB memory"
-                    )
-        
-        return wrapper
-    return decorator
 
 
-def get_performance_stats() -> Dict[str, Any]:
-    """Get current performance statistics"""
-    monitor = PerformanceMonitor()
-    
-    return {
-        'memory_usage_mb': monitor.get_memory_usage(),
-        'query_count': monitor.get_query_count(),
-        'query_time': monitor.get_query_time(),
-        'cpu_percent': psutil.cpu_percent(),
-        'disk_usage': psutil.disk_usage('/').percent,
-        'timestamp': timezone.now().isoformat()
-    }
-
-def clear_performance_cache():
-    """Clear performance-related cache"""
-    cache.delete_many([
-        key for key in cache._cache.keys() 
-        if key.startswith('performance_metrics_')
-    ])
+def get_system_health():
+    """
+    Get overall system health status
+    """
+    try:
+        stats = get_performance_stats()
+        
+        # Determine health status based on metrics
+        health_score = 100
+        
+        # CPU usage penalty
+        if stats.get('cpu_percent', 0) > 80:
+            health_score -= 20
+        elif stats.get('cpu_percent', 0) > 60:
+            health_score -= 10
+        
+        # Memory usage penalty
+        memory_percent = stats.get('memory', {}).get('percent', 0)
+        if memory_percent > 90:
+            health_score -= 30
+        elif memory_percent > 80:
+            health_score -= 15
+        
+        # Disk usage penalty
+        disk_percent = stats.get('disk', {}).get('percent', 0)
+        if disk_percent > 90:
+            health_score -= 25
+        elif disk_percent > 80:
+            health_score -= 10
+        
+        # Determine status
+        if health_score >= 90:
+            status = 'excellent'
+        elif health_score >= 70:
+            status = 'good'
+        elif health_score >= 50:
+            status = 'fair'
+        else:
+            status = 'poor'
+        
+        return {
+            'status': status,
+            'score': max(0, health_score),
+            'timestamp': timezone.now().isoformat(),
+            'metrics': stats
+        }
+    except Exception as e:
+        return {
+            'status': 'error',
+            'score': 0,
+            'timestamp': timezone.now().isoformat(),
+            'error': str(e)
+        }

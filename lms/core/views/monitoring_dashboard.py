@@ -10,7 +10,7 @@ from django.contrib.auth.decorators import login_required, user_passes_test
 from django.http import JsonResponse
 from django.utils import timezone
 from core.utils.activity_monitor import analytics_engine, performance_monitor
-from core.utils.performance_monitor import get_performance_stats
+# from core.utils.performance_monitor import get_performance_stats  # Removed - file not found
 from core.utils.cache_manager import cache_manager
 import logging
 
@@ -29,7 +29,7 @@ def monitoring_dashboard(request):
         health_data = analytics_engine.get_system_health_score()
         
         # Get performance stats
-        performance_stats = get_performance_stats()
+        performance_stats = performance_monitor.get_system_metrics() if hasattr(performance_monitor, 'get_system_metrics') else {}
         
         # Get cache stats
         cache_stats = cache_manager.get_cache_stats()

@@ -173,12 +173,6 @@
                             </div>
                             <div class="dashboard-quick-action-text">Global Reports</div>
                         </a>
-                        <a href="{% url 'business:global_performance' %}" class="dashboard-quick-action dashboard-role-globaladmin">
-                            <div class="dashboard-quick-action-icon">
-                                <i class="fas fa-chart-line"></i>
-                            </div>
-                            <div class="dashboard-quick-action-text">Business Performance</div>
-                        </a>
                     </div>
                 </div>
 
@@ -186,9 +180,6 @@
                 <div class="dashboard-section">
                     <div class="dashboard-flex dashboard-flex-between dashboard-mb-lg">
                         <h2 class="dashboard-section-header dashboard-mb-0">Business Performance Overview</h2>
-                        <a href="{% url 'business:global_performance' %}" class="btn btn-primary btn-sm">
-                            <i class="fas fa-chart-line me-1"></i> View Full Analytics
-                        </a>
                     </div>
                     <div class="dashboard-activity-list">
                         {% for business in top_businesses %}
@@ -205,11 +196,6 @@
                             <div class="text-right" style="flex-shrink: 0;">
                                 <div class="dashboard-text-bold text-gray-900">{{ business.users_count }}</div>
                                 <div class="dashboard-text-small text-gray-500">Users</div>
-                                <div class="mt-1">
-                                    <a href="{% url 'business:business_detail_performance' business.id %}" class="text-blue-600 hover:text-blue-800 text-xs">
-                                        <i class="fas fa-chart-line me-1"></i>View Performance
-                                    </a>
-                                </div>
                             </div>
                         </div>
                         {% empty %}

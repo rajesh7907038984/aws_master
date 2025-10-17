@@ -119,7 +119,6 @@
                     aria-label="Profile menu"
                     id="profile-button"
                     type="button"
-                    onclick="toggleProfileDropdown()"
                 >
                     {% if user.profile_image %}
                     <img src="{{ user.profile_image.url }}" alt="{{ user.username }}" class="w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-full object-cover">
@@ -930,13 +929,9 @@
 <script>
 // Define global functions immediately - before DOMContentLoaded
 window.toggleProfileDropdown = function() {
-    console.log('Global toggleProfileDropdown called');
     const dropdown = document.getElementById('profile-dropdown');
     if (dropdown) {
         dropdown.classList.toggle('hidden');
-        console.log('Dropdown toggled, classes:', dropdown.className);
-    } else {
-        console.log('Profile dropdown not found');
     }
 };
 
@@ -1773,14 +1768,13 @@ document.addEventListener('DOMContentLoaded', function() {
     window.addEventListener('beforeunload', cleanupPolling);
     window.addEventListener('pagehide', cleanupPolling);
     
-    // Profile dropdown functionality - Consolidated and fixed
+    // Profile dropdown functionality - Simplified and fixed
     function initializeProfileDropdown() {
         const profileButton = document.getElementById('profile-button');
         const profileDropdown = document.getElementById('profile-dropdown');
         const profileContainer = document.getElementById('profile-container');
         
         if (!profileButton || !profileDropdown || !profileContainer) {
-            console.log('Profile dropdown elements not found');
             return;
         }
         
@@ -1811,40 +1805,26 @@ document.addEventListener('DOMContentLoaded', function() {
             profileDropdown.classList.add('hidden');
         }
         
-        // Unified click handler
-        function handleProfileClick(e) {
+        // Profile button click handler
+        profileButton.addEventListener('click', function(e) {
             e.preventDefault();
             e.stopPropagation();
             toggleProfileDropdown();
-        }
+        });
         
-        // Remove any existing event listeners to prevent conflicts
-        profileButton.removeEventListener('click', handleProfileClick);
-        
-        // Add click event listener
-        profileButton.addEventListener('click', handleProfileClick);
-        
-        // Close dropdown when clicking outside - Enhanced with proper event handling
-        function handleOutsideClick(e) {
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(e) {
             if (isProfileOpen && !profileContainer.contains(e.target)) {
                 closeProfileDropdown();
             }
-        }
+        });
         
         // Close dropdown on escape key
-        function handleEscapeKey(e) {
+        document.addEventListener('keydown', function(e) {
             if (e.key === 'Escape' && isProfileOpen) {
                 closeProfileDropdown();
             }
-        }
-        
-        // Remove existing event listeners to prevent duplicates
-        document.removeEventListener('click', handleOutsideClick, true);
-        document.removeEventListener('keydown', handleEscapeKey);
-        
-        // Add event listeners with proper cleanup
-        document.addEventListener('click', handleOutsideClick, true);
-        document.addEventListener('keydown', handleEscapeKey);
+        });
         
         // Mark as initialized
         profileButton.setAttribute('data-initialized', 'true');
@@ -1852,23 +1832,16 @@ document.addEventListener('DOMContentLoaded', function() {
         // Make functions globally available
         window.toggleProfileDropdown = toggleProfileDropdown;
         window.closeProfileDropdown = closeProfileDropdown;
-        
-        console.log('Profile dropdown initialized successfully');
     }
     
-    // Initialize profile dropdown with debugging
-    console.log('Attempting to initialize profile dropdown...');
-    
+    // Initialize profile dropdown
     function tryInitialize() {
-        console.log('Trying to initialize profile dropdown...');
         initializeProfileDropdown();
     }
     
     if (document.readyState === 'loading') {
-        console.log('Document still loading, adding DOMContentLoaded listener');
         document.addEventListener('DOMContentLoaded', tryInitialize);
     } else {
-        console.log('Document already loaded, initializing immediately');
         tryInitialize();
     }
     

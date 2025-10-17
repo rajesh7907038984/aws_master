@@ -391,7 +391,6 @@ def get_course_context(request, user, course):
 @require_capability('view_courses')
 def course_list(request):
     """Display list of courses based on user role and group access."""
-    from core.utils.performance_monitor import monitor_performance
     
     user = request.user
     
@@ -536,7 +535,7 @@ def course_list(request):
     # OPTIMIZATION: Add prefetch_related for enrollments to prevent N+1 queries
     from django.db.models import Prefetch
     
-    # Get courses with basic optimization (temporarily disable optimize_queryset)
+    # Get courses with basic optimization
     courses = Course.objects.filter(id__in=course_ids).select_related(
         'instructor',
         'branch',
@@ -682,11 +681,7 @@ def course_list(request):
     # Get categories for the filter dropdown with role-based filtering
     categories = get_user_accessible_categories(request.user)
     
-    # Add optimized pagination
-    from core.utils.optimized_pagination import OptimizedPaginator, optimize_queryset_for_pagination
-    
-    # Optimize queryset for pagination
-    courses = optimize_queryset_for_pagination(courses, max_results=1000)
+    # Add pagination
     
     # Log first few courses to verify titles (after all queryset operations)
     # Note: Don't slice the queryset here as it causes order_by issues later
@@ -702,16 +697,12 @@ def course_list(request):
     except Exception as e:
         logger.warning(f"Error logging courses: {e}")
     
-    # Create optimized paginator
-    paginator = OptimizedPaginator(
-        queryset=courses,
-        per_page=12,  # Show 12 courses per page
-        cache_key_prefix='course_list',
-        enable_caching=True
-    )
+    # Create paginator
+    from django.core.paginator import Paginator
+    paginator = Paginator(courses, 12)  # Show 12 courses per page
     
     page_number = request.GET.get('page', 1)
-    page_obj = paginator.get_page(page_number, request)
+    page_obj = paginator.get_page(page_number)
     
     logger.info(f"Displaying page {page_obj.number} of {page_obj.paginator.num_pages} pages")
 
