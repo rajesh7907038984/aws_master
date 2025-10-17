@@ -12,7 +12,7 @@ from typing import Dict, List, Optional, Any, Tuple
 from django.utils import timezone
 from django.db import transaction
 from django.contrib.auth import get_user_model
-from django.core.cache import cache
+# Cache import removed - cache functionality disabled
 
 from .sharepoint_api import SharePointAPI, SharePointAPIError
 from account_settings.models import SharePointIntegration

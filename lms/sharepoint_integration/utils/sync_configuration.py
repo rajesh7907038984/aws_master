@@ -9,7 +9,7 @@ import logging
 import json
 from typing import Dict, List, Optional, Any, Tuple
 from django.db import models
-from django.core.cache import cache
+# Cache import removed - cache functionality disabled
 from django.utils import timezone
 
 logger = logging.getLogger(__name__)

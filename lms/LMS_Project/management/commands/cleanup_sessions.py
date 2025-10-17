@@ -9,7 +9,7 @@ from django.core.management.base import BaseCommand
 from django.contrib.sessions.models import Session
 from django.utils import timezone
 from django.db import transaction
-from django.core.cache import cache
+# Cache import removed - cache functionality disabled
 import logging
 
 logger = logging.getLogger(__name__)

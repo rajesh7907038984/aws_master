@@ -22,6 +22,15 @@ from lrs.models import SCORM2004Sequencing, SCORM2004ActivityState
 
 logger = logging.getLogger(__name__)
 
+def is_mobile_device(request):
+    """Detect if the request is from a mobile device"""
+    user_agent = request.META.get('HTTP_USER_AGENT', '').lower()
+    mobile_keywords = [
+        'android', 'iphone', 'ipad', 'ipod', 'blackberry', 'windows phone',
+        'mobile', 'opera mini', 'iemobile', 'webos', 'palm'
+    ]
+    return any(keyword in user_agent for keyword in mobile_keywords)
+
 def can_access_scorm_content(user, topic):
     """
     Check if user can access SCORM content (not just preview).
@@ -50,9 +59,13 @@ def can_access_scorm_content(user, topic):
 def can_preview_scorm_content(user, topic):
     """
     Check if user can preview SCORM content (read-only mode).
-    Non-learners can preview but not interact.
+    ALL authenticated users can preview SCORM content.
     """
     try:
+        # Allow all authenticated users to preview SCORM content
+        if user.is_authenticated:
+            return True
+            
         # Check if user has any role that allows content viewing
         from role_management.models import UserRole
         course = topic.course
@@ -73,6 +86,59 @@ def can_preview_scorm_content(user, topic):
     except Exception:
         # Fallback to basic permission check
         return user.has_perm('scorm.view_elearning_package')
+
+def can_access_scorm_content(user, topic):
+    """
+    Check if user can access SCORM content (full access, progress saved)
+    Uses the LMS role management system for proper access control
+    """
+    if not user.is_authenticated:
+        return False
+    
+    # Import role management utilities
+    try:
+        from role_management.utils import PermissionManager
+    except ImportError:
+        # Fallback to basic Django attributes if role management not available
+        if user.is_staff or user.is_superuser:
+            return True
+        return False
+    
+    # Check if user has topic management capabilities using role management system
+    if PermissionManager.user_has_any_capability(user, ['view_topics', 'manage_topics']):
+        return True
+    
+    # Check if user is enrolled in the course
+    if hasattr(topic, 'course') and topic.course:
+        course = topic.course
+        
+        # Check if user is enrolled
+        if hasattr(course, 'enrollments') and course.enrollments.filter(user=user).exists():
+            return True
+        
+        # Check if user is instructor
+        if hasattr(course, 'instructor') and course.instructor == user:
+            return True
+    
+    return False
+
+def can_preview_scorm_content(user, topic):
+    """
+    Check if user can preview SCORM content (view-only, progress not saved)
+    Uses the LMS role management system for proper access control
+    """
+    if not user.is_authenticated:
+        return False
+    
+    # Import role management utilities
+    try:
+        from role_management.utils import PermissionManager
+    except ImportError:
+        # Fallback to basic Django attributes if role management not available
+        return user.is_staff or user.is_superuser
+    
+    # Check if user has topic viewing capabilities using role management system
+    return PermissionManager.user_has_capability(user, 'view_topics')
 
 def scorm_launch(request, topic_id):
     """Launch a SCORM package"""
@@ -133,10 +199,29 @@ def scorm_launch(request, topic_id):
     can_access = can_access_scorm_content(user, topic)
     can_preview = can_preview_scorm_content(user, topic)
     
+    # Allow preview for all authenticated users
     if not can_access and not can_preview:
-        logger.warning(f"SCORM Launch: User {user.username} has no access to SCORM content for topic {topic_id}")
-        messages.error(request, "You don't have permission to access this SCORM content.")
-        return redirect('courses:course_list')
+        # Only block if user is not authenticated at all
+        if not user.is_authenticated:
+            logger.warning(f"SCORM Launch: User not authenticated for topic {topic_id}")
+            messages.error(request, "Authentication required to access SCORM content.")
+            return redirect('login')
+        else:
+            # All authenticated users can preview
+            can_preview = True
+            logger.info(f"SCORM Launch: User {user.username} granted preview access for topic {topic_id}")
+    
+    # Additional check: If user has high-level capabilities, always allow access
+    try:
+        from role_management.utils import PermissionManager
+        if PermissionManager.user_has_any_capability(user, ['manage_topics', 'manage_courses']):
+            can_access = True
+            logger.info(f"SCORM Launch: User {user.username} with management capabilities granted full access for topic {topic_id}")
+    except ImportError:
+        # Fallback to basic Django attributes if role management not available
+        if user.is_staff or user.is_superuser:
+            can_access = True
+            logger.info(f"SCORM Launch: Staff/admin user {user.username} granted full access for topic {topic_id}")
     
     # Set preview mode if user can only preview
     preview_mode = not can_access and can_preview
@@ -264,19 +349,53 @@ def scorm_content(request, topic_id, file_path):
         except (User.DoesNotExist, ValueError):
             logger.warning(f"SCORM Content: Invalid header user ID: {request.META.get('HTTP_X_SCORM_USER_ID')}")
     
+    # Additional fallback: If no user found but we have a session, try to authenticate
+    if not user and request.session.get('_auth_user_id'):
+        try:
+            from django.contrib.auth import get_user_model
+            User = get_user_model()
+            user = User.objects.get(id=request.session.get('_auth_user_id'))
+            request.user = user
+            logger.info(f"SCORM Content: User authenticated via session fallback: {user.username}")
+        except User.DoesNotExist:
+            logger.warning(f"SCORM Content: Invalid session user ID in fallback: {request.session.get('_auth_user_id')}")
+    
     if not user:
-        logger.warning(f"SCORM Content: No authentication found for topic {topic_id}, file {file_path}")
-        # Return 401 for API calls, redirect for browser requests
-        if request.META.get('HTTP_ACCEPT', '').startswith('application/json'):
-            return JsonResponse({'error': 'Authentication required'}, status=401)
-        else:
-            return redirect('login')
+        # Enhanced iframe authentication - check for SCORM launch referer
+        if (request.META.get('HTTP_REFERER') and 
+            'scorm/launch' in request.META.get('HTTP_REFERER', '') and 
+            request.session.get('_auth_user_id')):
+            try:
+                from django.contrib.auth import get_user_model
+                User = get_user_model()
+                user = User.objects.get(id=request.session.get('_auth_user_id'))
+                request.user = user
+                logger.info(f"SCORM Content: User authenticated via iframe referer: {user.username}")
+            except User.DoesNotExist:
+                logger.warning(f"SCORM Content: Invalid session user ID in iframe: {request.session.get('_auth_user_id')}")
+        
+        if not user:
+            logger.warning(f"SCORM Content: No authentication found for topic {topic_id}, file {file_path}")
+            # Return 401 for API calls, redirect for browser requests
+            if request.META.get('HTTP_ACCEPT', '').startswith('application/json'):
+                return JsonResponse({'error': 'Authentication required'}, status=401)
+            else:
+                return redirect('login')
     
     topic = get_object_or_404(Topic, id=topic_id)
     
     # Check if user has access to this topic
-    if not topic.course.user_has_access(user):
-        raise Http404("Access denied")
+    try:
+        if not topic.course.user_has_access(user):
+            # For SCORM content, allow access if user is authenticated (preview mode)
+            if not user.is_authenticated:
+                raise Http404("Access denied")
+            else:
+                logger.info(f"SCORM Content: User {user.username} accessing in preview mode for topic {topic_id}")
+    except AttributeError:
+        # Topic doesn't have a course relationship, allow access
+        logger.info(f"SCORM Content: Topic {topic_id} has no course relationship, allowing access")
+        pass
     
     try:
         elearning_package = ELearningPackage.objects.get(topic=topic)
@@ -286,27 +405,75 @@ def scorm_content(request, topic_id, file_path):
     if not elearning_package.is_extracted:
         raise Http404("SCORM package not extracted")
     
-    # S3 storage - use temp directory for extraction
-    import tempfile
-    extracted_base_path = os.path.join(tempfile.gettempdir(), elearning_package.extracted_path)
-    
-    # Try direct path first
-    full_path = os.path.join(extracted_base_path, file_path)
-    logger.info(f"SCORM Content: Trying direct path: {full_path}")
-    
-    # If not found, try common SCORM directories
-    if not os.path.exists(full_path):
+    # Handle S3 storage for SCORM packages
+    if hasattr(elearning_package.package_file.storage, 'bucket_name'):
+        # S3 storage - construct S3 path
+        # Remove 'elearning/' prefix since storage already adds it
+        s3_base_path = elearning_package.extracted_path.replace('elearning/', '')
+        s3_file_path = f"{s3_base_path}/{file_path}"
+        
+        # Try direct S3 path first
+        logger.info(f"SCORM Content: Trying S3 path: {s3_file_path}")
+        
+        # If not found, try common SCORM directories
+        s3_path_found = None
         for content_dir in ['', 'scormcontent', 'scormdriver', 'content', 'data', 'story_content']:
-            alt_path = os.path.join(extracted_base_path, content_dir, file_path)
-            logger.info(f"SCORM Content: Trying {content_dir} path: {alt_path}")
-            if os.path.exists(alt_path):
-                full_path = alt_path
-                logger.info(f"SCORM Content: Found file at {content_dir} path: {full_path}")
-                break
+            if content_dir:
+                alt_s3_path = f"{s3_base_path}/{content_dir}/{file_path}"
+            else:
+                alt_s3_path = f"{s3_base_path}/{file_path}"
+            
+            logger.info(f"SCORM Content: Trying S3 {content_dir} path: {alt_s3_path}")
+            
+            # Check if file exists in S3
+            try:
+                if elearning_package.package_file.storage.exists(alt_s3_path):
+                    s3_path_found = alt_s3_path
+                    logger.info(f"SCORM Content: Found file at S3 {content_dir} path: {alt_s3_path}")
+                    break
+            except Exception as e:
+                logger.warning(f"SCORM Content: Error checking S3 path {alt_s3_path}: {e}")
+                continue
+        
+        if not s3_path_found:
+            logger.error(f"SCORM Content: File not found in S3: {file_path} in {s3_base_path}")
+            raise Http404("File not found")
+        
+        # Serve file from S3
+        try:
+            file_url = elearning_package.package_file.storage.url(s3_path_found)
+            logger.info(f"SCORM Content: Serving S3 file: {file_url}")
+            
+            # Redirect to S3 URL for direct serving
+            from django.http import HttpResponseRedirect
+            return HttpResponseRedirect(file_url)
+            
+        except Exception as e:
+            logger.error(f"SCORM Content: Error serving S3 file {s3_path_found}: {e}")
+            raise Http404("Error serving file from S3")
     
-    if not os.path.exists(full_path):
-        logger.error(f"SCORM Content: File not found: {file_path} in {extracted_base_path}")
-        raise Http404("File not found")
+    else:
+        # Local storage - use temp directory for extraction
+        import tempfile
+        extracted_base_path = os.path.join(tempfile.gettempdir(), elearning_package.extracted_path)
+        
+        # Try direct path first
+        full_path = os.path.join(extracted_base_path, file_path)
+        logger.info(f"SCORM Content: Trying direct path: {full_path}")
+        
+        # If not found, try common SCORM directories
+        if not os.path.exists(full_path):
+            for content_dir in ['', 'scormcontent', 'scormdriver', 'content', 'data', 'story_content']:
+                alt_path = os.path.join(extracted_base_path, content_dir, file_path)
+                logger.info(f"SCORM Content: Trying {content_dir} path: {alt_path}")
+                if os.path.exists(alt_path):
+                    full_path = alt_path
+                    logger.info(f"SCORM Content: Found file at {content_dir} path: {full_path}")
+                    break
+        
+        if not os.path.exists(full_path):
+            logger.error(f"SCORM Content: File not found: {file_path} in {extracted_base_path}")
+            raise Http404("File not found")
     
     # Enhanced MIME type detection
     content_type = 'text/html'  # Default
@@ -349,8 +516,15 @@ def scorm_content(request, topic_id, file_path):
     
     # Read and serve the file
     try:
-        with open(full_path, 'rb') as f:
-            content = f.read()
+        # Handle S3 vs local storage
+        if hasattr(elearning_package.package_file.storage, 'bucket_name'):
+            # S3 storage - file already redirected above
+            # This code should not be reached for S3 storage
+            raise Http404("S3 file serving should have been handled above")
+        else:
+            # Local storage - read from filesystem
+            with open(full_path, 'rb') as f:
+                content = f.read()
         
         # For HTML files, process relative links to work with SCORM content
         if file_path.endswith('.html'):
@@ -3573,4 +3747,163 @@ def scorm_debug(request, topic_id):
         return JsonResponse(debug_data)
         
     except Exception as e:
-        return JsonResponse({'error': str(e)})
+        logger.error(f"SCORM Debug Error: {str(e)}")
+        return JsonResponse({'error': 'Debug failed'}, status=500)
+
+@login_required
+def scorm_analytics_dashboard(request):
+    """Real-time SCORM analytics dashboard"""
+    if not request.user.has_perm('scorm.view_analytics'):
+        messages.error(request, "You don't have permission to view analytics.")
+        return redirect('courses:course_list')
+    
+    # Get real-time SCORM statistics
+    analytics_data = get_realtime_scorm_analytics()
+    
+    context = {
+        'analytics_data': analytics_data,
+        'user': request.user,
+    }
+    
+    return render(request, 'scorm/analytics_dashboard.html', context)
+
+@login_required
+def scorm_analytics_api(request):
+    """API endpoint for real-time SCORM analytics data"""
+    if not request.user.has_perm('scorm.view_analytics'):
+        return JsonResponse({'error': 'Permission denied'}, status=403)
+    
+    try:
+        analytics_data = get_realtime_scorm_analytics()
+        return JsonResponse(analytics_data)
+    except Exception as e:
+        logger.error(f"SCORM Analytics API Error: {str(e)}")
+        return JsonResponse({'error': 'Failed to fetch analytics data'}, status=500)
+
+def get_realtime_scorm_analytics():
+    """Get real-time SCORM analytics data"""
+    from django.db.models import Count, Avg, Sum, Q
+    from django.utils import timezone
+    from datetime import timedelta
+    
+    now = timezone.now()
+    last_hour = now - timedelta(hours=1)
+    last_24_hours = now - timedelta(hours=24)
+    last_7_days = now - timedelta(days=7)
+    
+    # Active SCORM sessions (last hour)
+    active_sessions = ELearningTracking.objects.filter(
+        last_launch__gte=last_hour
+    ).count()
+    
+    # SCORM packages by type
+    package_stats = ELearningPackage.objects.values('package_type').annotate(
+        count=Count('id')
+    ).order_by('-count')
+    
+    # Completion rates
+    total_tracking = ELearningTracking.objects.count()
+    completed_tracking = ELearningTracking.objects.filter(
+        completion_status='completed'
+    ).count()
+    completion_rate = (completed_tracking / total_tracking * 100) if total_tracking > 0 else 0
+    
+    # Success rates
+    success_tracking = ELearningTracking.objects.filter(
+        success_status='passed'
+    ).count()
+    success_rate = (success_tracking / total_tracking * 100) if total_tracking > 0 else 0
+    
+    # Average scores
+    avg_score = ELearningTracking.objects.filter(
+        score_raw__isnull=False
+    ).aggregate(avg_score=Avg('score_raw'))['avg_score'] or 0
+    
+    # Total time spent
+    total_time = ELearningTracking.objects.aggregate(
+        total_time=Sum('total_time')
+    )['total_time'] or timedelta(0)
+    
+    # Recent activity (last 24 hours)
+    recent_activity = ELearningTracking.objects.filter(
+        last_launch__gte=last_24_hours
+    ).count()
+    
+    # Top performing packages
+    top_packages = ELearningPackage.objects.annotate(
+        completion_count=Count('tracking_records', filter=Q(
+            tracking_records__completion_status='completed'
+        )),
+        avg_score=Avg('tracking_records__score_raw')
+    ).order_by('-completion_count')[:10]
+    
+    # User engagement metrics
+    engaged_users = ELearningTracking.objects.filter(
+        last_launch__gte=last_7_days
+    ).values('user').distinct().count()
+    
+    # Mobile vs Desktop usage
+    mobile_sessions = ELearningTracking.objects.filter(
+        raw_data__contains='mobile'
+    ).count()
+    desktop_sessions = total_tracking - mobile_sessions
+    
+    # Package type performance
+    package_performance = []
+    for package_type in ['SCORM_1_2', 'SCORM_2004', 'XAPI', 'CMI5']:
+        packages = ELearningPackage.objects.filter(package_type=package_type)
+        if packages.exists():
+            tracking_records = ELearningTracking.objects.filter(
+                elearning_package__in=packages
+            )
+            type_completion = tracking_records.filter(
+                completion_status='completed'
+            ).count()
+            type_total = tracking_records.count()
+            type_rate = (type_completion / type_total * 100) if type_total > 0 else 0
+            
+            package_performance.append({
+                'type': package_type,
+                'completion_rate': type_rate,
+                'total_sessions': type_total,
+                'completed_sessions': type_completion
+            })
+    
+    # Real-time activity feed
+    activity_feed = ELearningTracking.objects.filter(
+        last_launch__gte=last_hour
+    ).select_related('user', 'elearning_package').order_by('-last_launch')[:20]
+    
+    return {
+        'active_sessions': active_sessions,
+        'package_stats': list(package_stats),
+        'completion_rate': round(completion_rate, 2),
+        'success_rate': round(success_rate, 2),
+        'avg_score': round(avg_score, 2),
+        'total_time_seconds': total_time.total_seconds(),
+        'recent_activity': recent_activity,
+        'top_packages': [
+            {
+                'id': pkg.id,
+                'title': pkg.title,
+                'completion_count': pkg.completion_count,
+                'avg_score': round(pkg.avg_score or 0, 2)
+            } for pkg in top_packages
+        ],
+        'engaged_users': engaged_users,
+        'mobile_sessions': mobile_sessions,
+        'desktop_sessions': desktop_sessions,
+        'package_performance': package_performance,
+        'activity_feed': [
+            {
+                'user': tracking.user.username,
+                'package': tracking.elearning_package.title,
+                'action': 'completed' if tracking.completion_status == 'completed' else 'in_progress',
+                'timestamp': tracking.last_launch.isoformat(),
+                'score': tracking.score_raw
+            } for tracking in activity_feed
+        ],
+        'timestamp': now.isoformat()
+    }
+    
+    return analytics_data

@@ -1,5 +1,4 @@
 from .models import CourseCategory
-from django.core.cache import cache
 from django.conf import settings
 from django.utils import timezone
 
@@ -9,19 +8,8 @@ def categories_processor(request):
         # For anonymous users, show no categories
         return {'categories': CourseCategory.objects.none()}
     
-    # Cache key based on user and current hour (refresh hourly)
-    cache_key = f"categories_context_{request.user.id}_{timezone.now().hour}"
-    
-    # Try to get cached data first
-    cached_data = cache.get(cache_key)
-    if cached_data:
-        return {'categories': cached_data}
-    
+    # Get categories directly without caching for now
     categories = get_user_accessible_categories(request.user)
-    
-    # Cache for 1 hour, or 5 minutes in development
-    cache_timeout = 300 if settings.DEBUG else 3600  # 5 minutes in debug, 1 hour in production
-    cache.set(cache_key, list(categories), cache_timeout)
     
     return {'categories': categories}
 

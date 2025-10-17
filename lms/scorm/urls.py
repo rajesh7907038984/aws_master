@@ -38,6 +38,10 @@ urlpatterns = [
     path('reports/<int:course_id>/', views.scorm_reports, name='reports'),
     path('reports/<int:course_id>/learner/<int:user_id>/', views.scorm_learner_progress, name='learner_progress'),
     
+    # Analytics
+    path('analytics/', views.scorm_analytics_dashboard, name='analytics_dashboard'),
+    path('analytics/api/', views.scorm_analytics_api, name='analytics_api'),
+    
     # Source Map Handlers (to prevent 404 errors)
     path('source-maps/<str:filename>', source_map_handler.handle_source_map, name='source_map'),
     path('desktop.min.css.map', source_map_handler.handle_desktop_css_map, name='desktop_css_map'),

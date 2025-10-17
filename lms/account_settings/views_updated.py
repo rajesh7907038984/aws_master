@@ -9,7 +9,7 @@ from django.urls import reverse, NoReverseMatch
 from django.contrib import messages
 from django.http import HttpResponseForbidden, JsonResponse, FileResponse, Http404
 from django.db.models import Count, Prefetch, Q, Sum
-from django.core.cache import cache
+# Cache import removed - cache functionality disabled
 
 from .models import (
     TeamsIntegration, ZoomIntegration, StripeIntegration, PayPalIntegration, 

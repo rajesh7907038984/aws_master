@@ -32,7 +32,7 @@ class SCORMS3Storage(S3Boto3Storage):
             'default_acl': 'private',
             'file_overwrite': False,
             'querystring_auth': True,  # Enable signed URLs for security
-            'querystring_expire': 3600,  # 1 hour expiration for signed URLs
+            'querystring_expire': 7200,  # 2 hours expiration for signed URLs (increased for SCORM content)
         })
         
         super().__init__(**kwargs)

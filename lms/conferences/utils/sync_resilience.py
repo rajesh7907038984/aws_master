@@ -7,7 +7,7 @@ import logging
 import requests
 from functools import wraps
 from typing import Dict, Any, Optional, Callable
-from django.core.cache import cache
+# Cache import removed - cache functionality disabled
 from django.utils import timezone
 from conferences.models import Conference, ConferenceSyncLog
 

@@ -12,7 +12,7 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any
 from django.utils import timezone
 from django.db import transaction
-from django.core.cache import cache
+# Cache import removed - cache functionality disabled
 from django.contrib.auth import get_user_model
 
 from .sharepoint_api import SharePointAPI, SharePointAPIError
@@ -121,26 +121,18 @@ class SharePointChangeMonitor:
             # Get enrollments from SharePoint
             sharepoint_enrollments = self.api.get_list_items(self.config.enrollment_list_name)
             
-            # Get cached version to compare
-            cache_key = f"{self.cache_prefix}_enrollments_hash"
-            current_hash = self._calculate_list_hash(sharepoint_enrollments)
-            cached_hash = cache.get(cache_key)
+            # Cache functionality removed - always process enrollments
+            logger.info(f"Processing SharePoint enrollments for {self.config.name}")
             
-            if cached_hash != current_hash:
-                logger.info(f"Detected changes in SharePoint enrollments for {self.config.name}")
-                
-                # Process each enrollment
-                for sp_enrollment in sharepoint_enrollments:
-                    try:
-                        if self._sync_sharepoint_enrollment_to_lms(sp_enrollment):
-                            results['synced'] += 1
-                    except Exception as e:
-                        error_msg = f"Error syncing enrollment {sp_enrollment.get('fields', {}).get('LMSEnrollmentID', 'unknown')}: {str(e)}"
-                        results['errors'].append(error_msg)
-                        logger.error(error_msg)
-                
-                # Update cache
-                cache.set(cache_key, current_hash, 300)
+            # Process each enrollment
+            for sp_enrollment in sharepoint_enrollments:
+                try:
+                    if self._sync_sharepoint_enrollment_to_lms(sp_enrollment):
+                        results['synced'] += 1
+                except Exception as e:
+                    error_msg = f"Error syncing enrollment {sp_enrollment.get('fields', {}).get('LMSEnrollmentID', 'unknown')}: {str(e)}"
+                    results['errors'].append(error_msg)
+                    logger.error(error_msg)
             
             return results
             
@@ -157,26 +149,18 @@ class SharePointChangeMonitor:
             # Get progress from SharePoint
             sharepoint_progress = self.api.get_list_items(self.config.progress_list_name)
             
-            # Get cached version to compare
-            cache_key = f"{self.cache_prefix}_progress_hash"
-            current_hash = self._calculate_list_hash(sharepoint_progress)
-            cached_hash = cache.get(cache_key)
+            # Cache functionality removed - always process progress
+            logger.info(f"Processing SharePoint progress for {self.config.name}")
             
-            if cached_hash != current_hash:
-                logger.info(f"Detected changes in SharePoint progress for {self.config.name}")
-                
-                # Process each progress entry
-                for sp_progress in sharepoint_progress:
-                    try:
-                        if self._sync_sharepoint_progress_to_lms(sp_progress):
-                            results['synced'] += 1
-                    except Exception as e:
-                        error_msg = f"Error syncing progress {sp_progress.get('fields', {}).get('LMSProgressID', 'unknown')}: {str(e)}"
-                        results['errors'].append(error_msg)
-                        logger.error(error_msg)
-                
-                # Update cache
-                cache.set(cache_key, current_hash, 300)
+            # Process each progress entry
+            for sp_progress in sharepoint_progress:
+                try:
+                    if self._sync_sharepoint_progress_to_lms(sp_progress):
+                        results['synced'] += 1
+                except Exception as e:
+                    error_msg = f"Error syncing progress {sp_progress.get('fields', {}).get('LMSProgressID', 'unknown')}: {str(e)}"
+                    results['errors'].append(error_msg)
+                    logger.error(error_msg)
             
             return results
             

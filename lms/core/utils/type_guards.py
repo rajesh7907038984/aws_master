@@ -765,3 +765,18 @@ def validate_user_capabilities_cache(cache_data: Any) -> Optional[UserCapabiliti
         integrity=integrity,
         timestamp=timestamp
     )
+
+def has_branch(user) -> bool:
+    """
+    Check if user has an associated branch
+    
+    Args:
+        user: Django user object
+        
+    Returns:
+        True if user has a branch, False otherwise
+    """
+    if not hasattr(user, 'branch'):
+        return False
+    
+    return user.branch is not None

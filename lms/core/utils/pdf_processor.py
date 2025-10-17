@@ -9,7 +9,7 @@ import logging
 import gc
 import psutil
 from typing import Optional, Dict, List, Any
-from django.core.cache import cache
+# Cache import removed - cache functionality disabled
 from django.conf import settings
 
 logger = logging.getLogger(__name__)

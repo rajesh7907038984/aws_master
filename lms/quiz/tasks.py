@@ -4,7 +4,7 @@ Celery tasks for quiz maintenance and cleanup
 from celery import shared_task
 from django.utils import timezone
 from django.db import transaction
-from django.core.cache import cache
+# Cache import removed - cache functionality disabled
 from quiz.models import QuizAttempt, UserAnswer, Quiz
 from datetime import timedelta
 import logging

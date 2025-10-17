@@ -12,7 +12,7 @@ from django.contrib.admin.models import LogEntry
 from django.contrib.contenttypes.models import ContentType
 from django.urls import reverse
 from django.http import JsonResponse
-from django.core.cache import cache
+# Cache import removed - cache functionality disabled
 import json
 
 class OptimizedSuperAdminDashboardView(UserPassesTestMixin, TemplateView):

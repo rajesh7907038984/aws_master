@@ -8,7 +8,7 @@ and filling up log files with repeated messages.
 import logging
 import time
 from typing import Dict, Set
-from django.core.cache import cache
+# Cache import removed - cache functionality disabled
 
 class ThrottledLogger:
     """

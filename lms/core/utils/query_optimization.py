@@ -7,7 +7,7 @@ import logging
 from typing import List, Dict, Any, Optional
 from django.db.models import Prefetch, Q, F, Count, Sum, Avg, Max, Min
 from django.db.models.functions import Coalesce
-from django.core.cache import cache
+# Cache import removed - cache functionality disabled
 from django.conf import settings
 
 logger = logging.getLogger(__name__)

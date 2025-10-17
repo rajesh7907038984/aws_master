@@ -1,0 +1,467 @@
+{% extends "scorm_base.html" %}
+{% load static %}
+
+{% block title %}Mobile SCORM - {{ topic.title }}{% endblock %}
+
+{% block extra_css %}
+<!-- Mobile SCORM Optimizations -->
+<style>
+    .mobile-scorm-container {
+        width: 100%;
+        height: 100vh;
+        border: none;
+        background: #f5f5f5;
+        overflow: hidden;
+    }
+    
+    .mobile-scorm-header {
+        background: #1c2260;
+        color: white;
+        padding: 0.5rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 1000;
+        height: 50px;
+    }
+    
+    .mobile-scorm-content {
+        margin-top: 50px;
+        height: calc(100vh - 50px);
+        overflow: hidden;
+    }
+    
+    .mobile-scorm-iframe {
+        width: 100%;
+        height: 100%;
+        border: none;
+        background: white;
+        transform: scale(1);
+        transform-origin: top left;
+    }
+    
+    .mobile-controls {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: rgba(28, 34, 96, 0.9);
+        color: white;
+        padding: 0.5rem;
+        display: flex;
+        justify-content: space-around;
+        align-items: center;
+        z-index: 1000;
+    }
+    
+    .mobile-control-btn {
+        background: rgba(255, 255, 255, 0.2);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        color: white;
+        padding: 0.5rem;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: background 0.2s;
+        text-decoration: none;
+        display: inline-block;
+        font-size: 0.8rem;
+        text-align: center;
+        min-width: 60px;
+    }
+    
+    .mobile-control-btn:hover {
+        background: rgba(255, 255, 255, 0.3);
+        color: white;
+        text-decoration: none;
+    }
+    
+    .mobile-control-btn.active {
+        background: rgba(255, 255, 255, 0.4);
+    }
+    
+    .mobile-zoom-controls {
+        position: fixed;
+        top: 60px;
+        right: 10px;
+        z-index: 1000;
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+    }
+    
+    .mobile-zoom-btn {
+        background: rgba(28, 34, 96, 0.8);
+        color: white;
+        border: none;
+        padding: 8px;
+        border-radius: 50%;
+        cursor: pointer;
+        font-size: 1.2rem;
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .mobile-zoom-btn:hover {
+        background: rgba(28, 34, 96, 1);
+    }
+    
+    .mobile-orientation-warning {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: rgba(0, 0, 0, 0.8);
+        color: white;
+        padding: 2rem;
+        border-radius: 10px;
+        text-align: center;
+        z-index: 2000;
+        display: none;
+    }
+    
+    .mobile-fullscreen-btn {
+        position: fixed;
+        top: 60px;
+        left: 10px;
+        z-index: 1000;
+        background: rgba(28, 34, 96, 0.8);
+        color: white;
+        border: none;
+        padding: 8px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.8rem;
+    }
+    
+    .mobile-fullscreen-btn:hover {
+        background: rgba(28, 34, 96, 1);
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .mobile-scorm-header {
+            padding: 0.25rem;
+            height: 45px;
+        }
+        
+        .mobile-scorm-content {
+            margin-top: 45px;
+            height: calc(100vh - 45px);
+        }
+        
+        .mobile-controls {
+            padding: 0.25rem;
+        }
+        
+        .mobile-control-btn {
+            padding: 0.25rem;
+            font-size: 0.7rem;
+            min-width: 50px;
+        }
+    }
+    
+    @media (max-width: 480px) {
+        .mobile-scorm-header {
+            height: 40px;
+        }
+        
+        .mobile-scorm-content {
+            margin-top: 40px;
+            height: calc(100vh - 40px);
+        }
+        
+        .mobile-control-btn {
+            padding: 0.2rem;
+            font-size: 0.6rem;
+            min-width: 45px;
+        }
+    }
+    
+    /* Landscape orientation adjustments */
+    @media (orientation: landscape) and (max-height: 500px) {
+        .mobile-scorm-header {
+            height: 35px;
+        }
+        
+        .mobile-scorm-content {
+            margin-top: 35px;
+            height: calc(100vh - 35px);
+        }
+        
+        .mobile-controls {
+            display: none;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- CSRF Token for SCORM API -->
+{% csrf_token %}
+
+<div class="mobile-scorm-container">
+    <div class="mobile-scorm-header">
+        <div class="mobile-header-left">
+            <span class="mobile-topic-title">{{ topic.title|truncatechars:30 }}</span>
+        </div>
+        <div class="mobile-header-right">
+            <a href="{% url 'courses:topic_view' topic.id %}" class="mobile-control-btn">Back</a>
+        </div>
+    </div>
+    
+    <div class="mobile-scorm-content">
+        {% if launch_url %}
+        <iframe 
+            id="mobile-scorm-iframe" 
+            class="mobile-scorm-iframe" 
+            src="{{ launch_url }}"
+            width="100%"
+            height="100%"
+            frameborder="0"
+            scrolling="auto"
+            allowfullscreen
+            webkitallowfullscreen
+            mozallowfullscreen
+            allow="autoplay; fullscreen; microphone; camera"
+        ></iframe>
+        {% else %}
+        <div class="mobile-error-message">
+            <h3>Content Not Available</h3>
+            <p>The SCORM content could not be loaded on this device.</p>
+            <a href="{% url 'courses:topic_view' topic.id %}" class="mobile-control-btn">Return to Topic</a>
+        </div>
+        {% endif %}
+    </div>
+    
+    <div class="mobile-controls">
+        <button class="mobile-control-btn" onclick="toggleFullscreen()" id="fullscreen-btn">
+            <i class="fas fa-expand"></i>
+            <br>Fullscreen
+        </button>
+        <button class="mobile-control-btn" onclick="toggleOrientation()" id="orientation-btn">
+            <i class="fas fa-mobile-alt"></i>
+            <br>Rotate
+        </button>
+        <button class="mobile-control-btn" onclick="resetZoom()" id="reset-zoom-btn">
+            <i class="fas fa-search"></i>
+            <br>Reset Zoom
+        </button>
+        <button class="mobile-control-btn" onclick="showProgress()" id="progress-btn">
+            <i class="fas fa-chart-line"></i>
+            <br>Progress
+        </button>
+    </div>
+    
+    <div class="mobile-zoom-controls">
+        <button class="mobile-zoom-btn" onclick="zoomIn()" title="Zoom In">
+            <i class="fas fa-plus"></i>
+        </button>
+        <button class="mobile-zoom-btn" onclick="zoomOut()" title="Zoom Out">
+            <i class="fas fa-minus"></i>
+        </button>
+    </div>
+    
+    <button class="mobile-fullscreen-btn" onclick="toggleFullscreen()" id="fullscreen-toggle">
+        <i class="fas fa-expand"></i> Fullscreen
+    </button>
+    
+    <div class="mobile-orientation-warning" id="orientation-warning">
+        <i class="fas fa-mobile-alt fa-3x"></i>
+        <h3>Rotate Your Device</h3>
+        <p>For the best experience, please rotate your device to landscape mode.</p>
+    </div>
+</div>
+
+<script>
+// Mobile SCORM Optimizations
+let currentZoom = 1;
+let isFullscreen = false;
+let isLandscape = false;
+
+// Check if device is mobile
+function isMobileDevice() {
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+}
+
+// Check orientation
+function checkOrientation() {
+    isLandscape = window.innerWidth > window.innerHeight;
+    
+    if (isMobileDevice() && !isLandscape) {
+        document.getElementById('orientation-warning').style.display = 'block';
+    } else {
+        document.getElementById('orientation-warning').style.display = 'none';
+    }
+}
+
+// Toggle fullscreen
+function toggleFullscreen() {
+    const iframe = document.getElementById('mobile-scorm-iframe');
+    const container = document.querySelector('.mobile-scorm-container');
+    
+    if (!isFullscreen) {
+        if (container.requestFullscreen) {
+            container.requestFullscreen();
+        } else if (container.webkitRequestFullscreen) {
+            container.webkitRequestFullscreen();
+        } else if (container.msRequestFullscreen) {
+            container.msRequestFullscreen();
+        }
+        isFullscreen = true;
+        document.getElementById('fullscreen-btn').innerHTML = '<i class="fas fa-compress"></i><br>Exit';
+    } else {
+        if (document.exitFullscreen) {
+            document.exitFullscreen();
+        } else if (document.webkitExitFullscreen) {
+            document.webkitExitFullscreen();
+        } else if (document.msExitFullscreen) {
+            document.msExitFullscreen();
+        }
+        isFullscreen = false;
+        document.getElementById('fullscreen-btn').innerHTML = '<i class="fas fa-expand"></i><br>Fullscreen';
+    }
+}
+
+// Toggle orientation (for devices that support it)
+function toggleOrientation() {
+    if (screen.orientation && screen.orientation.lock) {
+        if (isLandscape) {
+            screen.orientation.lock('portrait');
+        } else {
+            screen.orientation.lock('landscape');
+        }
+    } else {
+        // Fallback: show orientation warning
+        document.getElementById('orientation-warning').style.display = 'block';
+        setTimeout(() => {
+            document.getElementById('orientation-warning').style.display = 'none';
+        }, 3000);
+    }
+}
+
+// Zoom functions
+function zoomIn() {
+    currentZoom = Math.min(currentZoom + 0.1, 2);
+    applyZoom();
+}
+
+function zoomOut() {
+    currentZoom = Math.max(currentZoom - 0.1, 0.5);
+    applyZoom();
+}
+
+function resetZoom() {
+    currentZoom = 1;
+    applyZoom();
+}
+
+function applyZoom() {
+    const iframe = document.getElementById('mobile-scorm-iframe');
+    iframe.style.transform = `scale(${currentZoom})`;
+    iframe.style.transformOrigin = 'top left';
+    
+    // Adjust container size to prevent overflow
+    const container = document.querySelector('.mobile-scorm-content');
+    container.style.overflow = currentZoom > 1 ? 'auto' : 'hidden';
+}
+
+// Show progress (placeholder)
+function showProgress() {
+    // This would integrate with your progress tracking system
+    alert('Progress tracking not yet implemented for mobile SCORM.');
+}
+
+// Handle orientation change
+window.addEventListener('orientationchange', function() {
+    setTimeout(checkOrientation, 100);
+});
+
+// Handle resize
+window.addEventListener('resize', function() {
+    checkOrientation();
+});
+
+// Handle fullscreen change
+document.addEventListener('fullscreenchange', function() {
+    isFullscreen = !!document.fullscreenElement;
+});
+
+document.addEventListener('webkitfullscreenchange', function() {
+    isFullscreen = !!document.webkitFullscreenElement;
+});
+
+// Initialize
+document.addEventListener('DOMContentLoaded', function() {
+    checkOrientation();
+    
+    // Add touch event handlers for better mobile interaction
+    const iframe = document.getElementById('mobile-scorm-iframe');
+    
+    iframe.addEventListener('touchstart', function(e) {
+        // Prevent default touch behavior that might interfere with SCORM
+        e.preventDefault();
+    }, { passive: false });
+    
+    // Handle iframe load
+    iframe.addEventListener('load', function() {
+        console.log('Mobile SCORM iframe loaded');
+        
+        // Try to communicate with SCORM content
+        try {
+            const iframeWindow = iframe.contentWindow;
+            if (iframeWindow && iframeWindow.API) {
+                console.log('SCORM API detected in mobile iframe');
+            }
+        } catch (e) {
+            console.log('Could not access SCORM API (cross-origin):', e.message);
+        }
+    });
+    
+    // Handle iframe errors
+    iframe.addEventListener('error', function(e) {
+        console.error('Mobile SCORM iframe error:', e);
+        alert('Error loading SCORM content. Please try again.');
+    });
+});
+
+// Prevent zoom on double tap (iOS)
+let lastTouchEnd = 0;
+document.addEventListener('touchend', function(event) {
+    const now = (new Date()).getTime();
+    if (now - lastTouchEnd <= 300) {
+        event.preventDefault();
+    }
+    lastTouchEnd = now;
+}, false);
+
+// Handle back button (Android)
+window.addEventListener('popstate', function(event) {
+    if (isFullscreen) {
+        toggleFullscreen();
+    }
+});
+
+// Prevent context menu on long press
+document.addEventListener('contextmenu', function(e) {
+    e.preventDefault();
+});
+
+// Handle device rotation
+window.addEventListener('orientationchange', function() {
+    setTimeout(function() {
+        // Recalculate layout after orientation change
+        const iframe = document.getElementById('mobile-scorm-iframe');
+        if (iframe) {
+            iframe.style.height = '100%';
+        }
+    }, 100);
+});
+</script>
+{% endblock %}

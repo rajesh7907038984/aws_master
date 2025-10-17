@@ -13,7 +13,7 @@ from typing import Dict, List, Optional, Any, Tuple
 from urllib.parse import urljoin, quote
 from django.utils import timezone
 from django.conf import settings
-from django.core.cache import cache
+# Cache import removed - cache functionality disabled
 
 logger = logging.getLogger(__name__)
 
@@ -186,20 +186,13 @@ class SharePointAPI:
     def _get_form_digest(self) -> str:
         """Get form digest value for SharePoint REST API calls"""
         try:
-            # Try to get from cache first
-            cache_key = f"sharepoint_form_digest_{self.config.id}"
-            digest = cache.get(cache_key)
-            if digest:
-                return digest
-            
+            # Cache functionality removed - always get fresh digest
             # Get form digest from SharePoint
             digest_url = f"{self.sharepoint_endpoint}/contextinfo"
             response = self._make_request('POST', digest_url)
             
             if response and 'd' in response and 'GetContextWebInformation' in response['d']:
                 digest = response['d']['GetContextWebInformation']['FormDigestValue']
-                # Cache for 25 minutes (digest expires in 30 minutes)
-                cache.set(cache_key, digest, 1500)
                 return digest
             
             raise SharePointAPIError("Unable to get form digest")

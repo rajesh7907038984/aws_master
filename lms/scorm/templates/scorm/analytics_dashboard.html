@@ -1,0 +1,497 @@
+{% extends "scorm_base.html" %}
+{% load static %}
+
+{% block title %}SCORM Analytics Dashboard{% endblock %}
+
+{% block extra_css %}
+<style>
+    .analytics-dashboard {
+        padding: 2rem;
+        background: #f8f9fa;
+        min-height: 100vh;
+    }
+    
+    .dashboard-header {
+        background: #1c2260;
+        color: white;
+        padding: 1.5rem;
+        border-radius: 8px;
+        margin-bottom: 2rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .dashboard-title {
+        font-size: 2rem;
+        font-weight: bold;
+        margin: 0;
+    }
+    
+    .refresh-btn {
+        background: rgba(255, 255, 255, 0.2);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        color: white;
+        padding: 0.5rem 1rem;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: background 0.2s;
+    }
+    
+    .refresh-btn:hover {
+        background: rgba(255, 255, 255, 0.3);
+    }
+    
+    .metrics-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+    
+    .metric-card {
+        background: white;
+        padding: 1.5rem;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        border-left: 4px solid #1c2260;
+    }
+    
+    .metric-title {
+        font-size: 0.9rem;
+        color: #666;
+        margin-bottom: 0.5rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .metric-value {
+        font-size: 2rem;
+        font-weight: bold;
+        color: #1c2260;
+        margin-bottom: 0.5rem;
+    }
+    
+    .metric-change {
+        font-size: 0.8rem;
+        color: #28a745;
+    }
+    
+    .metric-change.negative {
+        color: #dc3545;
+    }
+    
+    .charts-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+    
+    .chart-card {
+        background: white;
+        padding: 1.5rem;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    
+    .chart-title {
+        font-size: 1.2rem;
+        font-weight: bold;
+        margin-bottom: 1rem;
+        color: #1c2260;
+    }
+    
+    .activity-feed {
+        background: white;
+        padding: 1.5rem;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        margin-bottom: 2rem;
+    }
+    
+    .activity-item {
+        display: flex;
+        align-items: center;
+        padding: 0.75rem 0;
+        border-bottom: 1px solid #eee;
+    }
+    
+    .activity-item:last-child {
+        border-bottom: none;
+    }
+    
+    .activity-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: #1c2260;
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 1rem;
+        font-weight: bold;
+    }
+    
+    .activity-content {
+        flex: 1;
+    }
+    
+    .activity-user {
+        font-weight: bold;
+        color: #1c2260;
+    }
+    
+    .activity-action {
+        color: #666;
+        font-size: 0.9rem;
+    }
+    
+    .activity-time {
+        color: #999;
+        font-size: 0.8rem;
+    }
+    
+    .status-badge {
+        padding: 0.25rem 0.5rem;
+        border-radius: 12px;
+        font-size: 0.7rem;
+        font-weight: bold;
+        text-transform: uppercase;
+    }
+    
+    .status-completed {
+        background: #d4edda;
+        color: #155724;
+    }
+    
+    .status-in-progress {
+        background: #fff3cd;
+        color: #856404;
+    }
+    
+    .status-failed {
+        background: #f8d7da;
+        color: #721c24;
+    }
+    
+    .real-time-indicator {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        background: #28a745;
+        border-radius: 50%;
+        margin-right: 0.5rem;
+        animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+        0% { opacity: 1; }
+        50% { opacity: 0.5; }
+        100% { opacity: 1; }
+    }
+    
+    .loading {
+        text-align: center;
+        padding: 2rem;
+        color: #666;
+    }
+    
+    .error {
+        background: #f8d7da;
+        color: #721c24;
+        padding: 1rem;
+        border-radius: 4px;
+        margin-bottom: 1rem;
+    }
+    
+    @media (max-width: 768px) {
+        .analytics-dashboard {
+            padding: 1rem;
+        }
+        
+        .charts-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .metrics-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="analytics-dashboard">
+    <div class="dashboard-header">
+        <h1 class="dashboard-title">
+            <span class="real-time-indicator"></span>
+            SCORM Analytics Dashboard
+        </h1>
+        <button class="refresh-btn" onclick="refreshData()">
+            <i class="fas fa-sync-alt"></i> Refresh
+        </button>
+    </div>
+    
+    <div id="loading" class="loading">
+        <i class="fas fa-spinner fa-spin"></i> Loading analytics data...
+    </div>
+    
+    <div id="error" class="error" style="display: none;">
+        <i class="fas fa-exclamation-triangle"></i>
+        <span id="error-message"></span>
+    </div>
+    
+    <div id="dashboard-content" style="display: none;">
+        <!-- Metrics Grid -->
+        <div class="metrics-grid">
+            <div class="metric-card">
+                <div class="metric-title">Active Sessions</div>
+                <div class="metric-value" id="active-sessions">0</div>
+                <div class="metric-change">Real-time</div>
+            </div>
+            
+            <div class="metric-card">
+                <div class="metric-title">Completion Rate</div>
+                <div class="metric-value" id="completion-rate">0%</div>
+                <div class="metric-change">Overall</div>
+            </div>
+            
+            <div class="metric-card">
+                <div class="metric-title">Success Rate</div>
+                <div class="metric-value" id="success-rate">0%</div>
+                <div class="metric-change">Overall</div>
+            </div>
+            
+            <div class="metric-card">
+                <div class="metric-title">Average Score</div>
+                <div class="metric-value" id="avg-score">0</div>
+                <div class="metric-change">Overall</div>
+            </div>
+            
+            <div class="metric-card">
+                <div class="metric-title">Recent Activity</div>
+                <div class="metric-value" id="recent-activity">0</div>
+                <div class="metric-change">Last 24 hours</div>
+            </div>
+            
+            <div class="metric-card">
+                <div class="metric-title">Engaged Users</div>
+                <div class="metric-value" id="engaged-users">0</div>
+                <div class="metric-change">Last 7 days</div>
+            </div>
+        </div>
+        
+        <!-- Charts Grid -->
+        <div class="charts-grid">
+            <div class="chart-card">
+                <h3 class="chart-title">Package Types</h3>
+                <canvas id="package-types-chart"></canvas>
+            </div>
+            
+            <div class="chart-card">
+                <h3 class="chart-title">Device Usage</h3>
+                <canvas id="device-usage-chart"></canvas>
+            </div>
+        </div>
+        
+        <!-- Activity Feed -->
+        <div class="activity-feed">
+            <h3 class="chart-title">Recent Activity</h3>
+            <div id="activity-feed">
+                <!-- Activity items will be populated here -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+let packageTypesChart;
+let deviceUsageChart;
+let refreshInterval;
+
+// Initialize dashboard
+document.addEventListener('DOMContentLoaded', function() {
+    loadAnalyticsData();
+    
+    // Set up auto-refresh every 30 seconds
+    refreshInterval = setInterval(loadAnalyticsData, 30000);
+});
+
+// Load analytics data
+async function loadAnalyticsData() {
+    try {
+        const response = await fetch('/scorm/analytics/api/');
+        const data = await response.json();
+        
+        if (response.ok) {
+            updateDashboard(data);
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('error').style.display = 'none';
+            document.getElementById('dashboard-content').style.display = 'block';
+        } else {
+            throw new Error(data.error || 'Failed to load analytics data');
+        }
+    } catch (error) {
+        console.error('Error loading analytics data:', error);
+        showError('Failed to load analytics data: ' + error.message);
+    }
+}
+
+// Update dashboard with new data
+function updateDashboard(data) {
+    // Update metrics
+    document.getElementById('active-sessions').textContent = data.active_sessions;
+    document.getElementById('completion-rate').textContent = data.completion_rate + '%';
+    document.getElementById('success-rate').textContent = data.success_rate + '%';
+    document.getElementById('avg-score').textContent = data.avg_score;
+    document.getElementById('recent-activity').textContent = data.recent_activity;
+    document.getElementById('engaged-users').textContent = data.engaged_users;
+    
+    // Update charts
+    updatePackageTypesChart(data.package_stats);
+    updateDeviceUsageChart(data.mobile_sessions, data.desktop_sessions);
+    updateActivityFeed(data.activity_feed);
+}
+
+// Update package types chart
+function updatePackageTypesChart(packageStats) {
+    const ctx = document.getElementById('package-types-chart').getContext('2d');
+    
+    if (packageTypesChart) {
+        packageTypesChart.destroy();
+    }
+    
+    const labels = packageStats.map(stat => stat.package_type);
+    const data = packageStats.map(stat => stat.count);
+    
+    packageTypesChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: labels,
+            datasets: [{
+                data: data,
+                backgroundColor: [
+                    '#1c2260',
+                    '#28a745',
+                    '#ffc107',
+                    '#dc3545',
+                    '#17a2b8'
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+}
+
+// Update device usage chart
+function updateDeviceUsageChart(mobileSessions, desktopSessions) {
+    const ctx = document.getElementById('device-usage-chart').getContext('2d');
+    
+    if (deviceUsageChart) {
+        deviceUsageChart.destroy();
+    }
+    
+    deviceUsageChart = new Chart(ctx, {
+        type: 'pie',
+        data: {
+            labels: ['Mobile', 'Desktop'],
+            datasets: [{
+                data: [mobileSessions, desktopSessions],
+                backgroundColor: ['#1c2260', '#28a745']
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+}
+
+// Update activity feed
+function updateActivityFeed(activityFeed) {
+    const container = document.getElementById('activity-feed');
+    
+    if (activityFeed.length === 0) {
+        container.innerHTML = '<p>No recent activity</p>';
+        return;
+    }
+    
+    container.innerHTML = activityFeed.map(activity => `
+        <div class="activity-item">
+            <div class="activity-avatar">
+                ${activity.user.charAt(0).toUpperCase()}
+            </div>
+            <div class="activity-content">
+                <div class="activity-user">${activity.user}</div>
+                <div class="activity-action">
+                    ${activity.action === 'completed' ? 'completed' : 'is working on'} 
+                    <strong>${activity.package}</strong>
+                    ${activity.score ? ` (Score: ${activity.score})` : ''}
+                </div>
+                <div class="activity-time">${formatTime(activity.timestamp)}</div>
+            </div>
+            <div class="status-badge status-${activity.action}">
+                ${activity.action}
+            </div>
+        </div>
+    `).join('');
+}
+
+// Format timestamp
+function formatTime(timestamp) {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diff = now - date;
+    
+    if (diff < 60000) { // Less than 1 minute
+        return 'Just now';
+    } else if (diff < 3600000) { // Less than 1 hour
+        const minutes = Math.floor(diff / 60000);
+        return `${minutes} minute${minutes > 1 ? 's' : ''} ago`;
+    } else if (diff < 86400000) { // Less than 1 day
+        const hours = Math.floor(diff / 3600000);
+        return `${hours} hour${hours > 1 ? 's' : ''} ago`;
+    } else {
+        return date.toLocaleDateString();
+    }
+}
+
+// Refresh data manually
+function refreshData() {
+    document.getElementById('loading').style.display = 'block';
+    document.getElementById('dashboard-content').style.display = 'none';
+    loadAnalyticsData();
+}
+
+// Show error message
+function showError(message) {
+    document.getElementById('error-message').textContent = message;
+    document.getElementById('error').style.display = 'block';
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('dashboard-content').style.display = 'none';
+}
+
+// Clean up on page unload
+window.addEventListener('beforeunload', function() {
+    if (refreshInterval) {
+        clearInterval(refreshInterval);
+    }
+});
+</script>
+{% endblock %}

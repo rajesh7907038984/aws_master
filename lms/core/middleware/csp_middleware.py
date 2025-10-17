@@ -22,12 +22,12 @@ class CSPMiddleware:
         # This is necessary for SCORM content, TinyMCE editor, and other JavaScript libraries
         csp_policy = (
             "default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob:; "
-            "frame-src 'self' 'unsafe-inline' 'unsafe-eval'; "
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval' *.amazonaws.com *.articulate.com *.adobe.com *.captivate.com *.googleapis.com *.gstatic.com; "
-            "style-src 'self' 'unsafe-inline' *.amazonaws.com fonts.googleapis.com *.gstatic.com; "
-            "img-src 'self' data: blob: *.amazonaws.com *.articulate.com *.adobe.com *.captivate.com; "
-            "font-src 'self' *.amazonaws.com fonts.gstatic.com fonts.googleapis.com; "
-            "connect-src 'self' *.amazonaws.com metrics.articulate.com *.articulate.com *.adobe.com *.captivate.com https://metrics.articulate.com *.googleapis.com; "
+            "frame-src 'self' 'unsafe-inline' 'unsafe-eval' *.amazonaws.com *.s3.amazonaws.com https://lms-staging-nexsy-io.s3.eu-west-2.amazonaws.com; "
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval' *.amazonaws.com *.s3.amazonaws.com *.articulate.com *.adobe.com *.captivate.com *.googleapis.com *.gstatic.com; "
+            "style-src 'self' 'unsafe-inline' *.amazonaws.com *.s3.amazonaws.com fonts.googleapis.com *.gstatic.com; "
+            "img-src 'self' data: blob: *.amazonaws.com *.s3.amazonaws.com *.articulate.com *.adobe.com *.captivate.com; "
+            "font-src 'self' *.amazonaws.com *.s3.amazonaws.com fonts.gstatic.com fonts.googleapis.com; "
+            "connect-src 'self' *.amazonaws.com *.s3.amazonaws.com metrics.articulate.com *.articulate.com *.adobe.com *.captivate.com https://metrics.articulate.com *.googleapis.com; "
             "worker-src 'self' blob:; "
             "object-src 'self' data: blob:; "
             "base-uri 'self';"

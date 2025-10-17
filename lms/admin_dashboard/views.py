@@ -12,7 +12,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.contrib.auth.models import ContentType as AuthContentType
 from django.urls import reverse
 from django.http import JsonResponse
-from django.core.cache import cache
+# Cache import removed - cache functionality disabled
 from django.conf import settings
 import json
 import logging
@@ -251,8 +251,7 @@ class SuperAdminDashboardView(UserPassesTestMixin, TemplateView):
             'completions': daily_completions
         }
         
-        # Cache the data for 5 minutes
-        cache.set(cache_key, activity_data, CACHE_TIMEOUT)
+        # Cache functionality removed
         
         # Memory cleanup and monitoring
         cleanup_memory()
@@ -270,14 +269,7 @@ class SuperAdminDashboardView(UserPassesTestMixin, TemplateView):
         
         context = super().get_context_data(**kwargs)
         
-        # Try to get cached dashboard data first
-        dashboard_cache_key = CACHE_KEY_DASHBOARD_DATA.format(self.request.user.id)
-        cached_dashboard_data = cache.get(dashboard_cache_key)
-        
-        if cached_dashboard_data:
-            context.update(cached_dashboard_data)
-            monitor_memory_usage("get_context_data_cached", initial_memory)
-            return context
+        # Cache functionality removed - always fetch fresh data
         
         # Use consistent dashboard data provider for 100% consistency across environments
         from core.utils.consistent_dashboard_data import get_consistent_dashboard_context
@@ -496,8 +488,7 @@ class SuperAdminDashboardView(UserPassesTestMixin, TemplateView):
             'total_completions': context['total_completions'],
         }
         
-        # Cache for 2 minutes to balance performance and data freshness
-        cache.set(dashboard_cache_key, cacheable_data, 120)
+        # Cache functionality removed
         
         # Memory cleanup and monitoring
         cleanup_memory()

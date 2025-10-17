@@ -5,7 +5,7 @@ from django.urls import reverse
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.core.exceptions import ValidationError
 from django.db.models import F, Q
-from django.core.cache import cache
+# Cache import removed - cache functionality disabled
 import json
 
 class Quiz(models.Model):

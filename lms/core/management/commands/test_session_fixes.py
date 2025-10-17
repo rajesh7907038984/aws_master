@@ -6,7 +6,7 @@ Django management command to test session fixes
 from django.core.management.base import BaseCommand
 from django.contrib.auth import get_user_model
 from django.contrib.sessions.models import Session
-from django.core.cache import cache
+# Cache import removed - cache functionality disabled
 from django.utils import timezone
 from datetime import timedelta
 import logging

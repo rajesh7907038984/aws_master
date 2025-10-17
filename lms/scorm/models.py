@@ -176,6 +176,10 @@ class ELearningPackage(models.Model):
                 logger.info(f"SCORM: Launch file detected: {self.launch_file} for package type {self.package_type}")
             else:
                 logger.warning(f"SCORM: No launch file found for package type {self.package_type}")
+            
+            # Upload extracted content to S3
+            self._upload_extracted_content_to_s3(full_topic_dir, topic_dir)
+            
             self.extracted_path = f"elearning/{topic_dir}"  # Store relative path with elearning prefix
             self.is_extracted = True
             self.extraction_error = ""
@@ -442,6 +446,58 @@ class ELearningPackage(models.Model):
         
         logger.warning(f"SCORM: No launch file found for package type {self.package_type}")
         return None
+    
+    def _upload_extracted_content_to_s3(self, local_path, s3_topic_dir):
+        """Upload extracted SCORM content to S3"""
+        try:
+            from django.core.files.base import ContentFile
+            import mimetypes
+            
+            # Walk through all files in the extracted directory
+            for root, dirs, files in os.walk(local_path):
+                for file in files:
+                    local_file_path = os.path.join(root, file)
+                    
+                    # Calculate relative path from the extraction directory
+                    rel_path = os.path.relpath(local_file_path, local_path)
+                    s3_file_path = f"{s3_topic_dir}/{rel_path}"
+                    
+                    # Read the file content
+                    with open(local_file_path, 'rb') as f:
+                        content = f.read()
+                    
+                    # Create ContentFile for S3 upload
+                    content_file = ContentFile(content)
+                    
+                    # Determine content type
+                    content_type, _ = mimetypes.guess_type(local_file_path)
+                    if not content_type:
+                        if file.endswith('.html'):
+                            content_type = 'text/html'
+                        elif file.endswith('.css'):
+                            content_type = 'text/css'
+                        elif file.endswith('.js'):
+                            content_type = 'application/javascript'
+                        elif file.endswith('.json'):
+                            content_type = 'application/json'
+                        elif file.endswith('.xml'):
+                            content_type = 'application/xml'
+                        else:
+                            content_type = 'application/octet-stream'
+                    
+                    # Upload to S3
+                    try:
+                        self.package_file.storage.save(s3_file_path, content_file)
+                        logger.info(f"SCORM: Uploaded {rel_path} to S3 as {s3_file_path}")
+                    except Exception as e:
+                        logger.error(f"SCORM: Error uploading {rel_path} to S3: {e}")
+                        continue
+            
+            logger.info(f"SCORM: Successfully uploaded extracted content for topic {self.topic.id} to S3")
+            
+        except Exception as e:
+            logger.error(f"SCORM: Error uploading extracted content to S3: {e}")
+            raise
     
     def detect_package_type(self):
         """Detect the package type based on manifest files"""
@@ -1133,6 +1189,230 @@ class ELearningTracking(models.Model):
             mastery_threshold = mastery_threshold * 100
         
         return score_percentage >= mastery_threshold
+
+    def get_articulate_bookmark_data(self):
+        """
+        Enhanced Articulate-specific bookmark data extraction.
+        Handles various Articulate package formats and bookmark structures.
+        """
+        try:
+            if not self.raw_data:
+                return None
+            
+            # Check for Articulate-specific bookmark data
+            articulate_bookmarks = {}
+            
+            # Method 1: Check for Articulate Storyline bookmark data
+            if 'articulate.bookmark' in self.raw_data:
+                articulate_bookmarks['storyline'] = self.raw_data['articulate.bookmark']
+            
+            # Method 2: Check for Articulate Rise bookmark data
+            if 'articulate.rise.bookmark' in self.raw_data:
+                articulate_bookmarks['rise'] = self.raw_data['articulate.rise.bookmark']
+            
+            # Method 3: Check for Articulate Presenter bookmark data
+            if 'articulate.presenter.bookmark' in self.raw_data:
+                articulate_bookmarks['presenter'] = self.raw_data['articulate.presenter.bookmark']
+            
+            # Method 4: Check for Articulate Quizmaker bookmark data
+            if 'articulate.quizmaker.bookmark' in self.raw_data:
+                articulate_bookmarks['quizmaker'] = self.raw_data['articulate.quizmaker.bookmark']
+            
+            # Method 5: Check for generic Articulate bookmark data
+            if 'articulate.bookmark_data' in self.raw_data:
+                articulate_bookmarks['generic'] = self.raw_data['articulate.bookmark_data']
+            
+            # Method 6: Check for Articulate-specific suspend data
+            if 'articulate.suspend_data' in self.raw_data:
+                articulate_bookmarks['suspend'] = self.raw_data['articulate.suspend_data']
+            
+            # Method 7: Check for Articulate-specific lesson location
+            if 'articulate.lesson_location' in self.raw_data:
+                articulate_bookmarks['location'] = self.raw_data['articulate.lesson_location']
+            
+            # Method 8: Check for Articulate-specific progress data
+            if 'articulate.progress' in self.raw_data:
+                articulate_bookmarks['progress'] = self.raw_data['articulate.progress']
+            
+            # Method 9: Check for Articulate-specific navigation data
+            if 'articulate.navigation' in self.raw_data:
+                articulate_bookmarks['navigation'] = self.raw_data['articulate.navigation']
+            
+            # Method 10: Check for Articulate-specific state data
+            if 'articulate.state' in self.raw_data:
+                articulate_bookmarks['state'] = self.raw_data['articulate.state']
+            
+            # Return the most relevant bookmark data
+            if articulate_bookmarks:
+                return articulate_bookmarks
+            
+            # Fallback: Check for standard SCORM bookmark data that might be Articulate-specific
+            standard_bookmarks = {}
+            
+            if 'cmi.core.lesson_location' in self.raw_data:
+                standard_bookmarks['lesson_location'] = self.raw_data['cmi.core.lesson_location']
+            
+            if 'cmi.core.suspend_data' in self.raw_data:
+                standard_bookmarks['suspend_data'] = self.raw_data['cmi.core.suspend_data']
+            
+            if 'cmi.core.entry' in self.raw_data:
+                standard_bookmarks['entry'] = self.raw_data['cmi.core.entry']
+            
+            if 'cmi.core.exit' in self.raw_data:
+                standard_bookmarks['exit'] = self.raw_data['cmi.core.exit']
+            
+            return standard_bookmarks if standard_bookmarks else None
+            
+        except Exception as e:
+            logger.error(f"SCORM: Error extracting Articulate bookmark data: {str(e)}")
+            return None
+
+    def _find_articulate_launch_file(self):
+        """
+        Enhanced Articulate launch file detection.
+        Handles various Articulate package structures and file naming conventions.
+        """
+        try:
+            if not self.elearning_package.extracted_path:
+                return None
+            
+            from .storage import SCORMS3Storage
+            storage = SCORMS3Storage()
+            
+            # Get the extracted directory contents
+            files, dirs = storage.listdir(self.elearning_package.extracted_path)
+            
+            # Priority list of Articulate launch files
+            articulate_launch_files = [
+                # Articulate Storyline files
+                'story.html',
+                'story.html5',
+                'story_html5.html',
+                'storyline.html',
+                'storyline.html5',
+                'storyline_html5.html',
+                'storyline_story.html',
+                'storyline_story_html5.html',
+                'storyline_story_html5_story.html',
+                
+                # Articulate Rise files
+                'rise.html',
+                'rise.html5',
+                'rise_html5.html',
+                'rise_story.html',
+                'rise_story_html5.html',
+                
+                # Articulate Presenter files
+                'presenter.html',
+                'presenter.html5',
+                'presenter_html5.html',
+                'presenter_story.html',
+                'presenter_story_html5.html',
+                
+                # Articulate Quizmaker files
+                'quizmaker.html',
+                'quizmaker.html5',
+                'quizmaker_html5.html',
+                'quizmaker_story.html',
+                'quizmaker_story_html5.html',
+                
+                # Generic Articulate files
+                'articulate.html',
+                'articulate.html5',
+                'articulate_html5.html',
+                'articulate_story.html',
+                'articulate_story_html5.html',
+                
+                # Common HTML files that might be Articulate
+                'index.html',
+                'main.html',
+                'content.html',
+                'launch.html',
+                'player.html',
+                'story.html',
+                'story_html5.html',
+                'story_html5_story.html',
+                'story_html5_story_html5.html',
+                'story_html5_story_html5_story.html',
+            ]
+            
+            # Check for exact matches first
+            for launch_file in articulate_launch_files:
+                if launch_file in files:
+                    return f"{self.elearning_package.extracted_path}/{launch_file}"
+            
+            # Check for files that start with Articulate keywords
+            for file in files:
+                if file.lower().startswith(('story', 'rise', 'presenter', 'quizmaker', 'articulate')):
+                    if file.lower().endswith(('.html', '.htm')):
+                        return f"{self.elearning_package.extracted_path}/{file}"
+            
+            # Check for files that contain Articulate keywords
+            for file in files:
+                if any(keyword in file.lower() for keyword in ['story', 'rise', 'presenter', 'quizmaker', 'articulate']):
+                    if file.lower().endswith(('.html', '.htm')):
+                        return f"{self.elearning_package.extracted_path}/{file}"
+            
+            # Fallback: Check for any HTML file
+            for file in files:
+                if file.lower().endswith(('.html', '.htm')):
+                    return f"{self.elearning_package.extracted_path}/{file}"
+            
+            return None
+            
+        except Exception as e:
+            logger.error(f"SCORM: Error finding Articulate launch file: {str(e)}")
+            return None
+
+    def _is_articulate_file(self, file_path):
+        """
+        Check if a file is an Articulate package file.
+        """
+        try:
+            if not file_path:
+                return False
+            
+            file_name = file_path.lower()
+            
+            # Check for Articulate-specific file patterns
+            articulate_patterns = [
+                'story.html',
+                'rise.html',
+                'presenter.html',
+                'quizmaker.html',
+                'articulate.html',
+                'story_html5.html',
+                'rise_html5.html',
+                'presenter_html5.html',
+                'quizmaker_html5.html',
+                'articulate_html5.html',
+                'storyline.html',
+                'storyline_html5.html',
+                'storyline_story.html',
+                'storyline_story_html5.html',
+                'storyline_story_html5_story.html',
+            ]
+            
+            # Check for exact matches
+            if file_name in articulate_patterns:
+                return True
+            
+            # Check for partial matches
+            for pattern in articulate_patterns:
+                if pattern in file_name:
+                    return True
+            
+            # Check for Articulate keywords
+            articulate_keywords = ['story', 'rise', 'presenter', 'quizmaker', 'articulate', 'storyline']
+            for keyword in articulate_keywords:
+                if keyword in file_name:
+                    return True
+            
+            return False
+            
+        except Exception as e:
+            logger.error(f"SCORM: Error checking Articulate file: {str(e)}")
+            return False
 
 class SCORMReport(models.Model):
     """Model for SCORM reports and analytics"""

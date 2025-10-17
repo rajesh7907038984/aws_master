@@ -27,7 +27,7 @@
     <script src="{% static 'core/js/safe-fetch-utils.js' %}"></script>
     
     <!-- Loading indicators - load early for all async operations -->
-    <script src="{% static 'core/js/loading-indicators.js' %}"></script>
+    <!-- <script src="{% static 'core/js/loading-indicators.js' %}"></script> -->
     
     <!-- Unified timezone handler - consolidates all timezone functionality -->
     <script src="{% static 'core/js/unified-timezone-handler.js' %}"></script>
@@ -508,17 +508,7 @@
             }
         }
 
-        /* 12. Enhanced Loading States */
-        @media (max-width: 768px) {
-            .loading-spinner {
-                width: 2rem;
-                height: 2rem;
-            }
-            
-            .loading-text {
-                font-size: 0.875rem;
-            }
-        }
+        /* 12. Enhanced Loading States - REMOVED */
     </style>
     
     <!-- Toast Notification CSS -->

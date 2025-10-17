@@ -2210,7 +2210,7 @@
                 // Check if Sortable is available
                 if (typeof Sortable === 'undefined') {
                     console.error('Sortable.js not loaded');
-                    return;
+                    return false;
                 }
                 
                 // Find sections container
@@ -2218,15 +2218,22 @@
                 
                 if (!sectionsContainer) {
                     console.error('Sections container not found');
-                    return;
+                    return false;
                 }
                 
                 console.log('Sections container found:', sectionsContainer);
                 
+                // Check if container has sections
+                const sectionItems = sectionsContainer.querySelectorAll('.section-item[data-id]');
+                if (sectionItems.length === 0) {
+                    console.warn('No section items found in container');
+                    return false;
+                }
+                
                 // Skip if already initialized
                 if (sectionsContainer.hasAttribute('data-sortable-initialized')) {
                     console.log('Sections sortable already initialized');
-                    return;
+                    return true;
                 }
                 
                 // Destroy any existing sortable instance
@@ -2242,6 +2249,9 @@
                         chosenClass: 'sortable-chosen',
                         dragClass: 'sortable-drag',
                         handle: '.section-drag-handle',
+                        forceFallback: false,
+                        fallbackOnBody: true,
+                        swapThreshold: 0.65,
                         onStart: function(evt) {
                             console.log('Section drag started');
                             document.body.classList.add('section-dragging-active');
@@ -2256,6 +2266,7 @@
                             
                             // Save new order if needed
                             if (evt.oldIndex !== evt.newIndex) {
+                                console.log('Section order changed, saving...');
                                 saveSectionOrder();
                             }
                         }
@@ -2265,8 +2276,10 @@
                     sectionsContainer.sortable = sortableInstance;
                     sectionsContainer.setAttribute('data-sortable-initialized', 'true');
                     console.log('Sections sortable initialized successfully');
+                    return true;
                 } catch (error) {
                     console.error('Error initializing sections sortable:', error);
+                    return false;
                 }
             }
             
@@ -2277,17 +2290,16 @@
                 // Check if Sortable is available
                 if (typeof Sortable === 'undefined') {
                     console.error('Sortable.js not loaded');
-                    return;
+                    return false;
                 }
                 
-                // Find all topic containers
-                const topicContainers = document.querySelectorAll('.topic-list, .topics-container, [data-sortable="true"]');
+                // Find all topic containers - be more specific
+                const topicContainers = document.querySelectorAll('.topic-list[data-section-id]');
                 console.log('Found topic containers:', topicContainers.length);
                 
                 if (topicContainers.length === 0) {
-                    console.warn('No topic containers found, retrying in 500ms...');
-                    setTimeout(initializeTopicsSortable, 500);
-                    return;
+                    console.warn('No topic containers found');
+                    return false;
                 }
                 
                 // Create a group for cross-section dragging
@@ -2298,6 +2310,9 @@
                     chosenClass: 'sortable-chosen',
                     dragClass: 'sortable-drag',
                     handle: '.topic-drag-handle, .drag-handle',
+                    forceFallback: false,
+                    fallbackOnBody: true,
+                    swapThreshold: 0.65,
                     onStart: function(evt) {
                         console.log('Topic drag started');
                         console.log('Drag item:', evt.item);
@@ -2338,11 +2353,13 @@
                     }
                 };
                 
+                let successCount = 0;
                 topicContainers.forEach((container, index) => {
                     console.log(`Processing topic container ${index}:`, container);
                     // Skip if already initialized
                     if (container.hasAttribute('data-sortable-initialized')) {
                         console.log(`Container ${index} already initialized`);
+                        successCount++;
                         return;
                     }
                     
@@ -2357,20 +2374,25 @@
                         container.sortable = sortableInstance;
                         container.setAttribute('data-sortable-initialized', 'true');
                         console.log(`Container ${index} initialized successfully`);
+                        successCount++;
                     } catch (error) {
                         console.error('Error initializing sortable for container:', error);
                     }
                 });
                 
+                console.log(`Successfully initialized ${successCount} out of ${topicContainers.length} topic containers`);
+                return successCount > 0;
             }
             
             // Function to save section order
             async function saveSectionOrder() {
                 try {
+                    console.log('Saving section order...');
                     const sectionsContainer = document.getElementById('sections-container');
                     const sectionItems = sectionsContainer.querySelectorAll('.section-item[data-id]');
                     const sectionOrders = [];
                     
+                    console.log('Found section items:', sectionItems.length);
                     
                     sectionItems.forEach((item, index) => {
                         const sectionId = item.getAttribute('data-id');
@@ -2382,12 +2404,21 @@
                         }
                     });
                     
+                    console.log('Section orders to save:', sectionOrders);
+                    
                     if (sectionOrders.length === 0) {
+                        console.warn('No section orders to save');
                         return;
                     }
                     
-                    
                     const csrfToken = getCSRFToken();
+                    
+                    const requestData = {
+                        course_id: window.COURSE_ID,
+                        section_orders: sectionOrders
+                    };
+                    
+                    console.log('Sending request:', requestData);
                     
                     const response = await fetch('/courses/api/sections/reorder/', {
                         method: 'POST',
@@ -2395,13 +2426,12 @@
                             'Content-Type': 'application/json',
                             'X-CSRFToken': csrfToken
                         },
-                        body: JSON.stringify({
-                            course_id: window.COURSE_ID,
-                            section_orders: sectionOrders
-                        })
+                        body: JSON.stringify(requestData)
                     });
                     
+                    console.log('Response status:', response.status);
                     const data = await response.json();
+                    console.log('Response data:', data);
                     
                     if (data.success) {
                         showNotification('Section order updated successfully', 'success');
@@ -2409,6 +2439,7 @@
                         showNotification('Failed to update section order: ' + data.error, 'error');
                     }
                 } catch (error) {
+                    console.error('Error updating section order:', error);
                     showNotification('Error updating section order: ' + error.message, 'error');
                 }
             }
@@ -2575,12 +2606,6 @@
             // Also wait for sections and topics to be properly rendered
             function initializeSortableWhenReady() {
                 console.log('Checking if sortable containers are ready...');
-                // Check if sections and topics containers exist
-                const sectionsContainer = document.getElementById('sections-container');
-                const topicContainers = document.querySelectorAll('.topic-list, .topics-container, [data-sortable="true"]');
-                
-                console.log('Sections container:', sectionsContainer);
-                console.log('Topic containers found:', topicContainers.length);
                 
                 // Check if Sortable is available
                 if (typeof Sortable === 'undefined') {
@@ -2589,16 +2614,41 @@
                     return;
                 }
                 
-                if (sectionsContainer && topicContainers.length > 0) {
+                // Check if sections and topics containers exist
+                const sectionsContainer = document.getElementById('sections-container');
+                const topicContainers = document.querySelectorAll('.topic-list[data-section-id]');
+                
+                console.log('Sections container:', sectionsContainer);
+                console.log('Topic containers found:', topicContainers.length);
+                
+                if (sectionsContainer && sectionsContainer.children.length > 0) {
                     console.log('Containers ready, initializing sortable...');
+                    
                     // Initialize sections sortable
-                    initializeSectionsSortable();
+                    const sectionsSuccess = initializeSectionsSortable();
+                    
                     // Initialize topics sortable
-                    initializeTopicsSortable();
+                    const topicsSuccess = initializeTopicsSortable();
+                    
+                    if (sectionsSuccess && topicsSuccess) {
+                        console.log('All sortable functionality initialized successfully');
+                        return true;
+                    } else {
+                        console.warn('Some sortable functionality failed to initialize');
+                        // Try to reinitialize sections only if it failed
+                        if (!sectionsSuccess) {
+                            console.log('Retrying sections initialization...');
+                            setTimeout(() => {
+                                initializeSectionsSortable();
+                            }, 1000);
+                        }
+                        return false;
+                    }
                 } else {
                     console.log('Containers not ready, retrying...');
                     // Retry after a short delay
                     setTimeout(initializeSortableWhenReady, 200);
+                    return false;
                 }
             }
             
@@ -2630,8 +2680,31 @@
             // Add manual initialization function for debugging
             window.manualInitSortable = function() {
                 console.log('Manual sortable initialization triggered');
-                initializeSectionsSortable();
-                initializeTopicsSortable();
+                
+                // Destroy existing instances first
+                const sectionsContainer = document.getElementById('sections-container');
+                if (sectionsContainer && sectionsContainer.sortable) {
+                    sectionsContainer.sortable.destroy();
+                    sectionsContainer.removeAttribute('data-sortable-initialized');
+                }
+                
+                const topicContainers = document.querySelectorAll('.topic-list[data-section-id]');
+                topicContainers.forEach(container => {
+                    if (container.sortable) {
+                        container.sortable.destroy();
+                        container.removeAttribute('data-sortable-initialized');
+                    }
+                });
+                
+                // Reinitialize
+                const sectionsSuccess = initializeSectionsSortable();
+                const topicsSuccess = initializeTopicsSortable();
+                
+                if (sectionsSuccess && topicsSuccess) {
+                    showNotification('Sortable functionality reinitialized successfully', 'success');
+                } else {
+                    showNotification('Failed to reinitialize sortable functionality', 'error');
+                }
             };
             
             // Add debug button for manual initialization
@@ -2646,6 +2719,7 @@
             debugButton.style.padding = '5px 10px';
             debugButton.style.border = 'none';
             debugButton.style.borderRadius = '3px';
+            debugButton.style.cursor = 'pointer';
             debugButton.onclick = window.manualInitSortable;
             document.body.appendChild(debugButton);
             
@@ -2741,6 +2815,29 @@
                 initializeTopicsSortable();
             };
             
+            // Debug function for section reordering
+            window.debugSectionReorder = function() {
+                console.log('=== Section Reorder Debug ===');
+                console.log('Sortable available:', typeof Sortable !== 'undefined');
+                console.log('Sections container:', document.getElementById('sections-container'));
+                console.log('Section items:', document.querySelectorAll('.section-item[data-id]').length);
+                console.log('Drag handles:', document.querySelectorAll('.section-drag-handle').length);
+                
+                const container = document.getElementById('sections-container');
+                if (container) {
+                    console.log('Container has sortable:', !!container.sortable);
+                    console.log('Container initialized:', container.hasAttribute('data-sortable-initialized'));
+                    console.log('Container children:', container.children.length);
+                }
+                
+                // Test if drag handles are clickable
+                const dragHandles = document.querySelectorAll('.section-drag-handle');
+                console.log('Drag handles found:', dragHandles.length);
+                dragHandles.forEach((handle, index) => {
+                    console.log(`Handle ${index}:`, handle, 'Visible:', handle.offsetParent !== null);
+                });
+            };
+            
             // Add a button to manually initialize sortable if needed (for debugging)
             if (window.location.hostname.includes('staging') || window.location.hostname.includes('localhost')) {
                 const debugButton = document.createElement('button');
@@ -2770,7 +2867,15 @@
                 return; // User cancelled or no change
             }
             
-            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]');
+            // Use the global getCSRFToken function if available, otherwise fallback to direct method
+            let csrfToken;
+            if (typeof window.getCSRFToken === 'function') {
+                csrfToken = window.getCSRFToken();
+            } else {
+                const csrfElement = document.querySelector('[name=csrfmiddlewaretoken]');
+                csrfToken = csrfElement ? csrfElement.value : null;
+            }
+            
             if (!csrfToken) {
                 alert('Error: CSRF token not found. Please refresh the page.');
                 return;
@@ -2803,7 +2908,7 @@
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-CSRFToken': csrfToken.value,
+                    'X-CSRFToken': csrfToken,
                     'X-Requested-With': 'XMLHttpRequest'
                 },
                 body: requestBody,
@@ -2906,6 +3011,39 @@
             }
         });
         
+        // Ensure getCSRFToken is available globally
+        if (typeof window.getCSRFToken !== 'function') {
+            window.getCSRFToken = function() {
+                // Method 1: Form input
+                const csrfInput = document.querySelector('[name=csrfmiddlewaretoken]');
+                if (csrfInput && csrfInput.value) {
+                    return csrfInput.value;
+                }
+                
+                // Method 2: Meta tag
+                const csrfMeta = document.querySelector('meta[name=csrf-token]');
+                if (csrfMeta && csrfMeta.content) {
+                    return csrfMeta.content;
+                }
+                
+                // Method 3: Cookie
+                const cookies = document.cookie.split(';');
+                for (let cookie of cookies) {
+                    const [name, value] = cookie.trim().split('=');
+                    if (name === 'csrftoken' || name === 'lms_csrftoken') {
+                        return value;
+                    }
+                }
+                
+                // Method 4: Window object
+                if (window.CSRF_TOKEN) {
+                    return window.CSRF_TOKEN;
+                }
+                
+                return null;
+            };
+        }
+        
         // Safe section rename handler
         window.handleRenameSection = function(button) {
             console.log('handleRenameSection called with button:', button);
@@ -2914,12 +3052,36 @@
             
             console.log('Section ID:', sectionId, 'Section Name:', sectionName);
             
+            // Validate inputs
+            if (!sectionId) {
+                console.error('Section ID not found');
+                showTopicNotification('Error: Section ID not found', 'error');
+                return;
+            }
+            
+            if (!sectionName) {
+                console.error('Section name not found');
+                showTopicNotification('Error: Section name not found', 'error');
+                return;
+            }
+            
+            // Check if renameSection function is available
             if (typeof renameSection === 'function') {
                 console.log('Using renameSection function');
-                renameSection(sectionId, sectionName);
+                try {
+                    renameSection(sectionId, sectionName);
+                } catch (error) {
+                    console.error('Error in renameSection:', error);
+                    showTopicNotification('Error renaming section: ' + error.message, 'error');
+                }
             } else if (typeof renameSectionGlobal === 'function') {
                 console.log('Using renameSectionGlobal function');
-                renameSectionGlobal(sectionId, sectionName);
+                try {
+                    renameSectionGlobal(sectionId, sectionName);
+                } catch (error) {
+                    console.error('Error in renameSectionGlobal:', error);
+                    showTopicNotification('Error renaming section: ' + error.message, 'error');
+                }
             } else {
                 console.error('No rename function available');
                 showTopicNotification('Error: Rename functionality not available', 'error');
@@ -2943,6 +3105,19 @@
             } catch (error) {
                 showTopicNotification('Error renaming section. Please try again.', 'error');
             }
+        };
+        
+        // Debug function for section rename issues
+        window.debugSectionRename = function(sectionId) {
+            console.log('=== Section Rename Debug ===');
+            console.log('Section ID:', sectionId);
+            console.log('CSRF Token available:', typeof window.getCSRFToken === 'function');
+            console.log('CSRF Token value:', window.getCSRFToken());
+            console.log('Section element:', document.querySelector(`[data-section-id="${sectionId}"]`));
+            console.log('Rename button:', document.querySelector(`[data-section-id="${sectionId}"][data-section-name]`));
+            console.log('renameSection function available:', typeof renameSection === 'function');
+            console.log('handleRenameSection function available:', typeof window.handleRenameSection === 'function');
+            console.log('===========================');
         };
         
         

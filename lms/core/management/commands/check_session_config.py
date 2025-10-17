@@ -8,7 +8,7 @@ from django.conf import settings
 from django.contrib.sessions.models import Session
 from django.contrib.auth import get_user_model
 from django.utils import timezone
-from django.core.cache import cache
+# Cache import removed - cache functionality disabled
 import os
 from datetime import timedelta
 

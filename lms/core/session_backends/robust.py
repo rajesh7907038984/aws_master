@@ -5,7 +5,7 @@ Prevents auto-logout issues with comprehensive error handling
 """
 from django.contrib.sessions.backends.db import SessionStore as DatabaseSessionStore
 from django.contrib.sessions.models import Session
-from django.core.cache import cache
+# Cache import removed - cache functionality disabled
 from django.utils import timezone
 from django.db import transaction
 import logging

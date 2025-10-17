@@ -1,4 +1,3 @@
-from django.core.cache import cache
 from django.conf import settings
 from django.utils import timezone
 import logging
@@ -31,14 +30,6 @@ def notifications_context(request):
         return default_response
     
     try:
-        # Cache key based on user and current minute (refresh every minute for real-time updates)
-        cache_key = f"notifications_context_{request.user.id}_{timezone.now().minute}"
-        
-        # Try to get cached data first
-        cached_data = cache.get(cache_key)
-        if cached_data:
-            return cached_data
-        
         # Import here to avoid circular imports and ensure model is ready
         try:
             from .models import Notification
@@ -58,13 +49,6 @@ def notifications_context(request):
             'total_notifications_count': total_count,
             'urgent_notifications_count': urgent_count,
         }
-        
-        # Cache for 1 minute, or 30 seconds in development
-        try:
-            cache_timeout = 30 if settings.DEBUG else 60  # 30 seconds in debug, 1 minute in production
-            cache.set(cache_key, result, cache_timeout)
-        except Exception as e:
-            logger.error(f"Failed to cache notifications context: {e}")
         
         return result
         

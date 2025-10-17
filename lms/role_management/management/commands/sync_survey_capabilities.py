@@ -95,23 +95,4 @@ class Command(BaseCommand):
             )
         )
         
-        # Clear capability caches
-        from django.core.cache import cache
-        cache_keys = []
-        for role in Role.objects.all():
-            cache_keys.append(f"role_capabilities_{role.pk}")
-        
-        if cache_keys:
-            try:
-                cache.delete_many(cache_keys)
-                self.stdout.write(
-                    self.style.SUCCESS(
-                        f'Cleared {len(cache_keys)} capability caches'
-                    )
-                )
-            except Exception as e:
-                self.stdout.write(
-                    self.style.WARNING(
-                        f'Note: Could not clear caches (this is okay): {str(e)}'
-                    )
-                )
+        # Cache functionality removed

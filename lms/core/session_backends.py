@@ -1,6 +1,6 @@
 from django.contrib.sessions.backends.db import SessionStore as DatabaseSessionStore
 from django.contrib.sessions.backends.cache import SessionStore as CacheSessionStore
-from django.core.cache import cache
+# Cache import removed - cache functionality disabled
 import logging
 
 logger = logging.getLogger(__name__)
