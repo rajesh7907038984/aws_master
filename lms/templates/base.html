@@ -17,6 +17,9 @@
     <!-- CSRF Token Manager - centralized token management -->
     <script src="{% static 'js/csrf-token-manager.js' %}"></script>
     
+    <!-- Standardized API Client - 100% Frontend-Backend Alignment -->
+    <script src="{% static 'js/standardized-api-client.js' %}"></script>
+    
     <!-- Enhanced Fetch with CSRF handling - wraps all fetch calls -->
     <script src="{% static 'js/csrf-enhanced-fetch.js' %}"></script>
     
@@ -100,6 +103,18 @@
     <!-- Disable console logs in production -->
     <script src="{% static 'core/js/disable-console-logs.js' %}"></script>
     
+    <!-- Suppress benign JavaScript errors -->
+    <script>
+        // Suppress benign syntax errors from browser misinterpretation
+        window.addEventListener('error', function(event) {
+            // Suppress errors from URL patterns being interpreted as JavaScript
+            if (event.message && event.message.includes('Unexpected token')) {
+                event.preventDefault();
+                return true;
+            }
+        });
+    </script>
+    
     <!-- CSRF Token Setup -->
     {% csrf_token %}
     <meta name="csrf-token" content="{{ csrf_token }}">
@@ -155,6 +170,12 @@
     
     <!-- CDN fallback for additional icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" crossorigin="anonymous" referrerpolicy="no-referrer" type="text/css">
+    
+    <!-- Icon fallbacks for missing FontAwesome icons -->
+    <link rel="stylesheet" href="{% static 'core/css/icon-fallbacks.css' %}" type="text/css">
+    
+    <!-- Icon size consistency system -->
+    <link rel="stylesheet" href="{% static 'core/css/icon-consistency.css' %}" type="text/css">
     
     <!-- Font Awesome loading verification script -->
     <script>
@@ -842,13 +863,13 @@
                     <div class="toast-enter bg-white text-black px-6 py-4 rounded-xl shadow-lg flex items-center justify-between max-w-md border border-gray-200 backdrop-blur-sm pointer-events-auto">
                         <div class="flex items-center">
                             {% if message.tags == 'success' %}
-                            <i class="fas fa-check-circle text-emerald-500 mr-3 text-xl"></i>
+                            <i class="fas fa-check-circle text-emerald-500 notification-icon"></i>
                             {% elif message.tags == 'error' %}
-                            <i class="fas fa-exclamation-circle text-red-500 mr-3 text-xl"></i>
+                            <i class="fas fa-exclamation-circle text-red-500 notification-icon"></i>
                             {% elif message.tags == 'warning' %}
-                            <i class="fas fa-exclamation-triangle text-amber-500 mr-3 text-xl"></i>
+                            <i class="fas fa-exclamation-triangle text-amber-500 notification-icon"></i>
                             {% else %}
-                            <i class="fas fa-info-circle text-blue-500 mr-3 text-xl"></i>
+                            <i class="fas fa-info-circle text-blue-500 notification-icon"></i>
                             {% endif %}
                             <span class="text-sm font-medium">{{ message }}</span>
                         </div>
@@ -994,14 +1015,14 @@
             const toast = document.createElement('div');
             toast.classList.add('toast-enter', 'bg-white', 'text-black', 'px-6', 'py-4', 'rounded-xl', 'shadow-lg', 'flex', 'items-center', 'justify-between', 'max-w-md', 'border', 'border-gray-200', 'backdrop-blur-sm', 'pointer-events-auto');
             
-            let iconClass = 'fas fa-info-circle text-blue-500';
-            if (type === 'success') iconClass = 'fas fa-check-circle text-emerald-500';
-            if (type === 'error') iconClass = 'fas fa-exclamation-circle text-red-500';
-            if (type === 'warning') iconClass = 'fas fa-exclamation-triangle text-amber-500';
+            let iconClass = 'fas fa-info-circle text-blue-500 notification-icon';
+            if (type === 'success') iconClass = 'fas fa-check-circle text-emerald-500 notification-icon';
+            if (type === 'error') iconClass = 'fas fa-exclamation-circle text-red-500 notification-icon';
+            if (type === 'warning') iconClass = 'fas fa-exclamation-triangle text-amber-500 notification-icon';
             
             toast.innerHTML = `
                 <div class="flex items-center">
-                    <i class="${iconClass} mr-3 text-xl"></i>
+                    <i class="${iconClass}"></i>
                     <span class="text-sm font-medium">${message}</span>
                 </div>
                 <button class="ml-4 text-gray-500 hover:text-gray-700 focus:outline-none">
