@@ -32,6 +32,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const pageHeader = document.querySelector('h1');
         const isCreateHeader = pageHeader && (pageHeader.textContent.includes('Create') || pageHeader.textContent.includes('Add'));
         
+        console.log({
             hasTopicId: hasTopicId,
             isCreateURL: isCreateURL,
             isCreateAction: isCreateAction,
@@ -721,15 +722,15 @@ document.addEventListener('DOMContentLoaded', function() {
                         displayFieldError('embed_code', 'Embed code is required');
                         validationPassed = false;
                     }
+                } else if (['video', 'document', 'audio'].includes(contentTypeLower)) {
                     const fileInput = document.querySelector('#' + contentTypeLower + '-content input[type="file"]');
                     
                     // Check if editing existing topic
                     const isEdit = !!document.getElementById('edit_topic_id')?.value;
                     const hasExistingFile = document.querySelector('#' + contentTypeLower + '-content .selected-filename')?.textContent.includes('Current file:');
                     
-                        if (isEdit && hasExistingFile && fileInput && fileInput.files.length > 0) {
-                            validationPassed = false;
-                        }
+                    if (isEdit && hasExistingFile && fileInput && fileInput.files.length > 0) {
+                        validationPassed = false;
                     } else {
                         // For other content types, file is required
                         if (!isEdit || (fileInput && fileInput.files.length > 0)) {
@@ -790,7 +791,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                     
                     let uploadUrl = topicForm.action;
-                    }
                     
                     // Show loading state
                     const submitButton = topicForm.querySelector('button[type="submit"]');
@@ -1093,6 +1093,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // For create operations, absolutely ensure clean form - users expect fresh forms for new topics
         if (isCreateMode) {
+            console.log({
                 hasTopicId: hasTopicId,
                 isCreatePage: isCreatePage,
                 isCreateAction: isCreateAction,

@@ -486,10 +486,10 @@
         <!-- Breadcrumbs -->
         {% include 'components/breadcrumb.html' with breadcrumbs=breadcrumbs %}
 
-        <!-- Main grid with 70-30 split -->
+        <!-- Main grid with full width -->
         <div class="grid grid-cols-12 gap-4 md:gap-6">
-            <!-- Left Column (70%) -->
-            <div class="col-span-12 lg:col-span-8 transition-all duration-300">
+            <!-- Full Width Column -->
+            <div class="col-span-12 transition-all duration-300">
                 <div class="bg-white rounded-lg shadow-sm">
                     <!-- Messages Header -->
                     <div class="p-6">
@@ -654,37 +654,42 @@
                 </div>
             </div>
 
-            <!-- Right Column (30%) -->
-            <div class="col-span-12 lg:col-span-4 transition-all duration-300">
-                <!-- Right sidebar is included globally in base.html -->
-            </div>
         </div>
     </div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script>
     $(document).ready(function() {
+        console.log('Messages page JavaScript loaded');
+        
         // Handle tab switching for Inbox and Sent
-        $('.message-tab').click(function() {
+        $('.message-tab').click(function(e) {
+            e.preventDefault();
+            console.log('Tab clicked:', $(this).text().trim());
+            
             // Update active tab
             $('.message-tab').removeClass('active');
             $(this).addClass('active');
             
             // Filter messages based on tab
-            if ($(this).text().trim() === 'Inbox') {
+            const tabText = $(this).text().trim();
+            if (tabText === 'Inbox') {
+                console.log('Showing inbox messages');
                 $('.message-card[data-is-sent="false"]').show();
                 $('.message-card[data-is-sent="true"]').hide();
-            } else if ($(this).text().trim() === 'Sent') {
+            } else if (tabText === 'Sent') {
+                console.log('Showing sent messages');
                 $('.message-card[data-is-sent="true"]').show();
                 $('.message-card[data-is-sent="false"]').hide();
             }
         });
         
-        // By default, show only received messages (inbox)
-        $('.message-tab:contains("Inbox")').click();
+        // Initialize default state - show inbox messages
+        console.log('Initializing default state');
+        $('.message-card[data-is-sent="false"]').show();
+        $('.message-card[data-is-sent="true"]').hide();
         
         // Show/hide filters when the filters button is clicked
         $('.filters-button').first().click(function() {

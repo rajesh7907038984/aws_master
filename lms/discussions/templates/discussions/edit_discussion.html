@@ -117,10 +117,10 @@
 {% block content %}
 <div class="min-h-screen">
     <div class="container mx-auto px-4 py-6">
-        <!-- Main grid with 70-30 split -->
+        <!-- Main grid with full width -->
         <div class="grid grid-cols-12 gap-4 md:gap-6">
-            <!-- Main Content Column (70%) -->
-            <div class="col-span-12 lg:col-span-8 transition-all duration-300">
+            <!-- Full Width Column -->
+            <div class="col-span-12 transition-all duration-300">
                 <!-- Breadcrumbs -->
                 {% with breadcrumbs=breadcrumbs %}
                     {% include 'components/breadcrumb.html' %}
@@ -184,10 +184,6 @@
                 </div>
             </div>
             
-            <!-- Right Column (30%) -->
-            <div class="col-span-12 lg:col-span-4 transition-all duration-300">
-                <!-- Right sidebar is included globally in base.html -->
-            </div>
         </div>
     </div>
 </div>

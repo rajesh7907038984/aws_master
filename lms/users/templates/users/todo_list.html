@@ -378,10 +378,13 @@ function setupFilterTabs() {
     const filterTabs = document.querySelectorAll('.filter-tab');
     
     filterTabs.forEach(tab => {
-        tab.addEventListener('click', function() {
+        // Remove existing listeners to prevent duplicates
+        tab.removeEventListener('click', tab._clickHandler);
+        tab._clickHandler = function() {
             const todoType = this.getAttribute('data-type');
             switchTodoType(todoType, this);
-        });
+        };
+        tab.addEventListener('click', tab._clickHandler);
     });
 }
 

@@ -1538,10 +1538,6 @@
                     <span class="activity-type-label activity-type-scorm">SCO {{ activity.activity_number }}</span>
                     <div class="activity-title">{{ activity.title|truncatechars:15 }}</div>
                     <div class="activity-points">{{ activity.max_score }} pts</div>
-                  {% elif activity.type == 'scorm_topic' %}
-                    <span class="activity-type-label activity-type-scorm">SCO {{ activity.activity_number }}</span>
-                    <div class="activity-title">{{ activity.title|truncatechars:15 }}</div>
-                    <div class="activity-points">{{ activity.max_score }} pts</div>
                   {% endif %}
                 </th>
               {% endfor %}
@@ -1907,7 +1903,7 @@
                           {% endif %}
                         {% endif %}
                         
-                      {% elif activity.type == 'scorm_topic' %}
+                      {% elif activity.type == 'scorm' %}
                         {% comment %}SCORM topics - check TopicProgress for scores{% endcomment %}
                         {% get_student_activity_score student_scores student.id activity.object.id as score_data %}
                         {% if score_data.score is not None or score_data.completed %}

@@ -217,3 +217,22 @@
 .fa-user-slash::before { content: "\f506"; }
 .fa-user-tag::before { content: "\f507"; }
 .fa-user-clock::before { content: "\f4fd"; }
+
+
+/* Additional commonly used icons */
+.fa-shopping-cart::before { content: "\f07a"; }
+.fa-graduation-cap::before { content: "\f19d"; }
+.fa-sync-alt::before { content: "\f2f1"; }
+.fa-comment-alt::before { content: "\f27a"; }
+.fa-file-alt::before { content: "\f15c"; }
+.fa-map-marker-alt::before { content: "\f3c5"; }
+
+.fa-external-link-alt::before { content: "\f35d"; }
+.fa-file-contract::before { content: "\f56c"; }
+.fa-chart-line::before { content: "\f201"; }
+.fa-redo::before { content: "\f01e"; }
+
+.fa-refresh::before { content: "\f021"; }
+.fa-server::before { content: "\f233"; }
+.fa-sign-in-alt::before { content: "\f2f6"; }
+.fa-tachometer-alt::before { content: "\f3fd"; }

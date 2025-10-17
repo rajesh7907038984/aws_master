@@ -1605,15 +1605,8 @@
         const certificateContent = tabContents[5];
         
         if (certificateTab && certificateContent) {
-            // Remove active class from all tabs
-            tabs.forEach(tab => tab.classList.remove('active'));
-            
-            // Hide all tab contents
-            tabContents.forEach(content => content.style.display = 'none');
-            
-            // Activate certificate tab
-            certificateTab.classList.add('active');
-            certificateContent.style.display = 'block';
+            // Use the unified tab switching function
+            switchToTab(certificateTab, certificateContent, tabs, tabContents);
             
             // Scroll to certificate section
             certificateContent.scrollIntoView({ behavior: 'smooth' });
@@ -1621,6 +1614,19 @@
         
         // Prevent default link behavior
         return false;
+    }
+    
+    // Unified tab switching function
+    function switchToTab(activeTab, activeContent, allTabs, allContents) {
+        // Remove active class from all tabs
+        allTabs.forEach(tab => tab.classList.remove('active'));
+        
+        // Hide all tab contents
+        allContents.forEach(content => content.style.display = 'none');
+        
+        // Activate the specified tab
+        activeTab.classList.add('active');
+        activeContent.style.display = 'block';
     }
     
     // Function to confirm course deletion
@@ -1799,18 +1805,9 @@
         
         tabs.forEach((tab, index) => {
             tab.addEventListener('click', () => {
-                // Remove active class from all tabs
-                tabs.forEach(t => t.classList.remove('active'));
-                
-                // Hide all tab contents
-                tabContents.forEach(content => content.style.display = 'none');
-                
-                // Add active class to clicked tab
-                tab.classList.add('active');
-                
-                // Show corresponding tab content
-                if (tabContents[index]) {
-                    tabContents[index].style.display = 'block';
+                const activeContent = tabContents[index];
+                if (activeContent) {
+                    switchToTab(tab, activeContent, tabs, tabContents);
                 }
             });
         });

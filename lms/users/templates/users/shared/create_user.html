@@ -112,10 +112,10 @@
         <!-- Breadcrumb -->
         {% include 'components/breadcrumb.html' with breadcrumbs=breadcrumbs %}
 
-        <!-- Main grid with 70-30 split -->
+        <!-- Main grid with full width -->
         <div class="grid grid-cols-12 gap-4 md:gap-6">
-            <!-- Main Content Column (70%) -->
-            <div class="col-span-12 lg:col-span-8">
+            <!-- Full Width Column -->
+            <div class="col-span-12">
                 <div class="form-section">
                     <div class="form-header">
                         <h1 class="text-xl font-semibold text-gray-900">{{ title }}</h1>
@@ -258,10 +258,6 @@
                 </div>
             </div>
 
-            <!-- Right Column (30%) -->
-            <div class="col-span-12 lg:col-span-4 transition-all duration-300">
-                <!-- Right sidebar is included globally in base.html -->
-            </div>
         </div>
     </div>
 </div>

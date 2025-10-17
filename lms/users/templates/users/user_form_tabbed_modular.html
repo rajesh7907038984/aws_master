@@ -976,7 +976,9 @@ class TabManager {
         
         // Override tab button clicks for mobile accordion behavior
         document.querySelectorAll('.tab-button').forEach(button => {
-            button.addEventListener('click', (e) => {
+            // Remove existing listeners to prevent duplicates
+            button.removeEventListener('click', this.handleTabClick);
+            this.handleTabClick = (e) => {
                 if (!this.isMobile) return; // Let default behavior handle desktop
                 
                 e.preventDefault();
@@ -985,12 +987,15 @@ class TabManager {
                 if (match) {
                     this.handleMobileTabClick(match[1], button);
                 }
-            });
+            };
+            button.addEventListener('click', this.handleTabClick);
         });
         
         // Override ILP tab button clicks for mobile accordion behavior
         document.querySelectorAll('.ilp-tab-button').forEach(button => {
-            button.addEventListener('click', (e) => {
+            // Remove existing listeners to prevent duplicates
+            button.removeEventListener('click', this.handleILPTabClick);
+            this.handleILPTabClick = (e) => {
                 if (!this.isMobile) return;
                 
                 e.preventDefault();
@@ -999,12 +1004,15 @@ class TabManager {
                 if (match) {
                     this.handleMobileILPTabClick(match[1], button);
                 }
-            });
+            };
+            button.addEventListener('click', this.handleILPTabClick);
         });
         
         // Override learning profile tab button clicks for mobile accordion behavior
         document.querySelectorAll('.learning-profile-tab-button').forEach(button => {
-            button.addEventListener('click', (e) => {
+            // Remove existing listeners to prevent duplicates
+            button.removeEventListener('click', this.handleLearningProfileTabClick);
+            this.handleLearningProfileTabClick = (e) => {
                 if (!this.isMobile) return;
                 
                 e.preventDefault();
@@ -1013,7 +1021,8 @@ class TabManager {
                 if (match) {
                     this.handleMobileLearningProfileTabClick(match[1], button);
                 }
-            });
+            };
+            button.addEventListener('click', this.handleLearningProfileTabClick);
         });
     }
     

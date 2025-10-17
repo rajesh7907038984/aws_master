@@ -626,7 +626,7 @@
                       <span class="activity-type-badge activity-type-conference">
                         <i class="fas fa-video mr-1"></i>Conference
                       </span>
-                    {% elif activity.type == 'scorm_topic' %}
+                    {% elif activity.type == 'scorm' %}
                       <span class="activity-type-badge activity-type-scorm">
                         <i class="fas fa-play-circle mr-1"></i>SCORM
                       </span>
@@ -685,7 +685,7 @@
                           title="Join conference">
                          <i class="fas fa-video mr-1"></i>Join
                        </a>
-                     {% elif activity.type == 'scorm_topic' %}
+                     {% elif activity.type == 'scorm' %}
                        <a href="{% url 'courses:topic_view' activity.object.id %}" 
                           class="action-btn" 
                           title="View SCORM content">

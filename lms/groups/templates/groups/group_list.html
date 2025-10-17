@@ -94,7 +94,7 @@
                             url.searchParams.set('tab', tab);
                             history.pushState({}, '', url);
                         }
-                    }" class="mt-6">
+                    }" class="mt-6" x-init="console.log('Alpine tabs initialized, activeTab', activeTab)">
                         <!-- Tab Navigation -->
                         <div class="border-b border-gray-200">
                             <nav class="flex -mb-px space-x-8" aria-label="Tabs">
@@ -102,21 +102,24 @@
                                 <button @click="setActiveTab('user-groups')"
                                         :class="{ 'border-blue-500 text-blue-600': activeTab === 'user-groups',
                                                 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300': activeTab !== 'user-groups' }"
-                                        class="py-4 px-1 border-b-2 font-medium text-sm">
+                                        class="py-4 px-1 border-b-2 font-medium text-sm"
+                                        data-tab="user-groups">
                                     User Groups
                                 </button>
                                 {% endif %}
                                 <button @click="setActiveTab('course-groups')"
                                         :class="{ 'border-blue-500 text-blue-600': activeTab === 'course-groups',
                                                 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300': activeTab !== 'course-groups' }"
-                                        class="py-4 px-1 border-b-2 font-medium text-sm">
+                                        class="py-4 px-1 border-b-2 font-medium text-sm"
+                                        data-tab="course-groups">
                                     Course Groups
                                 </button>
                                 {% if request.user.role != 'learner' %}
                                 <button @click="setActiveTab('access-control')"
                                         :class="{ 'border-blue-500 text-blue-600': activeTab === 'access-control',
                                                 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300': activeTab !== 'access-control' }"
-                                        class="py-4 px-1 border-b-2 font-medium text-sm">
+                                        class="py-4 px-1 border-b-2 font-medium text-sm"
+                                        data-tab="access-control">
                                     Access Control
                                 </button>
                                 {% endif %}
@@ -126,7 +129,7 @@
                         <!-- Tab Content -->
                         <div class="mt-6">
                             <!-- User Groups Tab -->
-                            <div x-show="activeTab === 'user-groups'" id="user-groups" class="space-y-6">
+                            <div x-show="activeTab === 'user-groups'" id="user-groups" class="space-y-6" data-tab-content="user-groups">
                                 <div class="flex justify-between items-center">
                                     <h2 class="text-2xl font-bold text-gray-900">User Groups</h2>
                                     <div class="flex space-x-4">
@@ -182,7 +185,7 @@
                                                             {% csrf_token %}
                                                             <input type="hidden" name="tab" value="user-groups">
                                                             <button type="submit" class="action-btn" title="Delete">
-                                                                <i class="fas fa-trash-alt"></i>
+                                                                <i class="fas fa-trash"></i>
                                                             </button>
                                                         </form>
                                                     </div>
@@ -207,7 +210,7 @@
                             </div>
 
                             <!-- Course Groups Tab -->
-                            <div x-show="activeTab === 'course-groups'" id="course-groups" class="space-y-6">
+                            <div x-show="activeTab === 'course-groups'" id="course-groups" class="space-y-6" data-tab-content="course-groups">
                                 <div class="flex justify-between items-center">
                                     <h2 class="text-2xl font-bold text-gray-900">Course Groups</h2>
                                     <div class="flex space-x-4">
@@ -270,7 +273,7 @@
                                                             {% csrf_token %}
                                                             <input type="hidden" name="tab" value="course-groups">
                                                             <button type="submit" class="action-btn" title="Delete">
-                                                                <i class="fas fa-trash-alt"></i>
+                                                                <i class="fas fa-trash"></i>
                                                             </button>
                                                         </form>
                                                     </div>
@@ -308,7 +311,7 @@
                             </div>
 
                             <!-- Access Control Tab -->
-                            <div x-show="activeTab === 'access-control'" id="access-control" class="space-y-6">
+                            <div x-show="activeTab === 'access-control'" id="access-control" class="space-y-6" data-tab-content="access-control">
                                 <div class="flex justify-between items-center">
                                     <h2 class="text-2xl font-bold text-gray-900">Access Control</h2>
                                     <div class="flex space-x-4">
@@ -374,7 +377,7 @@
                                                             {% csrf_token %}
                                                             <input type="hidden" name="tab" value="access-control">
                                                             <button type="submit" class="action-btn" title="Delete Group Roles">
-                                                                <i class="fas fa-trash-alt"></i>
+                                                                <i class="fas fa-trash"></i>
                                                             </button>
                                                         </form>
                                                     </div>
@@ -408,7 +411,118 @@
 {% endblock %}
 
 {% block extra_js %}
+<!-- Ensure Alpine.js is loaded -->
 <script>
+    // Check if Alpine.js is loaded, if not, load it locally
+    if (typeof Alpine === 'undefined') {
+        console.log('Alpine.js not found, loading local version...');
+        const script = document.createElement('script');
+        script.src = '{% static "core/js/alpine.min.js" %}';
+        script.defer = true;
+        document.head.appendChild(script);
+    }
+</script>
+<script>
+    // Debug Alpine.js tabs functionality
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('=== Groups Tabs Debug ===');
+        console.log('Alpine available:', typeof Alpine !== 'undefined');
+        console.log('Default tab from server:', '{{ default_tab }}');
+        console.log('Request tab from server:', '{{ request.GET.tab }}');
+        
+        // Check if Alpine is working after a delay
+        setTimeout(() => {
+            if (typeof Alpine !== 'undefined') {
+                console.log('Alpine.js is loaded and working');
+            } else {
+                console.error('Alpine.js failed to load - implementing fallback');
+                setupFallbackTabs();
+            }
+        }, 2000); // Increased delay to allow Alpine.js to load
+    });
+
+    // Additional Alpine.js initialization check
+    window.addEventListener('load', function() {
+        if (typeof Alpine === 'undefined') {
+            console.error('Alpine.js still not loaded after page load - implementing fallback');
+            setupFallbackTabs();
+        }
+    });
+
+    // Fallback tabs implementation if Alpine.js fails
+    function setupFallbackTabs() {
+        console.log('Setting up fallback tabs');
+        const tabButtons = document.querySelectorAll('button[data-tab]');
+        const tabContents = document.querySelectorAll('[data-tab-content]');
+        
+        if (tabButtons.length === 0) {
+            console.error('No tab buttons found for fallback');
+            return;
+        }
+        
+        // Set initial state
+        const defaultTab = '{{ default_tab }}';
+        let activeTab = defaultTab;
+        
+        // Show initial tab
+        tabContents.forEach(content => {
+            const tabName = content.getAttribute('data-tab-content');
+            if (tabName === activeTab) {
+                content.style.display = 'block';
+            } else {
+                content.style.display = 'none';
+            }
+        });
+        
+        // Set initial button styling
+        tabButtons.forEach(btn => {
+            const tabName = btn.getAttribute('data-tab');
+            if (tabName === activeTab) {
+                btn.classList.remove('border-transparent', 'text-gray-500');
+                btn.classList.add('border-blue-500', 'text-blue-600');
+            } else {
+                btn.classList.remove('border-blue-500', 'text-blue-600');
+                btn.classList.add('border-transparent', 'text-gray-500');
+            }
+        });
+        
+        tabButtons.forEach(button => {
+            button.addEventListener('click', function(e) {
+                e.preventDefault();
+                const targetTab = this.getAttribute('data-tab');
+                console.log('Fallback tab clicked:', targetTab);
+                
+                activeTab = targetTab;
+                
+                // Hide all tab contents
+                tabContents.forEach(content => {
+                    content.style.display = 'none';
+                });
+                
+                // Show target tab content
+                const targetContent = document.querySelector(`[data-tab-content="${targetTab}"]`);
+                if (targetContent) {
+                    targetContent.style.display = 'block';
+                }
+                
+                // Update active tab styling
+                tabButtons.forEach(btn => {
+                    btn.classList.remove('border-blue-500', 'text-blue-600');
+                    btn.classList.add('border-transparent', 'text-gray-500');
+                });
+                this.classList.remove('border-transparent', 'text-gray-500');
+                this.classList.add('border-blue-500', 'text-blue-600');
+                
+                // Update URL
+                const url = new URL(window.location);
+                url.searchParams.set('tab', targetTab);
+                history.pushState({}, '', url);
+            });
+        });
+        
+        console.log('Fallback tabs setup complete');
+    }
+
     // Function to handle select all checkboxes
     function setupSelectAll(selectAllId, tabName) {
         const selectAll = document.getElementById(selectAllId);

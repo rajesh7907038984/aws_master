@@ -157,8 +157,8 @@
         {% include 'components/breadcrumb.html' with breadcrumbs=breadcrumbs %}
 
         <div class="grid grid-cols-12 gap-4 md:gap-6">
-            <!-- Left Column (70%) -->
-            <div class="col-span-12 lg:col-span-8 transition-all duration-300">
+            <!-- Full Width Column -->
+            <div class="col-span-12 transition-all duration-300">
                 <!-- Header section -->
                 <div class="mb-6">
                     <h1 class="text-2xl font-semibold text-gray-900">Create New Role</h1>
@@ -789,11 +789,6 @@
                 </div>
             </div>
 
-            <!-- Right Column (30%) -->
-            <div class="col-span-12 lg:col-span-4">
-                <div class="bg-white border border-gray-200 rounded-lg p-4">
-                    <h3 class="text-lg font-medium text-gray-900 mb-3">Help & Information</h3>
-                    <div class="space-y-3 text-sm text-gray-600">
                         {% if is_admin_user %}
                         <div class="p-3 bg-blue-50 rounded-md">
                             <h4 class="font-medium text-blue-900 mb-1">Admin User Guide</h4>

@@ -22,7 +22,7 @@
             <form method="post" class="flex justify-end space-x-4">
                 {% csrf_token %}
                 <a href="{% url 'courses:course_details' course.id %}"
-                   class="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors">
+                   class="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 transition-colors">
                     Cancel
                 </a>
                 <button type="submit"

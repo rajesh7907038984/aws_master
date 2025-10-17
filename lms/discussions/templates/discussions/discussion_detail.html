@@ -306,10 +306,10 @@
 {% block content %}
 <div class="min-h-screen">
     <div class="container mx-auto px-4 py-6">
-        <!-- Main grid with 70-30 split -->
+        <!-- Main grid with full width -->
         <div class="grid grid-cols-12 gap-4 md:gap-6">
-            <!-- Main Content Column (70%) -->
-            <div class="col-span-12 lg:col-span-8 transition-all duration-300">
+            <!-- Full Width Column -->
+            <div class="col-span-12 transition-all duration-300">
                 <!-- Breadcrumbs -->
                 {% with breadcrumbs=breadcrumbs %}
                     {% include 'components/breadcrumb.html' %}
@@ -904,7 +904,7 @@
                             </div>
                             
                             <div class="mt-6 flex flex-col sm:flex-row sm:justify-between space-y-3 sm:space-y-0">
-                                <button type="button" onclick="hideGradingForm()" class="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2">
+                                <button type="button" onclick="hideGradingForm()" class="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-600 focus:ring-offset-2">
                                     <i class="fas fa-times mr-2"></i>
                                     Cancel
                                 </button>
@@ -1077,10 +1077,6 @@
                 </div>
             </div>
             
-            <!-- Right Column (30%) -->
-            <div class="col-span-12 lg:col-span-4 transition-all duration-300">
-                <!-- Right sidebar is included globally in base.html -->
-            </div>
         </div>
     </div>
 </div>
