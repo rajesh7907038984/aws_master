@@ -169,6 +169,61 @@ def check_quiz_edit_permission(user, quiz):
     
     return False
 
+def check_quiz_view_permission(user, quiz):
+    """
+    Check if the user has permission to view quiz attempts.
+    This is more permissive than edit permissions - instructors can view attempts from students in their courses.
+    """
+    # Always allow superusers
+    if user.is_superuser:
+        return True
+    
+    # For learners: they can only view their own attempts (handled in view_attempt function)
+    if user.role == 'learner':
+        return False  # Learners should use the specific logic in view_attempt
+    
+    # For global admins: full access
+    if user.role == 'globaladmin':
+        return True
+    
+    # For super admins: check business access
+    if user.role == 'superadmin':
+        if hasattr(user, 'business_assignments'):
+            assigned_businesses = user.business_assignments.filter().values_list('business', flat=True)
+            return quiz.creator.branch.business in assigned_businesses
+        return False
+    
+    # For admins: check branch access
+    if user.role == 'admin':
+        if quiz.course and quiz.course.branch == user.branch:
+            return True
+        elif not quiz.course and quiz.creator.branch == user.branch:
+            return True
+        return False
+    
+    # For instructors: more permissive access for viewing attempts
+    if user.role == 'instructor':
+        # Allow if they're the quiz creator
+        if quiz.creator == user:
+            return True
+        
+        # Allow if they're the course instructor
+        if quiz.course and quiz.course.instructor == user:
+            return True
+        
+        # Allow if they have access through course groups (even without modify permission)
+        if quiz.course and quiz.course.accessible_groups.filter(
+            memberships__user=user,
+            memberships__is_active=True
+        ).exists():
+            return True
+        
+        # Allow if they're in the same branch as the quiz creator
+        if user.branch and quiz.creator.branch == user.branch:
+            return True
+    
+    return False
+
 def can_user_access_quiz(user, quiz):
     """
     Check if the user can access a quiz (for viewing, not editing).
@@ -1885,11 +1940,11 @@ def view_attempt(request, attempt_id):
     """View to show details of a specific quiz attempt"""
     attempt = get_object_or_404(QuizAttempt, id=attempt_id)
     
-    # Check permissions - users can only view their own attempts, instructors can view any
+    # Check permissions - users can only view their own attempts, instructors can view attempts from their students
     if request.user.role == 'learner' and attempt.user != request.user:
         messages.error(request, "You can only view your own quiz attempts.")
         return redirect('quiz:quiz_list')
-    elif request.user.role not in ['learner'] and not check_quiz_edit_permission(request.user, attempt.quiz):
+    elif request.user.role not in ['learner'] and not check_quiz_view_permission(request.user, attempt.quiz):
         messages.error(request, "You don't have permission to view this attempt.")
         return redirect('quiz:quiz_list')
     

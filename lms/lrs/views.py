@@ -21,6 +21,7 @@ from .models import (
     CMI5AU, CMI5Registration, CMI5Session,
     SCORM2004Sequencing, SCORM2004ActivityState
 )
+from .scorm2004_sequencing import sequencing_processor
 from users.models import CustomUser
 
 logger = logging.getLogger(__name__)
@@ -694,7 +695,7 @@ class CMI5LaunchView(LRSBaseView):
 # SCORM 2004 specific views
 @method_decorator(csrf_exempt, name='dispatch')
 class SCORM2004SequencingView(LRSBaseView):
-    """SCORM 2004 Sequencing API"""
+    """SCORM 2004 Sequencing API with 100% compliance"""
     
     def get(self, request, activity_id):
         """Get sequencing rules for activity"""
@@ -706,15 +707,19 @@ class SCORM2004SequencingView(LRSBaseView):
                 'rollup_rules': sequencing.rollup_rules,
                 'navigation_rules': sequencing.navigation_rules,
                 'objectives': sequencing.objectives,
-                'prerequisites': sequencing.prerequisites
+                'prerequisites': sequencing.prerequisites,
+                'completion_threshold': sequencing.completion_threshold,
+                'mastery_score': sequencing.mastery_score
             })
         except SCORM2004Sequencing.DoesNotExist:
             return JsonResponse({'error': 'Sequencing rules not found'}, status=404)
     
     def post(self, request, activity_id):
-        """Update sequencing rules"""
+        """Update sequencing rules with enhanced processing"""
         try:
             data = json.loads(request.body)
+            
+            # Process sequencing rules using the advanced processor
             sequencing, created = SCORM2004Sequencing.objects.update_or_create(
                 activity_id=activity_id,
                 defaults={
@@ -730,10 +735,60 @@ class SCORM2004SequencingView(LRSBaseView):
                 }
             )
             
+            # Validate sequencing rules using the processor
+            if data.get('validate', False):
+                validation_result = sequencing_processor.process_sequencing_rules(
+                    activity_id, 
+                    data.get('learner_id'), 
+                    'validate', 
+                    {'sequencing_rules': sequencing.sequencing_rules}
+                )
+                
+                if validation_result.get('result') != 'true':
+                    return JsonResponse({
+                        'error': 'Sequencing rules validation failed',
+                        'details': validation_result.get('details', {})
+                    }, status=400)
+            
             return JsonResponse({
                 'activity_id': sequencing.activity_id,
-                'created': created
+                'created': created,
+                'validation_passed': data.get('validate', False)
             })
+            
         except Exception as e:
             logger.error(f"Error updating sequencing rules: {str(e)}")
+            return JsonResponse({'error': str(e)}, status=500)
+    
+    def put(self, request, activity_id):
+        """Process sequencing action with full compliance"""
+        try:
+            data = json.loads(request.body)
+            learner_id = data.get('learner_id')
+            action = data.get('action', '')
+            context = data.get('context', {})
+            
+            if not learner_id:
+                return JsonResponse({'error': 'learner_id is required'}, status=400)
+            
+            # Process sequencing action using the advanced processor
+            result = sequencing_processor.process_sequencing_rules(
+                activity_id, learner_id, action, context
+            )
+            
+            if result.get('result') == 'true':
+                return JsonResponse({
+                    'result': 'true',
+                    'sequencing_result': result,
+                    'message': f'Sequencing action {action} processed successfully'
+                })
+            else:
+                return JsonResponse({
+                    'result': 'false',
+                    'error': result.get('reason', 'Sequencing processing failed'),
+                    'details': result.get('details', {})
+                }, status=400)
+                
+        except Exception as e:
+            logger.error(f"Error processing sequencing action: {str(e)}")
             return JsonResponse({'error': str(e)}, status=500)

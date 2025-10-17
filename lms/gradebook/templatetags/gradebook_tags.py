@@ -815,6 +815,9 @@ def get_student_activity_score(student_scores, student_id, activity_id):
     Get pre-calculated score data for a specific student-activity pair.
     Usage: {% get_student_activity_score student_scores student.id activity.object.id as score_data %}
     """
+    import logging
+    logger = logging.getLogger(__name__)
+    
     try:
         student_id = int(student_id)
         
@@ -831,8 +834,18 @@ def get_student_activity_score(student_scores, student_id, activity_id):
             return student_scores[student_id][activity_id]
         
         return {'score': None, 'max_score': 0, 'type': 'unknown'}
-    except (ValueError, TypeError, KeyError):
-        return {'score': None, 'max_score': 0, 'type': 'unknown'}
+    except ValueError as e:
+        logger.error(f"Invalid student_id format: {student_id}, error: {e}")
+        return {'score': None, 'max_score': 0, 'type': 'unknown', 'error': 'invalid_student_id'}
+    except TypeError as e:
+        logger.error(f"Type error in get_student_activity_score: {e}")
+        return {'score': None, 'max_score': 0, 'type': 'unknown', 'error': 'type_error'}
+    except KeyError as e:
+        logger.error(f"Missing key in student_scores: {e}")
+        return {'score': None, 'max_score': 0, 'type': 'unknown', 'error': 'missing_data'}
+    except Exception as e:
+        logger.error(f"Unexpected error in get_student_activity_score: {e}")
+        return {'score': None, 'max_score': 0, 'type': 'unknown', 'error': 'unexpected_error'}
 
 @register.simple_tag
 def calculate_student_total_optimized(student_scores, student_id, activities):
@@ -840,6 +853,9 @@ def calculate_student_total_optimized(student_scores, student_id, activities):
     Calculate student total using pre-calculated scores.
     Usage: {% calculate_student_total_optimized student_scores student.id activities as total_data %}
     """
+    import logging
+    logger = logging.getLogger(__name__)
+    
     try:
         from decimal import Decimal
         
@@ -886,12 +902,41 @@ def calculate_student_total_optimized(student_scores, student_id, activities):
             'percentage': percentage,
             'has_completed_activity': has_completed_activity
         }
-    except (ValueError, TypeError, KeyError):
+    except ValueError as e:
+        logger.error(f"Invalid student_id format in calculate_student_total_optimized: {student_id}, error: {e}")
         return {
             'earned': Decimal('0'),
             'possible': Decimal('0'),
             'percentage': 0,
-            'has_completed_activity': False
+            'has_completed_activity': False,
+            'error': 'invalid_student_id'
+        }
+    except TypeError as e:
+        logger.error(f"Type error in calculate_student_total_optimized: {e}")
+        return {
+            'earned': Decimal('0'),
+            'possible': Decimal('0'),
+            'percentage': 0,
+            'has_completed_activity': False,
+            'error': 'type_error'
+        }
+    except KeyError as e:
+        logger.error(f"Missing key in calculate_student_total_optimized: {e}")
+        return {
+            'earned': Decimal('0'),
+            'possible': Decimal('0'),
+            'percentage': 0,
+            'has_completed_activity': False,
+            'error': 'missing_data'
+        }
+    except Exception as e:
+        logger.error(f"Unexpected error in calculate_student_total_optimized: {e}")
+        return {
+            'earned': Decimal('0'),
+            'possible': Decimal('0'),
+            'percentage': 0,
+            'has_completed_activity': False,
+            'error': 'unexpected_error'
         }
 
 @register.simple_tag

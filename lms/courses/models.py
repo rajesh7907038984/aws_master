@@ -2327,6 +2327,30 @@ class TopicProgress(models.Model):
         status = 'Completed' if self.completed else 'In Progress'
         return f"{self.user.username}'s progress on {self.topic.title} - {status}"
     
+    def get_formatted_time_spent(self, user_timezone=None):
+        """Get formatted time spent with optional timezone conversion"""
+        total_seconds = self.total_time_spent or 0
+        total_seconds = max(0, total_seconds)  # Ensure non-negative
+        
+        hours = total_seconds // 3600
+        minutes = (total_seconds % 3600) // 60
+        seconds = total_seconds % 60
+        
+        if hours > 0:
+            return f"{hours}h {minutes}m {seconds}s"
+        elif minutes > 0:
+            return f"{minutes}m {seconds}s"
+        else:
+            return f"{seconds}s"
+    
+    def get_time_spent_in_user_timezone(self, user_timezone=None):
+        """Get time spent formatted for user's timezone"""
+        if not user_timezone:
+            user_timezone = getattr(self.user, 'timezone', 'UTC')
+        
+        # For now, return the formatted time (timezone conversion for display only)
+        return self.get_formatted_time_spent()
+    
     @property
     def video_progress(self):
         """Get video progress percentage from progress_data"""
@@ -2479,9 +2503,19 @@ class TopicProgress(models.Model):
                 self.completed = True
                 self.completed_at = timezone.now()
                 
-            # Update time spent if provided
+            # Update time spent if provided with validation
             if 'time_spent' in progress_data:
-                self.total_time_spent += progress_data['time_spent']
+                time_spent = progress_data['time_spent']
+                # Validate time_spent is positive, reasonable, and numeric
+                if isinstance(time_spent, (int, float)) and 0 <= time_spent <= 3600:  # Max 1 hour per update
+                    self.total_time_spent += time_spent
+                    # Ensure total_time_spent is never negative
+                    self.total_time_spent = max(0, self.total_time_spent)
+                else:
+                    import logging
+                    logger = logging.getLogger(__name__)
+                    logger.warning(f"Invalid time_spent value: {time_spent} for user {self.user.id}, topic {self.topic.id}")
+                    # Don't update time if invalid
                 
             self.save()
 

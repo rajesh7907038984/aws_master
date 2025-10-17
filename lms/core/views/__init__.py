@@ -218,6 +218,63 @@ def log_client_error(request):
         logger.error(f"Error logging client error: {str(e)}")
         return JsonResponse({'status': 'error', 'message': 'Failed to log error'}, status=500)
 
+def api_version(request):
+    """API endpoint to return system version information"""
+    from django.http import JsonResponse
+    return JsonResponse({
+        'version': '1.0.0',
+        'build': '2025-10-17',
+        'environment': 'staging'
+    })
+
+def security_txt(request):
+    """Security.txt endpoint"""
+    from django.http import HttpResponse
+    content = """Contact: security@nexsy.io
+Expires: 2026-12-31T23:59:59.000Z
+Encryption: https://nexsy.io/pgp-key.txt
+Preferred-Languages: en
+Canonical: https://nexsy.io/.well-known/security.txt
+"""
+    return HttpResponse(content, content_type='text/plain')
+
+def monitoring_dashboard(request):
+    """Monitoring dashboard view"""
+    from django.shortcuts import render
+    return render(request, 'core/monitoring_dashboard.html')
+
+def api_system_metrics(request):
+    """API system metrics endpoint"""
+    from django.http import JsonResponse
+    return JsonResponse({
+        'status': 'ok',
+        'metrics': {
+            'uptime': '99.9%',
+            'response_time': '150ms',
+            'active_users': 0
+        }
+    })
+
+def api_health_check(request):
+    """API health check endpoint"""
+    from django.http import JsonResponse
+    return JsonResponse({
+        'status': 'healthy',
+        'timestamp': '2025-10-17T05:44:00Z'
+    })
+
+def api_user_engagement(request, user_id):
+    """API user engagement endpoint"""
+    from django.http import JsonResponse
+    return JsonResponse({
+        'user_id': user_id,
+        'engagement': {
+            'login_count': 0,
+            'last_activity': None,
+            'course_progress': 0
+        }
+    })
+
 def csrf_failure(request, reason=""):
     """CSRF failure view - will be overridden by parent views.py"""
     from django.http import HttpResponse

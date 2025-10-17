@@ -652,6 +652,8 @@ def get_or_assign_branch_for_global_admin(request):
 @login_required
 def user_list(request):
     """Display list of users based on permissions."""
+    from core.utils.performance_monitor import monitor_performance, optimize_queryset
+    
     user = request.user
     
     # Debug logging
@@ -674,32 +676,50 @@ def user_list(request):
         logger.warning(f"User {user.username} with role '{user.role}' denied access to user_list")
         return HttpResponseForbidden(f"You don't have permission to view user list. Your role: {request.user.role}")
 
-    # Get base queryset
+    # Get base queryset with optimization
     if request.user.role == 'globaladmin':
         # Global admin can see all users without restriction, except themselves
-        users = CustomUser.objects.all().exclude(id=request.user.id)
+        users = optimize_queryset(
+            CustomUser.objects.all().exclude(id=request.user.id).select_related('branch'),
+            max_results=2000
+        )
         branches = Branch.objects.all().order_by('name')
     elif request.user.role == 'admin':
         # Filter users by effective branch (supports branch switching) and exclude superadmin and globaladmin users, and exclude current user
         from core.branch_filters import BranchFilterManager
         effective_branch = BranchFilterManager.get_effective_branch(request.user, request)
-        users = CustomUser.objects.filter(branch=effective_branch).exclude(role__in=['superadmin', 'globaladmin']).exclude(id=request.user.id)
+        users = optimize_queryset(
+            CustomUser.objects.filter(branch=effective_branch)
+            .exclude(role__in=['superadmin', 'globaladmin'])
+            .exclude(id=request.user.id)
+            .select_related('branch'),
+            max_results=1000
+        )
         branches = [effective_branch]
     elif request.user.role == 'instructor':
         # Instructors can only see learner users, excluding themselves
-        users = CustomUser.objects.filter(
-            branch=request.user.branch,
-            role='learner'
-        ).exclude(id=request.user.id)
+        users = optimize_queryset(
+            CustomUser.objects.filter(
+                branch=request.user.branch,
+                role='learner'
+            ).exclude(id=request.user.id).select_related('branch'),
+            max_results=500
+        )
         branches = [request.user.branch]
     elif request.user.role == 'superadmin':
         # Super Admin: CONDITIONAL access (business-scoped users)
         # Note: filter_users_by_business already excludes global admin accounts
         from core.utils.business_filtering import filter_users_by_business, filter_branches_by_business
-        users = filter_users_by_business(request.user)
+        users = optimize_queryset(
+            filter_users_by_business(request.user).select_related('branch'),
+            max_results=1000
+        )
         branches = filter_branches_by_business(request.user).order_by('name')
     else:
-        users = CustomUser.objects.all().exclude(id=request.user.id)
+        users = optimize_queryset(
+            CustomUser.objects.all().exclude(id=request.user.id).select_related('branch'),
+            max_results=1000
+        )
         branches = Branch.objects.all().order_by('name')
 
     # Get groups based on user's business access

@@ -68,8 +68,8 @@ class TodoService:
         unread_messages = Message.objects.filter(
             recipients=self.user
         ).exclude(
-            messagereadstatus__user=self.user,
-            messagereadstatus__is_read=True
+            read_statuses__user=self.user,
+            read_statuses__is_read=True
         ).select_related('sender').order_by('-created_at')[:10]
         
         for message in unread_messages:
@@ -343,8 +343,8 @@ class TodoService:
         unread_messages = Message.objects.filter(
             recipients=self.user
         ).exclude(
-            messagereadstatus__user=self.user,
-            messagereadstatus__is_read=True
+            read_statuses__user=self.user,
+            read_statuses__is_read=True
         ).select_related('sender').order_by('-created_at')[:10]
         
         for message in unread_messages:

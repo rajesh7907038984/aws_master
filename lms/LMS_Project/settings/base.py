@@ -231,6 +231,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'core.middleware.session_auth_middleware.SessionAuthMiddleware',  # Session recovery
     'core.middleware.session_persistence.SessionPersistenceMiddleware',  # Session persistence
+    'scorm.middleware.SCORMAuthenticationMiddleware',  # SCORM authentication for iframe scenarios
     'core.middleware.error_logging_middleware.ErrorLoggingMiddleware',  # Enhanced error logging
     'core.middleware.csp_middleware.CSPMiddleware',  # Content Security Policy with unsafe-eval support
     'django.contrib.messages.middleware.MessageMiddleware',

@@ -93,7 +93,8 @@ def pre_calculate_student_scores(students, activities, grades, quiz_attempts, co
                                         'excused': True,
                                         'date': grade.updated_at,
                                         'type': 'assignment',
-                                        'submission': grade.submission
+                                        'submission': grade.submission,
+                                        'score_source': 'manual'  # Add this field
                                     }
                                 else:
                                     # Check if submission is late
@@ -107,7 +108,8 @@ def pre_calculate_student_scores(students, activities, grades, quiz_attempts, co
                                         'date': grade.updated_at,
                                         'type': 'assignment',
                                         'submission': grade.submission,
-                                        'is_late': is_late
+                                        'is_late': is_late,
+                                        'score_source': 'manual'  # Add this field
                                     }
                             else:
                                 # Check for submission without grade
@@ -133,14 +135,16 @@ def pre_calculate_student_scores(students, activities, grades, quiz_attempts, co
                                             'type': 'assignment',
                                             'submission': submission,  # This is key - always include submission object
                                             'is_late': is_late,
-                                            'has_submission': True  # Explicit flag to indicate submission exists
+                                            'has_submission': True,  # Explicit flag to indicate submission exists
+                                            'score_source': 'manual'  # Add this field
                                         }
                                     else:
                                         student_scores[activity_id] = {
                                             'score': None,
                                             'max_score': activity['max_score'],
                                             'type': 'assignment',
-                                            'has_submission': False  # Explicit flag - no submission
+                                            'has_submission': False,  # Explicit flag - no submission
+                                            'score_source': 'manual'  # Add this field
                                         }
                                 except Exception as e:
                                     logger.error(f"Error processing assignment submission for student {student.id}, activity {activity_id}: {str(e)}")
@@ -148,7 +152,8 @@ def pre_calculate_student_scores(students, activities, grades, quiz_attempts, co
                                         'score': None,
                                         'max_score': activity['max_score'],
                                         'type': 'assignment',
-                                        'has_submission': False
+                                        'has_submission': False,
+                                        'score_source': 'manual'  # Add this field
                                     }
                         
                         elif activity_type == 'quiz':
@@ -157,6 +162,7 @@ def pre_calculate_student_scores(students, activities, grades, quiz_attempts, co
                                 attempt = quiz_attempt_lookup[key]
                                 final_score = attempt.score
                                 max_score = activity['max_score']
+                                score_source = 'auto'  # Default to auto scoring
                                 
                                 # Check for rubric evaluation
                                 quiz = activity['object']
@@ -169,6 +175,7 @@ def pre_calculate_student_scores(students, activities, grades, quiz_attempts, co
                                         if rubric_evaluations.exists():
                                             final_score = sum(evaluation.points for evaluation in rubric_evaluations)
                                             max_score = quiz.rubric.total_points
+                                            score_source = 'rubric'  # Set score source for rubric-based scoring
                                     except Exception as e:
                                         logger.error(f"Error processing quiz rubric evaluation for student {student.id}, quiz {activity_id}: {str(e)}")
                                         pass
@@ -176,21 +183,24 @@ def pre_calculate_student_scores(students, activities, grades, quiz_attempts, co
                                     # For non-rubric quizzes, attempt.score is a percentage (0-100)
                                     # Keep as percentage for consistent display
                                     final_score = attempt.score
-                                    max_score = 100
+                                    max_score = 100  # Keep max_score as 100 for percentage display
+                                    score_source = 'auto'  # Set score source for auto scoring
                                 
                                 student_scores[activity_id] = {
                                     'score': final_score,
                                     'max_score': max_score,
                                     'date': attempt.end_time or attempt.start_time,
                                     'type': 'quiz',
-                                    'attempt': attempt
+                                    'attempt': attempt,
+                                    'score_source': score_source  # Add this field
                                 }
                             else:
                                 student_scores[activity_id] = {
                                     'score': None,
                                     'max_score': activity['max_score'],
                                     'type': 'quiz',
-                                    'attempt': None
+                                    'attempt': None,
+                                    'score_source': 'auto'  # Add this field
                                 }
                         
                         elif activity_type == 'initial_assessment':
@@ -213,7 +223,8 @@ def pre_calculate_student_scores(students, activities, grades, quiz_attempts, co
                                     'attempt': attempt,
                                     'classification': assessment_data.get('classification', 'N/A') if assessment_data else 'N/A',
                                     'classification_data': assessment_data,
-                                    'is_informational': True
+                                    'is_informational': True,
+                                    'score_source': 'auto'  # Add this field
                                 }
                             else:
                                 student_scores[activity_id] = {
@@ -221,7 +232,8 @@ def pre_calculate_student_scores(students, activities, grades, quiz_attempts, co
                                     'max_score': activity['max_score'],
                                     'type': 'initial_assessment',
                                     'is_informational': True,
-                                    'attempt': None
+                                    'attempt': None,
+                                    'score_source': 'auto'  # Add this field
                                 }
                         
                         elif activity_type == 'discussion':
@@ -245,26 +257,30 @@ def pre_calculate_student_scores(students, activities, grades, quiz_attempts, co
                                             'max_score': max_score,
                                             'date': latest_evaluation.created_at,
                                             'type': 'discussion',
-                                            'evaluations': evaluations
+                                            'evaluations': evaluations,
+                                            'score_source': 'rubric'  # Add this field
                                         }
                                     else:
                                         student_scores[activity_id] = {
                                             'score': None,
                                             'max_score': max_score,
-                                            'type': 'discussion'
+                                            'type': 'discussion',
+                                            'score_source': 'rubric'  # Add this field
                                         }
                                 except Exception as e:
                                     logger.error(f"Error processing discussion rubric evaluation for student {student.id}, discussion {activity_id}: {str(e)}")
                                     student_scores[activity_id] = {
                                         'score': None,
                                         'max_score': max_score,
-                                        'type': 'discussion'
+                                        'type': 'discussion',
+                                        'score_source': 'rubric'  # Add this field
                                     }
                             else:
                                 student_scores[activity_id] = {
                                     'score': None,
                                     'max_score': max_score,
-                                    'type': 'discussion'
+                                    'type': 'discussion',
+                                    'score_source': 'none'  # Add this field
                                 }
                         
                         elif activity_type == 'conference':
@@ -282,13 +298,15 @@ def pre_calculate_student_scores(students, activities, grades, quiz_attempts, co
                                     'max_score': max_score,
                                     'date': latest_evaluation.created_at,
                                     'type': 'conference',
-                                    'evaluations': evaluations
+                                    'evaluations': evaluations,
+                                    'score_source': 'rubric'  # Add this field
                                 }
                             else:
                                 student_scores[activity_id] = {
                                     'score': None,
                                     'max_score': max_score,
-                                    'type': 'conference'
+                                    'type': 'conference',
+                                    'score_source': 'rubric'  # Add this field
                                 }
                         
                         elif activity_type == 'scorm':
@@ -302,7 +320,8 @@ def pre_calculate_student_scores(students, activities, grades, quiz_attempts, co
                                     elearning_package=scorm_package
                                 ).first()
                                 
-                                if tracking and tracking.score_raw is not None:
+                                # Only show scores for completed SCORM content
+                                if tracking and tracking.score_raw is not None and tracking.completion_status == 'completed':
                                     student_scores[activity_id] = {
                                         'score': tracking.score_raw,
                                         'max_score': max_score,
@@ -310,20 +329,23 @@ def pre_calculate_student_scores(students, activities, grades, quiz_attempts, co
                                         'type': 'scorm',
                                         'completion_status': tracking.completion_status,
                                         'success_status': tracking.success_status,
-                                        'tracking': tracking
+                                        'tracking': tracking,
+                                        'score_source': 'auto'  # Add this field
                                     }
                                 else:
                                     student_scores[activity_id] = {
                                         'score': None,
                                         'max_score': max_score,
-                                        'type': 'scorm'
+                                        'type': 'scorm',
+                                        'score_source': 'auto'  # Add this field
                                     }
                             except Exception as e:
                                 logger.error(f"Error getting SCORM tracking for student {student.id}: {str(e)}")
                                 student_scores[activity_id] = {
                                     'score': None,
                                     'max_score': max_score,
-                                    'type': 'scorm'
+                                    'type': 'scorm',
+                                    'score_source': 'auto'  # Add this field
                                 }
                         
                     
@@ -333,7 +355,8 @@ def pre_calculate_student_scores(students, activities, grades, quiz_attempts, co
                         student_scores[activity_id] = {
                             'score': None,
                             'max_score': activity.get('max_score', 0),
-                            'type': activity.get('type', 'unknown')
+                            'type': activity.get('type', 'unknown'),
+                            'score_source': 'none'  # Add this field
                         }
                 
                 score_data[student.id] = student_scores
@@ -601,8 +624,12 @@ def gradebook_index(request):
         ).distinct().prefetch_related('course', 'topics__courses').order_by('created_at')
 
         # Get SCORM packages with course associations only
+        # First get all topics associated with the courses through CourseTopic
+        from courses.models import CourseTopic
+        course_topic_ids = CourseTopic.objects.filter(course__in=courses).values_list('topic_id', flat=True)
+        
         scorm_packages = ELearningPackage.objects.filter(
-            Q(topic__courses__in=courses)  # Topic-based course relationship
+            topic_id__in=course_topic_ids  # Use the topic IDs from CourseTopic relationship
         ).filter(
             is_extracted=True  # Only extracted packages
         ).filter(
@@ -635,8 +662,11 @@ def gradebook_index(request):
                         course_info = topic.courses.first()
             elif activity_type == 'scorm':
                 if hasattr(activity, 'topic') and activity.topic:
-                    if hasattr(activity.topic, 'courses') and activity.topic.courses.exists():
-                        course_info = activity.topic.courses.first()
+                    # Use CourseTopic relationship to find the course
+                    from courses.models import CourseTopic
+                    course_topic = CourseTopic.objects.filter(topic=activity.topic).first()
+                    if course_topic:
+                        course_info = course_topic.course
             return course_info
 
         # Process activities based on filter
@@ -976,6 +1006,9 @@ def course_gradebook_detail(request, course_id):
     user = request.user
     User = get_user_model()
     
+    # Get filters from request
+    activity_filter = request.GET.get('activity_type', 'all')
+    
     try:
         # Get the specific course
         course = get_object_or_404(Course, id=course_id)
@@ -1008,23 +1041,34 @@ def course_gradebook_detail(request, course_id):
         
         # Get students for this course with proper optimization
         # IMPORTANT: Only show learner role users in gradebook
-        if user.role == 'learner':
-            # Learner can only see their own data (and they must be a learner)
-            students = User.objects.filter(id=user.id, role='learner').select_related('branch')
-        else:
-            # Instructors/admins can see all learners enrolled in the course
-            # Explicitly filter for ONLY learner role users
-            students = User.objects.filter(
-                enrolled_courses__id=course_id,
-                role='learner'  # ONLY learner role users
-            ).distinct().select_related('branch').prefetch_related('enrolled_courses')
-        
-        # Additional validation: Ensure ONLY learner role users are included
-        # This is a safeguard to prevent any non-learner users from appearing
-        students = students.filter(role='learner')
-        
-        # Log student count for debugging
-        logger.info(f"Gradebook for course {course_id}: Found {students.count()} learner role users")
+        try:
+            if user.role == 'learner':
+                # Learner can only see their own data (and they must be a learner)
+                students = User.objects.filter(id=user.id, role='learner').select_related('branch')
+            else:
+                # Instructors/admins can see all learners enrolled in the course
+                # Explicitly filter for ONLY learner role users
+                students = User.objects.filter(
+                    enrolled_courses__id=course_id,
+                    role='learner'  # ONLY learner role users
+                ).distinct().select_related('branch').prefetch_related('enrolled_courses')
+            
+            # Additional validation: Ensure ONLY learner role users are included
+            # This is a safeguard to prevent any non-learner users from appearing
+            students = students.filter(role='learner')
+            
+            # Log student count for debugging
+            student_count = students.count()
+            logger.info(f"Gradebook for course {course_id}: Found {student_count} learner role users")
+            
+            if student_count == 0:
+                logger.warning(f"No students found for course {course_id}")
+                
+        except Exception as e:
+            logger.error(f"Error loading students for course {course_id}: {str(e)}")
+            from django.contrib import messages
+            messages.error(request, "Error loading student data. Please try again.")
+            return redirect('gradebook:index')
         
         # Add pagination for better performance with large student lists
         page_size = 50  # Configurable page size
@@ -1068,6 +1112,8 @@ def course_gradebook_detail(request, course_id):
             Q(topics__status='active') |  # Has active topics
             Q(topics__isnull=True)  # Has no topics (direct course assignment)
         ).distinct().select_related('course', 'user', 'rubric').prefetch_related('courses', 'topics').order_by('created_at')
+        
+        logger.debug(f"Found {assignments.count()} assignments for course {course_id}")
         
         # Quizzes: Check direct course and topic relationships (include initial assessments, exclude only VAK tests)
         quizzes = Quiz.objects.filter(
@@ -1119,13 +1165,25 @@ def course_gradebook_detail(request, course_id):
         conferences = Conference.objects.none()
     
     
+    # Validate that we have some data to display
+    if not students.exists():
+        logger.warning(f"No students found for course {course_id}")
+        from django.contrib import messages
+        messages.warning(request, "No students are enrolled in this course.")
+    
     # Calculate overview metrics
     # Use paginated students count for accurate overview metrics
     students_count = len(students)  # Use paginated count for overview accuracy
     # Count only discussions and conferences that have rubrics
     discussions_with_rubrics = discussions.filter(rubric__isnull=False).count()
     conferences_with_rubrics = conferences.filter(rubric__isnull=False).count()
+    # Note: SCORM packages will be counted later when they are fetched
     total_activities = assignments.count() + quizzes.count() + discussions_with_rubrics + conferences_with_rubrics
+    
+    if total_activities == 0:
+        logger.warning(f"No activities found for course {course_id}")
+        from django.contrib import messages
+        messages.warning(request, "No gradeable activities found for this course.")
     
     # Calculate activity status counts
     # Get all submissions and attempts with optimized queries
@@ -1181,91 +1239,139 @@ def course_gradebook_detail(request, course_id):
     # Create organized activities list with type-specific numbering
     activities = []
     
-    # Add assignments with numbering
-    assignment_counter = 1
-    for assignment in assignments:
-        # Use rubric total_points if assignment has rubric, otherwise use assignment max_score
-        max_score = assignment.rubric.total_points if assignment.rubric else assignment.max_score
-        activities.append({
-            'object': assignment,
-            'type': 'assignment',
-            'created_at': assignment.created_at,
-            'title': assignment.title,
-            'max_score': max_score,
-            'activity_number': assignment_counter,
-            'activity_name': f"Assignment {assignment_counter}"
-        })
-        assignment_counter += 1
+    # Add assignments with numbering (only if filter allows)
+    if activity_filter == 'all' or activity_filter == 'assignment':
+        assignment_counter = 1
+        for assignment in assignments:
+            # Use rubric total_points if assignment has rubric, otherwise use assignment max_score
+            max_score = assignment.rubric.total_points if assignment.rubric else assignment.max_score
+            activities.append({
+                'object': assignment,
+                'type': 'assignment',
+                'created_at': assignment.created_at,
+                'title': assignment.title,
+                'max_score': max_score,
+                'activity_number': assignment_counter,
+                'activity_name': f"Assignment {assignment_counter}"
+            })
+            assignment_counter += 1
     
-    # Add quizzes and initial assessments with separate numbering
-    quiz_counter = 1
-    assessment_counter = 1
-    for quiz in quizzes:
-        # Use rubric total_points if quiz has rubric, otherwise use 100 for percentage-based scoring
-        max_score = quiz.rubric.total_points if quiz.rubric else 100
-        
-        if quiz.is_initial_assessment:
-            # Handle initial assessments
-            activities.append({
-                'object': quiz,
-                'type': 'initial_assessment',
-                'created_at': quiz.created_at,
-                'title': quiz.title,
-                'max_score': max_score,
-                'activity_number': assessment_counter,
-                'activity_name': f"Initial Assessment {assessment_counter}"
-            })
-            assessment_counter += 1
-        else:
-            # Handle regular quizzes
-            activities.append({
-                'object': quiz,
-                'type': 'quiz',
-                'created_at': quiz.created_at,
-                'title': quiz.title,
-                'max_score': max_score,
-                'activity_number': quiz_counter,
-                'activity_name': f"Quiz {quiz_counter}"
-            })
-            quiz_counter += 1
+    # Add quizzes and initial assessments with separate numbering (only if filter allows)
+    if activity_filter == 'all' or activity_filter == 'quiz' or activity_filter == 'initial_assessment':
+        quiz_counter = 1
+        assessment_counter = 1
+        for quiz in quizzes:
+            # Use rubric total_points if quiz has rubric, otherwise use 100 for percentage-based scoring
+            max_score = quiz.rubric.total_points if quiz.rubric else 100
+            
+            if quiz.is_initial_assessment:
+                # Handle initial assessments
+                activities.append({
+                    'object': quiz,
+                    'type': 'initial_assessment',
+                    'created_at': quiz.created_at,
+                    'title': quiz.title,
+                    'max_score': max_score,
+                    'activity_number': assessment_counter,
+                    'activity_name': f"Initial Assessment {assessment_counter}"
+                })
+                assessment_counter += 1
+            else:
+                # Handle regular quizzes
+                activities.append({
+                    'object': quiz,
+                    'type': 'quiz',
+                    'created_at': quiz.created_at,
+                    'title': quiz.title,
+                    'max_score': max_score,
+                    'activity_number': quiz_counter,
+                    'activity_name': f"Quiz {quiz_counter}"
+                })
+                quiz_counter += 1
 
     # Initial assessments are now handled in the quiz loop above
     
-    # Add discussions with numbering (only if they have rubrics)
-    discussion_counter = 1
-    for discussion in discussions:
-        if discussion.rubric:  # Only include discussions with rubrics
-            # Use rubric total_points since discussion has rubric
-            max_score = discussion.rubric.total_points
-            activities.append({
-                'object': discussion,
-                'type': 'discussion',
-                'created_at': discussion.created_at,
-                'title': discussion.title,
-                'max_score': max_score,
-                'activity_number': discussion_counter,
-                'activity_name': f"Discussion {discussion_counter}"
-            })
-            discussion_counter += 1
+    # Add discussions with numbering (only if filter allows and they have rubrics)
+    if activity_filter == 'all' or activity_filter == 'discussion':
+        discussion_counter = 1
+        for discussion in discussions:
+            if discussion.rubric:  # Only include discussions with rubrics
+                # Use rubric total_points since discussion has rubric
+                max_score = discussion.rubric.total_points
+                activities.append({
+                    'object': discussion,
+                    'type': 'discussion',
+                    'created_at': discussion.created_at,
+                    'title': discussion.title,
+                    'max_score': max_score,
+                    'activity_number': discussion_counter,
+                    'activity_name': f"Discussion {discussion_counter}"
+                })
+                discussion_counter += 1
     
-    # Add conferences with numbering (only if they have rubrics)
-    conference_counter = 1
-    for conference in conferences:
-        if conference.rubric:  # Only include conferences with rubrics
-            # Calculate max score from rubric
-            max_score = conference.rubric.total_points
+    # Add conferences with numbering (only if filter allows and they have rubrics)
+    if activity_filter == 'all' or activity_filter == 'conference':
+        conference_counter = 1
+        for conference in conferences:
+            if conference.rubric:  # Only include conferences with rubrics
+                # Calculate max score from rubric
+                max_score = conference.rubric.total_points
+                
+                activities.append({
+                    'object': conference,
+                    'type': 'conference',
+                    'created_at': conference.created_at,
+                    'title': conference.title,
+                    'max_score': max_score,
+                    'activity_number': conference_counter,
+                    'activity_name': f"Conference {conference_counter}"
+                })
+                conference_counter += 1
+    
+    # Add SCORM packages with numbering (only if filter allows)
+    if activity_filter == 'all' or activity_filter == 'scorm':
+        # Get SCORM packages with course associations only
+        from courses.models import CourseTopic
+        course_topic_ids = CourseTopic.objects.filter(course=course).values_list('topic_id', flat=True)
+        
+        scorm_packages = ELearningPackage.objects.filter(
+            topic_id__in=course_topic_ids  # Use the topic IDs from CourseTopic relationship
+        ).filter(
+            is_extracted=True  # Only extracted packages
+        ).filter(
+            # Only topics that are active
+            Q(topic__status='active')
+        ).distinct().select_related('topic').prefetch_related(
+            'topic__courses',
+            'tracking_records'
+        ).order_by('created_at')
+        
+        scorm_counter = 1
+        for scorm_package in scorm_packages:
+            # For SCORM packages, we'll use a default max score of 100 or the package's max score if available
+            max_score = 100  # Default max score for SCORM packages
+            if scorm_package.tracking_records.exists():
+                # Try to get max score from tracking records
+                tracking = scorm_package.tracking_records.first()
+                if tracking.score_max is not None:
+                    max_score = tracking.score_max
             
             activities.append({
-                'object': conference,
-                'type': 'conference',
-                'created_at': conference.created_at,
-                'title': conference.title,
+                'object': scorm_package,
+                'type': 'scorm',
+                'created_at': scorm_package.created_at,
+                'title': scorm_package.title or scorm_package.topic.title,
                 'max_score': max_score,
-                'activity_number': conference_counter,
-                'activity_name': f"Conference {conference_counter}"
+                'activity_number': scorm_counter,
+                'activity_name': f"SCORM {scorm_counter}"
             })
-            conference_counter += 1
+            scorm_counter += 1
     
+        # Update total activities count to include SCORM packages
+        total_activities += scorm_packages.count()
+    
+    # Update total activities count based on filtered activities
+    total_activities = len(activities)
     
     # Sort activities by creation date to ensure consistent ordering
     activities.sort(key=lambda x: x['created_at'])
@@ -1282,7 +1388,7 @@ def course_gradebook_detail(request, course_id):
     logger.debug(f"Course {course.id} ({course.title}) activities found: "
                 f"Assignments: {assignments.count()}, Quizzes: {quizzes.count()}, "
                 f"Discussions: {discussions.count()}, Conferences: {conferences.count()}, "
-                f"Total activities: {len(activities)}, User role: {user.role}")
+                f"SCORM Packages: {scorm_packages.count()}, Total activities: {len(activities)}, User role: {user.role}")
     
     # Calculate total possible points (convert all to Decimal to avoid type mismatch)
     total_possible_points = sum([Decimal(str(activity['max_score'])) for activity in activities if activity['max_score'] > 0])
@@ -1299,6 +1405,8 @@ def course_gradebook_detail(request, course_id):
         ).prefetch_related(
             'assignment__courses'
         ).order_by('-updated_at')
+        
+        logger.debug(f"Found {all_grades.count()} grades for course {course_id}")
         
         # Use a more efficient approach to get unique grades (latest per student-assignment pair)
         
@@ -1371,7 +1479,7 @@ def course_gradebook_detail(request, course_id):
             # Note: initial_assessment_attempts are included in quiz_attempts now
             student_scores = pre_calculate_student_scores(
                 students, activities, grades, quiz_attempts, 
-                [], conference_evaluations, None
+                conference_evaluations, None
             )
             # Cache for 5 minutes (reduced for more frequent updates)
             cache.set(cache_key, student_scores, timeout=300)
@@ -1545,6 +1653,8 @@ def course_gradebook_detail(request, course_id):
         # Outcome connection status
         'has_outcome_connections': has_outcome_connections,
         'has_rubrics': has_rubrics,
+        # Activity filtering
+        'activity_filter': activity_filter,
     }
     
     return render(request, 'gradebook/course_detail.html', context)

@@ -7,7 +7,6 @@ urlpatterns = [
     # Existing URLs
     path('', views.conference_list, name='conference_list'),
     path('new/', views.new_conference, name='new_conference'),
-    path('new/', views.new_conference, name='conference_create'),  # Alias for consistency
     path('new/<int:course_id>/', views.new_conference, name='new_conference_course'),
     path('<int:conference_id>/', views.conference_detail, name='conference_detail'),
     path('<int:conference_id>/edit/', views.edit_conference, name='edit_conference'),

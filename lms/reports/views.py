@@ -3649,14 +3649,16 @@ def user_detail_report(request, user_id):
     else:
         completion_rate = 0.0
     
-    # Format training time with proper null handling
+    # Format training time with proper null handling and timezone support
+    from core.utils.timezone_utils import TimezoneUtils
+    
     total_seconds = user_stats.total_time_spent if user_stats.total_time_spent is not None else 0
     # Ensure non-negative values and handle potential data corruption
     total_seconds = max(0, total_seconds)
-    hours = total_seconds // 3600
-    minutes = (total_seconds % 3600) // 60
-    seconds = total_seconds % 60
-    training_time = f"{hours}h {minutes}m {seconds}s"
+    
+    # Use timezone-aware formatting
+    user_timezone = TimezoneUtils.get_user_timezone(user)
+    training_time = TimezoneUtils.format_time_spent(total_seconds, user_timezone)
     
     # Get user enrolled courses with detailed information and calculated fields
     user_courses = CourseEnrollment.objects.filter(user=user).select_related('course').order_by('-enrolled_at')
@@ -3683,8 +3685,12 @@ def user_detail_report(request, user_id):
         else:
             enrollment.calculated_score = None
             
-        # Format time spent
-        enrollment.formatted_time_spent = enrollment.total_time_spent
+        # Format time spent with timezone support
+        from core.utils.timezone_utils import TimezoneUtils
+        enrollment.formatted_time_spent = TimezoneUtils.format_time_spent(
+            enrollment.course_time_spent, 
+            TimezoneUtils.get_user_timezone(user)
+        )
     
     # Recalculate user stats after syncing completion status
     thirty_days_ago = timezone.now() - timedelta(days=30)
@@ -3824,15 +3830,15 @@ def user_detail_report(request, user_id):
     else:
         avg_activity_score = 0
     
-    # Add formatted time to topic progress objects
+    # Add formatted time to topic progress objects with timezone support
+    from core.utils.timezone_utils import TimezoneUtils
+    user_timezone = TimezoneUtils.get_user_timezone(user)
+    
     for progress in topic_progress:
-        if progress.total_time_spent:
-            hours = progress.total_time_spent // 3600
-            minutes = (progress.total_time_spent % 3600) // 60
-            seconds = progress.total_time_spent % 60
-            progress.formatted_time = f"{hours}h {minutes}m {seconds}s"
-        else:
-            progress.formatted_time = "0h 0m 0s"
+        progress.formatted_time = TimezoneUtils.format_time_spent(
+            progress.total_time_spent or 0,
+            user_timezone
+        )
     
     # Get user timeline activities (Event model for proper learning activities tracking)
     user_activities = Event.objects.filter(user=user).select_related('course').order_by('-created_at')[:20]
@@ -4085,12 +4091,12 @@ def _get_user_report_data(request, user_id):
         enrollment.course_time_spent = course_stats['total_time'] or 0
         enrollment.course_attempts = course_stats['total_attempts'] or 0
         
-        # Format time spent for display
-        total_seconds = enrollment.course_time_spent
-        hours = total_seconds // 3600
-        minutes = (total_seconds % 3600) // 60
-        seconds = total_seconds % 60
-        enrollment.formatted_time_spent = f"{hours}h {minutes}m {seconds}s"
+        # Format time spent for display with timezone support
+        from core.utils.timezone_utils import TimezoneUtils
+        enrollment.formatted_time_spent = TimezoneUtils.format_time_spent(
+            enrollment.course_time_spent,
+            TimezoneUtils.get_user_timezone(user)
+        )
     
     # Recalculate user stats after syncing completion status
     thirty_days_ago = timezone.now() - timedelta(days=30)
@@ -4137,14 +4143,16 @@ def _get_user_report_data(request, user_id):
     else:
         completion_rate = 0.0
     
-    # Format training time with proper null handling
+    # Format training time with proper null handling and timezone support
+    from core.utils.timezone_utils import TimezoneUtils
+    
     total_seconds = user_stats.total_time_spent if user_stats.total_time_spent is not None else 0
     # Ensure non-negative values and handle potential data corruption
     total_seconds = max(0, total_seconds)
-    hours = total_seconds // 3600
-    minutes = (total_seconds % 3600) // 60
-    seconds = total_seconds % 60
-    training_time = f"{hours}h {minutes}m {seconds}s"
+    
+    # Use timezone-aware formatting
+    user_timezone = TimezoneUtils.get_user_timezone(user)
+    training_time = TimezoneUtils.format_time_spent(total_seconds, user_timezone)
         
     # Get Learning Activities data (TopicProgress) with data consistency checks
     # Ensure data consistency: create missing TopicProgress records for enrolled courses only
@@ -4227,15 +4235,15 @@ def _get_user_report_data(request, user_id):
     else:
         avg_activity_score = 0
     
-    # Add formatted time to topic progress objects
+    # Add formatted time to topic progress objects with timezone support
+    from core.utils.timezone_utils import TimezoneUtils
+    user_timezone = TimezoneUtils.get_user_timezone(user)
+    
     for progress in topic_progress:
-        if progress.total_time_spent:
-            hours = progress.total_time_spent // 3600
-            minutes = (progress.total_time_spent % 3600) // 60
-            seconds = progress.total_time_spent % 60
-            progress.formatted_time = f"{hours}h {minutes}m {seconds}s"
-        else:
-            progress.formatted_time = "0h 0m 0s"
+        progress.formatted_time = TimezoneUtils.format_time_spent(
+            progress.total_time_spent or 0,
+            user_timezone
+        )
     
     # Get user timeline activities
     user_activities = Event.objects.filter(user=user).select_related('course').order_by('-created_at')[:20]

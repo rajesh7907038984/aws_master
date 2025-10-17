@@ -494,7 +494,7 @@
                    class="search-input" 
                    placeholder="Search by activity title or course name..."
                    value="{{ search_query }}"
-                   onkeyup="if(event.key === 'Enter') this.form.submit()">
+                   onkeyup="if(event.key === 'Enter') clearAccordionStatesAndSubmit(this.form)">
             {% if search_query %}
               <button type="button" class="clear-search-btn" onclick="clearSearch()" title="Clear search">
                 <i class="fas fa-times"></i>
@@ -509,7 +509,7 @@
             <i class="fas fa-filter mr-2"></i>
             Filter by Activity Type:
           </label>
-          <select name="activity_type" id="activity_type" class="filter-select" onchange="this.form.submit()">
+          <select name="activity_type" id="activity_type" class="filter-select" onchange="clearAccordionStatesAndSubmit(this.form)">
             {% for value, label in activity_types %}
               <option value="{{ value }}" {% if value == current_filter %}selected{% endif %}>
                 {{ label }}
@@ -521,7 +521,7 @@
             <i class="fas fa-graduation-cap mr-2"></i>
             Filter by Course:
           </label>
-          <select name="course" id="course" class="filter-select" onchange="this.form.submit()">
+          <select name="course" id="course" class="filter-select" onchange="clearAccordionStatesAndSubmit(this.form)">
             {% for value, label in course_choices %}
               <option value="{{ value }}" {% if value == current_course_filter %}selected{% endif %}>
                 {{ label }}
@@ -533,7 +533,7 @@
             <i class="fas fa-tasks mr-2"></i>
             Filter by Status:
           </label>
-          <select name="status" id="status" class="filter-select" onchange="this.form.submit()">
+          <select name="status" id="status" class="filter-select" onchange="clearAccordionStatesAndSubmit(this.form)">
             {% for value, label in status_choices %}
               <option value="{{ value }}" {% if value == current_status_filter %}selected{% endif %}>
                 {{ label }}
@@ -686,7 +686,7 @@
                          <i class="fas fa-video mr-1"></i>Join
                        </a>
                      {% elif activity.type == 'scorm' %}
-                       <a href="{% url 'scorm:launch' activity.object.id %}" 
+                       <a href="{% url 'scorm:launch' activity.object.topic.id %}" 
                           class="action-btn" 
                           title="View SCORM content">
                          <i class="fas fa-play mr-1"></i>Launch
@@ -777,8 +777,15 @@
 function clearSearch() {
     // Clear the search input
     document.getElementById('search').value = '';
-    // Submit the form to refresh with cleared search
-    document.querySelector('.filter-form').submit();
+    // Clear accordion states and submit the form
+    clearAccordionStatesAndSubmit(document.querySelector('.filter-form'));
+}
+
+function clearAccordionStatesAndSubmit(form) {
+    // Clear accordion states from localStorage when filters are applied
+    localStorage.removeItem('gradebook-accordion-states');
+    // Submit the form
+    form.submit();
 }
 
 // Accordion functionality
@@ -838,19 +845,32 @@ function collapseAllAccordions() {
 
 // Restore accordion states on page load
 document.addEventListener('DOMContentLoaded', function() {
-    const accordionStates = JSON.parse(localStorage.getItem('gradebook-accordion-states') || '{}');
+    // Check if any filters are applied
+    const urlParams = new URLSearchParams(window.location.search);
+    const hasFilters = urlParams.get('activity_type') !== 'all' || 
+                      urlParams.get('course') !== 'all' || 
+                      urlParams.get('status') !== 'all' || 
+                      urlParams.get('search');
     
-    Object.keys(accordionStates).forEach(courseId => {
-        const header = document.querySelector(`[data-course-id="${courseId}"]`);
-        const content = document.getElementById('content-' + courseId);
-        const toggle = header?.querySelector('.accordion-toggle');
+    // Only restore accordion states if no filters are applied
+    if (!hasFilters) {
+        const accordionStates = JSON.parse(localStorage.getItem('gradebook-accordion-states') || '{}');
         
-        if (header && content && toggle && accordionStates[courseId]) {
-            content.classList.add('active');
-            header.classList.add('active');
-            toggle.classList.add('rotated');
-        }
-    });
+        Object.keys(accordionStates).forEach(courseId => {
+            const header = document.querySelector(`[data-course-id="${courseId}"]`);
+            const content = document.getElementById('content-' + courseId);
+            const toggle = header?.querySelector('.accordion-toggle');
+            
+            if (header && content && toggle && accordionStates[courseId]) {
+                content.classList.add('active');
+                header.classList.add('active');
+                toggle.classList.add('rotated');
+            }
+        });
+    } else {
+        // Clear accordion states when filters are applied to ensure clean state
+        localStorage.removeItem('gradebook-accordion-states');
+    }
 });
 </script>
 {% endblock %} 

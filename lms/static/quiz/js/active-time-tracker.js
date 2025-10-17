@@ -19,6 +19,7 @@ class ActiveTimeTracker {
         this.lastActivity = Date.now();
         this.sessionStartTime = null;
         this.totalActiveTime = 0;
+        this.serverTimeOffset = 0; // Offset between server and client time
         
         // Timers
         this.pingTimer = null;
@@ -32,6 +33,30 @@ class ActiveTimeTracker {
         this.handleBeforeUnload = this.handleBeforeUnload.bind(this);
         
         this.init();
+        
+        // Sync with server time
+        this.syncServerTime();
+    }
+    
+    async syncServerTime() {
+        try {
+            const response = await fetch('/api/server-time/', {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                const serverTime = new Date(data.server_time).getTime();
+                const clientTime = Date.now();
+                this.serverTimeOffset = serverTime - clientTime;
+            }
+        } catch (error) {
+            console.warn('Failed to sync with server time:', error);
+            this.serverTimeOffset = 0;
+        }
     }
     
     init() {
@@ -62,7 +87,7 @@ class ActiveTimeTracker {
     }
     
     handleActivity(event) {
-        this.lastActivity = Date.now();
+        this.lastActivity = Date.now() + this.serverTimeOffset;
         
         if (!this.isActive && this.isPageVisible) {
             this.startSession();
@@ -98,14 +123,14 @@ class ActiveTimeTracker {
     startSession() {
         if (!this.isActive && this.isPageVisible) {
             this.isActive = true;
-            this.sessionStartTime = Date.now();
-            this.lastActivity = Date.now();
+            this.sessionStartTime = Date.now() + this.serverTimeOffset;
+            this.lastActivity = Date.now() + this.serverTimeOffset;
         }
     }
     
     endSession() {
         if (this.isActive && this.sessionStartTime) {
-            const sessionDuration = Date.now() - this.sessionStartTime;
+            const sessionDuration = (Date.now() + this.serverTimeOffset) - this.sessionStartTime;
             this.totalActiveTime += sessionDuration;
             this.isActive = false;
             this.sessionStartTime = null;

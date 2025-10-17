@@ -5,8 +5,6 @@ app_name = 'certificates'
 
 urlpatterns = [
     path('', views.certificates_view, name='certificates'),
-    path('', views.certificates_view, name='certificate_list'),  # Alias for consistency
-    path('create/', views.certificates_view, name='certificate_create'),  # Alias for consistency
     path('templates/', views.templates_view, name='templates'),
     path('templates/<int:template_id>/save-element/', views.save_element, name='save_element'),
     path('templates/<int:template_id>/data/', views.get_template_data, name='get_template_data'),

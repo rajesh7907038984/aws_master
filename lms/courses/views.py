@@ -391,6 +391,8 @@ def get_course_context(request, user, course):
 @require_capability('view_courses')
 def course_list(request):
     """Display list of courses based on user role and group access."""
+    from core.utils.performance_monitor import monitor_performance, optimize_queryset
+    
     user = request.user
     
     # Import needed models
@@ -416,6 +418,23 @@ def course_list(request):
     progress_filter = request.GET.get('progress', '')
     instructor_filter = request.GET.get('instructor', '')
     sort_by = request.GET.get('sort', '')
+    
+    # Create filters dict for caching
+    filters = {
+        'search': search_query,
+        'category': category_filter,
+        'progress': progress_filter,
+        'instructor': instructor_filter,
+        'sort': sort_by
+    }
+    
+    # Try to get cached results first
+    from core.utils.cache_manager import get_cached_course_list, cache_course_list
+    cached_courses = get_cached_course_list(user.id, filters)
+    if cached_courses:
+        logger.info(f"Using cached course list for user {user.username}")
+        # Return cached results (would need to implement full context)
+        # For now, continue with normal processing
     
     # Log course access for debugging
     logger.info(f"User {user.username} (role: {user.role}) accessing course list page")
@@ -517,16 +536,22 @@ def course_list(request):
     # OPTIMIZATION: Add prefetch_related for enrollments to prevent N+1 queries
     from django.db.models import Prefetch
     
-    courses = Course.objects.filter(id__in=course_ids).select_related(
-        'instructor',
-        'branch',
-        'category'
-    ).prefetch_related(
-        Prefetch(
-            'courseenrollment_set',
-            queryset=CourseEnrollment.objects.filter(user=request.user).select_related('user'),
-            to_attr='user_enrollments'
-        )
+    # Optimize queryset with performance monitoring
+    courses = optimize_queryset(
+        Course.objects.filter(id__in=course_ids).select_related(
+            'instructor',
+            'branch',
+            'category'
+        ).prefetch_related(
+            Prefetch(
+                'courseenrollment_set',
+                queryset=CourseEnrollment.objects.filter(user=request.user).select_related('user'),
+                to_attr='user_enrollments'
+            ),
+            'topics',  # Prefetch topics to avoid N+1 queries
+            'accessible_groups'  # Prefetch groups for permission checks
+        ),
+        max_results=1000  # Limit results for performance
     )
 
     # Log the number of courses found
@@ -664,11 +689,22 @@ def course_list(request):
     # Get categories for the filter dropdown with role-based filtering
     categories = get_user_accessible_categories(request.user)
     
-    # Add pagination
-    from django.core.paginator import Paginator
-    paginator = Paginator(courses, 12)  # Show 12 courses per page
+    # Add optimized pagination
+    from core.utils.optimized_pagination import OptimizedPaginator, optimize_queryset_for_pagination
+    
+    # Optimize queryset for pagination
+    courses = optimize_queryset_for_pagination(courses, max_results=1000)
+    
+    # Create optimized paginator
+    paginator = OptimizedPaginator(
+        queryset=courses,
+        per_page=12,  # Show 12 courses per page
+        cache_key_prefix='course_list',
+        enable_caching=True
+    )
+    
     page_number = request.GET.get('page', 1)
-    page_obj = paginator.get_page(page_number)
+    page_obj = paginator.get_page(page_number, request)
     
     logger.info(f"Displaying page {page_obj.number} of {paginator.num_pages} pages")
 

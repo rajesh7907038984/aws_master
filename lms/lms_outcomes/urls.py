@@ -5,16 +5,13 @@ app_name = 'lms_outcomes'
 
 urlpatterns = [
     path('', views.outcomes_index, name='index'),
-    path('', views.outcomes_index, name='outcome_list'),  # Alias for consistency
     path('create/', views.create_outcome, name='create_outcome'),
-    path('create/', views.create_outcome, name='outcome_create'),  # Alias for consistency
     path('manage/', views.outcomes_manage, name='manage'),
     path('alignments/', views.outcomes_alignments, name='alignments'),
     path('groups/create/', views.create_outcome_group, name='create_group'),
     path('groups/create/ajax/', views.create_outcome_group_ajax, name='create_group_ajax'),
     path('groups/rename/', views.rename_group, name='rename_group'),
     path('groups/delete/', views.delete_group, name='delete_group'),
-    path('create/', views.create_outcome, name='create_outcome'),
     path('edit/<int:outcome_id>/', views.edit_outcome, name='edit_outcome'),
     path('import/', views.import_outcomes, name='import_outcomes'),
     path('import/template/', views.download_template, name='download_template'),

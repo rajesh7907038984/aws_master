@@ -6,9 +6,13 @@ from django.urls import path, include
 from . import views
 # from .views import csrf_views  # COMMENTED OUT TO FIX ERRORS
 # Import calendar API functions from the views module
-from .views import api_calendar_activities, api_daily_activities, api_calendar_summary, log_client_error
+from .views import api_calendar_activities, api_daily_activities, api_calendar_summary, log_client_error, api_version
+# Import monitoring views
+from .views.monitoring_dashboard import monitoring_dashboard, api_system_metrics, api_health_check, api_user_engagement
 # Import timezone API functions
 from .timezone_api import set_user_timezone, get_user_timezone, get_timezone_list
+# Import server time API
+from .views.server_time import server_time
 
 app_name = 'core'
 
@@ -39,10 +43,25 @@ urlpatterns = [
         ])),
         # Error logging API endpoints
         path('log-client-error/', log_client_error, name='api_log_client_error'),
+        path('log-error/', log_client_error, name='api_log_error'),  # Alternative endpoint
         # Device time sync API endpoint
         path('sync-device-time/', views.sync_device_time, name='api_sync_device_time'),
+        # Server time API endpoint
+        path('server-time/', server_time, name='api_server_time'),
+        # Version endpoint
+        path('version/', api_version, name='api_version'),
+        # Monitoring endpoints
+        path('monitoring/', include([
+            path('dashboard/', monitoring_dashboard, name='monitoring_dashboard'),
+            path('metrics/', api_system_metrics, name='api_system_metrics'),
+            path('health/', api_health_check, name='api_health_check'),
+            path('user-engagement/<int:user_id>/', api_user_engagement, name='api_user_engagement'),
+        ])),
     ])),
     
     # Remote login endpoint
     path('remote/login/', views.remote_login, name='remote_login'),
+    
+    # Security and well-known endpoints
+    path('.well-known/security.txt', views.security_txt, name='security_txt'),
 ]

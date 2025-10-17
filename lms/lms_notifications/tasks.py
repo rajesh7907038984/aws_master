@@ -146,8 +146,8 @@ def send_unread_message_digest():
             unread_messages = Message.objects.filter(
                 recipients=user
             ).exclude(
-                messagereadstatus__user=user,
-                messagereadstatus__is_read=True
+                read_statuses__user=user,
+                read_statuses__is_read=True
             ).order_by('-created_at')
             
             unread_count = unread_messages.count()

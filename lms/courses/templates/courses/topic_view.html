@@ -630,7 +630,7 @@
                             {% if topic.elearning_package.is_extracted %}
                                 <div class="flex flex-col sm:flex-row gap-4">
                                     <a href="{% url 'scorm:launch' topic.id %}" class="btn btn-primary">
-                                        <i class="fas fa-play mr-2"></i>Launch Content
+                                        <i class="fas fa-{% if can_resume_scorm %}redo{% else %}play{% endif %} mr-2"></i>{{ scorm_action_text|default:"Launch Content" }}
                                     </a>
                                     
                                     {% if user.is_staff or user.is_instructor %}

@@ -66,6 +66,7 @@ ALLOWED_HOSTS.extend(additional_hosts)
 ALLOWED_HOSTS.extend([
     'localhost',
     '127.0.0.1',
+    'testserver',  # For Django test client
 ])
 
 # IP blocking configuration

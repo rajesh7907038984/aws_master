@@ -22,6 +22,27 @@ import pytz
 
 logger = logging.getLogger(__name__)
 
+def api_version(request):
+    """API endpoint to return system version information"""
+    return JsonResponse({
+        'version': '1.0.0',
+        'build': '2025-10-17',
+        'environment': getattr(settings, 'DJANGO_ENV', 'production'),
+        'timestamp': timezone.now().isoformat()
+    })
+
+def security_txt(request):
+    """Security.txt endpoint for responsible disclosure"""
+    from django.http import HttpResponse
+    security_content = """Contact: security@example.com
+Expires: 2026-12-31T23:59:59.000Z
+Encryption: https://example.com/pgp-key.txt
+Acknowledgments: https://example.com/security-acknowledgments
+Preferred-Languages: en
+Canonical: https://example.com/.well-known/security.txt
+"""
+    return HttpResponse(security_content, content_type='text/plain')
+
 # COMMENTED OUT CSRF FAILURE VIEW TO FIX ERRORS
 # def csrf_failure(request, reason=""):
 #     """

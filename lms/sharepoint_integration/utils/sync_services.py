@@ -564,7 +564,7 @@ class ProgressSyncService(SharePointSyncService):
             'TopicName': progress.topic.title,
             'TopicType': getattr(progress.topic, 'topic_type', 'content'),
             'ProgressPercent': getattr(progress, 'progress_percentage', 0),
-            'TimeSpent': getattr(progress, 'time_spent', 0),
+            'TimeSpent': getattr(progress, 'total_time_spent', 0),
             'Attempts': getattr(progress, 'attempts', 0),
             'Score': getattr(progress, 'score', 0),
             'MaxScore': getattr(progress, 'max_score', 0),
@@ -1041,7 +1041,7 @@ class SharePointBidirectionalSync:
                 'TopicName': progress.topic.title if hasattr(progress.topic, 'title') else '',
                 'ProgressPercent': progress.progress_percentage if hasattr(progress, 'progress_percentage') else 0,
                 'CompletionDate': progress.completed_at.isoformat() if hasattr(progress, 'completed_at') and progress.completed_at else '',
-                'TimeSpent': progress.time_spent if hasattr(progress, 'time_spent') else 0,
+                'TimeSpent': progress.total_time_spent if hasattr(progress, 'total_time_spent') else 0,
                 'Score': progress.score if hasattr(progress, 'score') else 0,
                 'IsCompleted': progress.is_completed if hasattr(progress, 'is_completed') else False,
                 'UpdatedDate': timezone.now().isoformat()
@@ -1113,7 +1113,7 @@ class SharePointBidirectionalSync:
                 'MaxScore': attempt.quiz.total_marks if hasattr(attempt.quiz, 'total_marks') else 0,
                 'Percentage': attempt.percentage if hasattr(attempt, 'percentage') else 0,
                 'IsPassed': attempt.passed if hasattr(attempt, 'passed') else False,
-                'TimeSpent': attempt.time_spent if hasattr(attempt, 'time_spent') else 0,
+                'TimeSpent': getattr(attempt, 'time_spent', 0),
                 'SubmissionDate': attempt.end_time.isoformat() if hasattr(attempt, 'end_time') and attempt.end_time else timezone.now().isoformat(),
                 'UpdatedDate': timezone.now().isoformat()
             }

@@ -42,7 +42,7 @@
                         <i class="fas fa-clock text-gray-400"></i>
                         <span class="text-sm text-gray-700">Total training time</span>
                     </div>
-                    <span class="font-semibold">{{ training_time }}</span>
+                    <span class="font-semibold" data-time="{{ training_time }}" id="training-time">{{ training_time }}</span>
                 </div>
             </div>
         </div>
@@ -58,4 +58,31 @@
         <!-- Achievements Section -->
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Handle timezone conversion for time display
+    const timeElements = document.querySelectorAll('[data-time]');
+    
+    timeElements.forEach(element => {
+        const timeValue = element.getAttribute('data-time');
+        if (timeValue && timeValue !== '0h 0m 0s') {
+            // Add timezone info if available
+            if (window.userTimezone) {
+                element.title = `Time in ${window.userTimezone}`;
+            }
+        }
+    });
+    
+    // Update time display with user timezone if available
+    if (window.userTimezone && window.userTimezone !== 'UTC') {
+        const trainingTimeElement = document.getElementById('training-time');
+        if (trainingTimeElement) {
+            trainingTimeElement.innerHTML += ` <small class="text-gray-500">(${window.userTimezone})</small>`;
+        }
+    }
+});
+</script>
 {% endblock %}

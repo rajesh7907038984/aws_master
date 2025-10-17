@@ -145,12 +145,13 @@
 </div>
 
 <script>
-// Enhanced SCORM API Implementation with Real Error Handling
+    // Enhanced SCORM API Implementation with Real Error Handling
 var API = {
     initialized: false,
     commit_url: "{% url 'scorm:api' topic.id %}",
-    user_id: {{ user.id }},
+    user_id: {{ user.id|default:'null' }},
     topic_id: {{ topic.id }},
+    user_email: "{{ user.email|default:''|escapejs }}",
     
     // Error handling properties
     lastError: 0,
@@ -613,19 +614,44 @@ var API = {
             this.sendElementToServer('cmi.core.lesson_status', 'completed');
         }
         
-        // Also call LMSFinish to properly terminate the session
-        this.LMSFinish('');
-        
-        // CRITICAL: Redirect the parent window to the topic view immediately
-        // This prevents the SCORM package from showing goodbye.html
-        const backToTopicUrl = "{% url 'courses:topic_view' topic.id %}";
-        
-        // Use parent window location to ensure we exit the iframe completely
-        if (window.parent && window.parent !== window) {
-            window.parent.location.href = backToTopicUrl;
+        // Only call LMSFinish if properly initialized
+        if (this.initialized) {
+            this.LMSFinish('');
         } else {
-            window.location.href = backToTopicUrl;
+            console.log('SCORM API: Not initialized, skipping LMSFinish');
         }
+        
+        // CRITICAL FIX: Actually navigate the iframe to goodbye.html
+        const iframe = document.getElementById('scorm-iframe');
+        if (iframe) {
+            console.log('SCORM API: Navigating iframe to goodbye.html');
+            try {
+                // Try to navigate to goodbye.html in the SCORM package
+                iframe.src = iframe.src.replace(/\/scormcontent\/[^\/]*$/, '/scormdriver/goodbye.html');
+            } catch (e) {
+                console.log('SCORM API: Could not navigate iframe directly, trying alternative method');
+                // Alternative: try to navigate within the iframe content
+                try {
+                    if (iframe.contentWindow) {
+                        iframe.contentWindow.location.href = 'scormdriver/goodbye.html';
+                    }
+                } catch (e2) {
+                    console.log('SCORM API: Cross-origin navigation blocked, showing goodbye message in parent');
+                    // If cross-origin prevents navigation, show goodbye message in parent
+                    const goodbyeDiv = document.createElement('div');
+                    goodbyeDiv.innerHTML = `
+                        <div style="text-align: center; padding: 50px; font-family: Arial, sans-serif;">
+                            <h2>👋 Bye!</h2>
+                            <p>You may now leave this page.</p>
+                            <p><a href="{% url 'courses:topic_view' topic.id %}" style="background: #007cba; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px;">Back to Topic</a></p>
+                        </div>
+                    `;
+                    iframe.parentNode.replaceChild(goodbyeDiv, iframe);
+                }
+            }
+        }
+        
+        console.log('SCORM API: Assessment completed - navigating to goodbye.html');
         
         return "true";
     },
@@ -1176,15 +1202,59 @@ API.initializeAPIDiscovery();
 // Make API available globally - ENHANCED
 window.API = API;
 
-// CRITICAL FIX: Make ConcedeControl directly accessible on window
+// RESPECT SCORM STANDARDS: Make ConcedeControl directly accessible on window
 window.ConcedeControl = function() {
-    // Directly redirect to prevent goodbye.html from showing
-    const backToTopicUrl = "{% url 'courses:topic_view' topic.id %}";
-    if (window.parent && window.parent !== window) {
-        window.parent.location.href = backToTopicUrl;
-    } else {
-        window.location.href = backToTopicUrl;
+    console.log('SCORM API: Global ConcedeControl called');
+    
+    // Set exit value to normal when conceding control
+    API.data['cmi.core.exit'] = 'normal';
+    API.sendElementToServer('cmi.core.exit', 'normal');
+    
+    // Set completion status if not already completed
+    if (API.data['cmi.core.lesson_status'] !== 'completed' && API.data['cmi.core.lesson_status'] !== 'passed') {
+        API.data['cmi.core.lesson_status'] = 'completed';
+        API.sendElementToServer('cmi.core.lesson_status', 'completed');
     }
+    
+    // Only call LMSFinish if properly initialized
+    if (API.initialized) {
+        API.LMSFinish('');
+    } else {
+        console.log('SCORM API: Not initialized, skipping LMSFinish');
+    }
+    
+    // CRITICAL FIX: Actually navigate the iframe to goodbye.html
+    const iframe = document.getElementById('scorm-iframe');
+    if (iframe) {
+        console.log('SCORM API: Navigating iframe to goodbye.html');
+        try {
+            // Try to navigate to goodbye.html in the SCORM package
+            iframe.src = iframe.src.replace(/\/scormcontent\/[^\/]*$/, '/scormdriver/goodbye.html');
+        } catch (e) {
+            console.log('SCORM API: Could not navigate iframe directly, trying alternative method');
+            // Alternative: try to navigate within the iframe content
+            try {
+                if (iframe.contentWindow) {
+                    iframe.contentWindow.location.href = 'scormdriver/goodbye.html';
+                }
+            } catch (e2) {
+                console.log('SCORM API: Cross-origin navigation blocked, showing goodbye message in parent');
+                // If cross-origin prevents navigation, show goodbye message in parent
+                const goodbyeDiv = document.createElement('div');
+                goodbyeDiv.innerHTML = `
+                    <div style="text-align: center; padding: 50px; font-family: Arial, sans-serif;">
+                        <h2>👋 Bye!</h2>
+                        <p>You may now leave this page.</p>
+                        <p><a href="{% url 'courses:topic_view' topic.id %}" style="background: #007cba; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px;">Back to Topic</a></p>
+                    </div>
+                `;
+                iframe.parentNode.replaceChild(goodbyeDiv, iframe);
+            }
+        }
+    }
+    
+    console.log('SCORM API: Assessment completed - navigating to goodbye.html');
+    
     return "true";
 };
 
@@ -1207,11 +1277,17 @@ try {
 
 console.log('SCORM API: Initialized and available globally');
 
-    // Inject API into iframe when it loads - ENHANCED
+    // CRITICAL FIX: Enhanced iframe API injection with postMessage communication
     function injectAPIIntoIframe() {
         const iframe = document.getElementById('scorm-iframe');
         if (iframe && iframe.contentWindow) {
             try {
+                // CRITICAL: Send API via postMessage for better cross-origin support
+                iframe.contentWindow.postMessage({
+                    type: 'SCORM_API_READY',
+                    api: API
+                }, '*');
+                
                 // Inject the API into the iframe - MULTIPLE METHODS
                 iframe.contentWindow.API = API;
                 
@@ -1242,23 +1318,57 @@ console.log('SCORM API: Initialized and available globally');
                     iframe.contentWindow.window.API = API;
                 }
                 
-                // CRITICAL FIX: Set up SD reference for CourseExit.js
+                // RESPECT SCORM STANDARDS: Set up SD reference for CourseExit.js
                 if (iframe.contentWindow.parent) {
                     iframe.contentWindow.parent.SD = API;
                     iframe.contentWindow.parent.ConcedeControl = function() {
-                        // Directly redirect to prevent goodbye.html from showing
-                        const backToTopicUrl = "{% url 'courses:topic_view' topic.id %}";
-                        window.parent.location.href = backToTopicUrl;
+                        console.log('SCORM API: Parent SD ConcedeControl called');
+                        // Set exit value to normal when conceding control
+                        API.data['cmi.core.exit'] = 'normal';
+                        API.sendElementToServer('cmi.core.exit', 'normal');
+                        
+                        // Set completion status if not already completed
+                        if (API.data['cmi.core.lesson_status'] !== 'completed' && API.data['cmi.core.lesson_status'] !== 'passed') {
+                            API.data['cmi.core.lesson_status'] = 'completed';
+                            API.sendElementToServer('cmi.core.lesson_status', 'completed');
+                        }
+                        
+                        // Only call LMSFinish if properly initialized
+                        if (API.initialized) {
+                            API.LMSFinish('');
+                        } else {
+                            console.log('SCORM API: Not initialized, skipping LMSFinish');
+                        }
+                        
+                        // Allow SCORM content to navigate to goodbye.html
+                        console.log('SCORM API: Assessment completed - allowing navigation to goodbye.html');
                         return "true";
                     };
                 }
                 
-                // Also set SD in the iframe content window itself
+                // RESPECT SCORM STANDARDS: Set SD in the iframe content window itself
                 iframe.contentWindow.SD = API;
                 iframe.contentWindow.ConcedeControl = function() {
-                    // Directly redirect to prevent goodbye.html from showing
-                    const backToTopicUrl = "{% url 'courses:topic_view' topic.id %}";
-                    window.parent.location.href = backToTopicUrl;
+                    console.log('SCORM API: Iframe content ConcedeControl called');
+                    // Set exit value to normal when conceding control
+                    API.data['cmi.core.exit'] = 'normal';
+                    API.sendElementToServer('cmi.core.exit', 'normal');
+                    
+                    // Set completion status if not already completed
+                    if (API.data['cmi.core.lesson_status'] !== 'completed' && API.data['cmi.core.lesson_status'] !== 'passed') {
+                        API.data['cmi.core.lesson_status'] = 'completed';
+                        API.sendElementToServer('cmi.core.lesson_status', 'completed');
+                    }
+                    
+                    // Only call LMSFinish if properly initialized
+                    if (API.initialized) {
+                        API.LMSFinish('');
+                    } else {
+                        console.log('SCORM API: Not initialized, skipping LMSFinish');
+                    }
+                    
+                    // Allow SCORM content to navigate to goodbye.html
+                    console.log('SCORM API: Assessment completed - allowing navigation to goodbye.html');
                     return "true";
                 };
                 
@@ -1364,6 +1474,10 @@ window.addEventListener('load', function() {
 window.onload = function () {
     console.log('SCORM API: Page loaded, initializing...');
     
+    // CRITICAL FIX: Initialize the API immediately
+    API.initialized = true;
+    console.log('SCORM API: API initialized for proper SCORM communication');
+    
     const iframe = document.getElementById('scorm-iframe');
     
     // PRE-INJECT API BEFORE IFRAME LOADS - CRITICAL FIX
@@ -1389,18 +1503,16 @@ window.onload = function () {
         console.log('SCORM API: Pre-injection error:', e.message);
     }
     
-    // Intercept iframe navigation to prevent goodbye.html
+    // RESPECT SCORM STANDARDS: Allow iframe navigation to goodbye.html
     iframe.addEventListener('beforeunload', function(e) {
         console.log('SCORM API: Iframe attempting to navigate');
-        // Check if it's trying to navigate to goodbye.html
+        // Allow SCORM content to navigate to goodbye.html as per SCORM standards
+        // Only log the navigation, don't prevent it
         if (iframe.contentWindow && iframe.contentWindow.location) {
             const currentUrl = iframe.contentWindow.location.href;
             if (currentUrl.includes('goodbye.html')) {
-                console.log('SCORM API: Preventing navigation to goodbye.html');
-                e.preventDefault();
-                // Redirect parent window instead
-                window.location.href = "{% url 'courses:topic_view' topic.id %}";
-                return false;
+                console.log('SCORM API: Allowing navigation to goodbye.html (SCORM standard flow)');
+                // Don't prevent - let SCORM content show its goodbye page
             }
         }
     });
@@ -1409,27 +1521,33 @@ window.onload = function () {
     iframe.addEventListener('load', function() {
         console.log('SCORM API: Iframe loaded');
         
-        // Check if iframe loaded goodbye.html
+        // RESPECT SCORM STANDARDS: Allow iframe to load goodbye.html
         try {
             if (iframe.contentWindow && iframe.contentWindow.location) {
                 const currentUrl = iframe.contentWindow.location.href;
                 if (currentUrl.includes('goodbye.html')) {
-                    console.log('SCORM API: Detected goodbye.html, redirecting to topic view');
-                    window.location.href = "{% url 'courses:topic_view' topic.id %}";
-                    return;
+                    console.log('SCORM API: Detected goodbye.html - displaying exit page');
+                    // Allow the goodbye page to be displayed without interference
                 }
             }
         } catch (e) {
-            // Cross-origin, can't check URL
+            // Cross-origin, can't check URL - this is normal for SCORM packages
+            console.log('SCORM API: Cross-origin iframe loaded (normal for SCORM packages)');
         }
         
         // Inject API into iframe
         injectAPIIntoIframe();
         
-        // Set up periodic API injection to ensure it's always available
+        // CRITICAL FIX: Enhanced periodic API injection with postMessage
         const apiInjectionInterval = setInterval(function() {
             try {
                 if (iframe.contentWindow) {
+                    // Send API via postMessage for better cross-origin support
+                    iframe.contentWindow.postMessage({
+                        type: 'SCORM_API_READY',
+                        api: API
+                    }, '*');
+                    
                     // Re-inject API periodically
                     iframe.contentWindow.API = API;
                     iframe.contentWindow.parent.API = API;
@@ -1437,15 +1555,49 @@ window.onload = function () {
                     iframe.contentWindow.SD = API;
                     iframe.contentWindow.parent.SD = API;
                     iframe.contentWindow.ConcedeControl = function() {
-                        // Directly redirect to prevent goodbye.html from showing
-                        const backToTopicUrl = "{% url 'courses:topic_view' topic.id %}";
-                        window.parent.location.href = backToTopicUrl;
+                        console.log('SCORM API: Periodic injection ConcedeControl called');
+                        // Set exit value to normal when conceding control
+                        API.data['cmi.core.exit'] = 'normal';
+                        API.sendElementToServer('cmi.core.exit', 'normal');
+                        
+                        // Set completion status if not already completed
+                        if (API.data['cmi.core.lesson_status'] !== 'completed' && API.data['cmi.core.lesson_status'] !== 'passed') {
+                            API.data['cmi.core.lesson_status'] = 'completed';
+                            API.sendElementToServer('cmi.core.lesson_status', 'completed');
+                        }
+                        
+                        // Only call LMSFinish if properly initialized
+                        if (API.initialized) {
+                            API.LMSFinish('');
+                        } else {
+                            console.log('SCORM API: Not initialized, skipping LMSFinish');
+                        }
+                        
+                        // Allow SCORM content to navigate to goodbye.html
+                        console.log('SCORM API: Assessment completed - allowing navigation to goodbye.html');
                         return "true";
                     };
                     iframe.contentWindow.parent.ConcedeControl = function() {
-                        // Directly redirect to prevent goodbye.html from showing
-                        const backToTopicUrl = "{% url 'courses:topic_view' topic.id %}";
-                        window.parent.location.href = backToTopicUrl;
+                        console.log('SCORM API: Periodic injection parent ConcedeControl called');
+                        // Set exit value to normal when conceding control
+                        API.data['cmi.core.exit'] = 'normal';
+                        API.sendElementToServer('cmi.core.exit', 'normal');
+                        
+                        // Set completion status if not already completed
+                        if (API.data['cmi.core.lesson_status'] !== 'completed' && API.data['cmi.core.lesson_status'] !== 'passed') {
+                            API.data['cmi.core.lesson_status'] = 'completed';
+                            API.sendElementToServer('cmi.core.lesson_status', 'completed');
+                        }
+                        
+                        // Only call LMSFinish if properly initialized
+                        if (API.initialized) {
+                            API.LMSFinish('');
+                        } else {
+                            console.log('SCORM API: Not initialized, skipping LMSFinish');
+                        }
+                        
+                        // Allow SCORM content to navigate to goodbye.html
+                        console.log('SCORM API: Assessment completed - allowing navigation to goodbye.html');
                         return "true";
                     };
                     
@@ -1533,7 +1685,7 @@ window.onload = function () {
         console.error('SCORM API: Error loading iframe');
     });
     
-    // Handle messages from SCORM content
+    // CRITICAL FIX: Enhanced message handling for SCORM content
     function receiveMessage(e) {
         // Check origin for security
         if (e.origin !== window.location.origin) {
@@ -1541,6 +1693,16 @@ window.onload = function () {
         }
         
         console.log('SCORM API: Received message from iframe', e.data);
+        
+        // Handle API requests from iframe
+        if (e.data && e.data.type === 'REQUEST_SCORM_API') {
+            console.log('SCORM API: Sending API to iframe');
+            e.source.postMessage({
+                type: 'SCORM_API_READY',
+                api: API
+            }, '*');
+            return;
+        }
         
         // Handle SCORM data updates
         if (e.data && e.data.sendValues) {

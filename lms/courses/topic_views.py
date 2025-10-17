@@ -87,6 +87,44 @@ def topic_view(request, topic_id):
         if request.user.is_authenticated:
             request.session['has_viewed_content'] = True
         
+        # Check for SCORM tracking data if this is a SCORM topic
+        scorm_tracking = None
+        can_resume_scorm = False
+        scorm_action_text = "Launch Content"
+        
+        if topic.content_type == 'SCORM' and hasattr(topic, 'elearning_package') and topic.elearning_package:
+            if request.user.is_authenticated:
+                try:
+                    from scorm.models import ELearningTracking
+                    scorm_tracking = ELearningTracking.objects.filter(
+                        user=request.user,
+                        elearning_package=topic.elearning_package
+                    ).first()
+                    
+                    if scorm_tracking:
+                        # Check if user has any progress indicators
+                        has_bookmark = bool(scorm_tracking.location or scorm_tracking.raw_data.get('cmi.core.lesson_location', ''))
+                        has_suspend_data = bool(scorm_tracking.suspend_data or scorm_tracking.raw_data.get('cmi.core.suspend_data', ''))
+                        has_progress = scorm_tracking.completion_status not in ['not attempted', 'unknown']
+                        has_time = scorm_tracking.total_time and scorm_tracking.total_time.total_seconds() > 0
+                        has_score = scorm_tracking.score_raw is not None and scorm_tracking.score_raw > 0
+                        
+                        # Determine if user can resume
+                        can_resume_scorm = (has_bookmark or has_suspend_data or has_progress or has_time or has_score)
+                        scorm_action_text = "Resume Content" if can_resume_scorm else "Launch Content"
+                        
+                        logger.info(f"SCORM Resume Check for user {request.user.username} on topic {topic.id}:")
+                        logger.info(f"  - Has bookmark: {has_bookmark}")
+                        logger.info(f"  - Has suspend data: {has_suspend_data}")
+                        logger.info(f"  - Has progress: {has_progress}")
+                        logger.info(f"  - Has time: {has_time}")
+                        logger.info(f"  - Has score: {has_score}")
+                        logger.info(f"  - Can resume: {can_resume_scorm}")
+                        logger.info(f"  - Action text: {scorm_action_text}")
+                        
+                except Exception as e:
+                    logger.error(f"Error checking SCORM tracking: {str(e)}")
+        
         # removed functionality removed
         
         # Build proper course content navigation context
@@ -209,6 +247,9 @@ def topic_view(request, topic_id):
             'completed_topics_count': completed_topics_count,
             'can_access_interactive_content': can_access_interactive_content,
             'access_warning': access_warning,
+            'scorm_tracking': scorm_tracking,
+            'can_resume_scorm': can_resume_scorm,
+            'scorm_action_text': scorm_action_text,
         }
         
         

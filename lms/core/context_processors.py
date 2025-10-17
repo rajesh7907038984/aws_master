@@ -24,8 +24,6 @@ def global_sidebar_context(request):
     }
 
 
-
-
 def sidebar_context(request):
     """
     Sidebar context processor.

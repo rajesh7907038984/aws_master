@@ -1409,6 +1409,7 @@
               <option value="">All Types</option>
               <option value="assignment">Assignments</option>
               <option value="quiz">Quizzes</option>
+              <option value="initial_assessment">Initial Assessments</option>
               <option value="discussion">Discussions</option>
               <option value="conference">Conferences</option>
               <option value="scorm">SCORM Content</option>
@@ -1494,14 +1495,17 @@
           <thead>
             <tr>
               {% if user.role != 'learner' %}
-              <th>Student Name</th>
+              <th class="student-name-column">Student Name</th>
               {% endif %}
               {% for activity in activities %}
-                <th class="activity-header" title="{{ activity.title }}">
+                <th class="activity-header" title="{{ activity.title }}" data-activity-type="{{ activity.type }}" data-activity-id="{{ activity.object.id }}">
                   {% if activity.type == 'assignment' %}
                     <span class="activity-type-label activity-type-assignment">ASG {{ activity.activity_number }}</span>
                     <div class="activity-title">{{ activity.title|truncatechars:15 }}</div>
                     <div class="activity-points">{{ activity.max_score }} pts</div>
+                    <div class="text-xs text-green-600 font-medium" title="This activity counts toward your total grade">
+                      ✓ Counts
+                    </div>
                   {% elif activity.type == 'quiz' %}
                     <span class="activity-type-label activity-type-quiz">QUZ {{ activity.activity_number }}</span>
                     <div class="activity-title">{{ activity.title|truncatechars:15 }}</div>
@@ -1509,6 +1513,9 @@
                       <div class="activity-points grade-unpublished">INACTIVE</div>
                     {% else %}
                       <div class="activity-points">{{ activity.max_score }} pts</div>
+                      <div class="text-xs text-green-600 font-medium" title="This activity counts toward your total grade">
+                        ✓ Counts
+                      </div>
                     {% endif %}
                   {% elif activity.type == 'initial_assessment' %}
                     <span class="activity-type-label activity-type-assessment">IA {{ activity.activity_number }}</span>
@@ -1517,12 +1524,18 @@
                       <div class="activity-points grade-unpublished">INACTIVE</div>
                     {% else %}
                       <div class="activity-points">{{ activity.max_score }} pts</div>
+                      <div class="text-xs text-orange-600 font-medium" title="This assessment is for placement purposes and does not count toward your total grade">
+                        ⓘ Informational
+                      </div>
                     {% endif %}
                   {% elif activity.type == 'discussion' %}
                     <span class="activity-type-label activity-type-discussion">DSC {{ activity.activity_number }}</span>
                     <div class="activity-title">{{ activity.title|truncatechars:15 }}</div>
                     {% if activity.max_score > 0 %}
                       <div class="activity-points">{{ activity.max_score }} pts</div>
+                      <div class="text-xs text-green-600 font-medium" title="This activity counts toward your total grade">
+                        ✓ Counts
+                      </div>
                     {% else %}
                       <div class="activity-points">Participation</div>
                     {% endif %}
@@ -1531,6 +1544,9 @@
                     <div class="activity-title">{{ activity.title|truncatechars:15 }}</div>
                     {% if activity.max_score > 0 %}
                       <div class="activity-points">{{ activity.max_score }} pts</div>
+                      <div class="text-xs text-green-600 font-medium" title="This activity counts toward your total grade">
+                        ✓ Counts
+                      </div>
                     {% else %}
                       <div class="activity-points">Attendance</div>
                     {% endif %}
@@ -1538,6 +1554,9 @@
                     <span class="activity-type-label activity-type-scorm">SCO {{ activity.activity_number }}</span>
                     <div class="activity-title">{{ activity.title|truncatechars:15 }}</div>
                     <div class="activity-points">{{ activity.max_score }} pts</div>
+                    <div class="text-xs text-green-600 font-medium" title="This activity counts toward your total grade">
+                      ✓ Counts
+                    </div>
                   {% endif %}
                 </th>
               {% endfor %}
@@ -1546,10 +1565,10 @@
               <th class="assignment-total">Total Points</th>
               {% endif %}
               
-              <!-- Outcome Mastery Columns -->
+              <!-- Outcome Mastery Columns - Always include even if hidden -->
               {% if outcome_summary %}
                 {% for outcome_id, summary in outcome_summary.items %}
-                <th class="outcome-column" title="{{ summary.outcome.title }}" style="display: none;">
+                <th class="outcome-column" title="{{ summary.outcome.title }}" style="display: none;" data-outcome-id="{{ outcome_id }}">
                   <span class="activity-type-label outcome-type-label">OUT</span>
                   <div class="activity-title">{{ summary.outcome.title|truncatechars:10 }}</div>
                   <div class="activity-points">{{ summary.outcome.get_calculation_method_display|truncatechars:8 }}</div>
@@ -1562,11 +1581,11 @@
             {% for student in students %}
               <tr>
                 {% if user.role != 'learner' %}
-                <td>{{ student.get_full_name|default:student.username }}</td>
+                <td class="student-name-cell">{{ student.get_full_name|default:student.username }}</td>
                 {% endif %}
                 
                 {% for activity in activities %}
-                  <td class="activity-cell">
+                  <td class="activity-cell" data-activity-type="{{ activity.type }}" data-activity-id="{{ activity.object.id }}">
                     {% get_student_activity_score student_scores student.id activity.object.id as score_data %}
                     
                     <div class="submission-info">
@@ -1676,12 +1695,19 @@
                             {% else %}
                               <span class="grade-score grade-poor">{{ score_data.score|floatformat:1 }}/{{ score_data.max_score }}</span>
                             {% endif %}
-                          {% else %}
+                          {% elif score_data.score_source == 'auto' or not score_data.score_source %}
                             {% comment %}For auto-calculated scoring, show percentage{% endcomment %}
                             {% if score_data.score >= activity.object.passing_score|default:70 %}
                               <span class="grade-score grade-excellent">{{ score_data.score|floatformat:1 }}%</span>
                             {% else %}
                               <span class="grade-score grade-poor">{{ score_data.score|floatformat:1 }}%</span>
+                            {% endif %}
+                          {% else %}
+                            {% comment %}Fallback for manual scoring{% endcomment %}
+                            {% if score_data.score >= score_data.max_score|mul:0.7 %}
+                              <span class="grade-score grade-excellent">{{ score_data.score|floatformat:1 }}/{{ score_data.max_score }}</span>
+                            {% else %}
+                              <span class="grade-score grade-poor">{{ score_data.score|floatformat:1 }}/{{ score_data.max_score }}</span>
                             {% endif %}
                           {% endif %}
                           {% if user.role != 'learner' %}
@@ -1727,6 +1753,9 @@
                             </span>
                             <div class="text-xs text-gray-600 mt-1">
                               Score: {{ score_data.score|floatformat:0 }}%
+                            </div>
+                            <div class="text-xs text-orange-600 mt-1 font-medium" title="This assessment is for placement purposes and does not count toward your total grade">
+                              ⓘ Informational Only
                             </div>
                           </div>
                           {% comment %}View only buttons for initial assessments{% endcomment %}
@@ -1928,14 +1957,14 @@
                             {% endif %}
                           {% endif %}
                           {% if user.role == 'learner' %}
-                            <a href="{% url 'scorm:launch' activity.object.id %}" class="view-btn" style="color: #20c997; border-color: #20c997; background: white;">
+                            <a href="{% url 'scorm:launch' activity.object.topic.id %}" class="view-btn" style="color: #20c997; border-color: #20c997; background: white;">
                               VIEW
                             </a>
                           {% endif %}
                         {% else %}
                           <span class="grade-score grade-none">Not Started</span>
                           {% if user.role == 'learner' %}
-                            <a href="{% url 'scorm:launch' activity.object.id %}" class="view-btn" style="color: #20c997; border-color: #20c997; background: white;">
+                            <a href="{% url 'scorm:launch' activity.object.topic.id %}" class="view-btn" style="color: #20c997; border-color: #20c997; background: white;">
                               LAUNCH
                             </a>
                           {% endif %}
@@ -1965,6 +1994,9 @@
                       {% else %}
                         <div class="grade-score grade-poor total-percentage">{{ total_data.percentage|floatformat:1 }}%</div>
                       {% endif %}
+                      <div class="text-xs text-gray-500 mt-1" title="Total includes only graded activities (excludes informational assessments)">
+                        Total Grade
+                      </div>
                     {% else %}
                       <div class="grade-score grade-none">No Activities</div>
                     {% endif %}
@@ -1972,10 +2004,10 @@
                 </td>
                 {% endif %}
                 
-                <!-- Outcome Mastery Data -->
+                <!-- Outcome Mastery Data - Always include even if hidden -->
                 {% if outcome_summary %}
                   {% for outcome_id, summary in outcome_summary.items %}
-                  <td class="outcome-column activity-cell" style="display: none;">
+                  <td class="outcome-column activity-cell" style="display: none;" data-outcome-id="{{ outcome_id }}">
                     {% if outcome_evaluations|lookup:student.id|lookup:outcome_id %}
                       {% with evaluation=outcome_evaluations|lookup:student.id|lookup:outcome_id %}
                       <div class="outcome-score-container">
@@ -2135,18 +2167,127 @@ function exitFullscreen() {
     console.log(' Exited fullscreen mode');
 }
 
+// Table validation function
+function validateTableStructure() {
+    const table = document.querySelector('.gradebook-table');
+    if (!table) {
+        console.error('Gradebook table not found');
+        return false;
+    }
+    
+    const tbody = table.querySelector('tbody');
+    const thead = table.querySelector('thead');
+    
+    if (!tbody || !thead) {
+        console.error('Table structure incomplete - missing tbody or thead');
+        return false;
+    }
+    
+    // Validate table has data
+    const rows = tbody.querySelectorAll('tr');
+    const headers = thead.querySelectorAll('th');
+    
+    if (rows.length === 0) {
+        console.warn('No data rows found in gradebook table');
+    }
+    
+    if (headers.length === 0) {
+        console.error('No header columns found in gradebook table');
+        return false;
+    }
+    
+    // Check for consistent column structure
+    const firstRow = rows[0];
+    if (firstRow) {
+        const headerCount = headers.length;
+        const bodyCellCount = firstRow.querySelectorAll('td').length;
+        
+        if (headerCount !== bodyCellCount) {
+            console.error(`Column count mismatch: ${headerCount} headers vs ${bodyCellCount} body cells`);
+            console.error('Headers:', Array.from(headers).map(h => h.className));
+            console.error('Body cells:', Array.from(firstRow.querySelectorAll('td')).map(c => c.className));
+            return false;
+        }
+        
+        // Additional validation: check for proper column alignment
+        const studentNameHeader = document.querySelector('.student-name-column');
+        const studentNameCell = firstRow.querySelector('.student-name-cell');
+        
+        if (studentNameHeader && !studentNameCell) {
+            console.error('Student name header exists but no corresponding cell found');
+            return false;
+        }
+        
+        if (!studentNameHeader && studentNameCell) {
+            console.error('Student name cell exists but no corresponding header found');
+            return false;
+        }
+    }
+    
+    return true;
+}
+
+// Validate table data integrity
+function validateTableData() {
+    const table = document.querySelector('.gradebook-table');
+    if (!table) return false;
+    
+    const rows = table.querySelectorAll('tbody tr');
+    let validRows = 0;
+    let invalidRows = 0;
+    
+    rows.forEach((row, index) => {
+        const cells = row.querySelectorAll('td');
+        const hasStudentName = cells.length > 0 && cells[0].textContent.trim() !== '';
+        
+        if (hasStudentName) {
+            validRows++;
+        } else {
+            invalidRows++;
+            console.warn(`Row ${index + 1} appears to be invalid (no student name)`);
+        }
+    });
+    
+    console.log(`Table data validation: ${validRows} valid rows, ${invalidRows} invalid rows`);
+    return invalidRows === 0;
+}
+
+// Safe element getter with error handling
+function safeGetElement(id) {
+    const element = document.getElementById(id);
+    if (!element) {
+        console.warn(`Element with id '${id}' not found`);
+        return null;
+    }
+    return element;
+}
+
 // Filter and Search Functionality
 function applyFilters() {
-    const globalSearch = document.getElementById('globalSearch').value.toLowerCase();
+    // Validate table structure first
+    if (!validateTableStructure()) {
+        console.error('Cannot apply filters - table structure invalid');
+        return;
+    }
+    
+    const globalSearchElement = safeGetElement('globalSearch');
+    const globalSearch = globalSearchElement ? globalSearchElement.value.toLowerCase() : '';
+    
     // BUGFIX: Check if studentFilter exists (not available for learners)
-    const studentFilterElement = document.getElementById('studentFilter');
+    const studentFilterElement = safeGetElement('studentFilter');
     const studentFilter = studentFilterElement ? studentFilterElement.value.toLowerCase() : '';
-    const activityTypeFilter = document.getElementById('activityTypeFilter').value.toLowerCase();
-    const activitySearch = document.getElementById('activitySearch').value.toLowerCase();
-    const statusFilter = document.getElementById('statusFilter').value.toLowerCase();
+    
+    const activityTypeFilterElement = safeGetElement('activityTypeFilter');
+    const activityTypeFilter = activityTypeFilterElement ? activityTypeFilterElement.value.toLowerCase() : '';
+    
+    const activitySearchElement = safeGetElement('activitySearch');
+    const activitySearch = activitySearchElement ? activitySearchElement.value.toLowerCase() : '';
+    
+    const statusFilterElement = safeGetElement('statusFilter');
+    const statusFilter = statusFilterElement ? statusFilterElement.value.toLowerCase() : '';
     
     const tableBody = document.querySelector('.gradebook-table tbody');
-    const rows = tableBody.querySelectorAll('tr');
+    const rows = tableBody ? tableBody.querySelectorAll('tr') : [];
     const activityHeaders = document.querySelectorAll('.gradebook-table thead th');
     const activityCells = document.querySelectorAll('.gradebook-table tbody td');
     
@@ -2156,7 +2297,10 @@ function applyFilters() {
     // Filter rows (students)
     rows.forEach((row, rowIndex) => {
         const studentCell = row.querySelector('td:first-child');
-        if (!studentCell) return;
+        if (!studentCell) {
+            console.warn(`Row ${rowIndex + 1} has no student cell, skipping`);
+            return;
+        }
         
         const studentName = studentCell.textContent.toLowerCase();
         let rowVisible = true;
@@ -2246,23 +2390,44 @@ function applyFilters() {
         }
     });
     
-    // Filter activity columns
+    // Filter activity columns with improved logic
     activityHeaders.forEach((header, colIndex) => {
-        if (colIndex === 0 || header.classList.contains('assignment-total')) return; // Skip student name and total columns
-        
-        const activityTitle = header.textContent.toLowerCase();
-        const activityTypeLabels = header.querySelectorAll('.activity-type-label');
-        let activityType = '';
-        
-        if (activityTypeLabels.length > 0) {
-            const labelText = activityTypeLabels[0].textContent.toLowerCase();
-            if (labelText.includes('asg')) activityType = 'assignment';
-            else if (labelText.includes('quz')) activityType = 'quiz';
-            else if (labelText.includes('dsc')) activityType = 'discussion';
-            else if (labelText.includes('cnf')) activityType = 'conference';
-            else if (labelText.includes('sco')) activityType = 'scorm';
+        if (!header) {
+            console.warn(`Header at column ${colIndex + 1} is null, skipping`);
+            return;
         }
         
+        // Skip student name column (first column for instructors, doesn't exist for learners)
+        if (header.classList.contains('student-name-column')) {
+            return;
+        }
+        
+        // Skip total column
+        if (header.classList.contains('assignment-total')) {
+            return;
+        }
+        
+        // Skip hidden outcome columns
+        if (header.classList.contains('outcome-column')) {
+            return;
+        }
+        
+        // Get activity type from data attribute or detect from content
+        let activityType = header.getAttribute('data-activity-type');
+        if (!activityType) {
+            const activityTypeLabels = header.querySelectorAll('.activity-type-label');
+            if (activityTypeLabels.length > 0) {
+                const labelText = activityTypeLabels[0].textContent.toLowerCase();
+                if (labelText.includes('asg')) activityType = 'assignment';
+                else if (labelText.includes('quz')) activityType = 'quiz';
+                else if (labelText.includes('ia')) activityType = 'initial_assessment';
+                else if (labelText.includes('dsc')) activityType = 'discussion';
+                else if (labelText.includes('cnf')) activityType = 'conference';
+                else if (labelText.includes('sco')) activityType = 'scorm';
+            }
+        }
+        
+        const activityTitle = header.textContent.toLowerCase();
         let columnVisible = true;
         
         // Apply activity type filter
@@ -2275,7 +2440,7 @@ function applyFilters() {
             columnVisible = false;
         }
         
-        // Show/hide column
+        // Show/hide column using more reliable selector
         const allCellsInColumn = document.querySelectorAll(`.gradebook-table tr td:nth-child(${colIndex + 1}), .gradebook-table tr th:nth-child(${colIndex + 1})`);
         
         if (columnVisible) {
@@ -2295,21 +2460,26 @@ function applyFilters() {
 }
 
 function updateFilterSummary(visibleRows, visibleActivities) {
-    const filterSummary = document.getElementById('filterSummary');
-    const filterResults = document.getElementById('filterResults');
-    const visibleCount = document.getElementById('visibleCount');
-    const tableStats = document.getElementById('tableStats');
+    const filterSummary = safeGetElement('filterSummary');
+    const filterResults = safeGetElement('filterResults');
+    const visibleCount = safeGetElement('visibleCount');
+    const tableStats = safeGetElement('tableStats');
     
     const totalRows = document.querySelectorAll('.gradebook-table tbody tr').length;
     const totalActivities = document.querySelectorAll('.gradebook-table thead th:not(:first-child):not(.assignment-total)').length;
     
     // BUGFIX: Check if studentFilter exists before accessing its value
-    const studentFilterElement = document.getElementById('studentFilter');
-    const isFiltered = document.getElementById('globalSearch').value || 
+    const studentFilterElement = safeGetElement('studentFilter');
+    const globalSearchElement = safeGetElement('globalSearch');
+    const activityTypeFilterElement = safeGetElement('activityTypeFilter');
+    const activitySearchElement = safeGetElement('activitySearch');
+    const statusFilterElement = safeGetElement('statusFilter');
+    
+    const isFiltered = (globalSearchElement && globalSearchElement.value) || 
                       (studentFilterElement && studentFilterElement.value) || 
-                      document.getElementById('activityTypeFilter').value || 
-                      document.getElementById('activitySearch').value || 
-                      document.getElementById('statusFilter').value;
+                      (activityTypeFilterElement && activityTypeFilterElement.value) || 
+                      (activitySearchElement && activitySearchElement.value) || 
+                      (statusFilterElement && statusFilterElement.value);
     
     if (isFiltered) {
         filterSummary.style.display = 'flex';
@@ -2323,16 +2493,32 @@ function updateFilterSummary(visibleRows, visibleActivities) {
 }
 
 window.clearAllFilters = function() {
-    // Clear all filter inputs
-    document.getElementById('globalSearch').value = '';
+    // Clear all filter inputs using safe element getter
+    const globalSearchElement = safeGetElement('globalSearch');
+    if (globalSearchElement) {
+        globalSearchElement.value = '';
+    }
+    
     // BUGFIX: Check if studentFilter exists (not available for learners)
-    const studentFilterElement = document.getElementById('studentFilter');
+    const studentFilterElement = safeGetElement('studentFilter');
     if (studentFilterElement) {
         studentFilterElement.value = '';
     }
-    document.getElementById('activityTypeFilter').value = '';
-    document.getElementById('activitySearch').value = '';
-    document.getElementById('statusFilter').value = '';
+    
+    const activityTypeFilterElement = safeGetElement('activityTypeFilter');
+    if (activityTypeFilterElement) {
+        activityTypeFilterElement.value = '';
+    }
+    
+    const activitySearchElement = safeGetElement('activitySearch');
+    if (activitySearchElement) {
+        activitySearchElement.value = '';
+    }
+    
+    const statusFilterElement = safeGetElement('statusFilter');
+    if (statusFilterElement) {
+        statusFilterElement.value = '';
+    }
     
     // Reset all table visibility
     const rows = document.querySelectorAll('.gradebook-table tbody tr');
@@ -2396,9 +2582,20 @@ function exportFilteredData() {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
+    // Validate table structure on page load
+    if (!validateTableStructure()) {
+        console.error('Gradebook table structure validation failed');
+        return;
+    }
+    
     // Add responsive behavior for mobile
     const table = document.querySelector('.gradebook-table');
     const container = document.querySelector('.table-container');
+    
+    if (!table || !container) {
+        console.error('Required table elements not found');
+        return;
+    }
     
     // Check if we need horizontal scroll
     if (table.offsetWidth > container.offsetWidth) {
@@ -2460,13 +2657,18 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize compact mode by default
     setViewMode('compact');
     
+    // Validate table data integrity
+    if (!validateTableData()) {
+        console.warn('Table data validation found issues, but continuing...');
+    }
+    
     // Initialize filter system
     const totalRows = document.querySelectorAll('.gradebook-table tbody tr').length;
     const totalActivities = document.querySelectorAll('.gradebook-table thead th:not(:first-child):not(.assignment-total)').length;
     updateFilterSummary(totalRows, totalActivities);
     
     // Add keyboard shortcuts for filters
-    const globalSearch = document.getElementById('globalSearch');
+    const globalSearch = safeGetElement('globalSearch');
     if (globalSearch) {
         globalSearch.addEventListener('keydown', function(e) {
             if (e.key === 'Enter') {
@@ -2480,7 +2682,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    const activitySearch = document.getElementById('activitySearch');
+    const activitySearch = safeGetElement('activitySearch');
     if (activitySearch) {
         activitySearch.addEventListener('keydown', function(e) {
             if (e.key === 'Enter') {
@@ -2523,7 +2725,7 @@ window.openGradingSidebar = function(activityType, activityId, studentId, submis
     const overlay = document.getElementById('sidebarOverlay');
     const content = document.getElementById('sidebarContent');
     
-    // Debug: Check if elements exist
+    // Debug: Check if elements exist with better error handling
     if (!sidebar) {
         console.error(' Sidebar element not found!');
         return;
@@ -2534,6 +2736,13 @@ window.openGradingSidebar = function(activityType, activityId, studentId, submis
     }
     if (!content) {
         console.error(' Content element not found!');
+        return;
+    }
+    
+    // Validate table structure before proceeding
+    const table = document.querySelector('.gradebook-table');
+    if (!table) {
+        console.error(' Gradebook table not found!');
         return;
     }
     

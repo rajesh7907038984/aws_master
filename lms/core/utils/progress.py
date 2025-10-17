@@ -45,6 +45,7 @@ class ProgressCalculationService:
                 'last_accessed': progress.last_accessed,
                 'completed_at': progress.completed_at,
                 'total_time_spent': progress.total_time_spent,
+                'formatted_time_spent': progress.get_formatted_time_spent(),
                 'attempts': progress.attempts,
                 'last_score': float(progress.last_score) if progress.last_score else None,
                 'best_score': float(progress.best_score) if progress.best_score else None,
