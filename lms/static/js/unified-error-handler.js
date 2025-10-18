@@ -28,8 +28,39 @@ class UnifiedErrorHandler {
         // Add error cooldown to prevent spam
         this.errorCooldown = new Map();
         
+        // Setup periodic cleanup for error cooldown to prevent memory leaks
+        this.setupErrorCooldownCleanup();
+        
         this.setupSilentErrorHandling();
         this.setupGlobalErrorHandling();
+    }
+    
+    /**
+     * Setup periodic cleanup for error cooldown to prevent memory leaks
+     */
+    setupErrorCooldownCleanup() {
+        // Clean up old error cooldown entries more frequently with shorter retention
+        setInterval(() => {
+            const now = Date.now();
+            const maxAge = 120000; // 2 minutes (reduced from 5 minutes)
+            
+            for (const [key, time] of this.errorCooldown.entries()) {
+                if (now - time > maxAge) {
+                    this.errorCooldown.delete(key);
+                }
+            }
+            
+            // Also limit the total number of entries to prevent memory buildup
+            if (this.errorCooldown.size > 50) {
+                const entries = Array.from(this.errorCooldown.entries());
+                entries.sort((a, b) => a[1] - b[1]); // Sort by timestamp
+                // Keep only the 25 most recent entries
+                this.errorCooldown.clear();
+                entries.slice(-25).forEach(([key, time]) => {
+                    this.errorCooldown.set(key, time);
+                });
+            }
+        }, 30000); // Run every 30 seconds (increased frequency)
     }
     
     /**
@@ -66,9 +97,11 @@ class UnifiedErrorHandler {
             // Check if it's a syntax error - handle silently in production
             if (self.isSyntaxError(event.error)) {
                 console.error('JavaScript syntax error detected:', event.error.message);
-                // Only show popup in development mode
+                // Only show popup in development mode with sanitized content
                 if (window.location.hostname === 'localhost' || window.location.hostname.includes('dev') || window.location.hostname.includes('staging')) {
-                    alert('JavaScript Syntax Error:\n' + event.error.message + '\nFile: ' + event.filename + '\nLine: ' + event.lineno);
+                    const sanitizedMessage = this.sanitizeErrorMessage(event.error.message);
+                    const sanitizedFilename = this.sanitizeErrorMessage(event.filename);
+                    alert('JavaScript Syntax Error:\n' + sanitizedMessage + '\nFile: ' + sanitizedFilename + '\nLine: ' + event.lineno);
                 }
                 return;
             }
@@ -91,6 +124,22 @@ class UnifiedErrorHandler {
         
         window.fetch = function() {
             var args = Array.prototype.slice.call(arguments);
+            var options = args[1] || {};
+            
+            // Add CSRF token to POST requests
+            if (options.method === 'POST' || (options.method === undefined && args[0] !== undefined)) {
+                if (!options.headers) {
+                    options.headers = {};
+                }
+                if (typeof options.headers === 'object' && !options.headers['X-CSRFToken']) {
+                    var csrfToken = self.getCSRFToken();
+                    if (csrfToken) {
+                        options.headers['X-CSRFToken'] = csrfToken;
+                    }
+                }
+                args[1] = options;
+            }
+            
             return originalFetch.apply(this, args)
                 .then(function(response) {
                     // Check for HTTP errors
@@ -104,10 +153,57 @@ class UnifiedErrorHandler {
                     return response;
                 })
                 .catch(function(error) {
-                    self.handleError(error, 'Fetch Request');
+                    // Only handle error if it hasn't been handled already
+                    if (!error._handled) {
+                        self.handleError(error, 'Fetch Request');
+                        error._handled = true;
+                    }
                     throw error;
                 });
         };
+    }
+    
+    /**
+     * Get CSRF token from various sources
+     */
+    getCSRFToken() {
+        // Try multiple sources for CSRF token
+        var sources = [
+            function() {
+                var meta = document.querySelector('meta[name="csrf-token"]');
+                return meta ? meta.getAttribute('content') : null;
+            },
+            function() {
+                var input = document.querySelector('input[name="csrfmiddlewaretoken"]');
+                return input ? input.value : null;
+            },
+            function() {
+                return window.CSRF_TOKEN;
+            },
+            function() {
+                var cookies = document.cookie.split(';');
+                for (var i = 0; i < cookies.length; i++) {
+                    var cookie = cookies[i].trim();
+                    if (cookie.indexOf('csrftoken=') === 0) {
+                        return cookie.substring(10);
+                    }
+                }
+                return null;
+            }
+        ];
+
+        for (var i = 0; i < sources.length; i++) {
+            try {
+                var token = sources[i]();
+                if (token && token.length > 0) {
+                    return token;
+                }
+            } catch (e) {
+                continue;
+            }
+        }
+        
+        return null;
     }
     
     /**
@@ -126,6 +222,20 @@ class UnifiedErrorHandler {
         return syntaxErrorPatterns.some(function(pattern) {
             return error.message && error.message.includes(pattern);
         });
+    }
+    
+    /**
+     * Sanitize error message to prevent XSS attacks
+     */
+    sanitizeErrorMessage(message) {
+        if (!message) return '';
+        
+        // Remove potentially dangerous characters and limit length
+        return message
+            .replace(/[<>\"'&]/g, '') // Remove HTML/script characters
+            .replace(/javascript:/gi, '') // Remove javascript: protocol
+            .replace(/on\w+=/gi, '') // Remove event handlers
+            .substring(0, 200); // Limit length
     }
     
     /**

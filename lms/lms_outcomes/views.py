@@ -1729,7 +1729,8 @@ def manage_rubric_connections_api(request):
             
             # Check permissions
             if not _can_manage_outcomes(request.user, criterion.rubric):
-                return JsonResponse({'success': False, 'error': 'Permission denied'})
+                from core.permission_fixes import permission_denied_response
+                return permission_denied_response(request, 'Permission denied')
             
             connections = RubricCriterionOutcome.objects.filter(criterion=criterion).select_related('outcome')
             
@@ -1762,7 +1763,8 @@ def manage_rubric_connections_api(request):
             
             # Check permissions
             if not _can_manage_outcomes(request.user, criterion.rubric):
-                return JsonResponse({'success': False, 'error': 'Permission denied'})
+                from core.permission_fixes import permission_denied_response
+                return permission_denied_response(request, 'Permission denied')
             
             # Create or update connection
             connection, created = RubricCriterionOutcome.objects.get_or_create(
@@ -1801,7 +1803,8 @@ def manage_rubric_connections_api(request):
             
             # Check permissions
             if not _can_manage_outcomes(request.user, connection.criterion.rubric):
-                return JsonResponse({'success': False, 'error': 'Permission denied'})
+                from core.permission_fixes import permission_denied_response
+                return permission_denied_response(request, 'Permission denied')
             
             connection.delete()
             

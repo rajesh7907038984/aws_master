@@ -3703,7 +3703,8 @@ def submission_grade_history(request, submission_id):
         if not (request.user.is_staff or request.user.is_superuser or 
                 submission.user == request.user or 
                 request.user.role in ['instructor', 'admin']):
-            return JsonResponse({'error': 'Permission denied'}, status=403)
+            from core.permission_fixes import permission_denied_response
+            return permission_denied_response(request, 'Permission denied')
         
         history = submission.grade_history.all().select_related('changed_by')
         history_data = [{

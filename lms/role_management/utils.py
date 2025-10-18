@@ -38,9 +38,9 @@ def safe_cache_operation(operation, *args, **kwargs):
         ]
         
         if any(indicator in error_str for indicator in redis_error_indicators):
-            logger.warning("Redis connection issue during cache operation: {{str(e)}}")
+            logger.warning(f"Redis connection issue during cache operation: {str(e)}")
         else:
-            logger.error("Unexpected cache error: {{str(e)}}")
+            logger.error(f"Unexpected cache error: {str(e)}")
         
         return False, None
 
@@ -68,9 +68,9 @@ class PermissionManager:
                     ]
                     capabilities.update(validated_caps)
                 else:
-                    logger.error("Invalid primary role capabilities type for user {{user.pk}}: {{type(primary_role_capabilities)}}")
+                    logger.error(f"Invalid primary role capabilities type for user {user.pk}: {type(primary_role_capabilities)}")
             except Exception as e:
-                logger.error("Error getting primary role capabilities for user {{user.pk}}: {{str(e)}}")
+                logger.error(f"Error getting primary role capabilities for user {user.pk}: {str(e)}")
         
         # Get capabilities from assigned roles with enhanced validation
         try:

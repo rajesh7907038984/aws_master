@@ -57,7 +57,10 @@ class CustomUserCreationForm(UserCreationForm):
         elif self.data.get('branch'):
             try:
                 branch_id = int(self.data.get('branch'))
-                self.fields['courses'].queryset = Course.objects.filter(branch_id=branch_id)
+                if branch_id > 0:  # Validate positive integer
+                    self.fields['courses'].queryset = Course.objects.filter(branch_id=branch_id)
+                else:
+                    self.fields['courses'].queryset = Course.objects.none()
             except (ValueError, TypeError):
                 self.fields['courses'].queryset = Course.objects.none()
         

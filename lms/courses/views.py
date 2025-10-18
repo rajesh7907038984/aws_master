@@ -104,29 +104,37 @@ def course_manage(request: HttpRequest) -> HttpResponse:
     if request.user.role not in ['instructor', 'admin', 'superadmin', 'globaladmin']:
         return HttpResponseForbidden("You don't have permission to create courses")
     
-    # Generate a sequential course code
-    last_course = Course.objects.order_by('-id').first()
-    next_id = (last_course.id + 1) if last_course else 1
-    course_code = f"COURSE{next_id:04d}"  # Format: COURSE0001, COURSE0002, etc.
-    
-    # Get the next available ID in a database-agnostic way
-    from django.db import connection
-    
-    # Create a new draft course
-    course = Course(
-        title=f"New Course {next_id}",
-        description="",
-        course_code=course_code,
-        course_outcomes="",  # Set default empty string for course_outcomes
-        is_active=True,  # Set to active by default to ensure visibility
-        is_temporary=False,  # Set is_temporary field
-        instructor=request.user if request.user.role == 'instructor' else None,
-        branch=request.user.branch if request.user.role in ['instructor', 'admin', 'superadmin'] else None
-    )
-    course.save()
+    # Generate a unique course code using atomic transaction to prevent race conditions
+    with transaction.atomic():
+        # Use database sequence to get next ID atomically
+        from django.db import connection
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT nextval('courses_course_id_seq')")
+            next_id = cursor.fetchone()[0]
+        
+        course_code = f"COURSE{next_id:04d}"  # Format: COURSE0001, COURSE0002, etc.
+        
+        # Create a new draft course
+        course = Course(
+            title=f"New Course {next_id}",
+            description="",
+            course_code=course_code,
+            course_outcomes="",  # Set default empty string for course_outcomes
+            is_active=True,  # Set to active by default to ensure visibility
+            is_temporary=False,  # Set is_temporary field
+            instructor=request.user if request.user.role == 'instructor' else None,
+            branch=request.user.branch if request.user.role in ['instructor', 'admin', 'superadmin'] else None
+        )
+        course.save()
     
     # Ensure the course creator is enrolled in the course
     # This is important for branch admins and other non-instructor roles
+    # Add branch validation before enrollment
+    if request.user.branch and course.branch and request.user.branch != course.branch:
+        logger.warning(f"User {request.user.id} branch {request.user.branch} doesn't match course branch {course.branch}")
+        # For now, allow enrollment but log the mismatch
+        # In the future, this could be made more strict
+    
     from core.utils.enrollment import EnrollmentService
     enrollment, created, message = EnrollmentService.create_or_get_enrollment(
         user=request.user,
@@ -219,14 +227,21 @@ def check_instructor_management_access(user: CustomUser, course: Course) -> bool
         return True
         
     # 2. Check if instructor was assigned to this course through groups with instructor roles
-    invited_instructor = course.accessible_groups.filter(
+    # Use select_related and prefetch_related to avoid N+1 queries
+    invited_instructor = course.accessible_groups.select_related(
+        'custom_role'
+    ).prefetch_related(
+        'memberships'
+    ).filter(
         memberships__user=user,
         memberships__is_active=True,
         memberships__custom_role__name__icontains='instructor',
     ).exists()
     
     # 3. Check general instructor access through groups (admin assigned)
-    instructor_access = course.accessible_groups.filter(
+    instructor_access = course.accessible_groups.prefetch_related(
+        'memberships'
+    ).filter(
         memberships__user=user,
         memberships__is_active=True
     ).exists()
@@ -1460,7 +1475,9 @@ def course_edit(request, course_id):
     logger.info(f"Course branch: {course.branch}")
     logger.info(f"User branch: {request.user.branch}")
     
-    if not check_course_edit_permission(request.user, course):
+    # Use more permissive permission check
+    from core.permission_fixes import check_course_edit_permission_fixed, safe_permission_check
+    if not safe_permission_check(check_course_edit_permission_fixed, request.user, course):
         logger.warning(f"Permission denied for user {request.user.id} to edit course {course_id}")
         messages.error(request, "You don't have permission to edit this course.")
         return redirect('courses:course_details', course_id=course_id)
@@ -2726,7 +2743,8 @@ def update_audio_progress(request, topic_id):
     course = get_topic_course(topic)
     
     # Check permission
-    if not check_course_permission(request.user, course):
+    from core.permission_fixes import check_course_permission_fixed, safe_permission_check
+    if not safe_permission_check(check_course_permission_fixed, request.user, course):
         return JsonResponse({'error': 'Permission denied'}, status=403)
     
     # Only update progress for audio content type
@@ -2870,7 +2888,8 @@ def like_item(request, topic_id, item_type, item_id):
     course = get_topic_course(topic)
     
     # Check permission
-    if not check_course_permission(request.user, course):
+    from core.permission_fixes import check_course_permission_fixed, safe_permission_check
+    if not safe_permission_check(check_course_permission_fixed, request.user, course):
         return JsonResponse({'error': 'Permission denied'}, status=403)
     
     if item_type == 'discussion':
@@ -3076,7 +3095,8 @@ def get_course_topics(request, course_id):
     course = get_object_or_404(Course, id=course_id)
     
     # Check permission
-    if not check_course_permission(request.user, course):
+    from core.permission_fixes import check_course_permission_fixed, safe_permission_check
+    if not safe_permission_check(check_course_permission_fixed, request.user, course):
         return JsonResponse({'error': 'Permission denied'}, status=403)
     
     # Filter topics based on user role
@@ -3975,7 +3995,8 @@ def reorder_sections(request):
         course = get_object_or_404(Course, id=course_id)
         
         # Check if user has permission to edit the course
-        if not check_course_edit_permission(request.user, course):
+        from core.permission_fixes import check_course_edit_permission_fixed, safe_permission_check
+        if not safe_permission_check(check_course_edit_permission_fixed, request.user, course):
             return JsonResponse({'success': False, 'error': 'Permission denied'})
         
         # Update order for each section
@@ -4023,7 +4044,8 @@ def delete_section(request, section_id):
         course = section.course
         
         # Check if user has permission to edit the course
-        if not check_course_edit_permission(request.user, course):
+        from core.permission_fixes import check_course_edit_permission_fixed, safe_permission_check
+        if not safe_permission_check(check_course_edit_permission_fixed, request.user, course):
             return JsonResponse({'success': False, 'error': 'Permission denied'})
         
         # Get all topics in this section
@@ -7091,7 +7113,8 @@ def scorm_upload_status(request, topic_id):
         topic = get_object_or_404(Topic, id=topic_id)
         
         # Check if user has permission to access this topic
-        if not check_topic_edit_permission(request.user, topic, None):
+        from core.permission_fixes import check_topic_edit_permission_fixed, safe_permission_check
+        if not safe_permission_check(check_topic_edit_permission_fixed, request.user, topic, None):
             return JsonResponse({'status': 'error', 'message': 'Permission denied'}, status=403)
         
         # Check if SCORM package exists

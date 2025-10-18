@@ -18,6 +18,7 @@
     
     <!-- 3. Error handling (depends on CSRF) -->
     <script src="{% static 'js/unified-error-handler.js' %}"></script>
+    <script src="{% static 'js/error-handler-fixes.js' %}"></script>
     
     <!-- 4. API client (depends on CSRF and error handling) -->
     <script src="{% static 'js/standardized-api-client.js' %}"></script>
@@ -32,7 +33,7 @@
     <script>
         window.userAuthenticated = {% if user.is_authenticated %}true{% else %}false{% endif %};
         window.sessionCookieName = 'lms_sessionid';
-        window.sessionCookieValue = '{{ request.session.session_key|default:"" }}';
+        // SECURITY: Session key removed from client-side JavaScript to prevent exposure
     </script>
     
     <!-- Authentication Fix Validator removed - causing errors -->
@@ -61,30 +62,24 @@
     <script>
     // Global profile dropdown function - fallback for all pages
     window.toggleProfileDropdown = function() {
-        console.log('Base template toggleProfileDropdown called');
         const dropdown = document.getElementById('profile-dropdown');
         if (dropdown) {
             dropdown.classList.toggle('hidden');
-            console.log('Dropdown toggled, classes:', dropdown.className);
-        } else {
-            console.log('Profile dropdown not found');
         }
     };
     </script>
     
     <!-- Enhanced responsive behavior handled by sidebar-comprehensive-fix.js -->
     
-    <!-- DOMNodeInserted deprecation fix -->
+    <!-- Modern event handling - no deprecated events -->
     <script>
-        // Handle DOMNodeInserted events gracefully
-        const originalAddEventListener = EventTarget.prototype.addEventListener;
-        EventTarget.prototype.addEventListener = function(type, listener, options) {
-            if (type === 'DOMNodeInserted') {
-                // Use a MutationObserver instead if you need this functionality
-                return;
-            }
-            return originalAddEventListener.call(this, type, listener, options);
-        };
+        // Use MutationObserver for DOM changes instead of deprecated events
+        if (window.MutationObserver) {
+            const observer = new MutationObserver(function(mutations) {
+                // Handle DOM changes here if needed
+            });
+            observer.observe(document.body, { childList: true, subtree: true });
+        }
     </script>
     
     <!-- Disable console logs in production -->

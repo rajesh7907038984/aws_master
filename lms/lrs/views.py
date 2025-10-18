@@ -59,7 +59,7 @@ class LRSBaseView(View):
             else:
                 return False, "Invalid credentials"
         except Exception as e:
-            return False, "Authentication error: {{str(e)}}"
+            return False, f"Authentication error: {str(e)}"
     
     def _authenticate_api_key(self, api_key):
         """Authenticate using API Key"""

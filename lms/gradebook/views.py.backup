@@ -53,8 +53,7 @@ def pre_calculate_student_scores(students, activities, grades, quiz_attempts, co
             
             # Use pagination to prevent memory leaks for large datasets
             quiz_attempt_lookup = {}
-            BATCH_SIZE = 200  # Reduced batch size for better memory management
-            batch_size = BATCH_SIZE
+            batch_size = 1000  # Process in batches to prevent memory issues
             
             for i in range(0, len(quiz_attempts), batch_size):
                 batch = quiz_attempts[i:i + batch_size]
@@ -83,189 +82,192 @@ def pre_calculate_student_scores(students, activities, grades, quiz_attempts, co
             student_scores = {}
             
             # Calculate scores for each student-activity pair
-            try:
-                for student in students:
-                    logger.debug(f"Processing student: {student.username} (ID: {student.id})")
-                    try:
-                        student_scores[student.id] = {}
-                        
-                        for activity in activities:
-                            try:
-                                activity_id = activity['object'].id
-                                activity_type = activity['type']
-                                
-                                if activity_type == 'assignment':
-                                    key = (student.id, activity_id)
-                                    if key in grade_lookup:
-                                        grade = grade_lookup[key]
-                                        if grade.excused:
-                                            student_scores[student.id][activity_id] = {
-                                                'score': None,
-                                                'max_score': activity['max_score'],
-                                                'excused': True,
-                                                'date': grade.updated_at,
-                                                'type': 'assignment',
-                                                'submission': grade.submission,
-                                                'score_source': 'manual'  # Add this field
-                                            }
-                                    else:
-                                        # Check if submission is late
+            for student in students:
+                logger.debug(f"Processing student: {student.username} (ID: {student.id})")
+                try:
+                    student_scores[student.id] = {}
+                    
+                    for activity in activities:
+                        try:
+                            activity_id = activity['object'].id
+                            activity_type = activity['type']
+                            
+                            if activity_type == 'assignment':
+                            key = (student.id, activity_id)
+                            if key in grade_lookup:
+                                grade = grade_lookup[key]
+                                if grade.excused:
+                                    student_scores[student.id][activity_id] = {
+                                        'score': None,
+                                        'max_score': activity['max_score'],
+                                        'excused': True,
+                                        'date': grade.updated_at,
+                                        'type': 'assignment',
+                                        'submission': grade.submission,
+                                        'score_source': 'manual'  # Add this field
+                                    }
+                                else:
+                                    # Check if submission is late
+                                    is_late = False
+                                    if grade.submission and activity['object'].due_date and grade.submission.submitted_at:
+                                        is_late = grade.submission.submitted_at > activity['object'].due_date
+                                    
+                                    student_scores[student.id][activity_id] = {
+                                        'score': grade.score,
+                                        'max_score': activity['max_score'],
+                                        'date': grade.updated_at,
+                                        'type': 'assignment',
+                                        'submission': grade.submission,
+                                        'is_late': is_late,
+                                        'score_source': 'manual'  # Add this field
+                                    }
+                            else:
+                                # Check for submission without grade
+                                try:
+                                    from assignments.models import AssignmentSubmission
+                                    submission = AssignmentSubmission.objects.filter(
+                                        assignment=activity['object'],
+                                        user_id=student.id
+                                    ).first()
+                                    
+                                    if submission:
                                         is_late = False
-                                        if grade.submission and activity['object'].due_date and grade.submission.submitted_at:
-                                            is_late = grade.submission.submitted_at > activity['object'].due_date
+                                        if activity['object'].due_date and submission.submitted_at:
+                                            is_late = submission.submitted_at > activity['object'].due_date
                                         
+                                        # BUGFIX: Check if submission has been graded
+                                        # If submission.grade is None but submission exists with status submitted/not_graded,
+                                        # we should still show that there's a submission (not "Not Submitted")
                                         student_scores[student.id][activity_id] = {
-                                            'score': grade.score,
+                                            'score': submission.grade,  # Can be None if not graded yet
                                             'max_score': activity['max_score'],
-                                            'date': grade.updated_at,
+                                            'date': submission.submitted_at,
                                             'type': 'assignment',
-                                            'submission': grade.submission,
+                                            'submission': submission,  # This is key - always include submission object
                                             'is_late': is_late,
+                                            'has_submission': True,  # Explicit flag to indicate submission exists
                                             'score_source': 'manual'  # Add this field
                                         }
-                                elif activity_type == 'quiz':
-                                    key = (student.id, activity_id)
-                                    if key in quiz_attempt_lookup:
-                                        attempt = quiz_attempt_lookup[key]
-                                        final_score = attempt.score
-                                        max_score = activity['max_score']
-                                        score_source = 'auto'  # Default to auto scoring
-                                        
-                                        # Check for rubric evaluation
-                                        quiz = activity['object']
-                                        if quiz.rubric:
-                                            try:
-                                                from quiz.models import QuizRubricEvaluation
-                                                rubric_evaluations = QuizRubricEvaluation.objects.filter(
-                                                    quiz_attempt=attempt
-                                                )
-                                                if rubric_evaluations.exists():
-                                                    final_score = sum(evaluation.points for evaluation in rubric_evaluations)
-                                                    max_score = quiz.rubric.total_points
-                                                    score_source = 'rubric'  # Set score source for rubric-based scoring
-                                            except Exception as e:
-                                                logger.error(f"Error processing quiz rubric evaluation for student {student.id}, quiz {activity_id}: {str(e)}", exc_info=True)
-                                                # Continue processing other activities
-                                                pass
-                                        else:
-                                            # For non-rubric quizzes, attempt.score is a percentage (0-100)
-                                            # Keep as percentage for consistent display
-                                            final_score = attempt.score
-                                            max_score = 100  # Keep max_score as 100 for percentage display
-                                            score_source = 'auto'  # Set score source for auto scoring
-                                        
-                                        student_scores[student.id][activity_id] = {
-                                            'score': final_score,
-                                            'max_score': max_score,
-                                            'date': attempt.end_time or attempt.start_time,
-                                            'type': 'quiz',
-                                            'attempt': attempt,
-                                            'score_source': score_source  # Add this field
-                                        }
                                     else:
                                         student_scores[student.id][activity_id] = {
                                             'score': None,
                                             'max_score': activity['max_score'],
-                                            'type': 'quiz',
-                                            'attempt': None,
-                                            'score_source': 'auto'  # Add this field
+                                            'type': 'assignment',
+                                            'has_submission': False,  # Explicit flag - no submission
+                                            'score_source': 'manual'  # Add this field
                                         }
+                                except Exception as e:
+                                    logger.error(f"Error processing assignment submission for student {student.id}, activity {activity_id}: {str(e)}", exc_info=True)
+                                    student_scores[student.id][activity_id] = {
+                                        'score': None,
+                                        'max_score': activity['max_score'],
+                                        'type': 'assignment',
+                                        'has_submission': False,
+                                        'score_source': 'manual'  # Add this field
+                                    }
                         
-                                elif activity_type == 'initial_assessment':
-                                    key = (student.id, activity_id)
-                                    if key in quiz_attempt_lookup:
-                                        attempt = quiz_attempt_lookup[key]
-                                        # For initial assessments, we show classification rather than just score
-                                        assessment_data = attempt.calculate_assessment_classification()
-                                        
-                                        # For initial assessments, keep as percentage for consistent display
-                                        quiz = activity['object']
-                                        final_score = attempt.score
-                                        max_score = 100
-                                        
-                                        student_scores[student.id][activity_id] = {
-                                            'score': final_score,
-                                            'max_score': max_score,
-                                            'date': attempt.end_time or attempt.start_time,
-                                            'type': 'initial_assessment',
-                                            'attempt': attempt,
-                                            'classification': assessment_data.get('classification', 'N/A') if assessment_data else 'N/A',
-                                            'classification_data': assessment_data,
-                                            'is_informational': True,
-                                            'score_source': 'auto'  # Add this field
-                                        }
-                                    else:
-                                        student_scores[student.id][activity_id] = {
-                                            'score': None,
-                                            'max_score': activity['max_score'],
-                                            'type': 'initial_assessment',
-                                            'is_informational': True,
-                                            'attempt': None,
-                                            'score_source': 'auto'  # Add this field
-                                        }
+                        elif activity_type == 'quiz':
+                            key = (student.id, activity_id)
+                            if key in quiz_attempt_lookup:
+                                attempt = quiz_attempt_lookup[key]
+                                final_score = attempt.score
+                                max_score = activity['max_score']
+                                score_source = 'auto'  # Default to auto scoring
+                                
+                                # Check for rubric evaluation
+                                quiz = activity['object']
+                                if quiz.rubric:
+                                    try:
+                                        from quiz.models import QuizRubricEvaluation
+                                        rubric_evaluations = QuizRubricEvaluation.objects.filter(
+                                            quiz_attempt=attempt
+                                        )
+                                        if rubric_evaluations.exists():
+                                            final_score = sum(evaluation.points for evaluation in rubric_evaluations)
+                                            max_score = quiz.rubric.total_points
+                                            score_source = 'rubric'  # Set score source for rubric-based scoring
+                                    except Exception as e:
+                                        logger.error(f"Error processing quiz rubric evaluation for student {student.id}, quiz {activity_id}: {str(e)}", exc_info=True)
+                                        # Continue processing other activities
+                                        pass
+                                else:
+                                    # For non-rubric quizzes, attempt.score is a percentage (0-100)
+                                    # Keep as percentage for consistent display
+                                    final_score = attempt.score
+                                    max_score = 100  # Keep max_score as 100 for percentage display
+                                    score_source = 'auto'  # Set score source for auto scoring
+                                
+                                student_scores[activity_id] = {
+                                    'score': final_score,
+                                    'max_score': max_score,
+                                    'date': attempt.end_time or attempt.start_time,
+                                    'type': 'quiz',
+                                    'attempt': attempt,
+                                    'score_source': score_source  # Add this field
+                                }
+                            else:
+                                student_scores[activity_id] = {
+                                    'score': None,
+                                    'max_score': activity['max_score'],
+                                    'type': 'quiz',
+                                    'attempt': None,
+                                    'score_source': 'auto'  # Add this field
+                                }
                         
-                                elif activity_type == 'discussion':
-                                    discussion = activity['object']
-                                    max_score = discussion.rubric.total_points if discussion.rubric else 0
-                                    
-                                    # Check for rubric evaluations
-                                    if discussion.rubric:
-                                        try:
-                                            from lms_rubrics.models import RubricEvaluation
-                                            evaluations = RubricEvaluation.objects.filter(
-                                                discussion=discussion,
-                                                student_id=student.id
-                                            )
-                                            if evaluations.exists():
-                                                total_score = sum(evaluation.points for evaluation in evaluations)
-                                                latest_evaluation = evaluations.order_by('-created_at').first()
-                                                
-                                                student_scores[student.id][activity_id] = {
-                                                    'score': total_score,
-                                                    'max_score': max_score,
-                                                    'date': latest_evaluation.created_at,
-                                                    'type': 'discussion',
-                                                    'evaluations': evaluations,
-                                                    'score_source': 'rubric'  # Add this field
-                                                }
-                                            else:
-                                                student_scores[student.id][activity_id] = {
-                                                    'score': None,
-                                                    'max_score': max_score,
-                                                    'type': 'discussion',
-                                                    'score_source': 'rubric'  # Add this field
-                                                }
-                                        except Exception as e:
-                                            logger.error(f"Error processing discussion rubric evaluation for student {student.id}, discussion {activity_id}: {str(e)}")
-                                            student_scores[student.id][activity_id] = {
-                                                'score': None,
-                                                'max_score': max_score,
-                                                'type': 'discussion',
-                                                'score_source': 'rubric'  # Add this field
-                                            }
-                                    else:
-                                        student_scores[student.id][activity_id] = {
-                                            'score': None,
-                                            'max_score': max_score,
-                                            'type': 'discussion',
-                                            'score_source': 'none'  # Add this field
-                                        }
+                        elif activity_type == 'initial_assessment':
+                            key = (student.id, activity_id)
+                            if key in quiz_attempt_lookup:
+                                attempt = quiz_attempt_lookup[key]
+                                # For initial assessments, we show classification rather than just score
+                                assessment_data = attempt.calculate_assessment_classification()
+                                
+                                # For initial assessments, keep as percentage for consistent display
+                                quiz = activity['object']
+                                final_score = attempt.score
+                                max_score = 100
+                                
+                                student_scores[activity_id] = {
+                                    'score': final_score,
+                                    'max_score': max_score,
+                                    'date': attempt.end_time or attempt.start_time,
+                                    'type': 'initial_assessment',
+                                    'attempt': attempt,
+                                    'classification': assessment_data.get('classification', 'N/A') if assessment_data else 'N/A',
+                                    'classification_data': assessment_data,
+                                    'is_informational': True,
+                                    'score_source': 'auto'  # Add this field
+                                }
+                            else:
+                                student_scores[activity_id] = {
+                                    'score': None,
+                                    'max_score': activity['max_score'],
+                                    'type': 'initial_assessment',
+                                    'is_informational': True,
+                                    'attempt': None,
+                                    'score_source': 'auto'  # Add this field
+                                }
                         
-                                elif activity_type == 'conference':
-                                    key = (student.id, activity_id)
-                                    conference = activity['object']
-                                    max_score = conference.rubric.total_points if conference.rubric else 0
-                                    
-                                    if key in conference_lookup:
-                                        evaluations = conference_lookup[key]
+                        elif activity_type == 'discussion':
+                            discussion = activity['object']
+                            max_score = discussion.rubric.total_points if discussion.rubric else 0
+                            
+                            # Check for rubric evaluations
+                            if discussion.rubric:
+                                try:
+                                    from lms_rubrics.models import RubricEvaluation
+                                    evaluations = RubricEvaluation.objects.filter(
+                                        discussion=discussion,
+                                        student_id=student.id
+                                    )
+                                    if evaluations.exists():
                                         total_score = sum(evaluation.points for evaluation in evaluations)
-                                        latest_evaluation = max(evaluations, key=lambda e: e.created_at)
+                                        latest_evaluation = evaluations.order_by('-created_at').first()
                                         
                                         student_scores[student.id][activity_id] = {
                                             'score': total_score,
                                             'max_score': max_score,
                                             'date': latest_evaluation.created_at,
-                                            'type': 'conference',
+                                            'type': 'discussion',
                                             'evaluations': evaluations,
                                             'score_source': 'rubric'  # Add this field
                                         }
@@ -273,80 +275,132 @@ def pre_calculate_student_scores(students, activities, grades, quiz_attempts, co
                                         student_scores[student.id][activity_id] = {
                                             'score': None,
                                             'max_score': max_score,
-                                            'type': 'conference',
+                                            'type': 'discussion',
                                             'score_source': 'rubric'  # Add this field
                                         }
+                                except Exception as e:
+                                    logger.error(f"Error processing discussion rubric evaluation for student {student.id}, discussion {activity_id}: {str(e)}")
+                                    student_scores[student.id][activity_id] = {
+                                        'score': None,
+                                        'max_score': max_score,
+                                        'type': 'discussion',
+                                        'score_source': 'rubric'  # Add this field
+                                    }
+                            else:
+                                student_scores[activity_id] = {
+                                    'score': None,
+                                    'max_score': max_score,
+                                    'type': 'discussion',
+                                    'score_source': 'none'  # Add this field
+                                }
                         
-                                elif activity_type == 'scorm':
-                                    scorm_package = activity['object']
-                                    max_score = activity['max_score']
-                                    logger.info(f"SCORM Processing: Student {student.id}, Package {scorm_package.id}, Title: {scorm_package.title}")
-                                    
-                                    # Get SCORM tracking record for this student
-                                    try:
-                                        tracking = ELearningTracking.objects.filter(
-                                            user=student,
-                                            elearning_package=scorm_package
-                                        ).first()
-                                        
-                                        # Sync data from raw_data to individual fields if needed
-                                        if tracking:
-                                            from scorm.views import _sync_tracking_data
-                                            _sync_tracking_data(tracking)
-                                            logger.info(f"SCORM Sync: Student {student.id}, Package {scorm_package.id}, Score after sync: {tracking.score_raw}")
-                                        
-                                        # Show scores for SCORM content when they exist, regardless of completion status
-                                        if tracking and tracking.score_raw is not None:
-                                            logger.info(f"SCORM Score Display: Student {student.id}, Package {scorm_package.id}, Score: {tracking.score_raw}, Status: {tracking.completion_status}")
-                                            student_scores[student.id][activity_id] = {
-                                                'score': tracking.score_raw,
-                                                'max_score': max_score,
-                                                'date': tracking.updated_at,
-                                                'type': 'scorm',
-                                                'completion_status': tracking.completion_status,
-                                                'success_status': tracking.success_status,
-                                                'tracking': tracking,
-                                                'score_source': 'auto'
-                                            }
-                                        elif tracking:
-                                            # Show tracking info even without score for debugging
-                                            logger.info(f"SCORM No Score: Student {student.id}, Package {scorm_package.id}, Status: {tracking.completion_status}, Has Score: {tracking.score_raw is not None}")
-                                            student_scores[student.id][activity_id] = {
-                                                'score': None,
-                                                'max_score': max_score,
-                                                'type': 'scorm',
-                                                'completion_status': tracking.completion_status,
-                                                'success_status': tracking.success_status,
-                                                'tracking': tracking,
-                                                'score_source': 'auto'
-                                            }
-                                        else:
-                                            student_scores[student.id][activity_id] = {
-                                                'score': None,
-                                                'max_score': max_score,
-                                                'type': 'scorm',
-                                                'score_source': 'auto'
-                                            }
-                                    except Exception as e:
-                                        logger.error(f"Error getting SCORM tracking for student {student.id}: {str(e)}")
-                                        student_scores[student.id][activity_id] = {
-                                            'score': None,
-                                            'max_score': max_score,
-                                            'type': 'scorm',
-                                            'score_source': 'auto'  # Add this field
-                                        }
+                        elif activity_type == 'conference':
+                            key = (student.id, activity_id)
+                            conference = activity['object']
+                            max_score = conference.rubric.total_points if conference.rubric else 0
+                            
+                            if key in conference_lookup:
+                                evaluations = conference_lookup[key]
+                                total_score = sum(evaluation.points for evaluation in evaluations)
+                                latest_evaluation = max(evaluations, key=lambda e: e.created_at)
+                                
+                                student_scores[activity_id] = {
+                                    'score': total_score,
+                                    'max_score': max_score,
+                                    'date': latest_evaluation.created_at,
+                                    'type': 'conference',
+                                    'evaluations': evaluations,
+                                    'score_source': 'rubric'  # Add this field
+                                }
+                            else:
+                                student_scores[activity_id] = {
+                                    'score': None,
+                                    'max_score': max_score,
+                                    'type': 'conference',
+                                    'score_source': 'rubric'  # Add this field
+                                }
                         
-                        score_data[student.id] = student_scores
-                
+                        elif activity_type == 'scorm':
+                            scorm_package = activity['object']
+                            max_score = activity['max_score']
+                            logger.info(f"SCORM Processing: Student {student.id}, Package {scorm_package.id}, Title: {scorm_package.title}")
+                            
+                            # Get SCORM tracking record for this student
+                            try:
+                                tracking = ELearningTracking.objects.filter(
+                                    user=student,
+                                    elearning_package=scorm_package
+                                ).first()
+                                
+                                # Sync data from raw_data to individual fields if needed
+                                if tracking:
+                                    from scorm.views import _sync_tracking_data
+                                    _sync_tracking_data(tracking)
+                                    logger.info(f"SCORM Sync: Student {student.id}, Package {scorm_package.id}, Score after sync: {tracking.score_raw}")
+                                
+                                # Show scores for SCORM content when they exist, regardless of completion status
+                                if tracking and tracking.score_raw is not None:
+                                    logger.info(f"SCORM Score Display: Student {student.id}, Package {scorm_package.id}, Score: {tracking.score_raw}, Status: {tracking.completion_status}")
+                                    student_scores[student.id][activity_id] = {
+                                        'score': tracking.score_raw,
+                                        'max_score': max_score,
+                                        'date': tracking.updated_at,
+                                        'type': 'scorm',
+                                        'completion_status': tracking.completion_status,
+                                        'success_status': tracking.success_status,
+                                        'tracking': tracking,
+                                        'score_source': 'auto'
+                                    }
+                                elif tracking:
+                                    # Show tracking info even without score for debugging
+                                    logger.info(f"SCORM No Score: Student {student.id}, Package {scorm_package.id}, Status: {tracking.completion_status}, Has Score: {tracking.score_raw is not None}")
+                                    student_scores[student.id][activity_id] = {
+                                        'score': None,
+                                        'max_score': max_score,
+                                        'type': 'scorm',
+                                        'completion_status': tracking.completion_status,
+                                        'success_status': tracking.success_status,
+                                        'tracking': tracking,
+                                        'score_source': 'auto'
+                                    }
+                                else:
+                                    student_scores[student.id][activity_id] = {
+                                        'score': None,
+                                        'max_score': max_score,
+                                        'type': 'scorm',
+                                        'score_source': 'auto'
+                                    }
+                            except Exception as e:
+                                logger.error(f"Error getting SCORM tracking for student {student.id}: {str(e)}")
+                                student_scores[activity_id] = {
+                                    'score': None,
+                                    'max_score': max_score,
+                                    'type': 'scorm',
+                                    'score_source': 'auto'  # Add this field
+                                }
+                        
+                    
                     except Exception as e:
-                        logger.error(f"Error processing student {student.id}: {str(e)}")
-                        # Initialize empty score data for this student
-                        score_data[student.id] = {}
+                        logger.error(f"Error processing activity {activity_id} for student {student.id}: {str(e)}")
+                        # Add a fallback score entry
+                        student_scores[activity_id] = {
+                            'score': None,
+                            'max_score': activity.get('max_score', 0),
+                            'type': activity.get('type', 'unknown'),
+                            'score_source': 'none'  # Add this field
+                        }
                 
+                score_data[student.id] = student_scores
+            
             except Exception as e:
-                logger.error(f"Error in pre_calculate_student_scores: {str(e)}")
-                # Return empty score data as fallback
-                score_data = {}
+                logger.error(f"Error processing student {student.id}: {str(e)}")
+                # Initialize empty score data for this student
+                score_data[student.id] = {}
+    
+    except Exception as e:
+        logger.error(f"Error in pre_calculate_student_scores: {str(e)}")
+        # Return empty score data as fallback
+        score_data = {}
     
     return score_data
 

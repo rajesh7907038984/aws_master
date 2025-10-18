@@ -57,7 +57,6 @@ from .forms import (
     AdminPasswordChangeForm,
     TabbedUserCreationForm
 )
-import logging
 import os
 import time
 from django.conf import settings
@@ -187,15 +186,12 @@ from branches.models import Branch
 try:
     import pdfplumber
     PDFPLUMBER_AVAILABLE = True
-    logger = logging.getLogger(__name__)
     logger.info(f"pdfplumber imported successfully, version: {pdfplumber.__version__}")
 except ImportError as e:
     PDFPLUMBER_AVAILABLE = False
-    logger = logging.getLogger(__name__)
-    logger.error(f"Failed to import pdfplumber: {str(e)}")
+    logger.warning(f"pdfplumber not available: {str(e)}")
 except Exception as e:
     PDFPLUMBER_AVAILABLE = False
-    logger = logging.getLogger(__name__)
     logger.error(f"Unexpected error importing pdfplumber: {str(e)}")
 
 logger = logging.getLogger(__name__)
@@ -209,22 +205,18 @@ def role_based_redirect(request: HttpRequest) -> HttpResponse:
     user_role = request.user.role
     username = request.user.username
     
-    auth_logger.info(f"Role-based redirect for user {username} with role: {user_role}")
+    # Reduced logging verbosity for production
+    auth_logger.debug(f"Role-based redirect for user {username} with role: {user_role}")
     
     if user_role == 'globaladmin':
-        auth_logger.info(f"Redirecting {username} to global admin dashboard")
         return redirect('dashboard_globaladmin')
     elif user_role == 'superadmin':
-        auth_logger.info(f"Redirecting {username} to super admin dashboard")
         return redirect('dashboard_superadmin')
     elif user_role == 'admin':
-        auth_logger.info(f"Redirecting {username} to admin dashboard")
         return redirect('dashboard_admin')
     elif user_role == 'instructor':
-        auth_logger.info(f"Redirecting {username} to instructor dashboard")
         return redirect('dashboard_instructor')
     elif user_role == 'learner':
-        auth_logger.info(f"Redirecting {username} to learner dashboard")
         return redirect('dashboard_learner')
     else:
         # Default fallback - redirect to learner dashboard
@@ -10524,7 +10516,8 @@ def validate_bulk_import(request):
     from core.utils.validation import ValidationService
     
     if not request.user.is_staff and request.user.role not in ['superadmin', 'admin']:
-        return JsonResponse({'error': 'Permission denied'}, status=403)
+        from core.permission_fixes import permission_denied_response
+        return permission_denied_response(request, 'Permission denied')
     
     try:
         file = request.FILES.get('file')
@@ -10631,7 +10624,8 @@ def validate_bulk_import(request):
 def validate_bulk_data(request):
     """Validate bulk import data after user edits."""
     if not request.user.is_staff and request.user.role not in ['superadmin', 'admin']:
-        return JsonResponse({'error': 'Permission denied'}, status=403)
+        from core.permission_fixes import permission_denied_response
+        return permission_denied_response(request, 'Permission denied')
     
     try:
         import json
@@ -10684,7 +10678,8 @@ def validate_bulk_data(request):
 def bulk_import(request):
     """Process bulk import of users."""
     if not request.user.is_staff and request.user.role not in ['superadmin', 'admin']:
-        return JsonResponse({'error': 'Permission denied'}, status=403)
+        from core.permission_fixes import permission_denied_response
+        return permission_denied_response(request, 'Permission denied')
     
     try:
         import json

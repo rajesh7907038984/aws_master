@@ -36,7 +36,7 @@
             for (let source of sources) {
                 try {
                     const token = source();
-                    if (token && token.length > 0 && /^[a-zA-Z0-9]+$/.test(token)) {
+                    if (token && token.length > 0 && /^[a-zA-Z0-9\-_\.]+$/.test(token)) {
                         this.token = token;
                         window.CSRF_TOKEN = token;
                         return token;

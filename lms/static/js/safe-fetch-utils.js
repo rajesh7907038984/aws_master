@@ -21,12 +21,16 @@ async function safeJsonResponse(response) {
     if (!contentType || !contentType.includes('application/json')) {
         // Try to get text response for debugging
         const text = await response.text();
-        console.log({
-            status: response.status,
-            statusText: response.statusText,
-            contentType: contentType,
-            responseText: text.substring(0, 500) // Limit text for logging
-        });
+        // Log to server instead of console for production
+        if (window.logError) {
+            window.logError({
+                type: 'fetch_error',
+                status: response.status,
+                statusText: response.statusText,
+                contentType: contentType,
+                responseText: text.substring(0, 500)
+            });
+        }
         throw new Error('Server returned non-JSON response. Check console for details.');
     }
 
@@ -129,7 +133,8 @@ function getCSRFToken() {
         return metaToken.getAttribute('content');
     }
     
-    return '';
+    // Throw error if CSRF token not found for security
+    throw new Error('CSRF token not found. Please refresh the page and try again.');
 }
 
 /**

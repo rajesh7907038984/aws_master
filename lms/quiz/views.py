@@ -8,7 +8,7 @@ from collections import defaultdict
 from datetime import datetime, timedelta
 from decimal import Decimal
 from functools import wraps
-import ipaddress  # Add this import for IP validation
+# IP validation import removed - not currently used
 
 import pytz
 from django.conf import settings
@@ -178,13 +178,20 @@ def can_user_access_quiz(user, quiz):
     return check_quiz_edit_permission(user, quiz)
 
 def get_client_ip(request):
-    """Get client IP address from request"""
+    """Get client IP address from request with proper validation"""
     x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
     if x_forwarded_for:
-        ip = x_forwarded_for.split(',')[0]
+        # Get the first IP from the list and strip whitespace
+        ip = x_forwarded_for.split(',')[0].strip()
     else:
-        ip = request.META.get('REMOTE_ADDR')
-    return ip
+        ip = request.META.get('REMOTE_ADDR', '').strip()
+    
+    # Validate IP format
+    if ip and validate_ip(ip):
+        return ip
+    else:
+        # Fallback to a default IP if validation fails
+        return '127.0.0.1'
 
 def validate_ip(ip):
     """Validate IP address"""
@@ -2031,9 +2038,12 @@ def get_answer_texts(request, question_id):
             'answers': list(answers)
         })
         
+    except (ValueError, TypeError) as e:
+        logger.error(f"Invalid data for question {question_id}: {str(e)}")
+        return JsonResponse({'success': False, 'error': 'Invalid data provided'})
     except Exception as e:
-        logger.error(f"Error getting answer texts for question {question_id}: {str(e)}")
-        return JsonResponse({'success': False, 'error': str(e)})
+        logger.error(f"Unexpected error getting answer texts for question {question_id}: {str(e)}")
+        return JsonResponse({'success': False, 'error': 'An unexpected error occurred'})
 
 @login_required
 def debug_user_answer(request, attempt_id):
@@ -2095,6 +2105,57 @@ def debug_user_answer(request, attempt_id):
         
         return JsonResponse(debug_data, json_dumps_params={'indent': 2})
         
+    except (ValueError, TypeError) as e:
+        logger.error(f"Invalid data in debug endpoint: {str(e)}", exc_info=True)
+        return JsonResponse({'error': 'Invalid data provided'}, status=400)
     except Exception as e:
-        logger.error(f"Error in debug endpoint: {str(e)}", exc_info=True)
-        return JsonResponse({'error': str(e)}, status=500)
+        logger.error(f"Unexpected error in debug endpoint: {str(e)}", exc_info=True)
+        return JsonResponse({'error': 'An unexpected error occurred'}, status=500)
+
+
+@login_required
+def attempt_quiz(request, quiz_id):
+    """Start a new quiz attempt with race condition protection"""
+    quiz = get_object_or_404(Quiz, id=quiz_id)
+    
+    # Check if user can access this quiz
+    if not can_user_access_quiz(request.user, quiz):
+        messages.error(request, "You don't have permission to access this quiz.")
+        return redirect('quiz:quiz_list')
+    
+    # Check if quiz is available for the user
+    if not quiz.is_available_for_user(request.user):
+        messages.error(request, "This quiz is not available for you.")
+        return redirect('quiz:quiz_view', quiz_id=quiz_id)
+    
+    # Use database transaction with select_for_update to prevent race conditions
+    with transaction.atomic():
+        # Check current active attempts with row-level locking
+        active_attempts = QuizAttempt.objects.select_for_update().filter(
+            quiz=quiz,
+            user=request.user,
+            is_completed=False
+        )
+        
+        # Check if user has reached max concurrent attempts
+        if active_attempts.count() >= quiz.max_concurrent_attempts:
+            messages.error(request, f"You have reached the maximum number of concurrent attempts ({quiz.max_concurrent_attempts}). Please complete or cancel an existing attempt.")
+            return redirect('quiz:quiz_view', quiz_id=quiz_id)
+        
+        # Check if user has remaining attempts
+        remaining_attempts = quiz.get_remaining_attempts(request.user)
+        if remaining_attempts <= 0:
+            messages.error(request, "You have no remaining attempts for this quiz.")
+            return redirect('quiz:quiz_view', quiz_id=quiz_id)
+        
+        # Create new attempt
+        attempt = QuizAttempt.objects.create(
+            quiz=quiz,
+            user=request.user,
+            start_time=timezone.now()
+        )
+        
+        logger.info(f"Created new quiz attempt {attempt.id} for user {request.user.username} on quiz {quiz.id}")
+        
+        # Redirect to take the quiz
+        return redirect('quiz:take_quiz', attempt_id=attempt.id)

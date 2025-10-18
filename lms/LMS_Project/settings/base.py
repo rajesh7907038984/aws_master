@@ -14,10 +14,11 @@ from django.core.management.utils import get_random_secret_key
 logger = logging.getLogger(__name__)
 
 # Suppress Python 3.7 deprecation warnings early
-os.environ.setdefault('PYTHONWARNINGS', 'ignore::DeprecationWarning:cryptography,ignore::DeprecationWarning:boto3,ignore::DeprecationWarning:pdfminer')
+os.environ.setdefault('PYTHONWARNINGS', 'ignore::DeprecationWarning:cryptography,ignore::DeprecationWarning:boto3,ignore::DeprecationWarning:pdfminer,ignore::DeprecationWarning:storages')
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="cryptography")
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="boto3")
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="pdfminer")
+warnings.filterwarnings("ignore", category=DeprecationWarning, module="storages")
 
 # Load environment variables from unified .env file
 from core.env_loader import env_loader, get_env, get_bool_env, get_int_env, get_list_env, validate_environment
@@ -39,12 +40,22 @@ mimetypes.add_type("application/pdf", ".pdf", True)
 # ==============================================
 
 # Memory monitoring thresholds (in MB) - OPTIMIZED FOR PRODUCTION
-MEMORY_THRESHOLD_MB = get_int_env('MEMORY_THRESHOLD_MB', 800)  # Critical threshold (increased)
-MEMORY_WARNING_THRESHOLD_MB = get_int_env('MEMORY_WARNING_THRESHOLD_MB', 600)  # Warning threshold (increased)
-DASHBOARD_MEMORY_THRESHOLD_MB = get_int_env('DASHBOARD_MEMORY_THRESHOLD_MB', 400)  # Dashboard threshold
+MEMORY_THRESHOLD_MB = get_int_env('MEMORY_THRESHOLD_MB', 1000)  # Critical threshold (optimized for 3.8GB system)
+MEMORY_WARNING_THRESHOLD_MB = get_int_env('MEMORY_WARNING_THRESHOLD_MB', 800)  # Warning threshold (optimized)
+DASHBOARD_MEMORY_THRESHOLD_MB = get_int_env('DASHBOARD_MEMORY_THRESHOLD_MB', 500)  # Dashboard threshold (optimized)
 
-# PDF processing limits
-MAX_CONCURRENT_PDF_OPERATIONS = get_int_env('MAX_CONCURRENT_PDF_OPERATIONS', 2)
+# PDF processing limits - optimized for memory efficiency
+MAX_CONCURRENT_PDF_OPERATIONS = get_int_env('MAX_CONCURRENT_PDF_OPERATIONS', 1)  # Reduced for better memory management
+
+# Additional memory optimization settings
+ENABLE_MEMORY_MONITORING = get_bool_env('ENABLE_MEMORY_MONITORING', True)
+MEMORY_CLEANUP_INTERVAL = get_int_env('MEMORY_CLEANUP_INTERVAL', 300)  # 5 minutes
+MEMORY_GC_THRESHOLD = float(get_env('MEMORY_GC_THRESHOLD', '0.8'))  # Trigger GC at 80% memory usage
+
+# Performance monitoring settings
+ENABLE_PERFORMANCE_MONITORING = get_bool_env('ENABLE_PERFORMANCE_MONITORING', True)
+PERFORMANCE_MONITORING_INTERVAL = get_int_env('PERFORMANCE_MONITORING_INTERVAL', 60)  # 1 minute
+PERFORMANCE_ALERT_THRESHOLD = get_int_env('PERFORMANCE_ALERT_THRESHOLD', 80)  # Alert at 80% threshold
 
 
 # ==============================================
@@ -173,7 +184,7 @@ try:
         logger.warning("SECRET_KEY should contain special characters for better security")
         
 except Exception as e:
-    logger.error(f"SECRET_KEY validation failed: {e}")
+    logger.error("SECRET_KEY validation failed")
     raise
 
 logger.info("✅ Using SECRET_KEY from environment variables")
@@ -368,9 +379,7 @@ SESSION_COOKIE_PATH = '/'
 
 # Session security (will be overridden in production settings)
 # Note: Secure flag is handled by SECURE_PROXY_SSL_HEADER for ALB deployments
-SESSION_COOKIE_SECURE = get_bool_env('SESSION_COOKIE_SECURE', False)  # Set to True in production.py when HTTPS is properly configured
-SESSION_COOKIE_HTTPONLY = True  # Prevent XSS attacks
-SESSION_COOKIE_SAMESITE = 'Lax'  # CSRF protection
+SESSION_COOKIE_SECURE = get_bool_env('SESSION_COOKIE_SECURE', True)  # Default to True for security
 
 # Session timeout configuration
 SESSION_TIMEOUT_REDIRECT = '/login/'  # Redirect to login on session timeout
@@ -384,11 +393,10 @@ CSRF_COOKIE_DOMAIN = None  # Use default domain
 CSRF_COOKIE_PATH = '/'
 CSRF_COOKIE_NAME = 'csrftoken'
 CSRF_HEADER_NAME = 'HTTP_X_CSRFTOKEN'
-CSRF_USE_SESSIONS = False  # Use cookies for CSRF tokens
-CSRF_FAILURE_VIEW = 'django.views.csrf.csrf_failure'
+CSRF_USE_SESSIONS = True  # Use sessions for CSRF tokens for better security
 CSRF_COOKIE_HTTPONLY = False  # Allow JavaScript access for AJAX requests
 CSRF_COOKIE_SAMESITE = 'Lax'
-CSRF_COOKIE_SECURE = get_bool_env('CSRF_COOKIE_SECURE', False)  # Set to True in production with HTTPS
+CSRF_COOKIE_SECURE = get_bool_env('CSRF_COOKIE_SECURE', True)  # Default to True for security
 CSRF_TRUSTED_ORIGINS = []  # Will be populated in production settings
 CSRF_FAILURE_VIEW = 'core.views.csrf_failure'  # Use our custom CSRF failure view
 
@@ -515,13 +523,7 @@ SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 SECURE_REFERRER_POLICY = 'strict-origin-when-cross-origin'
 
-# CSP_DEFAULT_SRC = ("'self'",)
-# CSP_SCRIPT_SRC = ("'self'", "'unsafe-inline'", "'unsafe-eval'", "*.amazonaws.com")
-# CSP_STYLE_SRC = ("'self'", "'unsafe-inline'", "*.amazonaws.com")
-# CSP_IMG_SRC = ("'self'", "data:", "*.amazonaws.com")
-# CSP_FONT_SRC = ("'self'", "*.amazonaws.com")
-# CSP_CONNECT_SRC = ("'self'", "*.amazonaws.com")
-# CSP_BASE_URI = ("'self'",)
+# CSP configuration moved to middleware
 
 
 # Note: Individual views can override this with more permissive policies
@@ -556,8 +558,6 @@ DATA_UPLOAD_MAX_NUMBER_FIELDS = 1000
 # File permissions for uploaded files
 FILE_UPLOAD_PERMISSIONS = 0o644
 FILE_UPLOAD_DIRECTORY_PERMISSIONS = 0o755
-
-DATA_UPLOAD_MAX_NUMBER_FIELDS = 1000
 
 # Temporary file handling for large uploads
 FILE_UPLOAD_TEMP_DIR = get_env('FILE_UPLOAD_TEMP_DIR', '/tmp')

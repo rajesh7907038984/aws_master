@@ -8,6 +8,7 @@ import logging
 from django.http import HttpRequest, HttpResponse
 from django.conf import settings
 from core.utils.error_logging import log_error, error_logger
+from core.utils.memory_monitor import get_memory_monitor
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +29,7 @@ class ErrorLoggingMiddleware:
             duration = time.time() - start_time
             if duration > 5.0:  # Log if request takes more than 5 seconds
                 # Use minimal context to prevent memory leaks
+                context = None
                 try:
                     context = {
                         'user': request.user.username if hasattr(request, 'user') and request.user.is_authenticated else 'Anonymous',
@@ -42,8 +44,20 @@ class ErrorLoggingMiddleware:
                 except Exception as log_error:
                     # Prevent logging errors from causing memory leaks
                     logger.error(f"Error logging performance issue: {log_error}")
-                    # Clear context to free memory
-                    del context
+                finally:
+                    # Always clear context to free memory
+                    if context is not None:
+                        del context
+            
+            # Check memory usage and cleanup if needed
+            try:
+                memory_monitor = get_memory_monitor()
+                if memory_monitor.should_trigger_cleanup():
+                    cleanup_result = memory_monitor.cleanup_memory()
+                    if cleanup_result.get('cleaned'):
+                        logger.info(f"Memory cleanup performed: {cleanup_result.get('memory_freed_mb', 0):.2f}MB freed")
+            except Exception as e:
+                logger.error(f"Error in memory monitoring: {e}")
             
             return response
             

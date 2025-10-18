@@ -22,7 +22,6 @@ from django.conf import settings
 import logging
 from django.contrib.auth import get_user_model
 from core.rbac_validators import ConditionalAccessValidator
-from django.utils.html import strip_tags
 
 CustomUser = get_user_model()
 

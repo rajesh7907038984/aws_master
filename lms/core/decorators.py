@@ -3,12 +3,13 @@ Core decorators for consistent access control and security
 """
 
 from functools import wraps
+from typing import Union, List, Tuple
 from django.http import HttpResponseForbidden, JsonResponse
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 
 
-def role_required(required_roles):
+def role_required(required_roles: Union[str, List[str], Tuple[str, ...]]):
     """
     Decorator to require specific roles for access
     
@@ -22,7 +23,7 @@ def role_required(required_roles):
     def decorator(view_func):
         @wraps(view_func)
         def wrapper(request, *args, **kwargs):
-            if not request.user.is_authenticated:
+            if not request.user.is_authenticated or not request.user.is_active:
                 return HttpResponseForbidden("Authentication required")
             
             # Convert single role to list for consistent handling
@@ -54,7 +55,15 @@ def role_required(required_roles):
 
 
 def admin_required(view_func):
-    """Decorator to require admin, superadmin, or globaladmin role"""
+    """
+    Decorator to require admin, superadmin, or globaladmin role
+    
+    Args:
+        view_func: The view function to decorate
+        
+    Returns:
+        Decorated view function that requires admin-level access
+    """
     return role_required(['admin', 'superadmin', 'globaladmin'])(view_func)
 
 

@@ -302,13 +302,10 @@ class QueryOptimizer:
     @staticmethod
     def get_cached_data(cache_key: str, data_func, timeout: int = 300):
         """Get data from cache or compute and cache it"""
-        cached_data = cache.get(cache_key)
-        if cached_data is not None:
-            return cached_data
-        
-        data = data_func()
-        cache.set(cache_key, data, timeout)
-        return data
+        # Cache functionality disabled - return data directly
+        # TODO: Implement proper caching when Redis is available
+        logger.info(f"Cache disabled - computing data for key: {cache_key}")
+        return data_func()
     
     @staticmethod
     def invalidate_related_cache(cache_pattern: str):
@@ -325,5 +322,5 @@ class QueryOptimizer:
         paginator = Paginator(queryset, per_page)
         try:
             return paginator.page(page)
-        except:
+        except (PageNotAnInteger, EmptyPage):
             return paginator.page(1)

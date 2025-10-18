@@ -54,9 +54,9 @@ class SCORMAuthenticationMiddleware:
                 # Use proper Django authentication instead of manual assignment
                 from django.contrib.auth import login
                 login(request, user)
-                logger.info("SCORM Middleware: Properly authenticated user {{user.username}} from session")
+                logger.info(f"SCORM Middleware: Properly authenticated user {user.username} from session")
             except User.DoesNotExist:
-                logger.warning("SCORM Middleware: Invalid or inactive session user ID: {{session_user_id}}")
+                logger.warning(f"SCORM Middleware: Invalid or inactive session user ID: {session_user_id}")
                 # Clear invalid session
                 request.session.flush()
         
@@ -72,7 +72,7 @@ class SCORMAuthenticationMiddleware:
                         user = User.objects.get(id=session_user_id, is_active=True)
                         from django.contrib.auth import login
                         login(request, user)
-                        logger.info("SCORM Middleware: Properly authenticated user {{user.username}} from referer")
+                        logger.info(f"SCORM Middleware: Properly authenticated user {user.username} from referer")
                     except User.DoesNotExist:
-                        logger.warning("SCORM Middleware: Invalid user from referer: {{session_user_id}}")
+                        logger.warning(f"SCORM Middleware: Invalid user from referer: {session_user_id}")
                         request.session.flush()

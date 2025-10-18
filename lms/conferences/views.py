@@ -1034,7 +1034,8 @@ def create_zoom_meeting(user, integration_id, title, description, start_datetime
 def sync_conference_data(request, conference_id):
     """API endpoint to trigger conference data synchronization"""
     if request.user.role not in ['instructor', 'admin', 'superadmin', 'globaladmin'] and not request.user.is_superuser:
-        return JsonResponse({'success': False, 'error': 'Permission denied'}, status=403)
+        from core.permission_fixes import permission_denied_response
+        return permission_denied_response(request, 'Permission denied')
     
     try:
         conference = get_object_or_404(Conference, id=conference_id)
@@ -3029,7 +3030,8 @@ def generate_simple_zoom_link(request):
         return JsonResponse({'success': False, 'error': 'Method not allowed'}, status=405)
     
     if request.user.role not in ['instructor', 'admin', 'superadmin', 'globaladmin'] and not request.user.is_superuser:
-        return JsonResponse({'success': False, 'error': 'Permission denied'}, status=403)
+        from core.permission_fixes import permission_denied_response
+        return permission_denied_response(request, 'Permission denied')
     
     try:
         data = json.loads(request.body)

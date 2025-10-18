@@ -51,11 +51,11 @@ class SessionAuthMiddleware:
             user_id = request.session.get('_auth_user_id')
             if user_id:
                 try:
-                    # Use select_for_update to prevent race conditions with memory optimization
+                    # Simple session recovery without caching to avoid race conditions
                     from django.db import transaction
                     with transaction.atomic():
                         # Only fetch essential fields to reduce memory usage
-                        user = User.objects.select_for_update().only(
+                        user = User.objects.only(
                             'id', 'username', 'is_active', 'is_staff', 'is_superuser'
                         ).get(id=user_id, is_active=True)
                         
@@ -65,9 +65,6 @@ class SessionAuthMiddleware:
                         # Log with minimal memory footprint
                         logger.info(f"Session recovered for user {user.id}")
                         request.session.modified = True
-                        
-                        # Clear user object from memory after use
-                        del user
                         
                 except User.DoesNotExist:
                     request.session.flush()
@@ -96,19 +93,28 @@ class SessionAuthMiddleware:
                 request.session.modified = True
                 
                 # Clean up session data periodically to prevent memory bloat
-                if hasattr(request, 'session') and len(request.session.keys()) > 20:
-                    # Keep only essential session keys
-                    essential_keys = ['_auth_user_id', 'last_activity', '_auth_user_backend', '_auth_user_hash']
-                    keys_to_remove = [key for key in request.session.keys() if key not in essential_keys]
-                    for key in keys_to_remove[:5]:  # Remove max 5 keys per request
+                # Only clean up non-essential session data to avoid breaking functionality
+                # Reduced threshold to 30 for better memory management
+                if hasattr(request, 'session') and len(request.session.keys()) > 30:
+                    # Define safe keys to remove (non-essential session data)
+                    safe_to_remove_keys = [
+                        'temp_data', 'cache_data', 'debug_info', 'performance_data',
+                        'old_notifications', 'temp_uploads', 'session_backup'
+                    ]
+                    
+                    # Only remove keys that are explicitly safe to remove
+                    keys_to_remove = [key for key in request.session.keys() 
+                                    if key in safe_to_remove_keys]
+                    
+                    # Remove max 3 keys per request to be conservative
+                    for key in keys_to_remove[:3]:
                         if key in request.session:
                             del request.session[key]
+                            logger.debug(f"Cleaned up session key: {key}")
                 
         except Exception as e:
             logger.error(f"Error updating session activity: {e}", exc_info=True)
-            # Memory cleanup on errors
-            import gc
-            gc.collect()
+            # Don't perform GC in error path to avoid cascading errors
         
         return response
 

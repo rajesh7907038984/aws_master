@@ -227,6 +227,36 @@ def api_version(request):
         'environment': 'staging'
     })
 
+def log_error(request):
+    """Endpoint for JavaScript error logging with CSRF protection"""
+    from django.http import JsonResponse
+    from django.views.decorators.csrf import csrf_protect
+    from django.views.decorators.http import require_POST
+    import json
+    import logging
+    
+    logger = logging.getLogger(__name__)
+    
+    try:
+        data = json.loads(request.body.decode('utf-8'))
+        
+        # Log the error with appropriate level
+        error_message = data.get('message', 'Unknown JavaScript error')
+        error_details = data.get('error', {})
+        url = data.get('url', request.path)
+        user_agent = data.get('userAgent', request.META.get('HTTP_USER_AGENT', ''))
+        
+        logger.error(f"JavaScript Error: {error_message}")
+        logger.error(f"URL: {url}")
+        logger.error(f"User Agent: {user_agent}")
+        logger.error(f"Error Details: {error_details}")
+        
+        return JsonResponse({'success': True})
+        
+    except Exception as e:
+        logger.error(f"Error in log_error endpoint: {e}")
+        return JsonResponse({'success': False, 'error': 'Failed to log error'}, status=500)
+
 def security_txt(request):
     """Security.txt endpoint"""
     from django.http import HttpResponse

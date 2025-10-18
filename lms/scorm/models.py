@@ -38,7 +38,7 @@ def elearning_package_path(instance, filename):
     # Validate and sanitize the path for S3 compatibility
     is_valid, error = validate_s3_path(full_path)
     if not is_valid:
-        logger.warning("S3 path validation failed: {{error}}. Sanitizing path.")
+        logger.warning(f"S3 path validation failed: {error}. Sanitizing path.")
         full_path = sanitize_s3_path(full_path)
     
     return full_path
@@ -123,7 +123,7 @@ class ELearningPackage(models.Model):
             
             # Enhanced file existence check
             if not self.package_file.storage.exists(self.package_file.name):
-                error_msg = "Package file not found in storage: {{self.package_file.name}}"
+                error_msg = f"Package file not found in storage: {self.package_file.name}"
                 logger.error(error_msg)
                 self.extraction_error = error_msg
                 self.is_extracted = False
@@ -143,81 +143,91 @@ class ELearningPackage(models.Model):
             
             # Create topic-based directory structure using the custom storage
             # Note: SCORMS3Storage already has location='elearning', so we don't need to add it again
-            topic_dir = "packages/{{self.topic.id}}"
+            topic_dir = f"packages/{self.topic.id}"
             
             # Ensure the directory exists using the storage system
             if not self.package_file.storage.exists(topic_dir):
-                # Create directory by creating a temporary file and then removing it
-                temp_file = os.path.join(topic_dir, '.temp')
-                from django.core.files.base import ContentFile
-                self.package_file.storage.save(temp_file, ContentFile(b''))
-                self.package_file.storage.delete(temp_file)
+                # For S3 storage, directories are created implicitly when files are saved
+                # Just verify the storage is accessible
+                try:
+                    # Test storage accessibility by checking if we can list the parent directory
+                    parent_dir = os.path.dirname(topic_dir)
+                    if parent_dir and parent_dir != topic_dir:
+                        # Try to list parent directory to verify storage access
+                        list(self.package_file.storage.listdir(parent_dir))
+                except Exception as e:
+                    logger.warning(f"Storage directory check failed: {e}")
+                    # Continue anyway as S3 creates directories implicitly
             
             # S3 storage - use temp directory for extraction
             import tempfile
+            import shutil
             full_topic_dir = os.path.join(tempfile.gettempdir(), 'elearning', topic_dir)
+            zip_path = None
             
-            # Ensure the temp extraction directory exists
-            os.makedirs(full_topic_dir, exist_ok=True)
-            
-            # Extract the ZIP file
-            # For S3 storage, we need to download the file to a temporary location first
-            import tempfile
-            import io
-            
-            # Create a temporary file for the ZIP
-            with tempfile.NamedTemporaryFile(suffix='.zip', delete=False) as temp_file:
+            try:
+                # Ensure the temp extraction directory exists
+                os.makedirs(full_topic_dir, exist_ok=True)
+                
+                # Extract the ZIP file
+                # For S3 storage, we need to download the file to a temporary location first
+                import io
+                
+                # Create a temporary file for the ZIP
+                with tempfile.NamedTemporaryFile(suffix='.zip', delete=False) as temp_file:
+                    try:
+                        # Download from S3 to temp file
+                        with self.package_file.open('rb') as source:
+                            content = source.read()
+                            temp_file.write(content)
+                    except Exception as e:
+                        error_msg = f"Could not read package file from S3: {str(e)}"
+                        logger.error(error_msg)
+                        self.extraction_error = error_msg
+                        self.is_extracted = False
+                        self.save()
+                        return False
+                    zip_path = temp_file.name
+                
+                # Validate ZIP file before extraction
                 try:
-                    # Download from S3 to temp file
-                    with self.package_file.open('rb') as source:
-                        content = source.read()
-                        temp_file.write(content)
-                except Exception as e:
-                    error_msg = "Could not read package file from S3: {{str(e)}}"
+                    with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+                        # Test if ZIP is valid
+                        zip_ref.testzip()
+                except zipfile.BadZipFile:
+                    error_msg = "Invalid ZIP file format"
                     logger.error(error_msg)
                     self.extraction_error = error_msg
                     self.is_extracted = False
                     self.save()
                     return False
-                zip_path = temp_file.name
-            
-            # Validate ZIP file before extraction
-            try:
-                with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-                    # Test if ZIP is valid
-                    zip_ref.testzip()
-            except zipfile.BadZipFile:
-                error_msg = "Invalid ZIP file format"
-                logger.error(error_msg)
-                self.extraction_error = error_msg
-                self.is_extracted = False
-                self.save()
-                os.unlink(zip_path)
-                return False
-            except Exception as e:
-                error_msg = "Error validating ZIP file: {{str(e)}}"
-                logger.error(error_msg)
-                self.extraction_error = error_msg
-                self.is_extracted = False
-                self.save()
-                os.unlink(zip_path)
-                return False
-            
-            # Extract the ZIP file
-            try:
-                with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-                    zip_ref.extractall(full_topic_dir)
-            except Exception as e:
-                error_msg = "Error extracting ZIP file: {{str(e)}}"
-                logger.error(error_msg)
-                self.extraction_error = error_msg
-                self.is_extracted = False
-                self.save()
-                os.unlink(zip_path)
-                return False
-            
-            # Clean up temp file
-            os.unlink(zip_path)
+                except Exception as e:
+                    error_msg = f"Error validating ZIP file: {str(e)}"
+                    logger.error(error_msg)
+                    self.extraction_error = error_msg
+                    self.is_extracted = False
+                    self.save()
+                    return False
+                
+                # Extract the ZIP file
+                try:
+                    with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+                        zip_ref.extractall(full_topic_dir)
+                except Exception as e:
+                    error_msg = f"Error extracting ZIP file: {str(e)}"
+                    logger.error(error_msg)
+                    self.extraction_error = error_msg
+                    self.is_extracted = False
+                    self.save()
+                    return False
+                
+            finally:
+                # Clean up temp file
+                if zip_path and os.path.exists(zip_path):
+                    try:
+                        os.unlink(zip_path)
+                    except Exception as e:
+                        logger.warning(f"Failed to clean up temp file {zip_path}: {e}")
             
             # Find and parse the manifest based on package type
             manifest_path = self._find_manifest(full_topic_dir)
@@ -229,23 +239,31 @@ class ELearningPackage(models.Model):
             # Find the launch file
             self.launch_file = self._find_launch_file(full_topic_dir)
             if self.launch_file:
-                logger.info("SCORM: Launch file detected: {{self.launch_file}} for package type {{self.package_type}}")
+                logger.info(f"SCORM: Launch file detected: {self.launch_file} for package type {self.package_type}")
             else:
-                logger.warning("SCORM: No launch file found for package type {{self.package_type}}")
+                logger.warning(f"SCORM: No launch file found for package type {self.package_type}")
                 # Don't fail here, some packages might work without a specific launch file
             
             # Upload extracted content to S3
             try:
                 self._upload_extracted_content_to_s3(full_topic_dir, topic_dir)
             except Exception as e:
-                error_msg = "Error uploading extracted content to S3: {{str(e)}}"
+                error_msg = f"Error uploading extracted content to S3: {str(e)}"
                 logger.error(error_msg)
                 self.extraction_error = error_msg
                 self.is_extracted = False
                 self.save()
                 return False
+            finally:
+                # Clean up temporary extraction directory
+                if os.path.exists(full_topic_dir):
+                    try:
+                        shutil.rmtree(full_topic_dir)
+                        logger.debug(f"Cleaned up temporary extraction directory: {full_topic_dir}")
+                    except Exception as e:
+                        logger.warning(f"Failed to clean up extraction directory {full_topic_dir}: {e}")
             
-            self.extracted_path = "packages/{{topic_dir}}"  # Store without elearning prefix to avoid double prefixing
+            self.extracted_path = f"packages/{topic_dir}"  # Store without elearning prefix to avoid double prefixing
             self.is_extracted = True
             self.extraction_error = ""
             self.save()
@@ -259,6 +277,16 @@ class ELearningPackage(models.Model):
             self.extraction_error = error_msg
             self.is_extracted = False
             self.save()
+            
+            # Clean up any temporary files/directories in case of exception
+            try:
+                if 'zip_path' in locals() and zip_path and os.path.exists(zip_path):
+                    os.unlink(zip_path)
+                if 'full_topic_dir' in locals() and full_topic_dir and os.path.exists(full_topic_dir):
+                    shutil.rmtree(full_topic_dir)
+            except Exception as cleanup_error:
+                logger.warning(f"Failed to clean up after exception: {cleanup_error}")
+            
             return False
     
     def _find_manifest(self, base_path):
@@ -495,11 +523,11 @@ class ELearningPackage(models.Model):
             for preferred_file in launch_files:
                 for found_file in found_files:
                     if found_file.lower() == preferred_file.lower():
-                        logger.info("SCORM: Selected launch file '{{found_file}}' (priority: {{preferred_file}}) for package type {{self.package_type}}")
+                        logger.info(f"SCORM: Selected launch file '{found_file}' (priority: {preferred_file}) for package type {self.package_type}")
                         return found_file
             
             # Fallback to first found file
-            logger.info("SCORM: Using fallback launch file '{{found_files[0]}}' for package type {{self.package_type}}")
+            logger.info(f"SCORM: Using fallback launch file '{found_files[0]}' for package type {self.package_type}")
             return found_files[0]
         
         # If no common launch file found, look for HTML files
@@ -507,10 +535,10 @@ class ELearningPackage(models.Model):
             for file in files:
                 if file.lower().endswith('.html'):
                     file_path = os.path.relpath(os.path.join(root, file), base_path)
-                    logger.info("SCORM: Using generic HTML file '{{file_path}}' for package type {{self.package_type}}")
+                    logger.info(f"SCORM: Using generic HTML file '{file_path}' for package type {self.package_type}")
                     return file_path
         
-        logger.warning("SCORM: No launch file found for package type {{self.package_type}}")
+        logger.warning(f"SCORM: No launch file found for package type {self.package_type}")
         return None
     
     def _upload_extracted_content_to_s3(self, local_path, s3_topic_dir):
@@ -526,7 +554,7 @@ class ELearningPackage(models.Model):
                     
                     # Calculate relative path from the extraction directory
                     rel_path = os.path.relpath(local_file_path, local_path)
-                    s3_file_path = "{{s3_topic_dir}}/{{rel_path}}"
+                    s3_file_path = f"{s3_topic_dir}/{rel_path}"
                     
                     # Read the file content
                     with open(local_file_path, 'rb') as f:
@@ -554,15 +582,15 @@ class ELearningPackage(models.Model):
                     # Upload to S3
                     try:
                         self.package_file.storage.save(s3_file_path, content_file)
-                        logger.info("SCORM: Uploaded {{rel_path}} to S3 as {{s3_file_path}}")
+                        logger.info(f"SCORM: Uploaded {rel_path} to S3 as {s3_file_path}")
                     except Exception as e:
-                        logger.error("SCORM: Error uploading {{rel_path}} to S3: {{e}}")
+                        logger.error(f"SCORM: Error uploading {rel_path} to S3: {e}")
                         continue
             
-            logger.info("SCORM: Successfully uploaded extracted content for topic {{self.topic.id}} to S3")
+            logger.info(f"SCORM: Successfully uploaded extracted content for topic {self.topic.id} to S3")
             
         except Exception as e:
-            logger.error("SCORM: Error uploading extracted content to S3: {{e}}")
+            logger.error(f"SCORM: Error uploading extracted content to S3: {e}")
             raise
     
     def detect_package_type(self):
@@ -949,7 +977,7 @@ class ELearningTracking(models.Model):
                         minutes = float(m_part)
                     time_str = time_str.split('M')[1] if 'M' in time_str else time_str
                 except (ValueError, IndexError):
-                    logger.warning("SCORM: Error parsing minutes from: {{original_time_str}}")
+                    logger.warning(f"SCORM: Error parsing minutes from: {original_time_str}")
             
             # ENHANCED: Parse seconds with better error handling
             if 'S' in time_str:
@@ -958,13 +986,13 @@ class ELearningTracking(models.Model):
                     if s_part:  # Only parse if there's content before S
                         seconds = float(s_part)
                 except (ValueError, IndexError):
-                    logger.warning("SCORM: Error parsing seconds from: {{original_time_str}}")
+                    logger.warning(f"SCORM: Error parsing seconds from: {original_time_str}")
             
             from datetime import timedelta
             result = timedelta(hours=hours, minutes=minutes, seconds=seconds)
             
             # ENHANCED: Log successful parsing with more details
-            logger.info("SCORM: Successfully parsed time '{{original_time_str}}' -> hours:{{hours}}, minutes:{{minutes}}, seconds:{{seconds}} -> {{result}}")
+            logger.info(f"SCORM: Successfully parsed time '{original_time_str}' -> hours:{hours}, minutes:{minutes}, seconds:{seconds} -> {result}")
             return result
             
         except Exception as e:
@@ -980,18 +1008,18 @@ class ELearningTracking(models.Model):
                 minutes = int(parts[1])
                 seconds = float(parts[2])
                 result = timedelta(hours=hours, minutes=minutes, seconds=seconds)
-                logger.info("SCORM: Parsed colon time '{{time_str}}' -> {{result}}")
+                logger.info(f"SCORM: Parsed colon time '{time_str}' -> {result}")
                 return result
             elif len(parts) == 2:
                 minutes = int(parts[0])
                 seconds = float(parts[1])
                 result = timedelta(minutes=minutes, seconds=seconds)
-                logger.info("SCORM: Parsed colon time '{{time_str}}' -> {{result}}")
+                logger.info(f"SCORM: Parsed colon time '{time_str}' -> {result}")
                 return result
             else:
                 seconds = float(parts[0])
                 result = timedelta(seconds=seconds)
-                logger.info("SCORM: Parsed colon time '{{time_str}}' -> {{result}}")
+                logger.info(f"SCORM: Parsed colon time '{time_str}' -> {result}")
                 return result
         except (ValueError, TypeError) as e:
             logger.error("SCORM: Error parsing colon time '{}': {}".format(time_str, str(e)))
@@ -1015,11 +1043,11 @@ class ELearningTracking(models.Model):
             seconds = int(seconds)
         
         if hours > 0:
-            return "PT{{hours}}H{{minutes}}M{{seconds}}S"
+            return f"PT{hours}H{minutes}M{seconds}S"
         elif minutes > 0:
-            return "PT{{minutes}}M{{seconds}}S"
+            return f"PT{minutes}M{seconds}S"
         else:
-            return "PT{{seconds}}S"
+            return f"PT{seconds}S"
     
     def get_progress_percentage(self):
         """Get progress as percentage with enhanced logic"""
@@ -1058,38 +1086,38 @@ class ELearningTracking(models.Model):
         """Validate that score_raw is within the valid range"""
         if self.score_raw is not None and self.score_min is not None and self.score_max is not None:
             if not (self.score_min <= self.score_raw <= self.score_max):
-                logger.warning("SCORM Score Validation: Score {{self.score_raw}} is outside valid range [{{self.score_min}}, {{self.score_max}}] for user {{self.user.id}}")
+                logger.warning(f"SCORM Score Validation: Score {self.score_raw} is outside valid range [{self.score_min}, {self.score_max}] for user {self.user.id}")
                 return False
         return True
     
     def get_score_percentage(self):
         """Enhanced score percentage calculation with comprehensive fallbacks"""
-        logger.info("SCORM: Calculating score percentage for user {{self.user.id}}")
-        logger.info("SCORM: Score data - raw: {{self.score_raw}}, min: {{self.score_min}}, max: {{self.score_max}}, scaled: {{self.score_scaled}}")
+        logger.info(f"SCORM: Calculating score percentage for user {self.user.id}")
+        logger.info(f"SCORM: Score data - raw: {self.score_raw}, min: {self.score_min}, max: {self.score_max}, scaled: {self.score_scaled}")
         
         # Method 1: Use raw and max scores if both available
         if self.score_raw is not None and self.score_max is not None and self.score_max > 0:
             percentage = (self.score_raw / self.score_max) * 100
             result = min(100, max(0, percentage))
-            logger.info("SCORM: Calculated percentage from raw/max: {{result}}%")
+            logger.info(f"SCORM: Calculated percentage from raw/max: {result}%")
             return result
         
         # Method 2: Use scaled score if available (0-1 range)
         if self.score_scaled is not None:
             result = min(100, max(0, self.score_scaled * 100))
-            logger.info("SCORM: Calculated percentage from scaled: {{result}}%")
+            logger.info(f"SCORM: Calculated percentage from scaled: {result}%")
             return result
         
         # Method 3: Enhanced fallback logic
         if self.score_raw is not None:
             # Check if it's already a percentage (0-100 range)
             if 0 <= self.score_raw <= 100:
-                logger.info("SCORM: Using raw score as percentage: {{self.score_raw}}%")
+                logger.info(f"SCORM: Using raw score as percentage: {self.score_raw}%")
                 return self.score_raw
             # If it's a decimal (0-1 range), convert to percentage
             elif 0 <= self.score_raw <= 1:
                 result = self.score_raw * 100
-                logger.info("SCORM: Converted decimal to percentage: {{result}}%")
+                logger.info(f"SCORM: Converted decimal to percentage: {result}%")
                 return result
             # If it's a large number, assume it needs max score
             else:
@@ -1099,10 +1127,10 @@ class ELearningTracking(models.Model):
                     self.save()
                     logger.info("SCORM: Set default max score to 100")
                 result = min(100, max(0, (self.score_raw / self.score_max) * 100))
-                logger.info("SCORM: Calculated percentage with default max: {{result}}%")
+                logger.info(f"SCORM: Calculated percentage with default max: {result}%")
                 return result
         
-        logger.warning("SCORM: No valid score data found for user {{self.user.id}}")
+        logger.warning(f"SCORM: No valid score data found for user {self.user.id}")
         return None
     
     def get_score_grade(self, pass_threshold=70):
@@ -1194,12 +1222,12 @@ class ELearningTracking(models.Model):
             has_exit_suspend = bookmark_data['exit'] == 'suspend'
             
             bookmark_data['progress_indicators'] = [
-                "Lesson Location: {{has_lesson_location}}",
-                "Suspend Data: {{has_suspend_data}}",
-                "Progress: {{has_progress}}",
-                "Time: {{has_time}}",
-                "Score: {{has_score}}",
-                "Exit Suspend: {{has_exit_suspend}}"
+                f"Lesson Location: {has_lesson_location}",
+                f"Suspend Data: {has_suspend_data}",
+                f"Progress: {has_progress}",
+                f"Time: {has_time}",
+                f"Score: {has_score}",
+                f"Exit Suspend: {has_exit_suspend}"
             ]
             
             bookmark_data['can_resume'] = (
@@ -1226,12 +1254,12 @@ class ELearningTracking(models.Model):
             has_resume_flag = self.raw_data.get('xapi.resume', False)
             
             bookmark_data['progress_indicators'] = [
-                "xAPI State: {{has_lesson_location}}",
-                "Activity State: {{has_suspend_data}}",
-                "Resume Flag: {{has_resume_flag}}",
-                "Progress: {{has_progress}}",
-                "Time: {{has_time}}",
-                "Score: {{has_score}}"
+                f"xAPI State: {has_lesson_location}",
+                f"Activity State: {has_suspend_data}",
+                f"Resume Flag: {has_resume_flag}",
+                f"Progress: {has_progress}",
+                f"Time: {has_time}",
+                f"Score: {has_score}"
             ]
             
             bookmark_data['can_resume'] = (
@@ -1258,12 +1286,12 @@ class ELearningTracking(models.Model):
             has_resume_flag = self.raw_data.get('cmi5.resume', False)
             
             bookmark_data['progress_indicators'] = [
-                "AU State: {{has_lesson_location}}",
-                "cmi5 State: {{has_suspend_data}}",
-                "Resume Flag: {{has_resume_flag}}",
-                "Progress: {{has_progress}}",
-                "Time: {{has_time}}",
-                "Score: {{has_score}}"
+                f"AU State: {has_lesson_location}",
+                f"cmi5 State: {has_suspend_data}",
+                f"Resume Flag: {has_resume_flag}",
+                f"Progress: {has_progress}",
+                f"Time: {has_time}",
+                f"Score: {has_score}"
             ]
             
             bookmark_data['can_resume'] = (
@@ -1295,11 +1323,11 @@ class ELearningTracking(models.Model):
             has_suspend_data = bool(suspend_data)
             
             bookmark_data['progress_indicators'] = [
-                "Lesson Location: {{has_lesson_location}}",
-                "Suspend Data: {{has_suspend_data}}",
-                "Progress: {{has_progress}}",
-                "Time: {{has_time}}",
-                "Score: {{has_score}}"
+                f"Lesson Location: {has_lesson_location}",
+                f"Suspend Data: {has_suspend_data}",
+                f"Progress: {has_progress}",
+                f"Time: {has_time}",
+                f"Score: {has_score}"
             ]
             
             bookmark_data['can_resume'] = (
@@ -1327,7 +1355,7 @@ class ELearningTracking(models.Model):
             self.suspend_data = suspend_data
             
         self.save()
-        logger.info("SCORM: Bookmark set for user {{self.user.id}} at location: {{location}}")
+        logger.info(f"SCORM: Bookmark set for user {self.user.id} at location: {location}")
     
     def clear_bookmark(self):
         """Clear bookmark data"""
@@ -1340,7 +1368,7 @@ class ELearningTracking(models.Model):
         self.suspend_data = ''
         
         self.save()
-        logger.info("SCORM: Bookmark cleared for user {{self.user.id}}")
+        logger.info(f"SCORM: Bookmark cleared for user {self.user.id}")
 
     def check_mastery_completion(self):
         """Check if learner meets mastery score requirements for auto-completion"""
@@ -1368,7 +1396,7 @@ class ELearningTracking(models.Model):
             # Sync to course progress
             self._sync_to_course_progress()
             
-            logger.info("SCORM: Auto-completed based on mastery score. Score: {{score_percentage}}%, Mastery: {{mastery_threshold}}%")
+            logger.info(f"SCORM: Auto-completed based on mastery score. Score: {score_percentage}%, Mastery: {mastery_threshold}%")
             return True
         
         return False
@@ -1384,7 +1412,7 @@ class ELearningTracking(models.Model):
         
         if not topic_progress.completed:
             topic_progress.mark_complete('auto')
-            logger.info("SCORM: Synced completion to course progress for user {{self.user.id}}, topic {{self.elearning_package.topic.id}}")
+            logger.info(f"SCORM: Synced completion to course progress for user {self.user.id}, topic {self.elearning_package.topic.id}")
 
     def is_mastery_achieved(self):
         """Check if mastery score has been achieved"""
@@ -1505,16 +1533,16 @@ class ELearningTracking(models.Model):
             has_score = self.score_raw is not None and self.score_raw > 0
             
             articulate_bookmarks['progress_indicators'] = [
-                "Storyline Bookmark: {{has_storyline_bookmark}}",
-                "Rise Bookmark: {{has_rise_bookmark}}",
-                "Presenter Bookmark: {{has_presenter_bookmark}}",
-                "Quizmaker Bookmark: {{has_quizmaker_bookmark}}",
-                "Generic Bookmark: {{has_generic_bookmark}}",
-                "Lesson Location: {{has_lesson_location}}",
-                "Suspend Data: {{has_suspend_data}}",
-                "Progress: {{has_progress}}",
-                "Time: {{has_time}}",
-                "Score: {{has_score}}"
+                f"Storyline Bookmark: {has_storyline_bookmark}",
+                f"Rise Bookmark: {has_rise_bookmark}",
+                f"Presenter Bookmark: {has_presenter_bookmark}",
+                f"Quizmaker Bookmark: {has_quizmaker_bookmark}",
+                f"Generic Bookmark: {has_generic_bookmark}",
+                f"Lesson Location: {has_lesson_location}",
+                f"Suspend Data: {has_suspend_data}",
+                f"Progress: {has_progress}",
+                f"Time: {has_time}",
+                f"Score: {has_score}"
             ]
             
             # Determine if Articulate package can resume
@@ -1529,7 +1557,7 @@ class ELearningTracking(models.Model):
             return articulate_bookmarks
             
         except Exception as e:
-            logger.error("SCORM: Error extracting Articulate bookmark data: {{str(e)}}")
+            logger.error(f"SCORM: Error extracting Articulate bookmark data: {str(e)}")
             return {
                 'storyline': {},
                 'rise': {},
@@ -1538,7 +1566,7 @@ class ELearningTracking(models.Model):
                 'generic': {},
                 'can_resume': False,
                 'package_type': 'Articulate',
-                'progress_indicators': ["Error: {{str(e)}}"]
+                'progress_indicators': [f"Error: {str(e)}"]
             }
 
     def validate_data_size(self, data, package_type):
@@ -1555,34 +1583,34 @@ class ELearningTracking(models.Model):
             if package_type == 'SCORM_1_2':
                 max_size = 4096  # 4KB limit for SCORM 1.2
                 if data_size > max_size:
-                    logger.warning("SCORM 1.2: Data size {{data_size}} exceeds limit of {{max_size}} bytes")
-                    return False, "Data size {{data_size}} bytes exceeds SCORM 1.2 limit of {{max_size}} bytes"
+                    logger.warning(f"SCORM 1.2: Data size {data_size} exceeds limit of {max_size} bytes")
+                    return False, f"Data size {data_size} bytes exceeds SCORM 1.2 limit of {max_size} bytes"
                     
             elif package_type == 'SCORM_2004':
                 max_size = 64000  # 64KB limit for SCORM 2004
                 if data_size > max_size:
-                    logger.warning("SCORM 2004: Data size {{data_size}} exceeds limit of {{max_size}} bytes")
-                    return False, "Data size {{data_size}} bytes exceeds SCORM 2004 limit of {{max_size}} bytes"
+                    logger.warning(f"SCORM 2004: Data size {data_size} exceeds limit of {max_size} bytes")
+                    return False, f"Data size {data_size} bytes exceeds SCORM 2004 limit of {max_size} bytes"
                     
             elif package_type in ['XAPI', 'CMI5']:
                 # xAPI and cmi5 have much larger limits (practically unlimited)
                 max_size = 1000000  # 1MB practical limit
                 if data_size > max_size:
-                    logger.warning("{{package_type}}: Data size {{data_size}} exceeds practical limit of {{max_size}} bytes")
-                    return False, "Data size {{data_size}} bytes exceeds practical limit of {{max_size}} bytes"
+                    logger.warning(f"{package_type}: Data size {data_size} exceeds practical limit of {max_size} bytes")
+                    return False, f"Data size {data_size} bytes exceeds practical limit of {max_size} bytes"
                     
             else:
                 # Default fallback
                 max_size = 64000
                 if data_size > max_size:
-                    logger.warning("Unknown package type {{package_type}}: Data size {{data_size}} exceeds default limit of {{max_size}} bytes")
-                    return False, "Data size {{data_size}} bytes exceeds default limit of {{max_size}} bytes"
+                    logger.warning(f"Unknown package type {package_type}: Data size {data_size} exceeds default limit of {max_size} bytes")
+                    return False, f"Data size {data_size} bytes exceeds default limit of {max_size} bytes"
             
-            return True, "Data size {{data_size}} bytes is within limits"
+            return True, f"Data size {data_size} bytes is within limits"
             
         except Exception as e:
-            logger.error("Error validating data size: {{str(e)}}")
-            return False, "Error validating data size: {{str(e)}}"
+            logger.error(f"Error validating data size: {str(e)}")
+            return False, f"Error validating data size: {str(e)}"
 
     def set_bookmark_with_validation(self, location, suspend_data=''):
         """
@@ -1595,7 +1623,7 @@ class ELearningTracking(models.Model):
             # Validate location data
             location_valid, location_msg = self.validate_data_size(location, package_type)
             if not location_valid:
-                logger.warning("SCORM: Location data validation failed: {{location_msg}}")
+                logger.warning(f"SCORM: Location data validation failed: {location_msg}")
                 # Truncate if necessary
                 if package_type == 'SCORM_1_2':
                     location = location[:4000]  # Leave some buffer
@@ -1605,7 +1633,7 @@ class ELearningTracking(models.Model):
             # Validate suspend data
             suspend_valid, suspend_msg = self.validate_data_size(suspend_data, package_type)
             if not suspend_valid:
-                logger.warning("SCORM: Suspend data validation failed: {{suspend_msg}}")
+                logger.warning(f"SCORM: Suspend data validation failed: {suspend_msg}")
                 # Truncate if necessary
                 if package_type == 'SCORM_1_2':
                     suspend_data = suspend_data[:4000]  # Leave some buffer
@@ -1624,13 +1652,13 @@ class ELearningTracking(models.Model):
                 self.suspend_data = suspend_data
                 
             self.save()
-            logger.info("SCORM: Bookmark set for user {{self.user.id}} at location: {{location}} (validated for {{package_type}})")
+            logger.info(f"SCORM: Bookmark set for user {self.user.id} at location: {location} (validated for {package_type})")
             
             return True, "Bookmark set successfully"
             
         except Exception as e:
-            logger.error("SCORM: Error setting bookmark with validation: {{str(e)}}")
-            return False, "Error setting bookmark: {{str(e)}}"
+            logger.error(f"SCORM: Error setting bookmark with validation: {str(e)}")
+            return False, f"Error setting bookmark: {str(e)}"
 
     def _find_articulate_launch_file(self):
         """

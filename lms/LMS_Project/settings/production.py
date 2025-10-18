@@ -34,16 +34,11 @@ AWS_DEPLOYMENT = True
 # ==============================================
 
 # Production-specific session overrides (inherits base.py session config)
-SESSION_ENGINE = 'django.contrib.sessions.backends.db'  # Use database for production reliability
+# Only override settings that are different from base.py
 SESSION_COOKIE_SECURE = True  # Enable secure cookies for HTTPS
-SESSION_SAVE_EVERY_REQUEST = True  # CRITICAL: Enable session saving to prevent auto-logout
-SESSION_COOKIE_AGE = 604800  # 7 days - match base.py to prevent auto-logout
-SESSION_COOKIE_SAMESITE = 'Lax'  # Use Lax for better compatibility (overriding base.py if needed)
 
 # CSRF configuration - production overrides only
 CSRF_COOKIE_SECURE = True  # Enable secure CSRF cookies for production HTTPS
-CSRF_COOKIE_HTTPONLY = False  # Allow JavaScript access for AJAX requests
-CSRF_COOKIE_SAMESITE = 'Lax'  # Use Lax for better compatibility with AJAX
 
 # Disable session corruption warnings
 import logging
@@ -82,19 +77,20 @@ if ALB_DOMAIN:
 additional_hosts = get_list_env('ADDITIONAL_ALLOWED_HOSTS', default=[])
 ALLOWED_HOSTS.extend(additional_hosts)
 
-# Add common defaults for production
-ALLOWED_HOSTS.extend([
-    'localhost',
-    '127.0.0.1',
-    'testserver',  # For Django test client
-])
+# Add test server for Django test client (development only)
+if get_env('DJANGO_ENV', 'production') == 'development':
+    ALLOWED_HOSTS.extend([
+        'localhost',
+        '127.0.0.1',
+        'testserver',  # For Django test client
+    ])
 
 # IP blocking configuration
 BLOCKED_IPS = []
-ALLOW_ALL_IPS = True  # Allow all IPs to access the system
+ALLOW_ALL_IPS = get_bool_env('ALLOW_ALL_IPS', False)  # Restrict IP access by default
 
-# FIXED: Dynamic IP detection moved to async task to prevent Django startup hangs
-# This prevents Chrome connection issues by ensuring Django starts quickly
+# Dynamic IP detection - moved to AppConfig ready() method for proper Django lifecycle
+# This prevents startup issues and ensures proper Django application initialization
 def add_dynamic_ip_async():
     """Add dynamic IP in background to prevent startup delays"""
     try:
@@ -105,20 +101,21 @@ def add_dynamic_ip_async():
             # Use environment variable or cache for dynamic IP
             import os
             os.environ.setdefault('DYNAMIC_PUBLIC_IP', public_ip)
-            # Dynamic public IP detected and set
+            logger.info(f"Dynamic public IP detected: {public_ip}")
     except Exception as e:
         logger.debug(f"Metadata service not available: {e}")
-        pass  # Silently ignore if metadata service is not available
+        # Log the specific error for debugging
+        logger.info(f"Dynamic IP detection failed: {type(e).__name__}: {e}")
 
 # Check for cached dynamic IP
 if os.environ.get('DYNAMIC_PUBLIC_IP'):
     dynamic_ip = os.environ.get('DYNAMIC_PUBLIC_IP')
     if dynamic_ip not in ALLOWED_HOSTS:
         ALLOWED_HOSTS.append(dynamic_ip)
+        logger.info(f"Added cached dynamic IP to ALLOWED_HOSTS: {dynamic_ip}")
 
-# Schedule async IP detection (don't block Django startup)
-import threading
-threading.Thread(target=add_dynamic_ip_async, daemon=True).start()
+# Note: Dynamic IP detection is now handled in core/apps.py AppConfig.ready() method
+# This ensures proper Django application lifecycle and prevents startup issues
 
 # ==============================================
 # PRODUCTION DATABASE CONFIGURATION
@@ -168,11 +165,6 @@ DATABASES = {
         'CONN_MAX_AGE': 300,
         'CONN_HEALTH_CHECKS': True,
         'ATOMIC_REQUESTS': True,  # Ensure database transactions are atomic
-        # Enhanced connection settings for production
-        'CONNECTION_POOL_SIZE': 10,
-        'CONNECTION_POOL_OVERFLOW': 20,
-        'CONNECTION_POOL_TIMEOUT': 30,
-        'CONNECTION_POOL_RECYCLE': 3600,  # Recycle connections every hour
     }
 }
 # Database configuration loaded
@@ -268,9 +260,9 @@ ENABLE_FILE_ENCRYPTION = get_bool_env('ENABLE_FILE_ENCRYPTION', False)
 ENABLE_AUDIT_LOGGING = get_bool_env('ENABLE_AUDIT_LOGGING', True)
 ENABLE_FILE_QUARANTINE = get_bool_env('ENABLE_FILE_QUARANTINE', False)
 
-# Large file upload settings (600MB support)
-DATA_UPLOAD_MAX_MEMORY_SIZE = 100 * 1024 * 1024  # 100MB in memory, rest to disk
-FILE_UPLOAD_MAX_MEMORY_SIZE = 100 * 1024 * 1024  # 100MB in memory, rest to disk
+# Large file upload settings (600MB support) - optimized for memory
+DATA_UPLOAD_MAX_MEMORY_SIZE = 20 * 1024 * 1024  # 20MB in memory, rest to disk
+FILE_UPLOAD_MAX_MEMORY_SIZE = 20 * 1024 * 1024  # 20MB in memory, rest to disk
 
 # Temporary file handling for large uploads
 FILE_UPLOAD_TEMP_DIR = get_env('FILE_UPLOAD_TEMP_DIR', '/tmp')
@@ -303,7 +295,7 @@ CORS_ALLOWED_ORIGINS = [
 # Add ALB domain if configured
 if ALB_DOMAIN:
     CORS_ALLOWED_ORIGINS.append("https://{}".format(ALB_DOMAIN))
-    CORS_ALLOWED_ORIGINS.append("http://{}".format(ALB_DOMAIN))  # For health checks
+    # Remove HTTP origins for production security
 
 # Add additional CORS origins from environment (comma-separated)
 additional_cors = get_list_env('ADDITIONAL_CORS_ORIGINS', default=[])
@@ -323,7 +315,7 @@ CSRF_TRUSTED_ORIGINS = [
 # Add ALB domain if configured
 if ALB_DOMAIN:
     CSRF_TRUSTED_ORIGINS.append('https://{}'.format(ALB_DOMAIN))
-    CSRF_TRUSTED_ORIGINS.append('http://{}'.format(ALB_DOMAIN))  # For health checks
+    # Remove HTTP origins for production security
 
 # Add additional CSRF trusted origins from environment (comma-separated)
 additional_csrf = get_list_env('ADDITIONAL_CSRF_ORIGINS', default=[])

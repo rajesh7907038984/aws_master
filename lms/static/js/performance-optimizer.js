@@ -118,18 +118,8 @@
         },
         
         handleScrollEnd: function() {
-            // Lazy load content when scrolling
-            const contentElements = document.querySelectorAll('[data-lazy-content]');
-            contentElements.forEach(element => {
-                if (element.getBoundingClientRect().top < window.innerHeight) {
-                    const content = element.dataset.lazyContent;
-                    if (content) {
-                        // Use textContent for security - content should be pre-sanitized
-                        element.textContent = content;
-                        element.removeAttribute('data-lazy-content');
-                    }
-                }
-            });
+            // Call the lazyLoadContent method
+            this.lazyLoadContent();
         }
     };
 

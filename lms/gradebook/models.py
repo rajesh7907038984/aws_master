@@ -19,6 +19,13 @@ class Grade(models.Model):
 
     class Meta:
         unique_together = ['student', 'assignment']
+        indexes = [
+            models.Index(fields=['student', 'assignment']),
+            models.Index(fields=['course', 'student']),
+            models.Index(fields=['assignment', 'score']),
+            models.Index(fields=['created_at']),
+            models.Index(fields=['updated_at']),
+        ]
 
     def clean(self):
         """Validate the grade model with comprehensive checks"""
@@ -41,7 +48,7 @@ class Grade(models.Model):
             if self.assignment and hasattr(self.assignment, 'max_score') and self.assignment.max_score:
                 if score_decimal > Decimal(str(self.assignment.max_score)):
                     raise ValidationError({
-                        'score': "Score cannot exceed assignment maximum of {{self.assignment.max_score}}"
+                        'score': f"Score cannot exceed assignment maximum of {self.assignment.max_score}"
                     })
             elif score_decimal > Decimal('9999.99'):  # Fallback to field max
                 raise ValidationError({'score': 'Score is too large (max 9999.99)'})
@@ -74,7 +81,7 @@ class Grade(models.Model):
                 })
     
     def __str__(self):
-        return "{{self.student.username}} - {{self.assignment.title}} - {{self.score if self.score else 'Excused' if self.excused else 'Not graded'}}"
+        return f"{self.student.username} - {self.assignment.title} - {self.score if self.score else 'Excused' if self.excused else 'Not graded'}"
 
     def save(self, *args, **kwargs):
         # Validate before saving

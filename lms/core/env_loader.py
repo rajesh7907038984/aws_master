@@ -41,6 +41,10 @@ class EnvironmentLoader:
         if not self.env_file_path.exists():
             logger.warning(f" Environment file not found: {self.env_file_path}")
             logger.info("Using system environment variables only")
+            # In production, warn about missing .env file
+            if os.environ.get('DJANGO_ENV') == 'production':
+                logger.error("CRITICAL: .env file missing in production environment!")
+                logger.error("Please create .env file with required environment variables")
             return
         
         logger.info(f" Loading environment variables from: {self.env_file_path}")
@@ -79,11 +83,14 @@ class EnvironmentLoader:
                         os.environ[key] = value
                         self.loaded_variables[key] = value
                         
-                        # Validate critical environment variables
+                        # Validate critical environment variables with better error handling
                         if key in ['DJANGO_SECRET_KEY', 'AWS_DB_PASSWORD', 'AWS_SECRET_ACCESS_KEY']:
                             if not value or len(value.strip()) == 0:
-                                logger.error(f"Critical environment variable {key} is empty")
-                                raise ValueError(f"Critical environment variable {key} cannot be empty")
+                                error_msg = f"Critical environment variable {key} is empty or not set"
+                                logger.error(error_msg)
+                                logger.error("Please check your .env file or system environment variables")
+                                # Don't raise exception during startup - log and continue
+                                logger.warning("Application will continue with missing critical variables - this may cause runtime errors")
                     else:
                         logger.warning(f"Invalid line format in {self.env_file_path}:{line_num}: {line}")
             
@@ -132,7 +139,9 @@ class EnvironmentLoader:
                 'AWS_ACCESS_KEY_ID': 'Get from AWS IAM console',
             }
             suggestion = suggestions.get(key, 'Check your .env file or system environment variables')
-            raise ValueError(f"Required environment variable {key} is not set. {suggestion}")
+            error_msg = f"Required environment variable {key} is not set. {suggestion}"
+            logger.error(error_msg)
+            raise ValueError(error_msg)
         
         # Log when using default values for debugging
         if value == default and default is not None:

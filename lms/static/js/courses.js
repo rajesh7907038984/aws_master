@@ -7,7 +7,12 @@ function handleImageUpload(input) {
             const file = input.files[0];
             const fileSize = file.size / (1024 * 1024); // Convert to MB
             
-            // File size check removed
+            // File size validation (max 50MB for images)
+            if (fileSize > 50) {
+                alert('Image file size must be less than 50MB');
+                input.value = '';
+                return;
+            }
             
             // Check file type
             if (!file.type.match('image.*')) {
@@ -37,6 +42,10 @@ function handleImageUpload(input) {
                 } catch (error) {
                     console.error('Error loading image preview:', error);
                 }
+            };
+            reader.onerror = function(error) {
+                console.error('Error reading file:', error);
+                alert('Error reading the selected file. Please try again.');
             };
             reader.readAsDataURL(file);
         } else {
@@ -68,7 +77,12 @@ function handleVideoUpload(input) {
             const file = input.files[0];
             const fileSize = file.size / (1024 * 1024); // Convert to MB
             
-            // File size check removed
+            // File size validation (max 200MB for videos)
+            if (fileSize > 200) {
+                alert('Video file size must be less than 200MB');
+                input.value = '';
+                return;
+            }
             
             // Check file type
             if (!file.type.match('video.*')) {
@@ -91,6 +105,10 @@ function handleVideoUpload(input) {
             if (videoPreview) {
                 const source = videoPreview.querySelector('source');
                 if (source) {
+                    // Clean up previous URL to prevent memory leak
+                    if (source.src && source.src.startsWith('blob:')) {
+                        URL.revokeObjectURL(source.src);
+                    }
                     source.src = videoUrl;
                 }
                 videoPreview.classList.remove('hidden');

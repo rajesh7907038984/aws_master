@@ -17,7 +17,7 @@ class CalendarService:
         self.activities = []
         
         # Log calendar access for Session auditing
-        logger.info("Calendar service initialized for user {{user.username}} (role: {{user.role}}, branch: {{user.branch}})")
+        logger.info(f"Calendar service initialized for user {self.user.username} (role: {self.user.role}, branch: {self.user.branch})")
     
     def _validate_user_permission(self, obj, permission_type='view'):
         """Validate that user has permission to access the given object"""
@@ -38,7 +38,7 @@ class CalendarService:
             
         # Branch-based validation for other roles
         if not self.user.branch:
-            logger.warning("User {{self.user.username}} has no branch assignment, denying access")
+            logger.warning(f"User {self.user.username} has no branch assignment, denying access")
             return False
             
         # Check direct branch relationship
@@ -56,7 +56,7 @@ class CalendarService:
             return obj.created_by.branch == self.user.branch
             
         # Default deny for Session
-        logger.warning("Permission check failed for user {{self.user.username}} accessing {{obj}}")
+        logger.warning(f"Permission check failed for user {self.user.username} accessing {obj}")
         return False
     
     def _validate_activity_access(self, activity):
@@ -64,7 +64,7 @@ class CalendarService:
         
         # Basic activity structure validation
         if not isinstance(activity, dict) or 'type' not in activity:
-            logger.warning("Invalid activity structure for user {{self.user.username}}")
+            logger.warning(f"Invalid activity structure for user {self.user.username}")
             return False
         
         activity_type = activity.get('type')
@@ -75,14 +75,14 @@ class CalendarService:
             # Learners should only see their own activities
             allowed_types = ['assignment', 'quiz', 'conference', 'course_deadline', 'topic_deadline', 'personal_event']
             if activity_type not in allowed_types:
-                logger.debug("Activity type {{activity_type}} not allowed for learner {{self.user.username}}")
+                logger.debug(f"Activity type {activity_type} not allowed for learner {self.user.username}")
                 return False
         
         elif self.user.role == 'instructor':
             # Instructors can see grading activities and their courses
             allowed_types = ['assignment', 'quiz', 'conference', 'course_deadline', 'topic_deadline', 'grading', 'personal_event']
             if activity_type not in allowed_types:
-                logger.debug("Activity type {{activity_type}} not allowed for instructor {{self.user.username}}")
+                logger.debug(f"Activity type {activity_type} not allowed for instructor {self.user.username}")
                 return False
         
         elif self.user.role in ['admin', 'superadmin', 'globaladmin']:
@@ -91,7 +91,7 @@ class CalendarService:
         
         # URL validation - ensure URLs are internal and safe
         if activity_url and not self._validate_activity_url(activity_url):
-            logger.warning("Invalid activity URL for user {{self.user.username}}: {{activity_url}}")
+            logger.warning(f"Invalid activity URL for user {self.user.username}: {activity_url}")
             return False
         
         return True

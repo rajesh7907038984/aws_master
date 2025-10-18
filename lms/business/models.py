@@ -4,6 +4,9 @@ from django.conf import settings
 from django.db.models import Count, Q
 from django.db.models.signals import post_save
 from django.dispatch import receiver
+import logging
+
+logger = logging.getLogger(__name__)
 
 class Business(models.Model):
     name = models.CharField(max_length=255, unique=True, help_text="Business name")
@@ -75,26 +78,24 @@ class Business(models.Model):
         return result.get('total_users', 0)
 
     def get_business_statistics(self):
-        """Get comprehensive statistics about this business"""
-        branches = self.get_business_branches()
-        total_users = 0
-        total_admins = 0
-        total_instructors = 0
-        total_learners = 0
+        """Get comprehensive statistics about this business - optimized version"""
+        from django.db.models import Count, Q
         
-        for branch in branches:
-            total_users += branch.get_branch_users().filter(is_active=True).count()
-            total_admins += branch.get_branch_admins().count()
-            total_instructors += branch.get_branch_instructors().count()
-            total_learners += branch.get_branch_learners().count()
+        # Use database aggregation to avoid N+1 queries
+        branch_stats = self.branches.filter(is_active=True).aggregate(
+            total_users=Count('branch_users', filter=Q(branch_users__is_active=True)),
+            total_admins=Count('branch_users', filter=Q(branch_users__role='admin', branch_users__is_active=True)),
+            total_instructors=Count('branch_users', filter=Q(branch_users__role='instructor', branch_users__is_active=True)),
+            total_learners=Count('branch_users', filter=Q(branch_users__role='learner', branch_users__is_active=True))
+        )
         
         return {
             'super_admins': self.get_business_super_admins().count(),
-            'branches': branches.count(),
-            'total_users': total_users,
-            'total_admins': total_admins,
-            'total_instructors': total_instructors,
-            'total_learners': total_learners
+            'branches': self.get_business_branches().count(),
+            'total_users': branch_stats['total_users'],
+            'total_admins': branch_stats['total_admins'],
+            'total_instructors': branch_stats['total_instructors'],
+            'total_learners': branch_stats['total_learners']
         }
 
     def clean(self):

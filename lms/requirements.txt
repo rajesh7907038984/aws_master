@@ -1,8 +1,10 @@
 # Django LMS Production Requirements - Consolidated & Optimized
 # All versions tested and compatible with each other
-# Last updated: 2025-10-18 - Fixed Python 3.7 deprecation warnings
+# Last updated: 2025-10-18 - Updated for Python 3.9+ compatibility
 
 # Core Django Framework
+# NOTE: Django 3.2.25 is nearing end of security support (April 2024)
+# Plan migration to Django 4.2 LTS for long-term security support
 Django==3.2.25
 asgiref==3.9.1
 sqlparse==0.4.4
@@ -16,7 +18,7 @@ dj-database-url==2.3.0
 django-allauth==0.61.1
 django-cors-headers==4.3.1
 PyJWT==2.8.0
-cryptography==43.0.1  # Fixed: Compatible with Python 3.7
+cryptography==43.0.0  # Latest stable version with security updates
 oauthlib==3.2.2
 requests-oauthlib==2.0.0
 python3-openid==3.2.0
@@ -49,7 +51,7 @@ soupsieve==2.4.1
 
 # Reports & Excel Processing
 reportlab==4.0.4
-psutil>=5.9.0
+psutil==6.0.0  # Updated to latest stable version
 openpyxl==3.1.2
 XlsxWriter==3.1.9
 xlwt==1.3.0
@@ -69,7 +71,7 @@ MarkupSafe==2.1.3
 
 # HTTP & API
 requests==2.31.0
-urllib3>=1.25.4,<2.0.0
+urllib3==1.26.18  # Pinned to specific version for security and stability
 djangorestframework==3.14.0
 
 # Utilities

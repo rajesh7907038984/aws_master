@@ -10,6 +10,45 @@ function getCookie(name) {
     return '';
 }
 
+// Helper function to show notifications
+function showNotification(message, type) {
+    // Create notification element
+    var notification = document.createElement('div');
+    notification.className = 'notification ' + type;
+    notification.textContent = message;
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 12px 20px;
+        border-radius: 4px;
+        color: white;
+        font-weight: 500;
+        z-index: 10000;
+        max-width: 300px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    `;
+    
+    // Set background color based on type
+    if (type === 'error') {
+        notification.style.backgroundColor = '#dc3545';
+    } else if (type === 'success') {
+        notification.style.backgroundColor = '#28a745';
+    } else {
+        notification.style.backgroundColor = '#007bff';
+    }
+    
+    // Add to page
+    document.body.appendChild(notification);
+    
+    // Auto remove after 5 seconds
+    setTimeout(function() {
+        if (notification.parentNode) {
+            notification.parentNode.removeChild(notification);
+        }
+    }, 5000);
+}
+
 // Global function to handle modal close
 function closeModal(modal) {
     if (modal) {
@@ -67,7 +106,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             },
                             body: JSON.stringify({
                                 topic_id: topicId,
-                                new_order: newIndex + 1
+                                new_order: newIndex + 1  // Convert 0-based index to 1-based order
                             })
                         })
                         .then(function(response) {
@@ -79,10 +118,15 @@ document.addEventListener('DOMContentLoaded', function() {
                         .then(function(data) {
                             if (!data.success) {
                                 console.warn('Topic reorder failed:', data);
+                                // Show user-friendly error message
+                                showNotification('Failed to reorder topics. Please try again.', 'error');
+                            } else {
+                                showNotification('Topics reordered successfully', 'success');
                             }
                         })
                         .catch(function(error) {
                             console.error('Error reordering topics:', error);
+                            showNotification('Error reordering topics. Please refresh and try again.', 'error');
                         });
                     } catch (error) {
                         console.error('Error in sortable onEnd:', error);

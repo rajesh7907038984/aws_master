@@ -56,11 +56,19 @@ class OptimizedSuperAdminDashboardView(UserPassesTestMixin, TemplateView):
             2
         )
         
-        # OPTIMIZED: Limited recent activities to prevent performance issues
-        recent_activities = LogEntry.objects.select_related('user').order_by('-action_time')[:5]
+        # OPTIMIZED: Limited recent activities to prevent performance issues with prefetch
+        recent_activities = LogEntry.objects.select_related(
+            'user', 'content_type'
+        ).prefetch_related(
+            'user__branch'
+        ).order_by('-action_time')[:5]
         
-        # OPTIMIZED: Efficient course data with aggregated enrollments
-        courses_with_stats = accessible_courses.annotate(
+        # OPTIMIZED: Efficient course data with aggregated enrollments and prefetch
+        courses_with_stats = accessible_courses.select_related(
+            'instructor', 'branch', 'category'
+        ).prefetch_related(
+            'courseenrollment_set'
+        ).annotate(
             total_enrollments=Count('courseenrollment'),
             completed_enrollments=Count(
                 Case(
@@ -84,8 +92,10 @@ class OptimizedSuperAdminDashboardView(UserPassesTestMixin, TemplateView):
         now = timezone.now()
         start_date = now - timedelta(days=7)  # Reduced to 7 days for better performance
         
-        # Get recent instructors (last 30 days)
-        recent_instructors = accessible_users.filter(
+        # Get recent instructors (last 30 days) with optimized query
+        recent_instructors = accessible_users.select_related(
+            'branch'
+        ).filter(
             role='instructor',
             last_login__gte=now - timedelta(days=30)
         ).order_by('-last_login')[:5]

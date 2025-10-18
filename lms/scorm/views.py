@@ -80,8 +80,8 @@ def can_preview_scorm_content(user, topic):
         # Allow all authenticated users to preview SCORM content
         if user.is_authenticated:
             return True
-            
-        # Check if user has any role that allows content viewing
+        
+        # For unauthenticated users, check if they have any role that allows content viewing
         from role_management.models import UserRole
         course = topic.course
         
@@ -137,46 +137,12 @@ def can_access_scorm_content(user, topic):
     
     return False
 
-def can_preview_scorm_content(user, topic):
-    """
-    Check if user can preview SCORM content (view-only, progress not saved)
-    Uses the LMS role management system for proper access control
-    """
-    if not user.is_authenticated:
-        return False
-    
-    # Import role management utilities
-    try:
-        from role_management.utils import PermissionManager
-    except ImportError:
-        # Fallback to basic Django attributes if role management not available
-        return user.is_staff or user.is_superuser
-    
-    # Check if user has topic viewing capabilities using role management system
-    return PermissionManager.user_has_capability(user, 'view_topics')
 
+@login_required
 def scorm_launch(request, topic_id):
     """Launch SCORM, xAPI, cmi5, or Articulate packages with enhanced support"""
-    user = None
-    
-    # FIXED: Single, clear authentication logic
-    if request.user.is_authenticated:
-        user = request.user
-        logger.info("E-Learning Launch: User authenticated via standard auth: {{user.username}}")
-    elif request.session.get('_auth_user_id'):
-        try:
-            from django.contrib.auth import get_user_model
-            User = get_user_model()
-            user = User.objects.get(id=request.session.get('_auth_user_id'))
-            request.user = user
-            logger.info("E-Learning Launch: User authenticated via session: {{user.username}}")
-        except User.DoesNotExist:
-            logger.warning("E-Learning Launch: Invalid session user ID: {{request.session.get('_auth_user_id')}}")
-    
-    if not user:
-        logger.warning("E-Learning Launch: No authentication found for topic {{topic_id}}")
-        messages.error(request, "Authentication required to access e-learning content.")
-        return redirect('login')
+    user = request.user
+    logger.info(f"E-Learning Launch: User authenticated: {user.username}")
     
     topic = get_object_or_404(Topic, id=topic_id)
     
@@ -184,11 +150,11 @@ def scorm_launch(request, topic_id):
     try:
         course = topic.course
         if course and not course.user_has_access(user):
-            logger.warning("E-Learning Launch: User {{user.username}} does not have access to topic {{topic_id}}")
+            logger.warning(f"E-Learning Launch: User {user.username} does not have access to topic {topic_id}")
             messages.error(request, "You don't have access to this content.")
             return redirect('courses:course_list')
     except AttributeError:
-        logger.info("E-Learning Launch: Topic {{topic_id}} has no course relationship, allowing access")
+        logger.info(f"E-Learning Launch: Topic {topic_id} has no course relationship, allowing access")
         pass
     
     # ENHANCED: Role-based access control for all e-learning content
@@ -197,18 +163,13 @@ def scorm_launch(request, topic_id):
     
     # Allow preview for all authenticated users
     if not can_access and not can_preview:
-        if not user.is_authenticated:
-            logger.warning("E-Learning Launch: User not authenticated for topic {{topic_id}}")
-            messages.error(request, "Authentication required to access e-learning content.")
-            return redirect('login')
-        else:
-            can_preview = True
-            logger.info("E-Learning Launch: User {{user.username}} granted preview access for topic {{topic_id}}")
+        can_preview = True
+        logger.info(f"E-Learning Launch: User {user.username} granted preview access for topic {topic_id}")
     
     # Set preview mode if user can only preview
     preview_mode = not can_access and can_preview
     if preview_mode:
-        logger.info("E-Learning Launch: User {{user.username}} accessing e-learning content in preview mode for topic {{topic_id}}")
+        logger.info(f"E-Learning Launch: User {user.username} accessing e-learning content in preview mode for topic {topic_id}")
         messages.info(request, "You are viewing this content in preview mode. Your progress will not be saved.")
     
     try:
@@ -219,7 +180,7 @@ def scorm_launch(request, topic_id):
     
     if not elearning_package.is_extracted:
         # CRITICAL FIX: Auto-extract package if not extracted
-        logger.info("E-Learning Launch: Auto-extracting package for topic {{topic_id}}")
+        logger.info(f"E-Learning Launch: Auto-extracting package for topic {topic_id}")
         if elearning_package.extract_package():
             messages.success(request, "E-learning package extracted successfully.")
         else:
@@ -229,27 +190,32 @@ def scorm_launch(request, topic_id):
     # Get or create tracking record (only if not in preview mode)
     tracking = None
     if not preview_mode:
-        tracking, created = ELearningTracking.objects.get_or_create(
-            user=user,
-            elearning_package=elearning_package
-        )
+        with transaction.atomic():
+            tracking, created = ELearningTracking.objects.select_for_update().get_or_create(
+                user=user,
+                elearning_package=elearning_package
+            )
+            
+            # Increment attempt count on each launch
+            tracking.attempt_count += 1
+            
+            # Update launch timestamps
+            if not tracking.first_launch:
+                tracking.first_launch = timezone.now()
+            tracking.last_launch = timezone.now()
+            tracking.save()
     else:
         # Create a dummy tracking object for preview mode
         tracking = ELearningTracking(
             user=user,
             elearning_package=elearning_package,
             completion_status='incomplete',
-            success_status='unknown'
+            success_status='unknown',
+            attempt_count=1,
+            first_launch=timezone.now(),
+            last_launch=timezone.now()
         )
-    
-    # Increment attempt count on each launch
-    tracking.attempt_count += 1
-    
-    # Update launch timestamps
-    if not tracking.first_launch:
-        tracking.first_launch = timezone.now()
-    tracking.last_launch = timezone.now()
-    tracking.save()
+        # Don't save dummy tracking object
     
     # Get the launch file URL
     launch_url = elearning_package.get_content_url()
@@ -278,7 +244,7 @@ def scorm_launch(request, topic_id):
         # xAPI data
         scorm_data = {
             'actor': {
-                'mbox': "mailto:{{user.email}}",
+                'mbox': f"mailto:{user.email}",
                 'name': user.get_full_name() or user.username
             },
             'endpoint': elearning_package.xapi_endpoint or '',
@@ -319,7 +285,7 @@ def scorm_launch(request, topic_id):
         'launch_url': launch_url,
         'tracking': tracking,
         'user_id': user.id,
-        'scorm_api_url': "/scorm/api/{{topic_id}}/",
+        'scorm_api_url': f"/scorm/api/{topic_id}/",
         'scorm_data': scorm_data,
         'scorm_data_json': scorm_data_json,
         'preview_mode': preview_mode,

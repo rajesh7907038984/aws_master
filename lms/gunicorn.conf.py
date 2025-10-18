@@ -13,7 +13,7 @@ LOGS_DIR = os.environ.get('LOGS_DIR', '/home/ec2-user/lmslogs')
 SERVER_USER = os.environ.get('SERVER_USER', 'ec2-user')
 SERVER_GROUP = os.environ.get('SERVER_GROUP', 'ec2-user')
 GUNICORN_BIND = os.environ.get('GUNICORN_BIND', '0.0.0.0:8000')
-GUNICORN_TIMEOUT = int(os.environ.get('GUNICORN_TIMEOUT', '120'))  # Increased from 30 to 120 seconds
+GUNICORN_TIMEOUT = int(os.environ.get('GUNICORN_TIMEOUT', '60'))  # Optimized timeout for better performance
 
 # Calculate workers - optimized for 2 CPU cores (3.8GB RAM)
 workers_env = os.environ.get('GUNICORN_WORKERS', 'auto')
@@ -37,9 +37,9 @@ worker_connections = 1000  # Increased from 500 for better throughput
 keepalive = 2  # Reduced for better memory management
 
 # Restart workers after this many requests, to prevent memory leaks
-# SESSION-AWARE: Reduced worker recycling to preserve user sessions
-max_requests = 200  # Further reduced to prevent memory buildup and timeouts
-max_requests_jitter = 50  # Reduced jitter for better memory management
+# SESSION-AWARE: Optimized worker recycling to preserve user sessions
+max_requests = 1000  # Increased for better performance while preventing memory leaks
+max_requests_jitter = 100  # Reasonable jitter for better memory management
 
 # Logging - use environment variable for log directory
 accesslog = "{}/gunicorn_access.log".format(LOGS_DIR)
@@ -70,7 +70,7 @@ preload_app = False  # Disabled to reduce memory usage at startup
 worker_tmp_dir = "/dev/shm"
 
 # Graceful timeout for worker restart
-graceful_timeout = 30  # Reduced for faster worker recycling
+graceful_timeout = 15  # Optimized for faster worker recycling
 timeout = GUNICORN_TIMEOUT  # Use the timeout setting
 
 # Additional timeout settings for better handling

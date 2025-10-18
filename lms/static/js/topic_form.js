@@ -1,17 +1,22 @@
+// Define content types that should hide the Instructions field - GLOBAL SCOPE
+var hideInstructionsTypes = ['video', 'audio', 'document', 'image', 'file', 'link', 'web', 'quiz', 'assignment', 'conference', 'discussion'];
+// Make it globally available
+window.hideInstructionsTypes = hideInstructionsTypes;
+
 // Global function to update content type sections
 function updateContentTypeSections(selectedType) {
     // Normalize selected type (lowercase first)
-    const normalizedType = selectedType.toLowerCase();
+    var normalizedType = selectedType.toLowerCase();
     
-    // Define content types that should hide the Instructions field
-    const hideInstructionsTypes = ['video', 'audio', 'document', 'image', 'file', 'link', 'web', 'quiz', 'assignment', 'conference', 'discussion'];
+    // Use global hideInstructionsTypes with fallback
+    var hideTypes = window.hideInstructionsTypes || ['video', 'audio', 'document', 'image', 'file', 'link', 'web', 'quiz', 'assignment', 'conference', 'discussion'];
     
     // Handle Instructions field visibility with null check
-    const instructionsField = document.querySelector('label[for*="instructions"]');
+    var instructionsField = document.querySelector('label[for*="instructions"]');
     if (instructionsField) {
-        const instructionsContainer = instructionsField.closest('div');
+        var instructionsContainer = instructionsField.closest('div');
         if (instructionsContainer) {
-            if (hideInstructionsTypes.includes(normalizedType)) {
+            if (hideTypes.includes(normalizedType)) {
                 instructionsContainer.style.display = 'none';
             } else {
                 instructionsContainer.style.display = 'block';

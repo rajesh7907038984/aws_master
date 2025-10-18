@@ -75,7 +75,6 @@ urlpatterns = [
     # Static files redirect (fix 404 for /static/ without trailing slash)
     path('static', RedirectView.as_view(url=settings.STATIC_URL, permanent=True)),
     path('static/', RedirectView.as_view(url=settings.STATIC_URL, permanent=True)),
-    path('', include('core.urls')),  # Include core URLs at root level for session management
     path('admin_dashboard/', include('admin_dashboard.urls', namespace='admin_dashboard')),
     path('super-admin/', include('admin_dashboard.urls', namespace='super_admin')),
     path('dashboard/globaladmin/', global_admin_dashboard, name='dashboard_globaladmin'),
@@ -97,6 +96,9 @@ urlpatterns = [
     # Branch-specific authentication URLs
     path('auth/<slug:branch_slug>/', include('users.urls_auth')),
     path('auth/', include('users.urls_auth')),
+    
+    # Core URLs (session management, API endpoints)
+    path('', include('core.urls')),
     
     path('users/', include('users.urls', namespace='users')),
     path('courses/', include('courses.urls', namespace='courses')),
@@ -136,7 +138,6 @@ urlpatterns = [
 ]
 
 # Add Django Debug Toolbar URLs when DEBUG is enabled
-from django.conf import settings
 if settings.DEBUG:
     try:
         import debug_toolbar

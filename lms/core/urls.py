@@ -7,6 +7,8 @@ from . import views
 # from .views import csrf_views  # COMMENTED OUT TO FIX ERRORS
 # Import calendar API functions from the views module
 from .views import api_calendar_activities, api_daily_activities, api_calendar_summary, log_client_error, api_version
+# Import log_error from main views.py
+from . import views
 # Import monitoring views
 from .views.monitoring_dashboard import monitoring_dashboard, api_system_metrics, api_health_check, api_user_engagement
 # Import timezone API functions
@@ -37,7 +39,7 @@ urlpatterns = [
         ])),
         # Error logging API endpoints
         path('log-client-error/', log_client_error, name='api_log_client_error'),
-        path('log-error/', log_client_error, name='api_log_error'),  # Alternative endpoint
+        path('log-error/', views.log_error, name='api_log_error'),  # JavaScript error logging endpoint
         # Device time sync API endpoint
         path('sync-device-time/', views.sync_device_time, name='api_sync_device_time'),
         # Server time API endpoint

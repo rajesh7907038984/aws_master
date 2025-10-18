@@ -8,13 +8,13 @@ from django.utils.translation import gettext_lazy as _
 from django.utils import timezone
 from django.apps import apps
 # Removed direct import to avoid circular imports
-from django.db.models.signals import post_save
+from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
 from core.utils.fields import TinyMCEField
 from django.core.files.storage import default_storage
 # S3 file storage configuration
 from categories.models import CourseCategory
-from core.s3_storage import MediaS3Storage
+from core.s3_storage import MediaS3Storage, validate_s3_path, sanitize_s3_path
 
 import uuid
 import zipfile
@@ -37,6 +37,56 @@ else:
 
 logger = logging.getLogger(__name__)
 
+@receiver(post_save, sender='courses.Course')
+@receiver(post_save, sender='courses.Topic')
+def cleanup_temp_files(sender, instance, created, **kwargs):
+    """Clean up temporary files when course/topic is saved"""
+    try:
+        # Only process if the instance now has a primary key
+        if instance.pk:
+            # Move temporary files to proper location if needed
+            # This is handled by the file storage system automatically
+            logger.debug(f"Instance {instance.__class__.__name__} {instance.pk} saved, temp files will be handled by storage")
+    except Exception as e:
+        logger.error(f"Error in cleanup_temp_files signal: {e}")
+
+@receiver(post_delete, sender='courses.Course')
+@receiver(post_delete, sender='courses.Topic')
+def cleanup_orphaned_files(sender, instance, **kwargs):
+    """Clean up files when course/topic is deleted"""
+    try:
+        # Only clean up local temp files if not using S3 storage
+        from django.conf import settings
+        from django.core.files.storage import default_storage
+        
+        # Check if we're using S3 storage
+        if hasattr(default_storage, 'bucket_name'):
+            # Using S3 storage - no local cleanup needed
+            logger.debug("Using S3 storage, skipping local temp file cleanup")
+            return
+        
+        # Clean up any temporary files older than 1 hour (local storage only)
+        import os
+        import time
+        
+        # Use MEDIA_ROOT only if it exists and is local
+        if hasattr(settings, 'MEDIA_ROOT') and settings.MEDIA_ROOT:
+            temp_dir = os.path.join(settings.MEDIA_ROOT, 'courses/temp_uploads')
+            if os.path.exists(temp_dir):
+                current_time = time.time()
+                for filename in os.listdir(temp_dir):
+                    file_path = os.path.join(temp_dir, filename)
+                    if os.path.isfile(file_path):
+                        # Check if file is older than 1 hour
+                        if current_time - os.path.getmtime(file_path) > 3600:
+                            try:
+                                os.remove(file_path)
+                                logger.debug(f"Cleaned up old temp file: {filename}")
+                            except OSError as e:
+                                logger.warning(f"Could not remove temp file {filename}: {e}")
+    except Exception as e:
+        logger.error(f"Error in cleanup_orphaned_files signal: {e}")
+
 def content_file_path(instance: Any, filename: str) -> str:
     """Generate secure file path for course content"""
     import re
@@ -47,9 +97,18 @@ def content_file_path(instance: Any, filename: str) -> str:
     
     filename = filename.strip()
     
-    # Security: Simple dangerous pattern check
-    if any(char in filename for char in ['..', '/', '\\', '<', '>', ':', '*', '?', '"', '|']):
-        raise ValidationError("Filename contains dangerous characters")
+    # Security: Enhanced dangerous pattern check
+    import urllib.parse
+    
+    # Check for URL-encoded path traversal attempts
+    decoded = urllib.parse.unquote(filename)
+    if decoded != filename:
+        raise ValidationError("URL-encoded characters not allowed in filename")
+    
+    # Check for path traversal attempts and dangerous characters
+    dangerous_chars = ['..', '/', '\\', '<', '>', ':', '*', '?', '"', '|']
+    if any(char in filename for char in dangerous_chars):
+        raise ValidationError("Filename contains dangerous characters or path traversal attempts")
     
     # Security: File extension whitelist
     allowed_extensions = {
@@ -75,31 +134,41 @@ def content_file_path(instance: Any, filename: str) -> str:
     safe_name = re.sub(r'[^a-zA-Z0-9\-_]', '_', name)[:50]
     new_filename = f"{safe_name}_{unique_id}{ext.lower()}"
     
-    # Determine the course ID with better error handling
+    # Determine the course ID with better error handling and validation
     try:
         if isinstance(instance, Course):
-            course_id = instance.id
+            if not instance.pk:
+                # Course not saved yet, use temporary location with timestamp
+                timestamp = int(time.time())
+                return f"courses/temp_uploads/{timestamp}_{unique_id}{ext.lower()}"
+            else:
+                course_id = instance.id
         elif isinstance(instance, Topic):
             # Check if topic has a primary key
             if not instance.pk:
-                # No primary key yet, use a default location
-                return f"courses/topic_uploads/{unique_id}{ext.lower()}"
+                # No primary key yet, use a temporary location with timestamp
+                timestamp = int(time.time())
+                return f"courses/temp_uploads/{timestamp}_{unique_id}{ext.lower()}"
                 
             # Handle case where topic isn't linked to a course yet
             try:
                 # Try to get course via the many-to-many relationship
-                course = instance.courses.first()
-                if course and hasattr(course, 'id'):
+                # Use select_related to avoid N+1 queries
+                course = instance.courses.select_related().first()
+                if course and hasattr(course, 'id') and course.pk:
                     course_id = course.id
                 else:
-                    # No course found, use a default folder
-                    return f"courses/topic_uploads/{instance.pk}/{new_filename}"
+                    # No course found, use a temporary folder with topic ID
+                    return f"courses/temp_uploads/topic_{instance.pk}/{new_filename}"
             except (AttributeError, ValueError) as e:
                 # Log the error and use a fallback location
                 logger.warning(f"Course relationship error in content_file_path: {str(e)}")
-                return f"courses/topic_uploads/{unique_id}{ext.lower()}"
+                return f"courses/temp_uploads/{unique_id}{ext.lower()}"
         else:
             course_id = 'misc'
+    except (AttributeError, ValueError, TypeError) as e:
+        logger.error(f"Data type error in content_file_path: {str(e)}")
+        return f"courses/topic_uploads/{unique_id}{ext.lower()}"
     except Exception as e:
         # Log the error and use a fallback location
         logger.error(f"Unexpected error in content_file_path: {str(e)}")

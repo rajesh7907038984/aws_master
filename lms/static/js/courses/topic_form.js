@@ -6,10 +6,11 @@ window.onload = function() {
     }
 };
 
+// Define content types that should hide the Instructions field - moved to global scope
+const hideInstructionsTypes = ['video', 'audio', 'document', 'image', 'file', 'link', 'web', 'quiz', 'assignment', 'conference', 'discussion'];
+
 // Global function to toggle content type fields visibility
 function toggleContentFields(selectedType) {
-    // Define content types that should hide the Instructions field
-    const hideInstructionsTypes = ['video', 'audio', 'document', 'image', 'file', 'link', 'web', 'quiz', 'assignment', 'conference', 'discussion'];
     
     // Handle Instructions field visibility with null check
     const instructionsField = document.querySelector('label[for*="instructions"]');

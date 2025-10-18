@@ -7,7 +7,7 @@ from django.shortcuts import render, redirect
 from django.contrib.auth import authenticate
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth.decorators import login_required
-from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
+from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie, csrf_exempt
 from django.views.decorators.http import require_http_methods, require_POST
 from django.conf import settings
 from django.urls import reverse
@@ -34,14 +34,45 @@ def api_version(request):
 def security_txt(request):
     """Security.txt endpoint for responsible disclosure"""
     from django.http import HttpResponse
-    security_content = """Contact: security@example.com
+    from django.conf import settings
+    
+    # Get security contact from environment variable
+    security_contact = getattr(settings, 'SECURITY_CONTACT_EMAIL', 'security@example.com')
+    base_url = getattr(settings, 'BASE_URL', 'https://example.com')
+    
+    security_content = f"""Contact: {security_contact}
 Expires: 2026-12-31T23:59:59.000Z
-Encryption: https://example.com/pgp-key.txt
-Acknowledgments: https://example.com/security-acknowledgments
+Encryption: {base_url}/pgp-key.txt
+Acknowledgments: {base_url}/security-acknowledgments
 Preferred-Languages: en
-Canonical: https://example.com/.well-known/security.txt
+Canonical: {base_url}/.well-known/security.txt
 """
     return HttpResponse(security_content, content_type='text/plain')
+
+@csrf_protect
+@require_POST
+def log_error(request):
+    """Endpoint for JavaScript error logging with CSRF protection"""
+    try:
+        import json
+        data = json.loads(request.body.decode('utf-8'))
+        
+        # Log the error with appropriate level
+        error_message = data.get('message', 'Unknown JavaScript error')
+        error_details = data.get('error', {})
+        url = data.get('url', request.path)
+        user_agent = data.get('userAgent', request.META.get('HTTP_USER_AGENT', ''))
+        
+        logger.error(f"JavaScript Error: {error_message}")
+        logger.error(f"URL: {url}")
+        logger.error(f"User Agent: {user_agent}")
+        logger.error(f"Error Details: {error_details}")
+        
+        return JsonResponse({'success': True})
+        
+    except Exception as e:
+        logger.error(f"Error in log_error endpoint: {e}")
+        return JsonResponse({'success': False, 'error': 'Failed to log error'}, status=500)
 
 
 @csrf_protect
@@ -62,12 +93,18 @@ def error_log(request):
         if not request.body:
             return JsonResponse({'error': 'Empty request body'}, status=400)
         
-        # Parse JSON with error handling
+        # Parse JSON with enhanced error handling
         try:
             data = json.loads(request.body)
+            # Validate required structure
+            if not isinstance(data, dict):
+                raise ValueError("Request body must be a JSON object")
         except json.JSONDecodeError as e:
             logger.error("Invalid JSON in error log request: {}".format(str(e)))
             return JsonResponse({'error': 'Invalid JSON format'}, status=400)
+        except ValueError as e:
+            logger.error("Invalid data structure in error log request: {}".format(str(e)))
+            return JsonResponse({'error': 'Invalid data structure'}, status=400)
         
         # Extract and validate error data
         error_message = data.get('message', '')
@@ -85,14 +122,12 @@ def error_log(request):
         error_url = error_url[:200]         # Limit URL length
         
         # Log with structured data
-        logger.error("Client Error: {} | URL: {} | Stack: {} | Timestamp: {}".format(
-            error_message, error_url, error_stack, error_timestamp
-        ))
+        logger.error(f"Client Error: {error_message} | URL: {error_url} | Stack: {error_stack} | Timestamp: {error_timestamp}")
         
         return JsonResponse({'success': True, 'logged': True})
         
     except Exception as e:
-        logger.error("Error logging failed: {}".format(str(e)))
+        logger.error(f"Error logging failed: {str(e)}")
         return JsonResponse({'error': 'Failed to log error'}, status=500)
 
 
