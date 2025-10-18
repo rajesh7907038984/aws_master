@@ -53,7 +53,9 @@ def pre_calculate_student_scores(students, activities, grades, quiz_attempts, co
             
             # Use pagination to prevent memory leaks for large datasets
             quiz_attempt_lookup = {}
-            BATCH_SIZE = 200  # Reduced batch size for better memory management
+            # Make batch size configurable via settings
+            from django.conf import settings
+            BATCH_SIZE = getattr(settings, 'GRADEBOOK_BATCH_SIZE', 200)
             batch_size = BATCH_SIZE
             
             for i in range(0, len(quiz_attempts), batch_size):
@@ -61,7 +63,7 @@ def pre_calculate_student_scores(students, activities, grades, quiz_attempts, co
                 for attempt in batch:
                     key = (attempt.user_id, attempt.quiz_id)
                     # Keep only the latest attempt for each student-quiz pair
-                    if key not in quiz_attempt_lookup or attempt.end_time > quiz_attempt_lookup[key].end_time:
+                    if key not in quiz_attempt_lookup or (attempt.end_time and quiz_attempt_lookup[key].end_time and attempt.end_time > quiz_attempt_lookup[key].end_time):
                         quiz_attempt_lookup[key] = attempt
             
             # Add initial assessment attempts to the same lookup
@@ -69,7 +71,7 @@ def pre_calculate_student_scores(students, activities, grades, quiz_attempts, co
                 for attempt in initial_assessment_attempts:
                     key = (attempt.user_id, attempt.quiz_id)
                     # Keep only the latest attempt for each student-quiz pair
-                    if key not in quiz_attempt_lookup or attempt.end_time > quiz_attempt_lookup[key].end_time:
+                    if key not in quiz_attempt_lookup or (attempt.end_time and quiz_attempt_lookup[key].end_time and attempt.end_time > quiz_attempt_lookup[key].end_time):
                         quiz_attempt_lookup[key] = attempt
             
             conference_lookup = {}
@@ -335,18 +337,32 @@ def pre_calculate_student_scores(students, activities, grades, quiz_attempts, co
                                             'type': 'scorm',
                                             'score_source': 'auto'  # Add this field
                                         }
+                            except Exception as e:
+                                logger.error(f"Error processing activity for student {student.id}: {str(e)}")
+                                continue
                         
                         score_data[student.id] = student_scores
                 
-                    except Exception as e:
+                    except (AttributeError, KeyError, ValueError, TypeError) as e:
                         logger.error(f"Error processing student {student.id}: {str(e)}")
                         # Initialize empty score data for this student
                         score_data[student.id] = {}
+                    except Exception as e:
+                        logger.error(f"Unexpected error processing student {student.id}: {str(e)}")
+                        # Initialize empty score data for this student
+                        score_data[student.id] = {}
                 
-            except Exception as e:
-                logger.error(f"Error in pre_calculate_student_scores: {str(e)}")
+            except (AttributeError, KeyError, ValueError, TypeError) as e:
+                logger.error(f"Data processing error in pre_calculate_student_scores: {str(e)}")
                 # Return empty score data as fallback
                 score_data = {}
+            except Exception as e:
+                logger.error(f"Unexpected error in pre_calculate_student_scores: {str(e)}")
+                # Return empty score data as fallback
+                score_data = {}
+        except Exception as e:
+            logger.error(f"Critical error in gradebook pre-calculation: {str(e)}")
+            score_data = {}
     
     return score_data
 
