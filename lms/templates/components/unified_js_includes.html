@@ -9,16 +9,16 @@
 <!-- 2. Unified Notification System -->
 <script src="{% static 'core/js/unified-notifications.js' %}"></script>
 
-<!-- 3. Unified Error Handler - REMOVED: file not found -->
-<!-- <script src="{% static 'core/js/unified-error-handler.js' %}"></script> -->
+<!-- 3. Unified Error Handler -->
+<script src="{% static 'core/js/unified-error-handler.js' %}"></script>
 
-<!-- 4. Unified Topic Actions - REMOVED: file not found -->
-<!-- <script src="{% static 'core/js/unified-topic-actions.js' %}"></script> -->
+<!-- 4. Unified Topic Actions -->
+<script src="{% static 'core/js/unified-topic-actions.js' %}"></script>
 
 <!-- 5. Initialize available systems -->
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Check for available unified systems (ErrorHandler and TopicActions removed)
+    // Check for available unified systems
     if (window.CSRFHandler && window.NotificationSystem) {
         
         // Refresh CSRF token on page load

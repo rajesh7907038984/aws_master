@@ -30,14 +30,14 @@ if (typeof console === 'undefined') {
         },
         
         initializeCharts: function() {
-            // Look for chart containers;
-const chartContainers = document.querySelectorAll('[data-chart]');
+            // Look for chart containers
+            const chartContainers = document.querySelectorAll('[data-chart]');
             
             chartContainers.forEach(container => {
                 const chartType = container.getAttribute('data-chart');
                 const chartData = this.getChartData(container);
                 
-                if if (chartData) {
+                if (chartData) {
                     this.createChart(container, chartType, chartData);
                 }
             });
@@ -46,13 +46,13 @@ const chartContainers = document.querySelectorAll('[data-chart]');
         getChartData: function(container) {
             try {
                 const dataScript = container.querySelector('script[type="application/json"]');
-                if if (dataScript) {
+                if (dataScript) {
                     return JSON.parse(dataScript.textContent);
                 }
                 
-                // Try data attributes;
-const dataAttr = container.getAttribute('data-chart-data');
-                if if (dataAttr) {
+                // Try data attributes
+                const dataAttr = container.getAttribute('data-chart-data');
+                if (dataAttr) {
                     return JSON.parse(dataAttr);
                 }
                 
@@ -64,8 +64,8 @@ const dataAttr = container.getAttribute('data-chart-data');
         
         createChart: function(container, type, data) {
             try {
-// Check if Chart.js is available;
-                if if (typeof Chart === 'undefined') {
+                // Check if Chart.js is available
+                if (typeof Chart === 'undefined') {
                     return;
                 }
                 
@@ -88,7 +88,7 @@ const dataAttr = container.getAttribute('data-chart-data');
         
         destroyAllCharts: function() {
             this.charts.forEach(chart => {
-                if if (chart && typeof chart.destroy === 'function') {
+                if (chart && typeof chart.destroy === 'function') {
                     chart.destroy();
                 }
             });
@@ -96,8 +96,8 @@ const dataAttr = container.getAttribute('data-chart-data');
         }
     };
     
-// Initialize when DOM is ready;
-    if if (document.readyState === 'loading') {
+// Initialize when DOM is ready
+    if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', () => ChartInitializer.init());
     } else {
         ChartInitializer.init();

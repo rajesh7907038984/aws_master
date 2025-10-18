@@ -36,12 +36,12 @@ def validate_file_exists(file_field, error_message=None):
     try:
         # Check if file exists in storage
         if not file_field.storage.exists(file_field.name):
-            error_msg = error_message or f"File not found in storage: {file_field.name}"
+            error_msg = error_message or "File not found in storage: {{file_field.name}}"
             logger.error(error_msg)
             raise FileValidationError(error_msg)
         return True
     except Exception as e:
-        error_msg = error_message or f"Error checking file existence: {str(e)}"
+        error_msg = error_message or "Error checking file existence: {{str(e)}}"
         logger.error(error_msg)
         raise FileValidationError(error_msg)
 
@@ -94,10 +94,10 @@ def validate_storage_consistency(file_field):
         if results['file_exists']:
             results['valid'] = True
         else:
-            results['error'] = f"File not found in storage: {file_field.name}"
+            results['error'] = "File not found in storage: {{file_field.name}}"
             
     except Exception as e:
-        results['error'] = f"Storage error: {str(e)}"
+        results['error'] = "Storage error: {{str(e)}}"
         results['storage_accessible'] = False
     
     return results
@@ -129,7 +129,7 @@ def safe_file_operation(file_field, operation_func, *args, **kwargs):
         return operation_func(file_path, *args, **kwargs)
         
     except Exception as e:
-        error_msg = f"File operation failed: {str(e)}"
+        error_msg = "File operation failed: {{str(e)}}"
         logger.error(error_msg)
         raise FileValidationError(error_msg)
 
@@ -174,7 +174,7 @@ def check_storage_health():
             health['issues'].append("Storage write/read test failed")
             
     except Exception as e:
-        health['issues'].append(f"Storage accessibility test failed: {str(e)}")
+        health['issues'].append("Storage accessibility test failed: {{str(e)}}")
     
     return health
 
@@ -224,6 +224,6 @@ def fix_storage_inconsistencies(model_class, file_field_name):
                 results['fixed_objects'] += 1
                 
     except Exception as e:
-        results['errors'].append(f"Error fixing inconsistencies: {str(e)}")
+        results['errors'].append("Error fixing inconsistencies: {{str(e)}}")
     
     return results

@@ -41,25 +41,25 @@ class Command(BaseCommand):
         
         if dry_run:
             self.stdout.write(
-                self.style.WARNING(f'DRY RUN: Would delete {reset_count} password reset tokens')
+                self.style.WARNING("DRY RUN: Would delete {{reset_count}} password reset tokens")
             )
             self.stdout.write(
-                self.style.WARNING(f'DRY RUN: Would delete {verification_count} email verification tokens')
+                self.style.WARNING("DRY RUN: Would delete {{verification_count}} email verification tokens")
             )
             
             if reset_count > 0:
                 self.stdout.write('\nPassword reset tokens to be deleted:')
                 for token in expired_reset_tokens[:10]:  # Show first 10
-                    self.stdout.write(f'  - {token.user.email} (created: {token.created_at})')
+                    self.stdout.write("  - {{token.user.email}} (created: {{token.created_at}})")
                 if reset_count > 10:
-                    self.stdout.write(f'  ... and {reset_count - 10} more')
+                    self.stdout.write("  ... and {{reset_count - 10}} more")
             
             if verification_count > 0:
                 self.stdout.write('\nEmail verification tokens to be deleted:')
                 for token in expired_verification_tokens[:10]:  # Show first 10
-                    self.stdout.write(f'  - {token.user.email} (created: {token.created_at})')
+                    self.stdout.write("  - {{token.user.email}} (created: {{token.created_at}})")
                 if verification_count > 10:
-                    self.stdout.write(f'  ... and {verification_count - 10} more')
+                    self.stdout.write("  ... and {{verification_count - 10}} more")
         else:
             # Actually delete the tokens
             deleted_reset = expired_reset_tokens.delete()
@@ -67,9 +67,9 @@ class Command(BaseCommand):
             
             self.stdout.write(
                 self.style.SUCCESS(
-                    f'Successfully deleted {deleted_reset[0]} password reset tokens '
-                    f'and {deleted_verification[0]} email verification tokens '
-                    f'older than {days} days'
+                    "Successfully deleted {{deleted_reset[0]}} password reset tokens "
+                    "and {{deleted_verification[0]}} email verification tokens "
+                    "older than {{days}} days"
                 )
             )
             
@@ -93,14 +93,14 @@ class Command(BaseCommand):
             
             self.stdout.write(
                 self.style.SUCCESS(
-                    f'Additionally deleted {deleted_expired_reset[0]} expired password reset tokens '
-                    f'and {deleted_expired_verification[0]} expired email verification tokens'
+                    "Additionally deleted {{deleted_expired_reset[0]}} expired password reset tokens "
+                    "and {{deleted_expired_verification[0]}} expired email verification tokens"
                 )
             )
         elif dry_run and (expired_reset_count > 0 or expired_verification_count > 0):
             self.stdout.write(
                 self.style.WARNING(
-                    f'DRY RUN: Would also delete {expired_reset_count} expired password reset tokens '
-                    f'and {expired_verification_count} expired email verification tokens'
+                    "DRY RUN: Would also delete {{expired_reset_count}} expired password reset tokens "
+                    "and {{expired_verification_count}} expired email verification tokens"
                 )
             ) 

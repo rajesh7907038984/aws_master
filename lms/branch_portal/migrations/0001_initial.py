@@ -124,7 +124,7 @@ class Migration(migrations.Migration):
                 (
                     "font_family",
                     models.CharField(
-                        default="Inter, sans-serif",
+                        default="Inter, sans-seri",
                         help_text="Font family",
                         max_length=100,
                     ),

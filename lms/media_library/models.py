@@ -61,7 +61,7 @@ class MediaFile(models.Model):
         ]
     
     def __str__(self):
-        return f"{self.filename} ({self.storage_type})"
+        return "{{self.filename}} ({{self.storage_type}})"
     
     @property
     def file_size_mb(self):
@@ -103,7 +103,7 @@ class StorageStatistics(models.Model):
         unique_together = ['storage_type']
     
     def __str__(self):
-        return f"{self.storage_type} Storage Statistics"
+        return "{{self.storage_type}} Storage Statistics"
     
     @property
     def total_size_mb(self):

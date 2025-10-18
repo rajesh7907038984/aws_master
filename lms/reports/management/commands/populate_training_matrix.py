@@ -27,7 +27,7 @@ class Command(BaseCommand):
             course, created = Course.objects.get_or_create(
                 title=title,
                 defaults={
-                    'description': f'Learn {title} with our comprehensive course',
+                    'description': "Learn {{title}} with our comprehensive course",
                     'is_active': True,
                     'catalog_visibility': 'visible',
                     'public_enrollment': True,
@@ -38,14 +38,14 @@ class Command(BaseCommand):
             )
             
             if created:
-                self.stdout.write(f"Created course: {title}")
+                self.stdout.write("Created course: {{title}}")
                 # Create topics for each course
                 for i in range(1, 6):
-                    topic_title = f'Topic {i} - {title}'
+                    topic_title = "Topic {{i}} - {{title}}"
                     topic, topic_created = Topic.objects.get_or_create(
                         title=topic_title,
                         defaults={
-                            'description': f'Description for Topic {i} of {title}',
+                            'description': "Description for Topic {{i}} of {{title}}",
                             'content_type': random.choice(['Text', 'Video', 'Document', 'Web']),
                             'status': 'active',
                             'order': i,
@@ -53,7 +53,7 @@ class Command(BaseCommand):
                     )
                     
                     if topic_created:
-                        self.stdout.write(f"Created topic: {topic_title}")
+                        self.stdout.write("Created topic: {{topic_title}}")
                     
                     # Connect topic to course
                     CourseTopic.objects.get_or_create(
@@ -68,13 +68,13 @@ class Command(BaseCommand):
             user, created = User.objects.get_or_create(
                 username=username,
                 defaults={
-                    'email': f'{username}@example.com',
-                    'first_name': f'First {username}',
-                    'last_name': f'Last {username}'
+                    'email': "{{username}}@example.com",
+                    'first_name': "First {{username}}",
+                    'last_name': "Last {{username}}"
                 }
             )
             if created:
-                self.stdout.write(f"Created user: {username}")
+                self.stdout.write("Created user: {{username}}")
 
         # Create enrollments and progress
         courses = Course.objects.all()
@@ -97,7 +97,7 @@ class Command(BaseCommand):
                 )
                 
                 if created:
-                    self.stdout.write(f"Enrolled {user.username} in {course.title} with status: {status}")
+                    self.stdout.write("Enrolled {{user.username}} in {{course.title}} with status: {{status}}")
 
                 # Create topic progress
                 course_topics = CourseTopic.objects.filter(course=course)
@@ -117,7 +117,7 @@ class Command(BaseCommand):
                         )
                         
                         if progress_created:
-                            progress_status = "completed" if progress == 100 else f"{progress}% complete"
-                            self.stdout.write(f"Created progress for {user.username} on {topic.title}: {progress_status}")
+                            progress_status = "completed" if progress == 100 else "{{progress}}% complete"
+                            self.stdout.write("Created progress for {{user.username}} on {{topic.title}}: {{progress_status}}")
 
         self.stdout.write(self.style.SUCCESS('Successfully populated training matrix data')) 

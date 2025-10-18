@@ -60,7 +60,7 @@ def update_topic_progress_on_conference_participation(sender, instance, **kwargs
                     })
                     
                     # Log the completion
-                    logger.info(f"Conference participation auto-marked topic {topic.id} as complete for user {instance.user.username}")
+                    logger.info("Conference participation auto-marked topic {{topic.id}} as complete for user {{instance.user.username}}")
             
             topic_progress.save()
             
@@ -70,7 +70,7 @@ def update_topic_progress_on_conference_participation(sender, instance, **kwargs
                 
     except Exception as e:
         # Log error but don't fail the save operation
-        logger.error(f"Error updating topic progress for conference participation: {e}")
+        logger.error("Error updating topic progress for conference participation: {{e}}")
 
 
 @receiver(post_save, sender=Conference)
@@ -92,14 +92,14 @@ def send_conference_notifications(sender, instance, created, **kwargs):
             ).select_related('user')
             
             # Format date and time
-            conference_datetime = f"{instance.date.strftime('%B %d, %Y')} at {instance.start_time.strftime('%I:%M %p')}"
+            conference_datetime = "{{instance.date.strftime('%B %d, %Y')}} at {{instance.start_time.strftime('%I:%M %p')}}"
             if instance.end_time:
-                conference_datetime += f" - {instance.end_time.strftime('%I:%M %p')}"
+                conference_datetime += " - {{instance.end_time.strftime('%I:%M %p')}}"
             
             for enrollment in enrollments:
                 try:
                     # Prepare conference notification message
-                    conference_message = f"""
+                    conference_message = """
                     <h2>New Conference Scheduled</h2>
                     <p>Dear {enrollment.user.first_name or enrollment.user.username},</p>
                     <p>A new conference has been scheduled for your course:</p>
@@ -111,7 +111,7 @@ def send_conference_notifications(sender, instance, created, **kwargs):
                         <li><strong>Timezone:</strong> {instance.timezone}</li>
                         <li><strong>Platform:</strong> {instance.get_meeting_platform_display()}</li>
                     </ul>
-                    {f'<div style="background-color: #f5f5f5; padding: 15px; border-left: 4px solid #2196F3; margin: 15px 0;"><p><strong>Description:</strong></p><p>{instance.description}</p></div>' if instance.description else ''}
+                    {"<div style="background-color: #f5f5f5; padding: 15px; border-left: 4px solid #2196F3; margin: 15px 0;"><p><strong>Description:</strong></p><p>{{instance.description}}</p></div>" if instance.description else ''}
                     <p>Please mark your calendar and join the conference at the scheduled time.</p>
                     <p>We look forward to seeing you there!</p>
                     <p>Best regards,<br>The LMS Team</p>
@@ -121,25 +121,25 @@ def send_conference_notifications(sender, instance, created, **kwargs):
                     notification = send_notification(
                         recipient=enrollment.user,
                         notification_type_name='conference_reminder',
-                        title=f"Conference Scheduled: {instance.title}",
+                        title="Conference Scheduled: {{instance.title}}",
                         message=conference_message,
-                        short_message=f"A new conference '{instance.title}' has been scheduled for {instance.date.strftime('%B %d, %Y')}",
+                        short_message="A new conference '{{instance.title}}' has been scheduled for {{instance.date.strftime('%B %d, %Y')}}",
                         priority='normal',
-                        action_url=f"/conferences/{instance.id}/",
+                        action_url="/conferences/{{instance.id}}/",
                         action_text="View Conference Details",
                         send_email=True
                     )
                     
                     if notification:
-                        logger.info(f"Conference notification sent to user: {enrollment.user.username} for conference: {instance.title}")
+                        logger.info("Conference notification sent to user: {{enrollment.user.username}} for conference: {{instance.title}}")
                     else:
-                        logger.warning(f"Conference notification created but email may not have been sent for user: {enrollment.user.username}")
+                        logger.warning("Conference notification created but email may not have been sent for user: {{enrollment.user.username}}")
                         
                 except Exception as e:
-                    logger.error(f"Error sending conference notification to {enrollment.user.username}: {str(e)}")
+                    logger.error("Error sending conference notification to {{enrollment.user.username}}: {{str(e)}}")
                     
         except Exception as e:
-            logger.error(f"Error processing conference notifications: {str(e)}")
+            logger.error("Error processing conference notifications: {{str(e)}}")
 
 
 @receiver(pre_save, sender=Conference)
@@ -185,14 +185,14 @@ def send_conference_update_email(sender, instance, created, **kwargs):
             ).select_related('user')
             
             # Format date and time
-            conference_datetime = f"{instance.date.strftime('%B %d, %Y')} at {instance.start_time.strftime('%I:%M %p')}"
+            conference_datetime = "{{instance.date.strftime('%B %d, %Y')}} at {{instance.start_time.strftime('%I:%M %p')}}"
             if instance.end_time:
-                conference_datetime += f" - {instance.end_time.strftime('%I:%M %p')}"
+                conference_datetime += " - {{instance.end_time.strftime('%I:%M %p')}}"
             
             for enrollment in enrollments:
                 try:
                     # Prepare conference update message
-                    update_message = f"""
+                    update_message = """
                     <h2>Conference Updated</h2>
                     <p>Dear {enrollment.user.first_name or enrollment.user.username},</p>
                     <p>The details for a conference in your course have been updated:</p>
@@ -207,7 +207,7 @@ def send_conference_update_email(sender, instance, created, **kwargs):
                     <div style="background-color: #fff3cd; padding: 15px; border-left: 4px solid #ffc107; margin: 15px 0;">
                         <p><strong> Important:</strong> Please update your calendar with the new details.</p>
                     </div>
-                    {f'<div style="background-color: #f5f5f5; padding: 15px; border-left: 4px solid #2196F3; margin: 15px 0;"><p><strong>Description:</strong></p><p>{instance.description}</p></div>' if instance.description else ''}
+                    {"<div style="background-color: #f5f5f5; padding: 15px; border-left: 4px solid #2196F3; margin: 15px 0;"><p><strong>Description:</strong></p><p>{{instance.description}}</p></div>" if instance.description else ''}
                     <p>We apologize for any inconvenience this may cause.</p>
                     <p>Best regards,<br>The LMS Team</p>
                     """
@@ -216,22 +216,22 @@ def send_conference_update_email(sender, instance, created, **kwargs):
                     notification = send_notification(
                         recipient=enrollment.user,
                         notification_type_name='conference_reminder',
-                        title=f"Conference Updated: {instance.title}",
+                        title="Conference Updated: {{instance.title}}",
                         message=update_message,
-                        short_message=f"Conference '{instance.title}' has been updated. Please check new details.",
+                        short_message="Conference '{{instance.title}}' has been updated. Please check new details.",
                         priority='high',
-                        action_url=f"/conferences/{instance.id}/",
+                        action_url="/conferences/{{instance.id}}/",
                         action_text="View Updated Details",
                         send_email=True
                     )
                     
                     if notification:
-                        logger.info(f"Conference update notification sent to user: {enrollment.user.username} for conference: {instance.title}")
+                        logger.info("Conference update notification sent to user: {{enrollment.user.username}} for conference: {{instance.title}}")
                     else:
-                        logger.warning(f"Conference update notification created but email may not have been sent for user: {enrollment.user.username}")
+                        logger.warning("Conference update notification created but email may not have been sent for user: {{enrollment.user.username}}")
                         
                 except Exception as e:
-                    logger.error(f"Error sending conference update notification to {enrollment.user.username}: {str(e)}")
+                    logger.error("Error sending conference update notification to {{enrollment.user.username}}: {{str(e)}}")
                     
         except Exception as e:
-            logger.error(f"Error processing conference update notifications: {str(e)}")
+            logger.error("Error processing conference update notifications: {{str(e)}}")

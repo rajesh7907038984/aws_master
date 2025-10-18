@@ -1,8 +1,7 @@
 from django.db import models
 from django.conf import settings
 from django.utils import timezone
-from courses.models import Course, Topic
-from users.models import CustomUser
+# Removed direct imports to avoid circular imports
 from django.core.exceptions import ValidationError
 from core.utils.fields import TinyMCEField
 from core.s3_storage import MediaS3Storage
@@ -118,14 +117,7 @@ class Assignment(models.Model):
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    course = models.ForeignKey(
-        'courses.Course',
-        on_delete=models.CASCADE,
-        related_name='assignments',
-        null=True,
-        blank=True
-    )
-    # Add many-to-many relationship with Course through AssignmentCourse
+    # Use only many-to-many relationship with Course through AssignmentCourse
     courses = models.ManyToManyField(
         'courses.Course',
         through='AssignmentCourse',
@@ -144,7 +136,7 @@ class Assignment(models.Model):
         app_label = 'assignments'
         ordering = ['-created_at']
         indexes = [
-            models.Index(fields=['course', '-created_at']),
+            models.Index(fields=['-created_at']),
         ]
 
     def __str__(self):
@@ -164,11 +156,17 @@ class Assignment(models.Model):
             return False
         return timezone.now() + timezone.timedelta(hours=24) > self.due_date > timezone.now()
 
+    @property
+    def course(self):
+        """Get the primary course for this assignment"""
+        return self.get_course_info()
+
     def get_course_info(self):
         """Get course information for this assignment, checking both direct and topic relationships"""
         # First check if assignment has a direct course relationship
-        if self.course:
-            return self.course
+        course = self.courses.first()
+        if course:
+            return course
         
         # If no direct course, check through topics
         # Get the first topic that this assignment is associated with
@@ -211,8 +209,6 @@ class Assignment(models.Model):
             
             # Check if assignment is linked to any enrolled courses through any relationship
             linked_to_enrolled_course = (
-                # Direct course relationship
-                (self.course and self.course.id in enrolled_course_ids) or
                 # M2M course relationship
                 self.courses.filter(id__in=enrolled_course_ids).exists() or
                 # Topic-based course relationship
@@ -1134,8 +1130,8 @@ def create_or_update_grade(sender, instance, **kwargs):
         
         # Get the assignment's course
         course = None
-        if instance.assignment.course:
-            course = instance.assignment.course
+        if instance.assignment.courses.exists():
+            course = instance.assignment.courses.first()
         else:
             # Try to find course through topics
             topics = Topic.objects.filter(assignment=instance.assignment)
@@ -1144,11 +1140,6 @@ def create_or_update_grade(sender, instance, **kwargs):
                 course_topic = topic.coursetopic_set.first()
                 if course_topic:
                     course = course_topic.course
-                    
-                    # Update assignment's course reference for future use
-                    if not instance.assignment.course:
-                        instance.assignment.course = course
-                        instance.assignment.save(update_fields=['course'])
         
         if course and instance.user:
             # Use a transaction to ensure atomicity

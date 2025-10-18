@@ -68,7 +68,7 @@ class Migration(migrations.Migration):
                     "font_family",
                     models.CharField(
                         blank=True,
-                        default="Arial, sans-serif",
+                        default="Arial, sans-seri",
                         max_length=100,
                         null=True,
                     ),

@@ -45,7 +45,7 @@ def simple_category_create(request):
             base_slug = slug
             counter = 1
             while CourseCategory.objects.filter(slug=slug).exists():
-                slug = f"{base_slug}-{counter}"
+                slug = "{{base_slug}}-{{counter}}"
                 counter += 1
                 if counter > 1000:
                     return JsonResponse({
@@ -70,7 +70,7 @@ def simple_category_create(request):
             })
             
         except Exception as e:
-            logger.error(f"Category creation error: {str(e)}")
+            logger.error("Category creation error: {{str(e)}}")
             return JsonResponse({
                 'status': 'error',
                 'message': 'Failed to create category'

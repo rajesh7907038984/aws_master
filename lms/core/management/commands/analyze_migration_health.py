@@ -64,10 +64,10 @@ class Command(BaseCommand):
             
             if all_issues:
                 self.stdout.write(
-                    self.style.WARNING(f'  Found {len(all_issues)} potential issues:')
+                    self.style.WARNING("  Found {{len(all_issues)}} potential issues:")
                 )
                 for issue in all_issues:
-                    self.stdout.write(f'   - {issue}')
+                    self.stdout.write("   - {{issue}}")
                 
                 if fix_issues and not dry_run:
                     self.stdout.write(
@@ -85,7 +85,7 @@ class Command(BaseCommand):
             
         except Exception as e:
             self.stdout.write(
-                self.style.ERROR(f' Error during migration health check: {e}')
+                self.style.ERROR(" Error during migration health check: {{e}}")
             )
             raise
 
@@ -108,11 +108,11 @@ class Command(BaseCommand):
                         deps_content = deps_match.group(1)
                         dep_matches = re.findall(r'[\"\'](.*?)[\"\']\s*,\s*[\"\'](.*?)[\"\']', deps_content)
                         for app, migration in dep_matches:
-                            dep_key = f'{app}.{migration}'
+                            dep_key = "{{app}}.{{migration}}"
                             migration_deps[migration_key].append(dep_key)
             except Exception as e:
                 if verbose:
-                    self.stdout.write(f' Error parsing {filepath}: {e}')
+                    self.stdout.write(" Error parsing {{filepath}}: {{e}}")
         
         # Check for circular dependencies
         if self.has_circular_dependency(migration_deps):
@@ -125,7 +125,7 @@ class Command(BaseCommand):
                     not dep.startswith('auth.') and 
                     not dep.startswith('contenttypes.') and
                     'swappable_dependency' not in dep):
-                    issues.append(f'Missing dependency: {migration} → {dep}')
+                    issues.append("Missing dependency: {{migration}} → {{dep}}")
         
         return issues
 
@@ -147,7 +147,7 @@ class Command(BaseCommand):
         # Flag apps with excessive merge migrations
         for app, count in app_merge_counts.items():
             if count > 3:
-                issues.append(f'Complex merge history in {app}: {count} merge migrations')
+                issues.append("Complex merge history in {{app}}: {{count}} merge migrations")
         
         return issues
 
@@ -167,7 +167,7 @@ class Command(BaseCommand):
         for prob_dep in problematic_deps:
             dependents = self.find_dependents(prob_dep)
             if len(dependents) > 2:
-                issues.append(f'High dependency pattern: {len(dependents)} migrations depend on {prob_dep}')
+                issues.append("High dependency pattern: {{len(dependents)}} migrations depend on {{prob_dep}}")
         
         return issues
 
@@ -184,10 +184,10 @@ class Command(BaseCommand):
         # Look for migrations that might be isolated
         for app_name in apps.get_app_configs():
             app_label = app_name.label
-            app_migrations = [k for k in migration_files.keys() if k.startswith(f'{app_label}.')]
+            app_migrations = [k for k in migration_files.keys() if k.startswith("{{app_label}}.")]
             
             if len(app_migrations) > 20:  # Apps with many migrations might have issues
-                issues.append(f'App {app_label} has {len(app_migrations)} migrations - consider consolidation')
+                issues.append("App {{app_label}} has {{len(app_migrations)}} migrations - consider consolidation")
         
         return issues
 
@@ -219,17 +219,17 @@ class Command(BaseCommand):
                     migration_files = self.get_migration_files()
                     
                     for app, name in applied_migrations:
-                        migration_key = f'{app}.{name}'
+                        migration_key = "{{app}}.{{name}}"
                         if (migration_key not in migration_files and 
                             not app.startswith('auth') and 
                             not app.startswith('contenttypes') and
                             not app.startswith('sessions') and
                             not app.startswith('admin') and
                             not app.startswith('sites')):
-                            issues.append(f'Applied migration file missing: {migration_key}')
+                            issues.append("Applied migration file missing: {{migration_key}}")
         
         except Exception as e:
-            issues.append(f'Database check failed: {e}')
+            issues.append("Database check failed: {{e}}")
         
         return issues
 
@@ -247,7 +247,7 @@ class Command(BaseCommand):
                             app_name = path_parts[-2]  # Directory before migrations
                             migration_name = file[:-3]  # Remove .py
                             filepath = os.path.join(root, file)
-                            migration_files[f'{app_name}.{migration_name}'] = filepath
+                            migration_files["{{app_name}}.{{migration_name}}"] = filepath
         
         return migration_files
 
@@ -300,24 +300,24 @@ class Command(BaseCommand):
         for issue in issues:
             try:
                 if 'Missing dependency' in issue:
-                    self.stdout.write(f' Attempting to fix: {issue}')
+                    self.stdout.write(" Attempting to fix: {{issue}}")
                     # This would need specific logic based on the issue
                     # For now, just log that we would fix it
                     self.stdout.write('   → Would resolve missing dependency')
                     fixed_count += 1
                 
                 elif 'Complex merge history' in issue:
-                    self.stdout.write(f' Recommendation for: {issue}')
+                    self.stdout.write(" Recommendation for: {{issue}}")
                     self.stdout.write('   → Consider squashing migrations in this app')
                 
                 elif 'High dependency pattern' in issue:
-                    self.stdout.write(f' Manual review needed: {issue}')
+                    self.stdout.write(" Manual review needed: {{issue}}")
                     self.stdout.write('   → Review dependency chain for potential conflicts')
                 
             except Exception as e:
-                self.stdout.write(f' Failed to fix issue: {issue} - {e}')
+                self.stdout.write(" Failed to fix issue: {{issue}} - {{e}}")
         
         if fixed_count > 0:
             self.stdout.write(
-                self.style.SUCCESS(f' Fixed {fixed_count} issues')
+                self.style.SUCCESS(" Fixed {{fixed_count}} issues")
             )

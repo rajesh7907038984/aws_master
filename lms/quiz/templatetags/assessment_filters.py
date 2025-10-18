@@ -80,7 +80,7 @@ def json_parse(value):
                         return ast.literal_eval(value)
                     else:
                         # Log potentially dangerous content
-                        logger.warning(f"Potentially unsafe string rejected in json_parse: {value[:100]}...")
+                        logger.warning("Potentially unsafe string rejected in json_parse: {{value[:100]}}...")
                         return []
                 except ValueError:
                     return []

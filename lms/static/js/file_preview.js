@@ -28,26 +28,27 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Generic file preview handler
     function handleFilePreview(input, fileType) {
-        const container = input.closest('.file-upload-container');
-        if (!container) {
-            return;
-        }
-        
-        // Find or create a filename display element
-        let filenameDisplay = container.querySelector('.selected-filename');
-        if (!filenameDisplay) {
-            filenameDisplay = document.createElement('div');
-            filenameDisplay.className = 'selected-filename mt-2 text-sm font-medium text-blue-600';
-            container.appendChild(filenameDisplay);
-        }
-        
-        // Find or create a preview element
-        let preview = container.querySelector('.file-preview');
-        if (!preview) {
-            preview = document.createElement('div');
-            preview.className = 'file-preview mt-2';
-            container.appendChild(preview);
-        }
+        try {
+            const container = input.closest('.file-upload-container');
+            if (!container) {
+                return;
+            }
+            
+            // Find or create a filename display element
+            let filenameDisplay = container.querySelector('.selected-filename');
+            if (!filenameDisplay) {
+                filenameDisplay = document.createElement('div');
+                filenameDisplay.className = 'selected-filename mt-2 text-sm font-medium text-blue-600';
+                container.appendChild(filenameDisplay);
+            }
+            
+            // Find or create a preview element
+            let preview = container.querySelector('.file-preview');
+            if (!preview) {
+                preview = document.createElement('div');
+                preview.className = 'file-preview mt-2';
+                container.appendChild(preview);
+            }
         
         if (input.files && input.files[0]) {
             const file = input.files[0];
@@ -108,12 +109,21 @@ document.addEventListener('DOMContentLoaded', function() {
                     break;
                     
                 case 'document':
-                    preview.innerHTML = `
-                        <div class="flex items-center space-x-2 p-2 bg-gray-50 rounded-lg">
-                            <i class="fas fa-file text-gray-500"></i>
-                            <span class="text-sm text-gray-700">${file.name}</span>
-                        </div>
-                    `;
+                    if (window.SafeHTMLUtils) {
+                        window.SafeHTMLUtils.setSafeInnerHTML(preview, `
+                            <div class="flex items-center space-x-2 p-2 bg-gray-50 rounded-lg">
+                                <i class="fas fa-file text-gray-500"></i>
+                                <span class="text-sm text-gray-700">${window.SafeHTMLUtils.escapeHTML(file.name)}</span>
+                            </div>
+                        `);
+                    } else {
+                        preview.innerHTML = `
+                            <div class="flex items-center space-x-2 p-2 bg-gray-50 rounded-lg">
+                                <i class="fas fa-file text-gray-500"></i>
+                                <span class="text-sm text-gray-700">${file.name}</span>
+                            </div>
+                        `;
+                    }
                     preview.classList.remove('hidden');
                     break;
             }

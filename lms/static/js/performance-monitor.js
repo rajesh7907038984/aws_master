@@ -22,15 +22,33 @@
         },
         
         trackUserInteractions: function() {
-            // Track form submissions
-            document.addEventListener('submit', function(e) {
-            });
-            
-            // Track navigation clicks
-            document.addEventListener('click', function(e) {
-                if (e.target.tagName === 'A') {
-                }
-            });
+            try {
+                // Track form submissions
+                document.addEventListener('submit', function(e) {
+                    try {
+                        // Track form submission metrics
+                        // Debug logging removed for production
+                    } catch (error) {
+                        console.error('Error tracking form submission:', error);
+                    }
+                });
+                
+                // Track navigation clicks
+                document.addEventListener('click', function(e) {
+                    try {
+                        if (e.target.tagName === 'A') {
+                            // Track navigation metrics
+                            if (window.DEBUG_MODE) {
+                                // Debug logging removed for production
+                            }
+                        }
+                    } catch (error) {
+                        console.error('Error tracking navigation click:', error);
+                    }
+                });
+            } catch (error) {
+                console.error('Error setting up user interaction tracking:', error);
+            }
         },
         
         getMetrics: function() {

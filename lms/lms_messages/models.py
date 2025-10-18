@@ -2,7 +2,7 @@ from django.db import models
 from django.conf import settings
 from django.utils import timezone
 from core.utils.fields import TinyMCEField
-from users.models import Branch
+from branches.models import Branch
 from groups.models import BranchGroup
 from core.s3_storage import MediaS3Storage
 

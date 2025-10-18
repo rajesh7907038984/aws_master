@@ -1,8 +1,9 @@
 from django import forms
-from .models import Assignment, Topic, TextQuestion, AssignmentAttachment, SupportingDocQuestion, StudentAnswer, AssignmentCourse, TopicAssignment
+from .models import Assignment, TextQuestion, AssignmentAttachment, SupportingDocQuestion, StudentAnswer, AssignmentCourse, TopicAssignment
+from courses.models import Topic
 from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
-from core.utils.forms import CustomTinyMCEFormField, BaseModelFormWithQuill
+from core.utils.forms import CustomTinyMCEFormField, BaseModelFormWithTinyMCE
 import mimetypes
 from lms_rubrics.models import Rubric
 from django.utils import timezone
@@ -10,6 +11,7 @@ from multiupload.fields import MultiFileField
 from tinymce_editor.forms import TinyMCEFormField
 from tinymce_editor.widgets import TinyMCEWidget
 from django.db.models import Q
+from media_library.utils import register_media_file
 
 
 class DateTimeLocalInput(forms.DateTimeInput):
@@ -161,7 +163,7 @@ class AssignmentForm(forms.ModelForm):
             self.fields['course_ids'].choices = [(str(course.id), course.title) for course in Course.objects.all().order_by('title')]
         
         # Populate topic choices
-        self.fields['topic_ids'].choices = [(str(topic.id), f"{topic.title} ({topic.get_content_type_display()})") for topic in Topic.objects.all().order_by('title')]
+        self.fields['topic_ids'].choices = [(str(topic.id), "{{topic.title}} ({{topic.get_content_type_display()}})") for topic in Topic.objects.all().order_by('title')]
         
         # Filter rubrics based on user role using centralized function
         from lms_rubrics.utils import get_filtered_rubrics_for_user
@@ -231,12 +233,12 @@ class AssignmentForm(forms.ModelForm):
         if attachment and hasattr(attachment, 'name'):
             # Check file type
             if allowed_file_types and not any(attachment.name.lower().endswith(ext.lower()) for ext in allowed_file_types.split(',')):
-                self.add_error('attachment', f"File type not allowed. Allowed types: {allowed_file_types}")
+                self.add_error('attachment', "File type not allowed. Allowed types: {{allowed_file_types}}")
             
             # Check file size
             if attachment.size > max_file_size:
                 max_size_mb = max_file_size / (1024 * 1024)
-                self.add_error('attachment', f"File size exceeds the maximum allowed size ({max_size_mb:.1f}MB)")
+                self.add_error('attachment', "File size exceeds the maximum allowed size ({{max_size_mb:.1f}}MB)")
             
             # Set content type
             content_type, encoding = mimetypes.guess_type(attachment.name)
@@ -254,12 +256,12 @@ class AssignmentForm(forms.ModelForm):
                 if allowed_file_types and allowed_file_types.strip():
                     file_extensions = [ext.strip() for ext in allowed_file_types.split(',')]
                     if not any(file.name.lower().endswith(ext.lower()) for ext in file_extensions):
-                        invalid_files.append(f"{file.name} (invalid file type)")
+                        invalid_files.append("{{file.name}} (invalid file type)")
                     
                 # Check file size
                 if file.size > max_file_size:
                     max_size_mb = max_file_size / (1024 * 1024)
-                    invalid_files.append(f"{file.name} (exceeds {max_size_mb:.1f}MB size limit)")
+                    invalid_files.append("{{file.name}} (exceeds {{max_size_mb:.1f}}MB size limit)")
             
             if invalid_files:
                 error_message = "File upload validation failed: " + "; ".join(invalid_files)
@@ -271,7 +273,7 @@ class AssignmentForm(forms.ModelForm):
             if total_size > max_total_size:
                 total_mb = total_size / (1024 * 1024)
                 max_total_mb = max_total_size / (1024 * 1024)
-                self.add_error('attachments', f"Total file size ({total_mb:.1f}MB) exceeds maximum allowed ({max_total_mb:.1f}MB)")
+                self.add_error('attachments', "Total file size ({{total_mb:.1f}}MB) exceeds maximum allowed ({{max_total_mb:.1f}}MB)")
         
         # Validate due date is in the future if provided (only for new assignments)
         due_date = cleaned_data.get('due_date')
@@ -405,16 +407,16 @@ class AssignmentForm(forms.ModelForm):
                             source_object_id=attachment_obj.id,
                             course=instance.course if hasattr(instance, 'course') else None,
                             filename=attachment.name,
-                            description=f'Assignment attachment for: {instance.title}'
+                            description="Assignment attachment for: {{instance.title}}"
                         )
                     except Exception as e:
                         import logging
                         logger = logging.getLogger(__name__)
-                        logger.error(f"Error registering assignment attachment in media database: {str(e)}")
+                        logger.error("Error registering assignment attachment in media database: {{str(e)}}")
                     
         return instance
 
-class TextQuestionForm(BaseModelFormWithQuill):
+class TextQuestionForm(BaseModelFormWithTinyMCE):
     question_text = CustomTinyMCEFormField(required=True)
     
     class Meta:
@@ -585,7 +587,7 @@ class AssignmentGradingForm(forms.Form):
         grade = self.cleaned_data.get('grade')
         if grade is not None and self.assignment and self.assignment.max_score:
             if grade > self.assignment.max_score:
-                raise forms.ValidationError(f"Grade cannot exceed maximum score of {self.assignment.max_score}")
+                raise forms.ValidationError("Grade cannot exceed maximum score of {{self.assignment.max_score}}")
         return grade
     
     def clean_audio_feedback(self):

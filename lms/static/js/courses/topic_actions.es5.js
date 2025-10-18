@@ -461,7 +461,19 @@ function showNotification(message, type) {
         notification.style.color = '#0c4a6e';
     }
     
-    notification.innerHTML = message + '<button class="ml-4 text-sm opacity-75" onclick="this.parentNode.remove()">×</button>';
+    // Create notification content safely
+    const messageSpan = document.createElement('span');
+    messageSpan.textContent = message;
+    
+    const closeButton = document.createElement('button');
+    closeButton.className = 'ml-4 text-sm opacity-75';
+    closeButton.textContent = '×';
+    closeButton.onclick = function() {
+        this.parentNode.remove();
+    };
+    
+    notification.appendChild(messageSpan);
+    notification.appendChild(closeButton);
     document.body.appendChild(notification);
     
     // Remove after 5 seconds
@@ -602,6 +614,7 @@ function autoMarkTopicAsComplete() {
         var topicType = topicTypeElement.textContent.trim();
         
         // Auto-complete for certain content types if we haven't already
+        if (topicType === 'Video' || topicType === 'Audio' || topicType === 'Document') {
             // Check if we've already marked this as complete
             if (localStorage.getItem('topic_' + topicId + '_completed') === 'true') {
                 updateCompletionUI(topicId);
@@ -648,9 +661,11 @@ function autoMarkTopicAsComplete() {
                             showCompletionToast('Topic');
                         }
                     } else {
+                        // Handle other cases if needed
                     }
                 })
                 .catch(function(error) {
+                    console.error('Auto-complete error:', error);
                 });
             }, 10000);
             

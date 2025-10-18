@@ -203,16 +203,19 @@ class MobileTabsAccordion {
         
         // Add event listener for toggle
         toggle.addEventListener('click', () => {
-            const isActive = toggle.classList.contains('active');
-            
-            if (isActive) {
-                toggle.classList.remove('active');
-                scrollWrapper.classList.remove('active');
-            } else {
-                toggle.classList.add('active');
-                scrollWrapper.classList.add('active');
+            try {
+                const isActive = toggle.classList.contains('active');
+                
+                if (isActive) {
+                    toggle.classList.remove('active');
+                    scrollWrapper.classList.remove('active');
+                } else {
+                    toggle.classList.add('active');
+                    scrollWrapper.classList.add('active');
+                }
+            } catch (error) {
+                console.error('Error handling mobile accordion toggle:', error);
             }
-            
         });
         
         return container;
@@ -243,7 +246,7 @@ class MobileTabsAccordion {
             // Card header from first cell
             const cardHeader = document.createElement('div');
             cardHeader.className = 'mobile-table-card-header';
-            cardHeader.textContent = cells[0]?.textContent?.trim() || `Item ${i}`;
+            cardHeader.textContent = cells[0]?.textContent?.trim() || 'Item ' + i;
             card.appendChild(cardHeader);
             
             // Card rows for remaining cells
@@ -253,7 +256,7 @@ class MobileTabsAccordion {
                 
                 const label = document.createElement('div');
                 label.className = 'mobile-table-card-label';
-                label.textContent = headers[j] || `Field ${j}`;
+                label.textContent = headers[j] || 'Field ' + j;
                 
                 const value = document.createElement('div');
                 value.className = 'mobile-table-card-value';
@@ -518,7 +521,7 @@ class MobileTabsAccordion {
                 
                 // Get course data from the DOM elements in the content area first, then fallback to document
                 const getElementText = (id) => {
-                    let element = content.querySelector(`#${id}`) || document.getElementById(id);
+                    let element = content.querySelector('#' + id) || document.getElementById(id);
                     return element ? element.textContent : '';
                 };
                 
@@ -559,7 +562,7 @@ class MobileTabsAccordion {
                                         const value = context.raw || 0;
                                         const total = context.dataset.data.reduce((acc, val) => acc + val, 0);
                                         const percentage = total > 0 ? Math.round((value / total) * 100) : 0;
-                                        return `${label}: ${value} (${percentage}%)`;
+                                        return label + ': ' + value + ' (' + percentage + '%)';
                                     }
                                 }
                             }
@@ -818,80 +821,88 @@ class MobileTabsAccordion {
      * Handle desktop tab clicks
      */
     handleTabClick(event) {
-        const tab = event.currentTarget;
-        const tabTarget = tab.getAttribute('data-tab-target');
-        
-        if (!tabTarget) return;
-        
-        
-        // Find the container
-        const container = tab.closest('.tab-responsive-container, .tab-container, [data-tab-container]') || 
-                         tab.closest('div, section, article');
-        
-        // Update desktop tabs - this should hide previous and show new content
-        this.updateDesktopTabs(container, tab);
-        
-        // Update corresponding accordion
-        this.updateAccordionFromDesktopTab(container, tab, tabTarget);
-        
-        // Don't sync content to preserve unique content per tab
-        // this.syncContentToAccordion(tabTarget);
+        try {
+            const tab = event.currentTarget;
+            const tabTarget = tab.getAttribute('data-tab-target');
+            
+            if (!tabTarget) return;
+            
+            
+            // Find the container
+            const container = tab.closest('.tab-responsive-container, .tab-container, [data-tab-container]') || 
+                             tab.closest('div, section, article');
+            
+            // Update desktop tabs - this should hide previous and show new content
+            this.updateDesktopTabs(container, tab);
+            
+            // Update corresponding accordion
+            this.updateAccordionFromDesktopTab(container, tab, tabTarget);
+            
+            // Don't sync content to preserve unique content per tab
+            // this.syncContentToAccordion(tabTarget);
+        } catch (error) {
+            console.error('Error handling desktop tab click:', error);
+        }
     }
     
     /**
      * Handle accordion clicks
      */
     handleAccordionClick(event) {
-        const header = event.currentTarget;
-        const accordionTarget = header.getAttribute('data-accordion-target');
-        
-        if (!accordionTarget) {
-            return;
-        }
-        
-        
-        // Find the container
-        const container = header.closest('.tab-responsive-container, .tab-container, [data-tab-container]') || 
-                         header.closest('div, section, article');
-        
-        const accordionContainer = header.closest('.tab-accordion-container');
-        const accordionItem = header.closest('.tab-accordion-item');
-        
-        if (!accordionContainer) {
-            return;
-        }
-        
-        if (!accordionItem) {
-            return;
-        }
-        
-        // Toggle accordion item
-        this.toggleAccordionItem(accordionContainer, accordionItem, header);
-        
-        // For mobile accordion, we need to ensure the accordion content is populated
-        const desktopTabTarget = accordionTarget.replace('-accordion', '');
-        const desktopContent = document.querySelector(desktopTabTarget);
-        const accordionContent = document.querySelector(`#${accordionTarget.substring(1)}`);
-        
-        
-        // Sync content from desktop to accordion if accordion is empty or needs content
-        if (desktopContent && accordionContent) {
-            if (accordionContent.innerHTML.trim() === '' || 
-                accordionContent.innerHTML.includes('Content will be populated by JavaScript')) {
-                
-                
-                // Clone and optimize content for mobile
-                accordionContent.innerHTML = desktopContent.innerHTML;
-                this.optimizeAccordionContentForMobile(accordionContent);
-                
-                // Force chart reinitialization for the newly populated content
-                setTimeout(() => {
-                    this.forceChartReinitialization(accordionContent);
-                }, 500);
-                
+        try {
+            const header = event.currentTarget;
+            const accordionTarget = header.getAttribute('data-accordion-target');
+            
+            if (!accordionTarget) {
+                return;
+            }
+            
+            
+            // Find the container
+            const container = header.closest('.tab-responsive-container, .tab-container, [data-tab-container]') || 
+                             header.closest('div, section, article');
+            
+            const accordionContainer = header.closest('.tab-accordion-container');
+            const accordionItem = header.closest('.tab-accordion-item');
+            
+            if (!accordionContainer) {
+                return;
+            }
+            
+            if (!accordionItem) {
+                return;
+            }
+            
+            // Toggle accordion item
+            this.toggleAccordionItem(accordionContainer, accordionItem, header);
+            
+            // For mobile accordion, we need to ensure the accordion content is populated
+            const desktopTabTarget = accordionTarget.replace('-accordion', '');
+            const desktopContent = document.querySelector(desktopTabTarget);
+            const accordionContent = document.querySelector(`#${accordionTarget.substring(1)}`);
+            
+            
+            // Sync content from desktop to accordion if accordion is empty or needs content
+            if (desktopContent && accordionContent) {
+                if (accordionContent.innerHTML.trim() === '' || 
+                    accordionContent.innerHTML.includes('Content will be populated by JavaScript')) {
+                    
+                    
+                    // Clone and optimize content for mobile
+                    accordionContent.innerHTML = desktopContent.innerHTML;
+                    this.optimizeAccordionContentForMobile(accordionContent);
+                    
+                    // Force chart reinitialization for the newly populated content
+                    setTimeout(() => {
+                        this.forceChartReinitialization(accordionContent);
+                    }, 500);
+                    
+                } else {
+                }
             } else {
             }
-        } else {
+        } catch (error) {
+            console.error('Error handling accordion click:', error);
         }
         
         // Force chart reinitialization when accordion is opened (even if content already exists)
@@ -973,11 +984,7 @@ class MobileTabsAccordion {
         const allTabs = document.querySelectorAll('.tab-btn, .tab-button');
         const allContents = document.querySelectorAll('.tab-pane');
         
-        console.log('Desktop tabs update:', {
-            activeTab: activeTab.id, 
-            allTabs: allTabs.length, 
-            allContents: allContents.length 
-        });
+        // Debug logging removed for production
         
         // Remove active class from ALL tabs
         allTabs.forEach(tab => {
@@ -1017,11 +1024,7 @@ class MobileTabsAccordion {
                 targetContent.style.setProperty('height', 'auto', 'important');
                 targetContent.style.setProperty('overflow', 'visible', 'important');
                 
-                console.log('Content styles applied:', {
-                    display: targetContent.style.display,
-                    visibility: targetContent.style.visibility,
-                    opacity: targetContent.style.opacity
-                });
+                // Debug logging removed for production
                 
                 // Double-check that other content is hidden
                 allContents.forEach(content => {

@@ -7,7 +7,7 @@ from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
 from django.utils import timezone
 from django.apps import apps
-from users.models import CustomUser, Branch
+# Removed direct import to avoid circular imports
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from core.utils.fields import TinyMCEField
@@ -29,77 +29,100 @@ from django.db.models import QuerySet
 
 if TYPE_CHECKING:
     from django.core.files.storage import Storage
+    from users.models import CustomUser
+    from branches.models import Branch
+else:
+    from django.contrib.auth import get_user_model
+    CustomUser = get_user_model()
 
 logger = logging.getLogger(__name__)
 
 def content_file_path(instance: Any, filename: str) -> str:
-    """Generate file path for course content with safe filename handling for S3 storage"""
-    from core.s3_storage import validate_s3_path, sanitize_s3_path
+    """Generate secure file path for course content"""
+    import re
     
-    # S3 file storage configuration
-    # Get the base filename and extension
+    # Basic validation
+    if not filename or not filename.strip():
+        raise ValidationError("Filename cannot be empty")
+    
+    filename = filename.strip()
+    
+    # Security: Simple dangerous pattern check
+    if any(char in filename for char in ['..', '/', '\\', '<', '>', ':', '*', '?', '"', '|']):
+        raise ValidationError("Filename contains dangerous characters")
+    
+    # Security: File extension whitelist
+    allowed_extensions = {
+        '.pdf', '.doc', '.docx', '.txt', '.rtf',
+        '.jpg', '.jpeg', '.png', '.gif', '.webp',
+        '.mp4', '.avi', '.mov', '.wmv', '.webm',
+        '.mp3', '.wav', '.ogg', '.m4a',
+        '.zip', '.rar', '.7z', '.tar', '.gz',
+        '.xlsx', '.xls', '.csv',
+        '.pptx', '.ppt'
+    }
+    
     name, ext = os.path.splitext(filename)
+    if ext.lower() not in allowed_extensions:
+        raise ValidationError(f"File type {ext} is not allowed")
     
-    # Generate a unique identifier
+    # Security: Check filename length
+    if len(filename) > 200:
+        raise ValidationError("Filename is too long")
+    
+    # Generate secure filename
     unique_id = uuid.uuid4().hex[:8]
+    safe_name = re.sub(r'[^a-zA-Z0-9\-_]', '_', name)[:50]
+    new_filename = f"{safe_name}_{unique_id}{ext.lower()}"
     
-    # Truncate the filename to ensure total path length stays under 255
-    # Be extremely conservative with the max name length
-    max_name_length = 50  # Significantly reduced to account for path components
-    
-    # Replace potentially problematic characters
-    name = "".join(c for c in name if c.isalnum() or c in ['-', '_']).strip()
-    
-    # Truncate if still too long
-    if len(name) > max_name_length:
-        name = name[:max_name_length]
-    
-    # Construct the new filename
-    new_filename = f"{name}_{unique_id}{ext.lower()}"
-    
-    # Determine the course ID
-    if isinstance(instance, Course):
-        course_id = instance.id
-    elif isinstance(instance, Topic):
-        # Check if topic has a primary key
-        if not instance.pk:
-            # No primary key yet, use a default location
-            return f"courses/topic_uploads/{unique_id}{ext.lower()}"
-            
-        # Handle case where topic isn't linked to a course yet
-        try:
-            # Try to get course via the property (which now checks for pk)
-            course = instance.course
-            if course:
-                course_id = course.id
-            else:
-                # No course found, use a default folder
-                return f"courses/topic_uploads/{instance.pk}/{new_filename}"
-        except (AttributeError, ValueError) as e:
-            # Log the error and use a fallback location
-            logger.warning(f"Course relationship error in content_file_path: {str(e)}")
-            return f"courses/topic_uploads/{unique_id}{ext.lower()}"
-        except Exception as e:
-            # Log the error and use a fallback location
-            logger.error(f"Unexpected error in content_file_path: {str(e)}")
-            return f"courses/topic_uploads/{unique_id}{ext.lower()}"
-    else:
-        course_id = 'misc'
+    # Determine the course ID with better error handling
+    try:
+        if isinstance(instance, Course):
+            course_id = instance.id
+        elif isinstance(instance, Topic):
+            # Check if topic has a primary key
+            if not instance.pk:
+                # No primary key yet, use a default location
+                return f"courses/topic_uploads/{unique_id}{ext.lower()}"
+                
+            # Handle case where topic isn't linked to a course yet
+            try:
+                # Try to get course via the many-to-many relationship
+                course = instance.courses.first()
+                if course and hasattr(course, 'id'):
+                    course_id = course.id
+                else:
+                    # No course found, use a default folder
+                    return f"courses/topic_uploads/{instance.pk}/{new_filename}"
+            except (AttributeError, ValueError) as e:
+                # Log the error and use a fallback location
+                logger.warning(f"Course relationship error in content_file_path: {str(e)}")
+                return f"courses/topic_uploads/{unique_id}{ext.lower()}"
+        else:
+            course_id = 'misc'
+    except Exception as e:
+        # Log the error and use a fallback location
+        logger.error(f"Unexpected error in content_file_path: {str(e)}")
+        return f"courses/topic_uploads/{unique_id}{ext.lower()}"
     
     # Create the path with course ID as the main folder - compatible with S3 storage
     full_path = f"courses/{course_id}/topics/{instance.pk if isinstance(instance, Topic) else 'misc'}/{new_filename}"
     
     # Validate and sanitize the path for S3 compatibility
-    is_valid, error = validate_s3_path(full_path)
-    if not is_valid:
-        logger.warning(f"S3 path validation failed: {error}. Sanitizing path.")
-        full_path = sanitize_s3_path(full_path)
+    try:
+        is_valid, error = validate_s3_path(full_path)
+        if not is_valid:
+            logger.warning(f"S3 path validation failed: {error}. Sanitizing path.")
+            full_path = sanitize_s3_path(full_path)
+    except Exception as e:
+        logger.error(f"S3 path validation error: {e}. Using fallback path.")
+        full_path = f"courses/fallback/{unique_id}{ext.lower()}"
     
     return full_path
 
 class CourseEnrollment(models.Model):
     """Model to track course enrollments with additional metadata"""
-    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, null=True, blank=True)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, null=True, blank=True)
     course = models.ForeignKey('Course', on_delete=models.CASCADE, null=True, blank=True)
     enrolled_at = models.DateTimeField(auto_now_add=True)
     completed = models.BooleanField(default=False)
@@ -631,28 +654,28 @@ class Course(models.Model):
     
     # Branch and Instructor Relations
     branch = models.ForeignKey(
-        Branch,
+        'branches.Branch',
         on_delete=models.CASCADE,
-        related_name="courses",
+        related_name="branch_courses",
         null=True,
         blank=True,
         help_text="The branch this course belongs to."
     )
     instructor = models.ForeignKey(
-        CustomUser,
+        settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
         null=True,
-        related_name="instructor_courses",
+        related_name="user_instructor_courses",
         limit_choices_to={"role": "instructor"},
         help_text="The instructor assigned to this course."
     )
     
     # Enrollment
     enrolled_users = models.ManyToManyField(
-        CustomUser,
+        settings.AUTH_USER_MODEL,
         through=CourseEnrollment,
         through_fields=('course', 'user'),
-        related_name="enrolled_courses",
+        related_name="user_enrolled_courses",
         blank=True,
         help_text="The learners enrolled in this course."
     )
@@ -824,22 +847,24 @@ class Course(models.Model):
         except Exception as e:
             logger.warning(f"Date validation error: {str(e)}")
         
-        # Validate branch and instructor relationships (only warn, don't block)
+        # Validate branch and instructor relationships (enforce strict validation)
         try:
             if self.instructor and self.branch:
                 if hasattr(self.instructor, 'branch') and self.instructor.branch != self.branch:
-                    logger.warning(f"Course {self.pk}: Instructor {self.instructor.id} does not belong to course branch {self.branch.id}")
+                    errors['instructor'] = [f'Instructor {self.instructor.username} does not belong to course branch {self.branch.name}']
         except Exception as e:
             logger.warning(f"Instructor-branch validation error: {str(e)}")
+            errors['instructor'] = ['Invalid instructor-branch relationship']
         
-        # Only check group access if the course already exists (warn only)
+        # Validate group access relationships (enforce strict validation)
         try:
             if self.pk and hasattr(self, 'accessible_groups'):
                 for group in self.accessible_groups.all():
                     if hasattr(group, 'branch') and group.branch != self.branch:
-                        logger.warning(f"Group {group.id} does not belong to course branch {self.branch.id}")
+                        errors['accessible_groups'] = [f'Group {group.name} does not belong to course branch {self.branch.name}']
         except Exception as e:
             logger.warning(f"Group access validation error: {str(e)}")
+            errors['accessible_groups'] = ['Invalid group-branch relationship']
             
         # Only raise ValidationError if there are actual blocking errors
         if errors:
@@ -2220,7 +2245,8 @@ class Topic(models.Model):
                 # Try to get user from request context
                 context = RequestContext.get_context()
                 user = context.get('user', None)
-            except:
+            except Exception as e:
+                logger.warning(f"Error getting user from request context: {e}")
                 return None
                 
         # Handle case where user is a lazy object

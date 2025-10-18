@@ -38,8 +38,7 @@ function initializeOverviewCharts() {
         return;
     }
     
-        // Chart initialization is handled by global components
-    }
+    // Chart initialization is handled by global components
     
     // Initialize courses chart if it exists
     const coursesChart = document.getElementById('courses-chart');
@@ -79,8 +78,7 @@ function setupDataRefresh() {
 function refreshOverviewData() {
     
     // Refresh charts if they exist
-    }
-    
+    // Implementation would go here
 }
 
 // Export functions for global access

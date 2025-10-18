@@ -47,7 +47,7 @@ def filter_queryset_by_business(queryset, user, business_field_path='business'):
     if user.role == 'superadmin':
         assigned_businesses = get_superadmin_business_filter(user)
         if assigned_businesses:
-            filter_kwargs = {f"{business_field_path}__in": assigned_businesses}
+            filter_kwargs = {"{{business_field_path}}__in": assigned_businesses}
             return queryset.filter(**filter_kwargs)
         else:
             return queryset.none()

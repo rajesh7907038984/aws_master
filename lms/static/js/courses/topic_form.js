@@ -1,12 +1,93 @@
-// Register quill-better-table module
+// TinyMCE initialization for topic forms
 window.onload = function() {
-    if (window.Quill && window.QuillBetterTable) {
-        Quill.register({
-            'modules/better-table': QuillBetterTable
-        }, true);
-    } else {
+    // Ensure TinyMCE is available before initializing
+    if (typeof tinymce !== 'undefined') {
+        console.log('TinyMCE is available for topic forms');
     }
 };
+
+// Global function to toggle content type fields visibility
+function toggleContentFields(selectedType) {
+    // Define content types that should hide the Instructions field
+    const hideInstructionsTypes = ['video', 'audio', 'document', 'image', 'file', 'link', 'web', 'quiz', 'assignment', 'conference', 'discussion'];
+    
+    // Handle Instructions field visibility with null check
+    const instructionsField = document.querySelector('label[for*="instructions"]');
+    if (instructionsField) {
+        const instructionsContainer = instructionsField.closest('div');
+        if (instructionsContainer) {
+            if (hideInstructionsTypes.includes(selectedType)) {
+                instructionsContainer.style.display = 'none';
+            } else {
+                instructionsContainer.style.display = 'block';
+            }
+        }
+    }
+    
+    // Hide all content type fields
+    document.querySelectorAll('.content-type-field').forEach(field => {
+        field.classList.add('hidden');
+        field.classList.remove('active');
+    });
+    
+    // Show the selected content type field
+    const selectedField = document.getElementById(selectedType + '-content');
+    if (selectedField) {
+        selectedField.classList.remove('hidden');
+        selectedField.classList.add('active');
+        
+        // Force visibility for better compatibility
+        selectedField.style.display = 'block';
+        selectedField.style.visibility = 'visible';
+        selectedField.style.opacity = '1';
+        
+        // Special handling for text content
+        if (selectedType === 'text') {
+            // Ensure TinyMCE is properly initialized for text content
+            setTimeout(function() {
+                const textArea = selectedField.querySelector('textarea');
+                if (textArea && typeof tinymce !== 'undefined') {
+                    const editorId = textArea.id || 'id_text_content';
+                    if (tinymce.get(editorId)) {
+                        // Make sure the editor container is visible
+                        const editorContainer = tinymce.get(editorId).getContainer();
+                        if (editorContainer) {
+                            editorContainer.style.display = 'block';
+                            editorContainer.style.visibility = 'visible';
+                            editorContainer.style.opacity = '1';
+                        }
+                    } else {
+                        // Initialize TinyMCE if not already done
+                        if (typeof window.TinyMCEWidget !== 'undefined' && window.TinyMCEWidget.initialize) {
+                            window.TinyMCEWidget.initialize(textArea);
+                        }
+                    }
+                }
+            }, 100);
+        }
+        
+        // Log for debugging
+        console.log('Content field activated:', selectedType);
+    }
+    
+    // Hide/show quiz, assignment, conference, discussion dropdowns
+    const dropdownTypes = ['quiz', 'assignment', 'conference', 'discussion'];
+    
+    dropdownTypes.forEach(type => {
+        const button = document.getElementById(type + '-dropdown-button');
+        const dropdown = document.getElementById(type + '-dropdown');
+        
+        if (button && dropdown) {
+            if (selectedType === type) {
+                button.classList.remove('hidden');
+                // Don't show dropdown automatically, wait for button click
+            } else {
+                button.classList.add('hidden');
+                dropdown.classList.add('hidden');
+            }
+        }
+    });
+}
 
 document.addEventListener('DOMContentLoaded', function() {
     // Form data recovery from localStorage on page load
@@ -207,11 +288,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                     totalFields++;
                 } else if (['quiz', 'assignment', 'conference', 'discussion'].includes(selectedType)) {
-                    const dropdownField = document.querySelector(`[name="${selectedType}"]`);
+                    const dropdownField = document.querySelector('[name="' + selectedType + '"]');
                     if (dropdownField && dropdownField.value) {
                         progress += 30;
                         completedFields++;
-                        status = `${selectedType.charAt(0).toUpperCase() + selectedType.slice(1)} selected`;
+                        status = selectedType.charAt(0).toUpperCase() + selectedType.slice(1) + ' selected';
                     }
                     totalFields++;
                 }
@@ -298,83 +379,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
     
-    // Toggle visibility of content type specific fields
-    function toggleContentFields(selectedType) {
-        // Define content types that should hide the Instructions field
-        
-        // Handle Instructions field visibility
-        const instructionsField = document.querySelector('label[for*="instructions"]').closest('div');
-        if (instructionsField) {
-            if (hideInstructionsTypes.includes(selectedType)) {
-                instructionsField.style.display = 'none';
-            } else {
-                instructionsField.style.display = 'block';
-            }
-        }
-        
-        // Hide all content type fields
-        document.querySelectorAll('.content-type-field').forEach(field => {
-            field.classList.add('hidden');
-            field.classList.remove('active');
-        });
-        
-        // Show the selected content type field
-        const selectedField = document.getElementById(selectedType + '-content');
-        if (selectedField) {
-            selectedField.classList.remove('hidden');
-            selectedField.classList.add('active');
-            
-            // Force visibility for better compatibility
-            selectedField.style.display = 'block';
-            selectedField.style.visibility = 'visible';
-            selectedField.style.opacity = '1';
-            
-            // Special handling for text content
-            if (selectedType === 'text') {
-                // Ensure TinyMCE is properly initialized for text content
-                setTimeout(function() {
-                    const textArea = selectedField.querySelector('textarea');
-                    if (textArea && typeof tinymce !== 'undefined') {
-                        const editorId = textArea.id || 'id_text_content';
-                        if (tinymce.get(editorId)) {
-                            // Make sure the editor container is visible
-                            const editorContainer = tinymce.get(editorId).getContainer();
-                            if (editorContainer) {
-                                editorContainer.style.display = 'block';
-                                editorContainer.style.visibility = 'visible';
-                                editorContainer.style.opacity = '1';
-                            }
-                        } else {
-                            // Initialize TinyMCE if not already done
-                            if (typeof window.TinyMCEWidget !== 'undefined' && window.TinyMCEWidget.initialize) {
-                                window.TinyMCEWidget.initialize(textArea);
-                            }
-                        }
-                    }
-                }, 100);
-            }
-            
-            // Log for debugging
-        }
-        
-        // Hide/show quiz, assignment, conference, discussion dropdowns
-        const dropdownTypes = ['quiz', 'assignment', 'conference', 'discussion'];
-        
-        dropdownTypes.forEach(type => {
-            const button = document.getElementById(`${type}-dropdown-button`);
-            const dropdown = document.getElementById(`${type}-dropdown`);
-            
-            if (button && dropdown) {
-                if (selectedType === type) {
-                    button.classList.remove('hidden');
-                    // Don't show dropdown automatically, wait for button click
-                } else {
-                    button.classList.add('hidden');
-                    dropdown.classList.add('hidden');
-                }
-            }
-        });
-    }
 
     // Setup dropdown toggle buttons
     const dropdownTypes = ['quiz', 'assignment', 'conference', 'discussion'];

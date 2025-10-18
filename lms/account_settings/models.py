@@ -23,7 +23,7 @@ class PortalSettings(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     
     def __str__(self):
-        return f"Portal settings for {self.branch.name}"
+        return "Portal settings for {{self.branch.name}}"
     
     @property
     def timezone_choices(self):
@@ -43,7 +43,7 @@ class TeamsIntegration(IntegrationCredential):
     branch = models.ForeignKey('branches.Branch', on_delete=models.CASCADE, null=True, blank=True, help_text="The branch this integration belongs to")
     
     def __str__(self):
-        return f"Teams - {self.name}"
+        return "Teams - {{self.name}}"
 
 class ZoomIntegration(IntegrationCredential):
     """Model for storing Zoom API credentials"""
@@ -55,7 +55,7 @@ class ZoomIntegration(IntegrationCredential):
     branch = models.ForeignKey('branches.Branch', on_delete=models.CASCADE, null=True, blank=True, help_text="The branch this integration belongs to")
     
     def __str__(self):
-        return f"Zoom - {self.name}"
+        return "Zoom - {{self.name}}"
 
 class StripeIntegration(IntegrationCredential):
     """Model for storing Stripe payment gateway credentials"""
@@ -67,7 +67,7 @@ class StripeIntegration(IntegrationCredential):
     is_test_mode = models.BooleanField(default=True, help_text="Whether to use test mode or live mode")
     
     def __str__(self):
-        return f"Stripe - {self.name}"
+        return "Stripe - {{self.name}}"
 
 class PayPalIntegration(IntegrationCredential):
     """Model for storing PayPal payment gateway credentials"""
@@ -78,7 +78,7 @@ class PayPalIntegration(IntegrationCredential):
     is_sandbox = models.BooleanField(default=True, help_text="Whether to use sandbox or live mode")
     
     def __str__(self):
-        return f"PayPal - {self.name}"
+        return "PayPal - {{self.name}}"
 
     
     def test_connection(self):
@@ -114,7 +114,7 @@ class PayPalIntegration(IntegrationCredential):
             # Test the connection by making a direct HTTP request
             try:
                 headers = api._get_headers('application/json')
-                test_url = f"{api.base_url}/ping"
+                test_url = "{{api.base_url}}/ping"
                 
                 response = requests.get(
                     test_url,
@@ -131,7 +131,7 @@ class PayPalIntegration(IntegrationCredential):
                     self.save(update_fields=['is_tested', 'last_test_date', 'test_error'])
                     return True, "removed Cloud connection successful"
                 else:
-                    error_msg = f"removed Cloud API returned status {response.status_code}"
+                    error_msg = "removed Cloud API returned status {{response.status_code}}"
                     if response.status_code == 401:
                         error_msg += " - Invalid credentials"
                     elif response.status_code == 403:
@@ -158,7 +158,7 @@ class PayPalIntegration(IntegrationCredential):
             self.save(update_fields=['is_tested', 'test_error'])
             return False, error_msg
         except Exception as e:
-            error_msg = f"Failed to test removed Cloud connection: {str(e)}"
+            error_msg = "Failed to test removed Cloud connection: {{str(e)}}"
             self.is_tested = False
             self.test_error = error_msg
             self.save(update_fields=['is_tested', 'test_error'])
@@ -214,7 +214,7 @@ class SharePointIntegration(IntegrationCredential):
         verbose_name_plural = 'SharePoint Integrations'
     
     def __str__(self):
-        return f"SharePoint - {self.name}"
+        return "SharePoint - {{self.name}}"
     
     def is_token_valid(self):
         """Check if the access token is still valid"""
@@ -235,7 +235,7 @@ class SharePointIntegration(IntegrationCredential):
         """Extract domain from SharePoint site URL"""
         from urllib.parse import urlparse
         parsed = urlparse(self.site_url)
-        return f"{parsed.scheme}://{parsed.netloc}"
+        return "{{parsed.scheme}}://{{parsed.netloc}}"
     
     def get_site_path(self):
         """Extract site path from SharePoint site URL"""
@@ -278,7 +278,7 @@ class ExportJob(models.Model):
         ordering = ['-created_at']
         
     def __str__(self):
-        return f"{self.export_type.title()} Export - {self.status}"
+        return "{{self.export_type.title()}} Export - {{self.status}}"
 
 class ImportJob(models.Model):
     """Model for tracking data import jobs"""
@@ -318,7 +318,7 @@ class ImportJob(models.Model):
         ordering = ['-created_at']
         
     def __str__(self):
-        return f"{self.import_type.title()} Import - {self.status}"
+        return "{{self.import_type.title()}} Import - {{self.status}}"
 
 class DataBackup(models.Model):
     """Model for storing automatic system backups"""
@@ -339,7 +339,7 @@ class DataBackup(models.Model):
         ordering = ['-created_at']
         
     def __str__(self):
-        return f"{self.backup_type.title()} - {self.created_at.strftime('%Y-%m-%d %H:%M')}"
+        return "{{self.backup_type.title()}} - {{self.created_at.strftime('%Y-%m-%d %H:%M')}}"
 
 class GlobalAdminSettings(models.Model):
     """Global Admin settings for system-wide configuration"""
@@ -464,7 +464,7 @@ class GlobalAdminSettings(models.Model):
             return None
             
         if self.smtp_from_name:
-            return f"{self.smtp_from_name} <{self.smtp_from_email}>"
+            return "{{self.smtp_from_name}} <{{self.smtp_from_email}}>"
         return self.smtp_from_email
     
     def test_smtp_connection(self):
@@ -522,7 +522,8 @@ class GlobalAdminSettings(models.Model):
                 except Exception as auth_error:
                     try:
                         backend.close()
-                    except:
+                    except Exception as close_error:
+                        logger.debug(f"Error closing SMTP backend: {close_error}")
                         pass  # Ignore close errors
                     
                     # Handle authentication-specific errors
@@ -556,7 +557,7 @@ class GlobalAdminSettings(models.Model):
         # Microsoft 365/Office 365 specific errors
         if "5.7.139" in error_msg or "Session defaults policy" in error_lower:
             return (
-                f" Microsoft 365 Session Error: {error_msg}\n\n"
+                " Microsoft 365 Session Error: {{error_msg}}\n\n"
                 " SOLUTION STEPS:\n"
                 "1. DISABLE Session Defaults (Most Important!):\n"
                 "   • Go to https://entra.microsoft.com\n"
@@ -575,7 +576,7 @@ class GlobalAdminSettings(models.Model):
         # Gmail specific errors
         elif "gmail.com" in error_lower and ("535" in error_msg or "authentication" in error_lower):
             return (
-                f" Gmail Authentication Error: {error_msg}\n\n"
+                " Gmail Authentication Error: {{error_msg}}\n\n"
                 " SOLUTION STEPS:\n"
                 "1. Enable 'Less secure app access' in Gmail settings\n"
                 "2. OR generate an App Password if 2FA is enabled:\n"
@@ -592,7 +593,7 @@ class GlobalAdminSettings(models.Model):
         # Generic authentication errors
         elif any(term in error_lower for term in ['535', '530', 'authentication', 'login', 'password']):
             return (
-                f" SMTP Authentication Failed: {error_msg}\n\n"
+                " SMTP Authentication Failed: {{error_msg}}\n\n"
                 " TROUBLESHOOTING STEPS:\n"
                 "1. Verify username and password are correct\n"
                 "2. Check if your email provider requires:\n"
@@ -608,7 +609,7 @@ class GlobalAdminSettings(models.Model):
         # Connection errors
         elif any(term in error_lower for term in ['connection', 'timeout', 'refused', 'unreachable']):
             return (
-                f" SMTP Connection Error: {error_msg}\n\n"
+                " SMTP Connection Error: {{error_msg}}\n\n"
                 " TROUBLESHOOTING STEPS:\n"
                 "1. Verify SMTP server hostname is correct\n"
                 "2. Check port number (common ports: 25, 587, 465)\n"
@@ -618,7 +619,7 @@ class GlobalAdminSettings(models.Model):
             )
         
         # Return original error if no specific pattern matches
-        return f" SMTP Error: {error_msg}"
+        return " SMTP Error: {{error_msg}}"
     
     def test_anthropic_ai_connection(self):
         """Test the Anthropic AI configuration"""
@@ -687,7 +688,7 @@ class GlobalAdminSettings(models.Model):
                     return False, error_msg
             else:
                 # Handle specific error cases
-                error_msg = f"Anthropic API returned status {response.status_code}"
+                error_msg = "Anthropic API returned status {{response.status_code}}"
                 if response.status_code == 401:
                     error_msg += " - Invalid API key or authentication failed"
                 elif response.status_code == 429:
@@ -698,8 +699,9 @@ class GlobalAdminSettings(models.Model):
                     try:
                         error_response = response.json()
                         if 'error' in error_response and 'message' in error_response['error']:
-                            error_msg += f" - {error_response['error']['message']}"
-                    except:
+                            error_msg += " - {{error_response['error']['message']}}"
+                    except Exception as json_error:
+                        logger.debug(f"Error parsing JSON response: {json_error}")
                         pass  # Use generic error message
                 
                 self.anthropic_is_tested = False
@@ -720,7 +722,7 @@ class GlobalAdminSettings(models.Model):
             self.save(update_fields=['anthropic_is_tested', 'anthropic_test_error'])
             return False, error_msg
         except Exception as e:
-            error_msg = f"Unexpected error during Anthropic AI test: {str(e)}"
+            error_msg = "Unexpected error during Anthropic AI test: {{str(e)}}"
             self.anthropic_is_tested = False
             self.anthropic_test_error = error_msg
             self.save(update_fields=['anthropic_is_tested', 'anthropic_test_error'])
@@ -811,7 +813,7 @@ class MenuControlSettings(models.Model):
     
     def __str__(self):
         if self.submenu_item:
-            return f"{self.get_menu_section_display()} > {self.get_submenu_item_display()}"
+            return "{{self.get_menu_section_display()}} > {{self.get_submenu_item_display()}}"
         return self.get_menu_section_display()
     
     def is_visible_to_role(self, role_name):
@@ -933,7 +935,7 @@ class AIControlSettings(models.Model):
     def __str__(self):
         status = "Enabled" if self.is_enabled else "Disabled"
         beta = " (Beta)" if self.is_beta else ""
-        return f"{self.get_feature_name_display()} - {status}{beta}"
+        return "{{self.get_feature_name_display()}} - {{status}}{{beta}}"
     
     def is_available_to_role(self, role_name):
         """Check if this AI feature is available to a specific role"""

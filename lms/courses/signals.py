@@ -37,7 +37,7 @@ def cleanup_course_data(sender, instance, **kwargs):
             course_id = instance.id
             course_title = instance.title
             
-            logger.info(f"Starting cleanup for course {course_id}: {course_title}")
+            logger.info("Starting cleanup for course {{course_id}}: {{course_title}}")
             
             # 1. Get all topics related to this course
             topics = Topic.objects.filter(coursetopic__course=instance)
@@ -48,23 +48,23 @@ def cleanup_course_data(sender, instance, **kwargs):
             progress_count = progress_records.count()
             if progress_count > 0:
                 progress_records.delete()
-                logger.info(f"Deleted {progress_count} progress records for course {course_id}")
+                logger.info("Deleted {{progress_count}} progress records for course {{course_id}}")
             
             # 3. Delete all course-topic relationships
             relationships = CourseTopic.objects.filter(course=instance)
             relationship_count = relationships.count()
             if relationship_count > 0:
                 relationships.delete()
-                logger.info(f"Deleted {relationship_count} course-topic relationships for course {course_id}")
+                logger.info("Deleted {{relationship_count}} course-topic relationships for course {{course_id}}")
             
-            logger.info(f"Course {course_id} cleanup completed successfully")
+            logger.info("Course {{course_id}} cleanup completed successfully")
             
     except (DatabaseError, IntegrityError) as e:
-        logger.error(f"Database error during course {instance.id} cleanup: {str(e)}")
+        logger.error("Database error during course {{instance.id}} cleanup: {{str(e)}}")
         # Don't raise the exception to prevent deletion failure
         # Log the error and continue with deletion
     except Exception as e:
-        logger.error(f"Unexpected error during course {instance.id} cleanup: {str(e)}")
+        logger.error("Unexpected error during course {{instance.id}} cleanup: {{str(e)}}")
         # Don't raise the exception to prevent deletion failure
         # Log the error and continue with deletion
 
@@ -79,7 +79,7 @@ def cleanup_topic_data(sender, instance, **kwargs):
             topic_id = instance.id
             topic_title = instance.title
             
-            logger.info(f"Starting cleanup for topic {topic_id}: {topic_title}")
+            logger.info("Starting cleanup for topic {{topic_id}}: {{topic_title}}")
             
             # removed functionality removed
             
@@ -88,23 +88,23 @@ def cleanup_topic_data(sender, instance, **kwargs):
             progress_count = progress_records.count()
             if progress_count > 0:
                 progress_records.delete()
-                logger.info(f"Deleted {progress_count} progress records for topic {topic_id}")
+                logger.info("Deleted {{progress_count}} progress records for topic {{topic_id}}")
             
             # 3. Delete all course-topic relationships for this topic
             relationships = CourseTopic.objects.filter(topic=instance)
             relationship_count = relationships.count()
             if relationship_count > 0:
                 relationships.delete()
-                logger.info(f"Deleted {relationship_count} course-topic relationships for topic {topic_id}")
+                logger.info("Deleted {{relationship_count}} course-topic relationships for topic {{topic_id}}")
             
-            logger.info(f"Topic {topic_id} cleanup completed successfully")
+            logger.info("Topic {{topic_id}} cleanup completed successfully")
             
     except (DatabaseError, IntegrityError) as e:
-        logger.error(f"Database error during topic {instance.id} cleanup: {str(e)}")
+        logger.error("Database error during topic {{instance.id}} cleanup: {{str(e)}}")
         # Don't raise the exception to prevent deletion failure
         # Log the error and continue with deletion
     except Exception as e:
-        logger.error(f"Unexpected error during topic {instance.id} cleanup: {str(e)}")
+        logger.error("Unexpected error during topic {{instance.id}} cleanup: {{str(e)}}")
         # Don't raise the exception to prevent deletion failure
         # Log the error and continue with deletion
 
@@ -118,13 +118,13 @@ def post_course_deletion(sender, instance, **kwargs):
         course_id = instance.id
         course_title = instance.title
         
-        logger.info(f"Course {course_id} ({course_title}) deleted successfully")
+        logger.info("Course {{course_id}} ({{course_title}}) deleted successfully")
         
         # Clear any cached data related to this course
         # This could include clearing cache, updating search indexes, etc.
         
     except Exception as e:
-        logger.error(f"Error during post-deletion cleanup for course {instance.id}: {str(e)}")
+        logger.error("Error during post-deletion cleanup for course {{instance.id}}: {{str(e)}}")
 
 @receiver(post_delete, sender=Topic)
 def post_topic_deletion(sender, instance, **kwargs):
@@ -136,13 +136,13 @@ def post_topic_deletion(sender, instance, **kwargs):
         topic_id = instance.id
         topic_title = instance.title
         
-        logger.info(f"Topic {topic_id} ({topic_title}) deleted successfully")
+        logger.info("Topic {{topic_id}} ({{topic_title}}) deleted successfully")
         
         # Clear any cached data related to this topic
         # This could include clearing cache, updating search indexes, etc.
         
     except Exception as e:
-        logger.error(f"Error during post-deletion cleanup for topic {instance.id}: {str(e)}")
+        logger.error("Error during post-deletion cleanup for topic {{instance.id}}: {{str(e)}}")
 
 def cleanup_orphaned_data():
     """
@@ -157,15 +157,15 @@ def cleanup_orphaned_data():
         orphaned_count = orphaned_progress.count()
         if orphaned_count > 0:
             orphaned_progress.delete()
-            logger.info(f"Deleted {orphaned_count} orphaned progress records")
+            logger.info("Deleted {{orphaned_count}} orphaned progress records")
         
         total_cleaned = orphaned_count
-        logger.info(f"Orphaned data cleanup completed: {total_cleaned} records cleaned")
+        logger.info("Orphaned data cleanup completed: {{total_cleaned}} records cleaned")
         
         return total_cleaned
         
     except Exception as e:
-        logger.error(f"Error during orphaned data cleanup: {str(e)}")
+        logger.error("Error during orphaned data cleanup: {{str(e)}}")
         return 0
 
 @receiver(post_save, sender=CourseEnrollment)
@@ -180,14 +180,14 @@ def send_enrollment_notification(sender, instance, created, **kwargs):
             from django.urls import reverse
             
             # Prepare enrollment message
-            enrollment_message = f"""
+            enrollment_message = """
             <h2>Course Enrollment Confirmation</h2>
             <p>Dear {instance.user.first_name or instance.user.username},</p>
             <p>You have been successfully enrolled in the following course:</p>
             <p><strong>Course Details:</strong></p>
             <ul>
                 <li><strong>Course Name:</strong> {instance.course.title}</li>
-                {f'<li><strong>Description:</strong> {instance.course.description[:200]}...</li>' if instance.course.description else ''}
+                {"<li><strong>Description:</strong> {{instance.course.description[:200]}}...</li>" if instance.course.description else ''}
                 <li><strong>Enrollment Date:</strong> {instance.enrolled_at.strftime('%B %d, %Y')}</li>
                 <li><strong>Enrollment Type:</strong> {instance.get_enrollment_source_display()}</li>
             </ul>
@@ -200,20 +200,20 @@ def send_enrollment_notification(sender, instance, created, **kwargs):
             notification = send_notification(
                 recipient=instance.user,
                 notification_type_name='course_enrollment',
-                title=f"Enrolled in: {instance.course.title}",
+                title="Enrolled in: {{instance.course.title}}",
                 message=enrollment_message,
-                short_message=f"You have been enrolled in {instance.course.title}",
+                short_message="You have been enrolled in {{instance.course.title}}",
                 priority='normal',
-                action_url=f"/courses/{instance.course.id}/",
+                action_url="/courses/{{instance.course.id}}/",
                 action_text="View Course",
                 related_course=instance.course,
                 send_email=True
             )
             
             if notification:
-                logger.info(f"Enrollment notification sent to user: {instance.user.username} for course: {instance.course.title}")
+                logger.info("Enrollment notification sent to user: %s for course: %s", instance.user.username, instance.course.title)
             else:
-                logger.warning(f"Enrollment notification created but email may not have been sent for user: {instance.user.username}")
+                logger.warning("Enrollment notification created but email may not have been sent for user: %s", instance.user.username)
                 
         except Exception as e:
-            logger.error(f"Error sending enrollment notification to {instance.user.username} for course {instance.course.title}: {str(e)}")
+            logger.error("Error sending enrollment notification to %s for course %s: %s", instance.user.username, instance.course.title, str(e))

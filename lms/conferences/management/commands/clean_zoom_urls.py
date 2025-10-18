@@ -29,7 +29,7 @@ class Command(BaseCommand):
             conferences = Conference.objects.filter(id=conference_id, meeting_platform='zoom')
             if not conferences.exists():
                 self.stdout.write(
-                    self.style.ERROR(f'Conference with ID {conference_id} not found or not a Zoom meeting')
+                    self.style.ERROR("Conference with ID {{conference_id}} not found or not a Zoom meeting")
                 )
                 return
         else:
@@ -39,7 +39,7 @@ class Command(BaseCommand):
             ).exclude(meeting_link='')
         
         total_conferences = conferences.count()
-        self.stdout.write(f'Found {total_conferences} Zoom conferences to process')
+        self.stdout.write("Found {{total_conferences}} Zoom conferences to process")
         
         if dry_run:
             self.stdout.write(self.style.WARNING('DRY RUN MODE - No changes will be made'))
@@ -58,16 +58,16 @@ class Command(BaseCommand):
                 '_x_zm_rtaid=' not in original_link and
                 '_x_zm_rhtaid=' not in original_link and
                 'role=' not in original_link):
-                self.stdout.write(f'Conference {conference.id}: Already in clean format')
+                self.stdout.write("Conference {{conference.id}}: Already in clean format")
                 continue
             
             # Generate clean URL
             clean_link = clean_zoom_url_format(conference)
             
             if clean_link != original_link:
-                self.stdout.write(f'Conference {conference.id} ({conference.title}):')
-                self.stdout.write(f'  FROM: {original_link}')
-                self.stdout.write(f'  TO:   {clean_link}')
+                self.stdout.write("Conference {{conference.id}} ({{conference.title}}):")
+                self.stdout.write("  FROM: {{original_link}}")
+                self.stdout.write("  TO:   {{clean_link}}")
                 
                 if not dry_run:
                     conference.meeting_link = clean_link
@@ -78,13 +78,13 @@ class Command(BaseCommand):
                 
                 updated_count += 1
             else:
-                self.stdout.write(f'Conference {conference.id}: No changes needed')
+                self.stdout.write("Conference {{conference.id}}: No changes needed")
         
         if dry_run:
             self.stdout.write(
-                self.style.SUCCESS(f'DRY RUN COMPLETE: {updated_count} conferences would be updated')
+                self.style.SUCCESS("DRY RUN COMPLETE: {{updated_count}} conferences would be updated")
             )
         else:
             self.stdout.write(
-                self.style.SUCCESS(f'COMPLETE: Updated {updated_count} conferences')
+                self.style.SUCCESS("COMPLETE: Updated {{updated_count}} conferences")
             ) 

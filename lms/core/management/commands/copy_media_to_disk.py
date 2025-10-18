@@ -27,21 +27,21 @@ class Command(BaseCommand):
         dest_dir = settings.MEDIA_ROOT
         overwrite = options['overwrite']
         
-        self.stdout.write(f"Source directory: {source_dir}")
-        self.stdout.write(f"Destination directory: {dest_dir}")
+        self.stdout.write("Source directory: {{source_dir}}")
+        self.stdout.write("Destination directory: {{dest_dir}}")
         
         if not os.path.exists(source_dir):
-            self.stdout.write(self.style.ERROR(f"Source directory '{source_dir}' does not exist"))
+            self.stdout.write(self.style.ERROR("Source directory '{{source_dir}}' does not exist"))
             return
             
         if not os.path.exists(dest_dir):
-            self.stdout.write(f"Creating destination directory '{dest_dir}'")
+            self.stdout.write("Creating destination directory '{{dest_dir}}'")
             os.makedirs(dest_dir, exist_ok=True)
             
         # Copy files recursively
         self._copy_dir(source_dir, dest_dir, overwrite)
         
-        self.stdout.write(self.style.SUCCESS(f"Successfully copied media files to {dest_dir}"))
+        self.stdout.write(self.style.SUCCESS("Successfully copied media files to {{dest_dir}}"))
             
     def _copy_dir(self, src, dst, overwrite):
         """
@@ -68,11 +68,11 @@ class Command(BaseCommand):
                         os.chmod(d, 0o644)
                         count += 1
                         if count % 100 == 0:
-                            self.stdout.write(f"Copied {count} files...")
+                            self.stdout.write("Copied {{count}} files...")
                     except Exception as e:
-                        self.stdout.write(self.style.ERROR(f"Error copying {s} to {d}: {str(e)}"))
+                        self.stdout.write(self.style.ERROR("Error copying {{s}} to {{d}}: {{str(e)}}"))
                 else:
                     skipped += 1
                     
-        self.stdout.write(f"Copied {count} files, skipped {skipped} existing files from {src}")
+        self.stdout.write("Copied {{count}} files, skipped {{skipped}} existing files from {{src}}")
         return (count, skipped) 

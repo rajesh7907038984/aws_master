@@ -259,11 +259,20 @@ function showAIPromptModal(editor, hiddenInput) {
         try {
             const generatedContent = await generateWithClaudeAI(prompt);
             
-            // Update editor content
+            // Update editor content safely
             if (insertionMode === 'replace') {
-                editor.innerHTML = generatedContent;
+                // Use textContent for safety, then create proper HTML structure
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = generatedContent;
+                editor.innerHTML = '';
+                editor.appendChild(tempDiv);
             } else {
-                editor.innerHTML += '<br>' + generatedContent;
+                // Create a line break and append content safely
+                const br = document.createElement('br');
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = generatedContent;
+                editor.appendChild(br);
+                editor.appendChild(tempDiv);
             }
             
             // Update hidden input

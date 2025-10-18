@@ -138,7 +138,7 @@ def register_tinymce_for_model(model_class, admin_class=None, widget_type='defau
     """
     if admin_class is None:
         # Create a dynamic admin class
-        class_name = f'{model_class.__name__}TinyMCEAdmin'
+        class_name = "{{model_class.__name__}}TinyMCEAdmin"
         admin_class = type(class_name, (TinyMCEModelAdmin,), {
             'formfield_overrides': get_tinymce_formfield_overrides(widget_type)
         })
@@ -163,14 +163,14 @@ class BranchAITokenLimitAdmin(admin.ModelAdmin):
     
     def get_current_usage(self, obj):
         """Display current month's token usage"""
-        return f"{obj.get_current_month_usage():,}"
+        return "{{obj.get_current_month_usage():,}}"
     get_current_usage.short_description = 'Current Usage'
     
     def get_usage_percentage(self, obj):
         """Display usage percentage"""
         if obj.is_unlimited:
             return "Unlimited"
-        return f"{obj.get_usage_percentage():.1f}%"
+        return "{{obj.get_usage_percentage():.1f}}%"
     get_usage_percentage.short_description = 'Usage %'
     
     def save_model(self, request, obj, form, change):

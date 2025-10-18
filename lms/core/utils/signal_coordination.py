@@ -42,14 +42,14 @@ class SignalCoordinator:
             @wraps(func)
             def wrapper(sender, instance, created, **kwargs):
                 if not cls.should_process_signal(signal_name, instance, created):
-                    logger.debug(f"Skipping {signal_name} for {instance}")
+                    logger.debug("Skipping {{signal_name}} for {{instance}}")
                     return
                 
                 try:
                     with transaction.atomic():
                         return func(sender, instance, created, **kwargs)
                 except Exception as e:
-                    logger.error(f"Error in {signal_name}: {e}")
+                    logger.error("Error in {{signal_name}}: {{e}}")
                     # Don't re-raise to prevent breaking the main operation
             return wrapper
         return decorator

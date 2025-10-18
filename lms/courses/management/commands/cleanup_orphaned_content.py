@@ -37,7 +37,7 @@ class Command(BaseCommand):
                     if course_id not in valid_course_ids:
                         shutil.rmtree(item_path)
                         self.stdout.write(
-                            self.style.SUCCESS(f'Removed orphaned course content directory: {item_path}')
+                            self.style.SUCCESS("Removed orphaned course content directory: {{item_path}}")
                         )
                 except ValueError:
                     # Not a course ID directory, skip
@@ -56,7 +56,7 @@ class Command(BaseCommand):
                         if course_id not in valid_course_ids:
                             shutil.rmtree(item_path)
                             self.stdout.write(
-                                self.style.SUCCESS(f'Removed orphaned topics directory: {item_path}')
+                                self.style.SUCCESS("Removed orphaned topics directory: {{item_path}}")
                             )
                     except ValueError:
                         continue
@@ -71,5 +71,5 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS('Successfully cleaned up orphaned content'))
             
         except Exception as e:
-            logger.error(f"Error during cleanup: {str(e)}")
-            self.stdout.write(self.style.ERROR(f'Error during cleanup: {str(e)}')) 
+            logger.error("Error during cleanup: {{str(e)}}")
+            self.stdout.write(self.style.ERROR("Error during cleanup: {{str(e)}}")) 

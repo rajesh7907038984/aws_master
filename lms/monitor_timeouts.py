@@ -50,37 +50,37 @@ def check_gunicorn_logs():
             timeout_errors = [line for line in recent_lines if 'TIMEOUT' in line or 'timeout' in line.lower()]
             return timeout_errors
     except Exception as e:
-        return [f"Error reading log file: {e}"]
+        return ["Error reading log file: {{e}}"]
 
 def main():
     """Main monitoring function"""
-    print(f"=== LMS Timeout Monitor - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} ===\n")
+    print("=== LMS Timeout Monitor - {{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}} ===\n")
     
     # Check Gunicorn processes
     processes = check_gunicorn_processes()
-    print(f"Gunicorn Processes: {len(processes)}")
+    print("Gunicorn Processes: {{len(processes)}}")
     for proc in processes:
-        print(f"  PID {proc['pid']}: {proc['name']} - Memory: {proc['memory_mb']:.1f}MB, CPU: {proc['cpu_percent']:.1f}%")
+        print("  PID {{proc['pid']}}: {{proc['name']}} - Memory: {{proc['memory_mb']:.1f}}MB, CPU: {{proc['cpu_percent']:.1f}}%")
     
     # Check memory usage
     memory = check_memory_usage()
-    print(f"\nMemory Usage:")
-    print(f"  Total: {memory['total_gb']:.1f}GB")
-    print(f"  Available: {memory['available_gb']:.1f}GB")
-    print(f"  Used: {memory['percent_used']:.1f}%")
-    print(f"  Free: {memory['free_gb']:.1f}GB")
+    print("\nMemory Usage:")
+    print("  Total: {{memory['total_gb']:.1f}}GB")
+    print("  Available: {{memory['available_gb']:.1f}}GB")
+    print("  Used: {{memory['percent_used']:.1f}}%")
+    print("  Free: {{memory['free_gb']:.1f}}GB")
     
     # Check for timeout errors
     timeout_errors = check_gunicorn_logs()
     if timeout_errors:
-        print(f"\n⚠️  Recent Timeout Errors ({len(timeout_errors)}):")
+        print("\n⚠️  Recent Timeout Errors ({{len(timeout_errors)}}):")
         for error in timeout_errors[-5:]:  # Show last 5 errors
-            print(f"  {error.strip()}")
+            print("  {{error.strip()}}")
     else:
-        print(f"\n✅ No recent timeout errors found")
+        print("\n✅ No recent timeout errors found")
     
     # Recommendations
-    print(f"\n📊 Recommendations:")
+    print("\n📊 Recommendations:")
     if memory['percent_used'] > 80:
         print("  ⚠️  High memory usage - consider reducing workers or optimizing queries")
     if len(processes) > 3:

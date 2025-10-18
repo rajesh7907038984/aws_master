@@ -10,7 +10,6 @@ from django.contrib.auth.decorators import login_required, user_passes_test
 from django.http import JsonResponse
 from django.utils import timezone
 from core.utils.activity_monitor import analytics_engine, performance_monitor
-# from core.utils.performance_monitor import get_performance_stats  # Removed - file not found
 import logging
 
 logger = logging.getLogger(__name__)
@@ -51,7 +50,7 @@ def monitoring_dashboard(request):
         return render(request, 'core/monitoring_dashboard.html', context)
         
     except Exception as e:
-        logger.error(f"Error in monitoring dashboard: {e}")
+        logger.error("Error in monitoring dashboard: {{e}}")
         return render(request, 'core/monitoring_dashboard.html', {
             'error': 'Unable to load monitoring data'
         })
@@ -64,7 +63,7 @@ def api_system_metrics(request):
         metrics = performance_monitor.get_system_metrics()
         return JsonResponse(metrics)
     except Exception as e:
-        logger.error(f"Error getting system metrics: {e}")
+        logger.error("Error getting system metrics: {{e}}")
         return JsonResponse({'error': 'Unable to get metrics'}, status=500)
 
 @login_required
@@ -76,7 +75,7 @@ def api_user_engagement(request, user_id):
         engagement_stats = analytics_engine.get_user_engagement_stats(user_id, days)
         return JsonResponse(engagement_stats)
     except Exception as e:
-        logger.error(f"Error getting user engagement: {e}")
+        logger.error("Error getting user engagement: {{e}}")
         return JsonResponse({'error': 'Unable to get engagement stats'}, status=500)
 
 @login_required
@@ -87,5 +86,5 @@ def api_health_check(request):
         health_data = analytics_engine.get_system_health_score()
         return JsonResponse(health_data)
     except Exception as e:
-        logger.error(f"Error in health check: {e}")
+        logger.error("Error in health check: {{e}}")
         return JsonResponse({'error': 'Health check failed'}, status=500)

@@ -84,18 +84,18 @@ class OldCodeCleanup:
             for field in legacy_fields:
                 if field in user_fields:
                     # Check if field is actually used
-                    usage_count = CustomUser.objects.filter(**{f"{field}__isnull": False}).count()
+                    usage_count = CustomUser.objects.filter(**{"{{field}}__isnull": False}).count()
                     if usage_count == 0:
                         self.issues_found.append({
                             'type': 'unused_field',
                             'model': 'CustomUser',
                             'field': field,
-                            'issue': f'Field {field} has no data',
+                            'issue': "Field {{field}} has no data",
                             'severity': 'low',
-                            'action': f'Consider removing unused field {field}'
+                            'action': "Consider removing unused field {{field}}"
                         })
         except Exception as e:
-            logger.error(f"Error checking unused fields: {e}")
+            logger.error("Error checking unused fields: {{e}}")
     
     def _check_orphaned_records(self):
         """Check for orphaned records in the database"""
@@ -116,7 +116,7 @@ class OldCodeCleanup:
                         'type': 'orphaned_records',
                         'table': 'courses_courseenrollment',
                         'count': orphaned_enrollments,
-                        'issue': f'{orphaned_enrollments} orphaned course enrollments found',
+                        'issue': "{{orphaned_enrollments}} orphaned course enrollments found",
                         'severity': 'high',
                         'action': 'Clean up orphaned course enrollments'
                     })
@@ -134,13 +134,13 @@ class OldCodeCleanup:
                         'type': 'orphaned_records',
                         'table': 'assignments_assignmentsubmission',
                         'count': orphaned_submissions,
-                        'issue': f'{orphaned_submissions} orphaned assignment submissions found',
+                        'issue': "{{orphaned_submissions}} orphaned assignment submissions found",
                         'severity': 'high',
                         'action': 'Clean up orphaned assignment submissions'
                     })
                 
         except Exception as e:
-            logger.error(f"Error checking orphaned records: {e}")
+            logger.error("Error checking orphaned records: {{e}}")
     
     def _check_duplicate_data(self):
         """Check for duplicate data"""
@@ -163,13 +163,13 @@ class OldCodeCleanup:
                         'type': 'duplicate_data',
                         'table': 'users_customuser',
                         'count': len(duplicate_users),
-                        'issue': f'{len(duplicate_users)} duplicate email addresses found',
+                        'issue': "{{len(duplicate_users)}} duplicate email addresses found",
                         'severity': 'medium',
                         'action': 'Consolidate duplicate user accounts'
                     })
                 
         except Exception as e:
-            logger.error(f"Error checking duplicate data: {e}")
+            logger.error("Error checking duplicate data: {{e}}")
     
     def generate_cleanup_script(self):
         """Generate a cleanup script for identified issues"""
@@ -208,7 +208,7 @@ def cleanup_orphaned_records():
             WHERE user_id NOT IN (SELECT id FROM users_customuser)
         """)
         deleted_enrollments = cursor.rowcount
-        print(f"  ✅ Deleted {deleted_enrollments} orphaned course enrollments")
+        print("  ✅ Deleted {{deleted_enrollments}} orphaned course enrollments")
         
         # Clean up orphaned assignment submissions
         cursor.execute("""
@@ -216,7 +216,7 @@ def cleanup_orphaned_records():
             WHERE user_id NOT IN (SELECT id FROM users_customuser)
         """)
         deleted_submissions = cursor.rowcount
-        print(f"  ✅ Deleted {deleted_submissions} orphaned assignment submissions")
+        print("  ✅ Deleted {{deleted_submissions}} orphaned assignment submissions")
 
 def cleanup_duplicate_data():
     """Clean up duplicate data"""
@@ -234,7 +234,7 @@ def cleanup_duplicate_data():
         duplicates = cursor.fetchall()
         
         for email, keep_id, count in duplicates:
-            print(f"  📧 Found {count} duplicates for {email}, keeping ID {keep_id}")
+            print("  📧 Found {{count}} duplicates for {{email}}, keeping ID {{keep_id}}")
             # Note: Actual cleanup would require more complex logic
             # to handle related records
 
@@ -247,7 +247,7 @@ if __name__ == "__main__":
             cleanup_duplicate_data()
         print("✅ Cleanup completed successfully!")
     except Exception as e:
-        print(f"❌ Cleanup failed: {e}")
+        print("❌ Cleanup failed: {{e}}")
         sys.exit(1)
 '''
         
@@ -258,7 +258,7 @@ if __name__ == "__main__":
         # Make the script executable
         os.chmod(cleanup_script_path, 0o755)
         
-        print(f"✅ Cleanup script generated: {cleanup_script_path}")
+        print("✅ Cleanup script generated: {{cleanup_script_path}}")
         return cleanup_script_path
     
     def print_report(self):
@@ -280,7 +280,7 @@ if __name__ == "__main__":
             issues_by_type[issue_type].append(issue)
         
         for issue_type, issues in issues_by_type.items():
-            print(f"\n🔍 {issue_type.upper().replace('_', ' ')} ISSUES ({len(issues)} found)")
+            print("\n🔍 {{issue_type.upper().replace('_', ' ')}} ISSUES ({{len(issues)}} found)")
             print("-" * 40)
             
             for issue in issues:
@@ -290,13 +290,13 @@ if __name__ == "__main__":
                     'low': '🟢'
                 }.get(issue.get('severity', 'low'), '⚪')
                 
-                print(f"{severity_icon} {issue.get('issue', 'Unknown issue')}")
+                print("{{severity_icon}} {{issue.get('issue', 'Unknown issue')}}")
                 if 'action' in issue:
-                    print(f"   💡 Action: {issue['action']}")
+                    print("   💡 Action: {{issue['action']}}")
                 if 'file' in issue:
-                    print(f"   📁 File: {issue['file']}")
+                    print("   📁 File: {{issue['file']}}")
                 if 'count' in issue:
-                    print(f"   📊 Count: {issue['count']}")
+                    print("   📊 Count: {{issue['count']}}")
                 print()
 
 def main():

@@ -139,7 +139,7 @@ def category_edit(request, pk):
     breadcrumbs = [
         {'url': '/', 'label': 'Dashboard', 'icon': 'fa-home'},
         {'url': '/categories/', 'label': 'Categories', 'icon': 'fa-tags'},
-        {'label': f'Edit {category.name}', 'icon': 'fa-edit'}
+        {'label': "Edit {{category.name}}", 'icon': 'fa-edit'}
     ]
     
     return render(request, 'categories/category_form.html', {
@@ -160,7 +160,7 @@ def category_delete(request, pk):
     breadcrumbs = [
         {'url': '/', 'label': 'Dashboard', 'icon': 'fa-home'},
         {'url': '/categories/', 'label': 'Categories', 'icon': 'fa-tags'},
-        {'label': f'Delete {category.name}', 'icon': 'fa-trash'}
+        {'label': "Delete {{category.name}}", 'icon': 'fa-trash'}
     ]
     
     return render(request, 'categories/category_confirm_delete.html', {
@@ -211,7 +211,7 @@ def ajax_category_create(request):
     except Exception as e:
         return JsonResponse({
             'status': 'error',
-            'message': f'Error creating category: {str(e)}'
+            'message': "Error creating category: {{str(e)}}"
         }, status=500)
 
 

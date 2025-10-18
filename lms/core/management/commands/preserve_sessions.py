@@ -31,12 +31,12 @@ class Command(BaseCommand):
         # Check session health
         health = check_session_health()
         if health:
-            self.stdout.write(f" Session Health Report:")
-            self.stdout.write(f"   Redis Connection: {' OK' if health['redis_connection'] else ' Failed'}")
-            self.stdout.write(f"   Active Sessions: {health['database_sessions']}")
-            self.stdout.write(f"   Session Engine: {health['session_engine']}")
-            self.stdout.write(f"   Cache Alias: {health['session_cache_alias']}")
-            self.stdout.write(f"   Cookie Age: {health['session_cookie_age']} seconds")
+            self.stdout.write(" Session Health Report:")
+            self.stdout.write("   Redis Connection: {{' OK' if health['redis_connection'] else ' Failed'}}")
+            self.stdout.write("   Active Sessions: {{health['database_sessions']}}")
+            self.stdout.write("   Session Engine: {{health['session_engine']}}")
+            self.stdout.write("   Cache Alias: {{health['session_cache_alias']}}")
+            self.stdout.write("   Cookie Age: {{health['session_cookie_age']}} seconds")
         
         if options['check_only']:
             self.stdout.write(
@@ -53,10 +53,10 @@ class Command(BaseCommand):
         if result:
             self.stdout.write(
                 self.style.SUCCESS(
-                    f" Session preservation completed:\n"
-                    f"   Extended sessions: {result['extended_sessions']}\n"
-                    f"   Cleared expired: {result['cleared_sessions']}\n"
-                    f"   Active sessions: {result['active_sessions']}"
+                    " Session preservation completed:\n"
+                    "   Extended sessions: {{result['extended_sessions']}}\n"
+                    "   Cleared expired: {{result['cleared_sessions']}}\n"
+                    "   Active sessions: {{result['active_sessions']}}"
                 )
             )
         else:

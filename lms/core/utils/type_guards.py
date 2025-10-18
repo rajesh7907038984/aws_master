@@ -604,17 +604,20 @@ def validate_employment_record(data: Any) -> Optional[EmploymentRecord]:
     
     return validated
 
+def validate_scorm_data(data: Any) -> Optional[Dict[str, Any]]:
     """
+    Validate SCORM data structure
     
     Args:
+        data: Raw SCORM data
         
     Returns:
-        Validated removedData or None if invalid
+        Validated SCORM data or None if invalid
     """
     if not isinstance(data, dict):
         return None
     
-    validated: removedData = {}
+    validated = {}
     
     # Required string fields
     completion_status = safe_get_string(data, 'completion_status')

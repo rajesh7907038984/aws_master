@@ -74,7 +74,7 @@ class Command(BaseCommand):
         
         # 1. ASSIGNMENTS (Manual Evaluation)
         self.stdout.write('\n--- ASSIGNMENTS (Manual Evaluation) ---')
-        assignments = Assignment.objects.filter(course=course)
+        assignments = Assignment.objects.filter(courses=course)
         
         for assignment in assignments:
             # Check Grade/Submission linking (should be fixed now)
@@ -117,7 +117,7 @@ class Command(BaseCommand):
                     from quiz.models import QuizRubricEvaluation
                     evaluations = QuizRubricEvaluation.objects.filter(quiz_attempt__quiz=quiz)
                     
-                    if attempts.count() > 0 and evaluations.count() == 0:
+                    if attempts.exists() and not evaluations.exists():
                         issues_found += 1
                         self.stdout.write(
                             self.style.ERROR(
@@ -143,7 +143,7 @@ class Command(BaseCommand):
                     from lms_rubrics.models import RubricEvaluation
                     evaluations = RubricEvaluation.objects.filter(discussion=discussion)
                     
-                    if comments.count() > 0 and evaluations.count() == 0:
+                    if comments.exists() and not evaluations.exists():
                         issues_found += 1
                         self.stdout.write(
                             self.style.ERROR(
@@ -169,7 +169,7 @@ class Command(BaseCommand):
                     from conferences.models import ConferenceRubricEvaluation
                     evaluations = ConferenceRubricEvaluation.objects.filter(conference=conference)
                     
-                    if attendances.count() > 0 and evaluations.count() == 0:
+                    if attendances.exists() and not evaluations.exists():
                         issues_found += 1
                         self.stdout.write(
                             self.style.ERROR(

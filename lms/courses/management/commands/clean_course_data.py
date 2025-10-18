@@ -1,5 +1,5 @@
 from django.core.management.base import BaseCommand
-from courses.models import *
+from courses.models import Course, Section, Topic, CourseEnrollment, CourseProgress
 from django.db import transaction
 
 class Command(BaseCommand):
@@ -24,6 +24,7 @@ class Command(BaseCommand):
                 from courses.models import TopicProgress
                 TopicProgress.objects.all().delete()
             except Exception as e:
+                self.stdout.write("Error cleaning topic progress: {{e}}")
 
             # Clean Assessment related data
             self.stdout.write('Cleaning assessment data...')
@@ -35,7 +36,7 @@ class Command(BaseCommand):
                 Quiz.objects.all().delete()
                 CourseAssessment.objects.all().delete()
             except Exception as e:
-                self.stdout.write(self.style.ERROR(f'Error cleaning assessment data: {str(e)}'))
+                self.stdout.write(self.style.ERROR("Error cleaning assessment data: {{str(e)}}"))
 
             # Clean Course related data
             self.stdout.write('Cleaning course related data...')
@@ -47,7 +48,7 @@ class Command(BaseCommand):
                 LearningObjective.objects.all().delete()
                 CourseFeature.objects.all().delete()
             except Exception as e:
-                self.stdout.write(self.style.ERROR(f'Error cleaning course related data: {str(e)}'))
+                self.stdout.write(self.style.ERROR("Error cleaning course related data: {{str(e)}}"))
 
             # Clean Course and Topic data
             self.stdout.write('Cleaning course and topic data...')
@@ -55,6 +56,6 @@ class Command(BaseCommand):
                 Topic.objects.all().delete()
                 Course.objects.all().delete()
             except Exception as e:
-                self.stdout.write(self.style.ERROR(f'Error cleaning course and topic data: {str(e)}'))
+                self.stdout.write(self.style.ERROR("Error cleaning course and topic data: {{str(e)}}"))
 
         self.stdout.write(self.style.SUCCESS('Successfully cleaned all course-related data')) 

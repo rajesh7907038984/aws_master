@@ -469,7 +469,7 @@
         font-style: italic;
     }
 
-    /* Table styles for Quill Editor content */
+    /* Table styles for TinyMCE Editor content */
     .overview-content table {
         width: 100%;
         border-collapse: collapse;
@@ -1718,7 +1718,7 @@
                     return {
                         text: progress > 0 ? 'Resume Course' : 'Start Course',
                         classes: progress > 0 ? 'resume-button' : '',
-                        href: `{% if first_topic %}{% url 'courses:topic_view' first_topic.id %}?manual=True{% else %}{% url 'courses:course_view' course.id %}{% endif %}`,
+                        href: '{% if first_topic %}{% url "courses:topic_view" first_topic.id %}?manual=True{% else %}{% url "courses:course_view" course.id %}{% endif %}',
                         dataProgress: progress
                     };
                 } else if (userRole === 'learner') {
@@ -1731,7 +1731,7 @@
                     return {
                         text: 'Access Course',
                         classes: '',
-                        href: `{% url 'courses:course_view' course.id %}`
+                        href: '{% url "courses:course_view" course.id %}'
                     };
                 }
             }
@@ -1748,7 +1748,7 @@
             videoElement.addEventListener('error', function(e) {
                 if (videoError) {
                     videoError.classList.remove('hidden');
-                    videoError.innerHTML = `<p class="text-red-700">Error loading video: ${e.target.error ? e.target.error.message : 'Unknown error'}</p>`;
+                    videoError.innerHTML = '<p class="text-red-700">Error loading video: ' + (e.target.error ? e.target.error.message : 'Unknown error') + '</p>';
                 }
                 
                 // Check the video status via API
@@ -1766,10 +1766,10 @@
         }
         
         function checkVideoStatus() {
-            fetch(`/courses/{{ course.id }}/check-video/`)
+            fetch('/courses/{{ course.id }}/check-video/')
                 .then(response => {
                     if (!response.ok) {
-                        throw new Error(`HTTP error! status: ${response.status}`);
+                        throw new Error('HTTP error! status: ' + response.status);
                     }
                     return response.json();
                 })
@@ -1791,11 +1791,12 @@
                     } else {
                         if (videoError) {
                             videoError.classList.remove('hidden');
-                            videoError.innerHTML = `<p class="text-red-700">Video check failed: ${data.error || 'Unknown error'}</p>`;
+                            videoError.innerHTML = '<p class="text-red-700">Video check failed: ' + (data.error || 'Unknown error') + '</p>';
                         }
                     }
                 })
                 .catch(error => {
+                    console.warn('Video check failed:', error);
                 });
         }
         

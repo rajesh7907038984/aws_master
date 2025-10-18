@@ -159,12 +159,12 @@ class ConferenceFileUploadForm(forms.Form):
             
             # Check file extension
             allowed_extensions = [
-                '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx', 
+                '.pd", ".doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx', 
                 '.txt', '.jpg', '.jpeg', '.png', '.zip'
             ]
             ext = file.name.lower().split('.')[-1] if '.' in file.name else ''
             if not any(file.name.lower().endswith(ext) for ext in allowed_extensions):
                 raise forms.ValidationError(
-                    f'Invalid file type. Allowed types: {", ".join(allowed_extensions)}'
+                    "Invalid file type. Allowed types: {{", ".join(allowed_extensions)}}"
                 )
         return file 

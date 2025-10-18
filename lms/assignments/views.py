@@ -518,11 +518,12 @@ def assignment_list(request):
 def assignment_detail(request, assignment_id):
     """View to display assignment details"""
     assignment = get_object_or_404(
-        Assignment.objects.select_related('rubric', 'course').prefetch_related(
+        Assignment.objects.select_related('rubric', 'user').prefetch_related(
             'rubric__criteria__ratings',
             'text_fields',
             'text_fields__answers__submission__user',
-            'attachments'
+            'attachments',
+            'courses'
         ), 
         id=assignment_id
     )
@@ -706,8 +707,7 @@ def assignment_detail(request, assignment_id):
             assignment=assignment
         ).select_related(
             'user__branch', 
-            'graded_by',
-            'assignment__course'
+            'graded_by'
         ).prefetch_related(
             'grade_history__changed_by',
             'feedback_entries__created_by',
@@ -1096,8 +1096,7 @@ def assignment_detail(request, assignment_id):
                         
                         # Register file in media database for tracking
                         try:
-                            # Media file registration handled via S3 storage
-                            pass
+                            from media_library.utils import register_media_file
                             register_media_file(
                                 file_path=str(file_iteration.file),
                                 uploaded_by=request.user,
@@ -1108,6 +1107,9 @@ def assignment_detail(request, assignment_id):
                                 filename=uploaded_file.name,
                                 description=f'Assignment submission iteration {next_iteration_number} for: {assignment.title}'
                             )
+                            logger.info(f"Successfully registered assignment file iteration in media database: {str(file_iteration.file)}")
+                        except ImportError as e:
+                            logger.warning(f"Media registration module not available: {str(e)}")
                         except Exception as e:
                             logger.error(f"Error registering assignment file iteration in media database: {str(e)}")
                         
@@ -1160,7 +1162,7 @@ def assignment_detail(request, assignment_id):
                     
                     # Register file in media database for tracking
                     try:
-                        from lms_media.utils import register_media_file
+                        from media_library.utils import register_media_file
                         register_media_file(
                             file_path=str(file_iteration.file),
                             uploaded_by=request.user,
@@ -1171,8 +1173,12 @@ def assignment_detail(request, assignment_id):
                             filename=uploaded_file.name,
                             description=f'Assignment submission iteration {next_iteration_number} for: {assignment.title}'
                         )
+                    except ImportError as e:
+                        logger.warning(f"Media registration module not available: {str(e)}")
                     except Exception as e:
                         logger.error(f"Error registering assignment file iteration in media database: {str(e)}")
+                        # Don't fail the upload if media registration fails
+                        pass
                     
                     # Also update the main submission file for backward compatibility
                     submission.submission_file = uploaded_file
@@ -1225,7 +1231,7 @@ def assignment_detail(request, assignment_id):
                     
                     # Register file in media database for tracking
                     try:
-                        from lms_media.utils import register_media_file
+                        from media_library.utils import register_media_file
                         register_media_file(
                             file_path=str(file_iteration.file),
                             uploaded_by=request.user,
@@ -1236,8 +1242,12 @@ def assignment_detail(request, assignment_id):
                             filename=uploaded_file.name,
                             description=f'Assignment submission iteration {next_iteration_number} for: {assignment.title}'
                         )
+                    except ImportError as e:
+                        logger.warning(f"Media registration module not available: {str(e)}")
                     except Exception as e:
                         logger.error(f"Error registering assignment file iteration in media database: {str(e)}")
+                        # Don't fail the upload if media registration fails
+                        pass
                     
                     # Also update the main submission file for backward compatibility
                     submission.submission_file = uploaded_file
@@ -2603,7 +2613,7 @@ def submit_assignment(request, assignment_id):
                     
                     # Register file in media database for tracking
                     try:
-                        from lms_media.utils import register_media_file
+                        from media_library.utils import register_media_file
                         # For new submissions, the file is saved directly to submission_file field
                         if hasattr(uploaded_file, 'name'):
                             register_media_file(
@@ -2615,8 +2625,12 @@ def submit_assignment(request, assignment_id):
                                 filename=uploaded_file.name,
                                 description=f'Assignment submission for: {assignment.title}'
                             )
+                    except ImportError as e:
+                        logger.warning(f"Media registration module not available: {str(e)}")
                     except Exception as e:
                         logger.error(f"Error registering assignment submission file in media database: {str(e)}")
+                        # Don't fail the upload if media registration fails
+                        pass
                 
                 # Create or update submission
                 if submission:
@@ -4984,7 +4998,7 @@ def upload_editor_image(request):
         
         # Register file in media database for tracking
         try:
-            from lms_media.utils import register_media_file
+            from media_library.utils import register_media_file
             register_media_file(
                 file_path=saved_path,
                 uploaded_by=request.user if request.user.is_authenticated else None,
@@ -4992,10 +5006,16 @@ def upload_editor_image(request):
                 filename=image.name,
                 description=f'Assignment editor image upload'
             )
+        except ImportError as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(f"Media registration module not available: {str(e)}")
         except Exception as e:
             import logging
             logger = logging.getLogger(__name__)
             logger.error(f"Error registering assignment editor image in media database: {str(e)}")
+            # Don't fail the upload if media registration fails
+            pass
         
         # Register file in storage tracking system
         try:
@@ -5068,7 +5088,7 @@ def upload_editor_video(request):
         
         # Register file in media database for tracking
         try:
-            from lms_media.utils import register_media_file
+            from media_library.utils import register_media_file
             register_media_file(
                 file_path=saved_path,
                 uploaded_by=request.user if request.user.is_authenticated else None,
@@ -5076,10 +5096,16 @@ def upload_editor_video(request):
                 filename=video.name,
                 description=f'Assignment editor video upload'
             )
+        except ImportError as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(f"Media registration module not available: {str(e)}")
         except Exception as e:
             import logging
             logger = logging.getLogger(__name__)
             logger.error(f"Error registering assignment editor video in media database: {str(e)}")
+            # Don't fail the upload if media registration fails
+            pass
         
         # Register file in storage tracking system
         try:

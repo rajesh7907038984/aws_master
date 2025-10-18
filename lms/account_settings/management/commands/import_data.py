@@ -47,7 +47,7 @@ class Command(BaseCommand):
                 pass
 
         try:
-            self.stdout.write(f'Starting import of {import_type} data...')
+            self.stdout.write("Starting import of {{import_type}} data...")
             
             # Extract ZIP file if needed
             import_dir = self.prepare_import_directory(file_path)
@@ -90,20 +90,20 @@ class Command(BaseCommand):
                 job.completed_at = timezone.now()
                 job.save()
             
-            self.stdout.write(self.style.SUCCESS(f'Import completed'))
-            self.stdout.write(f'Records processed: {records_processed}')
-            self.stdout.write(f'Records created: {records_created}')
-            self.stdout.write(f'Records updated: {records_updated}')
-            self.stdout.write(f'Records failed: {records_failed}')
+            self.stdout.write(self.style.SUCCESS("Import completed"))
+            self.stdout.write("Records processed: {{records_processed}}")
+            self.stdout.write("Records created: {{records_created}}")
+            self.stdout.write("Records updated: {{records_updated}}")
+            self.stdout.write("Records failed: {{records_failed}}")
             
             if validation_errors:
-                self.stdout.write(self.style.WARNING(f'Validation errors: {len(validation_errors)}'))
+                self.stdout.write(self.style.WARNING("Validation errors: {{len(validation_errors)}}"))
                 for error in validation_errors[:5]:  # Show first 5 errors
-                    self.stdout.write(f'  - {error}')
+                    self.stdout.write("  - {{error}}")
             
         except Exception as e:
             error_msg = str(e)
-            self.stdout.write(self.style.ERROR(f'Import failed: {error_msg}'))
+            self.stdout.write(self.style.ERROR("Import failed: {{error_msg}}"))
             
             if job:
                 job.status = 'failed'
@@ -130,7 +130,7 @@ class Command(BaseCommand):
         """Import users data"""
         users_file = os.path.join(import_dir, 'users.json')
         if not os.path.exists(users_file):
-            raise FileNotFoundError(f"Users data file not found: {users_file}")
+            raise FileNotFoundError("Users data file not found: {{users_file}}")
         
         with open(users_file, 'r') as f:
             users_data = json.load(f)
@@ -235,8 +235,8 @@ class Command(BaseCommand):
                         
             except Exception as e:
                 records_failed += 1
-                validation_errors.append(f"User {user_data.get('username', 'Unknown')}: {str(e)}")
-                self.stdout.write(f"Failed to import user {user_data.get('username', 'Unknown')}: {str(e)}")
+                validation_errors.append("User {{user_data.get('username', 'Unknown')}}: {{str(e)}}")
+                self.stdout.write("Failed to import user {{user_data.get('username', 'Unknown')}}: {{str(e)}}")
         
         return records_processed, records_created, records_updated, records_failed, validation_errors
 
@@ -244,7 +244,7 @@ class Command(BaseCommand):
         """Import courses data"""
         courses_file = os.path.join(import_dir, 'courses.json')
         if not os.path.exists(courses_file):
-            raise FileNotFoundError(f"Courses data file not found: {courses_file}")
+            raise FileNotFoundError("Courses data file not found: {{courses_file}}")
         
         with open(courses_file, 'r') as f:
             courses_data = json.load(f)
@@ -341,8 +341,8 @@ class Command(BaseCommand):
                         
             except Exception as e:
                 records_failed += 1
-                validation_errors.append(f"Course {course_data.get('title', 'Unknown')}: {str(e)}")
-                self.stdout.write(f"Failed to import course {course_data.get('title', 'Unknown')}: {str(e)}")
+                validation_errors.append("Course {{course_data.get('title', 'Unknown')}}: {{str(e)}}")
+                self.stdout.write("Failed to import course {{course_data.get('title', 'Unknown')}}: {{str(e)}}")
         
         # Import enrollments if file exists
         enrollments_file = os.path.join(import_dir, 'course_enrollments.json')
@@ -360,7 +360,7 @@ class Command(BaseCommand):
         """Import topics data"""
         topics_file = os.path.join(import_dir, 'topics.json')
         if not os.path.exists(topics_file):
-            raise FileNotFoundError(f"Topics data file not found: {topics_file}")
+            raise FileNotFoundError("Topics data file not found: {{topics_file}}")
         
         with open(topics_file, 'r') as f:
             topics_data = json.load(f)
@@ -445,8 +445,8 @@ class Command(BaseCommand):
                         
             except Exception as e:
                 records_failed += 1
-                validation_errors.append(f"Topic {topic_data.get('title', 'Unknown')}: {str(e)}")
-                self.stdout.write(f"Failed to import topic {topic_data.get('title', 'Unknown')}: {str(e)}")
+                validation_errors.append("Topic {{topic_data.get('title', 'Unknown')}}: {{str(e)}}")
+                self.stdout.write("Failed to import topic {{topic_data.get('title', 'Unknown')}}: {{str(e)}}")
         
         return records_processed, records_created, records_updated, records_failed, validation_errors
 
@@ -454,7 +454,7 @@ class Command(BaseCommand):
         """Import assignments data"""
         assignments_file = os.path.join(import_dir, 'assignments.json')
         if not os.path.exists(assignments_file):
-            raise FileNotFoundError(f"Assignments data file not found: {assignments_file}")
+            raise FileNotFoundError("Assignments data file not found: {{assignments_file}}")
         
         with open(assignments_file, 'r') as f:
             assignments_data = json.load(f)
@@ -533,8 +533,8 @@ class Command(BaseCommand):
                         
             except Exception as e:
                 records_failed += 1
-                validation_errors.append(f"Assignment {assignment_data.get('title', 'Unknown')}: {str(e)}")
-                self.stdout.write(f"Failed to import assignment {assignment_data.get('title', 'Unknown')}: {str(e)}")
+                validation_errors.append("Assignment {{assignment_data.get('title', 'Unknown')}}: {{str(e)}}")
+                self.stdout.write("Failed to import assignment {{assignment_data.get('title', 'Unknown')}}: {{str(e)}}")
         
         return records_processed, records_created, records_updated, records_failed, validation_errors
 
@@ -542,7 +542,7 @@ class Command(BaseCommand):
         """Import quizzes data"""
         quizzes_file = os.path.join(import_dir, 'quizzes.json')
         if not os.path.exists(quizzes_file):
-            raise FileNotFoundError(f"Quizzes data file not found: {quizzes_file}")
+            raise FileNotFoundError("Quizzes data file not found: {{quizzes_file}}")
         
         with open(quizzes_file, 'r') as f:
             quizzes_data = json.load(f)
@@ -599,8 +599,8 @@ class Command(BaseCommand):
                         
             except Exception as e:
                 records_failed += 1
-                validation_errors.append(f"Quiz {quiz_data.get('title', 'Unknown')}: {str(e)}")
-                self.stdout.write(f"Failed to import quiz {quiz_data.get('title', 'Unknown')}: {str(e)}")
+                validation_errors.append("Quiz {{quiz_data.get('title', 'Unknown')}}: {{str(e)}}")
+                self.stdout.write("Failed to import quiz {{quiz_data.get('title', 'Unknown')}}: {{str(e)}}")
         
         return records_processed, records_created, records_updated, records_failed, validation_errors
 
@@ -608,7 +608,7 @@ class Command(BaseCommand):
         """Import discussions data"""
         discussions_file = os.path.join(import_dir, 'discussions.json')
         if not os.path.exists(discussions_file):
-            raise FileNotFoundError(f"Discussions data file not found: {discussions_file}")
+            raise FileNotFoundError("Discussions data file not found: {{discussions_file}}")
         
         with open(discussions_file, 'r') as f:
             discussions_data = json.load(f)
@@ -660,8 +660,8 @@ class Command(BaseCommand):
                         
             except Exception as e:
                 records_failed += 1
-                validation_errors.append(f"Discussion {discussion_data.get('title', 'Unknown')}: {str(e)}")
-                self.stdout.write(f"Failed to import discussion {discussion_data.get('title', 'Unknown')}: {str(e)}")
+                validation_errors.append("Discussion {{discussion_data.get('title', 'Unknown')}}: {{str(e)}}")
+                self.stdout.write("Failed to import discussion {{discussion_data.get('title', 'Unknown')}}: {{str(e)}}")
         
         return records_processed, records_created, records_updated, records_failed, validation_errors
 
@@ -669,7 +669,7 @@ class Command(BaseCommand):
         """Import conferences data"""
         conferences_file = os.path.join(import_dir, 'conferences.json')
         if not os.path.exists(conferences_file):
-            raise FileNotFoundError(f"Conferences data file not found: {conferences_file}")
+            raise FileNotFoundError("Conferences data file not found: {{conferences_file}}")
         
         with open(conferences_file, 'r') as f:
             conferences_data = json.load(f)
@@ -731,8 +731,8 @@ class Command(BaseCommand):
                         
             except Exception as e:
                 records_failed += 1
-                validation_errors.append(f"Conference {conference_data.get('title', 'Unknown')}: {str(e)}")
-                self.stdout.write(f"Failed to import conference {conference_data.get('title', 'Unknown')}: {str(e)}")
+                validation_errors.append("Conference {{conference_data.get('title', 'Unknown')}}: {{str(e)}}")
+                self.stdout.write("Failed to import conference {{conference_data.get('title', 'Unknown')}}: {{str(e)}}")
         
         return records_processed, records_created, records_updated, records_failed, validation_errors
 
@@ -782,7 +782,7 @@ class Command(BaseCommand):
                         
             except Exception as e:
                 records_failed += 1
-                validation_errors.append(f"Enrollment course_id={enrollment_data.get('course_id')}, user_id={enrollment_data.get('user_id')}: {str(e)}")
+                validation_errors.append("Enrollment course_id={{enrollment_data.get('course_id')}}, user_id={{enrollment_data.get('user_id')}}: {{str(e)}}")
         
         return records_processed, records_created, records_updated, records_failed, validation_errors
 
@@ -807,7 +807,7 @@ class Command(BaseCommand):
                 setattr(user, field_name, relative_path)
                 user.save(update_fields=[field_name])
         except Exception as e:
-            self.stdout.write(f"Failed to copy user file {file_path}: {str(e)}")
+            self.stdout.write("Failed to copy user file {{file_path}}: {{str(e)}}")
 
     def _copy_course_file(self, import_dir, file_path, course, field_name):
         """Copy course file from import directory to proper location"""
@@ -817,7 +817,7 @@ class Command(BaseCommand):
                 # Create destination directory
                 # S3 storage - use temp directory for course files
                 import tempfile
-                dst_dir = os.path.join(tempfile.gettempdir(), f'course_{course.id}')
+                dst_dir = os.path.join(tempfile.gettempdir(), "course_{{course.id}}")
                 os.makedirs(dst_dir, exist_ok=True)
                 
                 # Copy file
@@ -830,7 +830,7 @@ class Command(BaseCommand):
                 setattr(course, field_name, relative_path)
                 course.save(update_fields=[field_name])
         except Exception as e:
-            self.stdout.write(f"Failed to copy course file {file_path}: {str(e)}")
+            self.stdout.write("Failed to copy course file {{file_path}}: {{str(e)}}")
 
     def _copy_topic_file(self, import_dir, file_path, topic):
         """Copy topic file from import directory to proper location"""
@@ -840,7 +840,7 @@ class Command(BaseCommand):
                 # Create destination directory
                 # S3 storage - use temp directory for topic files
                 import tempfile
-                dst_dir = os.path.join(tempfile.gettempdir(), f'topic_uploads', str(topic.id))
+                dst_dir = os.path.join(tempfile.gettempdir(), "topic_uploads", str(topic.id))
                 os.makedirs(dst_dir, exist_ok=True)
                 
                 # Copy file
@@ -853,4 +853,4 @@ class Command(BaseCommand):
                 topic.content_file = relative_path
                 topic.save(update_fields=['content_file'])
         except Exception as e:
-            self.stdout.write(f"Failed to copy topic file {file_path}: {str(e)}") 
+            self.stdout.write("Failed to copy topic file {{file_path}}: {{str(e)}}") 

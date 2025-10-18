@@ -48,24 +48,19 @@ class TinyMCEWidget(forms.Textarea):
             'plugins': [
                 'advlist', 'autolink', 'lists', 'link', 'image', 'charmap', 'preview',
                 'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen',
-                'insertdatetime', 'media', 'table', 'wordcount', 'aiwriter'
+                'insertdatetime', 'table', 'wordcount', 'aiwriter'
             ],
             'toolbar': 'undo redo | blocks | ' +
                       'bold italic forecolor | alignleft aligncenter ' +
                       'alignright alignjustify | bullist numlist outdent indent | ' +
-                      'removeformat | image media | code fullscreen | aiwriter',
+                      'removeformat | image | code fullscreen | aiwriter',
             'content_style': 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px }',
             'image_advtab': True,
             'image_uploadtab': True,
             'images_upload_url': '/tinymce/upload_image/',
             'automatic_uploads': True,
-            'file_picker_types': 'image media',
-            'media_upload_url': '/tinymce/upload_media_file/',
-            'media_live_embeds': True,
-            'media_filter_html': False,
-            'media_url_resolver': None,  # Will be set via JavaScript
+            'file_picker_types': 'image',
             'images_upload_handler': None,  # Will be set via JavaScript
-            'media_upload_handler': None,  # Will be set via JavaScript
             'browser_spellcheck': True,
             'contextmenu': False,
             'mobile': {
@@ -138,13 +133,8 @@ class TinyMCEAdvancedWidget(TinyMCEWidget):
             'image_uploadtab': True,
             'images_upload_url': '/tinymce/upload_image/',
             'automatic_uploads': True,
-            'file_picker_types': 'image media',
-            'media_upload_url': '/tinymce/upload_media_file/',
-            'media_live_embeds': True,
-            'media_filter_html': False,
-            'media_url_resolver': None,  # Will be set via JavaScript
+            'file_picker_types': 'image',
             'images_upload_handler': None,  # Will be set via JavaScript
-            'media_upload_handler': None,  # Will be set via JavaScript
             'file_picker_callback': None,  # Will be set via JavaScript
             'external_plugins': {
                 'aiwriter': '/static/tinymce_editor/js/plugins/aiwriter/plugin.min.js'
@@ -187,13 +177,8 @@ class TinyMCESimpleWidget(TinyMCEWidget):
             'image_uploadtab': True,
             'images_upload_url': '/tinymce/upload_image/',
             'automatic_uploads': True,
-            'file_picker_types': 'image media',
-            'media_upload_url': '/tinymce/upload_media_file/',
-            'media_live_embeds': True,
-            'media_filter_html': False,
-            'media_url_resolver': None,  # Will be set via JavaScript
+            'file_picker_types': 'image',
             'images_upload_handler': None,  # Will be set via JavaScript
-            'media_upload_handler': None,  # Will be set via JavaScript
             'file_picker_callback': None,  # Will be set via JavaScript
             'external_plugins': {
                 'aiwriter': '/static/tinymce_editor/js/plugins/aiwriter/plugin.js'

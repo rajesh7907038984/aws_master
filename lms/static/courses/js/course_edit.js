@@ -1,24 +1,24 @@
 document.addEventListener('DOMContentLoaded', function() {
     
     // Tab functionality
-    const tabButtons = document.querySelectorAll('.tab-btn');
-    const tabContents = document.querySelectorAll('.tab-content');
+    var tabButtons = document.querySelectorAll('.tab-btn');
+    var tabContents = document.querySelectorAll('.tab-content');
     
     
     // Initialize tab functionality
     function initTabs() {
-        tabButtons.forEach(button => {
+        tabButtons.forEach(function(button) {
             button.addEventListener('click', function(e) {
                 e.preventDefault();
                 
                 // Remove active class from all buttons and contents
-                tabButtons.forEach(btn => {
+                tabButtons.forEach(function(btn) {
                     btn.classList.remove('active');
                     btn.classList.remove('border-blue-600');
                     btn.classList.add('text-gray-500');
                 });
                 
-                tabContents.forEach(content => {
+                tabContents.forEach(function(content) {
                     content.classList.remove('active');
                 });
                 
@@ -28,8 +28,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 this.classList.remove('text-gray-500');
                 
                 // Show corresponding content
-                const target = this.getAttribute('data-tab-target');
-                const targetContent = document.querySelector(target);
+                var target = this.getAttribute('data-tab-target');
+                var targetContent = document.querySelector(target);
                 if (targetContent) {
                     targetContent.classList.add('active');
                 }
@@ -42,16 +42,16 @@ document.addEventListener('DOMContentLoaded', function() {
     setTimeout(initTabs, 500);
 
     // View toggle functionality
-    const listViewBtn = document.getElementById('list-view-btn');
-    const gridViewBtn = document.getElementById('grid-view-btn');
-    const topicList = document.getElementById('topic-list');
+    var listViewBtn = document.getElementById('list-view-btn');
+    var gridViewBtn = document.getElementById('grid-view-btn');
+    var topicList = document.getElementById('topic-list');
 
     // Settings modal functionality
-    const settingsModal = document.getElementById('settings-modal');
-    const settingsButton = document.getElementById('settings-btn');
-    const closeSettingsModal = document.getElementById('closeSettingsModal');
-    const cancelSettingsBtn = document.getElementById('cancelSettingsBtn');
-    const saveSettingsBtn = document.getElementById('save-settings-btn');
+    var settingsModal = document.getElementById('settings-modal');
+    var settingsButton = document.getElementById('settings-btn');
+    var closeSettingsModal = document.getElementById('closeSettingsModal');
+    var cancelSettingsBtn = document.getElementById('cancelSettingsBtn');
+    var saveSettingsBtn = document.getElementById('save-settings-btn');
 
     // Handle settings button click
     if (settingsButton && settingsModal) {
@@ -78,8 +78,8 @@ document.addEventListener('DOMContentLoaded', function() {
             animation: 150,
             handle: '.topic-drag-handle',
             onEnd: function(evt) {
-                const topicId = evt.item.getAttribute('data-topic-id');
-                const newIndex = evt.newIndex;
+                var topicId = evt.item.getAttribute('data-topic-id');
+                var newIndex = evt.newIndex;
                 
                 // Update topic order in the database
                 fetch('/courses/api/topics/reorder/', {
@@ -93,24 +93,24 @@ document.addEventListener('DOMContentLoaded', function() {
                         new_order: newIndex + 1
                     })
                 })
-                .then(response => {
+                .then(function(response) {
         if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+            throw new Error('HTTP error! status: ' + response.status);
         }
         return response.json();
     })
-                .then(data => {
+                .then(function(data) {
                     if (!data.success) {
                     }
                 })
-                .catch(error => {
+                .catch(function(error) {
                 });
             }
         });
     }
 
     // Close on escape key
-    document.addEventListener('keydown', (e) => {
+    document.addEventListener('keydown', function(e) {
         if (e.key === 'Escape') {
             if (settingsModal && settingsModal.classList.contains('active')) {
                 closeModal(settingsModal);
@@ -123,23 +123,23 @@ document.addEventListener('DOMContentLoaded', function() {
 }); 
 
 // Add a fallback to ensure tabs work even if DOMContentLoaded event has already fired
-if (document.readyState === 'complete' || document.readyState === 'interactive') {
+if (document.readyState === 'compvare' || document.readyState === 'interactive') {
     setTimeout(function() {
-        const tabButtons = document.querySelectorAll('.tab-btn');
-        const tabContents = document.querySelectorAll('.tab-content');
+        var tabButtons = document.querySelectorAll('.tab-btn');
+        var tabContents = document.querySelectorAll('.tab-content');
         
-        tabButtons.forEach(button => {
+        tabButtons.forEach(function(button) {
             button.addEventListener('click', function(e) {
                 e.preventDefault();
                 
                 // Remove active class from all buttons and contents
-                tabButtons.forEach(btn => {
+                tabButtons.forEach(function(btn) {
                     btn.classList.remove('active');
                     btn.classList.remove('border-blue-600');
                     btn.classList.add('text-gray-500');
                 });
                 
-                tabContents.forEach(content => {
+                tabContents.forEach(function(content) {
                     content.classList.remove('active');
                 });
                 
@@ -149,8 +149,8 @@ if (document.readyState === 'complete' || document.readyState === 'interactive')
                 this.classList.remove('text-gray-500');
                 
                 // Show corresponding content
-                const target = this.getAttribute('data-tab-target');
-                const targetContent = document.querySelector(target);
+                var target = this.getAttribute('data-tab-target');
+                var targetContent = document.querySelector(target);
                 if (targetContent) {
                     targetContent.classList.add('active');
                 }

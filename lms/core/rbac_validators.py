@@ -67,14 +67,14 @@ class AllocationValidator:
             branch__business=business
         ).count()
         
-        logger.info(f"Business limit validation: Business={business.name}, "
-                   f"Limit={business_limits.total_user_limit}, "
-                   f"Current users={current_business_users}")
+        logger.info("Business limit validation: Business={{business.name}}, "
+                   "Limit={{business_limits.total_user_limit}}, "
+                   "Current users={{current_business_users}}")
         
         if current_business_users >= business_limits.total_user_limit:
             errors.append(
-                f"Business '{business.name}' has reached its user limit of {business_limits.total_user_limit}. "
-                f"Current users: {current_business_users}"
+                "Business '{{business.name}}' has reached its user limit of {{business_limits.total_user_limit}}. "
+                "Current users: {{current_business_users}}"
             )
         
         # Check branch-level limits if they exist
@@ -83,25 +83,28 @@ class AllocationValidator:
             branch_limits = BranchUserLimits.objects.get(branch=target_branch)
             current_branch_users = CustomUser.objects.filter(branch=target_branch).count()
             
-            logger.info(f"Branch limit validation: Branch={target_branch.name}, "
-                       f"Limit={branch_limits.user_limit}, "
-                       f"Current users={current_branch_users}")
+            logger.info("Branch limit validation: Branch={{target_branch.name}}, "
+                       "Limit={{branch_limits.user_limit}}, "
+                       "Current users={{current_branch_users}}")
             
             if current_branch_users >= branch_limits.user_limit:
                 errors.append(
-                    f"Branch '{target_branch.name}' has reached its user limit of {branch_limits.user_limit}. "
-                    f"Current users: {current_branch_users}"
+                    "Branch '{{target_branch.name}}' has reached its user limit of {{branch_limits.user_limit}}. "
+                    "Current users: {{current_branch_users}}"
                 )
         except BranchUserLimits.DoesNotExist:
             # No branch limits set, so no restriction
-            logger.info(f"No branch limits set for {target_branch.name}")
+            logger.info("No branch limits set for {{target_branch.name}}")
         
         # Role-specific validation
         if user.role == 'superadmin':
             # Super Admin: CONDITIONAL (within business allocation)
-            user_businesses = user.business_assignments.filter(is_active=True).values_list('business', flat=True)
-            if business.id not in user_businesses:
-                errors.append("Super Admin can only create users in businesses they are assigned to")
+            if hasattr(user, 'business_assignments'):
+                user_businesses = user.business_assignments.filter(is_active=True).values_list('business', flat=True)
+                if business.id not in user_businesses:
+                    errors.append("Super Admin can only create users in businesses they are assigned to")
+            else:
+                errors.append("Super Admin must have business assignments to create users")
                 
         elif user.role == 'admin':
             # Branch Admin: CONDITIONAL (within branch allocation)
@@ -160,8 +163,8 @@ class AllocationValidator:
         superadmin_limit = 10
         if current_superadmin_users >= superadmin_limit:
             errors.append(
-                f"Business '{target_business.name}' has reached its Super Admin limit of {superadmin_limit}. "
-                f"Current Super Admin users: {current_superadmin_users}"
+                "Business '{{target_business.name}}' has reached its Super Admin limit of {{superadmin_limit}}. "
+                "Current Super Admin users: {{current_superadmin_users}}"
             )
         
         return errors
@@ -207,8 +210,8 @@ class AllocationValidator:
         current_branches = target_business.branches.filter(is_active=True).count()
         if current_branches >= business_limits.branch_creation_limit:
             errors.append(
-                f"Business '{target_business.name}' has reached its branch limit of {business_limits.branch_creation_limit}. "
-                f"Current branches: {current_branches}"
+                "Business '{{target_business.name}}' has reached its branch limit of {{business_limits.branch_creation_limit}}. "
+                "Current branches: {{current_branches}}"
             )
         
         return errors
@@ -331,18 +334,18 @@ class RBACValidator:
                 
             elif resource_type == 'business':
                 if not self.conditional_access_validator.validate_business_access(user, resource):
-                    errors.append(f"Access denied to business: insufficient permissions")
+                    errors.append("Access denied to business: insufficient permissions")
                     
             elif resource_type == 'branch':
                 if not self.conditional_access_validator.validate_branch_access(user, resource):
-                    errors.append(f"Access denied to branch: insufficient permissions")
+                    errors.append("Access denied to branch: insufficient permissions")
                     
             elif resource_type == 'user' and resource:
                 if not self.conditional_access_validator.validate_user_access(user, resource, action):
-                    errors.append(f"Access denied to user: insufficient permissions for {action}")
+                    errors.append("Access denied to user: insufficient permissions for {{action}}")
                     
         except Exception as e:
-            logger.error(f"RBAC validation error: {str(e)}")
+            logger.error("RBAC validation error: {{str(e)}}")
             errors.append("Internal validation error")
         
         return errors

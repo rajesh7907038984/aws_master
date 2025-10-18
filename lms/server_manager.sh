@@ -59,10 +59,10 @@ case "$1" in
         fi
         
         echo " Starting fresh server..."
-        if [ -f "production.env" ]; then
-            export $(cat production.env | grep -v '^#' | xargs)
+        if [ -f ".env" ]; then
+            export $(cat .env | grep -v '^#' | xargs)
         else
-            echo " production.env not found!"
+            echo " .env not found!"
             exit 1
         fi
         
@@ -117,7 +117,7 @@ case "$1" in
         fi
         
         # Load environment and start
-        export $(cat production.env | grep -v '^#' | xargs) 2>/dev/null
+        export $(cat .env | grep -v '^#' | xargs) 2>/dev/null
         source venv/bin/activate
         nohup gunicorn --config gunicorn.conf.py LMS_Project.wsgi:application > $LOGS_DIR/gunicorn_startup.log 2>&1 &
         
@@ -162,7 +162,7 @@ case "$1" in
         fi
         
         # Check if domain is accessible
-        PRIMARY_DOMAIN=$(grep PRIMARY_DOMAIN /home/ec2-user/lms/production.env | cut -d'=' -f2)
+        PRIMARY_DOMAIN=$(grep PRIMARY_DOMAIN /home/ec2-user/lms/.env | cut -d'=' -f2)
         if curl -f -s -I https://$PRIMARY_DOMAIN/ > /dev/null 2>&1; then
             echo " Domain https://$PRIMARY_DOMAIN is accessible"
         else

@@ -61,7 +61,7 @@ def automated_sync_maintenance(self):
                     
                     if recovery_result.get('success'):
                         maintenance_report['auto_fixed'] += 1
-                        logger.info(f"Auto-fixed issues for conference {conference.id}: {conference.title}")
+                        logger.info("Auto-fixed issues for conference {{conference.id}}: {{conference.title}}")
                     
                     # If still critical after recovery, flag for alert
                     if health['overall_status'] == 'critical':
@@ -70,17 +70,17 @@ def automated_sync_maintenance(self):
                 maintenance_report['conferences_processed'].append(conf_result)
                 
             except Exception as e:
-                logger.error(f"Error processing conference {conference.id}: {str(e)}")
+                logger.error("Error processing conference {{conference.id}}: {{str(e)}}")
                 continue
         
         # Send summary email to admins
         send_maintenance_summary.delay(maintenance_report)
         
-        logger.info(f"Automated maintenance complete: {maintenance_report['auto_fixed']} fixes applied")
+        logger.info("Automated maintenance complete: {{maintenance_report['auto_fixed']}} fixes applied")
         return maintenance_report
         
     except Exception as exc:
-        logger.error(f"Automated sync maintenance failed: {str(exc)}")
+        logger.error("Automated sync maintenance failed: {{str(exc)}}")
         raise self.retry(exc=exc, countdown=60)
 
 @shared_task
@@ -91,35 +91,35 @@ def send_maintenance_summary(maintenance_report):
             logger.warning("Email not configured, skipping maintenance summary")
             return
         
-        subject = f"Conference Sync Maintenance Report - {maintenance_report['auto_fixed']} Fixes Applied"
+        subject = "Conference Sync Maintenance Report - {{maintenance_report['auto_fixed']}} Fixes Applied"
         
         message = "Automated Conference Sync Maintenance Report\n"
         message += "="*50 + "\n\n"
-        message += f"Summary:\n"
-        message += f"• Total conferences checked: {maintenance_report['total_checked']}\n"
-        message += f"• Issues found: {maintenance_report['issues_found']}\n"
-        message += f"• Auto-fixed: {maintenance_report['auto_fixed']}\n"
-        message += f"• Critical alerts: {maintenance_report['critical_alerts']}\n\n"
+        message += "Summary:\n"
+        message += "• Total conferences checked: {{maintenance_report['total_checked']}}\n"
+        message += "• Issues found: {{maintenance_report['issues_found']}}\n"
+        message += "• Auto-fixed: {{maintenance_report['auto_fixed']}}\n"
+        message += "• Critical alerts: {{maintenance_report['critical_alerts']}}\n\n"
         
         if maintenance_report['auto_fixed'] > 0:
             message += "Auto-Fixed Conferences:\n"
             for conf in maintenance_report['conferences_processed']:
                 if conf['actions_taken']:
-                    message += f"• {conf['conference_title']} (ID: {conf['conference_id']})\n"
+                    message += "• {{conf['conference_title']}} (ID: {{conf['conference_id']}})\n"
                     for action in conf['actions_taken']:
-                        message += f"  - {action}\n"
+                        message += "  - {{action}}\n"
             message += "\n"
         
         if maintenance_report['critical_alerts'] > 0:
             message += "Critical Issues Requiring Attention:\n"
             for conf in maintenance_report['conferences_processed']:
                 if conf['status'] == 'critical':
-                    message += f"• {conf['conference_title']} (ID: {conf['conference_id']})\n"
+                    message += "• {{conf['conference_title']}} (ID: {{conf['conference_id']}})\n"
                     for issue in conf['issues']:
-                        message += f"  - {issue}\n"
+                        message += "  - {{issue}}\n"
             message += "\n"
         
-        message += f"Report generated at: {timezone.now()}\n"
+        message += "Report generated at: {{timezone.now()}}\n"
         
         # Send to admins
         admin_emails = [email for name, email in getattr(settings, 'ADMINS', [])]
@@ -131,10 +131,10 @@ def send_maintenance_summary(maintenance_report):
                 admin_emails,
                 fail_silently=True,
             )
-            logger.info(f"Maintenance summary sent to {len(admin_emails)} admins")
+            logger.info("Maintenance summary sent to {{len(admin_emails)}} admins")
         
     except Exception as e:
-        logger.error(f"Failed to send maintenance summary: {str(e)}")
+        logger.error("Failed to send maintenance summary: {{str(e)}}")
 
 @shared_task(bind=True, max_retries=2)
 def sync_conference_data_task(self, conference_id):
@@ -143,20 +143,20 @@ def sync_conference_data_task(self, conference_id):
     """
     try:
         conference = Conference.objects.get(id=conference_id)
-        logger.info(f"Starting background sync for conference {conference_id}: {conference.title}")
+        logger.info("Starting background sync for conference {{conference_id}}: {{conference.title}}")
         
         # Use the enhanced sync function
         sync_result = sync_zoom_meeting_data(conference)
         
         if sync_result.get('success'):
-            logger.info(f"Background sync successful for conference {conference_id}")
+            logger.info("Background sync successful for conference {{conference_id}}")
             return {
                 'success': True,
                 'conference_id': conference_id,
                 'sync_result': sync_result
             }
         else:
-            logger.error(f"Background sync failed for conference {conference_id}: {sync_result.get('error')}")
+            logger.error("Background sync failed for conference {{conference_id}}: {{sync_result.get('error')}}")
             return {
                 'success': False,
                 'conference_id': conference_id,
@@ -164,14 +164,14 @@ def sync_conference_data_task(self, conference_id):
             }
             
     except Conference.DoesNotExist:
-        logger.error(f"Conference {conference_id} not found for background sync")
+        logger.error("Conference {{conference_id}} not found for background sync")
         return {
             'success': False,
             'conference_id': conference_id,
             'error': 'Conference not found'
         }
     except Exception as exc:
-        logger.error(f"Background sync task failed for conference {conference_id}: {str(exc)}")
+        logger.error("Background sync task failed for conference {{conference_id}}: {{str(exc)}}")
         raise self.retry(exc=exc, countdown=60)
 
 @shared_task
@@ -181,11 +181,11 @@ def rematch_chat_messages_task(conference_id):
     """
     try:
         conference = Conference.objects.get(id=conference_id)
-        logger.info(f"Starting chat re-matching for conference {conference_id}: {conference.title}")
+        logger.info("Starting chat re-matching for conference {{conference_id}}: {{conference.title}}")
         
         matched_count = rematch_unmatched_chat_messages(conference)
         
-        logger.info(f"Chat re-matching complete for conference {conference_id}: {matched_count} messages matched")
+        logger.info("Chat re-matching complete for conference {{conference_id}}: {{matched_count}} messages matched")
         return {
             'success': True,
             'conference_id': conference_id,
@@ -193,14 +193,14 @@ def rematch_chat_messages_task(conference_id):
         }
         
     except Conference.DoesNotExist:
-        logger.error(f"Conference {conference_id} not found for chat re-matching")
+        logger.error("Conference {{conference_id}} not found for chat re-matching")
         return {
             'success': False,
             'conference_id': conference_id,
             'error': 'Conference not found'
         }
     except Exception as e:
-        logger.error(f"Chat re-matching task failed for conference {conference_id}: {str(e)}")
+        logger.error("Chat re-matching task failed for conference {{conference_id}}: {{str(e)}}")
         return {
             'success': False,
             'conference_id': conference_id,
@@ -220,14 +220,14 @@ def cleanup_old_sync_logs():
             sync_started_at__lt=cutoff_date
         ).delete()[0]
         
-        logger.info(f"Cleaned up {deleted_count} old sync logs")
+        logger.info("Cleaned up {{deleted_count}} old sync logs")
         return {
             'success': True,
             'deleted_count': deleted_count
         }
         
     except Exception as e:
-        logger.error(f"Failed to cleanup old sync logs: {str(e)}")
+        logger.error("Failed to cleanup old sync logs: {{str(e)}}")
         return {
             'success': False,
             'error': str(e)
@@ -249,8 +249,8 @@ def health_check_system():
         
         if action_needed:
             logger.warning(
-                f"System health check: {system_health['critical']} critical, "
-                f"{system_health['warning']} warnings out of {system_health['total_conferences']} conferences"
+                "System health check: {{system_health['critical']}} critical, "
+                "{{system_health['warning']}} warnings out of {{system_health['total_conferences']}} conferences"
             )
         
         return {
@@ -260,7 +260,7 @@ def health_check_system():
         }
         
     except Exception as e:
-        logger.error(f"System health check failed: {str(e)}")
+        logger.error("System health check failed: {{str(e)}}")
         return {
             'success': False,
             'error': str(e)

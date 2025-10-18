@@ -48,7 +48,7 @@
     --quick-action-text: #111827;
     --quick-action-description: #6b7280;
     --hover-bg: #f3f4f6;
-    --hover-text: #3b82f6;
+    --hover-text: var(--brand-primary, #050c50);
 }
 
 /* Base Transitions */
@@ -143,7 +143,7 @@ button[type="submit"],
 .filters-button,
 .new-report-button,
 .quick-date {
-    background-color: #191f56 !important;
+    background-color: var(--brand-primary, #050c50) !important;
     color: white !important;
     border: none;
     padding: 0.5rem 1rem;
@@ -170,9 +170,9 @@ button[type="submit"]:hover,
 .filters-button:hover,
 .new-report-button:hover,
 .quick-date:hover {
-    background-color: #141a4a !important;
+    background-color: var(--brand-primary-hover, #02071e) !important;
     transform: translateY(-1px);
-    box-shadow: 0 4px 6px rgba(25, 31, 86, 0.2);
+    box-shadow: 0 4px 6px rgba(5, 12, 80, 0.2);
     color: white !important;
 }
 
@@ -275,8 +275,8 @@ input, textarea, select {
 }
 
 input:focus, textarea:focus, select:focus {
-    border-color: #191f56;
-    box-shadow: 0 0 0 3px rgba(25, 31, 86, 0.1);
+    border-color: var(--brand-primary, #050c50);
+    box-shadow: 0 0 0 3px rgba(5, 12, 80, 0.1);
     outline: none;
 }
 
@@ -297,8 +297,8 @@ header {
 }
 
 .search-input:focus {
-    border-color: #191f56;
-    box-shadow: 0 0 0 3px rgba(25, 31, 86, 0.1);
+    border-color: var(--brand-primary, #050c50);
+    box-shadow: 0 0 0 3px rgba(5, 12, 80, 0.1);
 }
 
 /* Section styles */
@@ -335,5 +335,68 @@ section {
 ::-webkit-scrollbar-thumb {
     background-color: #e5e7eb;
     border-radius: 6px;
+}
+
+/* Additional dark blue and white color consistency */
+a {
+    color: var(--brand-primary, #050c50);
+    text-decoration: none;
+    transition: color 0.2s ease;
+}
+
+a:hover {
+    color: var(--brand-primary-hover, #02071e);
+    text-decoration: underline;
+}
+
+.link-primary {
+    color: var(--brand-primary, #050c50);
+}
+
+.link-primary:hover {
+    color: var(--brand-primary-hover, #02071e);
+}
+
+/* Ensure all interactive elements use dark blue */
+.btn-link {
+    color: var(--brand-primary, #050c50);
+    background: none;
+    border: none;
+    text-decoration: underline;
+    cursor: pointer;
+    transition: color 0.2s ease;
+}
+
+.btn-link:hover {
+    color: var(--brand-primary-hover, #02071e);
+}
+
+/* Table links and interactive elements */
+table a {
+    color: var(--brand-primary, #050c50);
+}
+
+table a:hover {
+    color: var(--brand-primary-hover, #02071e);
+}
+
+/* Navigation elements */
+.nav-link {
+    color: var(--brand-primary, #050c50);
+    transition: color 0.2s ease;
+}
+
+.nav-link:hover,
+.nav-link.active {
+    color: var(--brand-primary-hover, #02071e);
+}
+
+/* Card interactive elements */
+.card a {
+    color: var(--brand-primary, #050c50);
+}
+
+.card a:hover {
+    color: var(--brand-primary-hover, #02071e);
 }
 

@@ -121,7 +121,7 @@ def get_file_upload_setting(key, default=None):
     """
     Get file upload setting from Django settings with fallback.
     """
-    return getattr(settings, f'FILE_UPLOAD_{key.upper()}', default)
+    return getattr(settings, "FILE_UPLOAD_{{key.upper()}}", default)
 
 
 # Common validator instances for different use cases
@@ -158,6 +158,3 @@ class CommonValidators:
         config = FileUploadConfig.get_validator_config('image', 'users')
         return SecureFilenameValidator(**config)
     
-    @staticmethod
-        from .secure_filename_validator import SecureFilenameValidator
-        return SecureFilenameValidator(**config)

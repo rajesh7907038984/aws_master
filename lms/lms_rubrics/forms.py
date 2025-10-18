@@ -169,9 +169,9 @@ class RubricOverallFeedbackEditForm(RubricOverallFeedbackForm):
         # If we're editing an existing feedback, show current files
         if self.instance and self.instance.pk:
             if self.instance.audio_feedback:
-                self.fields['audio_feedback'].help_text = f"Current: {self.instance.audio_feedback.name}"
+                self.fields['audio_feedback'].help_text = "Current: {{self.instance.audio_feedback.name}}"
             if self.instance.video_feedback:
-                self.fields['video_feedback'].help_text = f"Current: {self.instance.video_feedback.name}"
+                self.fields['video_feedback'].help_text = "Current: {{self.instance.video_feedback.name}}"
 
 
 class RubricOverallFeedbackDisplayForm(forms.ModelForm):

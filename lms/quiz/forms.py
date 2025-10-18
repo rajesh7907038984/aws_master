@@ -318,7 +318,7 @@ class QuestionForm(forms.ModelForm):
             ).exclude(pk=self.instance.pk).first()
             
             if existing_question:
-                raise ValidationError(f"Question order {order} is already taken")
+                raise ValidationError("Question order {{order}} is already taken")
         
         return order
 
@@ -355,7 +355,7 @@ class QuestionForm(forms.ModelForm):
                 valid_styles = ['visual', 'auditory', 'kinesthetic']
                 for i, style in enumerate(learning_styles):
                     if style and style not in valid_styles:
-                        raise ValidationError(f"Invalid learning style for option {i+1}. Choose Visual, Auditory, or Kinesthetic")
+                        raise ValidationError("Invalid learning style for option {{i+1}}. Choose Visual, Auditory, or Kinesthetic")
             else:
                 # Regular quiz validation - simplified
                 # Check for both correct_answers[] (multiple select) and correct_answer (single choice)

@@ -22,14 +22,14 @@ class SessionStore(DatabaseSessionStore):
             # Also try to cache for performance
             if self._cache_fallback:
                 try:
-                    cache_key = f'session:{self.session_key}'
+                    cache_key = "session:{{self.session_key}}"
                     cache.set(cache_key, self._session, timeout=86400)  # 1 day
                 except Exception as e:
-                    logger.warning(f'Cache save failed: {e}')
+                    logger.warning("Cache save failed: {{e}}")
                     self._cache_fallback = False
                     
         except Exception as e:
-            logger.error(f'Session save failed: {e}')
+            logger.error("Session save failed: {{e}}")
             raise
     
     def load(self):
@@ -37,20 +37,20 @@ class SessionStore(DatabaseSessionStore):
             # Try cache first for performance
             if self._cache_fallback:
                 try:
-                    cache_key = f'session:{self.session_key}'
+                    cache_key = "session:{{self.session_key}}"
                     cached_session = cache.get(cache_key)
                     if cached_session is not None:
                         self._session = cached_session
                         return
                 except Exception as e:
-                    logger.warning(f'Cache load failed: {e}')
+                    logger.warning("Cache load failed: {{e}}")
                     self._cache_fallback = False
             
             # Fallback to database
             return super().load()
             
         except Exception as e:
-            logger.error(f'Session load failed: {e}')
+            logger.error("Session load failed: {{e}}")
             return super().load()
     
     def delete(self, session_key=None):
@@ -60,11 +60,11 @@ class SessionStore(DatabaseSessionStore):
             # Also clear from cache
             if self._cache_fallback:
                 try:
-                    cache_key = f'session:{session_key or self.session_key}'
+                    cache_key = "session:{{session_key or self.session_key}}"
                     cache.delete(cache_key)
                 except Exception as e:
-                    logger.warning(f'Cache delete failed: {e}')
+                    logger.warning("Cache delete failed: {{e}}")
                     
         except Exception as e:
-            logger.error(f'Session delete failed: {e}')
+            logger.error("Session delete failed: {{e}}")
             raise

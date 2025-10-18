@@ -520,7 +520,7 @@ class SCORMIntegrationTestCase(TestCase):
     
     def test_scorm_api_get(self):
         """Test SCORM API GET endpoint"""
-        response = self.client.get(f'/scorm/api/{self.topic.id}/?element=cmi.core.lesson_status')
+        response = self.client.get("/scorm/api/{{self.topic.id}}/?element=cmi.core.lesson_status")
         self.assertEqual(response.status_code, 200)
         
         data = response.json()
@@ -534,7 +534,7 @@ class SCORMIntegrationTestCase(TestCase):
             'value': 'completed'
         }
         
-        response = self.client.post(f'/scorm/api/{self.topic.id}/', data=data)
+        response = self.client.post("/scorm/api/{{self.topic.id}}/", data=data)
         self.assertEqual(response.status_code, 200)
         
         # Check tracking was updated
@@ -549,7 +549,7 @@ class SCORMIntegrationTestCase(TestCase):
             'value': 'interaction-1'
         }
         
-        response = self.client.post(f'/scorm/api/{self.topic.id}/', data=data)
+        response = self.client.post("/scorm/api/{{self.topic.id}}/", data=data)
         self.assertEqual(response.status_code, 200)
         
         # Check interaction was stored
@@ -565,7 +565,7 @@ class SCORMIntegrationTestCase(TestCase):
             'value': 'objective-1'
         }
         
-        response = self.client.post(f'/scorm/api/{self.topic.id}/', data=data)
+        response = self.client.post("/scorm/api/{{self.topic.id}}/", data=data)
         self.assertEqual(response.status_code, 200)
         
         # Check objective was stored
@@ -581,7 +581,7 @@ class SCORMIntegrationTestCase(TestCase):
             'value': 'Test comment'
         }
         
-        response = self.client.post(f'/scorm/api/{self.topic.id}/', data=data)
+        response = self.client.post("/scorm/api/{{self.topic.id}}/", data=data)
         self.assertEqual(response.status_code, 200)
         
         # Check comment was stored

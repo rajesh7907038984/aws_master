@@ -28,7 +28,18 @@ class UnifiedErrorHandler {
         // Add error cooldown to prevent spam
         this.errorCooldown = new Map();
         
+        this.setupSilentErrorHandling();
         this.setupGlobalErrorHandling();
+    }
+    
+    /**
+     * Setup silent error handling for syntax errors
+     * DISABLED: Now shows syntax errors as popups for development
+     */
+    setupSilentErrorHandling() {
+        // Silent error handling disabled to show syntax errors as popups
+        // This allows developers to see syntax errors in the browser
+        // console.log('Syntax error handling disabled - errors will show as popups');
     }
     
     /**
@@ -36,14 +47,35 @@ class UnifiedErrorHandler {
      */
     setupGlobalErrorHandling() {
         // Handle unhandled promise rejections
-        window.addEventListener('unhandledrejection', (event) => {
-            this.handleError(event.reason, 'Unhandled Promise Rejection');
+        var self = this;
+        window.addEventListener('unhandledrejection', function(event) {
+            // Check if it's a syntax error
+            if (self.isSyntaxError(event.reason)) {
+                console.warn('Promise rejection due to syntax error:', event.reason.message);
+                event.preventDefault();
+                return;
+            }
+            
+            self.handleError(event.reason, 'Unhandled Promise Rejection');
             event.preventDefault();
         });
         
         // Handle global JavaScript errors
-        window.addEventListener('error', (event) => {
-            this.handleError(event.error, 'Global JavaScript Error');
+        var self = this;
+        window.addEventListener('error', function(event) {
+            // Check if it's a syntax error - handle silently in production
+            if (self.isSyntaxError(event.error)) {
+                console.error('JavaScript syntax error detected:', event.error.message);
+                // Only show popup in development mode
+                if (window.location.hostname === 'localhost' || window.location.hostname.includes('dev') || window.location.hostname.includes('staging')) {
+                    alert('JavaScript Syntax Error:\n' + event.error.message + '\nFile: ' + event.filename + '\nLine: ' + event.lineno);
+                }
+                return;
+            }
+            
+            // Prevent default browser error popup for other errors
+            event.preventDefault();
+            self.handleError(event.error, 'Global JavaScript Error');
         });
         
         // Handle fetch errors
@@ -54,37 +86,62 @@ class UnifiedErrorHandler {
      * Intercept fetch requests for error handling
      */
     interceptFetch() {
-        const originalFetch = window.fetch;
-        const self = this;
+        var originalFetch = window.fetch;
+        var self = this;
         
-        window.fetch = async function(...args) {
-            try {
-                const response = await originalFetch.apply(this, args);
-                
-                // Check for HTTP errors
-                if (!response.ok) {
-                    const error = new Error(`HTTP ${response.status}: ${response.statusText}`);
-                    error.status = response.status;
-                    error.response = response;
+        window.fetch = function() {
+            var args = Array.prototype.slice.call(arguments);
+            return originalFetch.apply(this, args)
+                .then(function(response) {
+                    // Check for HTTP errors
+                    if (!response.ok) {
+                        var error = new Error('HTTP ' + response.status + ': ' + response.statusText);
+                        error.status = response.status;
+                        error.response = response;
+                        throw error;
+                    }
+                    
+                    return response;
+                })
+                .catch(function(error) {
+                    self.handleError(error, 'Fetch Request');
                     throw error;
-                }
-                
-                return response;
-            } catch (error) {
-                self.handleError(error, 'Fetch Request');
-                throw error;
-            }
+                });
         };
+    }
+    
+    /**
+     * Check if error is a syntax error that should be handled silently
+     */
+    isSyntaxError(error) {
+        if (!error) return false;
+        
+        var syntaxErrorPatterns = [
+            'Unexpected token',
+            'SyntaxError',
+            'Unexpected end of input',
+            'Unexpected end of input'
+        ];
+        
+        return syntaxErrorPatterns.some(function(pattern) {
+            return error.message && error.message.includes(pattern);
+        });
     }
     
     /**
      * Handle errors with unified approach
      */
-    handleError(error, context = 'Unknown') {
+    handleError(error, context) {
+        context = context || 'Unknown';
+        // Skip syntax errors to prevent popups
+        if (this.isSyntaxError(error)) {
+            console.warn('[' + context + '] Syntax error (handled silently):', error.message);
+            return;
+        }
         // Create error key for cooldown check
-        const errorKey = `${context}-${error.message || error.name}`;
-        const now = Date.now();
-        const lastError = this.errorCooldown.get(errorKey);
+        var errorKey = context + '-' + (error.message || error.name);
+        var now = Date.now();
+        var lastError = this.errorCooldown.get(errorKey);
         
         // Skip if same error occurred within last 5 seconds
         if (lastError && (now - lastError) < 5000) {
@@ -94,13 +151,13 @@ class UnifiedErrorHandler {
         // Update cooldown
         this.errorCooldown.set(errorKey, now);
         
-        console.error(`[${context}] Error:`, error);
+        console.error('[' + context + '] Error:', error);
         
         // Categorize error
-        const category = this.categorizeError(error);
+        var category = this.categorizeError(error);
         
         // Get user-friendly message
-        const message = this.getUserFriendlyMessage(error, category);
+        var message = this.getUserFriendlyMessage(error, category);
         
         // Show user notification
         this.showUserNotification(message, category);
@@ -156,18 +213,21 @@ class UnifiedErrorHandler {
     }
     
     /**
-     * Show user notification - Console logging only, no browser popups
+     * Show user notification - Use toast system, fallback to console
      */
     showUserNotification(message, category) {
-        // Only log to console - no browser popups or notifications
-        console.warn(`[${category}] ${message}`);
+        if (typeof showToast === 'function') {
+            showToast(message, this.getNotificationType(category));
+        } else {
+            console.warn('[' + category + '] ' + message);
+        }
     }
     
     /**
      * Get notification type based on error category
      */
     getNotificationType(category) {
-        const typeMap = {
+        var typeMap = {
             'VALIDATION': 'warning',
             'AUTHENTICATION': 'error',
             'AUTHORIZATION': 'error',
@@ -184,9 +244,9 @@ class UnifiedErrorHandler {
      * Log error for debugging
      */
     logError(error, context, category) {
-        const errorDetails = {
-            context: context,
-            category: category,
+        var errorDetails = {
+            context,
+            category,
             name: error.name || 'Unknown',
             message: error.message || 'No message',
             stack: error.stack || 'No stack trace',
@@ -197,7 +257,7 @@ class UnifiedErrorHandler {
         
         // Store in localStorage for debugging
         try {
-            const recentErrors = JSON.parse(localStorage.getItem('lms_recent_errors') || '[]');
+            var recentErrors = JSON.parse(localStorage.getItem('lms_recent_errors') || '[]');
             recentErrors.push(errorDetails);
             
             // Keep only last 20 errors
@@ -211,7 +271,7 @@ class UnifiedErrorHandler {
         }
         
         // Log to console with details
-        console.group(`🚨 ${category} Error in ${context}`);
+        console.group('🚨 ' + category + ' Error in ' + context);
         console.error('Error Details:', errorDetails);
         console.error('Original Error:', error);
         console.groupEnd();
@@ -230,9 +290,6 @@ class UnifiedErrorHandler {
                 break;
             case 'NETWORK':
                 this.handleNetworkError(error);
-                break;
-            case 'VALIDATION':
-                this.handleValidationError(error);
                 break;
         }
     }
@@ -267,22 +324,6 @@ class UnifiedErrorHandler {
         }
     }
     
-    /**
-     * Handle validation errors
-     */
-    handleValidationError(error) {
-        // Focus on first form field with error
-        if (error instanceof StandardizedAPIError && error.errors) {
-            const firstField = Object.keys(error.errors)[0];
-            if (firstField && firstField !== 'non_field_errors') {
-                const fieldElement = document.querySelector(`[name="${firstField}"]`);
-                if (fieldElement) {
-                    fieldElement.focus();
-                    fieldElement.classList.add('error');
-                }
-            }
-        }
-    }
     
     /**
      * Get recent errors for debugging
@@ -313,12 +354,12 @@ class UnifiedErrorHandler {
         
         // Apply error styling and messages
         Object.keys(errors).forEach(field => {
-            const fieldElement = document.querySelector(`[name="${field}"]`);
+            var fieldElement = document.querySelector('[name="' + field + '"]');
             if (fieldElement) {
                 fieldElement.classList.add('error');
                 
                 // Show field-specific error message
-                const errorMessage = Array.isArray(errors[field]) ? errors[field][0] : errors[field];
+                var errorMessage = Array.isArray(errors[field]) ? errors[field][0] : errors[field];
                 this.showFieldError(fieldElement, errorMessage);
             }
         });
@@ -329,13 +370,13 @@ class UnifiedErrorHandler {
      */
     showFieldError(fieldElement, message) {
         // Remove existing error message
-        const existingError = fieldElement.parentNode.querySelector('.field-error');
+        var existingError = fieldElement.parentNode.querySelector('.field-error');
         if (existingError) {
             existingError.remove();
         }
         
         // Add new error message
-        const errorDiv = document.createElement('div');
+        var errorDiv = document.createElement('div');
         errorDiv.className = 'field-error text-red-500 text-sm mt-1';
         errorDiv.textContent = message;
         fieldElement.parentNode.appendChild(errorDiv);
@@ -352,5 +393,5 @@ window.handleFormValidationErrors = (errors) => window.unifiedErrorHandler.handl
 
 // Initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('✅ Unified Error Handler initialized');
+    // console.log('✅ Unified Error Handler initialized');
 });

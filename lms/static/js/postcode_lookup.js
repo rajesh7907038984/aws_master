@@ -27,29 +27,37 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Add event listener for postcode input
     postcodeInput.addEventListener('input', function(e) {
-        const postcode = e.target.value.trim().toUpperCase();
-        
-        // Clear previous timeout
-        clearTimeout(debounceTimeout);
-        
-        // Hide address selector if postcode is cleared
-        if (!postcode) {
-            if (addressSelectorContainer) {
-                addressSelectorContainer.classList.add('hidden');
+        try {
+            const postcode = e.target.value.trim().toUpperCase();
+            
+            // Clear previous timeout
+            clearTimeout(debounceTimeout);
+            
+            // Hide address selector if postcode is cleared
+            if (!postcode) {
+                if (addressSelectorContainer) {
+                    addressSelectorContainer.classList.add('hidden');
+                }
+                if (postcodeStatusElement) {
+                    postcodeStatusElement.classList.add('hidden');
+                }
+                return;
             }
-            if (postcodeStatusElement) {
-                postcodeStatusElement.classList.add('hidden');
-            }
-            return;
-        }
 
-        // Debounce the lookup to avoid too many API calls
-        debounceTimeout = setTimeout(() => {
-            if (postcode !== currentPostcode && postcode.length >= 5) {
-                currentPostcode = postcode;
-                performPostcodeLookup(postcode);
-            }
-        }, 800); // Wait 800ms after user stops typing
+            // Debounce the lookup to avoid too many API calls
+            debounceTimeout = setTimeout(() => {
+                try {
+                    if (postcode !== currentPostcode && postcode.length >= 5) {
+                        currentPostcode = postcode;
+                        performPostcodeLookup(postcode);
+                    }
+                } catch (error) {
+                    console.error('Error in postcode lookup timeout:', error);
+                }
+            }, 800); // Wait 800ms after user stops typing
+        } catch (error) {
+            console.error('Error handling postcode input:', error);
+        }
     });
 
     // Add event listener for address selection

@@ -9,6 +9,15 @@ if (typeof console === 'undefined') {
     };
 }
 
+// Browser compatibility checks
+if (typeof document === 'undefined') {
+    console.warn('Document object not available');
+}
+
+if (typeof window === 'undefined') {
+    console.warn('Window object not available');
+}
+
 /**
  * LMS Version Manager
  * Displays version information and handles version-related functionality
@@ -26,7 +35,7 @@ if (typeof console === 'undefined') {
         version: LMS_VERSION,
         build: BUILD_NUMBER,
         getVersionString: function() {
-            return `${this.version} (Build: ${this.build})`;
+            return this.version + ' (Build: ' + this.build + ')';
         }
     };
     

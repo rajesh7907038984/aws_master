@@ -43,7 +43,8 @@ async function safeJsonResponse(response) {
  * @param {Object} options - Fetch options
  * @returns {Promise<Object>} - Parsed JSON data
  */
-async function safeFetch(url, options = {}) {
+async function safeFetch(url, options) {
+    options = options || {};
     try {
         const response = await fetch(url, {
             ...options,
@@ -65,7 +66,8 @@ async function safeFetch(url, options = {}) {
  * @param {Object} options - Additional options
  * @returns {Promise<Object>} - Parsed JSON data
  */
-async function safeDelete(url, options = {}) {
+async function safeDelete(url, options) {
+    options = options || {};
     return safeFetch(url, {
         method: 'DELETE',
         ...options
@@ -79,7 +81,8 @@ async function safeDelete(url, options = {}) {
  * @param {Object} options - Additional options
  * @returns {Promise<Object>} - Parsed JSON data
  */
-async function safePost(url, data, options = {}) {
+async function safePost(url, data, options) {
+    options = options || {};
     return safeFetch(url, {
         method: 'POST',
         headers: {
@@ -98,7 +101,8 @@ async function safePost(url, data, options = {}) {
  * @param {Object} options - Additional options
  * @returns {Promise<Object>} - Parsed JSON data
  */
-async function safePut(url, data, options = {}) {
+async function safePut(url, data, options) {
+    options = options || {};
     return safeFetch(url, {
         method: 'PUT',
         headers: {
@@ -134,7 +138,8 @@ function getCSRFToken() {
  * @param {Object} options - Fetch options
  * @returns {Promise<Object>} - Parsed JSON data
  */
-async function safeFetchWithCSRF(url, options = {}) {
+async function safeFetchWithCSRF(url, options) {
+    options = options || {};
     const csrfToken = getCSRFToken();
     
     return safeFetch(url, {

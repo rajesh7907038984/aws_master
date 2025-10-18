@@ -4,5 +4,5 @@ from . import views
 app_name = 'admin_dashboard'
 
 urlpatterns = [
-    path('superadmin/', views.SuperAdminDashboardView.as_view(), name='superadmin_dashboard'),
+    path('superadmin/', views.OptimizedSuperAdminDashboardView.as_view(), name='superadmin_dashboard'),
 ]

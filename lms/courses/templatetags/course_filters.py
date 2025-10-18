@@ -216,10 +216,10 @@ def can_edit_course(user, course):
     
     try:
         result = check_course_edit_permission(user, course)
-        logger.info(f"Template can_edit_course check: user {user.id} -> {result}")
+        logger.info("Template can_edit_course check: user {{user.id}} -> {{result}}")
         return result
     except Exception as e:
-        logger.error(f"Error in can_edit_course template filter: {str(e)}")
+        logger.error("Error in can_edit_course template filter: {{str(e)}}")
         return False
 
 @register.filter
@@ -268,10 +268,10 @@ def can_modify(user, course):
     
     try:
         result = check_course_edit_permission(user, course)
-        logger.info(f"Template can_modify check: user {user.id} -> {result}")
+        logger.info("Template can_modify check: user {{user.id}} -> {{result}}")
         return result
     except Exception as e:
-        logger.error(f"Error in can_modify template filter: {str(e)}")
+        logger.error("Error in can_modify template filter: {{str(e)}}")
         return False
 
 @register.filter
@@ -413,7 +413,7 @@ def get_topic_progress(topic, user):
             progress = TopicProgress.objects.create(topic=topic, user=user, completed=False)
             progress.init_progress_data()
         except Exception as e:
-            logger.error(f"Error creating topic progress: {str(e)}")
+            logger.error("Error creating topic progress: {{str(e)}}")
             return None
     
     
@@ -608,7 +608,7 @@ def is_completed(topic, user):
             if not progress.completed_at:
                 progress.completed_at = timezone.now()
             progress.save()
-            logger.info(f"Auto-fixed removed completion in is_completed filter for topic {topic.id}, user {user.username}")
+            logger.info("Auto-fixed removed completion in is_completed filter for topic {{topic.id}}, user {{user.username}}")
             return True
         
         return progress.completed
@@ -748,7 +748,7 @@ def is_enrolled(course, user):
     try:
         return CourseEnrollment.objects.filter(course=course, user=user).exists()
     except Exception as e:
-        logger.error(f"Error checking enrollment: {str(e)}")
+        logger.error("Error checking enrollment: {{str(e)}}")
         return False
         
 @register.filter
@@ -757,7 +757,7 @@ def get_enrollment(course, user):
     try:
         return CourseEnrollment.objects.filter(course=course, user=user).first()
     except Exception as e:
-        logger.error(f"Error retrieving enrollment: {str(e)}")
+        logger.error("Error retrieving enrollment: {{str(e)}}")
         return None
 
 @register.filter
@@ -771,7 +771,7 @@ def filter_topics_with_documents(topics):
     for topic in topics:
         if topic.content_type == 'Document' and hasattr(topic, 'content_file') and topic.content_file:
             filename = topic.content_file.name.lower()
-            if filename.endswith('.pdf') or filename.endswith('.doc') or filename.endswith('.docx'):
+            if filename.endswith('.pd") or filename.endswith(".doc') or filename.endswith('.docx'):
                 result.append(topic)
     return result
 
@@ -842,5 +842,5 @@ def has_removed_resume(topic, user):
         
         return False
     except Exception as e:
-        logger.warning(f"Error checking removed resume for topic {topic.id}: {str(e)}")
+        logger.warning("Error checking removed resume for topic {{topic.id}}: {{str(e)}}")
         return False

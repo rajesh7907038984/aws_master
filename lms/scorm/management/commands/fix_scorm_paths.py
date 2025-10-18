@@ -37,7 +37,7 @@ class Command(BaseCommand):
         """Fix a single SCORM package"""
         try:
             package = ELearningPackage.objects.get(topic_id=topic_id)
-            self.stdout.write(f"Fixing SCORM package for topic {topic_id}")
+            self.stdout.write("Fixing SCORM package for topic {{topic_id}}")
             
             if package.extracted_path and package.extracted_path.startswith('elearning/'):
                 old_path = package.extracted_path
@@ -46,21 +46,21 @@ class Command(BaseCommand):
                 if not dry_run:
                     package.extracted_path = new_path
                     package.save()
-                    self.stdout.write(f"✅ Fixed: {old_path} -> {new_path}")
+                    self.stdout.write("✅ Fixed: {{old_path}} -> {{new_path}}")
                 else:
-                    self.stdout.write(f"🔍 Would fix: {old_path} -> {new_path}")
+                    self.stdout.write("🔍 Would fix: {{old_path}} -> {{new_path}}")
             else:
-                self.stdout.write(f"✅ No fix needed for topic {topic_id}")
+                self.stdout.write("✅ No fix needed for topic {{topic_id}}")
                 
         except ELearningPackage.DoesNotExist:
-            self.stdout.write(f"❌ No SCORM package found for topic {topic_id}")
+            self.stdout.write("❌ No SCORM package found for topic {{topic_id}}")
 
     def fix_all_packages(self, dry_run=False):
         """Fix all SCORM packages"""
         packages = ELearningPackage.objects.filter(extracted_path__isnull=False)
         fixed_count = 0
         
-        self.stdout.write(f"Found {packages.count()} SCORM packages to check")
+        self.stdout.write("Found {{packages.count()}} SCORM packages to check")
         
         for package in packages:
             if package.extracted_path and package.extracted_path.startswith('elearning/'):
@@ -71,11 +71,11 @@ class Command(BaseCommand):
                     package.extracted_path = new_path
                     package.save()
                     fixed_count += 1
-                    self.stdout.write(f"✅ Fixed topic {package.topic.id}: {old_path} -> {new_path}")
+                    self.stdout.write("✅ Fixed topic {{package.topic.id}}: {{old_path}} -> {{new_path}}")
                 else:
-                    self.stdout.write(f"🔍 Would fix topic {package.topic.id}: {old_path} -> {new_path}")
+                    self.stdout.write("🔍 Would fix topic {{package.topic.id}}: {{old_path}} -> {{new_path}}")
         
         if not dry_run:
-            self.stdout.write(f"✅ Fixed {fixed_count} SCORM packages")
+            self.stdout.write("✅ Fixed {{fixed_count}} SCORM packages")
         else:
-            self.stdout.write(f"🔍 Would fix {fixed_count} SCORM packages")
+            self.stdout.write("🔍 Would fix {{fixed_count}} SCORM packages")

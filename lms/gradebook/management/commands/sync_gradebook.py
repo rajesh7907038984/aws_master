@@ -30,9 +30,9 @@ class Command(BaseCommand):
                 
                 # Filter submissions for these assignments
                 query = query.filter(assignment__in=assignments)
-                self.stdout.write(self.style.HTTP_INFO(f"Syncing grades for course ID {course_id} only"))
+                self.stdout.write(self.style.HTTP_INFO("Syncing grades for course ID {{course_id}} only"))
             except Course.DoesNotExist:
-                self.stdout.write(self.style.ERROR(f"Course with ID {course_id} not found"))
+                self.stdout.write(self.style.ERROR("Course with ID {{course_id}} not found"))
                 return
         
         submissions = query.select_related('assignment', 'user')
@@ -58,13 +58,13 @@ class Command(BaseCommand):
                                 submission.assignment.course = course
                                 submission.assignment.save(update_fields=['course'])
                                 self.stdout.write(self.style.SUCCESS(
-                                    f"Updated assignment {submission.assignment.id} to link to course {course.id}"
+                                    "Updated assignment {{submission.assignment.id}} to link to course {{course.id}}"
                                 ))
                             else:
-                                errors.append(f"Could not find course for assignment {submission.assignment.id}")
+                                errors.append("Could not find course for assignment {{submission.assignment.id}}")
                                 continue
                         else:
-                            errors.append(f"Could not find topic for assignment {submission.assignment.id}")
+                            errors.append("Could not find topic for assignment {{submission.assignment.id}}")
                             continue
                     
                     # Get or create the grade record
@@ -80,8 +80,8 @@ class Command(BaseCommand):
                     
                     if created:
                         self.stdout.write(self.style.SUCCESS(
-                            f"Created grade record: Student {submission.user.id}, "
-                            f"Assignment {submission.assignment.id}, Score {submission.grade}"
+                            "Created grade record: Student {{submission.user.id}}, "
+                            "Assignment {{submission.assignment.id}}, Score {{submission.grade}}"
                         ))
                         created_count += 1
                     else:
@@ -90,21 +90,21 @@ class Command(BaseCommand):
                             grade.score = submission.grade
                             grade.save()
                             self.stdout.write(self.style.SUCCESS(
-                                f"Updated grade record: Student {submission.user.id}, "
-                                f"Assignment {submission.assignment.id}, Score {submission.grade}"
+                                "Updated grade record: Student {{submission.user.id}}, "
+                                "Assignment {{submission.assignment.id}}, Score {{submission.grade}}"
                             ))
                             updated_count += 1
                 
                 except Exception as e:
-                    errors.append(f"Error processing submission {submission.id}: {str(e)}")
+                    errors.append("Error processing submission {{submission.id}}: {{str(e)}}")
         
-        self.stdout.write(self.style.SUCCESS(f"\nGrade sync complete:"))
-        self.stdout.write(self.style.SUCCESS(f"- Created {created_count} new grade records"))
-        self.stdout.write(self.style.SUCCESS(f"- Updated {updated_count} existing grade records"))
+        self.stdout.write(self.style.SUCCESS("\nGrade sync complete:"))
+        self.stdout.write(self.style.SUCCESS("- Created {{created_count}} new grade records"))
+        self.stdout.write(self.style.SUCCESS("- Updated {{updated_count}} existing grade records"))
         
         if errors:
-            self.stdout.write(self.style.WARNING(f"- Encountered {len(errors)} errors:"))
+            self.stdout.write(self.style.WARNING("- Encountered {{len(errors)}} errors:"))
             for error in errors:
-                self.stdout.write(self.style.WARNING(f"  - {error}"))
+                self.stdout.write(self.style.WARNING("  - {{error}}"))
         else:
             self.stdout.write(self.style.SUCCESS("- No errors encountered")) 

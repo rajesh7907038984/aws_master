@@ -29,15 +29,15 @@ class Command(BaseCommand):
         if assignment_id:
             try:
                 assignments = [Assignment.objects.get(id=assignment_id)]
-                self.stdout.write(f"Populating data for assignment ID {assignment_id}")
+                self.stdout.write("Populating data for assignment ID {{assignment_id}}")
             except Assignment.DoesNotExist:
                 self.stdout.write(
-                    self.style.ERROR(f'Assignment with ID {assignment_id} does not exist')
+                    self.style.ERROR("Assignment with ID {{assignment_id}} does not exist")
                 )
                 return
         else:
             assignments = Assignment.objects.all()[:5]  # Limit to first 5 assignments
-            self.stdout.write(f"Populating data for {len(assignments)} assignments")
+            self.stdout.write("Populating data for {{len(assignments)}} assignments")
 
         if dry_run:
             self.stdout.write(self.style.WARNING("DRY RUN MODE - No data will be created"))
@@ -46,18 +46,18 @@ class Command(BaseCommand):
         total_sessions = 0
 
         for assignment in assignments:
-            self.stdout.write(f"\nProcessing assignment: {assignment.title}")
+            self.stdout.write("\nProcessing assignment: {{assignment.title}}")
             
             # Get all submissions for this assignment
             submissions = AssignmentSubmission.objects.filter(assignment=assignment)
             
             if not submissions.exists():
-                self.stdout.write(f"  No submissions found for {assignment.title}")
+                self.stdout.write("  No submissions found for {{assignment.title}}")
                 continue
 
             for submission in submissions:
                 user = submission.user
-                self.stdout.write(f"  Processing user: {user.get_full_name()}")
+                self.stdout.write("  Processing user: {{user.get_full_name()}}")
                 
                 # Create a realistic timeline of interactions
                 submission_date = submission.submitted_at
@@ -85,23 +85,23 @@ class Command(BaseCommand):
                     total_sessions += len(interactions_data['sessions'])
                     total_interactions += len(interactions_data['interactions'])
                     
-                    self.stdout.write(f"    Would create {len(interactions_data['sessions'])} sessions")
-                    self.stdout.write(f"    Would create {len(interactions_data['interactions'])} interactions")
+                    self.stdout.write("    Would create {{len(interactions_data['sessions'])}} sessions")
+                    self.stdout.write("    Would create {{len(interactions_data['interactions'])}} interactions")
 
         if dry_run:
             self.stdout.write(
                 self.style.SUCCESS(
-                    f"\nDRY RUN COMPLETE:\n"
-                    f"Would create {total_sessions} session logs\n"
-                    f"Would create {total_interactions} interaction logs"
+                    "\nDRY RUN COMPLETE:\n"
+                    "Would create {{total_sessions}} session logs\n"
+                    "Would create {{total_interactions}} interaction logs"
                 )
             )
         else:
             self.stdout.write(
                 self.style.SUCCESS(
-                    f"\nCOMPLETE:\n"
-                    f"Created {total_sessions} session logs\n"
-                    f"Created {total_interactions} interaction logs"
+                    "\nCOMPLETE:\n"
+                    "Created {{total_sessions}} session logs\n"
+                    "Created {{total_interactions}} interaction logs"
                 )
             )
 
@@ -173,7 +173,7 @@ class Command(BaseCommand):
             'interaction_type': 'view',
             'created_at': start_time,
             'interaction_data': {
-                'page_url': f'/assignments/{assignment.id}/',
+                'page_url': "/assignments/{{assignment.id}}/",
                 'session_start': True
             }
         })
@@ -225,7 +225,7 @@ class Command(BaseCommand):
         
         if interaction_type == 'view':
             data.update({
-                'page_url': f'/assignments/{assignment.id}/',
+                'page_url': "/assignments/{{assignment.id}}/",
                 'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
             })
         elif interaction_type == 'file_download':
@@ -254,7 +254,7 @@ class Command(BaseCommand):
         created_count = 0
         
         for session_data in sessions_data:
-            session_key = f"session_{user.id}_{int(session_data['start_time'].timestamp())}"
+            session_key = "session_{{user.id}}_{{int(session_data['start_time'].timestamp())}}"
             
             session_log = AssignmentSessionLog.objects.create(
                 assignment=assignment,
@@ -295,7 +295,7 @@ class Command(BaseCommand):
                     interaction_data=interaction_data.get('interaction_data', {}),
                     ip_address='192.168.1.100',  # Simulated IP
                     user_agent='Mozilla/5.0 (simulated)',
-                    session_key=f"session_{user.id}_{int(interaction_data['created_at'].timestamp())}",
+                    session_key="session_{{user.id}}_{{int(interaction_data['created_at'].timestamp())}}",
                     created_at=interaction_data['created_at']
                 )
                 created_count += 1

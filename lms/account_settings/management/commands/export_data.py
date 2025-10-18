@@ -45,14 +45,14 @@ class Command(BaseCommand):
                 pass
 
         try:
-            self.stdout.write(f'Starting export of {export_type} data...')
+            self.stdout.write("Starting export of {{export_type}} data...")
             
             # Create output directory if it doesn't exist
             os.makedirs(output_path, exist_ok=True)
             
             # Create export directory with timestamp
             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-            export_dir = os.path.join(output_path, f'{export_type}_export_{timestamp}')
+            export_dir = os.path.join(output_path, "{{export_type}}_export_{{timestamp}}")
             os.makedirs(export_dir, exist_ok=True)
             
             record_count = 0
@@ -79,7 +79,7 @@ class Command(BaseCommand):
                 record_count += self.export_conferences(export_dir, include_files)
             
             # Create ZIP file
-            zip_path = f'{export_dir}.zip'
+            zip_path = "{{export_dir}}.zip"
             with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
                 for root, dirs, files in os.walk(export_dir):
                     for file in files:
@@ -102,13 +102,13 @@ class Command(BaseCommand):
                 job.completed_at = timezone.now()
                 job.save()
             
-            self.stdout.write(self.style.SUCCESS(f'Export completed: {zip_path}'))
-            self.stdout.write(f'Records exported: {record_count}')
-            self.stdout.write(f'File size: {file_size / 1024 / 1024:.2f} MB')
+            self.stdout.write(self.style.SUCCESS("Export completed: {{zip_path}}"))
+            self.stdout.write("Records exported: {{record_count}}")
+            self.stdout.write("File size: {{file_size / 1024 / 1024:.2f}} MB")
             
         except Exception as e:
             error_msg = str(e)
-            self.stdout.write(self.style.ERROR(f'Export failed: {error_msg}'))
+            self.stdout.write(self.style.ERROR("Export failed: {{error_msg}}"))
             
             if job:
                 job.status = 'failed'
@@ -172,7 +172,7 @@ class Command(BaseCommand):
                         if os.path.exists(src_path):
                             dst_path = os.path.join(files_dir, 'cv' + os.path.splitext(user.cv_file.name)[1])
                             shutil.copy2(src_path, dst_path)
-                            user_dict['cv_file_path'] = f'user_files/{user.id}/cv{os.path.splitext(user.cv_file.name)[1]}'
+                            user_dict['cv_file_path'] = "user_files/{{user.id}}/cv{{os.path.splitext(user.cv_file.name)[1]}}"
                     except (ValueError, AttributeError):
                         pass
                 
@@ -182,7 +182,7 @@ class Command(BaseCommand):
                         if os.path.exists(src_path):
                             dst_path = os.path.join(files_dir, 'sop' + os.path.splitext(user.statement_of_purpose_file.name)[1])
                             shutil.copy2(src_path, dst_path)
-                            user_dict['statement_of_purpose_file_path'] = f'user_files/{user.id}/sop{os.path.splitext(user.statement_of_purpose_file.name)[1]}'
+                            user_dict['statement_of_purpose_file_path'] = "user_files/{{user.id}}/sop{{os.path.splitext(user.statement_of_purpose_file.name)[1]}}"
                     except (ValueError, AttributeError):
                         pass
             
@@ -192,7 +192,7 @@ class Command(BaseCommand):
         with open(os.path.join(export_dir, 'users.json'), 'w') as f:
             json.dump(users_data, f, indent=2, default=str)
         
-        self.stdout.write(f'Exported {len(users_data)} users')
+        self.stdout.write("Exported {{len(users_data)}} users")
         return len(users_data)
 
     def export_courses(self, export_dir, include_files):
@@ -234,7 +234,7 @@ class Command(BaseCommand):
                             if os.path.exists(src_path):
                                 dst_path = os.path.join(files_dir, 'image' + os.path.splitext(course.course_image.name)[1])
                                 shutil.copy2(src_path, dst_path)
-                                course_dict['course_image_path'] = f'course_files/{course.id}/image{os.path.splitext(course.course_image.name)[1]}'
+                                course_dict['course_image_path'] = "course_files/{{course.id}}/image{{os.path.splitext(course.course_image.name)[1]}}"
                         except NotImplementedError:
                             # Cloud storage doesn't support absolute paths, skip file export
                             pass
@@ -248,7 +248,7 @@ class Command(BaseCommand):
                             if os.path.exists(src_path):
                                 dst_path = os.path.join(files_dir, 'video' + os.path.splitext(course.course_video.name)[1])
                                 shutil.copy2(src_path, dst_path)
-                                course_dict['course_video_path'] = f'course_files/{course.id}/video{os.path.splitext(course.course_video.name)[1]}'
+                                course_dict['course_video_path'] = "course_files/{{course.id}}/video{{os.path.splitext(course.course_video.name)[1]}}"
                         except NotImplementedError:
                             # Cloud storage doesn't support absolute paths, skip file export
                             pass
@@ -277,7 +277,7 @@ class Command(BaseCommand):
         with open(os.path.join(export_dir, 'course_enrollments.json'), 'w') as f:
             json.dump(enrollments_data, f, indent=2, default=str)
         
-        self.stdout.write(f'Exported {len(courses_data)} courses and {len(enrollments_data)} enrollments')
+        self.stdout.write("Exported {{len(courses_data)}} courses and {{len(enrollments_data)}} enrollments")
         return len(courses_data) + len(enrollments_data)
 
     def export_topics(self, export_dir, include_files):
@@ -319,7 +319,7 @@ class Command(BaseCommand):
                         os.makedirs(files_dir, exist_ok=True)
                         dst_path = os.path.join(files_dir, os.path.basename(topic.content_file.name))
                         shutil.copy2(src_path, dst_path)
-                        topic_dict['content_file_path'] = f'topic_files/{topic.id}/{os.path.basename(topic.content_file.name)}'
+                        topic_dict['content_file_path'] = "topic_files/{{topic.id}}/{{os.path.basename(topic.content_file.name)}}"
                 except (ValueError, AttributeError):
                     pass
             
@@ -349,7 +349,7 @@ class Command(BaseCommand):
         with open(os.path.join(export_dir, 'topic_progress.json'), 'w') as f:
             json.dump(progress_data, f, indent=2, default=str)
         
-        self.stdout.write(f'Exported {len(topics_data)} topics and {len(progress_data)} progress records')
+        self.stdout.write("Exported {{len(topics_data)}} topics and {{len(progress_data)}} progress records")
         return len(topics_data) + len(progress_data)
 
     def export_assignments(self, export_dir, include_files):
@@ -396,7 +396,7 @@ class Command(BaseCommand):
                         os.makedirs(files_dir, exist_ok=True)
                         dst_path = os.path.join(files_dir, os.path.basename(submission.submission_file.name))
                         shutil.copy2(src_path, dst_path)
-                        submission_dict['submission_file_path'] = f'assignment_files/{submission.id}/{os.path.basename(submission.submission_file.name)}'
+                        submission_dict['submission_file_path'] = "assignment_files/{{submission.id}}/{{os.path.basename(submission.submission_file.name)}}"
                 except (ValueError, AttributeError):
                     pass
             
@@ -409,7 +409,7 @@ class Command(BaseCommand):
         with open(os.path.join(export_dir, 'assignment_submissions.json'), 'w') as f:
             json.dump(submissions_data, f, indent=2, default=str)
         
-        self.stdout.write(f'Exported {len(assignments_data)} assignments and {len(submissions_data)} submissions')
+        self.stdout.write("Exported {{len(assignments_data)}} assignments and {{len(submissions_data)}} submissions")
         return len(assignments_data) + len(submissions_data)
 
     def export_quizzes(self, export_dir, include_files):
@@ -471,7 +471,7 @@ class Command(BaseCommand):
         with open(os.path.join(export_dir, 'quiz_attempts.json'), 'w') as f:
             json.dump(attempts_data, f, indent=2, default=str)
         
-        self.stdout.write(f'Exported {len(quizzes_data)} quizzes, {len(questions_data)} questions, and {len(attempts_data)} attempts')
+        self.stdout.write("Exported {{len(quizzes_data)}} quizzes, {{len(questions_data)}} questions, and {{len(attempts_data)}} attempts")
         return len(quizzes_data) + len(questions_data) + len(attempts_data)
 
     def export_discussions(self, export_dir, include_files):
@@ -493,7 +493,7 @@ class Command(BaseCommand):
         with open(os.path.join(export_dir, 'discussions.json'), 'w') as f:
             json.dump(discussions_data, f, indent=2, default=str)
         
-        self.stdout.write(f'Exported {len(discussions_data)} discussions')
+        self.stdout.write("Exported {{len(discussions_data)}} discussions")
         return len(discussions_data)
 
     def export_conferences(self, export_dir, include_files):
@@ -517,5 +517,5 @@ class Command(BaseCommand):
         with open(os.path.join(export_dir, 'conferences.json'), 'w') as f:
             json.dump(conferences_data, f, indent=2, default=str)
         
-        self.stdout.write(f'Exported {len(conferences_data)} conferences')
+        self.stdout.write("Exported {{len(conferences_data)}} conferences")
         return len(conferences_data) 

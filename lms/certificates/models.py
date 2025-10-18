@@ -30,15 +30,15 @@ class CertificateTemplate(models.Model):
         logger = logging.getLogger(__name__)
         
         try:
-            logger.info(f"Starting deletion for CertificateTemplate: {self.name} (ID: {self.id})")
+            logger.info("Starting deletion for CertificateTemplate: {{self.name}} (ID: {{self.id}})")
             
             # Delete certificate template image
             if self.image:
                 try:
                     self.image.delete(save=False)
-                    logger.info(f"Deleted certificate template image: {self.image.name}")
+                    logger.info("Deleted certificate template image: {{self.image.name}}")
                 except Exception as e:
-                    logger.error(f"Error deleting certificate template image: {e}")
+                    logger.error("Error deleting certificate template image: {{e}}")
             
             # S3 cleanup
             try:
@@ -47,16 +47,16 @@ class CertificateTemplate(models.Model):
                 successful_s3_deletions = sum(1 for success in s3_results.values() if success)
                 total_s3_files = len(s3_results)
                 if total_s3_files > 0:
-                    logger.info(f"S3 cleanup: {successful_s3_deletions}/{total_s3_files} certificate files deleted successfully")
+                    logger.info("S3 cleanup: {{successful_s3_deletions}}/{{total_s3_files}} certificate files deleted successfully")
             except Exception as e:
-                logger.error(f"Error during S3 cleanup for certificate template {self.id}: {str(e)}")
+                logger.error("Error during S3 cleanup for certificate template {{self.id}}: {{str(e)}}")
             
             # Call parent delete to remove the database record
             super().delete(*args, **kwargs)
-            logger.info(f"Successfully completed deletion for CertificateTemplate: {self.name} (ID: {self.id})")
+            logger.info("Successfully completed deletion for CertificateTemplate: {{self.name}} (ID: {{self.id}})")
             
         except Exception as e:
-            logger.error(f"Error in CertificateTemplate.delete(): {str(e)}")
+            logger.error("Error in CertificateTemplate.delete(): {{str(e)}}")
             raise
 
 class CertificateElement(models.Model):
@@ -81,14 +81,14 @@ class CertificateElement(models.Model):
     width = models.FloatField(default=20.0, help_text="Width in percentage (0-100)")
     height = models.FloatField(default=10.0, help_text="Height in percentage (0-100)")
     font_size = models.IntegerField(default=14, null=True, blank=True)
-    font_family = models.CharField(max_length=100, null=True, blank=True, default="Arial, sans-serif")
+    font_family = models.CharField(max_length=100, null=True, blank=True, default="Arial, sans-seri")
     font_weight = models.CharField(max_length=50, null=True, blank=True, default="normal")
     color = models.CharField(max_length=50, null=True, blank=True, default="#000000")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"{self.label} ({self.element_type}) on {self.template.name}"
+        return "{{self.label}} ({{self.element_type}}) on {{self.template.name}}"
 
 class IssuedCertificate(models.Model):
     """Model for storing issued certificates"""
@@ -107,7 +107,7 @@ class IssuedCertificate(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"Certificate #{self.certificate_number} for {self.recipient.username}"
+        return "Certificate #{{self.certificate_number}} for {{self.recipient.username}}"
 
     def delete(self, *args, **kwargs):
         """Enhanced delete method with S3 cleanup for issued certificate files."""
@@ -115,15 +115,15 @@ class IssuedCertificate(models.Model):
         logger = logging.getLogger(__name__)
         
         try:
-            logger.info(f"Starting deletion for IssuedCertificate: {self.certificate_number} (ID: {self.id})")
+            logger.info("Starting deletion for IssuedCertificate: {{self.certificate_number}} (ID: {{self.id}})")
             
             # Delete certificate file
             if self.certificate_file:
                 try:
                     self.certificate_file.delete(save=False)
-                    logger.info(f"Deleted issued certificate file: {self.certificate_file.name}")
+                    logger.info("Deleted issued certificate file: {{self.certificate_file.name}}")
                 except Exception as e:
-                    logger.error(f"Error deleting issued certificate file: {e}")
+                    logger.error("Error deleting issued certificate file: {{e}}")
             
             # S3 cleanup
             try:
@@ -132,14 +132,14 @@ class IssuedCertificate(models.Model):
                 successful_s3_deletions = sum(1 for success in s3_results.values() if success)
                 total_s3_files = len(s3_results)
                 if total_s3_files > 0:
-                    logger.info(f"S3 cleanup: {successful_s3_deletions}/{total_s3_files} issued certificate files deleted successfully")
+                    logger.info("S3 cleanup: {{successful_s3_deletions}}/{{total_s3_files}} issued certificate files deleted successfully")
             except Exception as e:
-                logger.error(f"Error during S3 cleanup for issued certificate {self.id}: {str(e)}")
+                logger.error("Error during S3 cleanup for issued certificate {{self.id}}: {{str(e)}}")
             
             # Call parent delete to remove the database record
             super().delete(*args, **kwargs)
-            logger.info(f"Successfully completed deletion for IssuedCertificate: {self.certificate_number} (ID: {self.id})")
+            logger.info("Successfully completed deletion for IssuedCertificate: {{self.certificate_number}} (ID: {{self.id}})")
             
         except Exception as e:
-            logger.error(f"Error in IssuedCertificate.delete(): {str(e)}")
+            logger.error("Error in IssuedCertificate.delete(): {{str(e)}}")
             raise

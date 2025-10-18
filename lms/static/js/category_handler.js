@@ -10,32 +10,46 @@ function handleCategorySelection(categoryId) {
 
 // Function to refresh category dropdown
 function refreshCategoryDropdown() {
-    fetch('/categories/list/')
-        .then(response => {
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        return response.json();
-    })
-        .then(data => {
-            if (data.status === 'success') {
-                const categorySelect = document.getElementById('category');
-                if (categorySelect) {
-                    // Clear existing options except the first one
-                    while (categorySelect.options.length > 1) {
-                        categorySelect.remove(1);
+    try {
+        fetch('/categories/list/')
+            .then(response => {
+                try {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
                     }
-                    
-                    // Add new options
-                    data.categories.forEach(category => {
-                        const option = new Option(category.name, category.id);
-                        categorySelect.add(option);
-                    });
+                    return response.json();
+                } catch (error) {
+                    console.error('Error parsing category response:', error);
+                    throw error;
                 }
-            }
-        })
-        .catch(error => {
-        });
+            })
+            .then(data => {
+                try {
+                    if (data.status === 'success') {
+                        const categorySelect = document.getElementById('category');
+                        if (categorySelect) {
+                            // Clear existing options except the first one
+                            while (categorySelect.options.length > 1) {
+                                categorySelect.remove(1);
+                            }
+                            
+                            // Add new options
+                            data.categories.forEach(category => {
+                                const option = new Option(category.name, category.id);
+                                categorySelect.add(option);
+                            });
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error updating category dropdown:', error);
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching categories:', error);
+            });
+    } catch (error) {
+        console.error('Error in refreshCategoryDropdown:', error);
+    }
 }
 
 // Function to show category creation modal

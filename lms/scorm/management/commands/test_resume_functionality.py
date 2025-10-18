@@ -43,32 +43,32 @@ class Command(BaseCommand):
             topic = Topic.objects.get(id=topic_id)
             elearning_package = ELearningPackage.objects.get(topic=topic)
             
-            self.stdout.write(f"Testing topic {topic_id} ({elearning_package.package_type})")
+            self.stdout.write("Testing topic {{topic_id}} ({{elearning_package.package_type}})")
             
             # Test bookmark data extraction
             tracking = ELearningTracking.objects.filter(elearning_package=elearning_package).first()
             if tracking:
                 bookmark_data = tracking.get_bookmark_data()
                 
-                self.stdout.write(f"  Package Type: {bookmark_data.get('package_type', 'Unknown')}")
-                self.stdout.write(f"  Can Resume: {bookmark_data.get('can_resume', False)}")
-                self.stdout.write(f"  Progress Indicators: {len(bookmark_data.get('progress_indicators', []))}")
+                self.stdout.write("  Package Type: {{bookmark_data.get('package_type', 'Unknown')}}")
+                self.stdout.write("  Can Resume: {{bookmark_data.get('can_resume', False)}}")
+                self.stdout.write("  Progress Indicators: {{len(bookmark_data.get('progress_indicators', []))}}")
                 
                 # Test Articulate-specific data if applicable
                 if 'articulate' in elearning_package.package_type.lower():
                     articulate_data = tracking.get_articulate_bookmark_data()
-                    self.stdout.write(f"  Articulate Can Resume: {articulate_data.get('can_resume', False)}")
+                    self.stdout.write("  Articulate Can Resume: {{articulate_data.get('can_resume', False)}}")
                 
                 # Test data size validation
                 test_data = "test_data_" * 1000  # Large test data
                 is_valid, msg = tracking.validate_data_size(test_data, elearning_package.package_type)
-                self.stdout.write(f"  Data Size Validation: {is_valid} - {msg}")
+                self.stdout.write("  Data Size Validation: {{is_valid}} - {{msg}}")
                 
             else:
-                self.stdout.write(f"  No tracking data found for topic {topic_id}")
+                self.stdout.write("  No tracking data found for topic {{topic_id}}")
                 
         except Exception as e:
-            self.stdout.write(f"❌ Error testing topic {topic_id}: {str(e)}")
+            self.stdout.write("❌ Error testing topic {{topic_id}}: {{str(e)}}")
 
     def test_all_packages(self, package_type=None):
         """Test resume functionality for all packages"""
@@ -76,7 +76,7 @@ class Command(BaseCommand):
         if package_type:
             packages = packages.filter(package_type=package_type)
         
-        self.stdout.write(f"Testing {packages.count()} SCORM packages")
+        self.stdout.write("Testing {{packages.count()}} SCORM packages")
         
         results = {
             'SCORM_1_2': {'total': 0, 'with_tracking': 0, 'can_resume': 0},
@@ -104,14 +104,14 @@ class Command(BaseCommand):
         # Display results
         for pkg_type, stats in results.items():
             if stats['total'] > 0:
-                self.stdout.write(f"\n{pkg_type}:")
-                self.stdout.write(f"  Total Packages: {stats['total']}")
-                self.stdout.write(f"  With Tracking: {stats['with_tracking']}")
-                self.stdout.write(f"  Can Resume: {stats['can_resume']}")
+                self.stdout.write("\n{{pkg_type}}:")
+                self.stdout.write("  Total Packages: {{stats['total']}}")
+                self.stdout.write("  With Tracking: {{stats['with_tracking']}}")
+                self.stdout.write("  Can Resume: {{stats['can_resume']}}")
                 
                 if stats['with_tracking'] > 0:
                     resume_percentage = (stats['can_resume'] / stats['with_tracking']) * 100
-                    self.stdout.write(f"  Resume Success Rate: {resume_percentage:.1f}%")
+                    self.stdout.write("  Resume Success Rate: {{resume_percentage:.1f}}%")
 
     def test_url_patterns(self):
         """Test URL pattern generation for all package types"""
@@ -141,9 +141,9 @@ class Command(BaseCommand):
         }
         
         for pkg_type, urls in url_patterns.items():
-            self.stdout.write(f"\n{pkg_type} URLs:")
+            self.stdout.write("\n{{pkg_type}} URLs:")
             for url_type, url_pattern in urls.items():
-                self.stdout.write(f"  {url_type.title()}: {url_pattern}")
+                self.stdout.write("  {{url_type.title()}}: {{url_pattern}}")
 
     def test_data_size_limits(self):
         """Test data size validation for different package types"""
@@ -162,6 +162,6 @@ class Command(BaseCommand):
             # Test data exceeding limits
             large_data = "test" * (max_size // 4 + 1000)
             
-            self.stdout.write(f"\n{pkg_type} ({description}):")
-            self.stdout.write(f"  Small data: {len(small_data)} bytes - Should pass")
-            self.stdout.write(f"  Large data: {len(large_data)} bytes - Should fail")
+            self.stdout.write("\n{{pkg_type}} ({{description}}):")
+            self.stdout.write("  Small data: {{len(small_data)}} bytes - Should pass")
+            self.stdout.write("  Large data: {{len(large_data)}} bytes - Should fail")

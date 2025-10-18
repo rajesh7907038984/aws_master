@@ -34,49 +34,57 @@ document.addEventListener('DOMContentLoaded', function() {
     
     if (courseImageInput) {
         courseImageInput.addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            
-            if (file) {
-                // Find the container
-                const container = courseImageInput.closest('.file-upload-container');
-                if (!container) {
-                    return;
-                }
+            try {
+                const file = e.target.files[0];
                 
-                // Find or create a filename display element
-                let filenameDisplay = container.querySelector('.selected-filename');
-                if (!filenameDisplay) {
-                    filenameDisplay = document.createElement('div');
-                    filenameDisplay.className = 'selected-filename mt-2 text-sm font-medium text-blue-600';
-                    container.appendChild(filenameDisplay);
-                }
-                
-                // Update filename display
-                filenameDisplay.textContent = `Selected: ${file.name}`;
-                filenameDisplay.classList.remove('hidden');
-                
-                // Create or get the preview element
-                let preview = document.getElementById('course-image-preview');
-                if (!preview) {
-                    preview = document.createElement('img');
-                    preview.id = 'course-image-preview';
-                    preview.className = 'mt-2 rounded-lg max-h-40 object-cover';
-                    preview.alt = "Course image preview";
-                    container.appendChild(preview);
-                }
-                
-                // Update the preview
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    preview.src = e.target.result;
-                    preview.classList.remove('hidden');
-                    // Also show the container if it's hidden
-                    const imageContainer = preview.closest('.course-image-container');
-                    if (imageContainer) {
-                        imageContainer.classList.remove('hidden');
+                if (file) {
+                    // Find the container
+                    const container = courseImageInput.closest('.file-upload-container');
+                    if (!container) {
+                        return;
                     }
-                };
-                reader.readAsDataURL(file);
+                    
+                    // Find or create a filename display element
+                    let filenameDisplay = container.querySelector('.selected-filename');
+                    if (!filenameDisplay) {
+                        filenameDisplay = document.createElement('div');
+                        filenameDisplay.className = 'selected-filename mt-2 text-sm font-medium text-blue-600';
+                        container.appendChild(filenameDisplay);
+                    }
+                    
+                    // Update filename display
+                    filenameDisplay.textContent = `Selected: ${file.name}`;
+                    filenameDisplay.classList.remove('hidden');
+                    
+                    // Create or get the preview element
+                    let preview = document.getElementById('course-image-preview');
+                    if (!preview) {
+                        preview = document.createElement('img');
+                        preview.id = 'course-image-preview';
+                        preview.className = 'mt-2 rounded-lg max-h-40 object-cover';
+                        preview.alt = "Course image preview";
+                        container.appendChild(preview);
+                    }
+                    
+                    // Update the preview
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        try {
+                            preview.src = e.target.result;
+                            preview.classList.remove('hidden');
+                            // Also show the container if it's hidden
+                            const imageContainer = preview.closest('.course-image-container');
+                            if (imageContainer) {
+                                imageContainer.classList.remove('hidden');
+                            }
+                        } catch (error) {
+                            console.error('Error loading image preview:', error);
+                        }
+                    };
+                    reader.readAsDataURL(file);
+                }
+            } catch (error) {
+                console.error('Error handling course image upload:', error);
             }
         });
     }

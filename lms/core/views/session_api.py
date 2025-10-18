@@ -58,7 +58,7 @@ def session_health(request):
             }, status=401)
             
     except Exception as e:
-        logger.error(f"Session health check error: {e}")
+        logger.error("Session health check error: {{e}}")
         return JsonResponse({
             'error': 'Session health check failed'
         }, status=500)
@@ -85,7 +85,7 @@ def extend_session(request):
             
             # Update cache (removed - no longer using cache)
             
-            logger.info(f"Session extended for user {request.user.username}")
+            logger.info("Session extended for user {{request.user.username}}")
             
             return JsonResponse({
                 'success': True,
@@ -100,7 +100,7 @@ def extend_session(request):
             }, status=401)
             
     except Exception as e:
-        logger.error(f"Session extension error: {e}")
+        logger.error("Session extension error: {{e}}")
         return JsonResponse({
             'success': False,
             'error': 'Failed to extend session'
@@ -141,7 +141,7 @@ def session_info(request):
             })
             
     except Exception as e:
-        logger.error(f"Session info error: {e}")
+        logger.error("Session info error: {{e}}")
         return JsonResponse({
             'error': 'Failed to get session info'
         }, status=500)
@@ -164,16 +164,16 @@ def clear_expired_sessions(request):
         count = expired_sessions.count()
         expired_sessions.delete()
         
-        logger.info(f"Cleared {count} expired sessions by {request.user.username}")
+        logger.info("Cleared {{count}} expired sessions by {{request.user.username}}")
         
         return JsonResponse({
             'success': True,
             'cleared_count': count,
-            'message': f'Cleared {count} expired sessions'
+            'message': "Cleared {{count}} expired sessions"
         })
         
     except Exception as e:
-        logger.error(f"Clear expired sessions error: {e}")
+        logger.error("Clear expired sessions error: {{e}}")
         return JsonResponse({
             'error': 'Failed to clear expired sessions'
         }, status=500)

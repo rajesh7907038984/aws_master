@@ -19,7 +19,7 @@ def create_branch_portal(sender, instance, created, **kwargs):
         
         # Ensure slug is unique
         while BranchPortal.objects.filter(slug=slug).exists():
-            slug = f"{base_slug}-{counter}"
+            slug = "{{base_slug}}-{{counter}}"
             counter += 1
         
         BranchPortal.objects.create(

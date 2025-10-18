@@ -3,79 +3,98 @@
  * Manages section creation and editing
  */
 document.addEventListener('DOMContentLoaded', function() {
-    const createSectionForm = document.getElementById('newSectionForm');
-    const sectionModal = document.getElementById('add-section-modal');
+    var createSectionForm = document.getElementById('newSectionForm');
+    var sectionModal = document.getElementById('add-section-modal');
     
     if (createSectionForm) {
         createSectionForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-            
-            // Get form data
-            const formData = new FormData(this);
-            const sectionName = formData.get('name');
-            
-            // Validate section name
-            if (!sectionName || !sectionName.trim()) {
-                showFormError(this, 'name', 'Section name is required');
-                return;
+            try {
+                e.preventDefault();
+                
+                // Get form data
+                var formData = new FormData(this);
+                var sectionName = formData.get('name');
+                
+                // Validate section name
+                if (!sectionName || !sectionName.trim()) {
+                    showFormError(this, 'name', 'Section name is required');
+                    return;
+                }
+                
+                // Get CSRF token
+                var csrfToken = getCsrfToken();
+                if (!csrfToken) {
+                    alert('CSRF token not found. Please refresh the page and try again.');
+                    return;
+                }
+                
+                // Show loading state
+                var submitBtn = this.querySelector('button[type="submit"]');
+                var originalBtnText = submitBtn.textContent;
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<span class="spinner"></span> Creating...';
+                
+                // Submit form data
+                fetch('/courses/api/sections/create/', {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-CSRFToken': csrfToken
+                    }
+                })
+                .then(response => {
+                    try {
+                        if (!response.ok) {
+                            throw new Error('Server responded with ' + response.status + ': ' + response.statusText);
+                        }
+                        return response.json();
+                    } catch (error) {
+                        console.error('Error parsing response:', error);
+                        throw error;
+                    }
+                })
+                .then(data => {
+                    try {
+                        if (data && data.success) {
+                            // Section created successfully
+                            
+                            // Create new section element
+                            var sectionId = data.section.id;
+                            var sectionName = data.section.name;
+                            
+                            // Create section in the DOM
+                            createSectionElement(sectionId, sectionName);
+                            
+                            // Close modal
+                            closeModal();
+                            
+                            // Show success message
+                            showToast('Section created successfully', 'success');
+                        } else {
+                            // Error creating section
+                            throw new Error((data && data.error) || 'Failed to create section');
+                        }
+                    } catch (error) {
+                        console.error('Error processing section creation response:', error);
+                        throw error;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error creating section:', error);
+                    showFormError(createSectionForm, 'general', error.message || 'An error occurred while creating the section');
+                })
+                .finally(() => {
+                    try {
+                        // Reset button state
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = originalBtnText;
+                    } catch (error) {
+                        console.error('Error resetting button state:', error);
+                    }
+                });
+            } catch (error) {
+                console.error('Error handling section form submission:', error);
             }
-            
-            // Get CSRF token
-            const csrfToken = getCsrfToken();
-            if (!csrfToken) {
-                alert('CSRF token not found. Please refresh the page and try again.');
-                return;
-            }
-            
-            // Show loading state
-            const submitBtn = this.querySelector('button[type="submit"]');
-            const originalBtnText = submitBtn.textContent;
-            submitBtn.disabled = true;
-            submitBtn.innerHTML = '<span class="spinner"></span> Creating...';
-            
-            // Submit form data
-            fetch('/courses/api/sections/create/', {
-                method: 'POST',
-                body: formData,
-                headers: {
-                    'X-CSRFToken': csrfToken
-                }
-            })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`Server responded with ${response.status}: ${response.statusText}`);
-                }
-                return response.json();
-            })
-            .then(data => {
-                if (data && data.success) {
-                    // Section created successfully
-                    
-                    // Create new section element
-                    const sectionId = data.section.id;
-                    const sectionName = data.section.name;
-                    
-                    // Create section in the DOM
-                    createSectionElement(sectionId, sectionName);
-                    
-                    // Close modal
-                    closeModal();
-                    
-                    // Show success message
-                    showToast('Section created successfully', 'success');
-                } else {
-                    // Error creating section
-                    throw new Error((data && data.error) || 'Failed to create section');
-                }
-            })
-            .catch(error => {
-                showFormError(createSectionForm, 'general', error.message || 'An error occurred while creating the section');
-            })
-            .finally(() => {
-                // Reset button state
-                submitBtn.disabled = false;
-                submitBtn.innerHTML = originalBtnText;
-            });
         });
     }
     
@@ -84,14 +103,14 @@ document.addEventListener('DOMContentLoaded', function() {
         // Ensure sectionId is a number for consistency
         sectionId = parseInt(sectionId, 10);
         
-        const sectionsContainer = document.getElementById('sections-container');
+        var sectionsContainer = document.getElementById('sections-container');
         if (!sectionsContainer) return;
         
         // Create the new section HTML
-        const sectionTemplate = document.createElement('div');
+        var sectionTemplate = document.createElement('div');
         sectionTemplate.className = 'section-container mb-3';
         sectionTemplate.setAttribute('data-id', sectionId.toString());
-        sectionTemplate.id = `section-${sectionId}`;
+        sectionTemplate.id = 'section-' + sectionId;
         
         sectionTemplate.innerHTML = `
             <div class="flex items-center justify-between p-2 bg-gray-100 rounded-t-md border border-gray-200">
@@ -150,15 +169,15 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Trigger event to notify that a section was added
         document.dispatchEvent(new CustomEvent('section:added', {
-            detail: { sectionId: sectionId }
+            detail: { sectionId }
         }));
     }
     
     // Fallback delete function if global one is not available
     function deleteSectionAjax(sectionId) {
-        const csrfToken = getCsrfToken();
+        var csrfToken = getCsrfToken();
         
-        fetch(`/courses/api/sections/${sectionId}/delete/`, {
+        fetch('/courses/api/sections/' + sectionId + '/delete/', {
             method: 'DELETE',
             headers: {
                 'X-CSRFToken': csrfToken,
@@ -167,13 +186,13 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .then(response => {
             if (!response.ok) {
-                throw new Error(`Server responded with ${response.status}`);
+                throw new Error('Server responded with ' + response.status);
             }
             return response.json();
         })
         .then(data => {
             if (data && data.success) {
-                const sectionElement = document.getElementById(`section-${sectionId}`);
+                var sectionElement = document.getElementById('section-' + sectionId);
                 if (sectionElement) {
                     sectionElement.remove();
                     showToast('Section deleted successfully', 'success');
@@ -189,7 +208,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Helper function to get CSRF token
     function getCsrfToken() {
-        const tokenElement = document.querySelector('[name=csrfmiddlewaretoken]');
+        var tokenElement = document.querySelector('[name=csrfmiddlewaretoken]');
         if (tokenElement) {
             return tokenElement.value;
         }
@@ -200,7 +219,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Helper function to show form errors
     function showFormError(form, fieldName, message) {
-        let errorContainer;
+        var errorContainer;
         
         if (fieldName === 'general') {
             // Create or find general error container
@@ -212,7 +231,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         } else {
             // Find the field
-            const field = form.querySelector(`[name="${fieldName}"]`);
+            var field = form.querySelector('[name="' + fieldName + '"]');
             if (!field) return;
             
             // Find or create error container
@@ -230,7 +249,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Helper function to show toast notification
     function showToast(message, type = 'info', duration = 3000) {
         // Check if toast container exists, create if not
-        let toastContainer = document.getElementById('toast-container');
+        var toastContainer = document.getElementById('toast-container');
         if (!toastContainer) {
             toastContainer = document.createElement('div');
             toastContainer.id = 'toast-container';
@@ -239,7 +258,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         // Create toast element
-        const toast = document.createElement('div');
+        var toast = document.createElement('div');
         toast.className = 'bg-white rounded-lg shadow-md p-4 mb-3 flex items-center';
         
         // Add color based on type
@@ -294,7 +313,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 createSectionForm.reset();
                 
                 // Clear any error messages
-                const errorMessages = createSectionForm.querySelectorAll('.field-error, .general-error');
+                var errorMessages = createSectionForm.querySelectorAll('.field-error, .general-error');
                 errorMessages.forEach(msg => msg.textContent = '');
             }
         }
@@ -302,11 +321,11 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Helper function to get cookie value
     function getCookie(name) {
-        let cookieValue = null;
+        var cookieValue = null;
         if (document.cookie && document.cookie !== '') {
-            const cookies = document.cookie.split(';');
-            for (let i = 0; i < cookies.length; i++) {
-                const cookie = cookies[i].trim();
+            var cookies = document.cookie.split(';');
+            for (var i = 0; i < cookies.length; i++) {
+                var cookie = cookies[i].trim();
                 if (cookie.substring(0, name.length + 1) === (name + '=')) {
                     cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
                     break;

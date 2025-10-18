@@ -92,11 +92,11 @@ def create_event(request):
     except json.JSONDecodeError:
         return JsonResponse({'error': 'Invalid JSON data'}, status=400)
     except KeyError as e:
-        return JsonResponse({'error': f'Missing required field: {str(e)}'}, status=400)
+        return JsonResponse({'error': "Missing required field: {{str(e)}}"}, status=400)
     except ValueError as e:
-        return JsonResponse({'error': f'Invalid date format: {str(e)}'}, status=400)
+        return JsonResponse({'error': "Invalid date format: {{str(e)}}"}, status=400)
     except Exception as e:
-        return JsonResponse({'error': f'Error creating event: {str(e)}'}, status=500)
+        return JsonResponse({'error': "Error creating event: {{str(e)}}"}, status=500)
 
 @login_required
 @require_http_methods(['PUT', 'DELETE'])
@@ -134,9 +134,9 @@ def update_event(request, event_id):
             'color': event.color,
         })
     except (json.JSONDecodeError, ValueError) as e:
-        return JsonResponse({'error': f'Invalid data format: {str(e)}'}, status=400)
+        return JsonResponse({'error': "Invalid data format: {{str(e)}}"}, status=400)
     except Exception as e:
-        return JsonResponse({'error': f'Error updating event: {str(e)}'}, status=500)
+        return JsonResponse({'error': "Error updating event: {{str(e)}}"}, status=500)
 
 @login_required
 def get_activities(request):
@@ -164,7 +164,7 @@ def get_activities(request):
                 'date': event.start_date.strftime('%Y-%m-%d'),
                 'type': 'calendar_event',
                 'priority': 'medium',
-                'url': f'/calendar/events/{event.id}/',
+                'url': "/calendar/events/{{event.id}}/",
                 'color': event.color
             })
         
@@ -175,7 +175,7 @@ def get_activities(request):
     except Exception as e:
         return JsonResponse({
             'success': False,
-            'error': f'Error fetching activities: {str(e)}'
+            'error': "Error fetching activities: {{str(e)}}"
         }, status=500)
 
 @login_required
@@ -208,7 +208,7 @@ def get_daily_activities(request, date):
                 'date': event.start_date.strftime('%Y-%m-%d'),
                 'type': 'calendar_event',
                 'priority': 'medium',
-                'url': f'/calendar/events/{event.id}/',
+                'url': "/calendar/events/{{event.id}}/",
                 'color': event.color
             })
         
@@ -219,5 +219,5 @@ def get_daily_activities(request, date):
     except Exception as e:
         return JsonResponse({
             'success': False,
-            'error': f'Error fetching daily activities: {str(e)}'
+            'error': "Error fetching daily activities: {{str(e)}}"
         }, status=500) 

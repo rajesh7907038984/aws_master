@@ -23,7 +23,7 @@ def comprehensive_error_handler(view_func):
         try:
             return view_func(request, *args, **kwargs)
         except ValidationError as e:
-            logger.warning(f"Validation error in {view_func.__name__}: {e}")
+            logger.warning("Validation error in {{view_func.__name__}}: {{e}}")
             if request.headers.get('Accept', '').startswith('application/json'):
                 return JsonResponse({
                     'error': 'Validation failed',
@@ -32,11 +32,11 @@ def comprehensive_error_handler(view_func):
                 }, status=400)
             else:
                 from django.contrib import messages
-                messages.error(request, f"Validation error: {str(e)}")
+                messages.error(request, "Validation error: {{str(e)}}")
                 return HttpResponseServerError("Validation error occurred")
                 
         except PermissionDenied as e:
-            logger.warning(f"Permission denied in {view_func.__name__}: {e}")
+            logger.warning("Permission denied in {{view_func.__name__}}: {{e}}")
             if request.headers.get('Accept', '').startswith('application/json'):
                 return JsonResponse({
                     'error': 'Permission denied',
@@ -49,7 +49,7 @@ def comprehensive_error_handler(view_func):
                 return HttpResponseServerError("Permission denied")
                 
         except (DatabaseError, IntegrityError, OperationalError) as e:
-            logger.error(f"Database error in {view_func.__name__}: {e}")
+            logger.error("Database error in {{view_func.__name__}}: {{e}}")
             if request.headers.get('Accept', '').startswith('application/json'):
                 return JsonResponse({
                     'error': 'Database error',
@@ -62,7 +62,7 @@ def comprehensive_error_handler(view_func):
                 return HttpResponseServerError("Database error occurred")
                 
         except Exception as e:
-            logger.error(f"Unexpected error in {view_func.__name__}: {e}\n{traceback.format_exc()}")
+            logger.error("Unexpected error in {{view_func.__name__}}: {{e}}\n{{traceback.format_exc()}}")
             if request.headers.get('Accept', '').startswith('application/json'):
                 return JsonResponse({
                     'error': 'Internal server error',
@@ -85,7 +85,7 @@ def api_error_handler(view_func):
         try:
             return view_func(request, *args, **kwargs)
         except ValidationError as e:
-            logger.warning(f"API validation error in {view_func.__name__}: {e}")
+            logger.warning("API validation error in {{view_func.__name__}}: {{e}}")
             return JsonResponse({
                 'success': False,
                 'error': 'Validation failed',
@@ -94,7 +94,7 @@ def api_error_handler(view_func):
             }, status=400)
             
         except PermissionDenied as e:
-            logger.warning(f"API permission denied in {view_func.__name__}: {e}")
+            logger.warning("API permission denied in {{view_func.__name__}}: {{e}}")
             return JsonResponse({
                 'success': False,
                 'error': 'Permission denied',
@@ -103,7 +103,7 @@ def api_error_handler(view_func):
             }, status=403)
             
         except (DatabaseError, IntegrityError, OperationalError) as e:
-            logger.error(f"API database error in {view_func.__name__}: {e}")
+            logger.error("API database error in {{view_func.__name__}}: {{e}}")
             return JsonResponse({
                 'success': False,
                 'error': 'Database error',
@@ -112,7 +112,7 @@ def api_error_handler(view_func):
             }, status=500)
             
         except Exception as e:
-            logger.error(f"API unexpected error in {view_func.__name__}: {e}\n{traceback.format_exc()}")
+            logger.error("API unexpected error in {{view_func.__name__}}: {{e}}\n{{traceback.format_exc()}}")
             return JsonResponse({
                 'success': False,
                 'error': 'Internal server error',
@@ -131,7 +131,7 @@ def safe_file_operation(view_func):
         try:
             return view_func(request, *args, **kwargs)
         except FileNotFoundError as e:
-            logger.warning(f"File not found in {view_func.__name__}: {e}")
+            logger.warning("File not found in {{view_func.__name__}}: {{e}}")
             if request.headers.get('Accept', '').startswith('application/json'):
                 return JsonResponse({
                     'error': 'File not found',
@@ -144,7 +144,7 @@ def safe_file_operation(view_func):
                 return HttpResponseServerError("File not found")
                 
         except OSError as e:
-            logger.error(f"File system error in {view_func.__name__}: {e}")
+            logger.error("File system error in {{view_func.__name__}}: {{e}}")
             if request.headers.get('Accept', '').startswith('application/json'):
                 return JsonResponse({
                     'error': 'File system error',
@@ -157,7 +157,7 @@ def safe_file_operation(view_func):
                 return HttpResponseServerError("File system error")
                 
         except Exception as e:
-            logger.error(f"File operation error in {view_func.__name__}: {e}\n{traceback.format_exc()}")
+            logger.error("File operation error in {{view_func.__name__}}: {{e}}\n{{traceback.format_exc()}}")
             if request.headers.get('Accept', '').startswith('application/json'):
                 return JsonResponse({
                     'error': 'File operation failed',

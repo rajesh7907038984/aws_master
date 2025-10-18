@@ -142,7 +142,7 @@ def activity_report_overview(request, activity_id):
             pass
         else:
             total_score = sum(normalize_score(progress.last_score) for progress in completed_with_scores)
-            average_score = total_score / completed_with_scores.count() if completed_with_scores.count() > 0 else None
+            average_score = total_score / completed_with_scores.count() if completed_with_scores.exists() else None
             # If no completed users with scores, try to get scores from all users with scores
             all_users_with_scores = progress_data.filter(last_score__isnull=False)
             if all_users_with_scores.exists() and is_removed:
@@ -505,8 +505,8 @@ def get_user_accessible_businesses(user):
     elif user.role == 'superadmin':
         # Super Admin can only see their assigned businesses
         return Business.objects.filter(
-            user_assignments__user=user,
-            user_assignments__is_active=True
+            business_user_assignments__user=user,
+            business_user_assignments__is_active=True
         )
     else:
         # Other roles don't have business-level access
@@ -4880,13 +4880,13 @@ def branch_detail(request, branch_id):
     
     # Get branch statistics - filter for learner users only
     branch_stats = Branch.objects.filter(id=branch_id).annotate(
-        assigned_users=Count('users', filter=Q(users__role='learner')),
-        total_enrollments=Count('users__courseenrollment', filter=Q(users__role='learner'), distinct=True),
-        completed_courses=Count('users__courseenrollment', filter=Q(users__courseenrollment__completed=True, users__role='learner'), distinct=True),
-        courses_in_progress=Count('users__courseenrollment', filter=Q(users__courseenrollment__completed=False, users__courseenrollment__last_accessed__isnull=False, users__role='learner'), distinct=True),
-        courses_not_passed=Count('users__courseenrollment', filter=Q(users__courseenrollment__completed=False, users__courseenrollment__last_accessed__isnull=False, users__role='learner'), distinct=True),
-        courses_not_started=Count('users__courseenrollment', filter=Q(users__courseenrollment__last_accessed__isnull=True, users__role='learner'), distinct=True),
-        training_time=Sum('users__topic_progress__total_time_spent', filter=Q(users__role='learner'))
+        assigned_users=Count('branch_users', filter=Q(branch_users__role='learner')),
+        total_enrollments=Count('branch_users__courseenrollment', filter=Q(branch_users__role='learner'), distinct=True),
+        completed_courses=Count('branch_users__courseenrollment', filter=Q(branch_users__courseenrollment__completed=True, branch_users__role='learner'), distinct=True),
+        courses_in_progress=Count('branch_users__courseenrollment', filter=Q(branch_users__courseenrollment__completed=False, branch_users__courseenrollment__last_accessed__isnull=False, branch_users__role='learner'), distinct=True),
+        courses_not_passed=Count('branch_users__courseenrollment', filter=Q(branch_users__courseenrollment__completed=False, branch_users__courseenrollment__last_accessed__isnull=False, branch_users__role='learner'), distinct=True),
+        courses_not_started=Count('branch_users__courseenrollment', filter=Q(branch_users__courseenrollment__last_accessed__isnull=True, branch_users__role='learner'), distinct=True),
+        training_time=Sum('branch_users__topic_progress__total_time_spent', filter=Q(branch_users__role='learner'))
     ).annotate(
         completion_rate=Case(
             When(total_enrollments=0, then=Value(0.0)),
@@ -5036,9 +5036,9 @@ def branch_detail_excel(request, branch_id):
     
     # Get branch statistics - filter for learner users only
     branch_stats = Branch.objects.filter(id=branch_id).annotate(
-        assigned_users=Count('users', filter=Q(users__role='learner')),
-        total_enrollments=Count('users__courseenrollment', filter=Q(users__role='learner'), distinct=True),
-        completed_courses=Count('users__courseenrollment', filter=Q(users__courseenrollment__completed=True, users__role='learner'), distinct=True),
+        assigned_users=Count('branch_users', filter=Q(branch_users__role='learner')),
+        total_enrollments=Count('branch_users__courseenrollment', filter=Q(branch_users__role='learner'), distinct=True),
+        completed_courses=Count('branch_users__courseenrollment', filter=Q(branch_users__courseenrollment__completed=True, branch_users__role='learner'), distinct=True),
         training_time=Sum('users__topic_progress__total_time_spent', filter=Q(users__role='learner'))
     ).annotate(
         completion_rate=Case(
@@ -6232,11 +6232,11 @@ class BranchReportView(LoginRequiredMixin, TemplateView):
         
         # Annotate branches with statistics
         branches = branches.annotate(
-            users_count=Count('users', filter=Q(users__role='learner'), distinct=True),
+            users_count=Count('branch_users', filter=Q(branch_users__role='learner'), distinct=True),
             courses_count=Count('courses', distinct=True),
-            enrollments_count=Count('users__courseenrollment', distinct=True),
-            completed_enrollments=Count('users__courseenrollment', 
-                                      filter=Q(users__courseenrollment__completed=True), 
+            enrollments_count=Count('branch_users__courseenrollment', distinct=True),
+            completed_enrollments=Count('branch_users__courseenrollment', 
+                                      filter=Q(branch_users__courseenrollment__completed=True), 
                                       distinct=True)
         ).annotate(
             completion_rate=Case(

@@ -199,7 +199,7 @@ def create_default_notification_types(sender, **kwargs):
         except Exception as e:
             # If there's any database error, silently continue
             # This prevents migration failures due to database inconsistencies
-            logger.warning(f"Could not create default notification types: {e}")
+            logger.warning("Could not create default notification types: {{e}}")
             return
 
 

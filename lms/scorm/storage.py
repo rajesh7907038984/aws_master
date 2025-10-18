@@ -24,7 +24,7 @@ class SCORMS3Storage(S3Boto3Storage):
             # Use SCORM-specific media URL if available, otherwise construct it
             base_url = getattr(settings, 'SCORM_MEDIA_URL', None)
             if not base_url:
-                base_url = f'https://{settings.AWS_STORAGE_BUCKET_NAME}.s3.{settings.AWS_S3_REGION_NAME}.amazonaws.com/elearning/'
+                base_url = "https://{{settings.AWS_STORAGE_BUCKET_NAME}}.s3.{{settings.AWS_S3_REGION_NAME}}.amazonaws.com/elearning/"
         
         # Set S3-specific options
         kwargs.update({
@@ -52,9 +52,9 @@ class SCORMS3Storage(S3Boto3Storage):
     def path(self, name):
         """Return the S3 key path (not a local path)"""
         # Avoid double prefixing if name already includes the location
-        if name.startswith(f"{self.location}/"):
+        if name.startswith("{{self.location}}/"):
             return name
-        return f"{self.location}/{name}"
+        return "{{self.location}}/{{name}}"
     
     def exists(self, name):
         """Check if the file exists in S3"""
@@ -79,7 +79,7 @@ class SCORMS3Storage(S3Boto3Storage):
             # Log error but don't raise exception
             import logging
             logger = logging.getLogger(__name__)
-            logger.error(f"Failed to delete S3 file: {name}")
+            logger.error("Failed to delete S3 file: {{name}}")
             return False
     
     def size(self, name):
@@ -93,8 +93,8 @@ class SCORMS3Storage(S3Boto3Storage):
         """Get the URL for the file (signed URL for private files)"""
         try:
             # Avoid double prefixing if name already includes the location
-            if not name.startswith(f"{self.location}/"):
-                name = f"{self.location}/{name}"
+            if not name.startswith("{{self.location}}/"):
+                name = "{{self.location}}/{{name}}"
             
             # Generate signed URL
             signed_url = super().url(name)

@@ -27,9 +27,9 @@ if (typeof console === 'undefined') {
         },
         
         calculateTimeOffset: function() {
-            // Calculate offset between server and client time;
-const serverTimeElement = document.querySelector('[data-server-time]');
-            if if (serverTimeElement) {
+            // Calculate offset between server and client time
+            const serverTimeElement = document.querySelector('[data-server-time]');
+            if (serverTimeElement) {
                 const serverTime = parseInt(serverTimeElement.getAttribute('data-server-time')) * 1000;
                 const clientTime = Date.now();
                 this.timeOffset = serverTime - clientTime;
@@ -79,15 +79,15 @@ const serverTimeElement = document.querySelector('[data-server-time]');
         },
         
         destroy: function() {
-            if if (this.updateInterval) {
+            if (this.updateInterval) {
                 clearInterval(this.updateInterval);
                 this.updateInterval = null;
             }
         }
     };
     
-// Initialize when DOM is ready;
-    if if (document.readyState === 'loading') {
+// Initialize when DOM is ready
+    if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', () => UserDeviceTime.init());
     } else {
         UserDeviceTime.init();

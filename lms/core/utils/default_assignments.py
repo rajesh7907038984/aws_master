@@ -99,7 +99,7 @@ class DefaultAssignmentManager:
             )
             
             if created:
-                logger.info(f"Created default business: {default_business.name}")
+                logger.info("Created default business: {{default_business.name}}")
                 
                 # Create business limits for the default business
                 BusinessLimits.objects.get_or_create(
@@ -113,7 +113,7 @@ class DefaultAssignmentManager:
             return default_business
             
         except Exception as e:
-            logger.error(f"Error creating default business: {str(e)}")
+            logger.error("Error creating default business: {{str(e)}}")
             raise
     
     @staticmethod
@@ -129,12 +129,12 @@ class DefaultAssignmentManager:
             default_branch = business.get_default_branch()
             if not default_branch:
                 default_branch = business.create_default_branch()
-                logger.info(f"Created default branch: {default_branch.name}")
+                logger.info("Created default branch: {{default_branch.name}}")
             
             return default_branch
             
         except Exception as e:
-            logger.error(f"Error creating default branch: {str(e)}")
+            logger.error("Error creating default branch: {{str(e)}}")
             raise
     
     @staticmethod
@@ -169,7 +169,7 @@ class DefaultAssignmentManager:
         Assign a user to the default business (only allowed for global admin)
         """
         if not DefaultAssignmentManager.can_user_access_default_business(user):
-            raise ValueError(f"Only Global Admin users can be assigned to the default business. User {user.username} has role: {user.role}")
+            raise ValueError("Only Global Admin users can be assigned to the default business. User {{user.username}} has role: {{user.role}}")
         
         try:
             with transaction.atomic():
@@ -188,14 +188,14 @@ class DefaultAssignmentManager:
                         user=user,
                         is_active=True
                     )
-                    logger.info(f"Assigned Super Admin {user.username} to default business")
+                    logger.info("Assigned Super Admin {{user.username}} to default business")
                     return assignment
                 else:
-                    logger.info(f"Super Admin {user.username} already assigned to default business")
+                    logger.info("Super Admin {{user.username}} already assigned to default business")
                     return existing_assignment
                     
         except Exception as e:
-            logger.error(f"Error assigning user to default business: {str(e)}")
+            logger.error("Error assigning user to default business: {{str(e)}}")
             raise
     
     @staticmethod
@@ -213,14 +213,14 @@ class DefaultAssignmentManager:
                 if not user.branch:
                     user.branch = default_branch
                     user.save()
-                    logger.info(f"Assigned {user.role} {user.username} to default branch")
+                    logger.info("Assigned {{user.role}} {{user.username}} to default branch")
                 else:
-                    logger.info(f"{user.role} {user.username} already has branch assignment: {user.branch.name}")
+                    logger.info("{{user.role}} {{user.username}} already has branch assignment: {{user.branch.name}}")
                     
                 return user.branch
                     
         except Exception as e:
-            logger.error(f"Error assigning user to default branch: {str(e)}")
+            logger.error("Error assigning user to default branch: {{str(e)}}")
             raise
     
     @staticmethod
@@ -235,7 +235,7 @@ class DefaultAssignmentManager:
                     if user.branch:
                         user.branch = None
                         user.save()
-                        logger.info(f"Removed branch assignment from Global Admin {user.username}")
+                        logger.info("Removed branch assignment from Global Admin {{user.username}}")
                 
                 elif user.role == 'superadmin':
                     # Super admins need business assignment
@@ -247,10 +247,10 @@ class DefaultAssignmentManager:
                     if not user.branch:
                         DefaultAssignmentManager.assign_user_to_default_branch(user)
                 
-                logger.info(f"Ensured proper assignments for {user.role} {user.username}")
+                logger.info("Ensured proper assignments for {{user.role}} {{user.username}}")
                 
         except Exception as e:
-            logger.error(f"Error ensuring user assignments: {str(e)}")
+            logger.error("Error ensuring user assignments: {{str(e)}}")
             raise
     
     @staticmethod
@@ -270,7 +270,7 @@ class DefaultAssignmentManager:
         
         elif user.role in ['admin', 'instructor', 'learner']:
             if not user.branch:
-                validation_errors.append(f"{user.get_role_display()} users must be assigned to a branch")
+                validation_errors.append("{{user.get_role_display()}} users must be assigned to a branch")
         
         return validation_errors
     

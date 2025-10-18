@@ -75,12 +75,12 @@ def handle_prerequisite_changes(course, old_prerequisite_ids, new_prerequisite_i
     
     # Handle removed prerequisites - auto-unenroll users
     if removed_prereq_ids:
-        logger.info(f"Processing {len(removed_prereq_ids)} removed prerequisites for course {course.title}")
+        logger.info("Processing {{len(removed_prereq_ids)}} removed prerequisites for course {{course.title}}")
         
         for removed_prereq_id in removed_prereq_ids:
             try:
                 removed_prereq_course = Course.objects.get(id=removed_prereq_id)
-                logger.info(f"Processing removed prerequisite: {removed_prereq_course.title}")
+                logger.info("Processing removed prerequisite: {{removed_prereq_course.title}}")
                 
                 # Get users enrolled in the main course
                 main_course_users = course.enrolled_users.all()
@@ -101,10 +101,10 @@ def handle_prerequisite_changes(course, old_prerequisite_ids, new_prerequisite_i
                             enrollment.source_course and enrollment.source_course.id == course.id):
                             # This user was auto-enrolled specifically because of this course
                             should_unenroll = True
-                            logger.info(f"User {user.username} was auto-enrolled from {course.title}, considering for unenrollment")
+                            logger.info("User {{user.username}} was auto-enrolled from {{course.title}}, considering for unenrollment")
                         else:
                             # User was manually enrolled or enrolled for other reasons
-                            logger.info(f"User {user.username} was not auto-enrolled from {course.title} (source: {enrollment.enrollment_source}), keeping enrolled")
+                            logger.info("User {{user.username}} was not auto-enrolled from {{course.title}} (source: {{enrollment.enrollment_source}}), keeping enrolled")
                         
                         # Check if there are other courses that still require this prerequisite
                         other_courses_needing_prereq = Course.objects.filter(
@@ -113,25 +113,25 @@ def handle_prerequisite_changes(course, old_prerequisite_ids, new_prerequisite_i
                         ).exclude(id=course.id)
                         
                         if other_courses_needing_prereq.exists():
-                            logger.info(f"User {user.username} still needs {removed_prereq_course.title} for other courses: {list(other_courses_needing_prereq.values_list('title', flat=True))}")
+                            logger.info("User {{user.username}} still needs {{removed_prereq_course.title}} for other courses: {{list(other_courses_needing_prereq.values_list('title', flat=True))}}")
                             should_unenroll = False
                         
                         if should_unenroll:
                             enrollment.delete()
                             unenrolled_users_count += 1
-                            logger.info(f"Auto-unenrolled user {user.username} from removed prerequisite {removed_prereq_course.title}")
+                            logger.info("Auto-unenrolled user {{user.username}} from removed prerequisite {{removed_prereq_course.title}}")
                         
             except Course.DoesNotExist:
-                logger.error(f"Removed prerequisite course with ID {removed_prereq_id} not found")
+                logger.error("Removed prerequisite course with ID {{removed_prereq_id}} not found")
     
     # Handle added prerequisites - auto-enroll users
     if added_prereq_ids:
-        logger.info(f"Processing {len(added_prereq_ids)} added prerequisites for course {course.title}")
+        logger.info("Processing {{len(added_prereq_ids)}} added prerequisites for course {{course.title}}")
         
         for added_prereq_id in added_prereq_ids:
             try:
                 added_prereq_course = Course.objects.get(id=added_prereq_id)
-                logger.info(f"Processing added prerequisite: {added_prereq_course.title}")
+                logger.info("Processing added prerequisite: {{added_prereq_course.title}}")
                 
                 # Auto-enroll users from main course to new prerequisite course
                 main_course_users = course.enrolled_users.all()
@@ -148,9 +148,9 @@ def handle_prerequisite_changes(course, old_prerequisite_ids, new_prerequisite_i
                             source_course=course
                         )
                         enrolled_users_count += 1
-                        logger.info(f"Auto-enrolled user {user.username} in new prerequisite {added_prereq_course.title}")
+                        logger.info("Auto-enrolled user {{user.username}} in new prerequisite {{added_prereq_course.title}}")
                         
             except Course.DoesNotExist:
-                logger.error(f"Added prerequisite course with ID {added_prereq_id} not found")
+                logger.error("Added prerequisite course with ID {{added_prereq_id}} not found")
     
     return enrolled_users_count, unenrolled_users_count 

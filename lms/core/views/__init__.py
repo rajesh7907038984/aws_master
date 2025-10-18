@@ -322,7 +322,19 @@ def sync_device_time(request):
     Handles timezone synchronization for better user experience
     """
     try:
-        data = json.loads(request.body)
+        # Validate request body
+        if not request.body:
+            return JsonResponse({
+                'error': 'Request body is required'
+            }, status=400)
+            
+        try:
+            data = json.loads(request.body)
+        except json.JSONDecodeError as e:
+            return JsonResponse({
+                'error': f'Invalid JSON data: {str(e)}'
+            }, status=400)
+            
         client_time = data.get('client_time')
         timezone_name = data.get('timezone')
         
@@ -389,7 +401,19 @@ def remote_login(request):
     
     elif request.method == 'POST':
         try:
-            data = json.loads(request.body)
+            # Validate request body
+            if not request.body:
+                return JsonResponse({
+                    'error': 'Request body is required'
+                }, status=400)
+                
+            try:
+                data = json.loads(request.body)
+            except json.JSONDecodeError as e:
+                return JsonResponse({
+                    'error': f'Invalid JSON data: {str(e)}'
+                }, status=400)
+                
             username = data.get('username')
             password = data.get('password')
             

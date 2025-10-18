@@ -28,6 +28,7 @@ from django.utils.safestring import mark_safe
 from django.core.exceptions import PermissionDenied
 from django.db.models import Count, F, Avg, Sum
 from django.template.loader import render_to_string
+from media_library.utils import register_media_file
 
 from .models import Conference
 from courses.models import Course
@@ -337,13 +338,14 @@ def edit_conference(request, conference_id):
     """View to edit an existing conference"""
     try:
         conference = get_object_or_404(Conference, id=conference_id)
-    except:
+    except Exception as e:
+        logger.error(f"Error retrieving conference {conference_id}: {e}")
         messages.error(request, f'Conference with ID {conference_id} does not exist or has been deleted.')
         return redirect('conferences:conference_list')
     
     # Check if user has permission to edit this conference
     if not (request.user.is_superuser or 
-            request.user.role in ['instructor', 'admin', 'superadmin'] and request.user == conference.created_by):
+            (request.user.role in ['instructor', 'admin', 'superadmin'] and request.user == conference.created_by)):
         messages.error(request, 'You do not have permission to edit this conference.')
         return redirect('conferences:conference_list')
     
@@ -4375,23 +4377,24 @@ def bulk_evaluate_conference(request, conference_id):
     ).values_list('user_id', flat=True)
     
     # Create attendance records for participants who don't have them
-    for user_id in participant_user_ids:
-        if not conference.attendances.filter(user_id=user_id).exists():
-            # Create a basic attendance record for this participant
-            participant = conference.participants.filter(user_id=user_id).first()
-            if participant:
-                ConferenceAttendance.objects.get_or_create(
-                    conference=conference,
-                    user=participant.user,
-                    defaults={
-                        'participant_id': participant.participant_id,
-                        'join_time': participant.join_timestamp,
-                        'leave_time': participant.leave_timestamp,
-                        'duration_minutes': participant.total_duration_minutes or 0,
-                        'attendance_status': 'present',  # Set to present since they participated
-                        'device_info': participant.tracking_data or {}
-                    }
-                )
+    with transaction.atomic():
+        for user_id in participant_user_ids:
+            if not conference.attendances.filter(user_id=user_id).exists():
+                # Create a basic attendance record for this participant
+                participant = conference.participants.filter(user_id=user_id).first()
+                if participant:
+                    ConferenceAttendance.objects.get_or_create(
+                        conference=conference,
+                        user=participant.user,
+                        defaults={
+                            'participant_id': participant.participant_id,
+                            'join_time': participant.join_timestamp,
+                            'leave_time': participant.leave_timestamp,
+                            'duration_minutes': participant.total_duration_minutes or 0,
+                            'attendance_status': 'present',  # Set to present since they participated
+                            'device_info': participant.tracking_data or {}
+                        }
+                    )
     
     # More inclusive filtering for learner attendances
     # Include learners who have ANY evidence of participation:
@@ -4413,52 +4416,53 @@ def bulk_evaluate_conference(request, conference_id):
         from lms_rubrics.models import RubricRating
         
         # Process bulk evaluation
-        for attendance in attendances:
-            for criterion in conference.rubric.criteria.all():
-                criterion_id = criterion.id
-                
-                # Get form data for this criterion and attendance
-                rating_id = request.POST.get(f'rating_{criterion_id}_{attendance.id}')
-                points_str = request.POST.get(f'points_{criterion_id}_{attendance.id}', '0')
-                comments = request.POST.get(f'comments_{criterion_id}_{attendance.id}', '')
-                
-                # Validate points
-                try:
-                    points = float(points_str)
-                    if points < 0:
-                        points = 0
-                    if points > criterion.points:
-                        points = criterion.points
-                except (ValueError, TypeError):
-                    points = 0
-                
-                # Delete any existing evaluation
-                ConferenceRubricEvaluation.objects.filter(
-                    conference=conference, 
-                    attendance=attendance,
-                    criterion=criterion
-                ).delete()
-                
-                # Create a new evaluation
-                evaluation = ConferenceRubricEvaluation.objects.create(
-                    conference=conference,
-                    attendance=attendance,
-                    criterion=criterion,
-                    points=points,
-                    comments=comments,
-                    evaluated_by=request.user
-                )
-                
-                # Set the rating if one was selected
-                if rating_id:
+        with transaction.atomic():
+            for attendance in attendances:
+                for criterion in conference.rubric.criteria.all():
+                    criterion_id = criterion.id
+                    
+                    # Get form data for this criterion and attendance
+                    rating_id = request.POST.get(f'rating_{criterion_id}_{attendance.id}')
+                    points_str = request.POST.get(f'points_{criterion_id}_{attendance.id}', '0')
+                    comments = request.POST.get(f'comments_{criterion_id}_{attendance.id}', '')
+                    
+                    # Validate points
                     try:
-                        rating = RubricRating.objects.get(id=rating_id, criterion=criterion)
-                        evaluation.rating = rating
-                        # Keep the instructor-entered points, don't overwrite with rating points
-                        # This allows instructors to select a rating but adjust points as needed
-                        evaluation.save()
-                    except RubricRating.DoesNotExist:
-                        pass
+                        points = float(points_str)
+                        if points < 0:
+                            points = 0
+                        if points > criterion.points:
+                            points = criterion.points
+                    except (ValueError, TypeError):
+                        points = 0
+                    
+                    # Delete any existing evaluation
+                    ConferenceRubricEvaluation.objects.filter(
+                        conference=conference, 
+                        attendance=attendance,
+                        criterion=criterion
+                    ).delete()
+                    
+                    # Create a new evaluation
+                    evaluation = ConferenceRubricEvaluation.objects.create(
+                        conference=conference,
+                        attendance=attendance,
+                        criterion=criterion,
+                        points=points,
+                        comments=comments,
+                        evaluated_by=request.user
+                    )
+                    
+                    # Set the rating if one was selected
+                    if rating_id:
+                        try:
+                            rating = RubricRating.objects.get(id=rating_id, criterion=criterion)
+                            evaluation.rating = rating
+                            # Keep the instructor-entered points, don't overwrite with rating points
+                            # This allows instructors to select a rating but adjust points as needed
+                            evaluation.save()
+                        except RubricRating.DoesNotExist:
+                            pass
         
         messages.success(request, f'Bulk evaluation saved successfully for {len(attendances)} attendees.')
         return redirect('conferences:conference_scores', conference_id=conference_id)

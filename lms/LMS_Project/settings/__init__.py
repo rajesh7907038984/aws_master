@@ -14,13 +14,13 @@ if DJANGO_ENV == 'staging':
     # Override for staging environment
     ENVIRONMENT = 'staging'
     
-    print(" Loading STAGING environment configuration")
-    print(" Using STAGING instance connected services")
+    # print(" Loading STAGING environment configuration")
+    # print(" Using STAGING instance connected services")
     
 elif DJANGO_ENV == 'test':
     from .test import *
-    print(" Loading TEST environment configuration")
+    # print(" Loading TEST environment configuration")
     
 else:  # production or default
     from .production import *
-    print(" Loading PRODUCTION environment configuration")
+    # print(" Loading PRODUCTION environment configuration")

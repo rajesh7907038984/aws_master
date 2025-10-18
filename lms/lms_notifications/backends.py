@@ -31,7 +31,7 @@ class OutlookOAuth2Backend(BaseEmailBackend):
             self.connection = access_token is not None
             return self.connection
         except Exception as e:
-            logger.error(f"Failed to open OAuth2 connection: {str(e)}")
+            logger.error("Failed to open OAuth2 connection: {{str(e)}}")
             # Always return False on failure, never raise
             # This prevents server crashes when OAuth2 is misconfigured
             return False
@@ -58,7 +58,7 @@ class OutlookOAuth2Backend(BaseEmailBackend):
                 return None
                 
             # Get new token
-            token_url = f"https://login.microsoftonline.com/{settings.OUTLOOK_TENANT_ID}/oauth2/v2.0/token"
+            token_url = "https://login.microsoftonline.com/{{settings.OUTLOOK_TENANT_ID}}/oauth2/v2.0/token"
             
             data = {
                 'grant_type': 'client_credentials',
@@ -84,7 +84,7 @@ class OutlookOAuth2Backend(BaseEmailBackend):
             # HTTP errors (400, 401, 403, etc.)
             status_code = e.response.status_code if hasattr(e, 'response') else 'unknown'
             error_msg = e.response.text if hasattr(e, 'response') else str(e)
-            logger.error(f" OAuth2 HTTP Error {status_code}: {error_msg}")
+            logger.error(" OAuth2 HTTP Error {{status_code}}: {{error_msg}}")
             
             if status_code == 400:
                 logger.error("🔑 Bad Request - OAuth2 credentials may be invalid, expired, or incorrectly configured")
@@ -96,7 +96,7 @@ class OutlookOAuth2Backend(BaseEmailBackend):
             return None
             
         except Exception as e:
-            logger.error(f" Failed to get OAuth2 token: {str(e)}")
+            logger.error(" Failed to get OAuth2 token: {{str(e)}}")
             # Always return None on failure, never raise
             # This prevents server crashes when OAuth2 credentials are invalid
             return None
@@ -126,9 +126,9 @@ class OutlookOAuth2Backend(BaseEmailBackend):
                 if self.send_single_message(message, access_token):
                     sent_count += 1
                 else:
-                    logger.error(f" Failed to send email to {', '.join(message.to)} - send_single_message returned False")
+                    logger.error(" Failed to send email to {{', '.join(message.to)}} - send_single_message returned False")
             except Exception as e:
-                logger.error(f" Exception while sending email to {', '.join(message.to)}: {str(e)}")
+                logger.error(" Exception while sending email to {{', '.join(message.to)}}: {{str(e)}}")
                 if not self.fail_silently:
                     # Don't raise - log and continue to prevent crashes
                     logger.error(" Email send failed but not raising exception to prevent server crashes")
@@ -151,15 +151,15 @@ class OutlookOAuth2Backend(BaseEmailBackend):
             if html_content:
                 body_content = html_content
                 content_type = "HTML"
-                logger.debug(f"Using HTML alternative content (length: {len(html_content)})")
+                logger.debug("Using HTML alternative content (length: {{len(html_content)}})")
             elif message.content_subtype == 'html':
                 body_content = message.body
                 content_type = "HTML"
-                logger.debug(f"Using HTML main body content (length: {len(message.body)})")
+                logger.debug("Using HTML main body content (length: {{len(message.body)}})")
             else:
                 body_content = message.body
                 content_type = "Text"
-                logger.debug(f"Using plain text content (length: {len(message.body)})")
+                logger.debug("Using plain text content (length: {{len(message.body)}})")
             
             # Prepare email data for Graph API
             email_data = {
@@ -204,12 +204,12 @@ class OutlookOAuth2Backend(BaseEmailBackend):
             
             # Try different Graph API endpoints
             endpoints_to_try = [
-                f"https://graph.microsoft.com/v1.0/me/sendMail",  # Try 'me' endpoint first
-                f"https://graph.microsoft.com/v1.0/users/{settings.OUTLOOK_FROM_EMAIL}/sendMail",  # Original endpoint
+                "https://graph.microsoft.com/v1.0/me/sendMail",  # Try 'me' endpoint first
+                "https://graph.microsoft.com/v1.0/users/{{settings.OUTLOOK_FROM_EMAIL}}/sendMail",  # Original endpoint
             ]
             
             headers = {
-                'Authorization': f'Bearer {access_token}',
+                'Authorization': "Bearer {{access_token}}",
                 'Content-Type': 'application/json'
             }
             
@@ -218,25 +218,25 @@ class OutlookOAuth2Backend(BaseEmailBackend):
                     response = requests.post(endpoint, headers=headers, json=email_data)
                     
                     if response.status_code == 202:  # Accepted
-                        logger.info(f"Email sent successfully to {', '.join(message.to)} via {endpoint}")
+                        logger.info("Email sent successfully to {{', '.join(message.to)}} via {{endpoint}}")
                         return True
                     elif response.status_code == 404:
                         # Try next endpoint
                         continue
                     else:
-                        logger.warning(f"Failed endpoint {endpoint}. Status: {response.status_code}, Response: {response.text}")
+                        logger.warning("Failed endpoint {{endpoint}}. Status: {{response.status_code}}, Response: {{response.text}}")
                         continue
                         
                 except Exception as e:
-                    logger.warning(f"Error with endpoint {endpoint}: {str(e)}")
+                    logger.warning("Error with endpoint {{endpoint}}: {{str(e)}}")
                     continue
             
             # If all endpoints failed
-            logger.error(f"Failed to send email through all available endpoints")
+            logger.error("Failed to send email through all available endpoints")
             return False
                 
         except Exception as e:
-            logger.error(f"Error sending email: {str(e)}")
+            logger.error("Error sending email: {{str(e)}}")
             if not self.fail_silently:
                 raise
             return False 

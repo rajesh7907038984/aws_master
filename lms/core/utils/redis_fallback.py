@@ -30,7 +30,7 @@ def with_redis_fallback(f):
         try:
             return f(*args, **kwargs)
         except Exception as e:
-            logger.warning(f"Redis operation failed, using fallback: {e}")
+            logger.warning("Redis operation failed, using fallback: {{e}}")
             # Map function names to fallback functions
             fallback_map = {
                 'get': memory_get,
@@ -188,7 +188,7 @@ def memory_incr(key, delta=1, **kwargs):
     ensure_local_cache_initialized()
     
     if key not in _local_cache.cache:
-        raise ValueError(f"Key '{key}' not found")
+        raise ValueError("Key '{{key}}' not found")
     
     try:
         current_value = int(_local_cache.cache[key])
@@ -196,7 +196,7 @@ def memory_incr(key, delta=1, **kwargs):
         _local_cache.cache[key] = new_value
         return new_value
     except (ValueError, TypeError):
-        raise ValueError(f"Key '{key}' value is not a number")
+        raise ValueError("Key '{{key}}' value is not a number")
 
 
 def memory_decr(key, delta=1, **kwargs):
@@ -210,7 +210,7 @@ def safe_get(key, default=None, **kwargs):
     try:
         return cache._original_get(key, default, **kwargs)
     except Exception as e:
-        logger.warning(f"Redis get failed, using memory fallback: {e}")
+        logger.warning("Redis get failed, using memory fallback: {{e}}")
         return memory_get(key, default, **kwargs)
 
 
@@ -219,7 +219,7 @@ def safe_set(key, value, timeout=None, **kwargs):
     try:
         return cache._original_set(key, value, timeout, **kwargs)
     except Exception as e:
-        logger.warning(f"Redis set failed, using memory fallback: {e}")
+        logger.warning("Redis set failed, using memory fallback: {{e}}")
         return memory_set(key, value, timeout, **kwargs)
 
 
@@ -228,7 +228,7 @@ def safe_add(key, value, timeout=None, **kwargs):
     try:
         return cache._original_add(key, value, timeout, **kwargs)
     except Exception as e:
-        logger.warning(f"Redis add failed, using memory fallback: {e}")
+        logger.warning("Redis add failed, using memory fallback: {{e}}")
         return memory_add(key, value, timeout, **kwargs)
 
 
@@ -237,7 +237,7 @@ def safe_delete(key, **kwargs):
     try:
         return cache._original_delete(key, **kwargs)
     except Exception as e:
-        logger.warning(f"Redis delete failed, using memory fallback: {e}")
+        logger.warning("Redis delete failed, using memory fallback: {{e}}")
         return memory_delete(key, **kwargs)
 
 
@@ -246,7 +246,7 @@ def safe_get_many(keys, **kwargs):
     try:
         return cache._original_get_many(keys, **kwargs)
     except Exception as e:
-        logger.warning(f"Redis get_many failed, using memory fallback: {e}")
+        logger.warning("Redis get_many failed, using memory fallback: {{e}}")
         return memory_get_many(keys, **kwargs)
 
 
@@ -255,7 +255,7 @@ def safe_set_many(data, timeout=None, **kwargs):
     try:
         return cache._original_set_many(data, timeout, **kwargs)
     except Exception as e:
-        logger.warning(f"Redis set_many failed, using memory fallback: {e}")
+        logger.warning("Redis set_many failed, using memory fallback: {{e}}")
         return memory_set_many(data, timeout, **kwargs)
 
 
@@ -264,7 +264,7 @@ def safe_delete_many(keys, **kwargs):
     try:
         return cache.delete_many(keys, **kwargs)
     except Exception as e:
-        logger.warning(f"Redis delete_many failed, using memory fallback: {e}")
+        logger.warning("Redis delete_many failed, using memory fallback: {{e}}")
         return memory_delete_many(keys, **kwargs)
 
 
@@ -273,7 +273,7 @@ def safe_clear(**kwargs):
     try:
         return cache.clear(**kwargs)
     except Exception as e:
-        logger.warning(f"Redis clear failed, using memory fallback: {e}")
+        logger.warning("Redis clear failed, using memory fallback: {{e}}")
         return memory_clear(**kwargs)
 
 
@@ -282,7 +282,7 @@ def safe_incr(key, delta=1, **kwargs):
     try:
         return cache.incr(key, delta, **kwargs)
     except Exception as e:
-        logger.warning(f"Redis incr failed, using memory fallback: {e}")
+        logger.warning("Redis incr failed, using memory fallback: {{e}}")
         return memory_incr(key, delta, **kwargs)
 
 
@@ -291,7 +291,7 @@ def safe_decr(key, delta=1, **kwargs):
     try:
         return cache.decr(key, delta, **kwargs)
     except Exception as e:
-        logger.warning(f"Redis decr failed, using memory fallback: {e}")
+        logger.warning("Redis decr failed, using memory fallback: {{e}}")
         return memory_decr(key, delta, **kwargs)
 
 

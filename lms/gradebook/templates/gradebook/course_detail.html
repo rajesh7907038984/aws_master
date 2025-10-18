@@ -2158,6 +2158,7 @@ function validateTableStructure() {
     
     if (rows.length === 0) {
         console.warn('No data rows found in gradebook table');
+        return true; // Empty table is valid
     }
     
     if (headers.length === 0) {
@@ -2175,6 +2176,13 @@ function validateTableStructure() {
             console.error(`Column count mismatch: ${headerCount} headers vs ${bodyCellCount} body cells`);
             console.error('Headers:', Array.from(headers).map(h => h.className));
             console.error('Body cells:', Array.from(firstRow.querySelectorAll('td')).map(c => c.className));
+            
+            // Check if this is an empty state row
+            if (bodyCellCount === 1 && firstRow.querySelector('td').getAttribute('colspan')) {
+                console.log('Empty state row detected - this is expected');
+                return true;
+            }
+            
             return false;
         }
         

@@ -17,5 +17,5 @@ def sync_gradebook():
         logger.info("Scheduled gradebook sync completed successfully")
         return True
     except Exception as e:
-        logger.error(f"Error during scheduled gradebook sync: {str(e)}")
+        logger.error("Error during scheduled gradebook sync: {{str(e)}}")
         return False 

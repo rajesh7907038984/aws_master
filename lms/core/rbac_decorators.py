@@ -49,11 +49,11 @@ def require_rbac_permission(action, resource_type, get_resource=None, **validati
                 )
                 
                 if validation_errors:
-                    logger.warning(f"RBAC access denied for user {request.user.username}: {'; '.join(validation_errors)}")
-                    return HttpResponseForbidden(f"Access denied: {'; '.join(validation_errors)}")
+                    logger.warning("RBAC access denied for user {{request.user.username}}: {{'; '.join(validation_errors)}}")
+                    return HttpResponseForbidden("Access denied: {{'; '.join(validation_errors)}}")
                     
             except Exception as e:
-                logger.error(f"RBAC validation error in {view_func.__name__}: {str(e)}")
+                logger.error("RBAC validation error in {{view_func.__name__}}: {{str(e)}}")
                 return HttpResponseForbidden("Access validation error")
             
             return view_func(request, *args, **kwargs)

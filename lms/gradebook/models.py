@@ -41,7 +41,7 @@ class Grade(models.Model):
             if self.assignment and hasattr(self.assignment, 'max_score') and self.assignment.max_score:
                 if score_decimal > Decimal(str(self.assignment.max_score)):
                     raise ValidationError({
-                        'score': f'Score cannot exceed assignment maximum of {self.assignment.max_score}'
+                        'score': "Score cannot exceed assignment maximum of {{self.assignment.max_score}}"
                     })
             elif score_decimal > Decimal('9999.99'):  # Fallback to field max
                 raise ValidationError({'score': 'Score is too large (max 9999.99)'})
@@ -74,7 +74,7 @@ class Grade(models.Model):
                 })
     
     def __str__(self):
-        return f"{self.student.username} - {self.assignment.title} - {self.score if self.score else 'Excused' if self.excused else 'Not graded'}"
+        return "{{self.student.username}} - {{self.assignment.title}} - {{self.score if self.score else 'Excused' if self.excused else 'Not graded'}}"
 
     def save(self, *args, **kwargs):
         # Validate before saving

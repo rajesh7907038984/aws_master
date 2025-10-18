@@ -12,7 +12,7 @@ from django.views.decorators.http import require_http_methods, require_POST
 from django.conf import settings
 from django.urls import reverse
 from django.utils import timezone
-# from django.views.decorators.csrf import csrf_failure as django_csrf_failure
+from django.views.decorators.csrf import csrf_failure as django_csrf_failure
 from users.models import CustomUser
 from core.utils.calendar_service import CalendarService
 from datetime import datetime, timedelta
@@ -43,32 +43,8 @@ Canonical: https://example.com/.well-known/security.txt
 """
     return HttpResponse(security_content, content_type='text/plain')
 
-# COMMENTED OUT CSRF FAILURE VIEW TO FIX ERRORS
-# def csrf_failure(request, reason=""):
-#     """
-#     Custom CSRF failure view that provides better error handling
-#     """
-#     logger.warning(f"CSRF failure: {reason} for {request.path}")
-#     
-#     # For API requests, return JSON response
-#     if request.path.startswith('/api/') or request.content_type == 'application/json':
-#         return JsonResponse({
-#             'error': 'CSRF token missing or incorrect',
-#             'detail': 'Please refresh the page and try again',
-#             'reason': str(reason)
-#         }, status=403)
-#     
-#     # For regular requests, redirect to login or show error page
-#     if not request.user.is_authenticated:
-#         return redirect('login')
-#     
-#     # For authenticated users, show a friendly error page
-#     return render(request, 'core/csrf_error.html', {
-#         'reason': reason,
-#         'user': request.user
-#     }, status=403)
 
-@csrf_exempt
+@csrf_protect
 def ping_view(request):
     """Simple ping endpoint for health checks"""
     return JsonResponse({
@@ -80,41 +56,80 @@ def ping_view(request):
 @csrf_protect
 @require_http_methods(["POST"])
 def error_log(request):
-    """Log client-side errors"""
+    """Log client-side errors with enhanced error handling"""
     try:
-        data = json.loads(request.body)
+        # Validate request body
+        if not request.body:
+            return JsonResponse({'error': 'Empty request body'}, status=400)
+        
+        # Parse JSON with error handling
+        try:
+            data = json.loads(request.body)
+        except json.JSONDecodeError as e:
+            logger.error("Invalid JSON in error log request: {}".format(str(e)))
+            return JsonResponse({'error': 'Invalid JSON format'}, status=400)
+        
+        # Extract and validate error data
         error_message = data.get('message', '')
         error_stack = data.get('stack', '')
         error_url = data.get('url', '')
+        error_timestamp = data.get('timestamp', '')
         
-        logger.error(f"Client Error: {error_message} | URL: {error_url} | Stack: {error_stack}")
+        # Validate required fields
+        if not error_message:
+            return JsonResponse({'error': 'Error message is required'}, status=400)
         
-        return JsonResponse({'success': True})
+        # Sanitize error data to prevent log injection
+        error_message = error_message[:500]  # Limit length
+        error_stack = error_stack[:1000]    # Limit stack trace length
+        error_url = error_url[:200]         # Limit URL length
+        
+        # Log with structured data
+        logger.error("Client Error: {} | URL: {} | Stack: {} | Timestamp: {}".format(
+            error_message, error_url, error_stack, error_timestamp
+        ))
+        
+        return JsonResponse({'success': True, 'logged': True})
+        
     except Exception as e:
-        logger.error(f"Error logging failed: {str(e)}")
+        logger.error("Error logging failed: {}".format(str(e)))
         return JsonResponse({'error': 'Failed to log error'}, status=500)
 
 
 @require_http_methods(["GET"])
 def calendar_activities(request):
-    """Calendar activities API endpoint"""
+    """Calendar activities API endpoint with enhanced error handling"""
     try:
+        # Check if user is authenticated
+        if not request.user.is_authenticated:
+            return JsonResponse({
+                'success': False,
+                'error': 'Authentication required'
+            }, status=401)
+        
         # Return empty activities for now - can be expanded later
         activities = []
+        
+        # Log successful request
+        logger.info("Calendar activities requested by user: {}".format(request.user.id))
+        
         return JsonResponse({
             'success': True,
             'activities': activities,
-            'message': 'Calendar activities retrieved successfully'
+            'message': 'Calendar activities retrieved successfully',
+            'count': len(activities)
         })
+        
     except Exception as e:
-        logger.error(f"Calendar activities error: {str(e)}")
+        logger.error("Calendar activities error: {}".format(str(e)))
         return JsonResponse({
             'success': False,
-            'error': 'Failed to retrieve calendar activities'
+            'error': 'Failed to retrieve calendar activities',
+            'details': 'Internal server error'
         }, status=500)
 
 @require_http_methods(["GET"])
-@csrf_exempt
+@csrf_protect
 def health_check(request):
     """Comprehensive health check endpoint for deployment monitoring"""
     from core.utils.standardized_api_response import StandardizedAPIResponse
@@ -135,9 +150,9 @@ def health_check(request):
             message='All systems operational'
         )
     except Exception as e:
-        return StandardizedAPIResponse.error(
-            message=f'Health check failed: {str(e)}',
-            status_code=503,
+        logger.error(f"Health check failed: {str(e)}")
+        return StandardizedAPIResponse.server_error(
+            message=f"Health check failed: {str(e)}",
             error_code='HEALTH_CHECK_FAILED'
         )
 
@@ -241,12 +256,16 @@ def ai_content_demo(request):
 # ERROR HANDLING VIEWS
 # ============================================================================
 
-# COMMENTED OUT CSRF FAILURE FUNCTION TO FIX ERRORS
-# def csrf_failure(request, reason=""):
-#     """CSRF failure handling"""
-#     return render(request, 'core/csrf_failure.html', {
-#         'reason': reason
-#     }, status=403)
+def csrf_failure(request, reason=""):
+    """CSRF failure handling"""
+    try:
+        return render(request, 'core/csrf_failure.html', {
+            'reason': reason
+        }, status=403)
+    except Exception as e:
+        logger.error(f"CSRF failure template error: {e}")
+        from django.http import HttpResponse
+        return HttpResponse("CSRF verification failed. Please try again.", status=403)
 
 
 @csrf_protect
@@ -267,27 +286,7 @@ def log_client_error(request):
         return JsonResponse({'status': 'error'}, status=500)
 
 
-@staff_member_required
-def debug_media_info(request):
-    """Debug media files information (admin only)"""
-    try:
-        import os
-        from django.conf import settings
-        
-        media_info = {
-            'MEDIA_URL': getattr(settings, 'MEDIA_URL', 'Not set'),
-            'STATICFILES_STORAGE': getattr(settings, 'STATICFILES_STORAGE', 'Not set'),
-            'DEFAULT_FILE_STORAGE': getattr(settings, 'DEFAULT_FILE_STORAGE', 'Not set'),
-            'AWS_STORAGE_BUCKET_NAME': getattr(settings, 'AWS_STORAGE_BUCKET_NAME', 'Not set'),
-            'AWS_S3_REGION_NAME': getattr(settings, 'AWS_S3_REGION_NAME', 'Not set'),
-            's3_storage_mode': True,
-        }
-        
-        return JsonResponse(media_info)
-    except Exception as e:
-        return JsonResponse({
-            'error': str(e)
-        }, status=500)
+# Debug function removed for production security
 
 
 
@@ -459,39 +458,7 @@ def api_calendar_summary(request):
         }, status=500)
 
 
-# ============================================================================
-# ERROR PAGE TESTING VIEWS (DEBUG MODE ONLY)
-# ============================================================================
-
-def test_404(request):
-    """Test 404 error page"""
-    raise Http404("Test 404 error")
-
-
-def test_500(request):
-    """Test 500 error page"""
-    raise Exception("Test 500 error")
-
-
-def test_403(request):
-    """Test 403 error page"""
-    from django.core.exceptions import PermissionDenied
-    raise PermissionDenied("Test 403 error")
-
-
-def test_custom_404(request):
-    """Preview custom 404 page"""
-    return render(request, '404.html', status=404)
-
-
-def test_custom_500(request):
-    """Preview custom 500 page"""
-    return render(request, '500.html', status=500)
-
-
-def test_custom_403(request):
-    """Preview custom 403 page"""
-    return render(request, '403.html', status=403)
+# Debug testing views removed for production security
 
 
 # ============================================================================
@@ -499,99 +466,96 @@ def test_custom_403(request):
 # ============================================================================
 
 def custom_404_view(request, exception=None):
-    """Custom 404 error handler"""
-    logger.warning(
-        f"404 Error - Page not found: {request.path}",
-        extra={
-            'path': request.path,
-            'method': request.method,
-            'user_id': getattr(request.user, 'id', 'anonymous') if hasattr(request, 'user') and request.user.is_authenticated else 'anonymous',
-            'user_agent': request.META.get('HTTP_USER_AGENT', 'Unknown'),
-            'referer': request.META.get('HTTP_REFERER', 'Direct'),
-            'query_params': dict(request.GET),
+    """Custom 404 error handler with proper error handling"""
+    try:
+        logger.warning(
+            f"404 Error - Page not found: {request.path}",
+            extra={
+                'path': request.path,
+                'method': request.method,
+                'user_id': getattr(request.user, 'id', 'anonymous') if hasattr(request, 'user') and request.user.is_authenticated else 'anonymous',
+                'user_agent': request.META.get('HTTP_USER_AGENT', 'Unknown'),
+                'referer': request.META.get('HTTP_REFERER', 'Direct'),
+                'query_params': dict(request.GET),
+            }
+        )
+        
+        context = {
+            'error_code': 404,
+            'error_title': 'Page Not Found',
+            'error_message': 'The page you are looking for could not be found.',
+            'request_path': request.path,
         }
-    )
-    
-    context = {
-        'error_code': 404,
-        'error_title': 'Page Not Found',
-        'error_message': 'The page you are looking for could not be found.',
-        'request_path': request.path,
-    }
-    
-    return render(request, '404.html', context, status=404)
+        
+        return render(request, '404.html', context, status=404)
+    except Exception as e:
+        logger.error(f"Error in custom_404_view: {e}")
+        # Fallback to simple 404 response
+        from django.http import HttpResponse
+        return HttpResponse("Page not found", status=404)
 
 
 def custom_500_view(request, exception=None):
-    """Custom 500 error handler"""
-    logger.error(
-        f"500 Error - Internal server error on {request.path}",
-        extra={
-            'path': request.path,
-            'method': request.method,
-            'user_id': getattr(request.user, 'id', 'anonymous') if hasattr(request, 'user') and request.user.is_authenticated else 'anonymous',
-            'user_agent': request.META.get('HTTP_USER_AGENT', 'Unknown'),
-            'referer': request.META.get('HTTP_REFERER', 'Direct'),
-            'exception': str(exception) if exception else 'Unknown error',
-        },
-        exc_info=True
-    )
-    
-    context = {
-        'error_code': 500,
-        'error_title': 'Server Error',
-        'error_message': 'We encountered an unexpected error. Our team has been notified and is working to fix it.',
-        'request_path': request.path,
-    }
-    
-    return render(request, '500.html', context, status=500)
+    """Custom 500 error handler with proper error handling"""
+    try:
+        logger.error(
+            f"500 Error - Internal server error on {request.path}",
+            extra={
+                'path': request.path,
+                'method': request.method,
+                'user_id': getattr(request.user, 'id', 'anonymous') if hasattr(request, 'user') and request.user.is_authenticated else 'anonymous',
+                'user_agent': request.META.get('HTTP_USER_AGENT', 'Unknown'),
+                'referer': request.META.get('HTTP_REFERER', 'Direct'),
+                'exception': str(exception) if exception else 'Unknown error',
+            },
+            exc_info=True
+        )
+        
+        context = {
+            'error_code': 500,
+            'error_title': 'Server Error',
+            'error_message': 'We encountered an unexpected error. Our team has been notified and is working to fix it.',
+            'request_path': request.path,
+        }
+        
+        return render(request, '500.html', context, status=500)
+    except Exception as e:
+        logger.error(f"Error in custom_500_view: {e}")
+        # Fallback to simple 500 response
+        from django.http import HttpResponse
+        return HttpResponse("Internal server error", status=500)
 
 
 def custom_403_view(request, exception=None):
-    """Custom 403 error handler"""
-    logger.warning(
-        f"403 Error - Permission denied: {request.path}",
-        extra={
-            'path': request.path,
-            'method': request.method,
-            'user_id': getattr(request.user, 'id', 'anonymous') if hasattr(request, 'user') and request.user.is_authenticated else 'anonymous',
-            'user_agent': request.META.get('HTTP_USER_AGENT', 'Unknown'),
-            'referer': request.META.get('HTTP_REFERER', 'Direct'),
+    """Custom 403 error handler with proper error handling"""
+    try:
+        logger.warning(
+            f"403 Error - Permission denied: {request.path}",
+            extra={
+                'path': request.path,
+                'method': request.method,
+                'user_id': getattr(request.user, 'id', 'anonymous') if hasattr(request, 'user') and request.user.is_authenticated else 'anonymous',
+                'user_agent': request.META.get('HTTP_USER_AGENT', 'Unknown'),
+                'referer': request.META.get('HTTP_REFERER', 'Direct'),
+            }
+        )
+        
+        context = {
+            'error_code': 403,
+            'error_title': 'Permission Denied',
+            'error_message': 'You do not have permission to access this resource.',
+            'request_path': request.path,
         }
-    )
-    
-    context = {
-        'error_code': 403,
-        'error_title': 'Permission Denied',
-        'error_message': 'You do not have permission to access this resource.',
-        'request_path': request.path,
-    }
-    
-    return render(request, '403.html', context, status=403)
+        
+        return render(request, '403.html', context, status=403)
+    except Exception as e:
+        logger.error(f"Error in custom_403_view: {e}")
+        # Fallback to simple 403 response
+        from django.http import HttpResponse
+        return HttpResponse("Permission denied", status=403)
 
 
-# ============================================================================
-# ERROR HANDLING TEST VIEWS (DEBUG MODE ONLY)
-# ============================================================================
-
-def test_error_handling(request):
-    """Test all error handling mechanisms"""
-    error_type = request.GET.get('type', '500')
-    
-    if error_type == '404':
-        raise Http404("Test 404 error")
-    elif error_type == '403':
-        from django.core.exceptions import PermissionDenied
-        raise PermissionDenied("Test 403 error")
-    elif error_type == 'database':
-        # Simulate database error
-        raise Exception("Database connection failed")
-    elif error_type == 'file':
-        # Simulate file error
-        raise Exception("File upload failed")
-    else:
-        # Default 500 error
-        raise Exception("Test server error")
+# Debug error testing views removed for production security
 
 
 def terms_of_service(request):
@@ -604,86 +568,11 @@ def privacy_policy(request):
     return render(request, 'core/privacy_policy.html')
 
 
-def chart_debug(request):
-    """Chart debugging page for production issue diagnosis"""
-    return render(request, 'core/chart_debug_simple.html')
-
-def test_learner_data(request):
-    """Test learner dashboard data and chart rendering"""
-    # Simulate learner dashboard data
-    from users.views import learner_dashboard
-    
-    # Get the context from learner_dashboard
-    if request.user.is_authenticated and request.user.role == 'learner':
-        # Call the actual learner_dashboard view to get the data
-        from django.http import HttpResponse
-        response = learner_dashboard(request)
-        if hasattr(response, 'context_data'):
-            context = response.context_data
-        else:
-            # Fallback data
-            context = {
-                'total_courses': 0,
-                'completed_courses': 0,
-                'courses_in_progress': 0,
-                'courses_not_started': 0,
-                'courses_not_passed': 0,
-            }
-    else:
-        # Test data for non-learner users
-        context = {
-            'total_courses': 5,
-            'completed_courses': 2,
-            'courses_in_progress': 2,
-            'courses_not_started': 1,
-            'courses_not_passed': 0,
-        }
-    
-    return render(request, 'core/test_learner_data.html', context)
-
-def minimal_chart_test(request):
-    """Minimal chart test to verify Chart.js is working"""
-    return render(request, 'core/minimal_chart_test.html')
+# Debug chart and testing views removed for production security
 
 
-# COMMENTED OUT CSRF VALIDATION FUNCTION TO FIX ERRORS
-# def validate_csrf_token(request):
-#     """API endpoint to validate CSRF token for debugging"""
-#     if request.method == 'POST':
-#         if token and CSRFProtection.validate_csrf_token(request, token):
-#             return JsonResponse({
-#                 'valid': True,
-#                 'message': 'CSRF token is valid'
-#             })
-#         return JsonResponse({
-#             'valid': False,
-#             'message': 'CSRF token is invalid or missing'
-#         }, status=403)
-#     return JsonResponse({
-#         'error': 'Method not allowed',
-#         'message': 'Only POST requests are allowed'
-#     }, status=405)
 
 
-# COMMENTED OUT CSRF FAILURE FUNCTION TO FIX ERRORS
-# def csrf_failure(request, reason=""):
-#     """Custom CSRF failure view that provides a more helpful response"""
-#     logger.warning(f"CSRF failure for {request.path}: {reason}")
-#     
-#     # For API requests, return JSON error
-#     if request.path.startswith('/api/') or request.headers.get('Accept', '').startswith('application/json'):
-#         return JsonResponse({
-#             'error': 'CSRF validation failed',
-#             'reason': reason,
-#             'message': 'Please refresh the page and try again'
-#         }, status=403)
-#     
-#     # For regular requests, render an error page or redirect
-#     context = {
-#         'reason': reason,
-#         'request_path': request.path
-#     }
-#     return render(request, 'core/csrf_failure.html', context, status=403)
 
 
 @csrf_protect

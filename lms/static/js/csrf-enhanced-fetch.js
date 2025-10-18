@@ -38,13 +38,18 @@
             const self = this;
             
             window.fetch = function(url, options = {}) {
-                // Add CSRF token to requests
-                if (self.csrfToken && (options.method === 'POST' || options.method === 'PUT' || options.method === 'DELETE' || options.method === 'PATCH')) {
-                    options.headers = options.headers || {};
-                    options.headers['X-CSRFToken'] = self.csrfToken;
+                try {
+                    // Add CSRF token to requests
+                    if (self.csrfToken && (options.method === 'POST' || options.method === 'PUT' || options.method === 'DELETE' || options.method === 'PATCH')) {
+                        options.headers = options.headers || {};
+                        options.headers['X-CSRFToken'] = self.csrfToken;
+                    }
+                    
+                    return originalFetch.call(this, url, options);
+                } catch (error) {
+                    console.error('Error in enhanced fetch:', error);
+                    throw error;
                 }
-                
-                return originalFetch.call(this, url, options);
             };
         }
     };

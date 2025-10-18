@@ -587,25 +587,24 @@ def gradebook_index(request):
     if courses.exists():
         # Get assignments with course associations only - optimized with select_related
         assignments = Assignment.objects.filter(
-            Q(course__in=courses) |  # Direct course relationship
-            Q(courses__in=courses) |  # M2M course relationship
-            Q(topics__courses__in=courses)  # Topic-based course relationship
+            Q(courses__in=courses) |  # Direct course relationship through AssignmentCourse
+            Q(topics__coursetopic__course__in=courses)  # Topic-based course relationship through CourseTopic
         ).filter(
             is_active=True  # Only active assignments
         ).filter(
             # Either have active topics OR have no topics at all (direct course assignments)
             Q(topics__status='active') |  # Has active topics
             Q(topics__isnull=True)  # Has no topics (direct course assignment)
-        ).distinct().select_related('course').prefetch_related(
+        ).distinct().select_related('user', 'rubric').prefetch_related(
             'courses', 
-            'topics__courses',
+            'topics__coursetopic__course',
             'attachments'
         ).order_by('created_at')
 
         # Get regular quizzes (exclude initial assessments and VAK tests from grading) - optimized
         quizzes = Quiz.objects.filter(
             Q(course__in=courses) |  # Direct course relationship
-            Q(topics__courses__in=courses)  # Topic-based course relationship
+            Q(topics__coursetopic__course__in=courses)  # Topic-based course relationship through CourseTopic
         ).filter(
             is_active=True  # Only active quizzes
         ).filter(
@@ -615,8 +614,8 @@ def gradebook_index(request):
         ).exclude(
             # Exclude only VAK tests from gradebook grading (include initial assessments)
             Q(is_vak_test=True)
-        ).distinct().select_related('course', 'rubric').prefetch_related(
-            'topics__courses',
+        ).distinct().select_related('rubric').prefetch_related(
+            'topics__coursetopic__course',
             'questions'
         ).order_by('created_at')
 
@@ -625,26 +624,26 @@ def gradebook_index(request):
         # Get discussions with course associations only
         discussions = Discussion.objects.filter(
             Q(course__in=courses) |  # Direct course relationship
-            Q(topics__courses__in=courses)  # Topic-based course relationship
+            Q(topics__coursetopic__course__in=courses)  # Topic-based course relationship through CourseTopic
         ).filter(
             status='published'  # Only published discussions
         ).filter(
             # Either have active topics OR have no topics at all
             Q(topics__status='active') |
             Q(topics__isnull=True)
-        ).distinct().prefetch_related('course', 'topics__courses').order_by('created_at')
+        ).distinct().prefetch_related('course', 'topics__coursetopic__course').order_by('created_at')
 
         # Get conferences with course associations only
         conferences = Conference.objects.filter(
             Q(course__in=courses) |  # Direct course relationship
-            Q(topics__courses__in=courses)  # Topic-based course relationship
+            Q(topics__coursetopic__course__in=courses)  # Topic-based course relationship through CourseTopic
         ).filter(
             status='published'  # Only published conferences
         ).filter(
             # Either have active topics OR have no topics at all
             Q(topics__status='active') |
             Q(topics__isnull=True)
-        ).distinct().prefetch_related('course', 'topics__courses').order_by('created_at')
+        ).distinct().prefetch_related('course', 'topics__coursetopic__course').order_by('created_at')
 
         # Get SCORM packages with course associations only
         # First get all topics associated with the courses through CourseTopic
@@ -1125,23 +1124,22 @@ def course_gradebook_detail(request, course_id):
     try:
         # Assignments: Check direct course, M2M courses, and topic-based relationships
         assignments = Assignment.objects.filter(
-            Q(course=course) |  # Direct course relationship
             Q(courses=course) |  # M2M course relationship
-            Q(topics__courses=course)  # Topic-based course relationship
+            Q(topics__coursetopic__course=course)  # Topic-based course relationship through CourseTopic
         ).filter(
             is_active=True  # Only active assignments
         ).filter(
             # Either have active topics OR have no topics at all (direct course assignments)
             Q(topics__status='active') |  # Has active topics
             Q(topics__isnull=True)  # Has no topics (direct course assignment)
-        ).distinct().select_related('course', 'user', 'rubric').prefetch_related('courses', 'topics').order_by('created_at')
+        ).distinct().select_related('user', 'rubric').prefetch_related('courses', 'topics').order_by('created_at')
         
         logger.debug(f"Found {assignments.count()} assignments for course {course_id}")
         
         # Quizzes: Check direct course and topic relationships (include initial assessments, exclude only VAK tests)
         quizzes = Quiz.objects.filter(
             Q(course=course) |  # Direct course relationship
-            Q(topics__courses=course)  # Topic-based course relationship
+            Q(topics__coursetopic__course=course)  # Topic-based course relationship through CourseTopic
         ).filter(
             is_active=True  # Only active quizzes
         ).filter(
@@ -1151,33 +1149,32 @@ def course_gradebook_detail(request, course_id):
         ).exclude(
             # Exclude only VAK tests from gradebook grading (include initial assessments)
             Q(is_vak_test=True)
-        ).distinct().select_related('course', 'creator', 'rubric').prefetch_related('topics').order_by('created_at')
+        ).distinct().select_related('creator', 'rubric').prefetch_related('topics').order_by('created_at')
 
         # Initial assessments are now included in the main quizzes query above
         
         # Discussions: Check direct course and topic relationships
         discussions = Discussion.objects.filter(
-            Q(course=course) |  # Direct course relationship
-            Q(topics__courses=course)  # Topic-based course relationship
+            Q(topic__courses=course)  # Topic-based course relationship
         ).filter(
             status='published'  # Only published discussions
         ).filter(
             # Either have active topics OR have no topics at all
             Q(topics__status='active') |
             Q(topics__isnull=True)
-        ).distinct().select_related('course', 'created_by', 'rubric').prefetch_related('topics').order_by('created_at')
+        ).distinct().select_related('created_by', 'rubric').prefetch_related('topics').order_by('created_at')
         
         # Conferences: Check direct course and topic relationships
         conferences = Conference.objects.filter(
             Q(course=course) |  # Direct course relationship
-            Q(topics__courses=course)  # Topic-based course relationship
+            Q(topics__coursetopic__course=course)  # Topic-based course relationship through CourseTopic
         ).filter(
             status='published'  # Only published conferences
         ).filter(
             # Either have active topics OR have no topics at all
             Q(topics__status='active') |
             Q(topics__isnull=True)
-        ).distinct().select_related('course', 'created_by', 'rubric').prefetch_related('topics').order_by('created_at')
+        ).distinct().select_related('created_by', 'rubric').prefetch_related('topics').order_by('created_at')
         
     except Exception as e:
         logger.error(f"Error fetching activities for course {course_id}: {str(e)}")
@@ -1453,7 +1450,7 @@ def course_gradebook_detail(request, course_id):
             'quiz__rubric',
             'user'
         ).prefetch_related(
-            'quiz__topics__courses'
+            'quiz__topics__coursetopic__course'
             # 'useranswer_set__question',  # Commented out - invalid prefetch_related parameter
             # 'useranswer_set__answer'  # Commented out - invalid prefetch_related parameter
         ).order_by('-end_time')
@@ -2576,38 +2573,38 @@ def export_gradebook_csv(request, course_id):
         
         # Get all activities for this course (same logic as course_gradebook_detail)
         assignments = Assignment.objects.filter(
-            Q(course=course) | Q(courses=course) | Q(topics__courses=course)
+            Q(courses=course) | Q(topics__coursetopic__course=course)
         ).filter(
             is_active=True
         ).filter(
             Q(topics__status='active') | Q(topics__isnull=True)
-        ).distinct().select_related('course', 'user', 'rubric').prefetch_related('courses', 'topics').order_by('created_at')
+        ).distinct().select_related('user', 'rubric').prefetch_related('courses', 'topics').order_by('created_at')
         
         quizzes = Quiz.objects.filter(
-            Q(course=course) | Q(topics__courses=course)
+            Q(course=course) | Q(topics__coursetopic__course=course)
         ).filter(
             is_active=True
         ).filter(
             Q(topics__status='active') | Q(topics__isnull=True)
         ).exclude(
             Q(is_vak_test=True)
-        ).distinct().select_related('course', 'creator', 'rubric').prefetch_related('topics').order_by('created_at')
+        ).distinct().select_related('creator', 'rubric').prefetch_related('topics').order_by('created_at')
         
         discussions = Discussion.objects.filter(
-            Q(course=course) | Q(topics__courses=course)
+            Q(course=course) | Q(topics__coursetopic__course=course)
         ).filter(
             status='published'
         ).filter(
             Q(topics__status='active') | Q(topics__isnull=True)
-        ).distinct().select_related('course', 'created_by', 'rubric').prefetch_related('topics').order_by('created_at')
+        ).distinct().select_related('created_by', 'rubric').prefetch_related('topics').order_by('created_at')
         
         conferences = Conference.objects.filter(
-            Q(course=course) | Q(topics__courses=course)
+            Q(course=course) | Q(topics__coursetopic__course=course)
         ).filter(
             status='published'
         ).filter(
             Q(topics__status='active') | Q(topics__isnull=True)
-        ).distinct().select_related('course', 'created_by', 'rubric').prefetch_related('topics').order_by('created_at')
+        ).distinct().select_related('created_by', 'rubric').prefetch_related('topics').order_by('created_at')
         
         
         # Create CSV response

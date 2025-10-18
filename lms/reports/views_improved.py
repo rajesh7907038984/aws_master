@@ -29,7 +29,7 @@ def _get_user_report_data_improved(request, user_id):
     """
     try:
         user = get_object_or_404(User, id=user_id)
-        logger.info(f"Getting report data for user: {user.username}")
+        logger.info("Getting report data for user: {{user.username}}")
         
         # Check if the user has access to view this user's data
         if request.user.role == 'learner':
@@ -42,8 +42,8 @@ def _get_user_report_data_improved(request, user_id):
                 messages.error(request, "You don't have permission to view this user's data")
                 return None
     except Http404:
-        logger.warning(f"User with ID {user_id} not found")
-        messages.error(request, f"User with ID {user_id} not found")
+        logger.warning("User with ID {{user_id}} not found")
+        messages.error(request, "User with ID {{user_id}} not found")
         return None
     
     # Ensure data consistency before calculations
@@ -241,10 +241,10 @@ def _ensure_data_consistency(user):
                 progress.last_score = normalized_score
                 progress.save()
         
-        logger.info(f"Data consistency ensured for user {user.username}")
+        logger.info("Data consistency ensured for user {{user.username}}")
         
     except Exception as e:
-        logger.error(f"Error ensuring data consistency for user {user.id}: {e}")
+        logger.error("Error ensuring data consistency for user {{user.id}}: {{e}}")
 
 def _calculate_accurate_course_score(course_topic_progress):
     """
@@ -274,7 +274,7 @@ def _calculate_accurate_course_score(course_topic_progress):
         return None
         
     except Exception as e:
-        logger.error(f"Error calculating course score: {e}")
+        logger.error("Error calculating course score: {{e}}")
         return None
 
 def _validate_time_data(user):
@@ -289,7 +289,7 @@ def _validate_time_data(user):
         )
         
         if invalid_time_records.exists():
-            logger.warning(f"Found {invalid_time_records.count()} records with negative time for user {user.id}")
+            logger.warning("Found {{invalid_time_records.count()}} records with negative time for user {{user.id}}")
             invalid_time_records.update(total_time_spent=0)
         
         # Check for accessed records with zero time
@@ -300,14 +300,14 @@ def _validate_time_data(user):
         ).exclude(last_accessed=F('first_accessed'))
         
         if zero_time_accessed.exists():
-            logger.warning(f"Found {zero_time_accessed.count()} accessed records with zero time for user {user.id}")
+            logger.warning("Found {{zero_time_accessed.count()}} accessed records with zero time for user {{user.id}}")
             # Set minimum time for accessed records
             zero_time_accessed.update(total_time_spent=60)
         
         return True
         
     except Exception as e:
-        logger.error(f"Error validating time data for user {user.id}: {e}")
+        logger.error("Error validating time data for user {{user.id}}: {{e}}")
         return False
 
 def _validate_score_data(user):
@@ -322,7 +322,7 @@ def _validate_score_data(user):
         ).exclude(last_score__gte=0).exclude(last_score__lte=100)
         
         if invalid_scores.exists():
-            logger.warning(f"Found {invalid_scores.count()} records with invalid scores for user {user.id}")
+            logger.warning("Found {{invalid_scores.count()}} records with invalid scores for user {{user.id}}")
             for record in invalid_scores:
                 normalized_score = ScoreCalculationService.normalize_score(record.last_score)
                 if normalized_score is not None:
@@ -337,11 +337,11 @@ def _validate_score_data(user):
         )
         
         if completed_null_scores.exists():
-            logger.warning(f"Found {completed_null_scores.count()} completed records with null scores for user {user.id}")
+            logger.warning("Found {{completed_null_scores.count()}} completed records with null scores for user {{user.id}}")
             completed_null_scores.update(last_score=0.00)
         
         return True
         
     except Exception as e:
-        logger.error(f"Error validating score data for user {user.id}: {e}")
+        logger.error("Error validating score data for user {{user.id}}: {{e}}")
         return False

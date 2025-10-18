@@ -82,11 +82,11 @@ from quiz.models import Quiz
 from assignments.models import Assignment
 from conferences.models import Conference
 from discussions.models import Discussion as DiscussionModel, Comment as DiscussionComment
-from users.models import CustomUser, Branch
+from users.models import CustomUser
+from branches.models import Branch
 from role_management.models import RoleCapability, UserRole
 from groups.models import CourseGroup, BranchGroup
 from certificates.models import CertificateTemplate
-from branches.models import Branch
 from typing import Any, Dict, List, Optional, Union, TYPE_CHECKING
 from django.http import HttpRequest
 
@@ -1111,7 +1111,7 @@ def course_details(request, course_id):
                             completed=False
                         )
                     except Exception as e:
-                        logger.error(f"Error creating progress record for topic {topic.id}: {str(e)}")
+                        logger.error("Error creating progress record for topic {}: {}".format(topic.id, str(e)))
             
             # Update enrollment progress safely
             if enrollment:
@@ -1120,7 +1120,7 @@ def course_details(request, course_id):
                 )
                 
                 if not progress_updated:
-                    logger.warning(f"Failed to update enrollment progress for {request.user.username}")
+                    logger.warning("Failed to update enrollment progress for {}".format(request.user.username))
                 
                 # Get fresh enrollment data after atomic update
                 enrollment.refresh_from_db()
@@ -1128,7 +1128,7 @@ def course_details(request, course_id):
                 
                 # Log any significant discrepancies for investigation
                 if abs(progress - enrollment_progress) > 5:  # Reduced tolerance for logging
-                    logger.warning(f"Progress calculation discrepancy: calculated={progress}, enrollment={enrollment_progress} for user {request.user.username}")
+                    logger.warning("Progress calculation discrepancy: calculated={}, enrollment={} for user {}".format(progress, enrollment_progress, request.user.username))
     
     # Determine permissions using proper permission functions
     can_edit = check_course_edit_permission(request.user, course)
@@ -1147,7 +1147,7 @@ def course_details(request, course_id):
                 course_name=course.title
             ).order_by('-issue_date').first()
         except Exception as e:
-            logger.warning(f"Error in certificate lookup: {e}")
+            logger.warning("Error in certificate lookup: {}".format(e))
             user_certificate = None
 
     context = {
@@ -1184,7 +1184,7 @@ def course_view(request, course_id):
     course = get_object_or_404(Course, id=course_id)
     
     # Log course access attempt
-    logger.info(f"Course view access attempt by {request.user.username} (role: {request.user.role}) for course {course_id}: {course.title}")
+    logger.info("Course view access attempt by {} (role: {}) for course {}: {}".format(request.user.username, request.user.role, course_id, course.title))
 
     # Check access to course
     if not hasattr(request.user, 'role'):
@@ -1192,7 +1192,7 @@ def course_view(request, course_id):
 
     if not check_course_permission(request.user, course):
         messages.error(request, "You don't have permission to access this course.")
-        logger.warning(f"Access denied: User {request.user.username} (role: {request.user.role}) attempted to view course {course.id}")
+        logger.warning("Access denied: User {} (role: {}) attempted to view course {}".format(request.user.username, request.user.role, course.id))
         return redirect('users:role_based_redirect')
     else:
         # Log successful access
@@ -1333,7 +1333,7 @@ def course_view(request, course_id):
                             completed=False
                         )
                     except Exception as e:
-                        logger.error(f"Error creating progress record for topic {topic.id}: {str(e)}")
+                        logger.error("Error creating progress record for topic {}: {}".format(topic.id, str(e)))
             
             # Update enrollment progress safely
             if enrollment:
@@ -1342,7 +1342,7 @@ def course_view(request, course_id):
                 )
                 
                 if not progress_updated:
-                    logger.warning(f"Failed to update enrollment progress for {request.user.username}")
+                    logger.warning("Failed to update enrollment progress for {}".format(request.user.username))
                 
                 # Get fresh enrollment data after atomic update
                 enrollment.refresh_from_db()
@@ -1350,7 +1350,7 @@ def course_view(request, course_id):
                 
                 # Log any significant discrepancies for investigation
                 if abs(progress - enrollment_progress) > 5:  # Reduced tolerance for logging
-                    logger.warning(f"Progress calculation discrepancy: calculated={progress}, enrollment={enrollment_progress} for user {request.user.username}")
+                    logger.warning("Progress calculation discrepancy: calculated={}, enrollment={} for user {}".format(progress, enrollment_progress, request.user.username))
     
     # Check for user certificate if 100% progress
     user_certificate = None
@@ -1362,7 +1362,7 @@ def course_view(request, course_id):
                 course_name=course.title
             ).order_by('-issue_date').first()
         except Exception as e:
-            logger.warning(f"Error in certificate lookup: {e}")
+            logger.warning("Error in certificate lookup: {}".format(e))
             user_certificate = None
 
     # Log debug information
@@ -1547,8 +1547,7 @@ def course_edit(request, course_id):
             
             # Register file in media database for tracking
             try:
-                # Media file registration handled via S3 storage
-                pass
+                from core.utils.media import register_media_file
                 register_media_file(
                     file_path=image_relative_path,
                     uploaded_by=request.user,
@@ -1559,8 +1558,13 @@ def course_edit(request, course_id):
                     filename=image_file.name,
                     description=f'Course featured image for: {course.title}'
                 )
+                logger.info(f"Successfully registered course image in media database: {image_relative_path}")
+            except ImportError as e:
+                logger.warning(f"Media registration module not available: {str(e)}")
             except Exception as e:
                 logger.error(f"Error registering course image in media database: {str(e)}")
+                # Don't fail the upload if media registration fails
+                pass
         
         # Handle video upload
         if 'course_video' in request.FILES:
@@ -1590,8 +1594,7 @@ def course_edit(request, course_id):
             
             # Register file in media database for tracking
             try:
-                # Media file registration handled via S3 storage
-                pass
+                from core.utils.media import register_media_file
                 register_media_file(
                     file_path=video_relative_path,
                     uploaded_by=request.user,
@@ -1602,8 +1605,13 @@ def course_edit(request, course_id):
                     filename=video_file.name,
                     description=f'Course introduction video for: {course.title}'
                 )
+                logger.info(f"Successfully registered course video in media database: {video_relative_path}")
+            except ImportError as e:
+                logger.warning(f"Media registration module not available: {str(e)}")
             except Exception as e:
                 logger.error(f"Error registering course video in media database: {str(e)}")
+                # Don't fail the upload if media registration fails
+                pass
         
         # Now process form - exclude the file fields we just handled directly
         form = CourseForm(
@@ -1800,16 +1808,28 @@ def course_edit(request, course_id):
         'order_management_enabled': order_management_enabled
     }
     
-    # Template rendering with error handling
+    # Template rendering with specific error handling
     try:
         return render(request, 'courses/edit_course.html', context)
+    except TemplateDoesNotExist as template_error:
+        logger.error(f"Template not found: {template_error}")
+        messages.error(request, "Course editor template is missing. Please contact support.")
+        return redirect('courses:course_list')
+    except KeyError as key_error:
+        logger.error(f"Missing context variable in template: {key_error}")
+        messages.error(request, "Course editor configuration error. Please contact support.")
+        return redirect('courses:course_list')
+    except AttributeError as attr_error:
+        logger.error(f"Template attribute error: {attr_error}")
+        messages.error(request, "Course editor template error. Please contact support.")
+        return redirect('courses:course_list')
     except Exception as template_error:
-        # Comprehensive error handling for template rendering
+        # Only catch unexpected errors, not template-specific ones
         import traceback
         error_message = str(template_error)
         error_trace = traceback.format_exc()
         
-        logger.error(f"Template rendering error in course_edit for course_id {course_id}: {error_message}")
+        logger.error(f"Unexpected template rendering error in course_edit for course_id {course_id}: {error_message}")
         logger.error(f"Full traceback: {error_trace}")
         
         # Log request details for debugging
@@ -1823,7 +1843,8 @@ def course_edit(request, course_id):
         # Redirect to course list instead of crashing
         try:
             return redirect('courses:course_list')
-        except:
+        except Exception as e:
+            logger.error(f"Error redirecting to course list: {e}")
             # If even redirect fails, return basic error response
             return HttpResponseServerError("An error occurred. Please contact support.")
 
@@ -2388,7 +2409,7 @@ def mark_topic_complete(request, topic_id):
         completed=True
     ).count()
     
-    all_completed = (completed_topics_count == all_topics.count()) if all_topics.count() > 0 else False
+    all_completed = (completed_topics_count == all_topics.count()) if all_topics.exists() else False
     
     # Find the next topic for redirection using section-aware navigation
     next_topic = None
@@ -5135,7 +5156,8 @@ def course_users(request, course_id):
         CourseGroup = apps.get_model('groups', 'CourseGroup')
         course_group_relation = CourseGroup.objects.filter(course=course).first()
         course_group = course_group_relation.group if course_group_relation else None
-    except:
+    except Exception as e:
+        logger.warning(f"Error getting course group: {e}")
         pass
     
     # Create a dictionary of user_id -> role information
@@ -6401,7 +6423,7 @@ def upload_editor_image(request):
         
         # Register file in media database for tracking
         try:
-            from lms_media.utils import register_media_file
+            from media_library.utils import register_media_file
             register_media_file(
                 file_path=image_relative_path,
                 uploaded_by=request.user,
@@ -6531,7 +6553,7 @@ def upload_editor_video(request):
         
         # Register file in media database for tracking
         try:
-            from lms_media.utils import register_media_file
+            from media_library.utils import register_media_file
             register_media_file(
                 file_path=video_relative_path,
                 uploaded_by=request.user,
@@ -6830,11 +6852,38 @@ def topic_create(request, course_id):
                 return redirect("courses:course_edit", course_id=course.id)
             
             messages.success(request, f"Topic created successfully!")
+            
+            # Handle AJAX requests for SCORM uploads
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                # Check if this is a SCORM topic
+                if new_topic.content_type == 'SCORM':
+                    return JsonResponse({
+                        'success': True,
+                        'is_scorm': True,
+                        'topic_id': new_topic.id,
+                        'upload_status_url': f'/courses/topic/{new_topic.id}/upload-status/',
+                        'redirect_url': reverse('courses:course_edit', kwargs={'course_id': course.id})
+                    })
+                else:
+                    return JsonResponse({
+                        'success': True,
+                        'is_scorm': False,
+                        'redirect_url': reverse('courses:course_edit', kwargs={'course_id': course.id})
+                    })
+            
             return redirect("courses:course_edit", course_id=course.id)
         else:
             for field, errors in form.errors.items():
                 for error in errors:
                     messages.error(request, f"{field}: {error}")
+            
+            # Handle AJAX requests with form errors
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Form validation failed',
+                    'errors': form.errors
+                }, status=400)
     
         # If form invalid, rebuild context for error display
         content_types = Topic.TOPIC_TYPE_CHOICES
@@ -6881,7 +6930,8 @@ def get_user_filtered_content(user, course=None, request=None):
         """Get the default branch (first active branch) as fallback"""
         try:
             return Branch.objects.filter(is_active=True).first()
-        except:
+        except Exception as e:
+            logger.warning(f"Error getting default branch: {e}")
             return None
 
     if user.role == 'globaladmin':
@@ -7004,7 +7054,7 @@ def get_user_filtered_content(user, course=None, request=None):
         user_branch = user.branch if hasattr(user, 'branch') and user.branch else get_default_branch()
         if user_branch:
             quizzes = Quiz.objects.filter(course__branch=user_branch).order_by('title')
-            assignments = Assignment.objects.filter(course__branch=user_branch).order_by('title')
+            assignments = Assignment.objects.filter(courses__branch=user_branch).order_by('title')
             conferences = Conference.objects.filter(course__branch=user_branch, status='published')
             discussions = Discussion.objects.filter(course__branch=user_branch)
         else:
@@ -7023,7 +7073,7 @@ def get_user_filtered_content(user, course=None, request=None):
     # If course is provided, also include content specific to that course
     if course:
         quizzes = quizzes | Quiz.objects.filter(course=course)
-        assignments = assignments | Assignment.objects.filter(course=course)
+        assignments = assignments | Assignment.objects.filter(courses=course)
         conferences = conferences | Conference.objects.filter(course=course, status='published')
         discussions = discussions | Discussion.objects.filter(course=course)
 
@@ -7033,4 +7083,62 @@ def get_user_filtered_content(user, course=None, request=None):
         'conferences': conferences.distinct(),
         'discussions': discussions.distinct()
     }
+
+@login_required
+def scorm_upload_status(request, topic_id):
+    """Check SCORM package upload and extraction status"""
+    try:
+        topic = get_object_or_404(Topic, id=topic_id)
+        
+        # Check if user has permission to access this topic
+        if not check_topic_edit_permission(request.user, topic, None):
+            return JsonResponse({'status': 'error', 'message': 'Permission denied'}, status=403)
+        
+        # Check if SCORM package exists
+        try:
+            from scorm.models import ELearningPackage
+            package = ELearningPackage.objects.get(topic=topic)
+        except ELearningPackage.DoesNotExist:
+            return JsonResponse({
+                'status': 'error', 
+                'message': 'SCORM package not found'
+            })
+        
+        # Check extraction status
+        if not package.is_extracted:
+            # Try to extract the package
+            logger.info(f"SCORM Upload Status: Attempting to extract package for topic {topic_id}")
+            if package.extract_package():
+                return JsonResponse({
+                    'status': 'completed',
+                    'message': 'SCORM package extracted successfully',
+                    'topic_title': topic.title,
+                    'package_title': package.title or 'SCORM Package'
+                })
+            else:
+                return JsonResponse({
+                    'status': 'error',
+                    'message': f'Package extraction failed: {package.extraction_error}'
+                })
+        
+        # Package is extracted, check if content is accessible
+        if package.launch_file:
+            return JsonResponse({
+                'status': 'completed',
+                'message': 'SCORM package ready',
+                'topic_title': topic.title,
+                'package_title': package.title or 'SCORM Package'
+            })
+        else:
+            return JsonResponse({
+                'status': 'error',
+                'message': 'Launch file not found in extracted package'
+            })
+            
+    except Exception as e:
+        logger.error(f"SCORM Upload Status Error: {str(e)}")
+        return JsonResponse({
+            'status': 'error',
+            'message': f'Error checking upload status: {str(e)}'
+        })
 

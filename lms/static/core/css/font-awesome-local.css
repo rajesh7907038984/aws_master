@@ -1,238 +1,87 @@
-/* Font Awesome 6.4.0 - Local Fonts */
+/* Font Awesome Local Styles for LMS */
 @font-face {
-  font-family: "Font Awesome 6 Free";
-  font-style: normal;
-  font-weight: 400;
-  font-display: block;
-  src: url("../fonts/fa-regular-400.woff2") format("woff2");
-}
-
-@font-face {
-  font-family: "Font Awesome 6 Free";
-  font-style: normal;
-  font-weight: 900;
-  font-display: block;
-  src: url("../fonts/fa-solid-900.woff2") format("woff2");
+    font-family: 'Font Awesome 6 Free';
+    font-style: normal;
+    font-weight: 900;
+    src: url('../fonts/fa-solid-900.woff2') format('woff2'),
+         url('../fonts/fa-solid-900.woff') format('woff');
 }
 
 @font-face {
-  font-family: "Font Awesome 6 Brands";
-  font-style: normal;
-  font-weight: 400;
-  font-display: block;
-  src: url("../fonts/fa-brands-400.woff2") format("woff2");
+    font-family: 'Font Awesome 6 Free';
+    font-style: normal;
+    font-weight: 400;
+    src: url('../fonts/fa-regular-400.woff2') format('woff2'),
+         url('../fonts/fa-regular-400.woff') format('woff');
 }
 
-.fa,
-.fas,
-.far,
-.fab {
-  -moz-osx-font-smoothing: grayscale;
-  -webkit-font-smoothing: antialiased;
-  display: inline-block;
-  font-style: normal;
-  font-variant: normal;
-  line-height: 1;
-  text-rendering: auto;
+@font-face {
+    font-family: 'Font Awesome 6 Brands';
+    font-style: normal;
+    font-weight: 400;
+    src: url('../fonts/fa-brands-400.woff2') format('woff2'),
+         url('../fonts/fa-brands-400.woff') format('woff');
 }
 
-.fa,
+/* Font Awesome base styles */
+.fas, .far, .fab, .fa {
+    font-family: 'Font Awesome 6 Free', 'Font Awesome 6 Brands', 'FontAwesome', sans-serif;
+    font-style: normal;
+    font-variant: normal;
+    text-rendering: auto;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
 .fas {
-  font-family: "Font Awesome 6 Free";
-  font-weight: 900;
+    font-weight: 900;
 }
 
 .far {
-  font-family: "Font Awesome 6 Free";
-  font-weight: 400;
+    font-weight: 400;
 }
 
 .fab {
-  font-family: "Font Awesome 6 Brands";
-  font-weight: 400;
+    font-family: 'Font Awesome 6 Brands';
+    font-weight: 400;
 }
 
-/* Size classes */
-.fa-1x { font-size: 1em; }
-.fa-2x { font-size: 2em; }
-.fa-3x { font-size: 3em; }
-.fa-4x { font-size: 4em; }
-.fa-5x { font-size: 5em; }
-.fa-6x { font-size: 6em; }
-.fa-7x { font-size: 7em; }
-.fa-8x { font-size: 8em; }
-.fa-9x { font-size: 9em; }
-.fa-10x { font-size: 10em; }
-
-.fa-2xs { font-size: .625em; line-height: .1em; vertical-align: .225em; }
-.fa-xs { font-size: .75em; line-height: .08333em; vertical-align: .125em; }
-.fa-sm { font-size: .875em; line-height: .07143em; vertical-align: .05357em; }
-.fa-lg { font-size: 1.25em; line-height: .05em; vertical-align: -.075em; }
-.fa-xl { font-size: 1.5em; line-height: .04167em; vertical-align: -.125em; }
-.fa-2xl { font-size: 2em; line-height: .03125em; vertical-align: -.1875em; }
-
-/* Animation */
-.fa-spin {
-  animation: fa-spin 1s infinite linear;
-}
-
-.fa-pulse {
-  animation: fa-pulse 1s infinite linear;
-}
-
-@keyframes fa-spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
-@keyframes fa-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: .5; }
-}
-
-/* Icon definitions - Common icons used in the LMS */
-.fa-home::before { content: "\f015"; }
-.fa-book::before { content: "\f02d"; }
-.fa-users::before { content: "\f0c0"; }
-.fa-user::before { content: "\f007"; }
-.fa-user-plus::before { content: "\f234"; }
-.fa-user-graduate::before { content: "\f501"; }
-.fa-tasks::before { content: "\f0ae"; }
-.fa-question-circle::before { content: "\f059"; }
-.fa-chart-bar::before { content: "\f080"; }
-.fa-cog::before { content: "\f013"; }
-.fa-bell::before { content: "\f0f3"; }
-.fa-comments::before { content: "\f086"; }
-.fa-plus::before { content: "\f067"; }
-.fa-search::before { content: "\f002"; }
-.fa-edit::before { content: "\f044"; }
-.fa-trash::before { content: "\f1f8"; }
-.fa-play::before { content: "\f04b"; }
-.fa-clock::before { content: "\f017"; }
-.fa-book-open::before { content: "\f518"; }
-.fa-envelope::before { content: "\f0e0"; }
-.fa-arrow-left::before { content: "\f060"; }
-.fa-save::before { content: "\f0c7"; }
-.fa-spinner::before { content: "\f110"; }
-.fa-eye::before { content: "\f06e"; }
-.fa-filter::before { content: "\f0b0"; }
-.fa-th-large::before { content: "\f009"; }
-.fa-list::before { content: "\f03a"; }
-.fa-check-circle::before { content: "\f058"; }
-.fa-exclamation-circle::before { content: "\f06a"; }
-.fa-exclamation-triangle::before { content: "\f071"; }
-.fa-info-circle::before { content: "\f05a"; }
-.fa-times::before { content: "\f00d"; }
-.fa-check::before { content: "\f00c"; }
-.fa-chevron-down::before { content: "\f078"; }
-.fa-chevron-up::before { content: "\f077"; }
-.fa-chevron-left::before { content: "\f053"; }
-.fa-chevron-right::before { content: "\f054"; }
-.fa-bars::before { content: "\f0c9"; }
-.fa-times-circle::before { content: "\f057"; }
-.fa-check-square::before { content: "\f14a"; }
-.fa-square::before { content: "\f0c8"; }
-.fa-circle::before { content: "\f111"; }
-.fa-dot-circle::before { content: "\f192"; }
-.fa-ellipsis-h::before { content: "\f141"; }
-.fa-ellipsis-v::before { content: "\f142"; }
-.fa-star::before { content: "\f005"; }
-.fa-star-half::before { content: "\f089"; }
-.fa-heart::before { content: "\f004"; }
-.fa-thumbs-up::before { content: "\f164"; }
-.fa-thumbs-down::before { content: "\f165"; }
-.fa-share::before { content: "\f064"; }
-.fa-download::before { content: "\f019"; }
-.fa-upload::before { content: "\f093"; }
-.fa-file::before { content: "\f15b"; }
-.fa-file-pdf::before { content: "\f1c1"; }
-.fa-file-word::before { content: "\f1c2"; }
-.fa-file-excel::before { content: "\f1c3"; }
-.fa-file-powerpoint::before { content: "\f1c4"; }
-.fa-file-image::before { content: "\f1c5"; }
-.fa-file-video::before { content: "\f1c8"; }
-.fa-file-audio::before { content: "\f1c7"; }
-.fa-file-archive::before { content: "\f1c6"; }
-.fa-file-code::before { content: "\f1c9"; }
-.fa-folder::before { content: "\f07b"; }
-.fa-folder-open::before { content: "\f07c"; }
-.fa-calendar::before { content: "\f133"; }
-.fa-calendar-alt::before { content: "\f073"; }
-.fa-calendar-check::before { content: "\f274"; }
-.fa-calendar-plus::before { content: "\f271"; }
-.fa-calendar-minus::before { content: "\f272"; }
-.fa-calendar-times::before { content: "\f273"; }
-.fa-clock::before { content: "\f017"; }
-.fa-hourglass::before { content: "\f254"; }
-.fa-hourglass-half::before { content: "\f252"; }
-.fa-hourglass-start::before { content: "\f251"; }
-.fa-hourglass-end::before { content: "\f253"; }
-.fa-stopwatch::before { content: "\f2f2"; }
-.fa-timer::before { content: "\f3e2"; }
-.fa-lock::before { content: "\f023"; }
-.fa-unlock::before { content: "\f09c"; }
-.fa-key::before { content: "\f084"; }
-.fa-shield::before { content: "\f132"; }
-.fa-shield-alt::before { content: "\f3ed"; }
-.fa-shield-check::before { content: "\f2f7"; }
-.fa-shield-exclamation::before { content: "\f247"; }
-.fa-shield-times::before { content: "\f246"; }
-.fa-shield-virus::before { content: "\e06c"; }
-.fa-user-shield::before { content: "\f505"; }
-.fa-user-lock::before { content: "\f502"; }
-.fa-user-unlock::before { content: "\f503"; }
-.fa-user-check::before { content: "\f4fc"; }
-.fa-user-times::before { content: "\f235"; }
-.fa-user-edit::before { content: "\f4ff"; }
-.fa-user-cog::before { content: "\f4f1"; }
-.fa-user-tie::before { content: "\f508"; }
-.fa-user-ninja::before { content: "\f504"; }
-.fa-user-astronaut::before { content: "\f4fb"; }
-.fa-user-secret::before { content: "\f21b"; }
-.fa-user-md::before { content: "\f0f0"; }
-.fa-user-nurse::before { content: "\f82f"; }
-.fa-user-doctor::before { content: "\e3f0"; }
-.fa-user-injured::before { content: "\f728"; }
-.fa-user-headset::before { content: "\f82d"; }
-.fa-user-friends::before { content: "\f500"; }
-.fa-user-plus::before { content: "\f234"; }
-.fa-user-minus::before { content: "\f503"; }
-.fa-user-slash::before { content: "\f506"; }
-.fa-user-tag::before { content: "\f507"; }
-.fa-user-clock::before { content: "\f4fd"; }
-.fa-user-edit::before { content: "\f4ff"; }
-.fa-user-cog::before { content: "\f4f1"; }
-.fa-user-tie::before { content: "\f508"; }
-.fa-user-ninja::before { content: "\f504"; }
-.fa-user-astronaut::before { content: "\f4fb"; }
-.fa-user-secret::before { content: "\f21b"; }
-.fa-user-md::before { content: "\f0f0"; }
-.fa-user-nurse::before { content: "\f82f"; }
-.fa-user-doctor::before { content: "\e3f0"; }
-.fa-user-injured::before { content: "\f728"; }
-.fa-user-headset::before { content: "\f82d"; }
-.fa-user-friends::before { content: "\f500"; }
-.fa-user-plus::before { content: "\f234"; }
-.fa-user-minus::before { content: "\f503"; }
-.fa-user-slash::before { content: "\f506"; }
-.fa-user-tag::before { content: "\f507"; }
-.fa-user-clock::before { content: "\f4fd"; }
-
-
-/* Additional commonly used icons */
-.fa-shopping-cart::before { content: "\f07a"; }
-.fa-graduation-cap::before { content: "\f19d"; }
-.fa-sync-alt::before { content: "\f2f1"; }
-.fa-comment-alt::before { content: "\f27a"; }
-.fa-file-alt::before { content: "\f15c"; }
-.fa-map-marker-alt::before { content: "\f3c5"; }
-
-.fa-external-link-alt::before { content: "\f35d"; }
-.fa-file-contract::before { content: "\f56c"; }
-.fa-chart-line::before { content: "\f201"; }
-.fa-redo::before { content: "\f01e"; }
-
-.fa-refresh::before { content: "\f021"; }
-.fa-server::before { content: "\f233"; }
-.fa-sign-in-alt::before { content: "\f2f6"; }
-.fa-tachometer-alt::before { content: "\f3fd"; }
+/* Icon fallbacks for missing Font Awesome icons */
+.fa-check-circle::before { content: "✓"; }
+.fa-exclamation-circle::before { content: "⚠"; }
+.fa-exclamation-triangle::before { content: "⚠"; }
+.fa-info-circle::before { content: "ℹ"; }
+.fa-times::before { content: "✕"; }
+.fa-plus::before { content: "+"; }
+.fa-search::before { content: "🔍"; }
+.fa-edit::before { content: "✏"; }
+.fa-trash::before { content: "🗑"; }
+.fa-play::before { content: "▶"; }
+.fa-user-graduate::before { content: "🎓"; }
+.fa-clock::before { content: "🕐"; }
+.fa-book-open::before { content: "📖"; }
+.fa-envelope::before { content: "✉"; }
+.fa-arrow-left::before { content: "←"; }
+.fa-save::before { content: "💾"; }
+.fa-spinner::before { content: "⟳"; }
+.fa-eye::before { content: "👁"; }
+.fa-filter::before { content: "🔽"; }
+.fa-th-large::before { content: "⊞"; }
+.fa-list::before { content: "☰"; }
+.fa-home::before { content: "🏠"; }
+.fa-book::before { content: "📚"; }
+.fa-users::before { content: "👥"; }
+.fa-tasks::before { content: "📋"; }
+.fa-question-circle::before { content: "❓"; }
+.fa-chart-bar::before { content: "📊"; }
+.fa-cog::before { content: "⚙"; }
+.fa-bell::before { content: "🔔"; }
+.fa-comments::before { content: "💬"; }
+.fa-download::before { content: "⬇"; }
+.fa-sign-in-alt::before { content: "🔑"; }
+.fa-shield-alt::before { content: "🛡"; }
+.fa-ellipsis-h::before { content: "⋯"; }
+.fa-chevron-down::before { content: "⌄"; }
+.fa-chevron-up::before { content: "⌃"; }
+.fa-chevron-left::before { content: "⌃"; }
+.fa-chevron-right::before { content: "⌃"; }

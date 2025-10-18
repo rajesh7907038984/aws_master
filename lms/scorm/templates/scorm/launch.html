@@ -898,37 +898,51 @@ var API = {
             console.log('SCORM API: Not initialized, skipping LMSFinish');
         }
         
-        // CRITICAL FIX: Actually navigate the iframe to goodbye.html
-        const iframe = document.getElementById('scorm-iframe');
-        if (iframe) {
-            console.log('SCORM API: Navigating iframe to goodbye.html');
-            try {
-                // Try to navigate to goodbye.html in the SCORM package
-                iframe.src = iframe.src.replace(/\/scormcontent\/[^\/]*$/, '/scormdriver/goodbye.html');
-            } catch (e) {
-                console.log('SCORM API: Could not navigate iframe directly, trying alternative method');
-                // Alternative: try to navigate within the iframe content
-                try {
-                    if (iframe.contentWindow) {
-                        iframe.contentWindow.location.href = 'scormdriver/goodbye.html';
+        // FIXED: Improved exit assessment handling with proper flow control
+        const currentUrl = window.location.href;
+        const backToTopicUrl = "{% url 'courses:topic_view' topic.id %}";
+        
+        // Check if we're on an exit assessment page
+        if (currentUrl.includes('goodbye.html') || 
+            currentUrl.includes('exit') || 
+            currentUrl.includes('assessment') ||
+            currentUrl.includes('completion')) {
+            console.log('SCORM API: Exit assessment detected, allowing completion');
+            
+            // Set a flag to track exit assessment completion
+            this.exitAssessmentInProgress = true;
+            
+            // Check for completion periodically
+            const checkCompletion = () => {
+                if (this.exitAssessmentCompleted) {
+                    console.log('SCORM API: Exit assessment completed, redirecting');
+                    if (window.parent && window.parent !== window) {
+                        window.parent.location.href = backToTopicUrl;
+                    } else {
+                        window.location.href = backToTopicUrl;
                     }
-                } catch (e2) {
-                    console.log('SCORM API: Cross-origin navigation blocked, showing goodbye message in parent');
-                    // If cross-origin prevents navigation, show goodbye message in parent
-                    const goodbyeDiv = document.createElement('div');
-                    goodbyeDiv.innerHTML = `
-                        <div style="text-align: center; padding: 50px; font-family: Arial, sans-serif;">
-                            <h2>👋 Bye!</h2>
-                            <p>You may now leave this page.</p>
-                            <p><a href="{% url 'courses:topic_view' topic.id %}" style="background: #007cba; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px;">Back to Topic</a></p>
-                        </div>
-                    `;
-                    iframe.parentNode.replaceChild(goodbyeDiv, iframe);
+                } else {
+                    // Continue checking for completion
+                    setTimeout(checkCompletion, 1000);
                 }
-            }
+            };
+            
+            // Start checking for completion after a delay
+            setTimeout(checkCompletion, 2000);
+            
+            return "true";
         }
         
-        console.log('SCORM API: Assessment completed - navigating to goodbye.html');
+        // Normal exit - redirect after delay
+        setTimeout(() => {
+            if (window.parent && window.parent !== window) {
+                window.parent.location.href = backToTopicUrl;
+            } else {
+                window.location.href = backToTopicUrl;
+            }
+        }, 1000);
+        
+        console.log('SCORM API: Normal exit - redirecting to topic');
         
         return "true";
     },

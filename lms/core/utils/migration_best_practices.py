@@ -99,7 +99,8 @@ def safe_add_field(schema_editor, table_name: str, field_name: str, field_defini
     safety = UniversalMigrationSafety()
     
     # Check if field already exists
-    if safety._get_all_columns().get(table_name, set()).get(field_name):
+    columns = safety._get_all_columns().get(table_name, set())
+    if field_name in columns:
         logger.info(f"Field {table_name}.{field_name} already exists, skipping AddField")
         return True
     

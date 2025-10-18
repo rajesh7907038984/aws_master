@@ -193,10 +193,10 @@
                 </div>
             </div>
 
-            <!-- Main grid with 70-30 split -->
+            <!-- Main grid with proper structure -->
             <div class="grid grid-cols-12 gap-4">
-                <!-- Full Width Column -->
-                <div class="col-span-12 transition-all duration-300">
+                <!-- Main content column -->
+                <div class="col-span-12 lg:col-span-8 transition-all duration-300">
                     <!-- Overview Stats -->
                     <div class="bg-white rounded-lg shadow-sm p-6 mb-4">
                         <h2 class="text-lg font-semibold text-gray-900 mb-4">
@@ -310,9 +310,13 @@
                             </div>
                         </div>
                     </div>
-
                 </div>
 
+                <!-- Sidebar column for Quick Actions and System Status -->
+                <div class="col-span-12 lg:col-span-4">
+                    <!-- Quick Actions -->
+                    <div class="bg-white rounded-lg shadow-sm mb-4">
+                        <div class="p-6">
                             <h3 class="text-lg font-semibold text-gray-900 mb-4">
                                 <i class="fas fa-bolt mr-2"></i>
                                 Quick Actions
@@ -414,4 +418,4 @@ function initializeOverviewFeatures() {
     });
 }
 </script>
-{% endblock %} 
+{% endblock %}

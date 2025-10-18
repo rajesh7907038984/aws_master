@@ -29,7 +29,7 @@ class SessionStore(DatabaseSessionStore):
             self.modified = True
             
             # Log the save attempt
-            logger.info(f"Attempting to save session {self.session_key} with data length: {len(str(data))}")
+            logger.info("Attempting to save session {{self.session_key}} with data length: {{len(str(data))}}")
             
             # Call parent save method
             result = super().save(must_create=must_create)
@@ -37,10 +37,10 @@ class SessionStore(DatabaseSessionStore):
             # Verify the session was actually saved by checking the database
             try:
                 session_obj = Session.objects.get(session_key=self.session_key)
-                logger.info(f" Session {self.session_key} successfully saved to database")
+                logger.info(" Session {{self.session_key}} successfully saved to database")
                 return result
             except Session.DoesNotExist:
-                logger.error(f" Session {self.session_key} was not saved to database despite save() call")
+                logger.error(" Session {{self.session_key}} was not saved to database despite save() call")
                 
                 # Fallback: manually save to database
                 session_obj = Session(
@@ -49,11 +49,11 @@ class SessionStore(DatabaseSessionStore):
                     expire_date=self.get_expiry_date()
                 )
                 session_obj.save()
-                logger.info(f" Session {self.session_key} manually saved to database")
+                logger.info(" Session {{self.session_key}} manually saved to database")
                 return result
                 
         except Exception as e:
-            logger.error(f" Session save error: {str(e)}")
+            logger.error(" Session save error: {{str(e)}}")
             raise
             
         return result
@@ -65,8 +65,8 @@ class SessionStore(DatabaseSessionStore):
         try:
             result = super().load()
             if self.session_key:
-                logger.info(f"Session {self.session_key} loaded with {len(self._session_cache)} items")
+                logger.info("Session {{self.session_key}} loaded with {{len(self._session_cache)}} items")
             return result
         except Exception as e:
-            logger.error(f"Session load error: {str(e)}")
+            logger.error("Session load error: {{str(e)}}")
             return {}

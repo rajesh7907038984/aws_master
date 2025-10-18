@@ -714,7 +714,8 @@ def generate_ai_content(request):
             current_usage = updated_branch_limits.get_current_month_usage()
             usage_percentage = updated_branch_limits.get_usage_percentage()
             remaining_tokens = updated_branch_limits.get_remaining_tokens()
-        except:
+        except Exception as e:
+            logger.warning(f"Error getting branch limits: {e}")
             current_usage = 0
             usage_percentage = 0
             remaining_tokens = float('inf')
@@ -747,7 +748,8 @@ def generate_ai_content(request):
                 success=False,
                 error_message=f"Unexpected error: {str(e)}"
             )
-        except:
+        except Exception as log_error:
+            logger.error(f"Failed to record error in database: {log_error}")
             pass  # Don't fail if we can't record the error
         
         return JsonResponse({

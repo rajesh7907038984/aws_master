@@ -1,132 +1,94 @@
 /**
  * Unified CSRF Handler for LMS
- * Provides CSRF token management for all AJAX requests and forms
+ * Centralized CSRF token management
  */
+
 (function() {
     'use strict';
 
-    window.CSRFHandler = {
+    const UnifiedCSRFHandler = {
         token: null,
+        
+        init: function() {
+            this.loadToken();
+            this.setupTokenRefresh();
+            this.interceptRequests();
+        },
+        
+        loadToken: function() {
+            const sources = [
+                () => document.querySelector('meta[name="csrf-token"]')?.getAttribute('content'),
+                () => document.querySelector('input[name="csrfmiddlewaretoken"]')?.value,
+                () => window.CSRF_TOKEN,
+                () => this.getTokenFromCookie()
+            ];
 
-        // Get CSRF token from various sources
-        getToken: function() {
-            if (this.token) {
-                return this.token;
+            for (let source of sources) {
+                try {
+                    const token = source();
+                    if (token && token.length > 0 && /^[a-zA-Z0-9]+$/.test(token)) {
+                        this.token = token;
+                        window.CSRF_TOKEN = token;
+                        return token;
+                    }
+                } catch (e) {
+                    continue;
+                }
             }
-
-            // Try to get token from meta tag
-            const metaToken = document.querySelector('meta[name="csrf-token"]');
-            if (metaToken) {
-                this.token = metaToken.getAttribute('content');
-                return this.token;
-            }
-
-            // Try to get token from hidden input
-            const hiddenInput = document.querySelector('input[name="csrfmiddlewaretoken"]');
-            if (hiddenInput) {
-                this.token = hiddenInput.value;
-                return this.token;
-            }
-
-            // Try to get token from cookie
+            
+            return null;
+        },
+        
+        getTokenFromCookie: function() {
             const cookies = document.cookie.split(';');
             for (let cookie of cookies) {
                 const [name, value] = cookie.trim().split('=');
                 if (name === 'csrftoken') {
-                    this.token = decodeURIComponent(value);
-                    return this.token;
+                    return value;
                 }
             }
-
             return null;
         },
-
-        // Refresh CSRF token
-        refresh: function() {
-            this.token = null;
-            return this.getToken();
-        },
-
-        // Setup CSRF token for jQuery AJAX requests
-        setupJQuery: function() {
-            if (typeof $ !== 'undefined' && $.ajaxSetup) {
-                const token = this.getToken();
-                if (token) {
-                    $.ajaxSetup({
-                        beforeSend: function(xhr, settings) {
-                            if (!this.crossDomain && settings.type !== 'GET') {
-                                xhr.setRequestHeader('X-CSRFToken', token);
-                            }
-                        }
-                    });
-                }
+        
+        getToken: function() {
+            if (!this.token) {
+                this.loadToken();
             }
+            return this.token;
         },
-
-        // Setup CSRF token for fetch requests
-        setupFetch: function() {
-            const token = this.getToken();
-            if (token && window.fetch) {
-                const originalFetch = window.fetch;
-                window.fetch = function(url, options = {}) {
-                    // Only add CSRF token for same-origin POST/PUT/DELETE requests
-                    if (options.method && options.method !== 'GET' && 
-                        (!url.startsWith('http') || url.startsWith(window.location.origin))) {
-                        
-                        options.headers = options.headers || {};
-                        if (typeof options.headers.set === 'function') {
-                            options.headers.set('X-CSRFToken', token);
-                        } else {
+        
+        setupTokenRefresh: function() {
+            setInterval(() => {
+                this.loadToken();
+            }, 30 * 60 * 1000);
+        },
+        
+        interceptRequests: function() {
+            const originalFetch = window.fetch;
+            window.fetch = function(url, options = {}) {
+                if (options.method && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(options.method.toUpperCase())) {
+                    options.headers = options.headers || {};
+                    if (!options.headers['X-CSRFToken']) {
+                        const token = UnifiedCSRFHandler.getToken();
+                        if (token) {
                             options.headers['X-CSRFToken'] = token;
                         }
                     }
-                    return originalFetch(url, options);
-                };
-            }
-        },
-
-        // Add CSRF token to all forms
-        setupForms: function() {
-            const token = this.getToken();
-            if (!token) return;
-
-            const forms = document.querySelectorAll('form');
-            forms.forEach(form => {
-                // Skip forms that already have CSRF token
-                if (form.querySelector('input[name="csrfmiddlewaretoken"]')) {
-                    return;
                 }
-
-                // Skip GET forms
-                if (form.method.toLowerCase() === 'get') {
-                    return;
-                }
-
-                // Add CSRF token input
-                const csrfInput = document.createElement('input');
-                csrfInput.type = 'hidden';
-                csrfInput.name = 'csrfmiddlewaretoken';
-                csrfInput.value = token;
-                form.appendChild(csrfInput);
-            });
-        },
-
-        // Initialize CSRF handling
-        init: function() {
-            this.getToken();
-            this.setupJQuery();
-            this.setupFetch();
-            this.setupForms();
-            
+                return originalFetch(url, options);
+            };
         }
     };
 
-    // Auto-initialize when DOM is ready
+    // Initialize when DOM is ready
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', function() {
-            window.CSRFHandler.init();
+            UnifiedCSRFHandler.init();
         });
     } else {
-        window.CSRFHandler.init();
+        UnifiedCSRFHandler.init();
     }
+
+    // Export to global scope
+    window.UnifiedCSRFHandler = UnifiedCSRFHandler;
 })();

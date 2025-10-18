@@ -36,33 +36,33 @@ def _get_topic_deletion_warning(topic_name, related_data_count):
     """Generate warning message for topic deletion."""
     
     warning_parts = [
-        f"<strong> WARNING: You are about to delete the topic '{topic_name}'</strong>",
+        "<strong> WARNING: You are about to delete the topic '{{topic_name}}'</strong>",
         "<br><br>",
         "<strong>This action will permanently delete ALL related data including:</strong>",
         "<ul>"
     ]
     
     if related_data_count.get('progress_records', 0) > 0:
-        warning_parts.append(f"<li><strong>{related_data_count['progress_records']}</strong> student progress records</li>")
+        warning_parts.append("<li><strong>{{related_data_count['progress_records']}}</strong> student progress records</li>")
     
     if related_data_count.get('assignments', 0) > 0:
-        warning_parts.append(f"<li><strong>{related_data_count['assignments']}</strong> linked assignments and all their submissions</li>")
+        warning_parts.append("<li><strong>{{related_data_count['assignments']}}</strong> linked assignments and all their submissions</li>")
     
     if related_data_count.get('quiz_attempts', 0) > 0:
-        warning_parts.append(f"<li><strong>{related_data_count['quiz_attempts']}</strong> quiz attempts and answers</li>")
+        warning_parts.append("<li><strong>{{related_data_count['quiz_attempts']}}</strong> quiz attempts and answers</li>")
     
     if related_data_count.get('discussion_comments', 0) > 0:
-        warning_parts.append(f"<li><strong>{related_data_count['discussion_comments']}</strong> discussion comments and attachments</li>")
+        warning_parts.append("<li><strong>{{related_data_count['discussion_comments']}}</strong> discussion comments and attachments</li>")
     
     if related_data_count.get('gradebook_entries', 0) > 0:
-        warning_parts.append(f"<li><strong>{related_data_count['gradebook_entries']}</strong> gradebook entries</li>")
+        warning_parts.append("<li><strong>{{related_data_count['gradebook_entries']}}</strong> gradebook entries</li>")
     
     if related_data_count.get('report_templates', 0) > 0:
-        warning_parts.append(f"<li><strong>{related_data_count['report_templates']}</strong> report templates</li>")
+        warning_parts.append("<li><strong>{{related_data_count['report_templates']}}</strong> report templates</li>")
     
     
     if related_data_count.get('uploaded_files', 0) > 0:
-        warning_parts.append(f"<li><strong>{related_data_count['uploaded_files']}</strong> uploaded files</li>")
+        warning_parts.append("<li><strong>{{related_data_count['uploaded_files']}}</strong> uploaded files</li>")
     
     warning_parts.extend([
         "</ul>",
@@ -81,33 +81,33 @@ def _get_course_deletion_warning(course_name, related_data_count):
     """Generate warning message for course deletion."""
     
     warning_parts = [
-        f"<strong> WARNING: You are about to delete the course '{course_name}'</strong>",
+        "<strong> WARNING: You are about to delete the course '{{course_name}}'</strong>",
         "<br><br>",
         "<strong>This action will permanently delete ALL related data including:</strong>",
         "<ul>"
     ]
     
     if related_data_count.get('enrollments', 0) > 0:
-        warning_parts.append(f"<li><strong>{related_data_count['enrollments']}</strong> student enrollments</li>")
+        warning_parts.append("<li><strong>{{related_data_count['enrollments']}}</strong> student enrollments</li>")
     
     if related_data_count.get('topics', 0) > 0:
-        warning_parts.append(f"<li><strong>{related_data_count['topics']}</strong> topics and all their content</li>")
+        warning_parts.append("<li><strong>{{related_data_count['topics']}}</strong> topics and all their content</li>")
     
     if related_data_count.get('sections', 0) > 0:
-        warning_parts.append(f"<li><strong>{related_data_count['sections']}</strong> course sections</li>")
+        warning_parts.append("<li><strong>{{related_data_count['sections']}}</strong> course sections</li>")
     
     if related_data_count.get('assignments', 0) > 0:
-        warning_parts.append(f"<li><strong>{related_data_count['assignments']}</strong> assignments and all submissions</li>")
+        warning_parts.append("<li><strong>{{related_data_count['assignments']}}</strong> assignments and all submissions</li>")
     
     if related_data_count.get('gradebook_entries', 0) > 0:
-        warning_parts.append(f"<li><strong>{related_data_count['gradebook_entries']}</strong> gradebook entries</li>")
+        warning_parts.append("<li><strong>{{related_data_count['gradebook_entries']}}</strong> gradebook entries</li>")
     
     if related_data_count.get('report_templates', 0) > 0:
-        warning_parts.append(f"<li><strong>{related_data_count['report_templates']}</strong> report templates</li>")
+        warning_parts.append("<li><strong>{{related_data_count['report_templates']}}</strong> report templates</li>")
     
     
     if related_data_count.get('uploaded_files', 0) > 0:
-        warning_parts.append(f"<li><strong>{related_data_count['uploaded_files']}</strong> course files and media</li>")
+        warning_parts.append("<li><strong>{{related_data_count['uploaded_files']}}</strong> course files and media</li>")
     
     warning_parts.extend([
         "</ul>",
@@ -127,7 +127,7 @@ def _get_user_deletion_warning(user_name, related_data_count):
     
     # Simple confirmation message without detailed warnings
     warning_parts = [
-        f"<strong>Are you sure you want to delete the user '{user_name}'?</strong>",
+        "<strong>Are you sure you want to delete the user '{{user_name}}'?</strong>",
         "<br><br>",
         "This action cannot be undone."
     ]
@@ -139,7 +139,7 @@ def _get_generic_deletion_warning(obj_name, related_data_count):
     """Generate generic warning message for deletion."""
     
     warning_parts = [
-        f"<strong> WARNING: You are about to delete '{obj_name}'</strong>",
+        "<strong> WARNING: You are about to delete '{{obj_name}}'</strong>",
         "<br><br>",
         "<strong>This action will permanently delete ALL related data.</strong>",
         "<br><br>",

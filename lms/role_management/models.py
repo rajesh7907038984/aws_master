@@ -314,6 +314,10 @@ class Role(models.Model):
                 r'(?i)\b(cmd|bash|sh|powershell|eval)\b',
                 # Path traversal
                 r'\.\./|\.\.\\',
+                # Additional security patterns
+                r'(?i)\b(null|undefined|true|false)\b',
+                r'(?i)\b(alert|confirm|prompt)\b',
+                r'(?i)\b(document|window|location)\b',
             ]
             
             for pattern in forbidden_patterns:
@@ -644,154 +648,92 @@ class UserRole(models.Model):
             raise ValidationError(errors)
 
     def save(self, *args, **kwargs):
-        """Enhanced save with mandatory locking and race condition protection"""
-        from django.db import transaction, IntegrityError, OperationalError
+        """Simplified save method with proper validation and atomic operations"""
+        from django.db import transaction, IntegrityError
         from django.utils import timezone
-        import time
-        import hashlib
         
         # Full validation before saving
         self.clean()
         
-        # Generate Session hash for this operation
-        operation_hash = hashlib.sha256(
-            f"{self.user.pk}:{self.role.pk}:{timezone.now().timestamp()}".encode()
-        ).hexdigest()[:16]
+        # Deactivate expired roles before saving
+        if self.is_expired:
+            self.is_active = False
         
-        max_retries = 3
-        retry_delay = 0.1  # 100ms
-        
-        for attempt in range(max_retries):
-            try:
-                # Use atomic transaction with mandatory SELECT FOR UPDATE
-                with transaction.atomic():
-                    # MANDATORY locking - no exceptions allowed
-                    try:
-                        # Lock ALL existing user role records for this user to prevent race conditions
-                        UserRole.objects.select_for_update().filter(
-                            user=self.user
-                        ).exists()  # Force lock acquisition
-                        
-                        # Also lock the user record itself
-                        from django.contrib.auth import get_user_model
-                        User = get_user_model()
-                        User.objects.select_for_update().filter(pk=self.user.pk).first()
-                        
-                    except OperationalError as e:
-                        if attempt < max_retries - 1:
-                            logger.warning(f"Lock acquisition failed for user {self.user.username}, attempt {attempt + 1}/{max_retries}: {str(e)}")
-                            time.sleep(retry_delay * (attempt + 1))  # Exponential backoff
-                            continue
-                        else:
-                            logger.error(f"Failed to acquire mandatory lock for user {self.user.username} after {max_retries} attempts")
-                            raise ValidationError(f"Unable to process role assignment due to system concurrency. Please try again.")
-                    
-                    # Deactivate expired roles before saving
-                    if self.is_expired:
-                        self.is_active = False
-                    
-                    # If this is a new role assignment, handle conflicts and duplicates
-                    if not self.pk:
-                        # CRITICAL: Check for exact duplicate assignments
-                        existing_assignment = UserRole.objects.filter(
-                            user=self.user,
-                            role=self.role,
-                            is_active=True
-                        ).first()
-                        
-                        if existing_assignment:
-                            logger.warning(f"Duplicate role assignment prevented: User {self.user.username} already has active role {self.role.name}")
-                            raise ValidationError(f"User already has an active {self.role.name} role assignment")
-                        
-                        # Define and enforce strict role conflicts
-                        conflicting_roles = {
-                            'globaladmin': ['superadmin', 'admin', 'instructor', 'learner'],
-                            'superadmin': ['globaladmin', 'admin', 'instructor', 'learner'],
-                            'admin': ['globaladmin', 'superadmin', 'learner'],
-                            'instructor': ['globaladmin', 'superadmin'],
-                            'learner': ['globaladmin', 'superadmin', 'admin']
-                        }
-                        
-                        if self.role.name in conflicting_roles:
-                            conflicting_assignments = UserRole.objects.filter(
-                                user=self.user,
-                                role__name__in=conflicting_roles[self.role.name],
-                                is_active=True
-                            )
-                            
-                            if conflicting_assignments.exists():
-                                # Automatically deactivate conflicting roles with audit trail
-                                conflicting_count = 0
-                                for conflict in conflicting_assignments:
-                                    conflict.is_active = False
-                                    conflict.save(update_fields=['is_active'])
-                                    conflicting_count += 1
-                                    
-                                    # Log each deactivation
-                                    logger.info(f"Auto-deactivated conflicting role {conflict.role.name} for user {self.user.username} (operation: {operation_hash})")
-                                
-                                logger.info(f"Deactivated {conflicting_count} conflicting roles for user {self.user.username} when assigning {self.role.name}")
-                    
-                    # Validate maximum role assignments per user (prevent role hoarding)
-                    active_roles_count = UserRole.objects.filter(
+        try:
+            with transaction.atomic():
+                # If this is a new role assignment, handle conflicts and duplicates
+                if not self.pk:
+                    # Check for exact duplicate assignments
+                    existing_assignment = UserRole.objects.filter(
                         user=self.user,
+                        role=self.role,
                         is_active=True
-                    ).exclude(pk=self.pk if self.pk else 0).count()
+                    ).first()
                     
-                    if active_roles_count >= 3:  # Maximum 3 active roles per user
-                        raise ValidationError("User cannot have more than 3 active role assignments")
+                    if existing_assignment:
+                        logger.warning(f"Duplicate role assignment prevented: User {self.user.username} already has active role {self.role.name}")
+                        raise ValidationError(f"User already has an active {self.role.name} role assignment")
                     
-                    # Save with integrity protection
-                    try:
-                        super().save(*args, **kwargs)
-                        logger.info(f"Role assignment saved successfully (operation: {operation_hash})")
-                    except IntegrityError as e:
-                        logger.error(f"Integrity constraint violation for user {self.user.username}: {str(e)}")
-                        raise ValidationError(f"Role assignment failed due to data integrity constraints")
+                    # Define and enforce strict role conflicts
+                    conflicting_roles = {
+                        'globaladmin': ['superadmin', 'admin', 'instructor', 'learner'],
+                        'superadmin': ['globaladmin', 'admin', 'instructor', 'learner'],
+                        'admin': ['globaladmin', 'superadmin', 'learner'],
+                        'instructor': ['globaladmin', 'superadmin'],
+                        'learner': ['globaladmin', 'superadmin', 'admin']
+                    }
                     
-                    # Invalidate related caches securely
-                    self._invalidate_Session_caches()
-                    
-                    # Enhanced Session logging with operation tracking
-                    action = "updated" if self.pk else "assigned"
-                    logger.info(
-                        f"Role {self.role.name} {action} for user {self.user.username} by {self.assigned_by.username if self.assigned_by else 'system'} "
-                        f"(expires: {self.expires_at if self.expires_at else 'never'}, active: {self.is_active}, op: {operation_hash})"
-                    )
-                    
-                    # Create secure audit log entry
-                    try:
-                        RoleAuditLog.log_action(
-                            user=self.assigned_by,
-                            action='assign' if not self.pk else 'update',
-                            role=self.role,
-                            target_user=self.user,
-                            description=f"Role '{self.role.name}' {action} to user '{self.user.username}'",
-                            metadata={
-                                'expires_at': self.expires_at.isoformat() if self.expires_at else None,
-                                'is_active': self.is_active,
-                                'assignment_id': self.pk,
-                                'operation_hash': operation_hash,
-                                'Session_level': 'enhanced'
-                            }
+                    if self.role.name in conflicting_roles:
+                        conflicting_assignments = UserRole.objects.filter(
+                            user=self.user,
+                            role__name__in=conflicting_roles[self.role.name],
+                            is_active=True
                         )
-                    except Exception as e:
-                        logger.error(f"Failed to create audit log entry: {str(e)}")
-                        # Don't fail the operation due to audit log issues
+                        
+                        if conflicting_assignments.exists():
+                            # Automatically deactivate conflicting roles
+                            conflicting_assignments.update(is_active=False)
+                            logger.info(f"Auto-deactivated conflicting roles for user {self.user.username} when assigning {self.role.name}")
+                
+                # Validate maximum role assignments per user (prevent role hoarding)
+                active_roles_count = UserRole.objects.filter(
+                    user=self.user,
+                    is_active=True
+                ).exclude(pk=self.pk if self.pk else 0).count()
+                
+                if active_roles_count >= 3:  # Maximum 3 active roles per user
+                    raise ValidationError("User cannot have more than 3 active role assignments")
+                
+                # Save the role assignment
+                super().save(*args, **kwargs)
+                
+                # Log the action
+                action = "updated" if self.pk else "assigned"
+                logger.info(
+                    f"Role {self.role.name} {action} for user {self.user.username} by {self.assigned_by.username if self.assigned_by else 'system'}"
+                )
+                
+                # Create audit log entry
+                try:
+                    RoleAuditLog.log_action(
+                        user=self.assigned_by,
+                        action='assign' if not self.pk else 'update',
+                        role=self.role,
+                        target_user=self.user,
+                        description=f"Role '{self.role.name}' {action} to user '{self.user.username}'",
+                        metadata={
+                            'expires_at': self.expires_at.isoformat() if self.expires_at else None,
+                            'is_active': self.is_active,
+                            'assignment_id': self.pk
+                        }
+                    )
+                except Exception as e:
+                    logger.error(f"Failed to create audit log entry: {str(e)}")
+                    # Don't fail the operation due to audit log issues
                     
-                    # Break out of retry loop on success
-                    break
-                    
-            except (OperationalError, IntegrityError) as e:
-                if attempt < max_retries - 1:
-                    logger.warning(f"Database operation failed for user {self.user.username}, attempt {attempt + 1}/{max_retries}: {str(e)}")
-                    time.sleep(retry_delay * (attempt + 1))
-                    continue
-                else:
-                    logger.error(f"Final attempt failed for user {self.user.username}: {str(e)}")
-                    raise ValidationError("Unable to complete role assignment due to system constraints. Please try again.")
-    
-    # Cache functionality completely removed - no longer needed
+        except IntegrityError as e:
+            logger.error(f"Integrity constraint violation for user {self.user.username}: {str(e)}")
+            raise ValidationError(f"Role assignment failed due to data integrity constraints")
 
     def delete(self, *args, **kwargs):
         user_pk = self.user.pk
@@ -880,10 +822,6 @@ class UserRole(models.Model):
             # Deactivate expired roles
             expired_roles.update(is_active=False)
             
-            # Clear cache for affected users
-            user_ids = expired_roles.values_list('user_id', flat=True).distinct()
-            # Cache functionality removed
-            
             # Log the deactivation
             logger.info(f"Automatically deactivated {expired_count} expired role assignments")
             
@@ -908,6 +846,51 @@ class UserRole(models.Model):
                     logger.error(f"Failed to create audit log for expired role {role_info['id']}: {str(e)}")
         
         return expired_count
+    
+    @classmethod
+    def cleanup_orphaned_assignments(cls):
+        """Clean up orphaned role assignments"""
+        from django.utils import timezone
+        
+        # Find assignments where user or role no longer exists
+        orphaned_assignments = cls.objects.filter(
+            Q(user__isnull=True) | Q(role__isnull=True)
+        )
+        
+        orphaned_count = orphaned_assignments.count()
+        if orphaned_count > 0:
+            logger.info(f"Found {orphaned_count} orphaned role assignments")
+            
+            # Get details before deletion for logging
+            orphaned_details = list(orphaned_assignments.values(
+                'id', 'user_id', 'role_id', 'created_at'
+            ))
+            
+            # Delete orphaned assignments
+            orphaned_assignments.delete()
+            
+            # Log the cleanup
+            logger.info(f"Cleaned up {orphaned_count} orphaned role assignments")
+            
+            # Create audit logs for each cleaned up assignment
+            for assignment_info in orphaned_details:
+                try:
+                    RoleAuditLog.objects.create(
+                        user=None,  # System action
+                        action='delete',
+                        description=f"Cleaned up orphaned role assignment (ID: {assignment_info['id']})",
+                        metadata={
+                            'assignment_id': assignment_info['id'],
+                            'user_id': assignment_info['user_id'],
+                            'role_id': assignment_info['role_id'],
+                            'created_at': assignment_info['created_at'].isoformat() if assignment_info['created_at'] else None,
+                            'auto_cleaned': True
+                        }
+                    )
+                except Exception as e:
+                    logger.error(f"Failed to create audit log for orphaned assignment {assignment_info['id']}: {str(e)}")
+        
+        return orphaned_count
 
     @classmethod
     def get_Session_violations(cls):

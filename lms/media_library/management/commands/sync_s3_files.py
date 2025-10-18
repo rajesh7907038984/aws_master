@@ -98,10 +98,10 @@ class Command(BaseCommand):
                     
                     # Get file URL
                     region = getattr(settings, 'AWS_S3_REGION_NAME', 'eu-west-2')
-                    file_url = f"https://{bucket_name}.s3.{region}.amazonaws.com/{key}"
+                    file_url = "https://{{bucket_name}}.s3.{{region}}.amazonaws.com/{{key}}"
                     
                     if dry_run:
-                        self.stdout.write(f'Would sync: {key} ({size} bytes, {file_type})')
+                        self.stdout.write("Would sync: {{key}} ({{size}} bytes, {{file_type}})")
                         synced_count += 1
                     else:
                         try:
@@ -118,18 +118,18 @@ class Command(BaseCommand):
                                 uploaded_at=last_modified,
                                 source_app='s3_sync',
                                 source_model='S3Object',
-                                description=f'S3 file: {key}',
+                                description="S3 file: {{key}}",
                                 is_active=True,
                                 is_public=True
                             )
                             synced_count += 1
                             
                             if synced_count % 100 == 0:
-                                self.stdout.write(f'Synced {synced_count} files...')
+                                self.stdout.write("Synced {{synced_count}} files...")
                                 
                         except Exception as e:
                             self.stdout.write(
-                                self.style.ERROR(f'Error syncing {key}: {str(e)}')
+                                self.style.ERROR("Error syncing {{key}}: {{str(e)}}")
                             )
                             error_count += 1
                 
@@ -143,23 +143,23 @@ class Command(BaseCommand):
             
             self.stdout.write(
                 self.style.SUCCESS(
-                    f'Sync completed! Synced: {synced_count}, Skipped: {skipped_count}, Errors: {error_count}'
+                    "Sync completed! Synced: {{synced_count}}, Skipped: {{skipped_count}}, Errors: {{error_count}}"
                 )
             )
             
         except Exception as e:
             self.stdout.write(
-                self.style.ERROR(f'Error during sync: {str(e)}')
+                self.style.ERROR("Error during sync: {{str(e)}}")
             )
 
     def get_file_type(self, file_path):
         """Determine file type from file extension"""
         ext = os.path.splitext(file_path)[1].lower()
         
-        image_exts = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.svg', '.ico']
+        image_exts = ['.jpg', '.jpeg', '.png', '.gi", ".bmp', '.webp', '.svg', '.ico']
         video_exts = ['.mp4', '.avi', '.mov', '.wmv', '.flv', '.webm', '.mkv']
         audio_exts = ['.mp3', '.wav', '.flac', '.aac', '.ogg', '.m4a']
-        document_exts = ['.pdf', '.doc', '.docx', '.txt', '.rtf', '.odt', '.xls', '.xlsx', '.ppt', '.pptx']
+        document_exts = ['.pd", ".doc', '.docx', '.txt', '.rt", ".odt', '.xls', '.xlsx', '.ppt', '.pptx']
         archive_exts = ['.zip', '.rar', '.tar', '.gz', '.7z', '.bz2']
         
         if ext in image_exts:

@@ -33,24 +33,24 @@ class Command(BaseCommand):
         else:
             packages = ELearningPackage.objects.filter(is_extracted=True)
         
-        self.stdout.write(f"Found {packages.count()} SCORM packages to check")
+        self.stdout.write("Found {{packages.count()}} SCORM packages to check")
         
         re_extracted_count = 0
         error_count = 0
         
         for package in packages:
             try:
-                self.stdout.write(f"Checking package for topic {package.topic.id}...")
+                self.stdout.write("Checking package for topic {{package.topic.id}}...")
                 
                 # Check if content exists in S3
                 content_exists = False
                 if hasattr(package.package_file.storage, 'bucket_name'):
                     # S3 storage - check if launch file exists
-                    launch_file_path = f"{package.extracted_path}/{package.launch_file}"
+                    launch_file_path = "{{package.extracted_path}}/{{package.launch_file}}"
                     content_exists = package.package_file.storage.exists(launch_file_path)
                 
                 if not content_exists or force:
-                    self.stdout.write(f"Re-extracting package for topic {package.topic.id}...")
+                    self.stdout.write("Re-extracting package for topic {{package.topic.id}}...")
                     
                     # Reset extraction status
                     package.is_extracted = False
@@ -62,25 +62,25 @@ class Command(BaseCommand):
                     
                     if success:
                         self.stdout.write(
-                            self.style.SUCCESS(f"Successfully re-extracted package for topic {package.topic.id}")
+                            self.style.SUCCESS("Successfully re-extracted package for topic {{package.topic.id}}")
                         )
                         re_extracted_count += 1
                     else:
                         self.stdout.write(
-                            self.style.ERROR(f"Failed to re-extract package for topic {package.topic.id}: {package.extraction_error}")
+                            self.style.ERROR("Failed to re-extract package for topic {{package.topic.id}}: {{package.extraction_error}}")
                         )
                         error_count += 1
                 else:
-                    self.stdout.write(f"Package for topic {package.topic.id} already has content in S3, skipping...")
+                    self.stdout.write("Package for topic {{package.topic.id}} already has content in S3, skipping...")
                     
             except Exception as e:
                 self.stdout.write(
-                    self.style.ERROR(f"Error processing package for topic {package.topic.id}: {e}")
+                    self.style.ERROR("Error processing package for topic {{package.topic.id}}: {{e}}")
                 )
                 error_count += 1
         
         self.stdout.write(
             self.style.SUCCESS(
-                f"Re-extraction completed. Successfully re-extracted: {re_extracted_count}, Errors: {error_count}"
+                "Re-extraction completed. Successfully re-extracted: {{re_extracted_count}}, Errors: {{error_count}}"
             )
         )

@@ -12,7 +12,8 @@ import logging
 import json
 from django.utils import timezone
 
-from users.models import Branch, CustomUser
+from branches.models import Branch
+from users.models import CustomUser
 from .models import (
     Course, Topic, CourseEnrollment
 )
@@ -117,16 +118,16 @@ class CourseEnrollmentInline(admin.TabularInline):
                     score = registration.score
                     status_display = status.replace('_', ' ').title()
                     if score is not None:
-                        return f"{status_display} (Score: {score}%%)"
+                        return "{{status_display}} (Score: {{score}}%%)"
                     return status_display
             return "Not Started"
-        return f"{obj.get_progress_percentage()}%%"
+        return "{{obj.get_progress_percentage()}}%%"
 
     get_progress_display.short_description = 'Progress'
 
     def get_status_display(self, obj):
         if obj.completed:
-            return f'Completed ({obj.completion_method})'
+            return "Completed ({{obj.completion_method}})"
         if obj.attempts > 0:
             return 'In Progress'
         return 'Not Started'
@@ -170,14 +171,14 @@ class CourseEnrollmentInline(admin.TabularInline):
                     obj.progress_data['progress'] = 100.0
                 
                 # Add logging for debugging
-                logger.info(f"Admin completion update for topic {obj.topic.id}, user {obj.user.id}")
-                logger.info(f"Setting progress_data to: {obj.progress_data}")
+                logger.info("Admin completion update for topic {{obj.topic.id}}, user {{obj.user.id}}")
+                logger.info("Setting progress_data to: {{obj.progress_data}}")
         
         # Handle direct edits to progress_data field (for superusers)
         if 'progress_data' in form.changed_data and request.user.is_superuser:
             # Add logging for tracking changes
-            logger.info(f"Direct progress_data update by admin for topic {obj.topic.id}, user {obj.user.id}")
-            logger.info(f"New progress_data: {obj.progress_data}")
+            logger.info("Direct progress_data update by admin for topic {{obj.topic.id}}, user {{obj.user.id}}")
+            logger.info("New progress_data: {{obj.progress_data}}")
             
             # If progress in progress_data is 100% but completed is False, update completed
             if obj.progress_data and obj.progress_data.get('progress', 0) >= 95 and not obj.completed:
@@ -195,7 +196,7 @@ class CourseEnrollmentInline(admin.TabularInline):
                     'manually_completed': False
                 })
                 
-                logger.info(f"Auto-setting completed=True based on progress_data value")
+                logger.info("Auto-setting completed=True based on progress_data value")
             
         super().save_model(request, obj, form, change)
         
@@ -215,44 +216,44 @@ class CourseEnrollmentInline(admin.TabularInline):
         
         # Extract and format main properties
         if 'completed_at' in obj.completion_data:
-            html += f"<tr><td>Completed At</td><td>{obj.completion_data['completed_at']}</td></tr>"
+            html += "<tr><td>Completed At</td><td>{{obj.completion_data['completed_at']}}</td></tr>"
         
         if 'completion_method' in obj.completion_data:
             method = obj.completion_data['completion_method']
-            html += f"<tr><td>Method</td><td>{method.title()}</td></tr>"
+            html += "<tr><td>Method</td><td>{{method.title()}}</td></tr>"
             
         if 'final_score' in obj.completion_data:
-            html += f"<tr><td>Final Score</td><td>{obj.completion_data['final_score']}%%</td></tr>"
+            html += "<tr><td>Final Score</td><td>{{obj.completion_data['final_score']}}%%</td></tr>"
             
         if 'best_score' in obj.completion_data and obj.completion_data['best_score'] is not None:
-            html += f"<tr><td>Best Score</td><td>{obj.completion_data['best_score']}%%</td></tr>"
+            html += "<tr><td>Best Score</td><td>{{obj.completion_data['best_score']}}%%</td></tr>"
             
         if 'total_attempts' in obj.completion_data:
-            html += f"<tr><td>Attempts</td><td>{obj.completion_data['total_attempts']}</td></tr>"
+            html += "<tr><td>Attempts</td><td>{{obj.completion_data['total_attempts']}}</td></tr>"
             
         if 'total_time' in obj.completion_data:
             seconds = obj.completion_data['total_time']
             minutes = seconds // 60
             remaining_seconds = seconds % 60
-            html += f"<tr><td>Total Time</td><td>{minutes}m {remaining_seconds}s</td></tr>"
+            html += "<tr><td>Total Time</td><td>{{minutes}}m {{remaining_seconds}}s</td></tr>"
         
         # Add last attempt details if available
         if 'last_attempt' in obj.completion_data:
             last = obj.completion_data['last_attempt']
             html += "<tr><td colspan='2'><b>Last Attempt:</b></td></tr>"
-            html += f"<tr><td>Date</td><td>{last.get('date', 'N/A')}</td></tr>"
+            html += "<tr><td>Date</td><td>{{last.get('date', 'N/A')}}</td></tr>"
             
             if 'score' in last and last['score'] is not None:
-                html += f"<tr><td>Score</td><td>{last['score']}%%</td></tr>"
+                html += "<tr><td>Score</td><td>{{last['score']}}%%</td></tr>"
                 
             if 'status' in last:
-                html += f"<tr><td>Status</td><td>{last['status'].title()}</td></tr>"
+                html += "<tr><td>Status</td><td>{{last['status'].title()}}</td></tr>"
                 
             if 'time_spent' in last:
                 seconds = last['time_spent']
                 minutes = seconds // 60
                 remaining_seconds = seconds % 60
-                html += f"<tr><td>Time</td><td>{minutes}m {remaining_seconds}s</td></tr>"
+                html += "<tr><td>Time</td><td>{{minutes}}m {{remaining_seconds}}s</td></tr>"
         
         html += "</table>"
         return mark_safe(html)
@@ -269,11 +270,11 @@ class CourseEnrollmentInline(admin.TabularInline):
         
         # Display completion status
         completion_status = obj.progress_data.get('completion_status', 'not_attempted')
-        html += f"<tr><td>Completion Status</td><td>{completion_status.replace('_', ' ').title()}</td></tr>"
+        html += "<tr><td>Completion Status</td><td>{{completion_status.replace('_', ' ').title()}}</td></tr>"
         
         # Display completion percentage
         completion_percent = obj.progress_data.get('completion_percent', 0)
-        html += f"<tr><td>Completion Percent</td><td>{completion_percent}</td></tr>"
+        html += "<tr><td>Completion Percent</td><td>{{completion_percent}}</td></tr>"
         
         html += "</table>"
         return mark_safe(html)
@@ -281,25 +282,25 @@ class CourseEnrollmentInline(admin.TabularInline):
         # Handle Discussion progress special case
         if obj.topic.content_type == 'Discussion':
             # Display completion status
-            html += f"<tr><td>Discussion Completed</td><td>{'Yes' if obj.completed else 'No'}</td></tr>"
+            html += "<tr><td>Discussion Completed</td><td>{{'Yes' if obj.completed else 'No'}}</td></tr>"
             
             # Display view count if available
             view_count = obj.progress_data.get('view_count', 0)
-            html += f"<tr><td>Views</td><td>{view_count}</td></tr>"
+            html += "<tr><td>Views</td><td>{{view_count}}</td></tr>"
             
             # Display interaction count if available
             comment_count = obj.progress_data.get('comment_count', 0)
-            html += f"<tr><td>Comments</td><td>{comment_count}</td></tr>"
+            html += "<tr><td>Comments</td><td>{{comment_count}}</td></tr>"
             
             # Display timestamps
             if 'first_viewed_at' in obj.progress_data:
-                html += f"<tr><td>First Viewed</td><td>{obj.progress_data['first_viewed_at']}</td></tr>"
+                html += "<tr><td>First Viewed</td><td>{{obj.progress_data['first_viewed_at']}}</td></tr>"
                 
             if 'last_updated_at' in obj.progress_data:
-                html += f"<tr><td>Last Updated</td><td>{obj.progress_data['last_updated_at']}</td></tr>"
+                html += "<tr><td>Last Updated</td><td>{{obj.progress_data['last_updated_at']}}</td></tr>"
                 
             if 'completed_at' in obj.progress_data:
-                html += f"<tr><td>Completed At</td><td>{obj.progress_data['completed_at']}</td></tr>"
+                html += "<tr><td>Completed At</td><td>{{obj.progress_data['completed_at']}}</td></tr>"
             
             html += "</table>"
             return mark_safe(html)
@@ -308,42 +309,42 @@ class CourseEnrollmentInline(admin.TabularInline):
         if obj.topic.content_type in ['Video', 'EmbedVideo']:
             # Display percentage progress
             progress_value = obj.progress_data.get('progress', 0)
-            html += f"<tr><td>Progress</td><td>{progress_value:.1f}%</td></tr>"
+            html += "<tr><td>Progress</td><td>{{progress_value:.1f}}%</td></tr>"
             
             # Display duration if available
             if 'duration' in obj.progress_data:
                 duration = obj.progress_data['duration']
                 minutes = int(duration // 60)
                 seconds = int(duration % 60)
-                html += f"<tr><td>Duration</td><td>{minutes}m {seconds}s</td></tr>"
+                html += "<tr><td>Duration</td><td>{{minutes}}m {{seconds}}s</td></tr>"
             
             # Display last position if available
             if 'last_position' in obj.progress_data:
                 position = obj.progress_data['last_position']
                 minutes = int(position // 60)
                 seconds = int(position % 60)
-                html += f"<tr><td>Last Position</td><td>{minutes}m {seconds}s</td></tr>"
+                html += "<tr><td>Last Position</td><td>{{minutes}}m {{seconds}}s</td></tr>"
                 
             # Display view count
             view_count = obj.progress_data.get('view_count', 0)
-            html += f"<tr><td>Views</td><td>{view_count}</td></tr>"
+            html += "<tr><td>Views</td><td>{{view_count}}</td></tr>"
             
             # Display total viewing time if available
             if 'total_viewing_time' in obj.progress_data:
                 seconds = obj.progress_data['total_viewing_time']
                 minutes = int(seconds // 60)
                 remaining_seconds = int(seconds % 60)
-                html += f"<tr><td>Total Time</td><td>{minutes}m {remaining_seconds}s</td></tr>"
+                html += "<tr><td>Total Time</td><td>{{minutes}}m {{remaining_seconds}}s</td></tr>"
                 
             # Display timestamps
             if 'first_viewed_at' in obj.progress_data:
-                html += f"<tr><td>First Viewed</td><td>{obj.progress_data['first_viewed_at']}</td></tr>"
+                html += "<tr><td>First Viewed</td><td>{{obj.progress_data['first_viewed_at']}}</td></tr>"
                 
             if 'last_updated_at' in obj.progress_data:
-                html += f"<tr><td>Last Updated</td><td>{obj.progress_data['last_updated_at']}</td></tr>"
+                html += "<tr><td>Last Updated</td><td>{{obj.progress_data['last_updated_at']}}</td></tr>"
                 
             if 'completed_at' in obj.progress_data:
-                html += f"<tr><td>Completed At</td><td>{obj.progress_data['completed_at']}</td></tr>"
+                html += "<tr><td>Completed At</td><td>{{obj.progress_data['completed_at']}}</td></tr>"
                 
             # If we have viewing sessions, show the latest
             if 'viewing_sessions' in obj.progress_data and obj.progress_data['viewing_sessions']:
@@ -353,19 +354,19 @@ class CourseEnrollmentInline(admin.TabularInline):
                     html += "<tr><td colspan='2'><b>Latest Session:</b></td></tr>"
                     
                     if 'progress' in latest:
-                        html += f"<tr><td>Progress</td><td>{latest['progress']:.1f}%</td></tr>"
+                        html += "<tr><td>Progress</td><td>{{latest['progress']:.1f}}%</td></tr>"
                         
                     if 'position' in latest:
                         pos = latest['position']
                         min_pos = int(pos // 60)
                         sec_pos = int(pos % 60)
-                        html += f"<tr><td>Position</td><td>{min_pos}m {sec_pos}s</td></tr>"
+                        html += "<tr><td>Position</td><td>{{min_pos}}m {{sec_pos}}s</td></tr>"
                         
                     if 'started_at' in latest:
-                        html += f"<tr><td>Started</td><td>{latest['started_at']}</td></tr>"
+                        html += "<tr><td>Started</td><td>{{latest['started_at']}}</td></tr>"
                         
                     if 'updated_at' in latest:
-                        html += f"<tr><td>Updated</td><td>{latest['updated_at']}</td></tr>"
+                        html += "<tr><td>Updated</td><td>{{latest['updated_at']}}</td></tr>"
             
             html += "</table>"
             return mark_safe(html)
@@ -378,13 +379,13 @@ class CourseEnrollmentInline(admin.TabularInline):
                 
             # Format the value based on type
             if isinstance(value, (int, float)) and key.endswith('progress'):
-                formatted_value = f"{value:.1f}%"
+                formatted_value = "{{value:.1f}}%"
             elif isinstance(value, bool):
                 formatted_value = "Yes" if value else "No"
             else:
                 formatted_value = str(value)
                 
-            html += f"<tr><td>{key.replace('_', ' ').title()}</td><td>{formatted_value}</td></tr>"
+            html += "<tr><td>{{key.replace('_', ' ').title()}}</td><td>{{formatted_value}}</td></tr>"
         
         html += "</table>"
         return mark_safe(html)
@@ -396,12 +397,12 @@ class CourseEnrollmentInline(admin.TabularInline):
         deleted_count = 0
         for progress in queryset:
             # Log the delete action
-            logger.info(f"Admin action: Deleting topic progress for topic {progress.topic.id} and user {progress.user.id}")
+            logger.info("Admin action: Deleting topic progress for topic {{progress.topic.id}} and user {{progress.user.id}}")
             progress.delete()
             deleted_count += 1
             
         if deleted_count > 0:
-            self.message_user(request, f"Successfully deleted {deleted_count} topic progress records.")
+            self.message_user(request, "Successfully deleted {{deleted_count}} topic progress records.")
         else:
             self.message_user(request, "No topic progress records were deleted.")
     
@@ -526,33 +527,33 @@ class CourseEnrollmentInline(admin.TabularInline):
                                 
                                 synced_count += 1
                         except Exception as e:
-                            logger.error(f"Error in removed Cloud API call for record {progress.id}: {str(e)}")
+                            logger.error("Error in removed Cloud API call for record {{progress.id}}: {{str(e)}}")
                             raise  # Re-raise to be caught by outer try/except
                 
                 except Exception as e:
-                    logger.error(f"Error syncing removed data for progress {progress.id}: {str(e)}")
-                    errors.append(f"Error with {progress.topic.title} for {progress.user.username}: {str(e)}")
+                    logger.error("Error syncing removed data for progress {{progress.id}}: {{str(e)}}")
+                    errors.append("Error with {{progress.topic.title}} for {{progress.user.username}}: {{str(e)}}")
             
             # Report results
             if synced_count > 0:
                 self.message_user(
                     request,
-                    f"Successfully synchronized {synced_count} of {removed_records.count()} removed progress records.",
+                    "Successfully synchronized {{synced_count}} of {{removed_records.count()}} removed progress records.",
                     level=messages.SUCCESS
                 )
             
             if errors:
                 self.message_user(
                     request,
-                    f"Encountered {len(errors)} errors during synchronization: {', '.join(errors[:3])}{'...' if len(errors) > 3 else ''}",
+                    "Encountered {{len(errors)}} errors during synchronization: {{', '.join(errors[:3])}}{{'...' if len(errors) > 3 else ''}}",
                     level=messages.WARNING
                 )
                 
         except Exception as e:
-            logger.error(f"Error in sync_removed_data action: {str(e)}")
+            logger.error("Error in sync_removed_data action: {{str(e)}}")
             self.message_user(
                 request,
-                f"Error synchronizing removed data: {str(e)}",
+                "Error synchronizing removed data: {{str(e)}}",
                 level=messages.ERROR
             )
 

@@ -39,17 +39,17 @@ class Command(BaseCommand):
         """Validate a single SCORM package"""
         try:
             topic = Topic.objects.get(id=topic_id)
-            self.stdout.write(f"Validating SCORM package for topic {topic_id}: {topic.title}")
+            self.stdout.write("Validating SCORM package for topic {{topic_id}}: {{topic.title}}")
             
             if not hasattr(topic, 'elearning_package'):
-                self.stdout.write(self.style.ERROR(f"❌ Topic {topic_id} has no SCORM package"))
+                self.stdout.write(self.style.ERROR("❌ Topic {{topic_id}} has no SCORM package"))
                 return False
             
             package = topic.elearning_package
             return self.validate_package(package, fix_issues)
             
         except Topic.DoesNotExist:
-            self.stdout.write(self.style.ERROR(f"❌ Topic {topic_id} not found"))
+            self.stdout.write(self.style.ERROR("❌ Topic {{topic_id}} not found"))
             return False
 
     def validate_all_packages(self, fix_issues=False):
@@ -57,7 +57,7 @@ class Command(BaseCommand):
         packages = ELearningPackage.objects.all()
         total_packages = packages.count()
         
-        self.stdout.write(f"Validating {total_packages} SCORM packages...")
+        self.stdout.write("Validating {{total_packages}} SCORM packages...")
         
         valid_count = 0
         invalid_count = 0
@@ -68,14 +68,14 @@ class Command(BaseCommand):
             else:
                 invalid_count += 1
         
-        self.stdout.write(f"\n📊 Validation Results:")
-        self.stdout.write(f"✅ Valid packages: {valid_count}")
-        self.stdout.write(f"❌ Invalid packages: {invalid_count}")
-        self.stdout.write(f"📈 Success rate: {(valid_count/total_packages)*100:.1f}%")
+        self.stdout.write("\n📊 Validation Results:")
+        self.stdout.write("✅ Valid packages: {{valid_count}}")
+        self.stdout.write("❌ Invalid packages: {{invalid_count}}")
+        self.stdout.write("📈 Success rate: {{(valid_count/total_packages)*100:.1f}}%")
 
     def validate_package(self, package, fix_issues=False):
         """Validate a single SCORM package"""
-        self.stdout.write(f"\n🔍 Validating package for topic {package.topic.id}: {package.topic.title}")
+        self.stdout.write("\n🔍 Validating package for topic {{package.topic.id}}: {{package.topic.title}}")
         
         issues = []
         
@@ -96,7 +96,7 @@ class Command(BaseCommand):
                     else:
                         issues.append("❌ Package extraction failed")
                 except Exception as e:
-                    issues.append(f"❌ Package extraction error: {str(e)}")
+                    issues.append("❌ Package extraction error: {{str(e)}}")
         
         # Check 3: Launch file exists
         if package.launch_file:
@@ -116,7 +116,7 @@ class Command(BaseCommand):
                     if not storage.exists(package.extracted_path):
                         issues.append("❌ Extracted path not found in S3")
             except Exception as e:
-                issues.append(f"❌ Error checking extracted path: {str(e)}")
+                issues.append("❌ Error checking extracted path: {{str(e)}}")
         
         # Check 5: Package type is set
         if not package.package_type:
@@ -124,9 +124,9 @@ class Command(BaseCommand):
         
         # Report results
         if issues:
-            self.stdout.write(self.style.ERROR(f"❌ Issues found:"))
+            self.stdout.write(self.style.ERROR("❌ Issues found:"))
             for issue in issues:
-                self.stdout.write(f"  {issue}")
+                self.stdout.write("  {{issue}}")
             return False
         else:
             self.stdout.write(self.style.SUCCESS("✅ Package is valid"))

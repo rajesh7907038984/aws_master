@@ -16,7 +16,7 @@ import json
 import pytz
 import os
 import subprocess
-import threading
+# import threading  # Removed - using Celery tasks instead
 import glob
 from django.conf import settings
 from django.utils import timezone
@@ -775,10 +775,10 @@ LMS System'''.format(smtp_host, smtp_port, smtp_username, 'TLS' if smtp_use_tls 
             from business.models import Business
             
             branches_query = filter_branches_by_business(request.user).select_related('business').annotate(
-                admin_count=Count('users', filter=Q(users__role='admin', users__is_active=True)),
-                instructor_count=Count('users', filter=Q(users__role='instructor', users__is_active=True)),
-                learner_count=Count('users', filter=Q(users__role='learner', users__is_active=True)),
-                total_users=Count('users', filter=Q(users__is_active=True))
+                admin_count=Count('branch_users', filter=Q(branch_users__role='admin', branch_users__is_active=True)),
+                instructor_count=Count('branch_users', filter=Q(branch_users__role='instructor', branch_users__is_active=True)),
+                learner_count=Count('branch_users', filter=Q(branch_users__role='learner', branch_users__is_active=True)),
+                total_users=Count('branch_users', filter=Q(branch_users__is_active=True))
             ).order_by('business__name', 'name')
             
             # Get user limits efficiently
@@ -2168,10 +2168,9 @@ def start_export(request):
             job.error_message = 'Unexpected error: {}'.format(str(e))
             job.save()
     
-    # Run export in background thread
-    thread = threading.Thread(target=run_export)
-    thread.daemon = True
-    thread.start()
+    # Run export using Celery task
+    from .tasks import run_export_task
+    run_export_task.delay(job.id)
     
     return JsonResponse({
         'success': True,
@@ -2262,10 +2261,9 @@ def start_import(request):
             job.error_message = 'Unexpected error: {}'.format(str(e))
             job.save()
     
-    # Run import in background thread
-    thread = threading.Thread(target=run_import)
-    thread.daemon = True
-    thread.start()
+    # Run import using Celery task
+    from .tasks import run_import_task
+    run_import_task.delay(job.id)
     
     return JsonResponse({
         'success': True,

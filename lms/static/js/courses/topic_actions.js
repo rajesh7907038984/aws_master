@@ -304,7 +304,6 @@ function showContentField(contentType) {
         case 'Discussion':
             fieldId = 'discussion-content';
             break;
-            break;
     }
     
     if (fieldId) {

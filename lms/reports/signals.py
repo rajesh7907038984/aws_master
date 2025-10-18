@@ -29,10 +29,10 @@ def log_user_login(sender, request, user, **kwargs):
         Event.objects.create(
             user=user,
             type='LOGIN',
-            description=f"{user.get_full_name() or user.username} logged in"
+            description="{{user.get_full_name() or user.username}} logged in"
         )
     except Exception as e:
-        logger.error(f"Failed to log login event for user {user.id}: {str(e)}")
+        logger.error("Failed to log login event for user {{user.id}}: {{str(e)}}")
 
 @receiver(post_save, sender=CourseEnrollment)
 def log_course_enrollment(sender, instance, created, **kwargs):
@@ -49,7 +49,7 @@ def log_course_enrollment(sender, instance, created, **kwargs):
                 user=instance.user,
                 course=instance.course,
                 type='COURSE_START',
-                description=f"{instance.user.get_full_name() or instance.user.username} enrolled in {instance.course.title}"
+                description="{{instance.user.get_full_name() or instance.user.username}} enrolled in {{instance.course.title}}"
             )
         elif instance.completed and hasattr(instance, '_state') and instance._state.adding is False:
             # Course completion - check if completion status changed from False to True
@@ -61,11 +61,11 @@ def log_course_enrollment(sender, instance, created, **kwargs):
                     course=instance.course,
                     type='COURSE_COMPLETE',
                     defaults={
-                        'description': f"{instance.user.get_full_name() or instance.user.username} completed {instance.course.title}"
+                        'description': "{{instance.user.get_full_name() or instance.user.username}} completed {{instance.course.title}}"
                     }
                 )
     except Exception as e:
-        logger.error(f"Failed to log course enrollment event for user {instance.user.id}: {str(e)}")
+        logger.error("Failed to log course enrollment event for user {{instance.user.id}}: {{str(e)}}")
 
 @receiver(post_save, sender=QuizAttempt)
 def log_quiz_attempt(sender, instance, created, **kwargs):
@@ -76,7 +76,7 @@ def log_quiz_attempt(sender, instance, created, **kwargs):
                 user=instance.user,
                 course=instance.quiz.course if hasattr(instance.quiz, 'course') else None,
                 type='QUIZ_TAKE',
-                description=f"{instance.user.get_full_name() or instance.user.username} took quiz: {instance.quiz.title}",
+                description="{{instance.user.get_full_name() or instance.user.username}} took quiz: {{instance.quiz.title}}",
                 metadata={
                     'quiz_id': instance.quiz.id,
                     'score': getattr(instance, 'score', None),
@@ -84,7 +84,7 @@ def log_quiz_attempt(sender, instance, created, **kwargs):
                 }
             )
     except Exception as e:
-        logger.error(f"Failed to log quiz attempt event for user {instance.user.id}: {str(e)}")
+        logger.error("Failed to log quiz attempt event for user {{instance.user.id}}: {{str(e)}}")
 
 @receiver(post_save, sender=AssignmentSubmission)
 def log_assignment_submission(sender, instance, created, **kwargs):
@@ -95,14 +95,14 @@ def log_assignment_submission(sender, instance, created, **kwargs):
                 user=instance.user,
                 course=instance.assignment.course if hasattr(instance.assignment, 'course') else None,
                 type='ASSIGNMENT_SUBMIT',
-                description=f"{instance.user.get_full_name() or instance.user.username} submitted assignment: {instance.assignment.title}",
+                description="{{instance.user.get_full_name() or instance.user.username}} submitted assignment: {{instance.assignment.title}}",
                 metadata={
                     'assignment_id': instance.assignment.id,
                     'submission_id': instance.id
                 }
             )
     except Exception as e:
-        logger.error(f"Failed to log assignment submission event for user {instance.user.id}: {str(e)}")
+        logger.error("Failed to log assignment submission event for user {{instance.user.id}}: {{str(e)}}")
 
 @receiver(post_save, sender=Discussion)
 def log_forum_post(sender, instance, created, **kwargs):
@@ -113,11 +113,11 @@ def log_forum_post(sender, instance, created, **kwargs):
                 user=instance.created_by,
                 course=instance.course if hasattr(instance, 'course') else None,
                 type='FORUM_POST',
-                description=f"{instance.created_by.get_full_name() or instance.created_by.username} created a forum post: {instance.title[:50]}...",
+                description="{{instance.created_by.get_full_name() or instance.created_by.username}} created a forum post: {{instance.title[:50]}}...",
                 metadata={
                     'discussion_id': instance.id,
                     'title': instance.title
                 }
             )
     except Exception as e:
-        logger.error(f"Failed to log forum post event for user {instance.created_by.id}: {str(e)}") 
+        logger.error("Failed to log forum post event for user {{instance.created_by.id}}: {{str(e)}}") 

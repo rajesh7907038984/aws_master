@@ -15,18 +15,18 @@ def format_time_spent(timedelta_obj):
         hours = total_seconds // 3600
         minutes = (total_seconds % 3600) // 60
         if minutes > 0:
-            return f"{hours}h {minutes}m"
+            return "{{hours}}h {{minutes}}m"
         else:
-            return f"{hours}h"
+            return "{{hours}}h"
     elif total_seconds >= 60:
         minutes = total_seconds // 60
         seconds = total_seconds % 60
         if seconds > 0:
-            return f"{minutes}m {seconds}s"
+            return "{{minutes}}m {{seconds}}s"
         else:
-            return f"{minutes}m"
+            return "{{minutes}}m"
     else:
-        return f"{total_seconds}s"
+        return "{{total_seconds}}s"
 
 @register.filter
 def scorm_time_format(timedelta_obj):
@@ -40,8 +40,8 @@ def scorm_time_format(timedelta_obj):
     seconds = total_seconds % 60
     
     if hours > 0:
-        return f"PT{hours}H{minutes}M{seconds}S"
+        return "PT{{hours}}H{{minutes}}M{{seconds}}S"
     elif minutes > 0:
-        return f"PT{minutes}M{seconds}S"
+        return "PT{{minutes}}M{{seconds}}S"
     else:
-        return f"PT{seconds}S"
+        return "PT{{seconds}}S"

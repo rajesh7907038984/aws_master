@@ -56,8 +56,10 @@ document.addEventListener('DOMContentLoaded', function() {
                         localStorage.setItem('topicViewOpenSections', JSON.stringify(openSections));
                     }
                 } catch (storageError) {
+                    console.error('Error storing accordion state:', storageError);
                 }
             } catch (error) {
+                console.error('Error handling accordion click:', error);
             }
         });
     });
@@ -67,18 +69,23 @@ document.addEventListener('DOMContentLoaded', function() {
         const openSections = TypeSafety.safeJsonParse(localStorage.getItem('topicViewOpenSections'), []);
         
         openSections.forEach(sectionId => {
-            const header = document.querySelector(`.section-header[data-section-id="${sectionId}"]`);
-            if (header) {
-                const container = header.closest('.section-container');
-                const content = container.querySelector('.section-content');
-                const icon = header.querySelector('.section-toggle-icon i');
-                
-                if (content && icon) {
-                    content.classList.remove('hidden');
-                    icon.classList.add('rotate-180');
+            try {
+                const header = document.querySelector(`.section-header[data-section-id="${sectionId}"]`);
+                if (header) {
+                    const container = header.closest('.section-container');
+                    const content = container.querySelector('.section-content');
+                    const icon = header.querySelector('.section-toggle-icon i');
+                    
+                    if (content && icon) {
+                        content.classList.remove('hidden');
+                        icon.classList.add('rotate-180');
+                    }
                 }
+            } catch (error) {
+                console.error('Error restoring accordion state for section:', sectionId, error);
             }
         });
     } catch (error) {
+        console.error('Error restoring accordion state:', error);
     }
 }); 

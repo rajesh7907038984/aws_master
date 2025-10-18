@@ -87,9 +87,9 @@ class RubricEvaluationAdmin(admin.ModelAdmin):
     
     def get_submission_or_discussion(self, obj):
         if obj.submission:
-            return f"Assignment: {obj.submission.assignment.title} - {obj.submission.user.get_full_name()}"
+            return "Assignment: {{obj.submission.assignment.title}} - {{obj.submission.user.get_full_name()}}"
         elif obj.discussion:
-            return f"Discussion: {obj.discussion.title}"
+            return "Discussion: {{obj.discussion.title}}"
         return "N/A"
     get_submission_or_discussion.short_description = 'Context'
 
@@ -104,9 +104,9 @@ class RubricEvaluationHistoryAdmin(admin.ModelAdmin):
     
     def get_context(self, obj):
         if obj.submission:
-            return f"Assignment: {obj.submission.assignment.title} - {obj.submission.user.get_full_name()}"
+            return "Assignment: {{obj.submission.assignment.title}} - {{obj.submission.user.get_full_name()}}"
         elif obj.discussion:
-            return f"Discussion: {obj.discussion.title}"
+            return "Discussion: {{obj.discussion.title}}"
         return "N/A"
     get_context.short_description = 'Context'
 
@@ -146,13 +146,13 @@ class RubricOverallFeedbackAdmin(admin.ModelAdmin):
         context_obj = obj.get_context_object()
         
         if context_type == 'assignment' and context_obj:
-            return f"Assignment: {context_obj.assignment.title} - {context_obj.user.get_full_name()}"
+            return "Assignment: {{context_obj.assignment.title}} - {{context_obj.user.get_full_name()}}"
         elif context_type == 'discussion' and context_obj:
-            return f"Discussion: {context_obj.title}"
+            return "Discussion: {{context_obj.title}}"
         elif context_type == 'conference' and context_obj:
-            return f"Conference: {context_obj.title}"
+            return "Conference: {{context_obj.title}}"
         elif context_type == 'quiz' and context_obj:
-            return f"Quiz: {context_obj.quiz.title} - {context_obj.user.get_full_name()}"
+            return "Quiz: {{context_obj.quiz.title}} - {{context_obj.user.get_full_name()}}"
         return "N/A"
     get_context.short_description = 'Context'
     
@@ -235,9 +235,3 @@ class RubricOverallFeedbackAdmin(admin.ModelAdmin):
         
         return True
 
-
-# Old admin registrations removed - using @admin.register decorators instead
-# admin.site.register(RubricRating, RubricRatingAdmin)
-# admin.site.register(RubricEvaluation, RubricEvaluationAdmin)
-# admin.site.register(RubricEvaluationHistory, RubricEvaluationHistoryAdmin)
-# admin.site.register(RubricOverallFeedback, RubricOverallFeedbackAdmin) 

@@ -113,7 +113,3 @@ class OutcomeEvaluationAdmin(admin.ModelAdmin):
         # Allow deletion for recalculation purposes
         return True
 
-
-# Old admin registrations removed - using @admin.register decorators instead
-# admin.site.register(OutcomeGroup, OutcomeGroupAdmin)
-# admin.site.register(Outcome, OutcomeAdmin) 

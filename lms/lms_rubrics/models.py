@@ -27,19 +27,19 @@ def rubric_feedback_file_path(instance, filename):
     # Determine the path based on the type of evaluation
     if instance.submission:
         # For assignment submissions
-        return f"rubric_feedback/assignments/{instance.submission.assignment.id}/{instance.submission.user.id}/{safe_name}"
+        return "rubric_feedback/assignments/{{instance.submission.assignment.id}}/{{instance.submission.user.id}}/{{safe_name}}"
     elif instance.discussion:
         # For discussion evaluations
-        return f"rubric_feedback/discussions/{instance.discussion.id}/{instance.student.id}/{safe_name}"
+        return "rubric_feedback/discussions/{{instance.discussion.id}}/{{instance.student.id}}/{{safe_name}}"
     elif instance.conference:
         # For conference evaluations
-        return f"rubric_feedback/conferences/{instance.conference.id}/{instance.student.id}/{safe_name}"
+        return "rubric_feedback/conferences/{{instance.conference.id}}/{{instance.student.id}}/{{safe_name}}"
     elif instance.quiz_attempt:
         # For quiz evaluations
-        return f"rubric_feedback/quizzes/{instance.quiz_attempt.quiz.id}/{instance.student.id}/{safe_name}"
+        return "rubric_feedback/quizzes/{{instance.quiz_attempt.quiz.id}}/{{instance.student.id}}/{{safe_name}}"
     else:
         # Fallback
-        return f"rubric_feedback/general/{safe_name}"
+        return "rubric_feedback/general/{{safe_name}}"
 
 
 class Rubric(models.Model):
@@ -94,7 +94,7 @@ class RubricCriterion(models.Model):
         app_label = 'lms_rubrics'
     
     def __str__(self):
-        return f"{self.rubric.title} - {self.description[:30]}"
+        return "{{self.rubric.title}} - {{self.description[:30]}}"
     
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)
@@ -122,14 +122,14 @@ class RubricRating(models.Model):
         app_label = 'lms_rubrics'
     
     def __str__(self):
-        return f"{self.criterion.description[:20]} - {self.title} - {self.description[:20]}"
+        return "{{self.criterion.description[:20]}} - {{self.title}} - {{self.description[:20]}}"
     
     def clean(self):
         """Validate rating data"""
         if self.points < 0:
             raise ValidationError({'points': 'Points cannot be negative'})
         if self.points > self.criterion.points:
-            raise ValidationError({'points': f'Points cannot exceed criterion maximum of {self.criterion.points}'})
+            raise ValidationError({'points': "Points cannot exceed criterion maximum of {{self.criterion.points}}"})
         super().clean()
     
     def save(self, *args, **kwargs):
@@ -163,16 +163,16 @@ class RubricEvaluation(models.Model):
     
     def __str__(self):
         if self.submission:
-            return f"Evaluation for {self.submission} - {self.criterion}"
+            return "Evaluation for {{self.submission}} - {{self.criterion}}"
         else:
-            return f"Evaluation for {self.discussion} - {self.criterion}"
+            return "Evaluation for {{self.discussion}} - {{self.criterion}}"
         
     def clean(self):
         """Validate evaluation data"""
         if self.points < 0:
             raise ValidationError({'points': 'Points cannot be negative'})
         if self.points > self.criterion.points:
-            raise ValidationError({'points': f'Points cannot exceed criterion maximum of {self.criterion.points}'})
+            raise ValidationError({'points': "Points cannot exceed criterion maximum of {{self.criterion.points}}"})
         # Ensure either submission or discussion is set, but not both
         if (self.submission and self.discussion) or (not self.submission and not self.discussion):
             raise ValidationError('Either submission or discussion must be set, but not both')
@@ -290,9 +290,9 @@ class RubricEvaluationHistory(models.Model):
     
     def __str__(self):
         if self.submission:
-            return f"History v{self.version} for {self.submission} - {self.criterion}"
+            return "History v{{self.version}} for {{self.submission}} - {{self.criterion}}"
         else:
-            return f"History v{self.version} for {self.discussion} - {self.criterion} - {self.student}" 
+            return "History v{{self.version}} for {{self.discussion}} - {{self.criterion}} - {{self.student}}" 
 
 
 class RubricOverallFeedback(models.Model):
@@ -405,15 +405,15 @@ class RubricOverallFeedback(models.Model):
     def __str__(self):
         context = ""
         if self.submission:
-            context = f"Assignment: {self.submission.assignment.title}"
+            context = "Assignment: {{self.submission.assignment.title}}"
         elif self.discussion:
-            context = f"Discussion: {self.discussion.title}"
+            context = "Discussion: {{self.discussion.title}}"
         elif self.conference:
-            context = f"Conference: {self.conference.title}"
+            context = "Conference: {{self.conference.title}}"
         elif self.quiz_attempt:
-            context = f"Quiz: {self.quiz_attempt.quiz.title}"
+            context = "Quiz: {{self.quiz_attempt.quiz.title}}"
         
-        return f"Overall Feedback - {context} - {self.student.get_full_name()}"
+        return "Overall Feedback - {{context}} - {{self.student.get_full_name()}}"
     
     def clean(self):
         """Validate that exactly one context is set"""

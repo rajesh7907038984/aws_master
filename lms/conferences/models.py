@@ -256,9 +256,9 @@ class Conference(models.Model):
             meeting_id = extract_meeting_id_from_any_zoom_url(self.meeting_link)
             
             if meeting_id:
-                clean_url = f"https://zoom.us/j/{meeting_id}"
+                clean_url = "https://zoom.us/j/{{meeting_id}}"
                 if self.meeting_password:
-                    clean_url += f"?pwd={self.meeting_password}"
+                    clean_url += "?pwd={{self.meeting_password}}"
                 return clean_url
         
         # For non-Zoom platforms, return original URL
@@ -313,7 +313,7 @@ class ConferenceAttendance(models.Model):
         ]
 
     def __str__(self):
-        return f"{self.user.get_full_name()} - {self.conference.title} ({self.attendance_status})"
+        return "{{self.user.get_full_name()}} - {{self.conference.title}} ({{self.attendance_status}})"
 
 
 class ConferenceRecording(models.Model):
@@ -375,7 +375,7 @@ class ConferenceRecording(models.Model):
         ]
 
     def __str__(self):
-        return f"{self.title} - {self.conference.title}"
+        return "{{self.title}} - {{self.conference.title}}"
 
 
 class ConferenceFile(models.Model):
@@ -419,7 +419,7 @@ class ConferenceFile(models.Model):
         ]
 
     def __str__(self):
-        return f"{self.filename} - {self.conference.title}"
+        return "{{self.filename}} - {{self.conference.title}}"
 
     def delete(self, *args, **kwargs):
         """Enhanced delete method with S3 cleanup for conference files."""
@@ -427,15 +427,15 @@ class ConferenceFile(models.Model):
         logger = logging.getLogger(__name__)
         
         try:
-            logger.info(f"Starting deletion for ConferenceFile: {self.filename} (ID: {self.id})")
+            logger.info("Starting deletion for ConferenceFile: {{self.filename}} (ID: {{self.id}})")
             
             # Delete local file
             if self.local_file:
                 try:
                     self.local_file.delete(save=False)
-                    logger.info(f"Deleted conference file: {self.local_file.name}")
+                    logger.info("Deleted conference file: {{self.local_file.name}}")
                 except Exception as e:
-                    logger.error(f"Error deleting conference file: {e}")
+                    logger.error("Error deleting conference file: {{e}}")
             
             # S3 cleanup
             try:
@@ -444,16 +444,16 @@ class ConferenceFile(models.Model):
                 successful_s3_deletions = sum(1 for success in s3_results.values() if success)
                 total_s3_files = len(s3_results)
                 if total_s3_files > 0:
-                    logger.info(f"S3 cleanup: {successful_s3_deletions}/{total_s3_files} conference files deleted successfully")
+                    logger.info("S3 cleanup: {{successful_s3_deletions}}/{{total_s3_files}} conference files deleted successfully")
             except Exception as e:
-                logger.error(f"Error during S3 cleanup for conference file {self.id}: {str(e)}")
+                logger.error("Error during S3 cleanup for conference file {{self.id}}: {{str(e)}}")
             
             # Call parent delete to remove the database record
             super().delete(*args, **kwargs)
-            logger.info(f"Successfully completed deletion for ConferenceFile: {self.filename} (ID: {self.id})")
+            logger.info("Successfully completed deletion for ConferenceFile: {{self.filename}} (ID: {{self.id}})")
             
         except Exception as e:
-            logger.error(f"Error in ConferenceFile.delete(): {str(e)}")
+            logger.error("Error in ConferenceFile.delete(): {{str(e)}}")
             raise
 
 
@@ -507,7 +507,7 @@ class ConferenceChat(models.Model):
         ordering = ['sent_at']
 
     def __str__(self):
-        return f"{self.sender_name}: {self.message_text[:50]}..."
+        return "{{self.sender_name}}: {{self.message_text[:50]}}..."
 
 
 class ConferenceSyncLog(models.Model):
@@ -562,7 +562,7 @@ class ConferenceSyncLog(models.Model):
         ordering = ['-started_at']
 
     def __str__(self):
-        return f"{self.conference.title} - {self.sync_type} ({self.status})"
+        return "{{self.conference.title}} - {{self.sync_type}} ({{self.status}})"
 
 
 class GuestParticipant(models.Model):
@@ -618,8 +618,8 @@ class GuestParticipant(models.Model):
         ordering = ['-join_time']
 
     def __str__(self):
-        name = self.guest_name or f"Guest-{self.participation_id[:8]}"
-        return f"{name} - {self.conference.title}"
+        name = self.guest_name or "Guest-{{self.participation_id[:8]}}"
+        return "{{name}} - {{self.conference.title}}"
 
     def get_display_name(self):
         """Get a display name for the guest participant"""
@@ -627,7 +627,7 @@ class GuestParticipant(models.Model):
             return self.guest_name
         if self.guest_email:
             return self.guest_email.split('@')[0]
-        return f"Guest-{self.participation_id[:8]}"
+        return "Guest-{{self.participation_id[:8]}}"
 
 
 class BranchZoomAccess(models.Model):
@@ -674,7 +674,7 @@ class BranchZoomAccess(models.Model):
         ]
     
     def __str__(self):
-        return f"{self.branch.name} - {self.zoom_integration.user.get_full_name()} ({self.permission_level})"
+        return "{{self.branch.name}} - {{self.zoom_integration.user.get_full_name()}} ({{self.permission_level}})"
 
 
 class ConferenceRubricEvaluation(models.Model):
@@ -695,7 +695,7 @@ class ConferenceRubricEvaluation(models.Model):
         ordering = ['criterion__position']
     
     def __str__(self):
-        return f"Evaluation for {self.attendance.user.get_full_name()} - {self.conference.title} - {self.criterion}"
+        return "Evaluation for {{self.attendance.user.get_full_name()}} - {{self.conference.title}} - {{self.criterion}}"
         
     def clean(self):
         """Validate evaluation data"""
@@ -703,7 +703,7 @@ class ConferenceRubricEvaluation(models.Model):
         if self.points < 0:
             raise ValidationError({'points': 'Points cannot be negative'})
         if self.points > self.criterion.points:
-            raise ValidationError({'points': f'Points cannot exceed criterion maximum of {self.criterion.points}'})
+            raise ValidationError({'points': "Points cannot exceed criterion maximum of {{self.criterion.points}}"})
         super().clean()
         
     def save(self, *args, **kwargs):
@@ -826,8 +826,8 @@ class ConferenceParticipant(models.Model):
 
     def __str__(self):
         if self.user:
-            return f"{self.display_name} ({self.user.username}) - {self.conference.title}"
-        return f"{self.display_name} (Guest) - {self.conference.title}"
+            return "{{self.display_name}} ({{self.user.username}}) - {{self.conference.title}}"
+        return "{{self.display_name}} (Guest) - {{self.conference.title}}"
 
     def generate_tracking_url(self, base_meeting_url):
         """
@@ -844,7 +844,7 @@ class ConferenceParticipant(models.Model):
             # Import the conversion functions
             from conferences.views import force_convert_registration_url_to_direct_join, clean_zoom_url_format
             
-            logger.info(f" Processing Zoom URL for learner join: {base_meeting_url}")
+            logger.info(" Processing Zoom URL for learner join: {{base_meeting_url}}")
             
             # CRITICAL FIX: Always convert to direct join, regardless of current URL format
             # This ensures learners NEVER see registration forms
@@ -879,14 +879,14 @@ class ConferenceParticipant(models.Model):
                         domain = domain_match.group(1) if domain_match else 'https://zoom.us'
                         
                         # Create simple direct join URL
-                        tracking_url = f"{domain}/j/{meeting_id}"
+                        tracking_url = "{{domain}}/j/{{meeting_id}}"
                         
                         # Add password if available
                         if self.conference.meeting_password:
-                            tracking_url += f"?pwd={self.conference.meeting_password}"
+                            tracking_url += "?pwd={{self.conference.meeting_password}}"
                         
                         conversion_method = 'manual_direct_join'
-                        logger.info(f" Created manual direct join URL: {tracking_url}")
+                        logger.info(" Created manual direct join URL: {{tracking_url}}")
                     else:
                         logger.error(" Could not extract meeting ID, using original URL")
                         tracking_url = base_meeting_url
@@ -894,9 +894,9 @@ class ConferenceParticipant(models.Model):
                 
                 # Final validation: Log the result
                 if 'register' in tracking_url:
-                    logger.error(f" CRITICAL: Learner will still see registration form! URL: {tracking_url}")
+                    logger.error(" CRITICAL: Learner will still see registration form! URL: {{tracking_url}}")
                 else:
-                    logger.info(f" SUCCESS: Learner will get direct join URL: {tracking_url}")
+                    logger.info(" SUCCESS: Learner will get direct join URL: {{tracking_url}}")
                 
                 #  NOW ADD NAME AND EMAIL TO THE CLEAN ZOOM URL
                 # Parse the clean URL and add user credentials
@@ -918,8 +918,8 @@ class ConferenceParticipant(models.Model):
                 from django.conf import settings
                 # Use settings BASE_URL instead of hardcoded domain
                 base_url = getattr(settings, 'BASE_URL', 
-                                   f"https://{getattr(settings, 'PRIMARY_DOMAIN', 'localhost')}")
-                return_url = f"{base_url}{reverse('conferences:conference_redirect_handler', args=[self.conference.id])}"
+                                   "https://{{getattr(settings, 'PRIMARY_DOMAIN', 'localhost')}}")
+                return_url = "{{base_url}}{{reverse('conferences:conference_redirect_handler', args=[self.conference.id])}}"
                 query_params['return_url'] = [return_url]
                 
                 # Rebuild URL with all parameters
@@ -933,7 +933,7 @@ class ConferenceParticipant(models.Model):
                     parsed_url.fragment
                 ))
                 
-                logger.info(f" ENHANCED: Added user credentials to URL: {final_tracking_url}")
+                logger.info(" ENHANCED: Added user credentials to URL: {{final_tracking_url}}")
                 
                 # Update tracking data with detailed conversion info
                 self.tracking_data.update({
@@ -964,19 +964,19 @@ class ConferenceParticipant(models.Model):
                 return final_tracking_url
                 
             except Exception as e:
-                logger.error(f" Error in Zoom URL conversion: {str(e)}")
+                logger.error(" Error in Zoom URL conversion: {{str(e)}}")
                 # Fallback: try to create a simple direct join URL
                 try:
                     from conferences.views import extract_meeting_id_from_any_zoom_url
                     meeting_id = extract_meeting_id_from_any_zoom_url(base_meeting_url)
                     if meeting_id:
-                        fallback_url = f"https://zoom.us/j/{meeting_id}"
+                        fallback_url = "https://zoom.us/j/{{meeting_id}}"
                         if self.conference.meeting_password:
-                            fallback_url += f"?pwd={self.conference.meeting_password}"
-                        logger.info(f" Created fallback direct join URL: {fallback_url}")
+                            fallback_url += "?pwd={{self.conference.meeting_password}}"
+                        logger.info(" Created fallback direct join URL: {{fallback_url}}")
                         return fallback_url
                 except Exception as fe:
-                    logger.error(f" Fallback URL creation failed: {str(fe)}")
+                    logger.error(" Fallback URL creation failed: {{str(fe)}}")
                 
                 # Ultimate fallback: return original URL
                 return base_meeting_url
@@ -1072,7 +1072,7 @@ class ConferenceParticipant(models.Model):
         from django.utils import timezone
         
         # Generate unique identifiers
-        participant_id = f"lms_{conference.id}_{user.id}_{uuid.uuid4().hex[:8]}"
+        participant_id = "lms_{{conference.id}}_{{user.id}}_{{uuid.uuid4().hex[:8]}}"
         session_token = uuid.uuid4().hex
         
         # Prepare user info
@@ -1164,14 +1164,14 @@ class ParticipantTrackingData(models.Model):
         ordering = ['-recorded_at']
 
     def __str__(self):
-        return f"{self.participant.display_name} - {self.get_data_type_display()} ({self.recorded_at})"
+        return "{{self.participant.display_name}} - {{self.get_data_type_display()}} ({{self.recorded_at}})"
 
 
 @receiver(post_delete, sender=Conference)
 def delete_zoom_meeting_on_conference_delete(sender, instance, **kwargs):
     """Automatically delete the Zoom meeting when a Conference instance is removed"""
     if instance.meeting_platform == 'zoom' and instance.meeting_id:
-        logger.info(f"Signal triggered: Attempting to delete Zoom meeting {instance.meeting_id} for conference {instance.id}")
+        logger.info("Signal triggered: Attempting to delete Zoom meeting {{instance.meeting_id}} for conference {{instance.id}}")
         try:
             # Attempt to find a matching Zoom integration for the conference creator
             integration = ZoomIntegration.objects.filter(user=instance.created_by, is_active=True).first()
@@ -1181,25 +1181,25 @@ def delete_zoom_meeting_on_conference_delete(sender, instance, **kwargs):
                     user__branch=instance.created_by.branch,
                     is_active=True
                 ).exclude(user=instance.created_by).first()
-                logger.info(f"Using branch-level integration for user {instance.created_by.id}")
+                logger.info("Using branch-level integration for user {{instance.created_by.id}}")
             # Fallback to any active integration
             if not integration:
                 integration = ZoomIntegration.objects.filter(is_active=True).first()
                 if integration:
-                    logger.info(f"Using fallback integration from user {integration.user.id}")
+                    logger.info("Using fallback integration from user {{integration.user.id}}")
             
             if integration:
                 client = get_zoom_client(integration)
                 result = client.delete_meeting(instance.meeting_id)
                 if result.get('success'):
-                    logger.info(f"Signal handler: Successfully deleted Zoom meeting {instance.meeting_id} for conference {instance.id}")
+                    logger.info("Signal handler: Successfully deleted Zoom meeting {{instance.meeting_id}} for conference {{instance.id}}")
                 else:
-                    logger.error(f"Signal handler: Failed to delete Zoom meeting {instance.meeting_id} for conference {instance.id}: {result.get('error')}")
+                    logger.error("Signal handler: Failed to delete Zoom meeting {{instance.meeting_id}} for conference {{instance.id}}: {{result.get('error')}}")
             else:
                 logger.warning(
-                    f"Signal handler: No active Zoom integration found to delete meeting {instance.meeting_id} for conference {instance.id}"
+                    "Signal handler: No active Zoom integration found to delete meeting {{instance.meeting_id}} for conference {{instance.id}}"
                 )
         except Exception as e:
             logger.exception(
-                f"Signal handler: Error deleting Zoom meeting {instance.meeting_id} for conference {instance.id}: {str(e)}"
+                "Signal handler: Error deleting Zoom meeting {{instance.meeting_id}} for conference {{instance.id}}: {{str(e)}}"
             )

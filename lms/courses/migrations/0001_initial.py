@@ -395,7 +395,7 @@ class Migration(migrations.Migration):
                             ("auto_prerequisite", "Auto-enrolled for Prerequisites"),
                             ("auto_dependent", "Auto-enrolled from Dependent Course"),
                             ("bulk", "Bulk Enrollment"),
-                            ("self", "Self Enrollment"),
+                            ("sel", "Self Enrollment"),
                         ],
                         default="manual",
                         help_text="How the user was enrolled in this course",

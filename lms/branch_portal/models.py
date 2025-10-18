@@ -90,7 +90,7 @@ class BranchPortal(models.Model):
     )
     font_family = models.CharField(
         max_length=100,
-        default="Inter, sans-serif",
+        default="Inter, sans-seri",
         help_text="Font family"
     )
     
@@ -166,7 +166,7 @@ class BranchPortal(models.Model):
         verbose_name_plural = "Branch Portals"
     
     def __str__(self):
-        return f"{self.branch.name} Portal"
+        return "{{self.branch.name}} Portal"
     
     def save(self, *args, **kwargs):
         # Generate slug if not provided
@@ -177,7 +177,7 @@ class BranchPortal(models.Model):
             
             # Make sure slug is unique
             while BranchPortal.objects.filter(slug=slug).exists():
-                slug = f"{base_slug}-{counter}"
+                slug = "{{base_slug}}-{{counter}}"
                 counter += 1
             
             self.slug = slug
@@ -316,14 +316,14 @@ class Order(models.Model):
         ordering = ['-created_at']
         
     def __str__(self):
-        return f"Order {self.order_number} - {self.user.username}"
+        return "Order {{self.order_number}} - {{self.user.username}}"
     
     def save(self, *args, **kwargs):
         # Generate order number if not provided
         if not self.order_number:
             timestamp = timezone.now().strftime('%Y%m%d%H%M%S')
             random_suffix = str(hash(self.user.username + timestamp))[-4:]
-            self.order_number = f"ORD-{timestamp}-{random_suffix}"
+            self.order_number = "ORD-{{timestamp}}-{{random_suffix}}"
         
         # Convert tax_amount to Decimal if it's not already
         if not isinstance(self.tax_amount, Decimal):
@@ -364,7 +364,7 @@ class Order(models.Model):
             
             if created:
                 # Log enrollment
-                print(f"User {self.user.username} enrolled in course {item.course.title}")
+                print("User {{self.user.username}} enrolled in course {{item.course.title}}")
 
 class OrderItem(models.Model):
     """Model for individual items in an order"""
@@ -400,7 +400,7 @@ class OrderItem(models.Model):
         unique_together = ['order', 'course']
         
     def __str__(self):
-        return f"{self.course.title} - {self.order.order_number}"
+        return "{{self.course.title}} - {{self.order.order_number}}"
     
     @property
     def subtotal(self):
@@ -426,7 +426,7 @@ class Cart(models.Model):
         verbose_name_plural = "Carts"
         
     def __str__(self):
-        return f"Cart for {self.user.username}"
+        return "Cart for {{self.user.username}}"
     
     @property
     def total_items(self):
@@ -543,7 +543,7 @@ class CartItem(models.Model):
         unique_together = ['cart', 'course']
         
     def __str__(self):
-        return f"{self.course.title} in {self.cart}"
+        return "{{self.course.title}} in {{self.cart}}"
     
     @property
     def subtotal(self):
@@ -603,7 +603,7 @@ class MainContentSection(models.Model):
         verbose_name_plural = "Main Content Sections"
     
     def __str__(self):
-        return f"{self.portal.business_name} - {self.title}"
+        return "{{self.portal.business_name}} - {{self.title}}"
 
 
 class FeatureGridSection(models.Model):
@@ -642,7 +642,7 @@ class FeatureGridSection(models.Model):
         verbose_name_plural = "Feature Grid Sections"
     
     def __str__(self):
-        return f"{self.portal.business_name} - Feature Grid {self.id}"
+        return "{{self.portal.business_name}} - Feature Grid {{self.id}}"
 
 
 class FeatureGridItem(models.Model):
@@ -693,7 +693,7 @@ class FeatureGridItem(models.Model):
         verbose_name_plural = "Feature Grid Items"
     
     def __str__(self):
-        return f"{self.feature_section} - {self.title}"
+        return "{{self.feature_section}} - {{self.title}}"
 
 
 class PreFooterSection(models.Model):
@@ -724,7 +724,7 @@ class PreFooterSection(models.Model):
         verbose_name_plural = "Pre-Footer Sections"
     
     def __str__(self):
-        return f"{self.portal.business_name} - Pre-Footer"
+        return "{{self.portal.business_name}} - Pre-Footer"
 
 
 class CustomMenuLink(models.Model):
@@ -758,7 +758,7 @@ class CustomMenuLink(models.Model):
         verbose_name_plural = "Custom Menu Links"
     
     def __str__(self):
-        return f"{self.pre_footer} - {self.title}"
+        return "{{self.pre_footer}} - {{self.title}}"
 
 
 class SocialMediaIcon(models.Model):
@@ -798,4 +798,4 @@ class SocialMediaIcon(models.Model):
         verbose_name_plural = "Social Media Icons"
     
     def __str__(self):
-        return f"{self.pre_footer} - {self.platform_name}"
+        return "{{self.pre_footer}} - {{self.platform_name}}"

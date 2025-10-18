@@ -79,20 +79,33 @@ class MobileCourseSettings {
         const toggle = nav.querySelector('.mobile-nav-toggle');
         const menu = nav.querySelector('.mobile-nav-menu');
         
-        toggle.addEventListener('click', () => {
-            menu.classList.toggle('hidden');
-            toggle.querySelector('.fa-chevron-down').classList.toggle('rotate-180');
-        });
+        if (toggle) {
+            toggle.addEventListener('click', () => {
+                try {
+                    menu.classList.toggle('hidden');
+                    const chevron = toggle.querySelector('.fa-chevron-down');
+                    if (chevron) {
+                        chevron.classList.toggle('rotate-180');
+                    }
+                } catch (error) {
+                    console.error('Error handling navigation toggle:', error);
+                }
+            });
+        }
 
         // Handle navigation clicks
         nav.querySelectorAll('.mobile-nav-item').forEach(item => {
             item.addEventListener('click', (e) => {
-                e.preventDefault();
-                const targetId = item.getAttribute('href');
-                const target = document.querySelector(targetId);
-                if (target) {
-                    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                    menu.classList.add('hidden');
+                try {
+                    e.preventDefault();
+                    const targetId = item.getAttribute('href');
+                    const target = document.querySelector(targetId);
+                    if (target) {
+                        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        menu.classList.add('hidden');
+                    }
+                } catch (error) {
+                    console.error('Error handling navigation click:', error);
                 }
             });
         });

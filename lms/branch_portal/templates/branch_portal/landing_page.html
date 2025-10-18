@@ -13,6 +13,117 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Roboto:wght@400;500;700&family=Merriweather:wght@400;700&family=Poppins:wght@400;500;600;700&family=Playfair+Display:wght@400;700&display=swap" rel="stylesheet">
     <!-- Custom CSS -->
     <link rel="stylesheet" href="{% static 'branch_portal/css/landing_page.css' %}">
+    <!-- Additional CSS for fixes -->
+    <style>
+        /* Fix for missing styles */
+        .navbar-brand {
+            font-size: 1.5rem !important;
+            font-weight: 700 !important;
+        }
+        
+        .navbar-nav .nav-link {
+            font-weight: 500 !important;
+            padding: 0.5rem 1rem !important;
+        }
+        
+        .btn {
+            border-radius: 8px !important;
+            font-weight: 600 !important;
+            padding: 0.75rem 1.5rem !important;
+        }
+        
+        .course-filters {
+            background: white !important;
+            border-radius: 16px !important;
+            padding: 2rem !important;
+            box-shadow: 0 4px 25px rgba(0, 0, 0, 0.08) !important;
+            margin-bottom: 3rem !important;
+        }
+        
+        .form-label {
+            font-weight: 600 !important;
+            color: #4a5568 !important;
+            margin-bottom: 0.5rem !important;
+        }
+        
+        .form-select {
+            border: 2px solid #e2e8f0 !important;
+            border-radius: 8px !important;
+            padding: 0.75rem 1rem !important;
+        }
+        
+        .form-select:focus {
+            border-color: var(--primary-color) !important;
+            box-shadow: 0 0 0 3px rgba(76, 111, 255, 0.1) !important;
+        }
+        
+        /* Fix for empty courses message */
+        .no-courses-message {
+            text-align: center !important;
+            padding: 3rem 1rem !important;
+            color: #64748b !important;
+            font-size: 1.1rem !important;
+        }
+        
+        /* Hero section improvements */
+        .hero-banner {
+            position: relative !important;
+            overflow: hidden !important;
+        }
+        
+        .banner-content h1 {
+            font-size: 3rem !important;
+            font-weight: 700 !important;
+            margin-bottom: 1rem !important;
+        }
+        
+        .banner-content .lead {
+            font-size: 1.25rem !important;
+            margin-bottom: 2rem !important;
+        }
+        
+        /* Footer improvements */
+        .footer {
+            background-color: #1a2142 !important;
+            color: white !important;
+            padding: 3rem 0 1rem !important;
+        }
+        
+        .footer-bottom {
+            border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
+            padding-top: 1.5rem !important;
+            margin-top: 2rem !important;
+        }
+        
+        /* Responsive fixes */
+        @media (max-width: 768px) {
+            .hero-content h1 {
+                font-size: 2rem !important;
+            }
+            
+            .course-filters {
+                padding: 1.5rem !important;
+            }
+            
+            .navbar-brand {
+                font-size: 1.25rem !important;
+            }
+        }
+        
+        @media (max-width: 576px) {
+            .hero-content h1 {
+                font-size: 1.75rem !important;
+            }
+            
+            .banner-content .lead {
+                font-size: 1rem !important;
+            }
+            
+            .course-filters {
+                padding: 1rem !important;
+            }
+        }
+    </style>
     
     <!-- Custom Theme CSS from Portal Settings -->
     <style>
@@ -372,6 +483,8 @@
     <section class="courses-section py-5 bg-light" id="courses">
         <div class="container">
             <div class="section-header text-center mb-5">
+                <h2 class="section-title">Available Courses</h2>
+                <p class="section-subtitle">Discover our comprehensive learning programs</p>
             </div>
             
             <!-- Course Filters -->
@@ -379,7 +492,9 @@
                 <div class="row g-3">
                     <div class="col-md-3">
                         <div class="form-group">
-                            <label for="category-filter" class="form-label">Category</label>
+                            <label for="category-filter" class="form-label">
+                                <i class="fas fa-filter me-2"></i>Category
+                            </label>
                             <select id="category-filter" class="form-select">
                                 <option value="">All Categories</option>
                                 {% for category in categories %}
@@ -390,7 +505,9 @@
                     </div>
                     <div class="col-md-3">
                         <div class="form-group">
-                            <label for="instructor-filter" class="form-label">Instructor</label>
+                            <label for="instructor-filter" class="form-label">
+                                <i class="fas fa-user me-2"></i>Instructor
+                            </label>
                             <select id="instructor-filter" class="form-select">
                                 <option value="">All Instructors</option>
                                 {% for instructor in instructors %}
@@ -402,7 +519,9 @@
                     {% if show_pricing %}
                     <div class="col-md-3">
                         <div class="form-group">
-                            <label for="price-filter" class="form-label">Price Range</label>
+                            <label for="price-filter" class="form-label">
+                                <i class="fas fa-dollar-sign me-2"></i>Price Range
+                            </label>
                             <select id="price-filter" class="form-select">
                                 <option value="">Any Price</option>
                                 <option value="free">Free</option>
@@ -415,7 +534,9 @@
                     </div>
                     {% endif %}
                     <div class="col-md-3 d-flex align-items-end">
-                        <button id="apply-filters" class="btn btn-primary w-100">Apply Filters</button>
+                        <button id="apply-filters" class="btn btn-primary w-100">
+                            <i class="fas fa-search me-2"></i>Apply Filters
+                        </button>
                     </div>
                 </div>
             </div>
@@ -495,8 +616,12 @@
                     </div>
                     {% endfor %}
                 {% else %}
-                    <div class="col-12 text-center">
-                        <p>No courses available for this branch yet.</p>
+                    <div class="col-12">
+                        <div class="no-courses-message">
+                            <i class="fas fa-book-open fa-3x mb-3" style="color: #cbd5e0;"></i>
+                            <h4 class="mb-3">No courses available for this branch yet.</h4>
+                            <p class="mb-0">Check back soon for new learning opportunities!</p>
+                        </div>
                     </div>
                 {% endif %}
             </div>

@@ -58,7 +58,7 @@ def update_topic_progress_on_discussion_participation(sender, instance, **kwargs
                     })
                     
                     # Log the completion
-                    logger.info(f"Discussion participation auto-marked topic {topic.id} as complete for user {instance.user.username}")
+                    logger.info("Discussion participation auto-marked topic {{topic.id}} as complete for user {{instance.user.username}}")
                 
                 topic_progress.save()
                 
@@ -68,4 +68,4 @@ def update_topic_progress_on_discussion_participation(sender, instance, **kwargs
                     
         except Exception as e:
             # Log error but don't fail the save operation
-            logger.error(f"Error updating topic progress for discussion participation: {e}")
+            logger.error("Error updating topic progress for discussion participation: {{e}}")

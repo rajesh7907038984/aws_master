@@ -184,26 +184,26 @@ class SharePointIntegrationAdmin(admin.ModelAdmin):
                 if success:
                     self.message_user(
                         request,
-                        f"✓ Connection test passed for {integration.name}: {message}"
+                        "✓ Connection test passed for {{integration.name}}: {{message}}"
                     )
-                    results.append(f"✓ {integration.name}: {message}")
+                    results.append("✓ {{integration.name}}: {{message}}")
                 else:
                     self.message_user(
                         request,
-                        f"✗ Connection test failed for {integration.name}: {message}",
+                        "✗ Connection test failed for {{integration.name}}: {{message}}",
                         level='ERROR'
                     )
-                    results.append(f"✗ {integration.name}: {message}")
+                    results.append("✗ {{integration.name}}: {{message}}")
                     
             except Exception as e:
-                error_msg = f"Connection test error for {integration.name}: {str(e)}"
+                error_msg = "Connection test error for {{integration.name}}: {{str(e)}}"
                 self.message_user(request, error_msg, level='ERROR')
-                results.append(f"✗ {integration.name}: {str(e)}")
+                results.append("✗ {{integration.name}}: {{str(e)}}")
         
         # Display summary
         self.message_user(
             request,
-            f"Connection test completed for {len(queryset)} integration(s)"
+            "Connection test completed for {{len(queryset)}} integration(s)"
         )
     
     test_connection.short_description = "Test SharePoint connection"
@@ -220,7 +220,7 @@ class SharePointIntegrationAdmin(admin.ModelAdmin):
         
         self.message_user(
             request,
-            f"User sync started for {count} integration(s). Check sync status in a few minutes."
+            "User sync started for {{count}} integration(s). Check sync status in a few minutes."
         )
     
     sync_users.short_description = "Sync users to SharePoint"
@@ -237,7 +237,7 @@ class SharePointIntegrationAdmin(admin.ModelAdmin):
         
         self.message_user(
             request,
-            f"Enrollment sync started for {count} integration(s). Check sync status in a few minutes."
+            "Enrollment sync started for {{count}} integration(s). Check sync status in a few minutes."
         )
     
     sync_enrollments.short_description = "Sync enrollments to SharePoint"
@@ -254,7 +254,7 @@ class SharePointIntegrationAdmin(admin.ModelAdmin):
         
         self.message_user(
             request,
-            f"Progress sync started for {count} integration(s). Check sync status in a few minutes."
+            "Progress sync started for {{count}} integration(s). Check sync status in a few minutes."
         )
     
     sync_progress.short_description = "Sync progress to SharePoint"
@@ -271,7 +271,7 @@ class SharePointIntegrationAdmin(admin.ModelAdmin):
         
         self.message_user(
             request,
-            f"Full sync started for {count} integration(s). Check sync status in a few minutes."
+            "Full sync started for {{count}} integration(s). Check sync status in a few minutes."
         )
     
     sync_all_data.short_description = "Sync all data to SharePoint"
@@ -281,7 +281,7 @@ class SharePointIntegrationAdmin(admin.ModelAdmin):
         updated = queryset.update(is_active=True)
         self.message_user(
             request,
-            f"Successfully activated {updated} integration(s)."
+            "Successfully activated {{updated}} integration(s)."
         )
     
     activate_integrations.short_description = "Activate selected integrations"
@@ -291,7 +291,7 @@ class SharePointIntegrationAdmin(admin.ModelAdmin):
         updated = queryset.update(is_active=False)
         self.message_user(
             request,
-            f"Successfully deactivated {updated} integration(s)."
+            "Successfully deactivated {{updated}} integration(s)."
         )
     
     deactivate_integrations.short_description = "Deactivate selected integrations"

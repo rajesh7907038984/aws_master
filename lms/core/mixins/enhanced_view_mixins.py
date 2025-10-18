@@ -42,7 +42,7 @@ class BaseErrorHandlingMixin:
     
     def handle_permission_error(self, request, error_message):
         """Handle permission denied errors consistently"""
-        logger.warning(f"Permission denied in {self.__class__.__name__}: {error_message} (User: {request.user.id if hasattr(request, 'user') else 'Unknown'})")
+        logger.warning("Permission denied in {{self.__class__.__name__}}: {{error_message}} (User: {{request.user.id if hasattr(request, 'user') else 'Unknown'}})")
         
         if self.is_ajax_request(request):
             return JsonResponse({
@@ -58,7 +58,7 @@ class BaseErrorHandlingMixin:
     def handle_validation_error(self, request, error):
         """Handle validation errors consistently"""
         error_message = str(error) if hasattr(error, 'message') else 'Please check your input and try again.'
-        logger.warning(f"Validation error in {self.__class__.__name__}: {error_message}")
+        logger.warning("Validation error in {{self.__class__.__name__}}: {{error_message}}")
         
         if self.is_ajax_request(request):
             return JsonResponse({
@@ -72,7 +72,7 @@ class BaseErrorHandlingMixin:
     
     def handle_suspicious_operation(self, request, error_message):
         """Handle suspicious operation errors"""
-        logger.warning(f"Suspicious operation in {self.__class__.__name__}: {error_message} (User: {request.user.id if hasattr(request, 'user') else 'Unknown'})")
+        logger.warning("Suspicious operation in {{self.__class__.__name__}}: {{error_message}} (User: {{request.user.id if hasattr(request, 'user') else 'Unknown'}})")
         
         if self.is_ajax_request(request):
             return JsonResponse({
@@ -87,7 +87,7 @@ class BaseErrorHandlingMixin:
     
     def handle_database_error(self, request, error):
         """Handle database integrity errors"""
-        logger.error(f"Database error in {self.__class__.__name__}: {str(error)}")
+        logger.error("Database error in {{self.__class__.__name__}}: {{str(error)}}")
         
         # Provide user-friendly message
         user_message = "A database error occurred. This might be due to conflicting data. Please try again."
@@ -104,7 +104,7 @@ class BaseErrorHandlingMixin:
     
     def handle_unexpected_error(self, request, error):
         """Handle unexpected errors with comprehensive logging"""
-        logger.error(f"Unexpected error in {self.__class__.__name__}: {str(error)}", exc_info=True, extra={
+        logger.error("Unexpected error in {{self.__class__.__name__}}: {{str(error)}}", exc_info=True, extra={
             'view_class': self.__class__.__name__,
             'user_id': getattr(request.user, 'id', 'anonymous') if hasattr(request, 'user') else 'anonymous',
             'path': request.path,
@@ -168,7 +168,7 @@ class EnhancedFormHandlingMixin(BaseErrorHandlingMixin, FormMixin):
     
     def form_invalid(self, form):
         """Enhanced form error handling with better user feedback"""
-        logger.warning(f"Form validation failed in {self.__class__.__name__}: {form.errors}")
+        logger.warning("Form validation failed in {{self.__class__.__name__}}: {{form.errors}}")
         
         if self.is_ajax_request(self.request):
             return self.handle_ajax_form_error(form)
@@ -202,7 +202,7 @@ class EnhancedFormHandlingMixin(BaseErrorHandlingMixin, FormMixin):
         for field, error_list in form.errors.items():
             field_name = self.get_field_display_name(field, form)
             for error in error_list:
-                error_messages.append(f"{field_name}: {error}")
+                error_messages.append("{{field_name}}: {{error}}")
         
         # Limit number of error messages to avoid overwhelming user
         if len(error_messages) > 5:
@@ -237,7 +237,7 @@ class EnhancedFormHandlingMixin(BaseErrorHandlingMixin, FormMixin):
                 return super().form_valid(form)
         except Exception as e:
             # Add form error and re-process as invalid
-            form.add_error(None, f"An error occurred while saving: {str(e)}")
+            form.add_error(None, "An error occurred while saving: {{str(e)}}")
             return self.form_invalid(form)
 
 
@@ -267,7 +267,7 @@ class CSRFEnhancedMixin:
                 except Exception as e:
                     # Check if this is a CSRF-related error
                     error_str = str(e).lower()
-                    if any(keyword in error_str for keyword in ['csrf', 'forbidden', 'token']):
+                    if any(keyword in error_str for keyword in ['csr", "forbidden', 'token']):
                         return self.handle_csrf_error(request)
                     raise
             return csrf_protected_dispatch(request, *args, **kwargs)
@@ -312,7 +312,7 @@ class GradingViewMixin(EnhancedFormHandlingMixin, AtomicViewMixin):
             
             return super().form_valid(form)
         except Exception as e:
-            logger.error(f"Error in grading form validation: {str(e)}")
+            logger.error("Error in grading form validation: {{str(e)}}")
             form.add_error(None, 'An error occurred while saving the grade. Please try again.')
             return self.form_invalid(form)
     
@@ -335,7 +335,7 @@ class CourseViewMixin(EnhancedFormHandlingMixin, AtomicViewMixin):
     
     def handle_permission_error(self, request, error_message):
         """Course-specific permission error handling"""
-        logger.warning(f"Course permission denied: {error_message}")
+        logger.warning("Course permission denied: {{error_message}}")
         
         if self.is_ajax_request(request):
             return JsonResponse({
@@ -362,7 +362,7 @@ class UserManagementMixin(EnhancedFormHandlingMixin, AtomicViewMixin):
         else:
             user_message = "A database error occurred while processing the user information. Please try again."
         
-        logger.error(f"User management database error: {str(error)}")
+        logger.error("User management database error: {{str(error)}}")
         
         if self.is_ajax_request(request):
             return JsonResponse({

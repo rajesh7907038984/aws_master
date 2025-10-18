@@ -57,22 +57,22 @@ class Command(BaseCommand):
             if dry_run:
                 self.stdout.write(
                     self.style.WARNING(
-                        f' DRY RUN: Would clean up {expired_count} expired '
-                        f'and {corrupted_count} corrupted sessions'
+                        " DRY RUN: Would clean up {{expired_count}} expired "
+                        "and {{corrupted_count}} corrupted sessions"
                     )
                 )
             else:
                 self.stdout.write(
                     self.style.SUCCESS(
-                        f' Cleaned up {expired_count} expired '
-                        f'and {corrupted_count} corrupted sessions'
+                        " Cleaned up {{expired_count}} expired "
+                        "and {{corrupted_count}} corrupted sessions"
                     )
                 )
 
         except Exception as e:
-            logger.error(f"Session cleanup failed: {str(e)}")
+            logger.error("Session cleanup failed: {{str(e)}}")
             self.stdout.write(
-                self.style.ERROR(f' Session cleanup failed: {str(e)}')
+                self.style.ERROR(" Session cleanup failed: {{str(e)}}")
             )
             return 1
 
@@ -87,21 +87,21 @@ class Command(BaseCommand):
             count = expired_sessions.count()
             
             if verbose:
-                self.stdout.write(f'📅 Found {count} expired sessions')
+                self.stdout.write("📅 Found {{count}} expired sessions")
             
             if not dry_run and count > 0:
                 with transaction.atomic():
                     deleted_count, _ = expired_sessions.delete()
                     if verbose:
-                        self.stdout.write(f'🗑️  Deleted {deleted_count} expired sessions')
+                        self.stdout.write("🗑️  Deleted {{deleted_count}} expired sessions")
                     return deleted_count
             
             return count
 
         except Exception as e:
-            logger.error(f"Error cleaning expired sessions: {str(e)}")
+            logger.error("Error cleaning expired sessions: {{str(e)}}")
             if verbose:
-                self.stdout.write(self.style.ERROR(f'Error cleaning expired sessions: {str(e)}'))
+                self.stdout.write(self.style.ERROR("Error cleaning expired sessions: {{str(e)}}"))
             return 0
 
     def _cleanup_corrupted_sessions(self, dry_run, verbose):
@@ -111,7 +111,7 @@ class Command(BaseCommand):
             total_sessions = Session.objects.count()
             
             if verbose:
-                self.stdout.write(f' Checking {total_sessions} sessions for corruption...')
+                self.stdout.write(" Checking {{total_sessions}} sessions for corruption...")
             
             # Check each session for corruption - use iterator for memory efficiency
             for session in Session.objects.all().iterator():
@@ -133,27 +133,27 @@ class Command(BaseCommand):
                     corrupted_sessions.append(session.session_key)  # Use session_key instead of pk
                     if verbose:
                         self.stdout.write(
-                            f'🚨 Corrupted session found: {session.session_key[:8]}... - {str(e)}'
+                            "🚨 Corrupted session found: {{session.session_key[:8]}}... - {{str(e)}}"
                         )
             
             count = len(corrupted_sessions)
             if verbose:
-                self.stdout.write(f' Found {count} corrupted sessions')
+                self.stdout.write(" Found {{count}} corrupted sessions")
             
             if not dry_run and count > 0:
                 with transaction.atomic():
                     # Use session_key for deletion
                     deleted_count, _ = Session.objects.filter(session_key__in=corrupted_sessions).delete()
                     if verbose:
-                        self.stdout.write(f'🗑️  Deleted {deleted_count} corrupted sessions')
+                        self.stdout.write("🗑️  Deleted {{deleted_count}} corrupted sessions")
                     return deleted_count
             
             return count
 
         except Exception as e:
-            logger.error(f"Error cleaning corrupted sessions: {str(e)}")
+            logger.error("Error cleaning corrupted sessions: {{str(e)}}")
             if verbose:
-                self.stdout.write(self.style.ERROR(f'Error cleaning corrupted sessions: {str(e)}'))
+                self.stdout.write(self.style.ERROR("Error cleaning corrupted sessions: {{str(e)}}"))
             return 0
 
     def _clear_session_cache(self, verbose):
@@ -170,8 +170,8 @@ class Command(BaseCommand):
                 self.stdout.write('🗑️  Cleared session cache entries')
 
         except Exception as e:
-            logger.warning(f"Could not clear session cache: {str(e)}")
+            logger.warning("Could not clear session cache: {{str(e)}}")
             if verbose:
                 self.stdout.write(
-                    self.style.WARNING(f'  Could not clear session cache: {str(e)}')
+                    self.style.WARNING("  Could not clear session cache: {{str(e)}}")
                 )

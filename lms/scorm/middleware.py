@@ -40,34 +40,39 @@ class SCORMAuthenticationMiddleware:
         )
     
     def handle_scorm_authentication(self, request):
-        """Handle authentication for SCORM requests"""
+        """Handle authentication for SCORM requests with proper security"""
         # If user is already authenticated, no need to do anything
         if request.user.is_authenticated:
             return
         
-        # Try to restore user from session
+        # Try to restore user from session using proper Django authentication
         session_user_id = request.session.get('_auth_user_id')
         if session_user_id:
             try:
                 User = get_user_model()
-                user = User.objects.get(id=session_user_id)
-                # Manually set the user in the request
-                request.user = user
-                logger.info(f"SCORM Middleware: Restored user {user.username} from session")
+                user = User.objects.get(id=session_user_id, is_active=True)
+                # Use proper Django authentication instead of manual assignment
+                from django.contrib.auth import login
+                login(request, user)
+                logger.info("SCORM Middleware: Properly authenticated user {{user.username}} from session")
             except User.DoesNotExist:
-                logger.warning(f"SCORM Middleware: Invalid session user ID: {session_user_id}")
+                logger.warning("SCORM Middleware: Invalid or inactive session user ID: {{session_user_id}}")
+                # Clear invalid session
+                request.session.flush()
         
-        # Check for referer-based authentication
+        # Check for referer-based authentication with proper validation
         elif request.META.get('HTTP_REFERER'):
             referer = request.META.get('HTTP_REFERER', '')
             if 'scorm/launch' in referer or 'scorm/content' in referer:
-                # Try to get user from session based on referer
+                # Try to get user from session based on referer with proper authentication
                 session_user_id = request.session.get('_auth_user_id')
                 if session_user_id:
                     try:
                         User = get_user_model()
-                        user = User.objects.get(id=session_user_id)
-                        request.user = user
-                        logger.info(f"SCORM Middleware: Restored user {user.username} from referer")
+                        user = User.objects.get(id=session_user_id, is_active=True)
+                        from django.contrib.auth import login
+                        login(request, user)
+                        logger.info("SCORM Middleware: Properly authenticated user {{user.username}} from referer")
                     except User.DoesNotExist:
-                        pass
+                        logger.warning("SCORM Middleware: Invalid user from referer: {{session_user_id}}")
+                        request.session.flush()

@@ -219,6 +219,7 @@ function showNotification(message, type) {
 
 // Initialize when page loads
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('Category modal initialized:', {
         showCategoryModal: typeof showCategoryModal,
         hideCategoryModal: typeof hideCategoryModal
     });

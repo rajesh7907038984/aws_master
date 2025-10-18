@@ -18,12 +18,12 @@ class CSPMiddleware:
     def __call__(self, request: HttpRequest) -> HttpResponse:
         response = self.get_response(request)
         
-        # Set comprehensive CSP header to allow eval() and other JavaScript features
-        # This is necessary for SCORM content, TinyMCE editor, and other JavaScript libraries
+        # Set more secure CSP header with minimal unsafe directives
+        # Only allow unsafe-eval for specific SCORM content and TinyMCE
         csp_policy = (
-            "default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob:; "
-            "frame-src 'self' 'unsafe-inline' 'unsafe-eval' *.amazonaws.com *.s3.amazonaws.com https://lms-staging-nexsy-io.s3.eu-west-2.amazonaws.com; "
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval' *.amazonaws.com *.s3.amazonaws.com *.articulate.com *.adobe.com *.captivate.com *.googleapis.com *.gstatic.com; "
+            "default-src 'self' data: blob:; "
+            "frame-src 'self' *.amazonaws.com *.s3.amazonaws.com https://lms-staging-nexsy-io.s3.eu-west-2.amazonaws.com; "
+            "script-src 'self' 'unsafe-inline' *.amazonaws.com *.s3.amazonaws.com *.articulate.com *.adobe.com *.captivate.com *.googleapis.com *.gstatic.com; "
             "style-src 'self' 'unsafe-inline' *.amazonaws.com *.s3.amazonaws.com fonts.googleapis.com *.gstatic.com; "
             "img-src 'self' data: blob: *.amazonaws.com *.s3.amazonaws.com *.articulate.com *.adobe.com *.captivate.com; "
             "font-src 'self' *.amazonaws.com *.s3.amazonaws.com fonts.gstatic.com fonts.googleapis.com; "

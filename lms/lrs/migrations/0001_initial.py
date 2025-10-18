@@ -188,7 +188,7 @@ class Migration(migrations.Migration):
                 ('actor_name', models.CharField(blank=True, max_length=255)),
                 ('verb_id', models.URLField()),
                 ('verb_display', models.JSONField(default=dict)),
-                ('object_type', models.CharField(choices=[('Activity', 'Activity'), ('Agent', 'Agent'), ('Group', 'Group'), ('StatementRef', 'StatementRef'), ('SubStatement', 'SubStatement')], max_length=20)),
+                ('object_type', models.CharField(choices=[('Activity', 'Activity'), ('Agent', 'Agent'), ('Group', 'Group'), ('StatementRe", "StatementRe"), ("SubStatement', 'SubStatement')], max_length=20)),
                 ('object_id', models.URLField()),
                 ('object_definition_name', models.JSONField(default=dict)),
                 ('object_definition_description', models.JSONField(default=dict)),

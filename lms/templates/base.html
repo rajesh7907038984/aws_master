@@ -7,48 +7,26 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Nexsy LMS{% endblock %}</title>
     
-    <!-- Error handling scripts removed to fix syntax errors -->
+    <!-- Core JavaScript - Optimized Loading Order -->
+    <!-- Essential scripts only - loaded in dependency order -->
     
-    <!-- Performance Monitor - load first to catch issues early -->
-    
-    <!-- Version manager - load first for proper file versioning -->
+    <!-- 1. Core utilities (no dependencies) -->
     <script src="{% static 'core/js/version-manager.js' %}"></script>
     
-    <!-- CSRF Token Manager - centralized token management -->
+    <!-- 2. CSRF handling (depends on core utilities) -->
     <script src="{% static 'js/csrf-token-manager.js' %}"></script>
     
-    <!-- Standardized API Client - 100% Frontend-Backend Alignment -->
-    <script src="{% static 'js/standardized-api-client.js' %}"></script>
-    
-    <!-- Unified Error Handler - 100% Frontend-Backend Alignment -->
+    <!-- 3. Error handling (depends on CSRF) -->
     <script src="{% static 'js/unified-error-handler.js' %}"></script>
     
-    <!-- Unified Validation System - 100% Frontend-Backend Alignment -->
+    <!-- 4. API client (depends on CSRF and error handling) -->
+    <script src="{% static 'js/standardized-api-client.js' %}"></script>
+    
+    <!-- 5. Validation system (depends on API client) -->
     <script src="{% static 'js/unified-validation-system.js' %}"></script>
     
-    <!-- Performance Optimizer - 100% Frontend-Backend Alignment -->
-    <script src="{% static 'js/performance-optimizer.js' %}"></script>
-    
-    <!-- Enhanced Fetch with CSRF handling - wraps all fetch calls -->
-    <script src="{% static 'js/csrf-enhanced-fetch.js' %}"></script>
-    
-    <!-- Unified CSRF handler - load early for consistent CSRF handling -->
-    <script src="{% static 'core/js/unified-csrf-handler.js' %}"></script>
-    
-    <!-- Safe fetch utilities - load early for consistent AJAX handling -->
-    <script src="{% static 'core/js/safe-fetch-utils.js' %}"></script>
-    
-    <!-- Loading indicators - load early for all async operations -->
-    <!-- <script src="{% static 'core/js/loading-indicators.js' %}"></script> -->
-    
-    <!-- Unified timezone handler - consolidates all timezone functionality -->
-    <script src="{% static 'core/js/unified-timezone-handler.js' %}"></script>
-    
-    <!-- User device time utility - always load for time utilities -->
-    <script src="{% static 'core/js/user-device-time.js' %}"></script>
-    
-    <!-- Unified Authentication Handler - prevents conflicts -->
-    <script src="{% static 'core/js/unified-auth-handler.js' %}"></script>
+    <!-- 6. Performance monitoring (loads last to avoid conflicts) -->
+    <script src="{% static 'js/performance-optimizer.js' %}" defer></script>
     
     <!-- Set authentication status for unified handler -->
     <script>
@@ -112,13 +90,19 @@
     <!-- Disable console logs in production -->
     <script src="{% static 'core/js/disable-console-logs.js' %}"></script>
     
-    <!-- Suppress benign JavaScript errors -->
+    <!-- Development Error Display - Disabled to prevent error popups -->
     <script>
-        // Suppress benign syntax errors from browser misinterpretation
+        // Error popup functionality disabled to prevent unwanted popups
         window.addEventListener('error', function(event) {
-            // Suppress errors from URL patterns being interpreted as JavaScript
-            if (event.message && event.message.includes('Unexpected token')) {
-                event.preventDefault();
+            // Log syntax errors to console instead of showing popups
+            if (event.message && (event.message.includes('Unexpected token') || 
+                                  event.message.includes('SyntaxError'))) {
+                console.error('Syntax Error Detected:', event.message);
+                var filename = event.filename || 'Unknown';
+                var lineno = event.lineno || 'Unknown';
+                // DISABLED: alert('JavaScript Syntax Error:\n' + event.message + '\nFile: ' + filename + '\nLine: ' + lineno);
+                // Log to console instead of showing popup
+                console.warn('JavaScript Syntax Error (popup disabled):', event.message, 'File:', filename, 'Line:', lineno);
                 return true;
             }
         });
@@ -835,6 +819,44 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
     
     <script>
+        // Browser compatibility check
+        (function() {
+            var compatibilityIssues = [];
+            
+            // Check for essential features
+            if (!window.Promise) {
+                compatibilityIssues.push('Promises not supported');
+            }
+            if (!window.fetch) {
+                compatibilityIssues.push('Fetch API not supported');
+            }
+            if (!window.Map) {
+                compatibilityIssues.push('Map not supported');
+            }
+            if (!window.Set) {
+                compatibilityIssues.push('Set not supported');
+            }
+            
+            // Check for ES6 features that might cause syntax errors
+            try {
+                eval('() => {}');
+            } catch (e) {
+                compatibilityIssues.push('Arrow functions not supported');
+            }
+            
+            try {
+                eval('`template ${"literal"}`');
+            } catch (e) {
+                compatibilityIssues.push('Template literals not supported');
+            }
+            
+            if (compatibilityIssues.length > 0) {
+                console.warn('Browser compatibility issues detected:', compatibilityIssues);
+                // Add a class to body for CSS-based fallbacks
+                document.body.classList.add('browser-compatibility-issues');
+            }
+        })();
+        
         // Initialize highlight.js
         document.addEventListener('DOMContentLoaded', function() {
             if (window.hljs) {
@@ -904,13 +926,7 @@
     <!-- Type Safety Utilities - Load first for type checking -->
     <script src="{% static 'js/type-safety-utils.js' %}"></script>
     
-    <!-- Universal Error Handler - Foundation for all error handling -->
-    <script src="{% static 'js/universal-error-handler.js' %}"></script>
-    
-    <!-- Production Error Handler - Enhanced error handling for production -->
-    {% if not debug %}
-    <script src="{% static 'js/production-error-handler.js' %}"></script>
-    {% endif %}
+    <!-- Error handling is already included above with unified-error-handler.js -->
     
     <!-- Global Form Handler - Comprehensive Submit Button Fix -->
     <script src="{% static 'js/global-form-handler.js' %}"></script>

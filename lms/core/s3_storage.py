@@ -32,23 +32,32 @@ class S3Storage(S3Boto3Storage):
     
     def url(self, name):
         """
-        Get S3 URL for file with error handling
+        Get S3 URL for file with error handling and security validation
         """
         try:
+            # Security: Validate filename to prevent path traversal
+            if not name or '..' in name or name.startswith('/'):
+                logger.error(f"Invalid filename for S3 URL: {name}")
+                raise ValueError("Invalid filename")
+            
             return super().url(name)
         except ClientError as e:
             error_code = e.response['Error']['Code']
             logger.error(f"S3 URL generation failed for {name}: {e}")
-            # Return a fallback URL
+            # Return a fallback URL with security validation
             bucket_name = getattr(settings, 'AWS_STORAGE_BUCKET_NAME', 'unknown')
             region = getattr(settings, 'AWS_S3_REGION_NAME', 'us-east-1')
-            return f"https://{bucket_name}.s3.{region}.amazonaws.com/{name}"
+            # Sanitize filename for security
+            safe_name = name.replace('..', '').replace('/', '_')
+            return f"https://{bucket_name}.s3.{region}.amazonaws.com/{safe_name}"
         except Exception as e:
             logger.error(f"S3 URL generation error for {name}: {e}")
-            # Return a fallback URL
+            # Return a fallback URL with security validation
             bucket_name = getattr(settings, 'AWS_STORAGE_BUCKET_NAME', 'unknown')
             region = getattr(settings, 'AWS_S3_REGION_NAME', 'us-east-1')
-            return f"https://{bucket_name}.s3.{region}.amazonaws.com/{name}"
+            # Sanitize filename for security
+            safe_name = name.replace('..', '').replace('/', '_')
+            return f"https://{bucket_name}.s3.{region}.amazonaws.com/{safe_name}"
     
     def exists(self, name):
         """

@@ -4956,7 +4956,8 @@ def global_admin_dashboard(request):
             
             # Add type-specific metadata
             if todo['type'] == 'business_review':
-                todo_item['business_name'] = todo.get('metadata', {}).get('business_name', '')
+                metadata = todo.get('metadata', {})
+                todo_item['business_name'] = metadata.get('business_name', '')
                 
             todo_items.append(todo_item)
         
@@ -5289,10 +5290,10 @@ def admin_dashboard(request):
                         completed=True
                     ).count()
                     
-                    progress = round((completed_topics_count / topics.count()) * 100) if topics.count() > 0 else 0
+                    progress = round((completed_topics_count / topics.count()) * 100) if topics.exists() else 0
                     total_progress += progress
             
-            avg_progress = total_progress / enrollments.count() if enrollments.count() > 0 else 0
+            avg_progress = total_progress / enrollments.count() if enrollments.exists() else 0
             in_progress_courses.append({
                 'title': course.title,
                 'progress': round(avg_progress)
@@ -5547,10 +5548,11 @@ def admin_dashboard(request):
         }
         
         # Add type-specific metadata
+        metadata = todo.get('metadata', {})
         if todo['type'] == 'user_management':
-            todo_item['user_name'] = todo.get('metadata', {}).get('user_name', '')
+            todo_item['user_name'] = metadata.get('user_name', '')
         elif todo['type'] == 'course_review':
-            todo_item['enrollment_count'] = todo.get('metadata', {}).get('enrollment_count', 0)
+            todo_item['enrollment_count'] = metadata.get('enrollment_count', 0)
             
         todo_items.append(todo_item)
     
@@ -6063,7 +6065,7 @@ def instructor_dashboard(request):
     pending_submissions = AssignmentSubmission.objects.filter(
         assignment__course__in=assigned_courses,
         status='submitted'
-    ).select_related('assignment', 'assignment__course', 'user').order_by('submitted_at')[:5]
+    ).select_related('assignment', 'user').order_by('submitted_at')[:5]
     
     for submission in pending_submissions:
         days_since = (timezone.now().date() - submission.submitted_at.date()).days
@@ -6237,10 +6239,11 @@ def instructor_dashboard(request):
         }
         
         # Add type-specific metadata
+        metadata = todo.get('metadata', {})
         if todo['type'] == 'grading':
-            todo_item['student_name'] = todo.get('metadata', {}).get('student_name', '')
+            todo_item['student_name'] = metadata.get('student_name', '')
         elif todo['type'] == 'assignment':
-            todo_item['assignment_points'] = todo.get('metadata', {}).get('points')
+            todo_item['assignment_points'] = metadata.get('points')
             
         todo_items.append(todo_item)
     

@@ -37,24 +37,40 @@ if (typeof console === 'undefined') {
         },
         
         startTimeUpdates: function() {
-            // Update time displays every minute
-            this.updateInterval = setInterval(() => {
+            try {
+                // Update time displays every minute
+                this.updateInterval = setInterval(() => {
+                    try {
+                        this.updateTimeDisplays();
+                    } catch (error) {
+                        console.error('Error in time update interval:', error);
+                    }
+                }, 60000);
+                
+                // Initial update
                 this.updateTimeDisplays();
-            }, 60000);
-            
-            // Initial update
-            this.updateTimeDisplays();
+            } catch (error) {
+                console.error('Error starting time updates:', error);
+            }
         },
         
         updateTimeDisplays: function() {
-            const timeElements = document.querySelectorAll('[data-live-time]');
-            
-            timeElements.forEach(element => {
-                const currentTime = new Date(Date.now() + this.timeOffset);
-                const format = element.getAttribute('data-time-format') || 'default';
+            try {
+                const timeElements = document.querySelectorAll('[data-live-time]');
                 
-                element.textContent = this.formatTime(currentTime, format);
-            });
+                timeElements.forEach(element => {
+                    try {
+                        const currentTime = new Date(Date.now() + this.timeOffset);
+                        const format = element.getAttribute('data-time-format') || 'default';
+                        
+                        element.textContent = this.formatTime(currentTime, format);
+                    } catch (error) {
+                        console.error('Error updating time display for element:', error);
+                    }
+                });
+            } catch (error) {
+                console.error('Error in updateTimeDisplays:', error);
+            }
         },
         
         formatTime: function(date, format) {

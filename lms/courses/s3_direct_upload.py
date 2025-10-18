@@ -35,17 +35,17 @@ def get_presigned_upload_url(request):
         
         # Generate unique filename to avoid collisions
         ext = os.path.splitext(filename)[1]
-        unique_filename = f"{uuid.uuid4()}{ext}"
+        unique_filename = "{{uuid.uuid4()}}{{ext}}"
         
         # Determine S3 key based on file type
         if file_type == 'removed':
-            s3_key = f"media/topics/removed/{unique_filename}"
+            s3_key = "media/topics/removed/{{unique_filename}}"
         elif file_type == 'video':
-            s3_key = f"media/topics/videos/{unique_filename}"
+            s3_key = "media/topics/videos/{{unique_filename}}"
         elif file_type == 'audio':
-            s3_key = f"media/topics/audio/{unique_filename}"
+            s3_key = "media/topics/audio/{{unique_filename}}"
         else:
-            s3_key = f"media/topics/documents/{unique_filename}"
+            s3_key = "media/topics/documents/{{unique_filename}}"
         
         # Get S3 client - will use IAM role if available, otherwise credentials
         try:
@@ -57,7 +57,7 @@ def get_presigned_upload_url(request):
                 config=Config(signature_version='s3v4')
             )
         except Exception as e:
-            logger.error(f"Failed to create S3 client: {e}")
+            logger.error("Failed to create S3 client: {{e}}")
             return JsonResponse({
                 'error': 'S3 configuration error. Please contact administrator.'
             }, status=500)
@@ -83,7 +83,7 @@ def get_presigned_upload_url(request):
             )
             
             # Build the full S3 URL
-            s3_url = f"https://{bucket_name}.s3.{settings.AWS_S3_REGION_NAME}.amazonaws.com/{s3_key}"
+            s3_url = "https://{{bucket_name}}.s3.{{settings.AWS_S3_REGION_NAME}}.amazonaws.com/{{s3_key}}"
             
             return JsonResponse({
                 'success': True,
@@ -95,15 +95,15 @@ def get_presigned_upload_url(request):
             })
             
         except Exception as e:
-            logger.error(f"Failed to generate pre-signed URL: {e}")
+            logger.error("Failed to generate pre-signed URL: {{e}}")
             return JsonResponse({
-                'error': f'Failed to generate upload URL: {str(e)}'
+                'error': "Failed to generate upload URL: {{str(e)}}"
             }, status=500)
             
     except json.JSONDecodeError:
         return JsonResponse({'error': 'Invalid JSON'}, status=400)
     except Exception as e:
-        logger.error(f"Error in get_presigned_upload_url: {e}")
+        logger.error("Error in get_presigned_upload_url: {{e}}")
         return JsonResponse({'error': str(e)}, status=500)
 
 
@@ -139,7 +139,7 @@ def confirm_upload(request):
             })
             
         except Exception as e:
-            logger.error(f"File not found in S3: {e}")
+            logger.error("File not found in S3: {{e}}")
             return JsonResponse({
                 'error': 'File not found in S3',
                 'details': str(e)
@@ -148,6 +148,6 @@ def confirm_upload(request):
     except json.JSONDecodeError:
         return JsonResponse({'error': 'Invalid JSON'}, status=400)
     except Exception as e:
-        logger.error(f"Error in confirm_upload: {e}")
+        logger.error("Error in confirm_upload: {{e}}")
         return JsonResponse({'error': str(e)}, status=500)
 

@@ -24,7 +24,7 @@ def validate_microsoft_client_secret(client_secret):
     
     # Check length - Azure client secrets are typically 40+ characters
     if len(client_secret) < 32:
-        return False, f"Client secret appears to be too short ({len(client_secret)} characters). Azure client secrets are typically 32+ characters. You may have entered the secret ID instead of the secret value."
+        return False, "Client secret appears to be too short ({{len(client_secret)}} characters). Azure client secrets are typically 32+ characters. You may have entered the secret ID instead of the secret value."
     
     # Check if it looks like a UUID (which would be the secret ID)
     uuid_pattern = r'^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$'
@@ -34,7 +34,7 @@ def validate_microsoft_client_secret(client_secret):
     # Check for common Azure secret value patterns
     # Azure secrets often contain alphanumeric chars with some special chars like . _ ~ -
     if not re.match(r'^[A-Za-z0-9._~-]+$', client_secret):
-        logger.warning(f"Client secret contains unexpected characters: {client_secret[:10]}...")
+        logger.warning("Client secret contains unexpected characters: {{client_secret[:10]}}...")
     
     return True, "Client secret format appears valid"
 

@@ -36,19 +36,31 @@ function setupPasswordValidation(form, password1Field, password2Field) {
     
     // Add event listeners
     password1Field.addEventListener('input', function() {
-        validatePasswordStrength(this.value, strengthIndicator);
-        validatePasswordMatch(password1Field.value, password2Field.value, matchIndicator);
+        try {
+            validatePasswordStrength(this.value, strengthIndicator);
+            validatePasswordMatch(password1Field.value, password2Field.value, matchIndicator);
+        } catch (error) {
+            console.error('Error validating password strength:', error);
+        }
     });
     
     password2Field.addEventListener('input', function() {
-        validatePasswordMatch(password1Field.value, this.value, matchIndicator);
+        try {
+            validatePasswordMatch(password1Field.value, this.value, matchIndicator);
+        } catch (error) {
+            console.error('Error validating password match:', error);
+        }
     });
     
     // Add form submission validation
     form.addEventListener('submit', function(e) {
-        if (!validatePasswordSubmission(password1Field, password2Field)) {
-            e.preventDefault();
-            return false;
+        try {
+            if (!validatePasswordSubmission(password1Field, password2Field)) {
+                e.preventDefault();
+                return false;
+            }
+        } catch (error) {
+            console.error('Error validating password submission:', error);
         }
     });
 }

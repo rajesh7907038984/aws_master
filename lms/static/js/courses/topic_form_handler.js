@@ -1,89 +1,46 @@
-document.addEventListener('DOMContentLoaded', function() {
-    // Initialize date fields
-    if (typeof DateTimeShortcuts !== 'undefined') {
-        DateTimeShortcuts.init();
-    }
+// Global variables
+let tinyMCEInstance = null;
 
-    // Get form elements
-    const form = document.getElementById('create-topic-form');
+// Initialize TinyMCE
+function initTinyMCE() {
+    // Get the textarea element
+    const textarea = document.getElementById('id_text_content');
+    if (textarea && typeof tinymce !== 'undefined') {
+        // Initialize TinyMCE
+        tinymce.init({
+            selector: '#id_text_content',
+            height: 400,
+            plugins: [
+                'advlist', 'autolink', 'lists', 'link', 'image', 'charmap', 'preview',
+                'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen',
+                'insertdatetime', 'table', 'help', 'wordcount'
+            ],
+            toolbar: 'undo redo | blocks | ' +
+                'bold italic backcolor | alignleft aligncenter ' +
+                'alignright alignjustify | bullist numlist outdent indent | ' +
+                'removeformat | help',
+            content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px }',
+            placeholder: 'Enter your content here...',
+            setup: function (editor) {
+                tinyMCEInstance = editor;
+            }
+        });
+    }
+}
+
+// Update content fields visibility
+function updateContentFields() {
     const contentTypeSelect = document.getElementById('content_type');
     const contentFields = document.querySelectorAll('.content-type-field');
-    let quillInstance = null;
+    const selectedType = contentTypeSelect.value.toLowerCase();
 
-    // Initialize Quill
-    function initQuill() {
-        // Get the textarea element
-        const textarea = document.getElementById('id_text_content');
-        if (textarea) {
-            // Create a container for Quill
-            const quillContainer = document.createElement('div');
-            quillContainer.id = 'quill-editor';
-            quillContainer.style.height = '400px';
-            textarea.parentNode.insertBefore(quillContainer, textarea);
-            
-            // Initialize Quill
-            quillInstance = new Quill('#quill-editor', {
-                theme: 'snow',
-                modules: {
-                    toolbar: [
-                        ['bold', 'italic', 'underline', 'strike'],
-                        ['blockquote', 'code-block'],
-                        [{ 'header': 1 }, { 'header': 2 }],
-                        [{ 'list': 'ordered'}, { 'list': 'bullet' }],
-                        [{ 'script': 'sub'}, { 'script': 'super' }],
-                        [{ 'indent': '-1'}, { 'indent': '+1' }],
-                        [{ 'direction': 'rtl' }],
-                        [{ 'size': ['small', false, 'large', 'huge'] }],
-                        [{ 'header': [1, 2, 3, 4, 5, 6, false] }],
-                        [{ 'color': [] }, { 'background': [] }],
-                        [{ 'font': [] }],
-                        [{ 'align': [] }],
-                        ['clean'],
-                        ['link', 'image']
-                    ],
-                    clipboard: {
-                        // Prevent automatic URL creation on paste/selection
-                        matchVisual: false
-                    }
-                },
-                placeholder: 'Enter your content here...',
-                formats: [
-                    'bold', 'italic', 'underline', 'strike',
-                    'blockquote', 'code-block', 'header', 'list',
-                    'script', 'indent', 'direction', 'size',
-                    'color', 'background', 'font', 'align',
-                    'link', 'image'
-                ]
-            });
+    // Hide all content fields first
+    contentFields.forEach(field => {
+        field.style.display = 'none';
+    });
 
-            // Disable automatic link detection
-            quillInstance.clipboard.addMatcher(Node.TEXT_NODE, function(node, delta) {
-                return delta;
-            });
-
-            // Set initial content if any
-            if (textarea.value) {
-                quillInstance.root.innerHTML = textarea.value;
-            }
-
-            // Update textarea on change
-            quillInstance.on('text-change', function() {
-                textarea.value = quillInstance.root.innerHTML;
-            });
-        }
-    }
-
-    // Update content fields visibility
-    function updateContentFields() {
-        const selectedType = contentTypeSelect.value.toLowerCase();
-
-        // Hide all content fields first
-        contentFields.forEach(field => {
-            field.style.display = 'none';
-        });
-
-        // Show the appropriate content field based on the selected type
-        let fieldId = selectedType + '-content-field';
+    // Show the appropriate content field based on the selected type
+    let fieldId = selectedType + '-content-field';
         
         const field = document.getElementById(fieldId);
         if (field) {
@@ -102,16 +59,27 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // Handle file upload preview
-    function handleFileUpload(input) {
-        const file = input.files[0];
-        if (file) {
-            const preview = input.parentElement.querySelector('.file-preview');
-            if (preview) {
-                preview.textContent = `Selected file: ${file.name}`;
-            }
+// Handle file upload preview
+function handleFileUpload(input) {
+    const file = input.files[0];
+    if (file) {
+        const preview = input.parentElement.querySelector('.file-preview');
+        if (preview) {
+            preview.textContent = `Selected file: ${file.name}`;
         }
     }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize date fields
+    if (typeof DateTimeShortcuts !== 'undefined') {
+        DateTimeShortcuts.init();
+    }
+
+    // Get form elements
+    const form = document.getElementById('create-topic-form');
+    const contentTypeSelect = document.getElementById('content_type');
+    const contentFields = document.querySelectorAll('.content-type-field');
 
     // Initialize file upload previews
     const fileInputs = document.querySelectorAll('input[type="file"]');
@@ -122,6 +90,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (this.id === 'content_file') {
                 const file = this.files[0];
                 if (file) {
+                    const preview = this.parentElement.querySelector('.file-preview');
                     if (preview) {
                         preview.textContent = `Selected file: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`;
                         preview.classList.remove('hidden');

@@ -32,7 +32,7 @@ def send_deadline_reminders():
             due_date__gte=tomorrow,
             due_date__lt=day_after,
             is_active=True
-        ).select_related('course').prefetch_related('courses')
+        ).prefetch_related('courses')
         
         reminder_count = 0
         
@@ -80,7 +80,7 @@ def send_deadline_reminders():
                             hours_until = int((assignment.due_date - now).total_seconds() / 3600)
                             
                             # Send reminder notification
-                            message = f"""
+                            message = """
                             <h2>Assignment Deadline Reminder</h2>
                             <p>Dear {user.first_name or user.username},</p>
                             <p>This is a reminder that the following assignment is due soon:</p>
@@ -99,11 +99,11 @@ def send_deadline_reminders():
                             notification = send_notification(
                                 recipient=user,
                                 notification_type_name='deadline_reminder',
-                                title=f"Deadline Reminder: {assignment.title}",
+                                title="Deadline Reminder: {{assignment.title}}",
                                 message=message,
-                                short_message=f"Reminder: '{assignment.title}' is due in {hours_until} hours",
+                                short_message="Reminder: '{{assignment.title}}' is due in {{hours_until}} hours",
                                 priority='high',
-                                action_url=f"/assignments/{assignment.id}/",
+                                action_url="/assignments/{{assignment.id}}/",
                                 action_text="View Assignment",
                                 related_assignment=assignment,
                                 send_email=True
@@ -111,16 +111,16 @@ def send_deadline_reminders():
                             
                             if notification:
                                 reminder_count += 1
-                                logger.info(f"Deadline reminder sent to {user.username} for assignment: {assignment.title}")
+                                logger.info("Deadline reminder sent to {{user.username}} for assignment: {{assignment.title}}")
                                 
                         except Exception as e:
-                            logger.error(f"Error sending deadline reminder to user {user_id} for assignment {assignment.id}: {str(e)}")
+                            logger.error("Error sending deadline reminder to user {{user_id}} for assignment {{assignment.id}}: {{str(e)}}")
         
-        logger.info(f"Sent {reminder_count} deadline reminder notifications")
+        logger.info("Sent {{reminder_count}} deadline reminder notifications")
         return reminder_count
         
     except Exception as e:
-        logger.error(f"Error in send_deadline_reminders task: {str(e)}")
+        logger.error("Error in send_deadline_reminders task: {{str(e)}}")
         return 0
 
 
@@ -168,13 +168,13 @@ def send_unread_message_digest():
                         message_list = ""
                         for msg in unread_messages[:5]:  # Show up to 5 messages
                             sender_name = msg.sender.get_full_name() if msg.sender else "System"
-                            message_list += f"<li><strong>From {sender_name}:</strong> {msg.subject}</li>"
+                            message_list += "<li><strong>From {{sender_name}}:</strong> {{msg.subject}}</li>"
                         
                         if unread_count > 5:
-                            message_list += f"<li><em>...and {unread_count - 5} more messages</em></li>"
+                            message_list += "<li><em>...and {{unread_count - 5}} more messages</em></li>"
                         
                         # Send digest notification
-                        digest_message = f"""
+                        digest_message = """
                         <h2>Unread Messages Summary</h2>
                         <p>Dear {user.first_name or user.username},</p>
                         <p>You have <strong>{unread_count}</strong> unread message{'s' if unread_count != 1 else ''} in your inbox:</p>
@@ -188,9 +188,9 @@ def send_unread_message_digest():
                         notification = send_notification(
                             recipient=user,
                             notification_type_name='message_unread',
-                            title=f"You have {unread_count} unread message{'s' if unread_count != 1 else ''}",
+                            title="You have {{unread_count}} unread message{{'s' if unread_count != 1 else ''}}",
                             message=digest_message,
-                            short_message=f"You have {unread_count} unread message{'s' if unread_count != 1 else ''} in your inbox",
+                            short_message="You have {{unread_count}} unread message{{'s' if unread_count != 1 else ''}} in your inbox",
                             priority='normal',
                             action_url="/messages/",
                             action_text="View Messages",
@@ -199,16 +199,16 @@ def send_unread_message_digest():
                         
                         if notification:
                             digest_count += 1
-                            logger.info(f"Message digest sent to {user.username} ({unread_count} unread messages)")
+                            logger.info("Message digest sent to {{user.username}} ({{unread_count}} unread messages)")
                             
                     except Exception as e:
-                        logger.error(f"Error sending message digest to {user.username}: {str(e)}")
+                        logger.error("Error sending message digest to {{user.username}}: {{str(e)}}")
         
-        logger.info(f"Sent {digest_count} message digest notifications")
+        logger.info("Sent {{digest_count}} message digest notifications")
         return digest_count
         
     except Exception as e:
-        logger.error(f"Error in send_unread_message_digest task: {str(e)}")
+        logger.error("Error in send_unread_message_digest task: {{str(e)}}")
         return 0
 
 
@@ -235,7 +235,7 @@ def send_feedback_reminders():
             graded_at__lte=now
         ).exclude(
             Q(feedback='') | Q(feedback__isnull=True)
-        ).select_related('assignment', 'assignment__course', 'user')
+        ).select_related('assignment', 'user')
         
         reminder_count = 0
         
@@ -255,7 +255,7 @@ def send_feedback_reminders():
                     grade_pct = (submission.grade / submission.assignment.points * 100) if submission.assignment.points else 0
                     
                     # Send feedback reminder
-                    message = f"""
+                    message = """
                     <h2>Assignment Feedback Available</h2>
                     <p>Dear {submission.user.first_name or submission.user.username},</p>
                     <p>Your assignment has been graded and feedback is available for review:</p>
@@ -275,11 +275,11 @@ def send_feedback_reminders():
                     notification = send_notification(
                         recipient=submission.user,
                         notification_type_name='feedback_available',
-                        title=f"Feedback Available: {submission.assignment.title}",
+                        title="Feedback Available: {{submission.assignment.title}}",
                         message=message,
-                        short_message=f"Your assignment '{submission.assignment.title}' has been graded with feedback",
+                        short_message="Your assignment '{{submission.assignment.title}}' has been graded with feedback",
                         priority='normal',
-                        action_url=f"/assignments/{submission.assignment.id}/submission/{submission.id}/",
+                        action_url="/assignments/{{submission.assignment.id}}/submission/{{submission.id}}/",
                         action_text="View Feedback",
                         related_assignment=submission.assignment,
                         send_email=True
@@ -287,15 +287,15 @@ def send_feedback_reminders():
                     
                     if notification:
                         reminder_count += 1
-                        logger.info(f"Feedback reminder sent to {submission.user.username} for assignment: {submission.assignment.title}")
+                        logger.info("Feedback reminder sent to {{submission.user.username}} for assignment: {{submission.assignment.title}}")
                         
                 except Exception as e:
-                    logger.error(f"Error sending feedback reminder to {submission.user.username} for assignment {submission.assignment.id}: {str(e)}")
+                    logger.error("Error sending feedback reminder to {{submission.user.username}} for assignment {{submission.assignment.id}}: {{str(e)}}")
         
-        logger.info(f"Sent {reminder_count} feedback reminder notifications")
+        logger.info("Sent {{reminder_count}} feedback reminder notifications")
         return reminder_count
         
     except Exception as e:
-        logger.error(f"Error in send_feedback_reminders task: {str(e)}")
+        logger.error("Error in send_feedback_reminders task: {{str(e)}}")
         return 0
 

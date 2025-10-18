@@ -48,7 +48,7 @@ class OrphanedMigrationCleaner:
         
         orphaned = []
         for app, name in applied_migrations:
-            migration_key = f'{app}.{name}'
+            migration_key = "{{app}}.{{name}}"
             if migration_key not in migration_files:
                 # Skip Django built-in apps
                 if not (app.startswith('auth') or 
@@ -59,7 +59,7 @@ class OrphanedMigrationCleaner:
                     orphaned.append((app, name))
         
         self.orphaned_migrations = orphaned
-        print(f" Found {len(orphaned)} orphaned migration records")
+        print(" Found {{len(orphaned)}} orphaned migration records")
         return orphaned
     
     def get_migration_files(self):
@@ -75,7 +75,7 @@ class OrphanedMigrationCleaner:
                         if len(path_parts) >= 2:
                             app_name = path_parts[-2]  # Directory before migrations
                             migration_name = file[:-3]  # Remove .py
-                            migration_files.add(f'{app_name}.{migration_name}')
+                            migration_files.add("{{app_name}}.{{migration_name}}")
         
         return migration_files
     
@@ -85,24 +85,24 @@ class OrphanedMigrationCleaner:
             print(" No orphaned migrations found")
             return
         
-        print(f" {'DRY RUN: Would remove' if dry_run else 'Removing'} {len(self.orphaned_migrations)} orphaned migration records...")
+        print(" {{'DRY RUN: Would remove' if dry_run else 'Removing'}} {{len(self.orphaned_migrations)}} orphaned migration records...")
         
         with connection.cursor() as cursor:
             for app, name in self.orphaned_migrations:
                 if dry_run:
-                    print(f"   Would remove: {app}.{name}")
+                    print("   Would remove: {{app}}.{{name}}")
                 else:
                     try:
                         cursor.execute(
                             "DELETE FROM django_migrations WHERE app = %s AND name = %s",
                             [app, name]
                         )
-                        print(f"   Removed: {app}.{name}")
+                        print("   Removed: {{app}}.{{name}}")
                     except Exception as e:
-                        print(f"   Error removing {app}.{name}: {e}")
+                        print("   Error removing {{app}}.{{name}}: {{e}}")
         
         if not dry_run:
-            print(f" Successfully removed {len(self.orphaned_migrations)} orphaned migration records")
+            print(" Successfully removed {{len(self.orphaned_migrations)}} orphaned migration records")
     
     def show_orphaned_migrations(self):
         """Show list of orphaned migrations"""
@@ -121,9 +121,9 @@ class OrphanedMigrationCleaner:
             by_app[app].append(name)
         
         for app in sorted(by_app.keys()):
-            print(f"\n{app}:")
+            print("\n{{app}}:")
             for name in sorted(by_app[app]):
-                print(f"  - {name}")
+                print("  - {{name}}")
     
     def run_cleanup(self, dry_run=False):
         """Run the complete cleanup process"""
@@ -174,7 +174,7 @@ def main():
             cleaner.run_cleanup(dry_run=args.dry_run)
         
     except Exception as e:
-        print(f"❌ Error during cleanup: {e}")
+        print("❌ Error during cleanup: {{e}}")
         sys.exit(1)
 
 if __name__ == "__main__":

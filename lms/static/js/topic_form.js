@@ -1,81 +1,90 @@
+// Global function to update content type sections
+function updateContentTypeSections(selectedType) {
+    // Normalize selected type (lowercase first)
+    const normalizedType = selectedType.toLowerCase();
+    
+    // Define content types that should hide the Instructions field
+    const hideInstructionsTypes = ['video', 'audio', 'document', 'image', 'file', 'link', 'web', 'quiz', 'assignment', 'conference', 'discussion'];
+    
+    // Handle Instructions field visibility with null check
+    const instructionsField = document.querySelector('label[for*="instructions"]');
+    if (instructionsField) {
+        const instructionsContainer = instructionsField.closest('div');
+        if (instructionsContainer) {
+            if (hideInstructionsTypes.includes(normalizedType)) {
+                instructionsContainer.style.display = 'none';
+            } else {
+                instructionsContainer.style.display = 'block';
+            }
+        }
+    }
+    
+    // First hide all content fields
+    document.querySelectorAll('.content-type-field').forEach(field => {
+        field.style.display = 'none';
+        field.style.visibility = 'hidden';
+        field.classList.remove('active');
+    });
+    
+    // Then show the selected content field
+    const selectedField = document.getElementById(`${normalizedType}-content`);
+    if (selectedField) {
+        selectedField.style.display = 'block';
+        selectedField.style.visibility = 'visible';
+        selectedField.classList.add('active');
+        
+        // Special handling for assignment content
+        if (normalizedType === 'assignment') {
+            const assignmentSelect = selectedField.querySelector('select[name="assignment"]');
+            if (assignmentSelect) {
+                // Make sure it's visible
+                assignmentSelect.style.display = 'block';
+                assignmentSelect.style.visibility = 'visible';
+                
+                // Check if there's a selected option
+                const selectedOption = assignmentSelect.querySelector('option:checked[value]:not([value=""])');
+                if (selectedOption) {
+                    // Option is already selected
+                }
+            } else {
+                // Assignment select not found
+            }
+        }
+        
+        // Also handle legacy content sections if they exist
+        const contentTypeSections = document.querySelectorAll('.content-type-section');
+        contentTypeSections.forEach(section => {
+            if (section.id === `${selectedType}-content`) {
+                section.classList.remove('hidden');
+            } else {
+                section.classList.add('hidden');
+            }
+        });
+    } else {
+        // Fall back to legacy content sections
+        const contentTypeSections = document.querySelectorAll('.content-type-section');
+        contentTypeSections.forEach(section => {
+            if (section.id === `${selectedType}-content`) {
+                section.classList.remove('hidden');
+            } else {
+                section.classList.add('hidden');
+            }
+        });
+    }
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     const topicForm = document.getElementById('topicForm');
     const contentTypeRadios = document.querySelectorAll('input[name="content_type"]');
-    const contentTypeSections = document.querySelectorAll('.content-type-section');
-    
-    // Function to show/hide content type sections
-    function updateContentTypeSections(selectedType) {
-        
-        // Normalize selected type (lowercase first)
-        const normalizedType = selectedType.toLowerCase();
-        
-        // Define content types that should hide the Instructions field
-        
-        // Handle Instructions field visibility
-        const instructionsField = document.querySelector('label[for*="instructions"]').closest('div');
-        if (instructionsField) {
-            if (hideInstructionsTypes.includes(normalizedType)) {
-                instructionsField.style.display = 'none';
-            } else {
-                instructionsField.style.display = 'block';
-            }
-        }
-        
-        // First hide all content fields
-        document.querySelectorAll('.content-type-field').forEach(field => {
-            field.style.display = 'none';
-            field.style.visibility = 'hidden';
-            field.classList.remove('active');
-        });
-        
-        // Then show the selected content field
-        const selectedField = document.getElementById(`${normalizedType}-content`);
-        if (selectedField) {
-            selectedField.style.display = 'block';
-            selectedField.style.visibility = 'visible';
-            selectedField.classList.add('active');
-            
-            // Special handling for assignment content
-            if (normalizedType === 'assignment') {
-                const assignmentSelect = selectedField.querySelector('select[name="assignment"]');
-                if (assignmentSelect) {
-                    // Make sure it's visible
-                    assignmentSelect.style.display = 'block';
-                    assignmentSelect.style.visibility = 'visible';
-                    
-                    // Check if there's a selected option
-                    const selectedOption = assignmentSelect.querySelector('option:checked[value]:not([value=""])');
-                    if (selectedOption) {
-                    }
-                } else {
-                }
-            }
-            
-            // Also handle legacy content sections if they exist
-            contentTypeSections.forEach(section => {
-                if (section.id === `${selectedType}-content`) {
-                    section.classList.remove('hidden');
-                } else {
-                    section.classList.add('hidden');
-                }
-            });
-        } else {
-            
-            // Fall back to legacy content sections
-            contentTypeSections.forEach(section => {
-                if (section.id === `${selectedType}-content`) {
-                    section.classList.remove('hidden');
-                } else {
-                    section.classList.add('hidden');
-                }
-            });
-        }
-    }
 
     // Handle content type selection
     contentTypeRadios.forEach(radio => {
         radio.addEventListener('change', (e) => {
-            updateContentTypeSections(e.target.value);
+            try {
+                updateContentTypeSections(e.target.value);
+            } catch (error) {
+                console.error('Error updating content type sections:', error);
+            }
         });
     });
 
@@ -83,16 +92,17 @@ document.addEventListener('DOMContentLoaded', function() {
     const fileInputs = document.querySelectorAll('input[type="file"]');
     fileInputs.forEach(input => {
         input.addEventListener('change', function() {
-            const filenameDiv = this.closest('.file-upload-container').querySelector('.selected-filename');
-            const previewDiv = this.closest('.file-upload-container').querySelector('.file-preview');
-            
-            if (this.files && this.files[0]) {
-                filenameDiv.textContent = this.files[0].name;
-                filenameDiv.classList.remove('hidden');
+            try {
+                const filenameDiv = this.closest('.file-upload-container').querySelector('.selected-filename');
+                const previewDiv = this.closest('.file-upload-container').querySelector('.file-preview');
                 
-                // Show preview for video/audio files
-                if (this.files[0].type.startsWith('video/') || this.files[0].type.startsWith('audio/')) {
-                    const url = URL.createObjectURL(this.files[0]);
+                if (this.files && this.files[0]) {
+                    filenameDiv.textContent = this.files[0].name;
+                    filenameDiv.classList.remove('hidden');
+                    
+                    // Show preview for video/audio files
+                    if (this.files[0].type.startsWith('video/') || this.files[0].type.startsWith('audio/')) {
+                        const url = URL.createObjectURL(this.files[0]);
                     const element = this.files[0].type.startsWith('video/') ? 'video' : 'audio';
                     previewDiv.innerHTML = `<${element} controls><source src="${url}"></${element}>`;
                     previewDiv.classList.remove('hidden');

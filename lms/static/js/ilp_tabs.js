@@ -4,53 +4,71 @@
  */
 
 document.addEventListener('DOMContentLoaded', function() {
-    
-    // Initialize ILP nested tabs
-    initializeILPTabs();
-    
-    // Initialize Learning Profile nested tabs
-    initializeLearningProfileTabs();
+    try {
+        // Initialize ILP nested tabs
+        initializeILPTabs();
+        
+        // Initialize Learning Profile nested tabs
+        initializeLearningProfileTabs();
+    } catch (error) {
+        console.error('Error initializing ILP tabs:', error);
+    }
 });
 
 function openILPTab(evt, tabName) {
-    var i, tabcontent, tablinks;
-    
-    // Hide all ILP tab contents
-    tabcontent = document.getElementsByClassName("ilp-tab-content");
-    for (i = 0; i < tabcontent.length; i++) {
-        tabcontent[i].style.display = "none";
-    }
-    
-    // Remove active class from all ILP tab buttons
-    tablinks = document.getElementsByClassName("ilp-tab-button");
-    for (i = 0; i < tablinks.length; i++) {
-        tablinks[i].classList.remove("active");
-    }
-    
-    // Show the selected ILP tab content
-    const targetTab = document.getElementById(tabName);
-    if (targetTab) {
-        targetTab.style.display = "block";
+    try {
+        var i, tabcontent, tablinks;
         
-        // If this is the learning profile tab, initialize its nested tabs
-        if (tabName === 'learning-profile-tab') {
-            setTimeout(() => {
-                openLearningProfileTab(null, 'learning-preferences-tab');
-            }, 100);
+        // Hide all ILP tab contents
+        tabcontent = document.getElementsByClassName("ilp-tab-content");
+        for (i = 0; i < tabcontent.length; i++) {
+            try {
+                tabcontent[i].style.display = "none";
+            } catch (error) {
+                console.error('Error hiding ILP tab content:', error);
+            }
         }
-    }
-    
-    // Add active class to the clicked button
-    if (evt && evt.currentTarget) {
-        evt.currentTarget.classList.add("active");
-    } else {
-        // Find and activate the corresponding button
-        const targetButton = document.querySelector(`[onclick*="${tabName}"]`);
-        if (targetButton) {
-            targetButton.classList.add("active");
+        
+        // Remove active class from all ILP tab buttons
+        tablinks = document.getElementsByClassName("ilp-tab-button");
+        for (i = 0; i < tablinks.length; i++) {
+            try {
+                tablinks[i].classList.remove("active");
+            } catch (error) {
+                console.error('Error removing active class from ILP tab button:', error);
+            }
         }
+        
+        // Show the selected ILP tab content
+        const targetTab = document.getElementById(tabName);
+        if (targetTab) {
+            targetTab.style.display = "block";
+            
+            // If this is the learning profile tab, initialize its nested tabs
+            if (tabName === 'learning-profile-tab') {
+                setTimeout(() => {
+                    try {
+                        openLearningProfileTab(null, 'learning-preferences-tab');
+                    } catch (error) {
+                        console.error('Error opening learning profile tab:', error);
+                    }
+                }, 100);
+            }
+        }
+        
+        // Add active class to the clicked button
+        if (evt && evt.currentTarget) {
+            evt.currentTarget.classList.add("active");
+        } else {
+            // Find and activate the corresponding button
+            const targetButton = document.querySelector(`[onclick*="${tabName}"]`);
+            if (targetButton) {
+                targetButton.classList.add("active");
+            }
+        }
+    } catch (error) {
+        console.error('Error in openILPTab function:', error);
     }
-    
 }
 
 function openLearningProfileTab(evt, tabName) {

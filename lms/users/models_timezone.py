@@ -28,7 +28,7 @@ class UserTimezone(models.Model):
         verbose_name_plural = 'User Timezones'
     
     def __str__(self):
-        return f"{self.user.username} - {self.timezone}"
+        return "{{self.user.username}} - {{self.timezone}}"
     
     def get_timezone_obj(self):
         """Get pytz timezone object"""
@@ -50,10 +50,12 @@ class UserTimezone(models.Model):
     
     def convert_to_utc(self, local_datetime):
         """Convert local datetime to UTC"""
+        if local_datetime is None:
             return None
         
         user_tz = self.get_timezone_obj()
         
+        if local_datetime.tzinfo is None:
             local_datetime = user_tz.localize(local_datetime)
         
         return local_datetime.astimezone(pytz.UTC)

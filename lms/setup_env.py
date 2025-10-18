@@ -48,8 +48,8 @@ def create_env_file():
         with open(env_file, 'w') as f:
             f.write(content)
         
-        print(f"SUCCESS: Created .env file at {env_file}")
-        print(f"SECRET_KEY: {secret_key[:20]}...")
+        print("SUCCESS: Created .env file at {{env_file}}")
+        print("SECRET_KEY: {{secret_key[:20]}}...")
         print("\nNext steps:")
         print("1. Edit the .env file with your actual configuration values")
         print("2. Set up your database credentials")
@@ -58,7 +58,7 @@ def create_env_file():
         print("5. Never commit the .env file to version control")
         
     else:
-        print(f"❌ Example file not found at {env_example}")
+        print("❌ Example file not found at {{env_example}}")
         print("Please ensure env.example exists in the project root")
 
 def validate_env_file():
@@ -67,7 +67,7 @@ def validate_env_file():
     env_file = project_root / '.env'
     
     if not env_file.exists():
-        print(f"❌ .env file not found at {env_file}")
+        print("❌ .env file not found at {{env_file}}")
         return False
     
     required_vars = [
@@ -81,11 +81,11 @@ def validate_env_file():
     with open(env_file, 'r') as f:
         content = f.read()
         for var in required_vars:
-            if f"{var}=" not in content:
+            if "{{var}}=" not in content:
                 missing_vars.append(var)
     
     if missing_vars:
-        print(f"❌ Missing required variables: {', '.join(missing_vars)}")
+        print("❌ Missing required variables: {{', '.join(missing_vars)}}")
         return False
     
     print("✅ .env file validation passed")

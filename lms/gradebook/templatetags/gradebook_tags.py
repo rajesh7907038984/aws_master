@@ -376,7 +376,7 @@ def get_activity_best_score(activity, student_id, grades, quiz_attempts):
         
     except (ValueError, AttributeError, TypeError) as e:
         import logging
-        logging.error(f"Error in get_activity_best_score: {str(e)}")
+        logging.error("Error in get_activity_best_score: {{str(e)}}")
         return {
             'score': None,
             'max_score': activity.get('max_score', 0),
@@ -777,7 +777,7 @@ def get_participation_status(activity, student_id):
             
             if comments.exists():
                 comment_count = comments.count()
-                return f"{comment_count} comment{'s' if comment_count != 1 else ''}"
+                return "{{comment_count}} comment{{'s' if comment_count != 1 else ''}}"
             else:
                 return "No interaction"
                 
@@ -792,7 +792,7 @@ def get_participation_status(activity, student_id):
             if attendance:
                 if attendance.attendance_status == 'present':
                     if attendance.duration_minutes:
-                        return f"Attended ({attendance.duration_minutes} min)"
+                        return "Attended ({{attendance.duration_minutes}} min)"
                     else:
                         return "Attended"
                 elif attendance.attendance_status == 'late':
@@ -835,16 +835,16 @@ def get_student_activity_score(student_scores, student_id, activity_id):
         
         return {'score': None, 'max_score': 0, 'type': 'unknown'}
     except ValueError as e:
-        logger.error(f"Invalid student_id format: {student_id}, error: {e}")
+        logger.error("Invalid student_id format: {{student_id}}, error: {{e}}")
         return {'score': None, 'max_score': 0, 'type': 'unknown', 'error': 'invalid_student_id'}
     except TypeError as e:
-        logger.error(f"Type error in get_student_activity_score: {e}")
+        logger.error("Type error in get_student_activity_score: {{e}}")
         return {'score': None, 'max_score': 0, 'type': 'unknown', 'error': 'type_error'}
     except KeyError as e:
-        logger.error(f"Missing key in student_scores: {e}")
+        logger.error("Missing key in student_scores: {{e}}")
         return {'score': None, 'max_score': 0, 'type': 'unknown', 'error': 'missing_data'}
     except Exception as e:
-        logger.error(f"Unexpected error in get_student_activity_score: {e}")
+        logger.error("Unexpected error in get_student_activity_score: {{e}}")
         return {'score': None, 'max_score': 0, 'type': 'unknown', 'error': 'unexpected_error'}
 
 @register.simple_tag
@@ -903,7 +903,7 @@ def calculate_student_total_optimized(student_scores, student_id, activities):
             'has_completed_activity': has_completed_activity
         }
     except ValueError as e:
-        logger.error(f"Invalid student_id format in calculate_student_total_optimized: {student_id}, error: {e}")
+        logger.error("Invalid student_id format in calculate_student_total_optimized: {{student_id}}, error: {{e}}")
         return {
             'earned': Decimal('0'),
             'possible': Decimal('0'),
@@ -912,7 +912,7 @@ def calculate_student_total_optimized(student_scores, student_id, activities):
             'error': 'invalid_student_id'
         }
     except TypeError as e:
-        logger.error(f"Type error in calculate_student_total_optimized: {e}")
+        logger.error("Type error in calculate_student_total_optimized: {{e}}")
         return {
             'earned': Decimal('0'),
             'possible': Decimal('0'),
@@ -921,7 +921,7 @@ def calculate_student_total_optimized(student_scores, student_id, activities):
             'error': 'type_error'
         }
     except KeyError as e:
-        logger.error(f"Missing key in calculate_student_total_optimized: {e}")
+        logger.error("Missing key in calculate_student_total_optimized: {{e}}")
         return {
             'earned': Decimal('0'),
             'possible': Decimal('0'),
@@ -930,7 +930,7 @@ def calculate_student_total_optimized(student_scores, student_id, activities):
             'error': 'missing_data'
         }
     except Exception as e:
-        logger.error(f"Unexpected error in calculate_student_total_optimized: {e}")
+        logger.error("Unexpected error in calculate_student_total_optimized: {{e}}")
         return {
             'earned': Decimal('0'),
             'possible': Decimal('0'),
@@ -966,7 +966,7 @@ def format_score_display(score, max_score):
     Usage: {% format_score_display score max_score %}
     """
     if score is not None and max_score is not None:
-        return f"{score:.1f}/{max_score:.1f}"
+        return "{{score:.1f}}/{{max_score:.1f}}"
     return "Not graded"
 
 @register.simple_tag

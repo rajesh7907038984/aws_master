@@ -37,7 +37,8 @@ from django.views.decorators.http import require_POST
 from categories.models import CourseCategory
 from courses.models import Course, Section, Topic, TopicProgress
 from courses.views import check_course_permission
-from users.models import CustomUser, UserRole
+from users.models import CustomUser
+from role_management.models import UserRole
 from role_management.models import RoleCapability
 
 from .forms import (
@@ -56,7 +57,7 @@ from lms_rubrics.models import Rubric, RubricCriterion, RubricRating
 
 # Ensure Redis fallback is loaded
 try:
-    from core.utils.redis_fallback import *
+    from core.utils.redis_fallback import with_redis_fallback
     logger_fallback = logging.getLogger(__name__)
     logger_fallback.info("Redis fallback mechanism loaded in quiz views")
 except ImportError:

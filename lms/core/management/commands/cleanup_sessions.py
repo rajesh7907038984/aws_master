@@ -37,7 +37,7 @@ class Command(BaseCommand):
         
         # Count total sessions
         total_sessions = Session.objects.count()
-        self.stdout.write(f"📊 Total sessions: {total_sessions}")
+        self.stdout.write("📊 Total sessions: {{total_sessions}}")
         
         if total_sessions == 0:
             self.stdout.write("✅ No sessions to clean up")
@@ -47,13 +47,13 @@ class Command(BaseCommand):
         expired_sessions = Session.objects.filter(expire_date__lt=now)
         expired_count = expired_sessions.count()
         
-        self.stdout.write(f"⏰ Expired sessions: {expired_count}")
+        self.stdout.write("⏰ Expired sessions: {{expired_count}}")
         
         # Find potentially corrupted sessions (empty session data)
         corrupted_sessions = Session.objects.filter(session_data='')
         corrupted_count = corrupted_sessions.count()
         
-        self.stdout.write(f"💥 Corrupted sessions: {corrupted_count}")
+        self.stdout.write("💥 Corrupted sessions: {{corrupted_count}}")
         
         # Find sessions with invalid session data
         invalid_sessions = Session.objects.exclude(session_data='').exclude(session_data__isnull=True)
@@ -65,7 +65,7 @@ class Command(BaseCommand):
             except Exception:
                 invalid_count += 1
         
-        self.stdout.write(f"🚫 Invalid sessions: {invalid_count}")
+        self.stdout.write("🚫 Invalid sessions: {{invalid_count}}")
         
         total_to_delete = expired_count + corrupted_count + invalid_count
         
@@ -76,14 +76,14 @@ class Command(BaseCommand):
         if not force and total_to_delete > 1000:
             self.stdout.write(
                 self.style.WARNING(
-                    f"⚠️  Found {total_to_delete} sessions to delete. "
+                    "⚠️  Found {{total_to_delete}} sessions to delete. "
                     "Use --force to proceed with large cleanup."
                 )
             )
             return
         
         if dry_run:
-            self.stdout.write(f"🔍 DRY RUN: Would delete {total_to_delete} sessions")
+            self.stdout.write("🔍 DRY RUN: Would delete {{total_to_delete}} sessions")
             return
         
         # Perform cleanup
@@ -94,13 +94,13 @@ class Command(BaseCommand):
             if expired_count > 0:
                 deleted_expired = expired_sessions.delete()[0]
                 deleted_count += deleted_expired
-                self.stdout.write(f"🗑️  Deleted {deleted_expired} expired sessions")
+                self.stdout.write("🗑️  Deleted {{deleted_expired}} expired sessions")
             
             # Delete corrupted sessions
             if corrupted_count > 0:
                 deleted_corrupted = corrupted_sessions.delete()[0]
                 deleted_count += deleted_corrupted
-                self.stdout.write(f"🗑️  Deleted {deleted_corrupted} corrupted sessions")
+                self.stdout.write("🗑️  Deleted {{deleted_corrupted}} corrupted sessions")
             
             # Delete invalid sessions
             if invalid_count > 0:
@@ -114,14 +114,14 @@ class Command(BaseCommand):
                 if invalid_sessions_list:
                     deleted_invalid = Session.objects.filter(pk__in=invalid_sessions_list).delete()[0]
                     deleted_count += deleted_invalid
-                    self.stdout.write(f"🗑️  Deleted {deleted_invalid} invalid sessions")
+                    self.stdout.write("🗑️  Deleted {{deleted_invalid}} invalid sessions")
         
         self.stdout.write(
             self.style.SUCCESS(
-                f"✅ Session cleanup completed! Deleted {deleted_count} sessions"
+                "✅ Session cleanup completed! Deleted {{deleted_count}} sessions"
             )
         )
         
         # Show remaining sessions
         remaining = Session.objects.count()
-        self.stdout.write(f"📊 Remaining sessions: {remaining}")
+        self.stdout.write("📊 Remaining sessions: {{remaining}}")

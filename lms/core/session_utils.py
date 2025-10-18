@@ -45,11 +45,11 @@ def extend_user_sessions(user_id=None, hours=24):
             session.save()
             extended_count += 1
         
-        logger.info(f"Extended {extended_count} sessions by {hours} hours")
+        logger.info("Extended {{extended_count}} sessions by {{hours}} hours")
         return extended_count
         
     except Exception as e:
-        logger.error(f"Error extending sessions: {e}")
+        logger.error("Error extending sessions: {{e}}")
         return 0
 
 
@@ -61,10 +61,10 @@ def clear_expired_sessions():
         expired_sessions = Session.objects.filter(expire_date__lt=timezone.now())
         count = expired_sessions.count()
         expired_sessions.delete()
-        logger.info(f"Cleared {count} expired sessions")
+        logger.info("Cleared {{count}} expired sessions")
         return count
     except Exception as e:
-        logger.error(f"Error clearing expired sessions: {e}")
+        logger.error("Error clearing expired sessions: {{e}}")
         return 0
 
 
@@ -75,7 +75,7 @@ def get_active_session_count():
     try:
         return Session.objects.filter(expire_date__gt=timezone.now()).count()
     except Exception as e:
-        logger.error(f"Error getting active session count: {e}")
+        logger.error("Error getting active session count: {{e}}")
         return 0
 
 
@@ -104,7 +104,7 @@ def preserve_sessions_during_deployment():
                 session.delete()
                 corrupted_count += 1
         
-        logger.info(f"Deployment session preservation: Extended {extended_count} sessions, cleared {cleared_count} expired sessions, removed {corrupted_count} corrupted sessions")
+        logger.info("Deployment session preservation: Extended {{extended_count}} sessions, cleared {{cleared_count}} expired sessions, removed {{corrupted_count}} corrupted sessions")
         return {
             'extended_sessions': extended_count,
             'cleared_sessions': cleared_count,
@@ -113,7 +113,7 @@ def preserve_sessions_during_deployment():
         }
         
     except Exception as e:
-        logger.error(f"Error preserving sessions during deployment: {e}")
+        logger.error("Error preserving sessions during deployment: {{e}}")
         return None
 
 
@@ -136,5 +136,5 @@ def check_session_health():
         }
         
     except Exception as e:
-        logger.error(f"Error checking session health: {e}")
+        logger.error("Error checking session health: {{e}}")
         return None

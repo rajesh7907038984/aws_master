@@ -125,9 +125,9 @@
                     onclick="toggleProfileDropdown()"
                 >
                     {% if user.profile_image %}
-                    <img src="{{ user.profile_image.url }}" alt="{{ user.username }}" class="w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-full object-cover">
+                    <img src="{{ user.profile_image.url }}" alt="{{ user.username }}" class="w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-full object-cover border-2 border-white shadow-sm">
                     {% else %}
-                    <div class="w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-full bg-gray-300 flex items-center justify-center">
+                    <div class="w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-full bg-gray-300 flex items-center justify-center border-2 border-white shadow-sm">
                         <svg class="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 text-gray-600" fill="currentColor" viewBox="0 0 20 20">
                             <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"/>
                         </svg>
@@ -1042,7 +1042,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 >
                     <div class="flex-1 text-left">
                         <div class="font-medium">${branch.name}</div>
-                        ${branch.business_name ? `<div class="text-xs text-gray-500">${branch.business_name}</div>` : ''}
+                        ${branch.business_name ? '<div class="text-xs text-gray-500">' + branch.business_name + '</div>' : ''}
                         ${branch.is_primary ? '<div class="text-xs text-blue-600 mt-1">Primary Branch</div>' : ''}
                     </div>
                     ${currentIndicator}
@@ -1268,7 +1268,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                             menu.classList.add('hidden');
                                             
                                             // Find and update the button state
-                                            const menuButton = mobileMenuContent.querySelector(`[data-submenu="${menu.id}"]`);
+                                            const menuButton = mobileMenuContent.querySelector('[data-submenu="' + menu.id + '"]');
                                             if (menuButton) {
                                                 menuButton.classList.remove('active', 'expanded');
                                                 
@@ -1406,6 +1406,7 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(response => {
                 // Ensure response has proper status information
                 if (typeof response.status === 'undefined' || response.status === null) {
+                    console.log('Response status undefined:', {
                         url: args[0],
                         status: response.status,
                         statusText: response.statusText,
@@ -1423,6 +1424,7 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .catch(error => {
                 // Enhanced error logging for fetch failures
+                console.log('Fetch error:', {
                     url: args[0],
                     error: error.message,
                     name: error.name,
@@ -1467,7 +1469,7 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(response => {
                 if (!response.ok) {
                     // Log specific error details for debugging
-                    const error = new Error(`HTTP error! status: ${response.status}`);
+                    const error = new Error('HTTP error! status: ' + response.status);
                     error.status = response.status;
                     error.statusText = response.statusText;
                     throw error;
@@ -1524,7 +1526,7 @@ document.addEventListener('DOMContentLoaded', function() {
             
             if (messagesIcon) {
                 // Update title
-                messagesIcon.title = `Messages (${data.unread_count || 0} unread)`;
+                messagesIcon.title = 'Messages (' + (data.unread_count || 0) + ' unread)';
                 
                 // Show/hide indicator dot
                 if (messagesIndicator) {
@@ -1560,7 +1562,9 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // Only log error if it's not a network issue (to avoid spam)
             if (!error.message.includes('Failed to fetch') && error.name !== 'TypeError') {
+                console.log('Message count API error:', errorDetails);
             } else {
+                console.log('Network error for message count API');
             }
             
             // Fallback: Hide message indicators on API failure
@@ -1585,8 +1589,8 @@ document.addEventListener('DOMContentLoaded', function() {
             
             if (notificationIcon) {
                 // Update title
-                const urgentText = data.urgent_count > 0 ? `, ${data.urgent_count} urgent` : '';
-                notificationIcon.title = `Notifications (${data.unread_count || 0} unread${urgentText})`;
+                const urgentText = data.urgent_count > 0 ? ', ' + data.urgent_count + ' urgent' : '';
+                notificationIcon.title = 'Notifications (' + (data.unread_count || 0) + ' unread' + urgentText + ')';
                 
                 // Show/hide and style indicator dot
                 if (notificationIndicator) {
@@ -1644,7 +1648,9 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // Only log error if it's not a network issue (to avoid spam)
             if (!error.message.includes('Failed to fetch') && error.name !== 'TypeError') {
+                console.log('Notification count API error:', errorDetails);
             } else {
+                console.log('Network error for notification count API');
             }
             
             // Fallback: Hide notification indicators on API failure
@@ -1838,7 +1844,6 @@ document.addEventListener('DOMContentLoaded', function() {
         logoutButtons.forEach(button => {
             // Add high-priority click handler that prevents interference
             button.addEventListener('click', function(e) {
-                console.log('Logout button protected click:', e.target.id);
                 // Stop other handlers from interfering
                 e.stopImmediatePropagation();
                 // Don't prevent default - allow form submission
@@ -1848,7 +1853,6 @@ document.addEventListener('DOMContentLoaded', function() {
         logoutForms.forEach(form => {
             // Add form submit protection
             form.addEventListener('submit', function(e) {
-                console.log('Logout form protected submit:', form.id);
                 // Don't prevent default - allow form submission
             });
         });
@@ -1890,7 +1894,6 @@ document.addEventListener('DOMContentLoaded', function() {
     if (logoutForm && logoutButton) {
         // Add specific event listener for logout button with higher priority
         logoutButton.addEventListener('click', function(e) {
-            console.log('Logout button clicked');
             // Ensure the form submission is not prevented by other handlers
             e.stopImmediatePropagation();
             // Don't prevent default - let the form submit naturally
@@ -1898,7 +1901,6 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Add form submit event listener
         logoutForm.addEventListener('submit', function(e) {
-            console.log('Logout form submitting');
             // Don't prevent default - let the form submit naturally
         });
         
@@ -1906,7 +1908,6 @@ document.addEventListener('DOMContentLoaded', function() {
         logoutButton.addEventListener('click', function(e) {
             // This handler runs in the bubble phase and ensures form submission
             if (e.target.id === 'logout-button') {
-                console.log('Logout button confirmed - allowing form submission');
                 // Let the form submit naturally
             }
         });
@@ -1918,31 +1919,16 @@ document.addEventListener('DOMContentLoaded', function() {
         const profileDropdown = document.getElementById('profile-dropdown');
         const profileContainer = document.getElementById('profile-container');
         
-        console.log('Profile Dropdown Debug:');
-        console.log('- Button found:', !!profileButton);
-        console.log('- Dropdown found:', !!profileDropdown);
-        console.log('- Container found:', !!profileContainer);
-        console.log('- Dropdown classes:', profileDropdown ? profileDropdown.className : 'N/A');
-        console.log('- Dropdown style display:', profileDropdown ? profileDropdown.style.display : 'N/A');
-        console.log('- Dropdown style visibility:', profileDropdown ? profileDropdown.style.visibility : 'N/A');
-        console.log('- Dropdown style opacity:', profileDropdown ? profileDropdown.style.opacity : 'N/A');
+        // Profile Dropdown Debug - removed console.log statements for production
         
         if (profileDropdown) {
             const rect = profileDropdown.getBoundingClientRect();
-            console.log('- Dropdown position:', {
-                top: rect.top,
-                right: rect.right,
-                bottom: rect.bottom,
-                left: rect.left,
-                width: rect.width,
-                height: rect.height
-            });
+            // Dropdown position debug info removed for production
         }
         
         // Test click functionality
         if (profileButton) {
-            console.log('- Button onclick attribute:', profileButton.getAttribute('onclick'));
-            console.log('- Button event listeners:', profileButton.onclick ? 'Has onclick' : 'No onclick');
+            // Button debug info removed for production
         }
     };
     
@@ -1950,10 +1936,7 @@ document.addEventListener('DOMContentLoaded', function() {
     window.testProfileDropdown = function() {
         const profileButton = document.getElementById('profile-button');
         if (profileButton) {
-            console.log('Manually triggering profile dropdown...');
             profileButton.click();
-        } else {
-            console.log('Profile button not found');
         }
     };
     

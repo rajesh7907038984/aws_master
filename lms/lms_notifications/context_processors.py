@@ -34,7 +34,7 @@ def notifications_context(request):
         try:
             from .models import Notification
         except ImportError as e:
-            logger.error(f"Failed to import Notification model: {e}")
+            logger.error("Failed to import Notification model: {{e}}")
             return default_response
         
         # Query notifications with error handling
@@ -54,5 +54,5 @@ def notifications_context(request):
         
     except Exception as e:
         # Log the error but don't crash the application
-        logger.error(f"Error in notifications_context for user {getattr(request.user, 'id', 'unknown')}: {str(e)}", exc_info=True)
+        logger.error("Error in notifications_context for user {{getattr(request.user, 'id', 'unknown')}}: {{str(e)}}", exc_info=True)
         return default_response 

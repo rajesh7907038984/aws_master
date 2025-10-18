@@ -49,31 +49,31 @@ class Command(BaseCommand):
                     except Exception as chmod_error:
                         self.stdout.write(
                             self.style.WARNING(
-                                f"Note: Cannot set permissions for {directory}: {str(chmod_error)}"
+                                "Note: Cannot set permissions for {{directory}}: {{str(chmod_error)}}"
                             )
                         )
                     
                     self.stdout.write(
-                        self.style.SUCCESS(f"✓ Created log directory: {directory}")
+                        self.style.SUCCESS("✓ Created log directory: {{directory}}")
                     )
                     success_count += 1
                 else:
-                    self.stdout.write(f"  Directory already exists: {directory}")
+                    self.stdout.write("  Directory already exists: {{directory}}")
                     success_count += 1
             except Exception as e:
                 self.stdout.write(
-                    self.style.ERROR(f"✗ Failed to create {directory}: {str(e)}")
+                    self.style.ERROR("✗ Failed to create {{directory}}: {{str(e)}}")
                 )
                 error_count += 1
         
         self.stdout.write("\n" + "="*50)
         self.stdout.write(
-            self.style.SUCCESS(f"Successfully processed: {success_count} directories")
+            self.style.SUCCESS("Successfully processed: {{success_count}} directories")
         )
         
         if error_count > 0:
             self.stdout.write(
-                self.style.ERROR(f"Failed: {error_count} directories")
+                self.style.ERROR("Failed: {{error_count}} directories")
             )
             self._provide_troubleshooting_help()
         else:
@@ -111,16 +111,16 @@ class Command(BaseCommand):
                 writable = os.access(directory, os.W_OK)
                 if writable:
                     self.stdout.write(
-                        self.style.SUCCESS(f"✓ Directory exists and is writable: {directory}")
+                        self.style.SUCCESS("✓ Directory exists and is writable: {{directory}}")
                     )
                 else:
                     self.stdout.write(
-                        self.style.WARNING(f"! Directory exists but not writable: {directory}")
+                        self.style.WARNING("! Directory exists but not writable: {{directory}}")
                     )
                     all_good = False
             else:
                 self.stdout.write(
-                    self.style.ERROR(f"✗ Directory does not exist: {directory}")
+                    self.style.ERROR("✗ Directory does not exist: {{directory}}")
                 )
                 all_good = False
         

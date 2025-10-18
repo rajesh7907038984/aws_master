@@ -50,15 +50,15 @@ class Command(BaseCommand):
         if options['template_id']:
             try:
                 template = CertificateTemplate.objects.get(id=options['template_id'])
-                self.stdout.write(f"Using template: {template.name}")
+                self.stdout.write("Using template: {{template.name}}")
             except CertificateTemplate.DoesNotExist:
-                raise CommandError(f"Certificate template with ID {options['template_id']} not found")
+                raise CommandError("Certificate template with ID {{options['template_id']}} not found")
         else:
             # Use the first active template
             template = CertificateTemplate.objects.filter(is_active=True).first()
             if not template:
                 raise CommandError("No active certificate templates found. Please create one first.")
-            self.stdout.write(f"Using default template: {template.name}")
+            self.stdout.write("Using default template: {{template.name}}")
         
         # Enable certificate generation for courses
         if options['enable_all']:
@@ -76,7 +76,7 @@ class Command(BaseCommand):
     def enable_certificates_for_all_courses(self, template, dry_run):
         """Enable certificate generation for all courses"""
         courses = Course.objects.all()
-        self.stdout.write(f"Found {courses.count()} courses")
+        self.stdout.write("Found {{courses.count()}} courses")
         
         updated_count = 0
         for course in courses:
@@ -85,13 +85,13 @@ class Command(BaseCommand):
                     course.issue_certificate = True
                     course.certificate_template = template
                     course.save()
-                self.stdout.write(f"  - Enabled certificates for: {course.title}")
+                self.stdout.write("  - Enabled certificates for: {{course.title}}")
                 updated_count += 1
         
         if dry_run:
-            self.stdout.write(f"DRY RUN: Would enable certificates for {updated_count} courses")
+            self.stdout.write("DRY RUN: Would enable certificates for {{updated_count}} courses")
         else:
-            self.stdout.write(f"Enabled certificates for {updated_count} courses")
+            self.stdout.write("Enabled certificates for {{updated_count}} courses")
 
     def enable_certificates_for_course(self, course_id, template, dry_run):
         """Enable certificate generation for a specific course"""
@@ -101,9 +101,9 @@ class Command(BaseCommand):
                 course.issue_certificate = True
                 course.certificate_template = template
                 course.save()
-            self.stdout.write(f"Enabled certificates for course: {course.title}")
+            self.stdout.write("Enabled certificates for course: {{course.title}}")
         except Course.DoesNotExist:
-            raise CommandError(f"Course with ID {course_id} not found")
+            raise CommandError("Course with ID {{course_id}} not found")
 
     def generate_missing_certificates(self, template, dry_run):
         """Generate missing certificates for completed courses"""
@@ -113,7 +113,7 @@ class Command(BaseCommand):
             certificate_template__isnull=False
         )
         
-        self.stdout.write(f"Found {courses_with_certificates.count()} courses with certificate generation enabled")
+        self.stdout.write("Found {{courses_with_certificates.count()}} courses with certificate generation enabled")
         
         generated_count = 0
         for course in courses_with_certificates:
@@ -133,7 +133,7 @@ class Command(BaseCommand):
                 if not existing_cert:
                     if not dry_run:
                         # Generate unique certificate number
-                        certificate_number = f"CERT-{uuid.uuid4().hex[:8].upper()}"
+                        certificate_number = "CERT-{{uuid.uuid4().hex[:8].upper()}}"
                         
                         # Get course instructor or superuser as issuer
                         issuer = course.instructor
@@ -152,13 +152,13 @@ class Command(BaseCommand):
                             certificate_number=certificate_number,
                         )
                         
-                        self.stdout.write(f"  - Generated certificate {certificate.certificate_number} for {enrollment.user.username} in {course.title}")
+                        self.stdout.write("  - Generated certificate {{certificate.certificate_number}} for {{enrollment.user.username}} in {{course.title}}")
                     else:
-                        self.stdout.write(f"  - Would generate certificate for {enrollment.user.username} in {course.title}")
+                        self.stdout.write("  - Would generate certificate for {{enrollment.user.username}} in {{course.title}}")
                     
                     generated_count += 1
         
         if dry_run:
-            self.stdout.write(f"DRY RUN: Would generate {generated_count} certificates")
+            self.stdout.write("DRY RUN: Would generate {{generated_count}} certificates")
         else:
-            self.stdout.write(f"Generated {generated_count} certificates")
+            self.stdout.write("Generated {{generated_count}} certificates")

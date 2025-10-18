@@ -3,7 +3,7 @@ default_app_config = 'quiz.apps.QuizConfig'
 
 # Ensure Redis fallback is loaded
 try:
-    from core.utils.redis_fallback import *
+    from core.utils.redis_fallback import with_redis_fallback
     import logging
     logger = logging.getLogger(__name__)
     logger.info("Redis fallback mechanism loaded for quiz app")

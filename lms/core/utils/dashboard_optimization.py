@@ -296,7 +296,7 @@ class DashboardQueryOptimizer:
                 })
                 
         except Exception as e:
-            logger.error(f"Error getting dashboard stats: {str(e)}")
+            logger.error("Error getting dashboard stats: {{str(e)}}")
             stats = {'error': str(e)}
         
         return stats

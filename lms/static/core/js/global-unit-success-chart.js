@@ -40,9 +40,9 @@ class GlobalUnitSuccessChart {
                             label: (context) => {
                                 const label = context.label;
                                 const value = context.raw;
-                                if (this.totalAttempts === 0) return `${label}: ${value}`;
+                                if (this.totalAttempts === 0) return label + ': ' + value;
                                 const percentage = Math.round((value / this.totalAttempts) * 100);
-                                return `${label}: ${value} (${percentage}%)`;
+                                return label + ': ' + value + ' (' + percentage + '%)';
                             }
                         }
                     }
@@ -59,6 +59,7 @@ class GlobalUnitSuccessChart {
     }
     
     init() {
+        console.log('Initializing chart with data:', {
             passed: this.passedCount,
             notPassed: this.notPassedCount,
             total: this.totalAttempts

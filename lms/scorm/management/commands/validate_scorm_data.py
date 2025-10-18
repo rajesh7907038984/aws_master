@@ -74,16 +74,16 @@ class Command(BaseCommand):
                 else:
                     if fix:
                         self.stdout.write(
-                            self.style.SUCCESS(f'Fixed {issues_found} data integrity issues')
+                            self.style.SUCCESS("Fixed {{issues_found}} data integrity issues")
                         )
                     else:
                         self.stdout.write(
-                            self.style.WARNING(f'Found {issues_found} data integrity issues (use --fix to attempt repairs)')
+                            self.style.WARNING("Found {{issues_found}} data integrity issues (use --fix to attempt repairs)")
                         )
                 
         except Exception as e:
-            logger.error(f"Error during SCORM validation: {str(e)}")
-            raise CommandError(f'Validation failed: {str(e)}')
+            logger.error("Error during SCORM validation: {{str(e)}}")
+            raise CommandError("Validation failed: {{str(e)}}")
 
     def validate_packages(self, verbose=False, package_id=None, fix=False):
         """Validate SCORM package data integrity"""
@@ -108,10 +108,10 @@ class Command(BaseCommand):
                     if matching_topic:
                         package.topic = matching_topic
                         package.save()
-                        self.stdout.write(f'Fixed package {package.id}: Assigned topic {matching_topic.id}')
+                        self.stdout.write("Fixed package {{package.id}}: Assigned topic {{matching_topic.id}}")
                     else:
                         self.stdout.write(
-                            self.style.ERROR(f'Could not fix package {package.id}: No matching topic found')
+                            self.style.ERROR("Could not fix package {{package.id}}: No matching topic found")
                         )
             
             # Check for missing package file
@@ -128,24 +128,24 @@ class Command(BaseCommand):
             
             # Check for invalid package type
             if package.package_type not in [choice[0] for choice in ELearningPackage.PACKAGE_TYPES]:
-                package_issues.append(f"Invalid package type: {package.package_type}")
+                package_issues.append("Invalid package type: {{package.package_type}}")
                 if fix:
                     package.package_type = 'SCORM_1_2'  # Default fallback
                     package.save()
-                    self.stdout.write(f'Fixed package {package.id}: Set package type to SCORM_1_2')
+                    self.stdout.write("Fixed package {{package.id}}: Set package type to SCORM_1_2")
             
             # Check for missing required fields
             if not package.title:
                 package_issues.append("Missing title")
                 if fix:
-                    package.title = f"Package {package.id}"
+                    package.title = "Package {{package.id}}"
                     package.save()
-                    self.stdout.write(f'Fixed package {package.id}: Set default title')
+                    self.stdout.write("Fixed package {{package.id}}: Set default title")
             
             if package_issues:
                 issues += len(package_issues)
                 if verbose:
-                    self.stdout.write(f'Package {package.id} issues: {", ".join(package_issues)}')
+                    self.stdout.write("Package {{package.id}} issues: {{", ".join(package_issues)}}")
         
         return issues
 
@@ -163,7 +163,7 @@ class Command(BaseCommand):
                 tracking_issues.append("Missing user reference")
                 if fix:
                     tracking.delete()
-                    self.stdout.write(f'Fixed tracking {tracking.id}: Deleted orphaned record')
+                    self.stdout.write("Fixed tracking {{tracking.id}}: Deleted orphaned record")
                     continue
             
             # Check for missing package reference
@@ -171,35 +171,35 @@ class Command(BaseCommand):
                 tracking_issues.append("Missing package reference")
                 if fix:
                     tracking.delete()
-                    self.stdout.write(f'Fixed tracking {tracking.id}: Deleted orphaned record')
+                    self.stdout.write("Fixed tracking {{tracking.id}}: Deleted orphaned record")
                     continue
             
             # Check for invalid completion status
             valid_completion_statuses = ['incomplete', 'completed', 'unknown']
             if tracking.completion_status not in valid_completion_statuses:
-                tracking_issues.append(f"Invalid completion status: {tracking.completion_status}")
+                tracking_issues.append("Invalid completion status: {{tracking.completion_status}}")
                 if fix:
                     tracking.completion_status = 'incomplete'
                     tracking.save()
-                    self.stdout.write(f'Fixed tracking {tracking.id}: Set completion status to incomplete')
+                    self.stdout.write("Fixed tracking {{tracking.id}}: Set completion status to incomplete")
             
             # Check for invalid success status
             valid_success_statuses = ['passed', 'failed', 'unknown']
             if tracking.success_status not in valid_success_statuses:
-                tracking_issues.append(f"Invalid success status: {tracking.success_status}")
+                tracking_issues.append("Invalid success status: {{tracking.success_status}}")
                 if fix:
                     tracking.success_status = 'unknown'
                     tracking.save()
-                    self.stdout.write(f'Fixed tracking {tracking.id}: Set success status to unknown')
+                    self.stdout.write("Fixed tracking {{tracking.id}}: Set success status to unknown")
             
             # Check for invalid score values
             if tracking.score_raw is not None:
                 if tracking.score_raw < 0 or tracking.score_raw > 100:
-                    tracking_issues.append(f"Invalid score: {tracking.score_raw}")
+                    tracking_issues.append("Invalid score: {{tracking.score_raw}}")
                     if fix:
                         tracking.score_raw = max(0, min(100, tracking.score_raw))
                         tracking.save()
-                        self.stdout.write(f'Fixed tracking {tracking.id}: Clamped score to valid range')
+                        self.stdout.write("Fixed tracking {{tracking.id}}: Clamped score to valid range")
             
             # Check for invalid time values
             if tracking.total_time and tracking.total_time.total_seconds() < 0:
@@ -207,7 +207,7 @@ class Command(BaseCommand):
                 if fix:
                     tracking.total_time = None
                     tracking.save()
-                    self.stdout.write(f'Fixed tracking {tracking.id}: Reset invalid total time')
+                    self.stdout.write("Fixed tracking {{tracking.id}}: Reset invalid total time")
             
             # Check for missing raw_data
             if not tracking.raw_data:
@@ -215,12 +215,12 @@ class Command(BaseCommand):
                 if fix:
                     tracking.raw_data = {}
                     tracking.save()
-                    self.stdout.write(f'Fixed tracking {tracking.id}: Initialized empty raw data')
+                    self.stdout.write("Fixed tracking {{tracking.id}}: Initialized empty raw data")
             
             if tracking_issues:
                 issues += len(tracking_issues)
                 if verbose:
-                    self.stdout.write(f'Tracking {tracking.id} issues: {", ".join(tracking_issues)}')
+                    self.stdout.write("Tracking {{tracking.id}} issues: {{", ".join(tracking_issues)}}")
         
         return issues
 
@@ -239,11 +239,11 @@ class Command(BaseCommand):
             count = invalid_tracking.count()
             issues += count
             if verbose:
-                self.stdout.write(f'Found {count} tracking records with invalid user references')
+                self.stdout.write("Found {{count}} tracking records with invalid user references")
             
             if fix:
                 invalid_tracking.delete()
-                self.stdout.write(f'Fixed: Deleted {count} tracking records with invalid user references')
+                self.stdout.write("Fixed: Deleted {{count}} tracking records with invalid user references")
         
         # Check for tracking records with non-existent users
         for tracking in ELearningTracking.objects.exclude(user__isnull=True):
@@ -253,17 +253,17 @@ class Command(BaseCommand):
                 if not user:
                     issues += 1
                     if verbose:
-                        self.stdout.write(f'Tracking {tracking.id} has invalid user reference')
+                        self.stdout.write("Tracking {{tracking.id}} has invalid user reference")
                     if fix:
                         tracking.delete()
-                        self.stdout.write(f'Fixed: Deleted tracking {tracking.id} with invalid user')
+                        self.stdout.write("Fixed: Deleted tracking {{tracking.id}} with invalid user")
             except Exception:
                 issues += 1
                 if verbose:
-                    self.stdout.write(f'Tracking {tracking.id} has invalid user reference')
+                    self.stdout.write("Tracking {{tracking.id}} has invalid user reference")
                 if fix:
                     tracking.delete()
-                    self.stdout.write(f'Fixed: Deleted tracking {tracking.id} with invalid user')
+                    self.stdout.write("Fixed: Deleted tracking {{tracking.id}} with invalid user")
         
         return issues
 
@@ -282,7 +282,7 @@ class Command(BaseCommand):
             count = invalid_packages.count()
             issues += count
             if verbose:
-                self.stdout.write(f'Found {count} packages with invalid topic references')
+                self.stdout.write("Found {{count}} packages with invalid topic references")
             
             if fix:
                 # Try to find matching topics or delete packages
@@ -294,10 +294,10 @@ class Command(BaseCommand):
                     if matching_topic:
                         package.topic = matching_topic
                         package.save()
-                        self.stdout.write(f'Fixed: Assigned package {package.id} to topic {matching_topic.id}')
+                        self.stdout.write("Fixed: Assigned package {{package.id}} to topic {{matching_topic.id}}")
                     else:
                         package.delete()
-                        self.stdout.write(f'Fixed: Deleted package {package.id} with no matching topic')
+                        self.stdout.write("Fixed: Deleted package {{package.id}} with no matching topic")
         
         # Check for tracking records with invalid package references
         invalid_tracking = ELearningTracking.objects.filter(
@@ -308,11 +308,11 @@ class Command(BaseCommand):
             count = invalid_tracking.count()
             issues += count
             if verbose:
-                self.stdout.write(f'Found {count} tracking records with invalid package references')
+                self.stdout.write("Found {{count}} tracking records with invalid package references")
             
             if fix:
                 invalid_tracking.delete()
-                self.stdout.write(f'Fixed: Deleted {count} tracking records with invalid package references')
+                self.stdout.write("Fixed: Deleted {{count}} tracking records with invalid package references")
         
         return issues
 
@@ -335,12 +335,12 @@ class Command(BaseCommand):
                     except Exception:
                         issues += 1
                         if verbose:
-                            self.stdout.write(f'Package {package.id} has missing S3 file: {package.package_file.name}')
+                            self.stdout.write("Package {{package.id}} has missing S3 file: {{package.package_file.name}}")
                         
                         if fix:
                             package.package_file = None
                             package.save()
-                            self.stdout.write(f'Fixed: Cleared missing S3 file reference for package {package.id}')
+                            self.stdout.write("Fixed: Cleared missing S3 file reference for package {{package.id}}")
             
             # Check for packages with missing extracted content
             for package in ELearningPackage.objects.exclude(extracted_path__isnull=True):
@@ -351,17 +351,17 @@ class Command(BaseCommand):
                     except Exception:
                         issues += 1
                         if verbose:
-                            self.stdout.write(f'Package {package.id} has missing extracted content: {package.extracted_path}')
+                            self.stdout.write("Package {{package.id}} has missing extracted content: {{package.extracted_path}}")
                         
                         if fix:
                             package.extracted_path = None
                             package.is_extracted = False
                             package.save()
-                            self.stdout.write(f'Fixed: Cleared missing extracted content reference for package {package.id}')
+                            self.stdout.write("Fixed: Cleared missing extracted content reference for package {{package.id}}")
         
         except Exception as e:
             self.stdout.write(
-                self.style.ERROR(f'Error validating S3 references: {str(e)}')
+                self.style.ERROR("Error validating S3 references: {{str(e)}}")
             )
         
         return issues

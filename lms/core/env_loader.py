@@ -51,7 +51,7 @@ class EnvironmentLoader:
                     line = line.strip()
                     
                     # Skip empty lines and comments
-                    if not line or line.startswith('#'):
+                    if not line.strip() or line.startswith('#'):
                         continue
                     
                     # Parse key=value pairs
@@ -66,12 +66,24 @@ class EnvironmentLoader:
                         elif value.startswith("'") and value.endswith("'"):
                             value = value[1:-1]
                         
-                        # Always override environment variables from .env file
-                        # This ensures production.env values take precedence over stale system env vars
-                        if os.environ.get(key) and os.environ.get(key) != value:
-                            logger.info(f"Overriding {key} with value from .env file")
+                        # Enhanced environment variable conflict resolution
+                        existing_value = os.environ.get(key)
+                        if existing_value and existing_value != value:
+                            # Log the conflict with more detail
+                            logger.info(f"Environment variable conflict for {key}:")
+                            logger.info(f"  System value: {existing_value[:20]}..." if len(existing_value) > 20 else f"  System value: {existing_value}")
+                            logger.info(f"  .env value: {value[:20]}..." if len(value) > 20 else f"  .env value: {value}")
+                            logger.info(f"  Using .env value (overriding system)")
+                        
+                        # Always use .env file values to ensure consistency
                         os.environ[key] = value
                         self.loaded_variables[key] = value
+                        
+                        # Validate critical environment variables
+                        if key in ['DJANGO_SECRET_KEY', 'AWS_DB_PASSWORD', 'AWS_SECRET_ACCESS_KEY']:
+                            if not value or len(value.strip()) == 0:
+                                logger.error(f"Critical environment variable {key} is empty")
+                                raise ValueError(f"Critical environment variable {key} cannot be empty")
                     else:
                         logger.warning(f"Invalid line format in {self.env_file_path}:{line_num}: {line}")
             
@@ -99,7 +111,7 @@ class EnvironmentLoader:
     
     def get(self, key: str, default: Any = None, required: bool = False) -> Any:
         """
-        Get an environment variable with optional default and validation
+        Get an environment variable with enhanced validation and conflict resolution
         
         Args:
             key: Environment variable name
@@ -112,7 +124,19 @@ class EnvironmentLoader:
         value = os.environ.get(key, default)
         
         if required and not value:
-            raise ValueError(f"Required environment variable {key} is not set")
+            # Enhanced error message with suggestions
+            suggestions = {
+                'DJANGO_SECRET_KEY': 'Generate with: python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"',
+                'AWS_DB_PASSWORD': 'Set in .env file or system environment',
+                'AWS_SECRET_ACCESS_KEY': 'Get from AWS IAM console',
+                'AWS_ACCESS_KEY_ID': 'Get from AWS IAM console',
+            }
+            suggestion = suggestions.get(key, 'Check your .env file or system environment variables')
+            raise ValueError(f"Required environment variable {key} is not set. {suggestion}")
+        
+        # Log when using default values for debugging
+        if value == default and default is not None:
+            logger.debug(f"Using default value for {key}: {default}")
         
         return value
     

@@ -4,9 +4,12 @@ Extends base settings with production-specific configurations
 """
 
 import os
+import logging
 from pathlib import Path
 from .base import *
 from core.env_loader import get_env, get_bool_env, get_int_env, get_list_env
+
+logger = logging.getLogger(__name__)
 
 # ==============================================
 # ENVIRONMENT VARIABLE LOADING
@@ -39,6 +42,8 @@ SESSION_COOKIE_SAMESITE = 'Lax'  # Use Lax for better compatibility (overriding 
 
 # CSRF configuration - production overrides only
 CSRF_COOKIE_SECURE = True  # Enable secure CSRF cookies for production HTTPS
+CSRF_COOKIE_HTTPONLY = False  # Allow JavaScript access for AJAX requests
+CSRF_COOKIE_SAMESITE = 'Lax'  # Use Lax for better compatibility with AJAX
 
 # Disable session corruption warnings
 import logging
@@ -86,7 +91,8 @@ def add_dynamic_ip_async():
             import os
             os.environ.setdefault('DYNAMIC_PUBLIC_IP', public_ip)
             # Dynamic public IP detected and set
-    except:
+    except Exception as e:
+        logger.debug(f"Metadata service not available: {e}")
         pass  # Silently ignore if metadata service is not available
 
 # Check for cached dynamic IP
@@ -103,14 +109,33 @@ threading.Thread(target=add_dynamic_ip_async, daemon=True).start()
 # PRODUCTION DATABASE CONFIGURATION
 # ==============================================
 
-# Database configuration - simplified
-AWS_DB_PASSWORD = get_env('AWS_DB_PASSWORD')
-if not AWS_DB_PASSWORD:
-    AWS_DB_PASSWORD = get_env('DATABASE_PASSWORD') or get_env('DB_PASSWORD')
+# Database configuration - enhanced with comprehensive error handling
+try:
+    # Try multiple environment variable names for database password
+    AWS_DB_PASSWORD = get_env('AWS_DB_PASSWORD')
     if not AWS_DB_PASSWORD:
-        # Database password not found in environment variables
-        # Please set AWS_DB_PASSWORD in .env file
-        raise ValueError("Database password is required for production deployment")
+        AWS_DB_PASSWORD = get_env('DATABASE_PASSWORD') or get_env('DB_PASSWORD')
+    
+    if not AWS_DB_PASSWORD:
+        # Try to get from alternative sources
+        import os
+        AWS_DB_PASSWORD = os.environ.get('POSTGRES_PASSWORD') or os.environ.get('DB_PASS')
+        
+    if not AWS_DB_PASSWORD:
+        logger.error("Database password not found in any environment variable")
+        logger.error("Checked: AWS_DB_PASSWORD, DATABASE_PASSWORD, DB_PASSWORD, POSTGRES_PASSWORD, DB_PASS")
+        raise ValueError("Database password is required for production deployment. Please set AWS_DB_PASSWORD in .env file")
+    
+    # Validate password strength
+    if len(AWS_DB_PASSWORD) < 8:
+        logger.warning("Database password is shorter than recommended (8 characters)")
+    
+    logger.info("Database password found and validated")
+    
+except Exception as e:
+    logger.error(f"Database configuration error: {e}")
+    logger.error("Please ensure AWS_DB_PASSWORD is set in your .env file")
+    raise
 
 DATABASES = {
     'default': {
@@ -127,6 +152,12 @@ DATABASES = {
         },
         'CONN_MAX_AGE': 300,
         'CONN_HEALTH_CHECKS': True,
+        'ATOMIC_REQUESTS': True,  # Ensure database transactions are atomic
+        # Enhanced connection settings for production
+        'CONNECTION_POOL_SIZE': 10,
+        'CONNECTION_POOL_OVERFLOW': 20,
+        'CONNECTION_POOL_TIMEOUT': 30,
+        'CONNECTION_POOL_RECYCLE': 3600,  # Recycle connections every hour
     }
 }
 # Database configuration loaded
@@ -177,17 +208,31 @@ AWS_S3_REGION_NAME = get_env('AWS_S3_REGION_NAME', 'us-east-1')
 AWS_S3_CUSTOM_DOMAIN = get_env('AWS_S3_CUSTOM_DOMAIN', None)
 AWS_DEFAULT_ACL = 'private'
 AWS_S3_OBJECT_PARAMETERS = {
-    'CacheControl': 'max-age=86400',
+    'CacheControl': 'max-age=2592000',  # 30 days for better caching
+    'ContentDisposition': 'inline',  # Allow inline viewing
 }
+
+# Video streaming support
+AWS_S3_OBJECT_PARAMETERS_VIDEO = {
+    'CacheControl': 'max-age=31536000',  # 1 year for videos
+    'ContentDisposition': 'inline',
+    'ContentType': 'video/mp4',
+}
+
 AWS_S3_FILE_OVERWRITE = False
 AWS_S3_VERIFY = True
 
 # Use S3 for media files
 DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
-MEDIA_URL = f'https://{AWS_STORAGE_BUCKET_NAME}.s3.{AWS_S3_REGION_NAME}.amazonaws.com/media/'
 
-# SCORM-specific S3 configuration
-SCORM_MEDIA_URL = f'https://{AWS_STORAGE_BUCKET_NAME}.s3.{AWS_S3_REGION_NAME}.amazonaws.com/elearning/'
+# Add CloudFront CDN support (if available)
+AWS_S3_CUSTOM_DOMAIN = get_env('CLOUDFRONT_DOMAIN', None)
+if AWS_S3_CUSTOM_DOMAIN:
+    MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/media/'
+    SCORM_MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/elearning/'
+else:
+    MEDIA_URL = f'https://{AWS_STORAGE_BUCKET_NAME}.s3.{AWS_S3_REGION_NAME}.amazonaws.com/media/'
+    SCORM_MEDIA_URL = f'https://{AWS_STORAGE_BUCKET_NAME}.s3.{AWS_S3_REGION_NAME}.amazonaws.com/elearning/'
 
 # Security settings for S3 media files
 FILE_UPLOAD_PERMISSIONS = 0o644  # Readable by owner and group, writable by owner
@@ -220,11 +265,11 @@ FILE_UPLOAD_HANDLERS = [
 ]
 
 print("☁️ Using S3 media storage configuration")
-print(f"☁️ S3 Bucket: {AWS_STORAGE_BUCKET_NAME}")
-print(f"☁️ S3 Region: {AWS_S3_REGION_NAME}")
-print(f"☁️ MEDIA_URL set to: {MEDIA_URL}")
+print("☁️ S3 Bucket: {}".format(AWS_STORAGE_BUCKET_NAME))
+print("☁️ S3 Region: {}".format(AWS_S3_REGION_NAME))
+print("☁️ MEDIA_URL set to: {}".format(MEDIA_URL))
 print("🔒 Compliance features: Audit logging enabled, file permissions secured")
-print(f"📁 Max file size: {MEDIA_FILE_MAX_SIZE // (1024*1024)}MB (ZIP files supported)")
+print("📁 Max file size: {}MB (ZIP files supported)".format(MEDIA_FILE_MAX_SIZE // (1024*1024)))
 
 # ==============================================
 # PRODUCTION SETTINGS
@@ -237,13 +282,13 @@ print(f"📁 Max file size: {MEDIA_FILE_MAX_SIZE // (1024*1024)}MB (ZIP files su
 # Production-specific CORS overrides (inherits base.py CORS config)
 # Build CORS_ALLOWED_ORIGINS dynamically from environment
 CORS_ALLOWED_ORIGINS = [
-    f"https://{PRIMARY_DOMAIN}",
+    "https://{}".format(PRIMARY_DOMAIN),
 ]
 
 # Add ALB domain if configured
 if ALB_DOMAIN:
-    CORS_ALLOWED_ORIGINS.append(f"https://{ALB_DOMAIN}")
-    CORS_ALLOWED_ORIGINS.append(f"http://{ALB_DOMAIN}")  # For health checks
+    CORS_ALLOWED_ORIGINS.append("https://{}".format(ALB_DOMAIN))
+    CORS_ALLOWED_ORIGINS.append("http://{}".format(ALB_DOMAIN))  # For health checks
 
 # Add additional CORS origins from environment (comma-separated)
 additional_cors = get_list_env('ADDITIONAL_CORS_ORIGINS', default=[])
@@ -257,13 +302,13 @@ CSRF_COOKIE_SECURE = True  # Enable secure CSRF cookies for production HTTPS
 
 # Build CSRF_TRUSTED_ORIGINS dynamically from environment
 CSRF_TRUSTED_ORIGINS = [
-    f'https://{PRIMARY_DOMAIN}',
+    'https://{}'.format(PRIMARY_DOMAIN),
 ]
 
 # Add ALB domain if configured
 if ALB_DOMAIN:
-    CSRF_TRUSTED_ORIGINS.append(f'https://{ALB_DOMAIN}')
-    CSRF_TRUSTED_ORIGINS.append(f'http://{ALB_DOMAIN}')  # For health checks
+    CSRF_TRUSTED_ORIGINS.append('https://{}'.format(ALB_DOMAIN))
+    CSRF_TRUSTED_ORIGINS.append('http://{}'.format(ALB_DOMAIN))  # For health checks
 
 # Add additional CSRF trusted origins from environment (comma-separated)
 additional_csrf = get_list_env('ADDITIONAL_CSRF_ORIGINS', default=[])

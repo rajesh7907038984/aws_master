@@ -1,70 +1,94 @@
 /**
  * Unified Timezone Handler for LMS
- * Handles timezone detection and management across the application
+ * Handles timezone detection and conversion
  */
+
 (function() {
     'use strict';
 
-    // Create global timezone handler
-    window.TimezoneHandler = {
-        // Get user's current timezone
-        getUserTimezone: function() {
-            try {
-                return Intl.DateTimeFormat().resolvedOptions().timeZone;
-            } catch (e) {
-                return 'UTC';
-            }
-        },
-
-        // Format date according to user's timezone
-        formatDate: function(dateString, options = {}) {
-            try {
-                const date = new Date(dateString);
-                const defaultOptions = {
-                    year: 'numeric',
-                    month: 'short',
-                    day: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit'
-                };
-                const formatOptions = Object.assign(defaultOptions, options);
-                return date.toLocaleDateString(undefined, formatOptions);
-            } catch (e) {
-                return dateString;
-            }
-        },
-
-        // Initialize timezone handling
+    const UnifiedTimezoneHandler = {
+        userTimezone: null,
+        serverTimezone: 'UTC',
+        
         init: function() {
-            const timezone = this.getUserTimezone();
-            
-            // Store timezone in session storage for server-side usage
-            if (typeof(Storage) !== "undefined") {
-                sessionStorage.setItem('userTimezone', timezone);
+            this.detectTimezone();
+            this.setupTimezoneHandling();
+        },
+        
+        detectTimezone: function() {
+            try {
+                this.userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+                window.userTimezone = this.userTimezone;
+            } catch (e) {
+                this.userTimezone = 'UTC';
+                window.userTimezone = 'UTC';
             }
-
-            // Add timezone to forms
-            const forms = document.querySelectorAll('form');
-            forms.forEach(form => {
-                // Add hidden timezone field if it doesn't exist
-                if (!form.querySelector('input[name="user_timezone"]')) {
-                    const timezoneInput = document.createElement('input');
-                    timezoneInput.type = 'hidden';
-                    timezoneInput.name = 'user_timezone';
-                    timezoneInput.value = timezone;
-                    form.appendChild(timezoneInput);
+        },
+        
+        setupTimezoneHandling: function() {
+            // Add timezone to all form submissions
+            document.addEventListener('submit', (e) => {
+                const form = e.target;
+                if (form.tagName === 'FORM') {
+                    this.addTimezoneToForm(form);
                 }
             });
-
+            
+            // Add timezone to all fetch requests
+            const originalFetch = window.fetch;
+            window.fetch = function(url, options = {}) {
+                options.headers = options.headers || {};
+                options.headers['X-User-Timezone'] = UnifiedTimezoneHandler.userTimezone;
+                return originalFetch(url, options);
+            };
+        },
+        
+        addTimezoneToForm: function(form) {
+            if (!form.querySelector('input[name="user_timezone"]')) {
+                const timezoneInput = document.createElement('input');
+                timezoneInput.type = 'hidden';
+                timezoneInput.name = 'user_timezone';
+                timezoneInput.value = this.userTimezone;
+                form.appendChild(timezoneInput);
+            }
+        },
+        
+        getTimezone: function() {
+            return this.userTimezone;
+        },
+        
+        formatDate: function(date, options = {}) {
+            const defaultOptions = {
+                timeZone: this.userTimezone,
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            };
+            
+            return new Intl.DateTimeFormat('en-US', { ...defaultOptions, ...options }).format(date);
+        },
+        
+        convertToUserTimezone: function(date) {
+            if (typeof date === 'string') {
+                date = new Date(date);
+            }
+            
+            return new Date(date.toLocaleString('en-US', { timeZone: this.userTimezone }));
         }
     };
 
-    // Auto-initialize when DOM is ready
+    // Initialize when DOM is ready
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', function() {
-            window.TimezoneHandler.init();
+            UnifiedTimezoneHandler.init();
         });
     } else {
-        window.TimezoneHandler.init();
+        UnifiedTimezoneHandler.init();
     }
+
+    // Export to global scope
+    window.UnifiedTimezoneHandler = UnifiedTimezoneHandler;
 })();

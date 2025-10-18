@@ -2,7 +2,7 @@ from django import forms
 from django.forms import formset_factory, BaseFormSet
 from django.contrib.auth import get_user_model
 from core.utils.fields import TinyMCEField
-from users.models import Branch
+from branches.models import Branch
 from groups.models import BranchGroup
 from courses.models import Course
 from .models import (
@@ -50,8 +50,8 @@ class NotificationTypeSettingsForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         
         if self.notification_type:
-            self.fields['email_enabled'].label = f"Email notifications for {self.notification_type.display_name}"
-            self.fields['web_enabled'].label = f"Web notifications for {self.notification_type.display_name}"
+            self.fields['email_enabled'].label = "Email notifications for {{self.notification_type.display_name}}"
+            self.fields['web_enabled'].label = "Web notifications for {{self.notification_type.display_name}}"
 
 
 class BaseNotificationTypeSettingsFormSet(BaseFormSet):

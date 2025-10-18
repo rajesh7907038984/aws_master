@@ -46,5 +46,5 @@ class Migration(migrations.Migration):
             f.write(migration_content)
         
         self.stdout.write(
-            self.style.SUCCESS(f'Successfully created migration file: {migration_path}')
+            self.style.SUCCESS("Successfully created migration file: {{migration_path}}")
         )

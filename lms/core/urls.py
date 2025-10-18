@@ -23,12 +23,6 @@ urlpatterns = [
     
     # API endpoints
     path('api/', include([
-        # CSRF token management - COMMENTED OUT TO FIX ERRORS
-        # path('csrf/', include([
-        #     path('refresh/', csrf_views.refresh_csrf_token, name='csrf_refresh'),
-        #     path('validate/', csrf_views.validate_csrf_token, name='csrf_validate'),
-        #     path('info/', csrf_views.csrf_token_info, name='csrf_info'),
-        # ])),
         # Calendar API endpoints
         path('calendar/', include([
             path('activities/', api_calendar_activities, name='api_calendar_activities'),

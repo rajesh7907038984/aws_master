@@ -110,7 +110,7 @@ select::-webkit-scrollbar-thumb {
     left: 0;
     width: 16rem;
     height: 100%;
-    background: var(--brand-primary);
+    background: var(--brand-primary, #050c50);
     z-index: 51;
     transform: translateX(0);
     transition: transform 0.3s ease-in-out;
@@ -284,6 +284,26 @@ header .flex-1.md\:hidden {
     position: relative;
     z-index: 60;
     overflow: visible;
+}
+
+/* Profile Icon Round Shape Enhancement */
+#profile-button img,
+#profile-button div {
+    border-radius: 50% !important;
+    overflow: hidden !important;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+    transition: all 0.2s ease-in-out !important;
+}
+
+#profile-button:hover img,
+#profile-button:hover div {
+    transform: scale(1.05) !important;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15) !important;
+}
+
+#profile-button:active img,
+#profile-button:active div {
+    transform: scale(0.95) !important;
 }
 
 #profile-dropdown {

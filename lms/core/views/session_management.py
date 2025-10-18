@@ -43,31 +43,32 @@ def session_heartbeat(request):
         # Update user activity timestamp (simplified without cache)
         # In a real implementation, you might want to store this in the database
         
-        # Check if session needs extension
-        session = Session.objects.get(session_key=session_key)
-        time_until_expiry = (session.expire_date - timezone.now()).total_seconds()
-        
-        # Extend session if it expires in less than 1 hour
-        if time_until_expiry < 3600:
-            new_expiry = timezone.now() + timedelta(hours=2)
-            session.expire_date = new_expiry
-            session.save()
+        # Check if session needs extension with proper locking
+        with transaction.atomic():
+            session = Session.objects.select_for_update().get(session_key=session_key)
+            time_until_expiry = (session.expire_date - timezone.now()).total_seconds()
             
-            logger.info(f" Session extended for user {user.id}")
+            # Extend session if it expires in less than 1 hour
+            if time_until_expiry < 3600:
+                new_expiry = timezone.now() + timedelta(hours=2)
+                session.expire_date = new_expiry
+                session.save()
             
-            return JsonResponse({
-                'success': True,
-                'message': 'Session extended',
-                'expires_at': new_expiry.isoformat(),
-                'extended': True
-            })
-        else:
-            return JsonResponse({
-                'success': True,
-                'message': 'Session active',
-                'expires_at': session.expire_date.isoformat(),
-                'extended': False
-            })
+                logger.info(f" Session extended for user {user.id}")
+                
+                return JsonResponse({
+                    'success': True,
+                    'message': 'Session extended',
+                    'expires_at': new_expiry.isoformat(),
+                    'extended': True
+                })
+            else:
+                return JsonResponse({
+                    'success': True,
+                    'message': 'Session active',
+                    'expires_at': session.expire_date.isoformat(),
+                    'extended': False
+                })
             
     except Session.DoesNotExist:
         return JsonResponse({
@@ -108,7 +109,7 @@ def session_warning(request):
                 'warning_needed': True,
                 'time_remaining': time_until_expiry,
                 'expires_at': session.expire_date.isoformat(),
-                'message': f'Session expires in {int(time_until_expiry / 60)} minutes'
+                'message': f"Session expires in {int(time_until_expiry / 60)} minutes"
             })
         else:
             return JsonResponse({

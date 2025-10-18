@@ -67,7 +67,7 @@ def update_topic_progress_on_quiz_completion(sender, instance, **kwargs):
                     # Log the completion
                     import logging
                     logger = logging.getLogger(__name__)
-                    logger.info(f"Quiz completion auto-marked topic {topic.id} as complete for user {instance.user.username}")
+                    logger.info("Quiz completion auto-marked topic {{topic.id}} as complete for user {{instance.user.username}}")
             
             topic_progress.save()
             
@@ -79,4 +79,4 @@ def update_topic_progress_on_quiz_completion(sender, instance, **kwargs):
         # Log error but don't fail the save operation
         import logging
         logger = logging.getLogger(__name__)
-        logger.error(f"Error updating topic progress for quiz completion: {e}")
+        logger.error("Error updating topic progress for quiz completion: {{e}}")

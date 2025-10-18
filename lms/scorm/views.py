@@ -70,30 +70,6 @@ def get_browser_info(request):
     
     return browser_info
 
-def can_access_scorm_content(user, topic):
-    """
-    Check if user can access SCORM content (not just preview).
-    Only learners should be able to interact with SCORM content.
-    """
-    try:
-        # Check if user is enrolled in the course
-        course = topic.course
-        if course and not course.user_has_access(user):
-            return False
-        
-        # Check if user has learner role for this course
-        from role_management.models import UserRole
-        learner_roles = UserRole.objects.filter(
-            user=user,
-            role__name__in=['Learner', 'Student'],
-            course=course
-        ).exists()
-        
-        return learner_roles
-        
-    except Exception:
-        # If no course relationship, allow access for now
-        return True
 
 def can_preview_scorm_content(user, topic):
     """
@@ -183,33 +159,22 @@ def scorm_launch(request, topic_id):
     """Launch SCORM, xAPI, cmi5, or Articulate packages with enhanced support"""
     user = None
     
-    # ENHANCED: Multiple authentication methods for all e-learning content
+    # FIXED: Single, clear authentication logic
     if request.user.is_authenticated:
         user = request.user
-        logger.info(f"E-Learning Launch: User authenticated via standard auth: {user.username}")
+        logger.info("E-Learning Launch: User authenticated via standard auth: {{user.username}}")
     elif request.session.get('_auth_user_id'):
         try:
             from django.contrib.auth import get_user_model
             User = get_user_model()
             user = User.objects.get(id=request.session.get('_auth_user_id'))
             request.user = user
-            logger.info(f"E-Learning Launch: User authenticated via session: {user.username}")
+            logger.info("E-Learning Launch: User authenticated via session: {{user.username}}")
         except User.DoesNotExist:
-            logger.warning(f"E-Learning Launch: Invalid session user ID: {request.session.get('_auth_user_id')}")
-    
-    # CRITICAL FIX: Allow access for all e-learning content with session-based auth
-    if not user and request.session.get('_auth_user_id'):
-        try:
-            from django.contrib.auth import get_user_model
-            User = get_user_model()
-            user = User.objects.get(id=request.session.get('_auth_user_id'))
-            request.user = user
-            logger.info(f"E-Learning Launch: User authenticated via session fallback: {user.username}")
-        except User.DoesNotExist:
-            pass
+            logger.warning("E-Learning Launch: Invalid session user ID: {{request.session.get('_auth_user_id')}}")
     
     if not user:
-        logger.warning(f"E-Learning Launch: No authentication found for topic {topic_id}")
+        logger.warning("E-Learning Launch: No authentication found for topic {{topic_id}}")
         messages.error(request, "Authentication required to access e-learning content.")
         return redirect('login')
     
@@ -219,11 +184,11 @@ def scorm_launch(request, topic_id):
     try:
         course = topic.course
         if course and not course.user_has_access(user):
-            logger.warning(f"E-Learning Launch: User {user.username} does not have access to topic {topic_id}")
+            logger.warning("E-Learning Launch: User {{user.username}} does not have access to topic {{topic_id}}")
             messages.error(request, "You don't have access to this content.")
             return redirect('courses:course_list')
     except AttributeError:
-        logger.info(f"E-Learning Launch: Topic {topic_id} has no course relationship, allowing access")
+        logger.info("E-Learning Launch: Topic {{topic_id}} has no course relationship, allowing access")
         pass
     
     # ENHANCED: Role-based access control for all e-learning content
@@ -233,17 +198,17 @@ def scorm_launch(request, topic_id):
     # Allow preview for all authenticated users
     if not can_access and not can_preview:
         if not user.is_authenticated:
-            logger.warning(f"E-Learning Launch: User not authenticated for topic {topic_id}")
+            logger.warning("E-Learning Launch: User not authenticated for topic {{topic_id}}")
             messages.error(request, "Authentication required to access e-learning content.")
             return redirect('login')
         else:
             can_preview = True
-            logger.info(f"E-Learning Launch: User {user.username} granted preview access for topic {topic_id}")
+            logger.info("E-Learning Launch: User {{user.username}} granted preview access for topic {{topic_id}}")
     
     # Set preview mode if user can only preview
     preview_mode = not can_access and can_preview
     if preview_mode:
-        logger.info(f"E-Learning Launch: User {user.username} accessing e-learning content in preview mode for topic {topic_id}")
+        logger.info("E-Learning Launch: User {{user.username}} accessing e-learning content in preview mode for topic {{topic_id}}")
         messages.info(request, "You are viewing this content in preview mode. Your progress will not be saved.")
     
     try:
@@ -254,7 +219,7 @@ def scorm_launch(request, topic_id):
     
     if not elearning_package.is_extracted:
         # CRITICAL FIX: Auto-extract package if not extracted
-        logger.info(f"E-Learning Launch: Auto-extracting package for topic {topic_id}")
+        logger.info("E-Learning Launch: Auto-extracting package for topic {{topic_id}}")
         if elearning_package.extract_package():
             messages.success(request, "E-learning package extracted successfully.")
         else:
@@ -313,7 +278,7 @@ def scorm_launch(request, topic_id):
         # xAPI data
         scorm_data = {
             'actor': {
-                'mbox': f"mailto:{user.email}",
+                'mbox': "mailto:{{user.email}}",
                 'name': user.get_full_name() or user.username
             },
             'endpoint': elearning_package.xapi_endpoint or '',
@@ -354,7 +319,7 @@ def scorm_launch(request, topic_id):
         'launch_url': launch_url,
         'tracking': tracking,
         'user_id': user.id,
-        'scorm_api_url': f'/scorm/api/{topic_id}/',
+        'scorm_api_url': "/scorm/api/{{topic_id}}/",
         'scorm_data': scorm_data,
         'scorm_data_json': scorm_data_json,
         'preview_mode': preview_mode,
@@ -402,57 +367,82 @@ def scorm_content(request, topic_id, file_path):
     if not elearning_package.is_extracted:
         return HttpResponse("E-learning package not extracted", status=404)
     
+    # FIXED: Simplified S3 path construction to prevent double prefixing
     # Build the full file path for S3 storage
-    # SCORM content is stored in elearning/packages/{topic_id}/ structure
-    # Use the stored extracted_path from the package
-    # Ensure we don't double-prefix the elearning path
-    if elearning_package.extracted_path.startswith('elearning/'):
-        s3_file_path = f"{elearning_package.extracted_path}/{file_path}"
-    else:
-        s3_file_path = f"elearning/{elearning_package.extracted_path}/{file_path}"
+    base_path = elearning_package.extracted_path
+    
+    # Ensure no double prefixing
+    if base_path.startswith('elearning/elearning/'):
+        base_path = base_path.replace('elearning/elearning/', 'elearning/')
+    elif not base_path.startswith('elearning/'):
+        base_path = "elearning/{{base_path}}"
+    
+    s3_file_path = "{{base_path}}/{{file_path}}"
     
     # Debug S3 path construction
-    logger.info(f"SCORM Content: Topic {topic_id}, Extracted Path: {elearning_package.extracted_path}")
-    logger.info(f"SCORM Content: File Path: {file_path}")
-    logger.info(f"SCORM Content: S3 File Path: {s3_file_path}")
+    logger.info("SCORM Content: Topic {{topic_id}}, Extracted Path: {{elearning_package.extracted_path}}")
+    logger.info("SCORM Content: File Path: {{file_path}}")
+    logger.info("SCORM Content: S3 File Path: {{s3_file_path}}")
     
-    # Serve the file with proper headers using SCORM S3 storage
+    # FIXED: Enhanced error handling for S3 storage with fallback paths
     try:
         from .storage import SCORMS3Storage
         scorm_storage = SCORMS3Storage()
         
-        # Check if file exists in S3
-        if scorm_storage.exists(s3_file_path):
-            # Try to get the file content
+        # Try multiple path variations to find the file
+        alternative_paths = [
+            s3_file_path,
+            "packages/{{topic_id}}/{{file_path}}",
+            "elearning/packages/{{topic_id}}/{{file_path}}",
+            file_path,
+            "elearning/{{file_path}}"
+        ]
+        
+        file_content = None
+        used_path = None
+        
+        for path in alternative_paths:
             try:
-                file_content = scorm_storage.open(s3_file_path, 'rb').read()
+                if scorm_storage.exists(path):
+                    file_content = scorm_storage.open(path, 'rb').read()
+                    used_path = path
+                    logger.info("SCORM Content: Found file at path: {{path}}")
+                    break
             except Exception as e:
-                logger.error(f"SCORM Content: Error reading file {s3_file_path} from S3: {e}")
-                # Try to get the file URL and redirect to it
+                logger.warning("SCORM Content: Error checking path {{path}}: {{e}}")
+                continue
+        
+        if file_content is None:
+            # Try to get the file URL and redirect to it as last resort
+            for path in alternative_paths:
                 try:
-                    file_url = scorm_storage.url(s3_file_path)
-                    logger.info(f"SCORM Content: Redirecting to S3 URL: {file_url}")
-                    return HttpResponseRedirect(file_url)
+                    if scorm_storage.exists(path):
+                        file_url = scorm_storage.url(path)
+                        logger.info("SCORM Content: Redirecting to S3 URL: {{file_url}}")
+                        return HttpResponseRedirect(file_url)
                 except Exception as url_error:
-                    logger.error(f"SCORM Content: Error generating S3 URL: {url_error}")
-                    return HttpResponse(f"Error accessing file: {str(e)}", status=500)
+                    logger.warning("SCORM Content: Error generating S3 URL for {{path}}: {{url_error}}")
+                    continue
             
-            # Determine content type based on file extension
-            import mimetypes
-            content_type, _ = mimetypes.guess_type(file_path)
-            if not content_type:
-                if file_path.endswith('.html'):
-                    content_type = 'text/html; charset=utf-8'
-                elif file_path.endswith('.js'):
-                    content_type = 'application/javascript; charset=utf-8'
-                elif file_path.endswith('.css'):
-                    content_type = 'text/css; charset=utf-8'
-                elif file_path.endswith('.json'):
-                    content_type = 'application/json; charset=utf-8'
-                elif file_path.endswith('.xml'):
-                    content_type = 'application/xml; charset=utf-8'
-                else:
-                    content_type = 'application/octet-stream'
+            logger.error("SCORM Content: File not found in any path. Tried: {{alternative_paths}}")
+            return HttpResponse("File not found: {{file_path}}", status=404)
+        
+        # Determine content type based on file extension
+        import mimetypes
+        content_type, _ = mimetypes.guess_type(file_path)
+        if not content_type:
+            if file_path.endswith('.html'):
+                content_type = 'text/html; charset=utf-8'
+            elif file_path.endswith('.js'):
+                content_type = 'application/javascript; charset=utf-8'
+            elif file_path.endswith('.css'):
+                content_type = 'text/css; charset=utf-8'
+            elif file_path.endswith('.json'):
+                content_type = 'application/json; charset=utf-8'
+            elif file_path.endswith('.xml'):
+                content_type = 'application/xml; charset=utf-8'
+            else:
+                content_type = 'application/octet-stream'
             
             # CRITICAL FIX: Add CORS headers for all e-learning content
             response = HttpResponse(file_content, content_type=content_type)
@@ -471,11 +461,11 @@ def scorm_content(request, topic_id, file_path):
             
             return response
         else:
-            logger.warning(f"SCORM Content: File not found in S3: {s3_file_path} (requested: {file_path})")
-            return HttpResponse(f"File not found: {file_path}", status=404)
+            logger.warning("SCORM Content: File not found in S3: {{s3_file_path}} (requested: {{file_path}})")
+            return HttpResponse("File not found: {{file_path}}", status=404)
     except Exception as e:
-        logger.error(f"SCORM Content: Error serving file {file_path} (S3 path: {s3_file_path}): {str(e)}")
-        return HttpResponse(f"Error serving file: {str(e)}", status=500)
+        logger.error("SCORM Content: Error serving file {{file_path}} (S3 path: {{s3_file_path}}): {{str(e)}}")
+        return HttpResponse("Error serving file: {{str(e)}}", status=500)
 
 @csrf_exempt
 def scorm_api(request, topic_id):
@@ -513,7 +503,7 @@ def scorm_api(request, topic_id):
             pass
     
     if not user:
-        logger.warning(f"E-Learning API: No authentication found for topic {topic_id}")
+        logger.warning("E-Learning API: No authentication found for topic {{topic_id}}")
         return JsonResponse({'result': 'false', 'error': 'Authentication required'}, status=401)
     
     topic = get_object_or_404(Topic, id=topic_id)
@@ -545,13 +535,12 @@ def scorm_api(request, topic_id):
         value = request.POST.get('value', '')
         
         if elearning_package.package_type in ['SCORM_1_2', 'SCORM_2004']:
-            # SCORM API handling
+            # FIXED: Complete SCORM API handling with all data model elements
             if action == 'SetValue' and element:
                 # Update tracking data
                 tracking.raw_data[element] = value
-                tracking.save()
                 
-                # Update specific fields based on element
+                # Comprehensive SCORM 1.2 element handling
                 if element == 'cmi.core.lesson_status':
                     tracking.completion_status = value
                 elif element == 'cmi.core.score.raw':
@@ -559,19 +548,108 @@ def scorm_api(request, topic_id):
                         tracking.score_raw = float(value) if value else None
                     except (ValueError, TypeError):
                         pass
+                elif element == 'cmi.core.score.min':
+                    try:
+                        tracking.score_min = float(value) if value else None
+                    except (ValueError, TypeError):
+                        pass
+                elif element == 'cmi.core.score.max':
+                    try:
+                        tracking.score_max = float(value) if value else None
+                    except (ValueError, TypeError):
+                        pass
                 elif element == 'cmi.core.total_time':
                     tracking.total_time = tracking._parse_scorm_time(value)
+                elif element == 'cmi.core.session_time':
+                    tracking.session_time = tracking._parse_scorm_time(value)
+                elif element == 'cmi.core.lesson_location':
+                    tracking.location = value
+                elif element == 'cmi.core.suspend_data':
+                    tracking.suspend_data = value
+                elif element == 'cmi.core.launch_data':
+                    tracking.launch_data = value
+                elif element == 'cmi.core.entry':
+                    tracking.entry = value
+                elif element == 'cmi.core.exit':
+                    tracking.exit_value = value
+                
+                # SCORM 2004 element handling
+                elif element == 'cmi.completion_status':
+                    tracking.completion_status = value
+                elif element == 'cmi.success_status':
+                    tracking.success_status = value
+                elif element == 'cmi.score.scaled':
+                    try:
+                        tracking.score_scaled = float(value) if value else None
+                    except (ValueError, TypeError):
+                        pass
+                elif element == 'cmi.progress_measure':
+                    try:
+                        tracking.progress_measure = float(value) if value else None
+                    except (ValueError, TypeError):
+                        pass
+                elif element == 'cmi.credit':
+                    tracking.credit = value
+                elif element == 'cmi.mode':
+                    tracking.mode = value
+                elif element == 'cmi.completion_threshold':
+                    try:
+                        tracking.completion_threshold = float(value) if value else None
+                    except (ValueError, TypeError):
+                        pass
+                
+                # Navigation elements
+                elif element == 'adl.nav.request':
+                    tracking.raw_data['adl.nav.request'] = value
+                elif element == 'adl.nav.request_valid':
+                    tracking.raw_data['adl.nav.request_valid'] = value
+                
+                # Exit assessment elements
+                elif element == 'cmi.core.exit_assessment_required':
+                    tracking.raw_data['cmi.core.exit_assessment_required'] = value
+                elif element == 'cmi.core.exit_assessment_completed':
+                    tracking.raw_data['cmi.core.exit_assessment_completed'] = value
+                
+                # cmi5 elements
+                elif element == 'cmi5.exit':
+                    tracking.raw_data['cmi5.exit'] = value
+                elif element == 'cmi5.completion_status':
+                    tracking.raw_data['cmi5.completion_status'] = value
+                elif element == 'cmi5.exit_assessment_completed':
+                    tracking.raw_data['cmi5.exit_assessment_completed'] = value
                 
                 tracking.save()
+                logger.info("SCORM API: Set {{element}} = {{value}} for user {{user.id}}")
                 return JsonResponse({'result': 'true'})
+            
+            elif action == 'GetValue' and element:
+                # Get value from tracking data
+                value = tracking.raw_data.get(element, '')
+                return JsonResponse({'result': 'true', 'value': value})
             
             elif action == 'Commit':
                 tracking.save()
+                logger.info("SCORM API: Commit called for user {{user.id}}")
                 return JsonResponse({'result': 'true'})
             
             elif action == 'Terminate':
                 tracking.raw_data['cmi.core.exit'] = value
                 tracking.save()
+                logger.info("SCORM API: Terminate called for user {{user.id}}")
+                return JsonResponse({'result': 'true'})
+            
+            elif action == 'Initialize':
+                # Initialize SCORM session
+                tracking.raw_data['cmi.core.entry'] = 'ab-initio'
+                tracking.save()
+                logger.info("SCORM API: Initialize called for user {{user.id}}")
+                return JsonResponse({'result': 'true'})
+            
+            elif action == 'Finish':
+                # Finish SCORM session
+                tracking.raw_data['cmi.core.exit'] = 'normal'
+                tracking.save()
+                logger.info("SCORM API: Finish called for user {{user.id}}")
                 return JsonResponse({'result': 'true'})
         
         elif elearning_package.package_type == 'XAPI':
@@ -606,10 +684,10 @@ def scorm_log(request):
     """Log SCORM events for debugging"""
     try:
         data = json.loads(request.body)
-        logger.info(f"SCORM Log: {data}")
+        logger.info("SCORM Log: {{data}}")
         return JsonResponse({'status': 'success'})
     except Exception as e:
-        logger.error(f"SCORM Log Error: {str(e)}")
+        logger.error("SCORM Log Error: {{str(e)}}")
         return JsonResponse({'status': 'error', 'message': str(e)})
 
 @login_required
@@ -679,19 +757,19 @@ def scorm_resume(request, topic_id):
             # Set resume mode based on package type
             if elearning_package.package_type in ['SCORM_1_2', 'SCORM_2004']:
                 tracking.raw_data['cmi.core.entry'] = 'resume'
-                logger.info(f"SCORM Resume: Setting resume mode for user {user.username} on topic {topic_id}")
+                logger.info("SCORM Resume: Setting resume mode for user {{user.username}} on topic {{topic_id}}")
             elif elearning_package.package_type == 'XAPI':
                 tracking.raw_data['xapi.resume'] = True
-                logger.info(f"xAPI Resume: Setting resume mode for user {user.username} on topic {topic_id}")
+                logger.info("xAPI Resume: Setting resume mode for user {{user.username}} on topic {{topic_id}}")
             elif elearning_package.package_type == 'CMI5':
                 tracking.raw_data['cmi5.resume'] = True
-                logger.info(f"cmi5 Resume: Setting resume mode for user {user.username} on topic {topic_id}")
+                logger.info("cmi5 Resume: Setting resume mode for user {{user.username}} on topic {{topic_id}}")
             
             tracking.save()
             
             # Show appropriate resume message
             if bookmark_data['lesson_location']:
-                messages.info(request, f"Resuming from: {bookmark_data['lesson_location']}")
+                messages.info(request, "Resuming from: {{bookmark_data['lesson_location']}}")
             else:
                 messages.info(request, "Resuming from your last position")
         else:
@@ -723,11 +801,11 @@ def xapi_resume(request, topic_id):
             # Set xAPI resume mode
             tracking.raw_data['xapi.resume'] = True
             tracking.save()
-            logger.info(f"xAPI Resume: Setting resume mode for user {user.username} on topic {topic_id}")
+            logger.info("xAPI Resume: Setting resume mode for user {{user.username}} on topic {{topic_id}}")
             
             # Show resume message
             if bookmark_data['lesson_location']:
-                messages.info(request, f"Resuming xAPI content from: {bookmark_data['lesson_location']}")
+                messages.info(request, "Resuming xAPI content from: {{bookmark_data['lesson_location']}}")
             else:
                 messages.info(request, "Resuming xAPI content from your last position")
         else:
@@ -759,11 +837,11 @@ def cmi5_resume(request, topic_id):
             # Set cmi5 resume mode
             tracking.raw_data['cmi5.resume'] = True
             tracking.save()
-            logger.info(f"cmi5 Resume: Setting resume mode for user {user.username} on topic {topic_id}")
+            logger.info("cmi5 Resume: Setting resume mode for user {{user.username}} on topic {{topic_id}}")
             
             # Show resume message
             if bookmark_data['lesson_location']:
-                messages.info(request, f"Resuming cmi5 content from: {bookmark_data['lesson_location']}")
+                messages.info(request, "Resuming cmi5 content from: {{bookmark_data['lesson_location']}}")
             else:
                 messages.info(request, "Resuming cmi5 content from your last position")
         else:

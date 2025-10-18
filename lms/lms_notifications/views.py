@@ -9,7 +9,7 @@ from django.views.decorators.http import require_POST, require_http_methods
 from django.urls import reverse
 from django.template.loader import render_to_string
 from django.core.exceptions import PermissionDenied
-from users.models import Branch
+from branches.models import Branch
 import json
 
 from .models import (

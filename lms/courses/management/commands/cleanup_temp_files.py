@@ -52,11 +52,11 @@ class Command(BaseCommand):
                                     file_size = os.path.getsize(file_path)
                                     total_files += 1
                                     total_size += file_size
-                                    self.stdout.write(f"Would delete: {file_path} ({file_size} bytes, {file_age/3600:.1f} hours old)")
+                                    self.stdout.write("Would delete: {{file_path}} ({{file_size}} bytes, {{file_age/3600:.1f}} hours old)")
                 
                 self.stdout.write(
                     self.style.SUCCESS(
-                        f'Would clean up {total_files} files totaling {total_size/1024/1024:.2f} MB'
+                        "Would clean up {{total_files}} files totaling {{total_size/1024/1024:.2f}} MB"
                     )
                 )
             else:
@@ -67,7 +67,7 @@ class Command(BaseCommand):
                 )
                 
         except Exception as e:
-            logger.error(f"Error during temp file cleanup: {str(e)}")
+            logger.error("Error during temp file cleanup: {{str(e)}}")
             self.stdout.write(
-                self.style.ERROR(f'Error during cleanup: {str(e)}')
+                self.style.ERROR("Error during cleanup: {{str(e)}}")
             )

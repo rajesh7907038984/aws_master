@@ -59,7 +59,7 @@ class SharePointSyncLog(models.Model):
         ordering = ['-started_at']
     
     def __str__(self):
-        return f"{self.operation_type} - {self.integration.name} ({self.status})"
+        return "{{self.operation_type}} - {{self.integration.name}} ({{self.status}})"
     
     def mark_completed(self, success_count=None, error_count=None, result_summary=None):
         """Mark the sync operation as completed"""
@@ -120,4 +120,4 @@ class SharePointConflict(models.Model):
         ordering = ['-detected_at']
     
     def __str__(self):
-        return f"{self.conflict_type} - {self.model_type} {self.record_id}"
+        return "{{self.conflict_type}} - {{self.model_type}} {{self.record_id}}"

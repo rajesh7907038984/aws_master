@@ -7,10 +7,10 @@
     'use strict';
 
     // Configuration
-    const CONFIG = {
+    var CONFIG = {
         breakpoints: {
             mobile: 768,
-            tablet: 1024
+            tabvar: 1024
         },
         animations: {
             duration: 300,
@@ -22,16 +22,16 @@
     };
 
     // State management
-    let state = {
+    var state = {
         isInitialized: false,
         isCollapsed: false,
         isMobile: false,
-        isTablet: false,
+        isTabvar: false,
         currentSubmenu: null
     };
 
     // DOM elements cache
-    let elements = {};
+    var elements = {};
 
     /**
      * Initialize the comprehensive sidebar fix
@@ -63,13 +63,13 @@
     function setupBasicFunctionality() {
         console.log('Setting up basic sidebar functionality...');
         
-        const toggleButton = document.getElementById('mobile-menu-toggle');
-        const sidebar = document.getElementById('sidebar');
-        const mainContent = document.getElementById('main-content');
+        var toggleButton = document.getElementById('mobile-menu-toggle');
+        var sidebar = document.getElementById('sidebar');
+        var mainContent = document.getElementById('main-content');
         
         if (toggleButton && sidebar) {
             // Remove existing event listeners
-            const newButton = toggleButton.cloneNode(true);
+            var newButton = toggleButton.cloneNode(true);
             if (toggleButton.parentNode) {
                 toggleButton.parentNode.replaceChild(newButton, toggleButton);
             }
@@ -80,7 +80,7 @@
                 
                 if (window.innerWidth < CONFIG.breakpoints.mobile) {
                     // Mobile behavior - toggle mobile menu
-                    const mobileMenu = document.getElementById('mobile-menu');
+                    var mobileMenu = document.getElementById('mobile-menu');
                     if (mobileMenu) {
                         mobileMenu.classList.toggle('open');
                         document.body.classList.toggle('overflow-hidden');
@@ -93,7 +93,7 @@
                     }
                     
                     // Store state
-                    const isCollapsed = sidebar.classList.contains('collapsed');
+                    var isCollapsed = sidebar.classList.contains('collapsed');
                     localStorage.setItem(CONFIG.storage.collapsedKey, isCollapsed);
                 }
             });
@@ -120,7 +120,7 @@
     function setupEventListeners() {
         // Remove existing listeners to prevent duplicates
         if (elements.mobileMenuToggle) {
-            const newButton = elements.mobileMenuToggle.cloneNode(true);
+            var newButton = elements.mobileMenuToggle.cloneNode(true);
             if (elements.mobileMenuToggle.parentNode) {
                 elements.mobileMenuToggle.parentNode.replaceChild(newButton, elements.mobileMenuToggle);
                 elements.mobileMenuToggle = newButton;
@@ -164,11 +164,11 @@
      * Handle responsive behavior
      */
     function handleResponsiveBehavior() {
-        const wasMobile = state.isMobile;
-        const wasTablet = state.isTablet;
+        var wasMobile = state.isMobile;
+        var wasTabvar = state.isTabvar;
         
         state.isMobile = window.innerWidth < CONFIG.breakpoints.mobile;
-        state.isTablet = window.innerWidth >= CONFIG.breakpoints.mobile && window.innerWidth < CONFIG.breakpoints.tablet;
+        state.isTabvar = window.innerWidth >= CONFIG.breakpoints.mobile && window.innerWidth < CONFIG.breakpoints.tabvar;
         
         if (elements.sidebar && elements.mainContent) {
             if (state.isMobile) {
@@ -219,7 +219,7 @@
         }
         
         // Reinitialize submenu toggles after responsive change
-        if (wasMobile !== state.isMobile || wasTablet !== state.isTablet) {
+        if (wasMobile !== state.isMobile || wasTabvar !== state.isTabvar) {
             setTimeout(() => {
                 setupSubmenuToggles();
             }, 100);
@@ -240,7 +240,7 @@
     function toggleMobileMenu() {
         if (!elements.mobileMenu) return;
         
-        const wasOpen = elements.mobileMenu.classList.contains('open');
+        var wasOpen = elements.mobileMenu.classList.contains('open');
         elements.mobileMenu.classList.toggle('open');
         
         if (!wasOpen) {
@@ -265,35 +265,39 @@
      * Toggle sidebar collapsed state
      */
     function toggleSidebar() {
-        if (!elements.sidebar) return;
-        
-        if (state.isMobile) {
-            toggleMobileMenu();
-            return;
+        try {
+            if (!elements.sidebar) return;
+            
+            if (state.isMobile) {
+                toggleMobileMenu();
+                return;
+            }
+            
+            state.isCollapsed = !state.isCollapsed;
+            
+            // Toggle collapsed class
+            elements.sidebar.classList.toggle('collapsed');
+            
+            // Update main content
+            if (elements.mainContent) {
+                elements.mainContent.classList.toggle('sidebar-collapsed');
+            }
+            
+            // If collapsing, close all submenus
+            if (state.isCollapsed) {
+                closeAllSubmenus();
+            }
+            
+            // Store state in localStorage
+            localStorage.setItem(CONFIG.storage.collapsedKey, state.isCollapsed);
+            
+            // Fix layout after toggle
+            setTimeout(() => {
+                fixLayout();
+            }, CONFIG.animations.duration);
+        } catch (error) {
+            console.error('Error toggling sidebar:', error);
         }
-        
-        state.isCollapsed = !state.isCollapsed;
-        
-        // Toggle collapsed class
-        elements.sidebar.classList.toggle('collapsed');
-        
-        // Update main content
-        if (elements.mainContent) {
-            elements.mainContent.classList.toggle('sidebar-collapsed');
-        }
-        
-        // If collapsing, close all submenus
-        if (state.isCollapsed) {
-            closeAllSubmenus();
-        }
-        
-        // Store state in localStorage
-        localStorage.setItem(CONFIG.storage.collapsedKey, state.isCollapsed);
-        
-        // Fix layout after toggle
-        setTimeout(() => {
-            fixLayout();
-        }, CONFIG.animations.duration);
     }
 
     /**
@@ -302,7 +306,7 @@
     function restoreSidebarState() {
         if (state.isMobile) return;
         
-        const savedState = localStorage.getItem(CONFIG.storage.collapsedKey);
+        var savedState = localStorage.getItem(CONFIG.storage.collapsedKey);
         if (savedState === 'true') {
             state.isCollapsed = true;
             if (elements.sidebar) {
@@ -322,19 +326,19 @@
         
         // Remove existing event listeners and reinitialize
         document.querySelectorAll('.menu-item.has-submenu, [data-submenu]').forEach(button => {
-            const submenuId = button.getAttribute('data-submenu');
+            var submenuId = button.getAttribute('data-submenu');
             if (!submenuId) return;
             
             // Remove any existing onclick handlers
             button.removeAttribute('onclick');
             
             // Remove existing event listeners by cloning the element
-            const newButton = button.cloneNode(true);
+            var newButton = button.cloneNode(true);
             if (button.parentNode) {
                 button.parentNode.replaceChild(newButton, button);
                 
                 // Ensure arrow icon is visible with enhanced styling
-                const arrow = newButton.querySelector('.arrow-icon');
+                var arrow = newButton.querySelector('.arrow-icon');
                 if (arrow) {
                     arrow.style.display = 'inline-block';
                     arrow.style.visibility = 'visible';
@@ -352,15 +356,19 @@
                 
                 // Add new event listener with enhanced error handling
                 newButton.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    
-                    // Don't allow submenu toggling when sidebar is collapsed
-                    if (state.isCollapsed) {
-                        return;
+                    try {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        
+                        // Don't allow submenu toggling when sidebar is collapsed
+                        if (state.isCollapsed) {
+                            return;
+                        }
+                        
+                        toggleSubmenu(submenuId, this, arrow);
+                    } catch (error) {
+                        console.error('Error handling submenu toggle:', error);
                     }
-                    
-                    toggleSubmenu(submenuId, this, arrow);
                 });
             }
         });
@@ -373,28 +381,32 @@
      * Toggle submenu visibility
      */
     function toggleSubmenu(submenuId, button, arrow) {
-        const submenu = document.getElementById(submenuId);
-        if (!submenu) return;
-        
-        const wasHidden = submenu.classList.contains('hidden');
-        
-        // Toggle submenu
-        submenu.classList.toggle('hidden');
-        button.classList.toggle('active');
-        button.classList.toggle('expanded');
-        
-        // Rotate arrow
-        if (arrow) {
-            const isNowHidden = submenu.classList.contains('hidden');
-            arrow.style.transform = isNowHidden ? '' : 'rotate(180deg)';
-        }
-        
-        // Close other submenus if opening this one
-        if (!submenu.classList.contains('hidden')) {
-            closeOtherSubmenus(submenuId);
-            state.currentSubmenu = submenuId;
-        } else {
-            state.currentSubmenu = null;
+        try {
+            var submenu = document.getElementById(submenuId);
+            if (!submenu) return;
+            
+            var wasHidden = submenu.classList.contains('hidden');
+            
+            // Toggle submenu
+            submenu.classList.toggle('hidden');
+            button.classList.toggle('active');
+            button.classList.toggle('expanded');
+            
+            // Rotate arrow
+            if (arrow) {
+                var isNowHidden = submenu.classList.contains('hidden');
+                arrow.style.transform = isNowHidden ? '' : 'rotate(180deg)';
+            }
+            
+            // Close other submenus if opening this one
+            if (!submenu.classList.contains('hidden')) {
+                closeOtherSubmenus(submenuId);
+                state.currentSubmenu = submenuId;
+            } else {
+                state.currentSubmenu = null;
+            }
+        } catch (error) {
+            console.error('Error toggling submenu:', error);
         }
     }
 
@@ -402,18 +414,18 @@
      * Close other open submenus
      */
     function closeOtherSubmenus(currentSubmenuId) {
-        const allSubmenus = document.querySelectorAll('.submenu');
+        var allSubmenus = document.querySelectorAll('.submenu');
         allSubmenus.forEach(menu => {
             if (menu.id !== currentSubmenuId && !menu.classList.contains('hidden')) {
-                const hasActiveItem = menu.querySelector('.menu-item.active');
+                var hasActiveItem = menu.querySelector('.menu-item.active');
                 if (!hasActiveItem) {
                     menu.classList.add('hidden');
                     
-                    const menuButton = document.querySelector(`[data-submenu="${menu.id}"]`);
+                    var menuButton = document.querySelector('[data-submenu="' + menu.id + '"]');
                     if (menuButton) {
                         menuButton.classList.remove('active', 'expanded');
                         
-                        const menuArrow = menuButton.querySelector('.arrow-icon');
+                        var menuArrow = menuButton.querySelector('.arrow-icon');
                         if (menuArrow) {
                             menuArrow.style.transform = '';
                         }
@@ -427,15 +439,15 @@
      * Close all submenus
      */
     function closeAllSubmenus() {
-        const allSubmenus = document.querySelectorAll('.submenu');
+        var allSubmenus = document.querySelectorAll('.submenu');
         allSubmenus.forEach(menu => {
             menu.classList.add('hidden');
             
-            const menuButton = document.querySelector(`[data-submenu="${menu.id}"]`);
+            var menuButton = document.querySelector('[data-submenu="' + menu.id + '"]');
             if (menuButton) {
                 menuButton.classList.remove('active', 'expanded');
                 
-                const menuArrow = menuButton.querySelector('.arrow-icon');
+                var menuArrow = menuButton.querySelector('.arrow-icon');
                 if (menuArrow) {
                     menuArrow.style.transform = '';
                 }
@@ -448,14 +460,14 @@
      * Check for active items in submenus and expand them
      */
     function checkActiveSubmenus() {
-        const currentPath = window.location.pathname;
-        const currentUrl = window.location.href;
+        var currentPath = window.location.pathname;
+        var currentUrl = window.location.href;
         
         document.querySelectorAll('#sidebar .submenu').forEach(submenu => {
-            let hasActiveItem = false;
+            var hasActiveItem = false;
             
             submenu.querySelectorAll('a.menu-item').forEach(item => {
-                const href = item.getAttribute('href');
+                var href = item.getAttribute('href');
                 if (!href) return;
                 
                 if (isCurrentPage(href, currentPath, currentUrl)) {
@@ -467,11 +479,11 @@
             if (hasActiveItem) {
                 submenu.classList.remove('hidden');
                 
-                const menuButton = document.querySelector(`[data-submenu="${submenu.id}"]`);
+                var menuButton = document.querySelector('[data-submenu="' + submenu.id + '"]');
                 if (menuButton) {
                     menuButton.classList.add('active', 'expanded');
                     
-                    const arrow = menuButton.querySelector('.arrow-icon');
+                    var arrow = menuButton.querySelector('.arrow-icon');
                     if (arrow) {
                         arrow.style.transform = 'rotate(180deg)';
                     }
@@ -485,8 +497,8 @@
      */
     function isCurrentPage(href, currentPath, currentUrl) {
         if (href.includes('?')) {
-            const hrefPath = href.split('?')[0];
-            const hrefParams = href.split('?')[1];
+            var hrefPath = href.split('?')[0];
+            var hrefParams = href.split('?')[1];
             return currentPath.includes(hrefPath) && currentUrl.includes(hrefParams);
         } else {
             return currentPath.includes(href) && href !== '/';
@@ -499,12 +511,12 @@
     function loadSidebarContentToMobileMenu() {
         if (!elements.mobileMenu) return;
         
-        const sidebarContent = document.querySelector('#sidebar nav .flex.flex-col');
-        const mobileMenuContent = document.querySelector('#mobile-menu .py-4');
+        var sidebarContent = document.querySelector('#sidebar nav .flex.flex-col');
+        var mobileMenuContent = document.querySelector('#mobile-menu .py-4');
         
         if (sidebarContent && mobileMenuContent) {
             // Always update content to ensure it's current
-            const clone = sidebarContent.cloneNode(true);
+            var clone = sidebarContent.cloneNode(true);
             mobileMenuContent.innerHTML = '';
             mobileMenuContent.appendChild(clone);
             
@@ -517,14 +529,14 @@
      * Setup mobile menu submenus
      */
     function setupMobileMenuSubmenus(container) {
-        const submenuToggleButtons = container.querySelectorAll('.menu-item.has-submenu');
+        var submenuToggleButtons = container.querySelectorAll('.menu-item.has-submenu');
         submenuToggleButtons.forEach(button => {
             button.removeAttribute('onclick');
             
-            const submenuId = button.getAttribute('data-submenu');
+            var submenuId = button.getAttribute('data-submenu');
             if (submenuId) {
                 // Ensure arrow icon is visible in mobile menu
-                const arrow = button.querySelector('.arrow-icon');
+                var arrow = button.querySelector('.arrow-icon');
                 if (arrow) {
                     arrow.style.display = 'inline-block';
                     arrow.style.visibility = 'visible';
@@ -534,28 +546,32 @@
                 }
                 
                 button.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    
-                    const submenu = document.getElementById(submenuId);
-                    if (submenu) {
-                        const wasHidden = submenu.classList.contains('hidden');
-                        submenu.classList.toggle('hidden');
-                        this.classList.toggle('expanded');
-                        this.classList.toggle('active');
+                    try {
+                        e.preventDefault();
+                        e.stopPropagation();
                         
-                        const arrow = this.querySelector('.arrow-icon');
-                        if (arrow) {
-                            const isNowHidden = submenu.classList.contains('hidden');
-                            arrow.style.transform = isNowHidden ? '' : 'rotate(180deg)';
-                            arrow.style.display = 'inline-block';
-                            arrow.style.visibility = 'visible';
-                            arrow.style.opacity = '1';
+                        var submenu = document.getElementById(submenuId);
+                        if (submenu) {
+                            var wasHidden = submenu.classList.contains('hidden');
+                            submenu.classList.toggle('hidden');
+                            this.classList.toggle('expanded');
+                            this.classList.toggle('active');
+                            
+                            var arrow = this.querySelector('.arrow-icon');
+                            if (arrow) {
+                                var isNowHidden = submenu.classList.contains('hidden');
+                                arrow.style.transform = isNowHidden ? '' : 'rotate(180deg)';
+                                arrow.style.display = 'inline-block';
+                                arrow.style.visibility = 'visible';
+                                arrow.style.opacity = '1';
+                            }
+                            
+                            if (!submenu.classList.contains('hidden')) {
+                                closeOtherSubmenus(submenuId);
+                            }
                         }
-                        
-                        if (!submenu.classList.contains('hidden')) {
-                            closeOtherSubmenus(submenuId);
-                        }
+                    } catch (error) {
+                        console.error('Error handling mobile submenu toggle:', error);
                     }
                 });
             }
@@ -568,8 +584,8 @@
     function fixLayout() {
         if (!elements.sidebar || !elements.mainContent) return;
         
-        const isMobile = window.innerWidth < CONFIG.breakpoints.mobile;
-        const isCollapsed = elements.sidebar.classList.contains('collapsed');
+        var isMobile = window.innerWidth < CONFIG.breakpoints.mobile;
+        var isCollapsed = elements.sidebar.classList.contains('collapsed');
         
         // Reset classes first
         elements.mainContent.classList.remove('sidebar-collapsed');
@@ -609,9 +625,9 @@
      * Debounce utility function
      */
     function debounce(func, wait) {
-        let timeout;
+        var timeout;
         return function executedFunction(...args) {
-            const later = () => {
+            var later = () => {
                 clearTimeout(timeout);
                 func(...args);
             };

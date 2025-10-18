@@ -1841,7 +1841,7 @@
             function updateTextColorIndicator(color) {
                 // Update the visual indicator
                 textColorBtn.setAttribute('data-current-color', color);
-                textColorBtn.style.borderBottom = `3px solid ${color}`;
+                textColorBtn.style.borderBottom = '3px solid ' + color;
             }
         });
     }
@@ -1960,7 +1960,7 @@
             function updateBgColorIndicator(color) {
                 // Update the visual indicator
                 bgColorBtn.setAttribute('data-current-color', color);
-                bgColorBtn.style.borderBottom = `3px solid ${color}`;
+                bgColorBtn.style.borderBottom = '3px solid ' + color;
             }
         });
     }
@@ -2145,7 +2145,7 @@
         window.TOPIC_CREATE_URL_TEMPLATE = "{% url 'courses:topic_create' course_id=0 %}";
         
         // Inject course ID for JavaScript use
-        window.COURSE_ID = {{ course.id|default:"null" }};
+        window.COURSE_ID = {% if course.id %}{{ course.id }}{% else %}null{% endif %};
         
         // Cache busting for drag and drop fixes - 2025-01-26
         
@@ -2355,10 +2355,10 @@
                 
                 let successCount = 0;
                 topicContainers.forEach((container, index) => {
-                    console.log(`Processing topic container ${index}:`, container);
+                    console.log('Processing topic container ' + index + ':', container);
                     // Skip if already initialized
                     if (container.hasAttribute('data-sortable-initialized')) {
-                        console.log(`Container ${index} already initialized`);
+                        console.log('Container ' + index + ' already initialized');
                         successCount++;
                         return;
                     }
@@ -2369,18 +2369,18 @@
                     }
                     
                     try {
-                        console.log(`Initializing sortable for container ${index}`);
+                        console.log('Initializing sortable for container ' + index);
                         const sortableInstance = new Sortable(container, sortableOptions);
                         container.sortable = sortableInstance;
                         container.setAttribute('data-sortable-initialized', 'true');
-                        console.log(`Container ${index} initialized successfully`);
+                        console.log('Container ' + index + ' initialized successfully');
                         successCount++;
                     } catch (error) {
                         console.error('Error initializing sortable for container:', error);
                     }
                 });
                 
-                console.log(`Successfully initialized ${successCount} out of ${topicContainers.length} topic containers`);
+                console.log('Successfully initialized ' + successCount + ' out of ' + topicContainers.length + ' topic containers');
                 return successCount > 0;
             }
             
@@ -2489,7 +2489,7 @@
                     console.log('API response status:', response.status);
                     
                     if (!response.ok) {
-                        throw new Error(`HTTP error! status: ${response.status}`);
+                        throw new Error('HTTP error! status: ' + response.status);
                     }
                     
                     const data = await response.json();
@@ -2504,7 +2504,7 @@
                         showNotification('Failed to move topic: ' + (data.error || 'Unknown error'), 'error');
                         
                         // Revert the move by moving the topic back
-                        const originalContainer = document.querySelector(`[data-section-id="${originalSectionId}"] .topic-list`);
+                        const originalContainer = document.querySelector('[data-section-id="' + originalSectionId + '"] .topic-list');
                         if (originalContainer) {
                             originalContainer.appendChild(topicItem);
                         }
@@ -3004,17 +3004,27 @@
         }
 
         
-        // Global error handler for section operations
+        // Specific error handler for section operations - only catch section-related errors
         window.addEventListener('error', function(event) {
-            if (event.error && event.error.message && event.error.message.includes('section')) {
+            // Only handle section-related errors, let other errors bubble up for proper debugging
+            if (event.error && event.error.message && 
+                (event.error.message.includes('section') || 
+                 event.error.message.includes('Section') ||
+                 event.filename && event.filename.includes('section'))) {
+                console.error('Section operation error:', event.error);
                 showTopicNotification('A section operation error occurred. Please refresh the page and try again.', 'error');
+                // Prevent the error from bubbling up further
+                event.preventDefault();
+                return true;
             }
+            // Let other errors bubble up normally for debugging
+            return false;
         });
         
-        // Ensure getCSRFToken is available globally
+        // Consolidated CSRF token retrieval - single implementation
         if (typeof window.getCSRFToken !== 'function') {
             window.getCSRFToken = function() {
-                // Method 1: Form input
+                // Method 1: Form input (most reliable)
                 const csrfInput = document.querySelector('[name=csrfmiddlewaretoken]');
                 if (csrfInput && csrfInput.value) {
                     return csrfInput.value;
@@ -3026,7 +3036,7 @@
                     return csrfMeta.content;
                 }
                 
-                // Method 3: Cookie
+                // Method 3: Cookie fallback
                 const cookies = document.cookie.split(';');
                 for (let cookie of cookies) {
                     const [name, value] = cookie.trim().split('=');
@@ -3035,11 +3045,12 @@
                     }
                 }
                 
-                // Method 4: Window object
+                // Method 4: Window object fallback
                 if (window.CSRF_TOKEN) {
                     return window.CSRF_TOKEN;
                 }
                 
+                console.error('CSRF token not found in any location');
                 return null;
             };
         }
@@ -4335,11 +4346,15 @@
                                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
                                                                 </svg>
                                                             </a>
-                                                            <a href="{% if topic.section %}{% url 'courses:topic_section_edit' topic.id topic.section.id %}{% else %}{% url 'courses:topic_edit' topic.id %}{% endif %}" class="text-xs px-2 py-1 bg-white border border-gray-300 rounded-md hover:bg-gray-50" title="Edit Topic">
+                                                            <button type="button" 
+                                                                    class="edit-topic-btn text-xs px-2 py-1 bg-white border border-gray-300 rounded-md hover:bg-gray-50" 
+                                                                    data-topic-id="{{ topic.id }}" 
+                                                                    data-section-id="{{ topic.section.id|default:'null' }}"
+                                                                    title="Edit Topic">
                                                                 <svg class="h-3.5 w-3.5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path>
                                                                 </svg>
-                                                            </a>
+                                                            </button>
                                                             <!-- Delete button -->
                                                             <button type="button" 
                                                                     class="delete-topic-btn text-xs px-2 py-1 bg-white border border-gray-300 rounded-md hover:bg-red-50 hover:border-red-300" 
@@ -4469,11 +4484,15 @@
                                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
                                                                 </svg>
                                                             </a>
-                                                            <a href="{% if topic.section %}{% url 'courses:topic_section_edit' topic.id topic.section.id %}{% else %}{% url 'courses:topic_edit' topic.id %}{% endif %}" class="text-xs px-2 py-1 bg-white border border-gray-300 rounded-md hover:bg-gray-50" title="Edit Topic">
+                                                            <button type="button" 
+                                                                    class="edit-topic-btn text-xs px-2 py-1 bg-white border border-gray-300 rounded-md hover:bg-gray-50" 
+                                                                    data-topic-id="{{ topic.id }}" 
+                                                                    data-section-id="{{ topic.section.id|default:'null' }}"
+                                                                    title="Edit Topic">
                                                                 <svg class="h-3.5 w-3.5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path>
                                                                 </svg>
-                                                            </a>
+                                                            </button>
                                                             <!-- Delete button -->
                                                             <button type="button" 
                                                                     class="delete-topic-btn text-xs px-2 py-1 bg-white border border-gray-300 rounded-md hover:bg-red-50 hover:border-red-300" 
@@ -5058,9 +5077,21 @@ document.addEventListener('DOMContentLoaded', function() {
                 const sel = window.getSelection();
                 if (sel.rangeCount === 0 && window._savedEditorRange) {
                     try {
-                        sel.removeAllRanges();
-                        sel.addRange(window._savedEditorRange);
+                        // Validate the saved range before using it
+                        if (window._savedEditorRange && 
+                            window._savedEditorRange.startContainer && 
+                            window._savedEditorRange.endContainer &&
+                            document.contains(window._savedEditorRange.startContainer)) {
+                            sel.removeAllRanges();
+                            sel.addRange(window._savedEditorRange);
+                        } else {
+                            // Clear invalid saved range
+                            window._savedEditorRange = null;
+                        }
                     } catch (e) {
+                        console.warn('Failed to restore editor selection:', e);
+                        // Clear invalid saved range
+                        window._savedEditorRange = null;
                     }
                 }
                 
@@ -5145,9 +5176,21 @@ document.addEventListener('DOMContentLoaded', function() {
                 const sel = window.getSelection();
                 if (sel.rangeCount === 0 && window._savedEditorRange) {
                     try {
-                        sel.removeAllRanges();
-                        sel.addRange(window._savedEditorRange);
+                        // Validate the saved range before using it
+                        if (window._savedEditorRange && 
+                            window._savedEditorRange.startContainer && 
+                            window._savedEditorRange.endContainer &&
+                            document.contains(window._savedEditorRange.startContainer)) {
+                            sel.removeAllRanges();
+                            sel.addRange(window._savedEditorRange);
+                        } else {
+                            // Clear invalid saved range
+                            window._savedEditorRange = null;
+                        }
                     } catch (e) {
+                        console.warn('Failed to restore editor selection:', e);
+                        // Clear invalid saved range
+                        window._savedEditorRange = null;
                     }
                 }
                 
@@ -5635,10 +5678,10 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .then(response => {
                 if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        return response.json();
-    })
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
             .then(data => {
                 if (data.success) {
                     // Update button status and icon
@@ -5686,40 +5729,113 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
+    // Helper function to get cookie value
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+    // Enhanced notification system
+    function showNotification(message, type = 'info') {
+        // Remove existing notifications
+        const existingNotifications = document.querySelectorAll('.notification-toast');
+        existingNotifications.forEach(notification => notification.remove());
+        
+        const notification = document.createElement('div');
+        notification.className = `notification-toast fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 transform transition-all duration-300 ${
+            type === 'success' ? 'bg-green-500 text-white' :
+            type === 'error' ? 'bg-red-500 text-white' :
+            'bg-blue-500 text-white'
+        }`;
+        
+        notification.innerHTML = `
+            <div class="flex items-center">
+                <div class="flex-shrink-0">
+                    ${type === 'success' ? '<svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>' :
+                    type === 'error' ? '<svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path></svg>' :
+                    '<svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path></svg>'}
+                </div>
+                <div class="ml-3">
+                    <p class="text-sm font-medium">${message}</p>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(notification);
+        
+        // Animate in
+        setTimeout(() => {
+            notification.classList.add('translate-x-0', 'opacity-100');
+        }, 10);
+        
+        // Auto remove after 5 seconds
+        setTimeout(() => {
+            notification.classList.add('translate-x-full', 'opacity-0');
+            setTimeout(() => {
+                notification.remove();
+            }, 300);
+        }, 5000);
+    }
+
     // Add event listeners for delete topic buttons
     document.addEventListener('click', function(e) {
         if (e.target.closest('.delete-topic-btn')) {
             e.preventDefault();
+            e.stopPropagation();
             
             const button = e.target.closest('.delete-topic-btn');
             const topicId = button.getAttribute('data-topic-id');
             const topicTitle = button.getAttribute('data-topic-title');
             
             if (!topicId) {
+                console.error('Topic ID not found');
                 return;
             }
             
-            // Show confirmation dialog
-            if (confirm(`Are you sure you want to delete the topic "${topicTitle}"? This action cannot be undone.`)) {
-                // Check if CSRF token is available
-                const csrfTokenElement = document.querySelector('[name=csrfmiddlewaretoken]');
-                let csrfToken;
+            // Enhanced confirmation dialog
+            if (confirm(`Are you sure you want to delete the topic "${topicTitle}"?\n\nThis action cannot be undone.`)) {
+                // Get CSRF token with multiple fallbacks
+                let csrfToken = null;
                 
-                if (csrfTokenElement) {
-                    csrfToken = csrfTokenElement.value;
-                } else {
-                    // Fallback: Try to get CSRF token from cookies
+                // Method 1: From form
+                const csrfInput = document.querySelector('[name=csrfmiddlewaretoken]');
+                if (csrfInput) {
+                    csrfToken = csrfInput.value;
+                }
+                
+                // Method 2: From cookies
+                if (!csrfToken) {
                     csrfToken = getCookie('csrftoken');
                 }
                 
+                // Method 3: From meta tag
                 if (!csrfToken) {
-                    alert('Error: CSRF token not found. Please refresh the page and try again.');
+                    const csrfMeta = document.querySelector('meta[name=csrf-token]');
+                    if (csrfMeta) {
+                        csrfToken = csrfMeta.getAttribute('content');
+                    }
+                }
+                
+                if (!csrfToken) {
+                    showNotification('Error: CSRF token not found. Please refresh the page and try again.', 'error');
                     return;
                 }
                 
                 // Show loading state
                 button.disabled = true;
-                button.classList.add('opacity-50');
+                button.classList.add('opacity-50', 'cursor-not-allowed');
+                const originalHTML = button.innerHTML;
+                button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Deleting...';
                 
                 // Make AJAX request to delete topic
                 fetch(`/courses/topic/${topicId}/delete/`, {
@@ -5727,6 +5843,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     headers: {
                         'X-CSRFToken': csrfToken,
                         'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
                     },
                     credentials: 'same-origin'
                 })
@@ -5735,11 +5852,30 @@ document.addEventListener('DOMContentLoaded', function() {
                         // Remove the topic item from the DOM
                         const topicItem = button.closest('.topic-item');
                         if (topicItem) {
-                            topicItem.remove();
+                            // Add fade out animation
+                            topicItem.style.transition = 'opacity 0.3s ease';
+                            topicItem.style.opacity = '0';
+                            
+                            setTimeout(() => {
+                                topicItem.remove();
+                                
+                                // Check if section is now empty
+                                const sectionContainer = topicItem.closest('.section-item');
+                                if (sectionContainer) {
+                                    const remainingTopics = sectionContainer.querySelectorAll('.topic-item');
+                                    if (remainingTopics.length === 0) {
+                                        // Hide section if no topics remain
+                                        const sectionTopics = sectionContainer.querySelector('.section-topics');
+                                        if (sectionTopics) {
+                                            sectionTopics.innerHTML = '<div class="text-center py-4 text-gray-500 text-sm">No topics in this section</div>';
+                                        }
+                                    }
+                                }
+                            }, 300);
                         }
                         
-                        // Show success message to user
-                        alert(`Topic "${topicTitle}" has been deleted successfully.`);
+                        // Show success notification
+                        showNotification(`Topic "${topicTitle}" deleted successfully`, 'success');
                         
                     } else if (response.status === 403) {
                         throw new Error('Permission denied. You do not have permission to delete this topic.');
@@ -5750,13 +5886,45 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 })
                 .catch(error => {
-                    alert('Error deleting topic: ' + error.message);
+                    console.error('Delete topic error:', error);
+                    showNotification('Error deleting topic: ' + error.message, 'error');
                     
-                    // Remove loading state
+                    // Restore button state
                     button.disabled = false;
-                    button.classList.remove('opacity-50');
+                    button.classList.remove('opacity-50', 'cursor-not-allowed');
+                    button.innerHTML = originalHTML;
                 });
             }
+        }
+    });
+
+    // Add event listeners for edit topic buttons
+    document.addEventListener('click', function(e) {
+        if (e.target.closest('.edit-topic-btn')) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            const button = e.target.closest('.edit-topic-btn');
+            const topicId = button.getAttribute('data-topic-id');
+            const sectionId = button.getAttribute('data-section-id');
+            
+            if (!topicId) {
+                console.error('Topic ID not found');
+                return;
+            }
+            
+            // Show loading state
+            button.disabled = true;
+            button.classList.add('opacity-50', 'cursor-not-allowed');
+            
+            // Construct edit URL
+            let editUrl = `/courses/topic/${topicId}/edit/`;
+            if (sectionId && sectionId !== 'null' && sectionId !== 'standalone') {
+                editUrl = `/courses/topic/${topicId}/section/${sectionId}/edit/`;
+            }
+            
+            // Navigate to edit page
+            window.location.href = editUrl;
         }
     });
     
@@ -5908,11 +6076,14 @@ document.addEventListener('DOMContentLoaded', function() {
     const form = document.getElementById('courseCreateForm');
     
     if (submitButton) {
-        // Remove any existing event listeners and add fresh ones
-        const newButton = submitButton.cloneNode(true);
-        submitButton.parentNode.replaceChild(newButton, submitButton);
+        // Store reference to original button for proper cleanup
+        const originalButton = submitButton;
         
-        // Add click handler
+        // Remove existing event listeners by cloning and replacing
+        const newButton = originalButton.cloneNode(true);
+        originalButton.parentNode.replaceChild(newButton, originalButton);
+        
+        // Add click handler with proper cleanup
         newButton.addEventListener('click', function(e) {
             const form = document.getElementById('courseCreateForm');
             if (!form) {
@@ -5941,9 +6112,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }
             
-            // Show loading state
+            // Show loading state and prevent multiple submissions
             this.disabled = true;
             this.innerHTML = 'Updating Course...';
+            
+            // Prevent multiple submissions
+            if (form.dataset.submitting === 'true') {
+                e.preventDefault();
+                return false;
+            }
+            form.dataset.submitting = 'true';
             
             // Force form submission if needed
             setTimeout(() => {
@@ -5969,33 +6147,11 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-// CSRF Token helper function with multiple fallback methods
+// CSRF Token helper function - use the consolidated version above
 function getCSRFToken() {
-    // Method 1: Meta tag (preferred)
-    const csrfMeta = document.querySelector('meta[name="csrf-token"]');
-    if (csrfMeta) {
-        return csrfMeta.getAttribute('content');
-    }
-    
-    // Method 2: Input field
-    const csrfInput = document.querySelector('input[name="csrfmiddlewaretoken"]');
-    if (csrfInput) {
-        return csrfInput.value;
-    }
-    
-    // Method 3: Cookie fallback
-    const cookies = document.cookie.split(';');
-    for (let cookie of cookies) {
-        const [name, value] = cookie.trim().split('=');
-        if (name === 'csrftoken') {
-            return value;
-        }
-    }
-    
-    console.error('CSRF token not found');
-    return '';
+    return window.getCSRFToken ? window.getCSRFToken() : null;
 }
 
-<!-- Category functionality removed as requested -->
+// Category functionality removed as requested
 
 {% endblock %}

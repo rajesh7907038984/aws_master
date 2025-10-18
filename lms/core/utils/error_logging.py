@@ -185,25 +185,25 @@ TRACEBACK:
 {traceback.format_exc()}
 """)
 
-class removedErrorLogger:
-    """Specialized logger for removed-related errors"""
+class ScormErrorLogger:
+    """Specialized logger for SCORM-related errors"""
     
     def __init__(self):
-        self.logger = logging.getLogger('lms_removed_error')
+        self.logger = logging.getLogger('lms_scorm_error')
         self.logger.setLevel(logging.ERROR)
     
-    def log_removed_error(self, 
+    def log_scorm_error(self, 
                        error: Exception, 
                        topic_id: Optional[int] = None,
-                       removed_package_id: Optional[int] = None,
+                       scorm_package_id: Optional[int] = None,
                        user_id: Optional[int] = None,
                        context: Optional[Dict[str, Any]] = None) -> None:
-        """Log removed-specific errors"""
+        """Log SCORM-specific errors"""
         error_context = {
             'error_type': type(error).__name__,
             'error_message': str(error),
             'topic_id': topic_id,
-            'removed_package_id': removed_package_id,
+            'scorm_package_id': scorm_package_id,
             'user_id': user_id,
             'timestamp': datetime.now().isoformat(),
         }
@@ -212,9 +212,9 @@ class removedErrorLogger:
             error_context.update(context)
         
         self.logger.error(f"""
-removed ERROR: {type(error).__name__}: {str(error)}
+SCORM ERROR: {type(error).__name__}: {str(error)}
 TOPIC ID: {topic_id}
-removed PACKAGE ID: {removed_package_id}
+SCORM PACKAGE ID: {scorm_package_id}
 USER ID: {user_id}
 CONTEXT: {json.dumps(error_context, indent=2, default=str)}
 TRACEBACK:

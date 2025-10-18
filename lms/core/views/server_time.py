@@ -2,11 +2,11 @@
 Server time API endpoint for client synchronization
 """
 from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.csrf import csrf_protect
 from django.utils import timezone
 import json
 
-@csrf_exempt
+@csrf_protect
 def server_time(request):
     """Return current server time for client synchronization"""
     try:

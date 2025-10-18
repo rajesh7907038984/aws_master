@@ -21,7 +21,7 @@ if workers_env == 'auto':
     # For 2 CPUs with limited RAM, use fewer workers
     cpu_count = multiprocessing.cpu_count()
     if cpu_count <= 2:
-        workers = 1  # Further reduced to prevent memory issues and timeouts
+        workers = 2  # Increased from 1 to 2 for better performance
     else:
         workers = cpu_count  # More conservative
 else:
@@ -32,8 +32,8 @@ bind = GUNICORN_BIND
 backlog = 2048
 
 # Worker processes - optimized for performance and memory
-worker_class = "sync"
-worker_connections = 500  # Reduced to prevent memory pressure
+worker_class = "sync"  # Keep sync for stability
+worker_connections = 1000  # Increased from 500 for better throughput
 keepalive = 2  # Reduced for better memory management
 
 # Restart workers after this many requests, to prevent memory leaks
@@ -42,17 +42,17 @@ max_requests = 200  # Further reduced to prevent memory buildup and timeouts
 max_requests_jitter = 50  # Reduced jitter for better memory management
 
 # Logging - use environment variable for log directory
-accesslog = f"{LOGS_DIR}/gunicorn_access.log"
-errorlog = f"{LOGS_DIR}/gunicorn_error.log"
+accesslog = "{}/gunicorn_access.log".format(LOGS_DIR)
+errorlog = "{}/gunicorn_error.log".format(LOGS_DIR)
 loglevel = "warning"
 access_log_format = '%(h)s %(l)s %(u)s %(t)s "%(r)s" %(s)s %(b)s "%(f)s" "%(a)s" %(D)s'
 
 # Process naming - use environment
-proc_name = f"lms-{DJANGO_ENV}"
+proc_name = "lms-{}".format(DJANGO_ENV)
 
 # Server mechanics
 daemon = False
-pidfile = f"{LOGS_DIR}/gunicorn.pid"
+pidfile = "{}/gunicorn.pid".format(LOGS_DIR)
 user = SERVER_USER
 group = SERVER_GROUP
 tmp_upload_dir = None
@@ -78,8 +78,8 @@ capture_output = True  # Capture worker output for debugging
 
 # Environment variables - dynamically set based on DJANGO_ENV
 raw_env = [
-    f'DJANGO_SETTINGS_MODULE=LMS_Project.settings',
-    f'DJANGO_ENV={DJANGO_ENV}',
+    "DJANGO_SETTINGS_MODULE=LMS_Project.settings",
+    "DJANGO_ENV={}".format(DJANGO_ENV),
 ]
 
 # Application
@@ -88,9 +88,9 @@ wsgi_module = "LMS_Project.wsgi:application"
 # Security headers
 def when_ready(server):
     """Called just after the server is started."""
-    server.log.info(f"LMS {DJANGO_ENV.upper()} Server Started with Gunicorn")
-    server.log.info(f"Workers: {server.cfg.workers}")
-    server.log.info(f"🌐 Binding to: {server.cfg.bind}")
+    server.log.info("LMS {} Server Started with Gunicorn".format(DJANGO_ENV.upper()))
+    server.log.info("Workers: {}".format(server.cfg.workers))
+    server.log.info("🌐 Binding to: {}".format(server.cfg.bind))
 
 def worker_int(worker):
     """Called just after a worker has been forked."""
@@ -119,8 +119,8 @@ def worker_abort(worker):
 
 def on_exit(server):
     """Called just before exiting."""
-    server.log.info(f"🛑 LMS {DJANGO_ENV.upper()} Server shutting down")
+    server.log.info("🛑 LMS {} Server shutting down".format(DJANGO_ENV.upper()))
 
 def on_reload(server):
     """Called to recycle workers during a reload via SIGHUP."""
-    server.log.info(f" LMS {DJANGO_ENV.upper()} Server reloading")
+    server.log.info(" LMS {} Server reloading".format(DJANGO_ENV.upper()))

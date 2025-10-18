@@ -1,169 +1,97 @@
 /**
  * Safe Fetch Utilities for LMS
- * 
- * This file provides safe fetch utilities to handle JSON responses
- * and prevent the common issues with response.json() calls.
+ * Enhanced fetch with error handling and retry logic
  */
 
-/**
- * Safely parse JSON response with proper error handling
- * @param {Response} response - The fetch response object
- * @returns {Promise<Object>} - Parsed JSON data or error object
- */
-async function safeJsonResponse(response) {
-    if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status} - ${response.statusText}`);
-    }
+(function() {
+    'use strict';
 
-    const contentType = response.headers.get('Content-Type');
-    
-    // Check if response is JSON
-    if (!contentType || !contentType.includes('application/json')) {
-        // Try to get text response for debugging
-        const text = await response.text();
-        console.log({
-            status: response.status,
-            statusText: response.statusText,
-            contentType: contentType,
-            responseText: text.substring(0, 500) // Limit text for logging
-        });
-        throw new Error('Server returned non-JSON response. Check console for details.');
-    }
-
-    try {
-        return await response.json();
-    } catch (error) {
-        throw new Error('Failed to parse JSON response from server');
-    }
-}
-
-/**
- * Safe fetch wrapper that handles common issues
- * @param {string} url - The URL to fetch
- * @param {Object} options - Fetch options
- * @returns {Promise<Object>} - Parsed JSON data
- */
-async function safeFetch(url, options = {}) {
-    try {
-        const response = await fetch(url, {
-            ...options,
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest',
-                ...options.headers
-            }
-        });
+    const SafeFetchUtils = {
+        defaultOptions: {
+            timeout: 30000,
+            retries: 3,
+            retryDelay: 1000
+        },
         
-        return await safeJsonResponse(response);
-    } catch (error) {
-        throw error;
-    }
-}
-
-/**
- * Safe fetch for DELETE requests
- * @param {string} url - The URL to delete
- * @param {Object} options - Additional options
- * @returns {Promise<Object>} - Parsed JSON data
- */
-async function safeDelete(url, options = {}) {
-    return safeFetch(url, {
-        method: 'DELETE',
-        ...options
-    });
-}
-
-/**
- * Safe fetch for POST requests
- * @param {string} url - The URL to post to
- * @param {Object} data - Data to send
- * @param {Object} options - Additional options
- * @returns {Promise<Object>} - Parsed JSON data
- */
-async function safePost(url, data, options = {}) {
-    return safeFetch(url, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            ...options.headers
+        fetch: async function(url, options = {}) {
+            const config = { ...this.defaultOptions, ...options };
+            let lastError;
+            
+            for (let attempt = 1; attempt <= config.retries; attempt++) {
+                try {
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), config.timeout);
+                    
+                    const response = await window.fetch(url, {
+                        ...config,
+                        signal: controller.signal
+                    });
+                    
+                    clearTimeout(timeoutId);
+                    
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+                    
+                    return response;
+                } catch (error) {
+                    lastError = error;
+                    
+                    if (attempt < config.retries && this.isRetryableError(error)) {
+                        await this.delay(config.retryDelay * attempt);
+                        continue;
+                    }
+                    
+                    throw error;
+                }
+            }
+            
+            throw lastError;
         },
-        body: JSON.stringify(data),
-        ...options
-    });
-}
-
-/**
- * Safe fetch for PUT requests
- * @param {string} url - The URL to put to
- * @param {Object} data - Data to send
- * @param {Object} options - Additional options
- * @returns {Promise<Object>} - Parsed JSON data
- */
-async function safePut(url, data, options = {}) {
-    return safeFetch(url, {
-        method: 'PUT',
-        headers: {
-            'Content-Type': 'application/json',
-            ...options.headers
+        
+        isRetryableError: function(error) {
+            return error.name === 'AbortError' || 
+                   error.message.includes('Failed to fetch') ||
+                   error.message.includes('NetworkError');
         },
-        body: JSON.stringify(data),
-        ...options
-    });
-}
-
-/**
- * Get CSRF token from the page
- * @returns {string} - CSRF token
- */
-function getCSRFToken() {
-    const token = document.querySelector('[name=csrfmiddlewaretoken]');
-    if (token) {
-        return token.value;
-    }
-    
-    const metaToken = document.querySelector('meta[name="csrf-token"]');
-    if (metaToken) {
-        return metaToken.getAttribute('content');
-    }
-    
-    return '';
-}
-
-/**
- * Safe fetch with CSRF token
- * @param {string} url - The URL to fetch
- * @param {Object} options - Fetch options
- * @returns {Promise<Object>} - Parsed JSON data
- */
-async function safeFetchWithCSRF(url, options = {}) {
-    const csrfToken = getCSRFToken();
-    
-    return safeFetch(url, {
-        ...options,
-        headers: {
-            'X-CSRFToken': csrfToken,
-            ...options.headers
+        
+        delay: function(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        },
+        
+        get: function(url, options = {}) {
+            return this.fetch(url, { ...options, method: 'GET' });
+        },
+        
+        post: function(url, data, options = {}) {
+            return this.fetch(url, {
+                ...options,
+                method: 'POST',
+                body: JSON.stringify(data),
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...options.headers
+                }
+            });
+        },
+        
+        put: function(url, data, options = {}) {
+            return this.fetch(url, {
+                ...options,
+                method: 'PUT',
+                body: JSON.stringify(data),
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...options.headers
+                }
+            });
+        },
+        
+        delete: function(url, options = {}) {
+            return this.fetch(url, { ...options, method: 'DELETE' });
         }
-    });
-}
-
-// Expose to global scope
-window.safeJsonResponse = safeJsonResponse;
-window.safeFetch = safeFetch;
-window.safeDelete = safeDelete;
-window.safePost = safePost;
-window.safePut = safePut;
-window.getCSRFToken = getCSRFToken;
-window.safeFetchWithCSRF = safeFetchWithCSRF;
-
-// Export for module systems
-if (typeof module !== 'undefined' && module.exports) {
-    module.exports = {
-        safeJsonResponse,
-        safeFetch,
-        safeDelete,
-        safePost,
-        safePut,
-        getCSRFToken,
-        safeFetchWithCSRF
     };
-}
+
+    // Export to global scope
+    window.SafeFetchUtils = SafeFetchUtils;
+})();

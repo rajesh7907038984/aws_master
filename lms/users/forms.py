@@ -1,6 +1,7 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm, UserChangeForm, PasswordChangeForm, SetPasswordForm
-from .models import CustomUser, Branch, ManualVAKScore, ManualAssessmentEntry
+from .models import CustomUser, ManualVAKScore, ManualAssessmentEntry
+from branches.models import Branch
 from courses.models import Course
 import pytz
 from django.core.validators import RegexValidator, MinValueValidator, MaxValueValidator
@@ -755,92 +756,55 @@ class TabbedUserCreationForm(UserCreationForm):
         branch = cleaned_data.get('branch')
         business = cleaned_data.get('business')
         
-        # Additional validation for role restrictions
+        # Simplified validation logic
         if self.request and self.request.user:
             user = self.request.user
             
-            # Global Admin users must now specify business/branch requirements
+            # Role-based validation
             if user.role == 'globaladmin':
-                # For Super Admin role, business is required instead of branch
-                if role == 'superadmin':
-                    if not business:
-                        self.add_error('business', 'Business selection is required for Super Admin users.')
-                    # Super Admins don't need branches - clear branch if set
-                    cleaned_data['branch'] = None
-                else:
-                    # For other roles, branch is now REQUIRED (no auto-assignment)
-                    if role in ['admin', 'instructor', 'learner']:
-                        if not branch:
-                            self.add_error('branch', 'Branch selection is required for this role. Please select a branch.')
-                    # Clear business for non-Super Admin roles
-                    if role != 'superadmin':
-                        cleaned_data['business'] = None
-                return cleaned_data
-
-            # For Admin and Instructor users, use their assigned branch
-            elif user.role in ['admin', 'instructor']:
-                # For admin/instructor users, always use their branch
-                if user.branch:
-                    cleaned_data['branch'] = user.branch
-                else:
-                    # This shouldn't happen, but handle it gracefully
-                    self.add_error('branch', 'You must be assigned to a branch to create users.')
-                # Clear business field for non-Global Admin users
-                cleaned_data['business'] = None
-            
-            # For Super Admin users, allow branch selection but auto-assign if needed
+                # Global admin can assign any role
+                if role == 'superadmin' and not business:
+                    self.add_error('business', 'Business selection is required for Super Admin users.')
+                elif role != 'superadmin' and not branch:
+                    self.add_error('branch', 'Branch selection is required for this role.')
             elif user.role == 'superadmin':
+                # Super admin can create admin, instructor, learner
+                if role in ['globaladmin', 'superadmin']:
+                    self.add_error('role', 'You cannot assign global admin or super admin roles.')
                 if role in ['admin', 'instructor', 'learner'] and not branch:
-                    # Auto-assign to first available branch if none selected
+                    # Auto-assign to first available branch
                     from branches.models import Branch
                     first_branch = Branch.objects.first()
                     if first_branch:
                         cleaned_data['branch'] = first_branch
-                        # Add a message to inform the user about auto-assignment
-                        import django.contrib.messages as messages
-                        if hasattr(self.request, '_messages'):
-                            messages.info(self.request, f'Branch automatically assigned to "{first_branch.name}" for {role} user.')
                     else:
-                        self.add_error('branch', 'Branch selection is required for this role, but no branches are available.')
-                # Clear business field for Super Admin users creating non-Super Admin roles
-                if role != 'superadmin':
-                    cleaned_data['business'] = None
-            
-            # For Django superusers, ensure branch is selected for roles that need it
-            elif user.is_superuser and role in ['admin', 'instructor', 'learner'] and not branch:
-                from branches.models import Branch
-                first_branch = Branch.objects.first()
-                if first_branch:
-                    cleaned_data['branch'] = first_branch
-                else:
-                    self.add_error('branch', 'Branch selection is required for this role.')
-
-            # Apply role creation restrictions
-            # Global admin users can create other global admin users
-            if user.role == 'superadmin' and role in ['globaladmin', 'superadmin']:
-                self.add_error('role', 'Super admin users are not allowed to assign global admin or super admin roles.')
-            elif user.role == 'admin' and role in ['superadmin', 'globaladmin']:
-                self.add_error('role', 'Admin users are not allowed to assign super admin or global admin roles.')
+                        self.add_error('branch', 'No branches available.')
+            elif user.role in ['admin', 'instructor']:
+                # Admin/instructor can only create learners
+                if role != 'learner':
+                    self.add_error('role', 'You can only create learner accounts.')
+                if not branch:
+                    cleaned_data['branch'] = user.branch
+            else:
+                # Other users cannot create users
+                self.add_error('role', 'You do not have permission to create users.')
 
         return cleaned_data
 
     def save(self, commit=True):
         user = super().save(commit=False)
         
-        # Set critical fields first
+        # Set basic fields
         user.role = self.cleaned_data.get('role', 'learner')
         user.branch = self.cleaned_data.get('branch')
         user.timezone = self.cleaned_data.get('timezone', 'UTC')
         
-        # Map form fields to both standard Django fields and custom model fields
+        # Map form fields to model fields
         given_name = self.cleaned_data.get('given_name', '')
         family_name = self.cleaned_data.get('family_name', '')
         
-        # Standard Django User fields
         user.first_name = given_name
         user.last_name = family_name
-        
-        # Custom model fields for consistency
         user.given_names = given_name
         user.family_name = family_name
         user.phone_number = self.cleaned_data.get('phone_number', '')
@@ -849,77 +813,13 @@ class TabbedUserCreationForm(UserCreationForm):
         # Handle business assignment for Super Admin users
         business = self.cleaned_data.get('business')
         if user.role == 'superadmin' and business:
-            # Business assignment will be handled after user is saved
             user._pending_business_assignment = business
-        
-        # Set all the assessment data fields
-        user.initial_assessment_english = self.cleaned_data.get('initial_assessment_english', False)
-        user.initial_assessment_maths = self.cleaned_data.get('initial_assessment_maths', False)
-        user.initial_assessment_subject_specific = self.cleaned_data.get('initial_assessment_subject_specific', False)
-        user.initial_assessment_other = self.cleaned_data.get('initial_assessment_other', False)
-        user.initial_assessment_date = self.cleaned_data.get('initial_assessment_date')
-        
-        user.diagnostic_assessment_english = self.cleaned_data.get('diagnostic_assessment_english', False)
-        user.diagnostic_assessment_maths = self.cleaned_data.get('diagnostic_assessment_maths', False)
-        user.diagnostic_assessment_subject_specific = self.cleaned_data.get('diagnostic_assessment_subject_specific', False)
-        user.diagnostic_assessment_other = self.cleaned_data.get('diagnostic_assessment_other', False)
-        user.diagnostic_assessment_date = self.cleaned_data.get('diagnostic_assessment_date')
-        
-        user.functional_skills_english = self.cleaned_data.get('functional_skills_english', False)
-        user.functional_skills_maths = self.cleaned_data.get('functional_skills_maths', False)
-        user.functional_skills_other = self.cleaned_data.get('functional_skills_other', False)
-        user.functional_skills_date = self.cleaned_data.get('functional_skills_date')
-        
-        # Handle personal information fields
-        user.unique_learner_number = self.cleaned_data.get('unique_learner_number')
-        user.date_of_birth = self.cleaned_data.get('date_of_birth')
-        user.sex = self.cleaned_data.get('sex', '')
-        user.sex_other = self.cleaned_data.get('sex_other', '')
-        user.sexual_orientation = self.cleaned_data.get('sexual_orientation', '')
-        user.sexual_orientation_other = self.cleaned_data.get('sexual_orientation_other', '')
-        user.ethnicity = self.cleaned_data.get('ethnicity', '')
-        user.ethnicity_other = self.cleaned_data.get('ethnicity_other', '')
-        user.current_postcode = self.cleaned_data.get('current_postcode', '')
-        user.address_line1 = self.cleaned_data.get('address_line1', '')
-        user.address_line2 = self.cleaned_data.get('address_line2', '')
-        user.city = self.cleaned_data.get('city', '')
-        user.county = self.cleaned_data.get('county', '')
-        user.country = self.cleaned_data.get('country', 'United Kingdom')
-        user.is_non_uk_address = self.cleaned_data.get('is_non_uk_address', False)
-        
-        # Handle education fields
-        user.study_area = self.cleaned_data.get('study_area', '')
-        user.study_area_other = self.cleaned_data.get('study_area_other', '')
-        user.level_of_study = self.cleaned_data.get('level_of_study', '')
-        user.grades = self.cleaned_data.get('grades', '')
-        user.grades_other = self.cleaned_data.get('grades_other', '')
-        user.date_achieved = self.cleaned_data.get('date_achieved')
-        user.has_learning_difficulty = self.cleaned_data.get('has_learning_difficulty', '')
-        user.learning_difficulty_details = self.cleaned_data.get('learning_difficulty_details', '')
-        
-        # Handle employment fields
-        user.job_role = self.cleaned_data.get('job_role', '')
-        user.industry = self.cleaned_data.get('industry', '')
-        user.industry_other = self.cleaned_data.get('industry_other', '')
-        user.duration = self.cleaned_data.get('duration', '')
-        user.key_skills = self.cleaned_data.get('key_skills', '')
-        
-        # Handle additional information fields
-        user.reason_for_pursuing_course = self.cleaned_data.get('reason_for_pursuing_course', '')
-        user.career_objectives = self.cleaned_data.get('career_objectives', '')
-        user.relevant_past_work = self.cleaned_data.get('relevant_past_work', '')
-        user.special_interests_and_strengths = self.cleaned_data.get('special_interests_and_strengths', '')
-        user.achievements_and_awards = self.cleaned_data.get('achievements_and_awards', '')
         
         if commit:
             user.save()
             
             # Handle business assignment for Super Admin users
-            role = self.cleaned_data.get('role')
-            business = self.cleaned_data.get('business')
-            
-            if role == 'superadmin' and business and self.request:
-                # Create business assignment for Super Admin
+            if user.role == 'superadmin' and business and self.request:
                 from business.models import BusinessUserAssignment
                 BusinessUserAssignment.objects.create(
                     business=business,

@@ -241,7 +241,7 @@ def sync_media_files(request):
                         'source_app': 'conferences',
                         'source_model': 'ConferenceFile',
                         'source_id': cf.id,
-                        'description': f'Conference file: {cf.conference.title}',
+                        'description': "Conference file: {{cf.conference.title}}",
                     }
                 )
             
@@ -262,7 +262,7 @@ def sync_media_files(request):
                         'source_app': 'reports',
                         'source_model': 'ReportAttachment',
                         'source_id': ra.id,
-                        'description': f'Report attachment: {ra.report.title}',
+                        'description': "Report attachment: {{ra.report.title}}",
                     }
                 )
             
@@ -272,7 +272,7 @@ def sync_media_files(request):
             return JsonResponse({'success': True, 'message': 'Media files synced successfully'})
             
         except Exception as e:
-            return JsonResponse({'success': False, 'message': f'Error syncing files: {str(e)}'})
+            return JsonResponse({'success': False, 'message': "Error syncing files: {{str(e)}}"})
     
     return JsonResponse({'success': False, 'message': 'Invalid request method'})
 
@@ -332,11 +332,11 @@ def bulk_delete_files(request):
             
             return JsonResponse({
                 'success': True, 
-                'message': f'Successfully deleted {deleted_count} file(s)'
+                'message': "Successfully deleted {{deleted_count}} file(s)"
             })
             
         except Exception as e:
-            return JsonResponse({'success': False, 'message': f'Error deleting files: {str(e)}'})
+            return JsonResponse({'success': False, 'message': "Error deleting files: {{str(e)}}"})
     
     return JsonResponse({'success': False, 'message': 'Invalid request method'})
 
@@ -354,7 +354,7 @@ def get_file_type_from_mime(mime_type):
         return 'video'
     elif mime_type.startswith('audio/'):
         return 'audio'
-    elif mime_type in ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']:
+    elif mime_type in ['application/pd", "application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']:
         return 'document'
     elif mime_type in ['application/zip', 'application/x-rar-compressed', 'application/x-tar']:
         return 'archive'

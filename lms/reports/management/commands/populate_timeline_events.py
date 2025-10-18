@@ -64,11 +64,11 @@ class Command(BaseCommand):
                     type='LOGIN',
                     created_at=login_date,
                     defaults={
-                        'description': f"{user.get_full_name() or user.username} logged in"
+                        'description': "{{user.get_full_name() or user.username}} logged in"
                     }
                 )
         
-        self.stdout.write(f'Created login events for {active_users.count()} users.')
+        self.stdout.write("Created login events for {{active_users.count()}} users.")
 
     def create_course_events(self):
         """Create course enrollment and completion events"""
@@ -82,7 +82,7 @@ class Command(BaseCommand):
                 type='COURSE_START',
                 created_at=enrollment.enrolled_at,
                 defaults={
-                    'description': f"{enrollment.user.get_full_name() or enrollment.user.username} enrolled in {enrollment.course.title}"
+                    'description': "{{enrollment.user.get_full_name() or enrollment.user.username}} enrolled in {{enrollment.course.title}}"
                 }
             )
             
@@ -94,11 +94,11 @@ class Command(BaseCommand):
                     type='COURSE_COMPLETE',
                     created_at=enrollment.completion_date,
                     defaults={
-                        'description': f"{enrollment.user.get_full_name() or enrollment.user.username} completed {enrollment.course.title}"
+                        'description': "{{enrollment.user.get_full_name() or enrollment.user.username}} completed {{enrollment.course.title}}"
                     }
                 )
         
-        self.stdout.write(f'Created course events for {enrollments.count()} enrollments.')
+        self.stdout.write("Created course events for {{enrollments.count()}} enrollments.")
 
     def create_quiz_events(self):
         """Create quiz attempt events"""
@@ -115,7 +115,7 @@ class Command(BaseCommand):
                 type='QUIZ_TAKE',
                 created_at=attempt.start_time,
                 defaults={
-                    'description': f"{attempt.user.get_full_name() or attempt.user.username} took quiz: {attempt.quiz.title}",
+                    'description': "{{attempt.user.get_full_name() or attempt.user.username}} took quiz: {{attempt.quiz.title}}",
                     'metadata': {
                         'quiz_id': attempt.quiz.id,
                         'score': getattr(attempt, 'score', None),
@@ -124,7 +124,7 @@ class Command(BaseCommand):
                 }
             )
         
-        self.stdout.write(f'Created quiz events for {attempts.count()} attempts.')
+        self.stdout.write("Created quiz events for {{attempts.count()}} attempts.")
 
     def create_assignment_events(self):
         """Create assignment submission events"""
@@ -141,7 +141,7 @@ class Command(BaseCommand):
                 type='ASSIGNMENT_SUBMIT',
                 created_at=submission.submitted_at,
                 defaults={
-                    'description': f"{submission.user.get_full_name() or submission.user.username} submitted assignment: {submission.assignment.title}",
+                    'description': "{{submission.user.get_full_name() or submission.user.username}} submitted assignment: {{submission.assignment.title}}",
                     'metadata': {
                         'assignment_id': submission.assignment.id,
                         'submission_id': submission.id
@@ -149,7 +149,7 @@ class Command(BaseCommand):
                 }
             )
         
-        self.stdout.write(f'Created assignment events for {submissions.count()} submissions.')
+        self.stdout.write("Created assignment events for {{submissions.count()}} submissions.")
 
     def create_forum_events(self):
         """Create forum post events"""
@@ -166,7 +166,7 @@ class Command(BaseCommand):
                 type='FORUM_POST',
                 created_at=discussion.created_at,
                 defaults={
-                    'description': f"{discussion.user.get_full_name() or discussion.user.username} created a forum post: {discussion.title[:50]}...",
+                    'description': "{{discussion.user.get_full_name() or discussion.user.username}} created a forum post: {{discussion.title[:50]}}...",
                     'metadata': {
                         'discussion_id': discussion.id,
                         'title': discussion.title
@@ -174,4 +174,4 @@ class Command(BaseCommand):
                 }
             )
         
-        self.stdout.write(f'Created forum events for {discussions.count()} discussions.') 
+        self.stdout.write("Created forum events for {{discussions.count()}} discussions.") 

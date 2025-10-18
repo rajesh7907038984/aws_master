@@ -37,7 +37,7 @@ class SessionPersistenceMiddleware:
                 # Create session key if it doesn't exist
                 if not request.session.session_key:
                     request.session.create()
-                    logger.info(f"Created new session for user {request.user.id}")
+                    logger.info("Created new session for user {{request.user.id}}")
                 
                 session_key = request.session.session_key
                 if session_key:
@@ -50,7 +50,7 @@ class SessionPersistenceMiddleware:
                             # Extend session by 24 hours
                             session_obj.expire_date = timezone.now() + timedelta(hours=24)
                             session_obj.save(update_fields=['expire_date'])
-                            logger.debug(f"Extended session {session_key[:8]}... for user {request.user.id}")
+                            logger.debug("Extended session {{session_key[:8]}}... for user {{request.user.id}}")
                     
                     # Mark session as modified to ensure it's saved
                     request.session.modified = True
@@ -71,6 +71,6 @@ class SessionPersistenceMiddleware:
                         )
                 
             except Exception as e:
-                logger.error(f"Session persistence middleware error: {e}", exc_info=True)
+                logger.error("Session persistence middleware error: {{e}}", exc_info=True)
         
         return response

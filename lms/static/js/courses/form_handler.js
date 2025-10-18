@@ -4,12 +4,20 @@ function validateForm() {
     const courseStatus = document.querySelector('input[name="course_status"]:checked');
     
     if (!title) {
-        alert('Please enter a course title');
+        if (typeof showToast === 'function') {
+            showToast('Please enter a course title', 'error');
+        } else {
+            console.error('Please enter a course title');
+        }
         return false;
     }
     
     if (!courseStatus) {
-        alert('Please select a course status');
+        if (typeof showToast === 'function') {
+            showToast('Please select a course status', 'error');
+        } else {
+            console.error('Please select a course status');
+        }
         return false;
     }
     
@@ -18,7 +26,11 @@ function validateForm() {
         // Pattern: 2-4 letters followed by 3-4 numbers (e.g., CS101, MATH201, ENG1001)
         const courseCodePattern = /^[A-Za-z]{2,4}\d{3,4}$/;
         if (!courseCodePattern.test(courseCode)) {
-            alert('Course code must follow the format: 2-4 letters followed by 3-4 numbers (e.g., CS101, MATH201)');
+            if (typeof showToast === 'function') {
+                showToast('Course code must follow the format: 2-4 letters followed by 3-4 numbers (e.g., CS101, MATH201)', 'error');
+            } else {
+                console.error('Course code must follow the format: 2-4 letters followed by 3-4 numbers (e.g., CS101, MATH201)');
+            }
             return false;
         }
     }
@@ -31,7 +43,7 @@ async function checkSlugExists(slug) {
     if (!slug) return false;
     
     try {
-        const response = await fetch(`/categories/check-slug/?slug=${encodeURIComponent(slug)}`, {
+        const response = await fetch('/categories/check-slug/?slug=' + encodeURIComponent(slug), {
             method: 'GET',
             headers: {
                 'X-Requested-With': 'XMLHttpRequest',

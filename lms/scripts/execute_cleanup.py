@@ -31,7 +31,7 @@ def cleanup_orphaned_records():
             WHERE user_id NOT IN (SELECT id FROM users_customuser)
         """)
         deleted_enrollments = cursor.rowcount
-        print(f"  ✅ Deleted {deleted_enrollments} orphaned course enrollments")
+        print("  ✅ Deleted {{deleted_enrollments}} orphaned course enrollments")
         
         # Clean up orphaned assignment submissions
         cursor.execute("""
@@ -39,7 +39,7 @@ def cleanup_orphaned_records():
             WHERE user_id NOT IN (SELECT id FROM users_customuser)
         """)
         deleted_submissions = cursor.rowcount
-        print(f"  ✅ Deleted {deleted_submissions} orphaned assignment submissions")
+        print("  ✅ Deleted {{deleted_submissions}} orphaned assignment submissions")
 
 def cleanup_duplicate_data():
     """Clean up duplicate data"""
@@ -57,7 +57,7 @@ def cleanup_duplicate_data():
         duplicates = cursor.fetchall()
         
         for email, keep_id, count in duplicates:
-            print(f"  📧 Found {count} duplicates for {email}, keeping ID {keep_id}")
+            print("  📧 Found {{count}} duplicates for {{email}}, keeping ID {{keep_id}}")
             # Note: Actual cleanup would require more complex logic
             # to handle related records
 
@@ -70,5 +70,5 @@ if __name__ == "__main__":
             cleanup_duplicate_data()
         print("✅ Cleanup completed successfully!")
     except Exception as e:
-        print(f"❌ Cleanup failed: {e}")
+        print("❌ Cleanup failed: {{e}}")
         sys.exit(1)

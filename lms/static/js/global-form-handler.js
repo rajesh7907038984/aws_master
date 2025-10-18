@@ -26,7 +26,8 @@
             
             // Store recent errors in localStorage for debugging
             try {
-                const recentErrors = TypeSafety.safeJsonParse(localStorage.getItem('lms_recent_errors'), []);
+                const storedErrors = localStorage.getItem('lms_recent_errors');
+                const recentErrors = storedErrors ? JSON.parse(storedErrors) : [];
                 recentErrors.push(errorDetails);
                 // Keep only last 10 errors
                 if (recentErrors.length > 10) {
@@ -34,6 +35,7 @@
                 }
                 localStorage.setItem('lms_recent_errors', JSON.stringify(recentErrors));
             } catch (storageError) {
+                // Silently handle storage errors
             }
             
             return errorDetails;
@@ -53,10 +55,21 @@
             const getCSRFToken = function() {
                 // Priority order for CSRF token sources
                 const sources = [
-                    () => document.querySelector('meta[name="csrf-token"]')?.getAttribute('content'),
-                    () => document.querySelector('input[name="csrfmiddlewaretoken"]')?.value,
-                    () => window.CSRF_TOKEN,
-                    () => document.cookie.match(/csrftoken=([^;]+)/)?.[1]
+                    function() {
+                        var meta = document.querySelector('meta[name="csrf-token"]');
+                        return meta ? meta.getAttribute('content') : null;
+                    },
+                    function() {
+                        var input = document.querySelector('input[name="csrfmiddlewaretoken"]');
+                        return input ? input.value : null;
+                    },
+                    function() {
+                        return window.CSRF_TOKEN;
+                    },
+                    function() {
+                        var match = document.cookie.match(/csrftoken=([^;]+)/);
+                        return match ? match[1] : null;
+                    }
                 ];
 
                 for (let source of sources) {
@@ -186,7 +199,8 @@
         setupErrorHandling: function() {
             // Handle AJAX form submissions
             const originalFetch = window.fetch;
-            window.fetch = function(url, options = {}) {
+            window.fetch = function(url, options) {
+                options = options || {};
                 // Add CSRF token for POST requests
                 if (options.method && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(options.method.toUpperCase())) {
                     options.headers = options.headers || {};

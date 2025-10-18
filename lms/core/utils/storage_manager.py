@@ -36,7 +36,7 @@ class StorageManager:
         can_upload, error_message = storage_limit.can_upload_file(file_size_bytes)
         
         if not can_upload:
-            logger.warning(f"Upload rejected for {user.username}: {error_message}")
+            logger.warning("Upload rejected for {{user.username}}: {{error_message}}")
         
         return can_upload, error_message
 
@@ -48,7 +48,7 @@ class StorageManager:
         Register a successful file upload and update storage usage.
         """
         if not user or not user.branch:
-            logger.error(f"Cannot register upload: user {user} has no branch")
+            logger.error("Cannot register upload: user {{user}} has no branch")
             return None
         
         # Register the upload
@@ -105,7 +105,7 @@ class StorageManager:
                 )
                 
         except Exception as e:
-            logger.error(f"Error checking storage warnings for branch {branch.name}: {e}")
+            logger.error("Error checking storage warnings for branch {{branch.name}}: {{e}}")
 
     @classmethod
     def get_branch_storage_info(cls, branch):
@@ -151,12 +151,12 @@ class StorageManager:
             
             for record in usage_records:
                 record.mark_as_deleted()
-                logger.info(f"Marked file as deleted: {file_path}")
+                logger.info("Marked file as deleted: {{file_path}}")
             
             return usage_records.count()
             
         except Exception as e:
-            logger.error(f"Error marking file as deleted: {file_path} - {e}")
+            logger.error("Error marking file as deleted: {{file_path}} - {{e}}")
             return 0
 
     @classmethod
@@ -183,14 +183,14 @@ class StorageManager:
                 # Delete orphaned files
                 results = s3_cleanup.delete_files(orphaned_files)
                 successful_deletions = sum(1 for success in results.values() if success)
-                logger.info(f"Cleaned up {successful_deletions} orphaned S3 files")
+                logger.info("Cleaned up {{successful_deletions}} orphaned S3 files")
                 return successful_deletions
             else:
-                logger.info(f"[DRY RUN] Found {len(orphaned_files)} orphaned S3 files")
+                logger.info("[DRY RUN] Found {{len(orphaned_files)}} orphaned S3 files")
                 return len(orphaned_files)
                 
         except Exception as e:
-            logger.error(f"Error during S3 orphaned file cleanup: {e}")
+            logger.error("Error during S3 orphaned file cleanup: {{e}}")
             return 0
 
     @classmethod
@@ -221,7 +221,7 @@ class StorageManager:
             return stats
             
         except Exception as e:
-            logger.error(f"Error getting S3 cleanup status: {e}")
+            logger.error("Error getting S3 cleanup status: {{e}}")
             return {
                 's3_configured': True,
                 'error': str(e)
@@ -243,9 +243,9 @@ class StorageManager:
                     if not dry_run:
                         record.mark_as_deleted()
                     deleted_count += 1
-                    logger.info(f"{'[DRY RUN] ' if dry_run else ''}S3 file not found, marking as deleted: {record.file_path}")
+                    logger.info("{{'[DRY RUN] ' if dry_run else ''}}S3 file not found, marking as deleted: {{record.file_path}}")
             except Exception as e:
-                logger.error(f"Error checking S3 file {record.file_path}: {e}")
+                logger.error("Error checking S3 file {{record.file_path}}: {{e}}")
                 if not dry_run:
                     record.mark_as_deleted()
                 deleted_count += 1
@@ -368,10 +368,10 @@ class StorageManager:
         
         for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
             if bytes_value < 1024.0:
-                return f"{bytes_value:.1f} {unit}"
+                return "{{bytes_value:.1f}} {{unit}}"
             bytes_value /= 1024.0
         
-        return f"{bytes_value:.1f} PB"
+        return "{{bytes_value:.1f}} PB"
 
 
 class StorageQuotaDecorator:

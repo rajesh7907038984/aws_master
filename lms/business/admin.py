@@ -58,7 +58,7 @@ class BusinessAdmin(admin.ModelAdmin):
             return qs
         # Super Admins can only see their assigned businesses
         elif request.user.role in ['globaladmin', 'superadmin']:
-            return qs.filter(user_assignments__user=request.user, user_assignments__is_active=True)
+            return qs.filter(business_user_assignments__user=request.user, business_user_assignments__is_active=True)
         else:
             return qs.none()
     
@@ -71,7 +71,7 @@ class BusinessAdmin(admin.ModelAdmin):
             return True
         if obj and request.user.role in ['globaladmin', 'superadmin']:
             # Super Admins can only edit businesses they're assigned to
-            return obj.user_assignments.filter(user=request.user, is_active=True).exists()
+            return obj.business_user_assignments.filter(user=request.user, is_active=True).exists()
         return False
     
     def has_delete_permission(self, request, obj=None):
@@ -106,7 +106,7 @@ class BusinessUserAssignmentAdmin(admin.ModelAdmin):
         elif request.user.role in ['globaladmin', 'superadmin']:
             user_businesses = Business.objects.filter(
                 user_assignments__user=request.user, 
-                user_assignments__is_active=True
+                business_user_assignments__is_active=True
             )
             return qs.filter(business__in=user_businesses)
         else:
@@ -120,7 +120,7 @@ class BusinessUserAssignmentAdmin(admin.ModelAdmin):
                 # Super Admins can only assign users to businesses they manage
                 kwargs["queryset"] = Business.objects.filter(
                     user_assignments__user=request.user,
-                    user_assignments__is_active=True
+                    business_user_assignments__is_active=True
                 )
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
     
@@ -132,7 +132,7 @@ class BusinessUserAssignmentAdmin(admin.ModelAdmin):
             return True
         if obj and request.user.role in ['globaladmin', 'superadmin']:
             # Super Admins can only modify assignments for businesses they manage
-            return obj.business.user_assignments.filter(user=request.user, is_active=True).exists()
+            return obj.business.business_user_assignments.filter(user=request.user, is_active=True).exists()
         return False
     
     def has_delete_permission(self, request, obj=None):

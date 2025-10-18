@@ -31,7 +31,7 @@ class StandardizedErrorHandlingMixin:
         })
         
         # Log the error with context
-        logger.error(f"Error in {self.__class__.__name__}: {str(error)}", 
+        logger.error("Error in {{self.__class__.__name__}}: {{str(error)}}", 
                     extra=error_context, exc_info=True)
         
         # Determine error type and response
@@ -68,7 +68,7 @@ class StandardizedErrorHandlingMixin:
     
     def handle_database_error(self, request, error):
         """Handle database errors"""
-        logger.error(f"Database error: {str(error)}", exc_info=True)
+        logger.error("Database error: {{str(error)}}", exc_info=True)
         
         if request.headers.get('Accept') == 'application/json':
             return JsonResponse({
@@ -128,14 +128,14 @@ def api_error_handler(view_func):
                 'type': 'permission_error'
             }, status=403)
         except (DatabaseError, IntegrityError) as error:
-            logger.error(f"Database error in API view: {str(error)}", exc_info=True)
+            logger.error("Database error in API view: {{str(error)}}", exc_info=True)
             return JsonResponse({
                 'error': 'Database error',
                 'details': 'A database error occurred. Please try again later.',
                 'type': 'database_error'
             }, status=500)
         except Exception as error:
-            logger.error(f"Unexpected error in API view: {str(error)}", exc_info=True)
+            logger.error("Unexpected error in API view: {{str(error)}}", exc_info=True)
             return JsonResponse({
                 'error': 'Internal server error',
                 'details': 'An unexpected error occurred. Please try again later.',

@@ -37,7 +37,7 @@ def get_business_overview_api(request):
             'data': data
         })
     except Exception as e:
-        logger.error(f"Error in get_business_overview_api: {str(e)}")
+        logger.error("Error in get_business_overview_api: {{str(e)}}")
         return JsonResponse({
             'success': False,
             'error': str(e)
@@ -61,7 +61,7 @@ def get_login_statistics_api(request):
             'data': data
         })
     except Exception as e:
-        logger.error(f"Error in get_login_statistics_api: {str(e)}")
+        logger.error("Error in get_login_statistics_api: {{str(e)}}")
         return JsonResponse({
             'success': False,
             'error': str(e)
@@ -85,7 +85,7 @@ def get_completion_statistics_api(request):
             'data': data
         })
     except Exception as e:
-        logger.error(f"Error in get_completion_statistics_api: {str(e)}")
+        logger.error("Error in get_completion_statistics_api: {{str(e)}}")
         return JsonResponse({
             'success': False,
             'error': str(e)
@@ -106,7 +106,7 @@ def get_business_comparison_api(request):
             'data': data
         })
     except Exception as e:
-        logger.error(f"Error in get_business_comparison_api: {str(e)}")
+        logger.error("Error in get_business_comparison_api: {{str(e)}}")
         return JsonResponse({
             'success': False,
             'error': str(e)
@@ -131,7 +131,7 @@ def get_chart_data_api(request):
             'data': data
         })
     except Exception as e:
-        logger.error(f"Error in get_chart_data_api: {str(e)}")
+        logger.error("Error in get_chart_data_api: {{str(e)}}")
         return JsonResponse({
             'success': False,
             'error': str(e)
@@ -169,7 +169,7 @@ def get_real_time_stats_api(request):
             }
         })
     except Exception as e:
-        logger.error(f"Error in get_real_time_stats_api: {str(e)}")
+        logger.error("Error in get_real_time_stats_api: {{str(e)}}")
         return JsonResponse({
             'success': False,
             'error': str(e)
@@ -215,7 +215,7 @@ class BusinessPerformanceAPIView(View):
             })
             
         except Exception as e:
-            logger.error(f"Error in BusinessPerformanceAPIView: {str(e)}")
+            logger.error("Error in BusinessPerformanceAPIView: {{str(e)}}")
             return JsonResponse({
                 'success': False,
                 'error': str(e)
@@ -242,7 +242,7 @@ class BusinessPerformanceAPIView(View):
                 }, status=400)
                 
         except Exception as e:
-            logger.error(f"Error in BusinessPerformanceAPIView POST: {str(e)}")
+            logger.error("Error in BusinessPerformanceAPIView POST: {{str(e)}}")
             return JsonResponse({
                 'success': False,
                 'error': str(e)

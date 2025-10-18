@@ -25,7 +25,7 @@ class EnhancedFormErrorHandlingMixin:
     def form_invalid(self, form):
         """Enhanced form error handling"""
         # Log the form errors for debugging
-        logger.warning(f"Form validation failed in {self.__class__.__name__}: {form.errors}")
+        logger.warning("Form validation failed in {{self.__class__.__name__}}: {{form.errors}}")
         
         # Check if this is an AJAX request
         if self.request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -60,7 +60,7 @@ class EnhancedFormErrorHandlingMixin:
         for field, error_list in form.errors.items():
             field_name = self.get_field_display_name(field, form)
             for error in error_list:
-                error_messages.append(f"{field_name}: {error}")
+                error_messages.append("{{field_name}}: {{error}}")
         
         # Limit number of error messages to avoid overwhelming user
         if len(error_messages) > 5:
@@ -102,7 +102,7 @@ class EnhancedFormErrorHandlingMixin:
     
     def handle_permission_error(self, error_message):
         """Handle permission denied errors"""
-        logger.warning(f"Permission denied in {self.__class__.__name__}: {error_message}")
+        logger.warning("Permission denied in {{self.__class__.__name__}}: {{error_message}}")
         
         if self.request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             return JsonResponse({
@@ -116,7 +116,7 @@ class EnhancedFormErrorHandlingMixin:
     def handle_validation_error(self, error):
         """Handle validation errors"""
         error_message = str(error) if hasattr(error, 'message') else 'Validation error occurred'
-        logger.warning(f"Validation error in {self.__class__.__name__}: {error_message}")
+        logger.warning("Validation error in {{self.__class__.__name__}}: {{error_message}}")
         
         if self.request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             return JsonResponse({
@@ -129,7 +129,7 @@ class EnhancedFormErrorHandlingMixin:
     
     def handle_unexpected_error(self, error):
         """Handle unexpected errors"""
-        logger.error(f"Unexpected error in {self.__class__.__name__}: {str(error)}", exc_info=True)
+        logger.error("Unexpected error in {{self.__class__.__name__}}: {{str(error)}}", exc_info=True)
         
         # Don't expose internal errors to users
         user_message = "An unexpected error occurred. Please try again."
@@ -198,7 +198,7 @@ class EnhancedGradingFormMixin(EnhancedFormErrorHandlingMixin):
             
             return super().form_valid(form)
         except Exception as e:
-            logger.error(f"Error in grading form validation: {str(e)}")
+            logger.error("Error in grading form validation: {{str(e)}}")
             form.add_error(None, 'An error occurred while saving the grade. Please try again.')
             return self.form_invalid(form)
     

@@ -29,11 +29,10 @@ from django.conf.urls.static import static
 from django.views.static import serve
 from django.shortcuts import redirect
 from django.contrib.auth import views as auth_views
-from users.views import role_based_redirect, home, learner_dashboard, instructor_dashboard, admin_dashboard, global_admin_dashboard, users_admin_dashboard, custom_login, register, forgot_password, custom_logout
-# from test_profile_view import test_profile_dropdown_fixed  # Commented out - file not found
+from users.views import role_based_redirect, learner_dashboard, instructor_dashboard, admin_dashboard, global_admin_dashboard, users_admin_dashboard, custom_login, register, forgot_password, custom_logout
 from core.views import health_check
 from core.views.csp_report import csp_report_view
-from admin_dashboard.views import SuperAdminDashboardView
+from admin_dashboard.views import OptimizedSuperAdminDashboardView as SuperAdminDashboardView
 from django.views.generic.base import RedirectView
 from branch_portal.views import marketing_landing_page
 
@@ -49,10 +48,10 @@ handler403 = custom_403_view
 def redirect_accounts_login(request):
     """Redirect to custom login"""
     next_url = request.GET.get('next', '/')
-    return redirect(f'/login/?next={next_url}')
+    return redirect("/login/?next={}".format(next_url))
 
 urlpatterns = [
-    path('', home, name='home'),
+    path('', RedirectView.as_view(url='/login/', permanent=False), name='home'),
     path('landing/', marketing_landing_page, name='marketing_landing'),
     
     # Custom Users Admin Dashboard (replaces Django admin for users)
@@ -85,22 +84,19 @@ urlpatterns = [
     path('dashboard/instructor/', instructor_dashboard, name='dashboard_instructor'),
     path('dashboard/admin/', admin_dashboard, name='dashboard_admin'),
     path('health/', health_check, name='health_check'),
-    # path('test-profile-fixed/', test_profile_dropdown_fixed, name='test_profile_dropdown_fixed'),  # Commented out - function not found
     
     # CSP violation reporting endpoint
     path('csp-report/', csp_report_view, name='csp_report'),
     
-    # Global authentication URLs (fallback)
+    # Authentication URLs
     path('login/', custom_login, name='login'),
-    path('branch-login/', custom_login, name='branch_login'),
     path('logout/', custom_logout, name='logout'),
-    path('register/', register, name='register'),  # Direct registration view
+    path('register/', register, name='register'),
     path('forgot-password/', forgot_password, name='forgot_password'),
-    path('resend-verification/', register, name='resend_verification'),  # Reuse register view for resend
     
     # Branch-specific authentication URLs
     path('auth/<slug:branch_slug>/', include('users.urls_auth')),
-    path('auth/', include('users.urls_auth')),  # Global auth URLs
+    path('auth/', include('users.urls_auth')),
     
     path('users/', include('users.urls', namespace='users')),
     path('courses/', include('courses.urls', namespace='courses')),
@@ -149,14 +145,26 @@ if settings.DEBUG:
         # Debug toolbar not installed, continue without it
         pass
 
-# Custom 404 handling - Fixed to avoid redirect loops
-# Only catch specific patterns that are definitely not valid URLs
+# Enhanced 404 handling for Django-specific attack patterns
+# These patterns are designed to catch common attack patterns without interfering with valid Django URLs
 urlpatterns += [
-    # Catch common invalid patterns but avoid interfering with valid app URLs
+    # Catch common attack patterns targeting Django/Python projects
     re_path(r'^[a-zA-Z0-9-_]+\.php$', custom_404_view, name='catch_php_404'),
-    re_path(r'^wp-admin/', custom_404_view, name='catch_wp_404'),
-    re_path(r'^wp-content/', custom_404_view, name='catch_wp_content_404'),
-    re_path(r'^wordpress/', custom_404_view, name='catch_wordpress_404'),
+    re_path(r'^[a-zA-Z0-9-_]+\.asp$', custom_404_view, name='catch_asp_404'),
+    re_path(r'^[a-zA-Z0-9-_]+\.jsp$', custom_404_view, name='catch_jsp_404'),
+    # Catch common exploit attempts with exact matching
+    re_path(r'^\.env$', custom_404_view, name='catch_env_404'),
+    re_path(r'^config\.py$', custom_404_view, name='catch_config_py_404'),
+    re_path(r'^settings\.py$', custom_404_view, name='catch_settings_py_404'),
+    # Catch version control and config files
+    re_path(r'^\.git/.*$', custom_404_view, name='catch_git_404'),
+    re_path(r'^\.svn/.*$', custom_404_view, name='catch_svn_404'),
+    re_path(r'^\.htaccess$', custom_404_view, name='catch_htaccess_404'),
+    re_path(r'^\.htpasswd$', custom_404_view, name='catch_htpasswd_404'),
+    # Catch Django-specific attack patterns
+    re_path(r'^manage\.py$', custom_404_view, name='catch_manage_py_404'),
+    re_path(r'^requirements\.txt$', custom_404_view, name='catch_requirements_404'),
+    re_path(r'^venv/.*$', custom_404_view, name='catch_venv_404'),
 ]
 
 # Add static file handling for development

@@ -38,9 +38,9 @@ def safe_cache_operation(operation, *args, **kwargs):
         ]
         
         if any(indicator in error_str for indicator in redis_error_indicators):
-            logger.warning(f"Redis connection issue during cache operation: {str(e)}")
+            logger.warning("Redis connection issue during cache operation: {{str(e)}}")
         else:
-            logger.error(f"Unexpected cache error: {str(e)}")
+            logger.error("Unexpected cache error: {{str(e)}}")
         
         return False, None
 
@@ -52,19 +52,6 @@ class PermissionManager:
         """Get all capabilities for a user with enhanced Session and integrity validation"""
         if not user or not user.is_authenticated:
             return []
-        
-        import hashlib
-        import json
-        
-        # Create session-aware cache keys to prevent session fixation
-        session_suffix = f"_{hashlib.md5(str(session_id).encode()).hexdigest()[:8]}" if session_id else ""
-        cache_key = f"user_capabilities_{user.pk}{session_suffix}"
-        cache_version_key = f"user_capabilities_version_{user.pk}{session_suffix}"
-        cache_integrity_key = f"user_capabilities_integrity_{user.pk}{session_suffix}"
-        
-        capabilities = []
-        
-        # Cache functionality removed - always fetch fresh data
         
         # Fresh lookup - build capabilities from scratch
         capabilities = set()
@@ -81,9 +68,9 @@ class PermissionManager:
                     ]
                     capabilities.update(validated_caps)
                 else:
-                    logger.error(f"Invalid primary role capabilities type for user {user.pk}: {type(primary_role_capabilities)}")
+                    logger.error("Invalid primary role capabilities type for user {{user.pk}}: {{type(primary_role_capabilities)}}")
             except Exception as e:
-                logger.error(f"Error getting primary role capabilities for user {user.pk}: {str(e)}")
+                logger.error("Error getting primary role capabilities for user {{user.pk}}: {{str(e)}}")
         
         # Get capabilities from assigned roles with enhanced validation
         try:
@@ -100,7 +87,7 @@ class PermissionManager:
                 
                 # Validate role assignment integrity
                 if not user_role.role or not user_role.role.is_active:
-                    logger.warning(f"Inactive role found in user {user.pk} assignments: {user_role.role}")
+                    logger.warning("Inactive role found in user {{user.pk}} assignments: {{user_role.role}}")
                     continue
                     
                 role_capabilities = user_role.role.get_capabilities()
@@ -112,22 +99,17 @@ class PermissionManager:
                     ]
                     capabilities.update(validated_caps)
                 else:
-                    logger.error(f"Invalid role capabilities type for role {user_role.role.pk}: {type(role_capabilities)}")
+                    logger.error("Invalid role capabilities type for role {{user_role.role.pk}}: {{type(role_capabilities)}}")
         except Exception as e:
-            logger.error(f"Error getting assigned role capabilities for user {user.pk}: {str(e)}")
+            logger.error("Error getting assigned role capabilities for user {{user.pk}}: {{str(e)}}")
         
         # Convert to validated list
         capabilities = list(capabilities)
         
         # Final validation before caching
         if len(capabilities) > 500:
-            logger.error(f"User {user.pk} has excessive capabilities ({len(capabilities)}), truncating to prevent abuse")
+            logger.error("User {{user.pk}} has excessive capabilities ({{len(capabilities)}}), truncating to prevent abuse")
             capabilities = capabilities[:500]
-        
-        # Cache with enhanced Session
-        if use_cache and capabilities:
-            cache_version = timezone.now().timestamp()
-            # Cache functionality removed
         
         return capabilities
     
@@ -166,14 +148,10 @@ class PermissionManager:
         user_capabilities = PermissionManager.get_user_capabilities(user)
         result = capability in user_capabilities
         
-        # If capability not found and cache enabled, try fresh lookup once
+        # If capability not found, try fresh lookup once
         if not result:
             fresh_capabilities = PermissionManager.get_user_capabilities(user, use_cache=False)
             result = capability in fresh_capabilities
-            # If fresh lookup finds the capability, clear and refresh cache
-            if result:
-                # Cache functionality removed
-                PermissionManager.get_user_capabilities(user)  # Rebuild cache
         
         return result
     
@@ -189,14 +167,10 @@ class PermissionManager:
         user_capabilities = PermissionManager.get_user_capabilities(user)
         result = any(cap in user_capabilities for cap in capabilities)
         
-        # If no capabilities found and cache enabled, try fresh lookup once
+        # If no capabilities found, try fresh lookup once
         if not result:
             fresh_capabilities = PermissionManager.get_user_capabilities(user, use_cache=False)
             result = any(cap in fresh_capabilities for cap in capabilities)
-            # If fresh lookup finds capabilities, clear and refresh cache
-            if result:
-                # Cache functionality removed
-                PermissionManager.get_user_capabilities(user)  # Rebuild cache
         
         return result
     
@@ -212,14 +186,10 @@ class PermissionManager:
         user_capabilities = PermissionManager.get_user_capabilities(user)
         result = all(cap in user_capabilities for cap in capabilities)
         
-        # If not all capabilities found and cache enabled, try fresh lookup once
+        # If not all capabilities found, try fresh lookup once
         if not result:
             fresh_capabilities = PermissionManager.get_user_capabilities(user, use_cache=False)
             result = all(cap in fresh_capabilities for cap in capabilities)
-            # If fresh lookup finds all capabilities, clear and refresh cache
-            if result:
-                # Cache functionality removed
-                PermissionManager.get_user_capabilities(user)  # Rebuild cache
         
         return result
     
@@ -560,14 +530,14 @@ class RoleValidator:
             if exclude_role_id:
                 query = query.exclude(id=exclude_role_id)
             if query.exists():
-                errors.append(f"Role '{name}' already exists")
+                errors.append("Role '{{name}}' already exists")
         
         if custom_name:
             query = Role.objects.filter(custom_name=custom_name)
             if exclude_role_id:
                 query = query.exclude(id=exclude_role_id)
             if query.exists():
-                errors.append(f"Custom role '{custom_name}' already exists")
+                errors.append("Custom role '{{custom_name}}' already exists")
         
         return errors
 
@@ -594,7 +564,7 @@ class RoleValidator:
         if not assigned_by_highest:
             violations.append("Assigner has no valid role")
         elif assigned_by_highest.hierarchy_level <= target_role.hierarchy_level:
-            violations.append(f"Cannot assign role {target_role.name} - assigner role {assigned_by_highest.name} is not higher in hierarchy")
+            violations.append("Cannot assign role {{target_role.name}} - assigner role {{assigned_by_highest.name}} is not higher in hierarchy")
         
         # 4. Branch isolation validation for non-global admins
         if assigned_by.role not in ['globaladmin']:
@@ -629,7 +599,7 @@ class RoleValidator:
         
         # 6. Duplicate assignment check
         if UserRole.objects.filter(user=user, role=target_role, is_active=True).exists():
-            violations.append(f"User already has active {target_role.name} role assignment")
+            violations.append("User already has active {{target_role.name}} role assignment")
         
         return violations
 
@@ -725,14 +695,14 @@ def enhanced_csrf_protect(view_func):
                 
                 for pattern in suspicious_patterns:
                     if pattern in content_to_check:
-                        logger.warning(f"Suspicious request content detected from {AuditLogger.get_client_ip(request)}: {pattern}")
+                        logger.warning("Suspicious request content detected from {{AuditLogger.get_client_ip(request)}}: {{pattern}}")
                         
                         # Log Session event
                         try:
                             RoleAuditLog.objects.create(
                                 user=request.user if request.user.is_authenticated else None,
                                 action='suspicious_request',
-                                description=f"Suspicious content detected: {pattern}",
+                                description="Suspicious content detected: {{pattern}}",
                                 metadata={
                                     'suspicious_pattern': pattern,
                                     'view_name': view_func.__name__,
@@ -740,14 +710,15 @@ def enhanced_csrf_protect(view_func):
                                 },
                                 ip_address=AuditLogger.get_client_ip(request)
                             )
-                        except:
+                        except Exception as e:
+                            logger.warning(f"Failed to log audit event: {e}")
                             pass
                         
                         return JsonResponse({'success': False, 'error': 'Invalid request content'}, status=400)
                         
             except Exception as e:
                 # If anything goes wrong with Session checks, log it but don't block the request
-                logger.warning(f"Session check failed in enhanced_csrf_protect: {str(e)}")
+                logger.warning("Session check failed in enhanced_csrf_protect: {{str(e)}}")
                 pass
             
             # Validate referrer for additional CSRF protection
@@ -758,7 +729,7 @@ def enhanced_csrf_protect(view_func):
                 from urllib.parse import urlparse
                 referer_host = urlparse(referer).netloc
                 if referer_host and referer_host != host:
-                    logger.warning(f"Cross-origin request from {referer_host} to {host}")
+                    logger.warning("Cross-origin request from {{referer_host}} to {{host}}")
                     return JsonResponse({'success': False, 'error': 'Invalid request origin'}, status=403)
         
         return view_func(request, *args, **kwargs)
@@ -791,21 +762,21 @@ class SessionMonitor:
             RoleAuditLog.objects.create(
                 user=user,
                 action='Session_event',
-                description=f"Session Event: {event_type}",
+                description="Session Event: {{event_type}}",
                 metadata=metadata,
                 ip_address=AuditLogger.get_client_ip(request) if request else None
             )
             
             # Log to system logger based on severity
             if severity == 'critical':
-                logger.error(f"CRITICAL Session EVENT: {event_type} - {details}")
+                logger.error("CRITICAL Session EVENT: {{event_type}} - {{details}}")
             elif severity == 'high':
-                logger.warning(f"HIGH Session EVENT: {event_type} - {details}")
+                logger.warning("HIGH Session EVENT: {{event_type}} - {{details}}")
             else:
-                logger.info(f"Session Event: {event_type} - {details}")
+                logger.info("Session Event: {{event_type}} - {{details}}")
                 
         except Exception as e:
-            logger.error(f"Failed to log Session event: {str(e)}")
+            logger.error("Failed to log Session event: {{str(e)}}")
     
     @staticmethod
     def check_for_anomalies(user):
@@ -826,7 +797,7 @@ class SessionMonitor:
                     recent_failures += 1
             
             if recent_failures > 5:
-                anomalies.append(f"Excessive Session events: {recent_failures} in past hour")
+                anomalies.append("Excessive Session events: {{recent_failures}} in past hour")
             
             # Check for rapid role changes
             recent_role_changes = RoleAuditLog.objects.filter(
@@ -836,10 +807,10 @@ class SessionMonitor:
             ).count()
             
             if recent_role_changes > 3:
-                anomalies.append(f"Rapid role changes: {recent_role_changes} in 30 minutes")
+                anomalies.append("Rapid role changes: {{recent_role_changes}} in 30 minutes")
                 
         except Exception as e:
-            logger.error(f"Error checking anomalies for user {user.pk}: {str(e)}")
+            logger.error("Error checking anomalies for user {{user.pk}}: {{str(e)}}")
         
         return anomalies
 
@@ -882,6 +853,7 @@ class SessionErrorHandler:
                     r'secret[=:]\s*[^\s]+',
                     r'\/[a-zA-Z0-9\-_]+\/[a-zA-Z0-9\-_]+\/[a-zA-Z0-9\-_]+',  # file paths
                     r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}',  # IP addresses
+                    r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}',  # email addresses
                 ]
                 
                 import re
@@ -908,7 +880,7 @@ class SessionErrorHandler:
                 show_details = True
         
         # Log full error details for debugging
-        logger.error(f"Error in {operation}: {str(error)}", exc_info=True)
+        logger.error("Error in {{operation}}: {{str(error)}}", exc_info=True)
         
         # Return sanitized message
         return SessionErrorHandler.sanitize_error_message(error, error_type, show_details)

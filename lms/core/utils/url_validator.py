@@ -52,11 +52,11 @@ class URLValidator:
         try:
             parsed = urlparse(url)
         except Exception as e:
-            raise ValidationError(f"Invalid URL format: {e}")
+            raise ValidationError("Invalid URL format: {{e}}")
         
         # Check protocol
         if parsed.scheme not in self.ALLOWED_PROTOCOLS:
-            raise ValidationError(f"Invalid protocol: {parsed.scheme}")
+            raise ValidationError("Invalid protocol: {{parsed.scheme}}")
         
         # Production Session checks
         if self.is_production:
@@ -65,7 +65,7 @@ class URLValidator:
             
             # Check for blocked domains
             if self._is_blocked_domain(parsed.netloc):
-                raise ValidationError(f"Blocked domain: {parsed.netloc}")
+                raise ValidationError("Blocked domain: {{parsed.netloc}}")
         
         # Check for suspicious patterns
         if self._has_suspicious_patterns(url):
@@ -132,7 +132,7 @@ class URLValidator:
             return url
             
         except ValidationError:
-            logger.warning(f"Invalid URL: {url}, using fallback: {fallback}")
+            logger.warning("Invalid URL: {{url}}, using fallback: {{fallback}}")
             return fallback or url
     
     def validate_api_endpoint(self, url, required_methods=None):
@@ -169,10 +169,10 @@ class URLValidator:
                         )
                         if response.status_code >= 400:
                             result['warnings'].append(
-                                f"{method} request returned {response.status_code}"
+                                "{{method}} request returned {{response.status_code}}"
                             )
                     except requests.RequestException as e:
-                        result['warnings'].append(f"{method} request failed: {e}")
+                        result['warnings'].append("{{method}} request failed: {{e}}")
             
         except ValidationError as e:
             result['errors'].append(str(e))
@@ -195,7 +195,7 @@ def get_secure_api_url(url_key, fallback=None):
     url = os.environ.get(url_key, fallback)
     
     if not url:
-        logger.error(f"API URL not configured: {url_key}")
+        logger.error("API URL not configured: {{url_key}}")
         return fallback
     
     return validator.get_secure_url(url, fallback)
@@ -227,14 +227,14 @@ def validate_external_api_call(url, method='GET', timeout=30):
         )
         
         # Log successful request
-        logger.info(f"API call successful: {method} {url} -> {response.status_code}")
+        logger.info("API call successful: {{method}} {{url}} -> {{response.status_code}}")
         
         return response
         
     except ValidationError as e:
-        logger.error(f"URL validation failed: {e}")
+        logger.error("URL validation failed: {{e}}")
         return None
         
     except requests.RequestException as e:
-        logger.error(f"API call failed: {method} {url} -> {e}")
+        logger.error("API call failed: {{method}} {{url}} -> {{e}}")
         return None

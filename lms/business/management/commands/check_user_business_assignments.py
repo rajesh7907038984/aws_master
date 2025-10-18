@@ -16,34 +16,34 @@ class Command(BaseCommand):
         
         try:
             user = User.objects.get(username=username)
-            self.stdout.write(f"\n=== Business Assignments for user: {username} ===")
-            self.stdout.write(f"User role: {user.role}")
-            self.stdout.write(f"User ID: {user.id}")
+            self.stdout.write("\n=== Business Assignments for user: {{username}} ===")
+            self.stdout.write("User role: {{user.role}}")
+            self.stdout.write("User ID: {{user.id}}")
             
             # Check raw business assignments
             assignments = BusinessUserAssignment.objects.filter(user=user)
-            self.stdout.write(f"\nTotal business assignments: {assignments.count()}")
+            self.stdout.write("\nTotal business assignments: {{assignments.count()}}")
             
             for assignment in assignments:
                 status = "ACTIVE" if assignment.is_active else "INACTIVE"
-                self.stdout.write(f"  - {assignment.business.name} (ID: {assignment.business.id}) - {status}")
+                self.stdout.write("  - {{assignment.business.name}} (ID: {{assignment.business.id}}) - {{status}}")
             
             # Check active assignments only
             active_assignments = assignments.filter(is_active=True)
-            self.stdout.write(f"\nActive business assignments: {active_assignments.count()}")
+            self.stdout.write("\nActive business assignments: {{active_assignments.count()}}")
             
             # Use the utility function
             accessible_business_ids = get_superadmin_business_filter(user)
-            self.stdout.write(f"Business IDs from utility function: {accessible_business_ids}")
+            self.stdout.write("Business IDs from utility function: {{accessible_business_ids}}")
             
             # Show businesses user should see
             if accessible_business_ids:
                 businesses = Business.objects.filter(id__in=accessible_business_ids)
-                self.stdout.write(f"\nBusinesses user should have access to:")
+                self.stdout.write("\nBusinesses user should have access to:")
                 for business in businesses:
-                    self.stdout.write(f"  - {business.name} (ID: {business.id})")
+                    self.stdout.write("  - {{business.name}} (ID: {{business.id}})")
             else:
                 self.stdout.write("\nNo accessible businesses found!")
                 
         except User.DoesNotExist:
-            self.stdout.write(f"User '{username}' not found!")
+            self.stdout.write("User '{{username}}' not found!")

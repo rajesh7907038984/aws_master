@@ -33,11 +33,11 @@ class ZoomAPI:
         
         # Create basic auth header
         import base64
-        credentials = f"{self.client_id}:{self.client_secret}"
+        credentials = "{{self.client_id}}:{{self.client_secret}}"
         encoded_credentials = base64.b64encode(credentials.encode()).decode()
         
         headers = {
-            'Authorization': f'Basic {encoded_credentials}',
+            'Authorization': "Basic {{encoded_credentials}}",
             'Content-Type': 'application/x-www-form-urlencoded'
         }
         
@@ -55,14 +55,14 @@ class ZoomAPI:
             return self.access_token
             
         except requests.RequestException as e:
-            logger.error(f"Failed to get Zoom access token: {e}")
-            raise Exception(f"Failed to authenticate with Zoom: {e}")
+            logger.error("Failed to get Zoom access token: {{e}}")
+            raise Exception("Failed to authenticate with Zoom: {{e}}")
     
     def get_headers(self):
         """Get headers for API requests"""
         token = self.get_access_token()
         return {
-            'Authorization': f'Bearer {token}',
+            'Authorization': "Bearer {{token}}",
             'Content-Type': 'application/json'
         }
     
@@ -118,7 +118,7 @@ class ZoomAPI:
             
             # Get user ID (we'll use 'me' for the authenticated user)
             user_id = 'me'
-            url = f"{self.base_url}/users/{user_id}/meetings"
+            url = "{{self.base_url}}/users/{{user_id}}/meetings"
             
             response = requests.post(url, json=meeting_data, headers=headers)
             response.raise_for_status()
@@ -137,7 +137,7 @@ class ZoomAPI:
             }
             
         except requests.RequestException as e:
-            logger.error(f"Failed to create Zoom meeting: {e}")
+            logger.error("Failed to create Zoom meeting: {{e}}")
             if hasattr(e, 'response') and e.response is not None:
                 try:
                     error_data = e.response.json()
@@ -159,7 +159,7 @@ class ZoomAPI:
         """Get meeting details"""
         try:
             headers = self.get_headers()
-            url = f"{self.base_url}/meetings/{meeting_id}"
+            url = "{{self.base_url}}/meetings/{{meeting_id}}"
             
             response = requests.get(url, headers=headers)
             response.raise_for_status()
@@ -172,7 +172,7 @@ class ZoomAPI:
             }
             
         except requests.RequestException as e:
-            logger.error(f"Failed to get Zoom meeting {meeting_id}: {e}")
+            logger.error("Failed to get Zoom meeting {{meeting_id}}: {{e}}")
             return {
                 'success': False,
                 'error': str(e)
@@ -182,7 +182,7 @@ class ZoomAPI:
         """Delete a Zoom meeting"""
         try:
             headers = self.get_headers()
-            url = f"{self.base_url}/meetings/{meeting_id}"
+            url = "{{self.base_url}}/meetings/{{meeting_id}}"
             
             response = requests.delete(url, headers=headers)
             response.raise_for_status()
@@ -193,7 +193,7 @@ class ZoomAPI:
             }
             
         except requests.RequestException as e:
-            logger.error(f"Failed to delete Zoom meeting {meeting_id}: {e}")
+            logger.error("Failed to delete Zoom meeting {{meeting_id}}: {{e}}")
             return {
                 'success': False,
                 'error': str(e)
@@ -203,7 +203,7 @@ class ZoomAPI:
         """Test the Zoom API connection"""
         try:
             headers = self.get_headers()
-            url = f"{self.base_url}/users/me"
+            url = "{{self.base_url}}/users/me"
             
             response = requests.get(url, headers=headers)
             response.raise_for_status()
@@ -219,7 +219,7 @@ class ZoomAPI:
             }
             
         except requests.RequestException as e:
-            logger.error(f"Failed to test Zoom connection: {e}")
+            logger.error("Failed to test Zoom connection: {{e}}")
             return {
                 'success': False,
                 'error': str(e)

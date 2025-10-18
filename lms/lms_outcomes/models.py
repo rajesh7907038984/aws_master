@@ -16,7 +16,7 @@ class OutcomeGroup(models.Model):
     description = models.TextField(blank=True, null=True)
     slug = models.SlugField(max_length=255, unique=True, blank=True)
     course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name='outcome_groups', null=True, blank=True)
-    parent = models.ForeignKey('self', on_delete=models.CASCADE, null=True, blank=True, related_name='children')
+    parent = models.ForeignKey('self', on_delete=models.CASCADE, null=True, blank=True, related_name="children")
     branch = models.ForeignKey(
         'branches.Branch',
         on_delete=models.CASCADE,
@@ -44,7 +44,7 @@ class OutcomeGroup(models.Model):
             
             # Check if slug already exists and find a unique one
             while OutcomeGroup.objects.filter(slug=slug).exclude(pk=self.pk).exists():
-                slug = f"{base_slug}-{counter}"
+                slug = "{{base_slug}}-{{counter}}"
                 counter += 1
                 
             self.slug = slug
@@ -413,7 +413,7 @@ class OutcomeAlignment(models.Model):
         ]
         
     def __str__(self):
-        return f"Alignment: {self.outcome.title} -> {self.content_type} #{self.object_id}"
+        return "Alignment: {{self.outcome.title}} -> {{self.content_type}} #{{self.object_id}}"
 
 
 class RubricCriterionOutcome(models.Model):
@@ -448,7 +448,7 @@ class RubricCriterionOutcome(models.Model):
         ]
     
     def __str__(self):
-        return f"{self.criterion} -> {self.outcome.title} (weight: {self.weight})"
+        return "{{self.criterion}} -> {{self.outcome.title}} (weight: {{self.weight}})"
     
     def clean(self):
         """Validate weight is between 0 and 1"""
@@ -501,7 +501,7 @@ class OutcomeEvaluation(models.Model):
         ]
     
     def __str__(self):
-        return f"{self.student.get_full_name()} - {self.outcome.title}: {self.score}"
+        return "{{self.student.get_full_name()}} - {{self.outcome.title}}: {{self.score}}"
     
     def get_proficiency_rating(self):
         """Get the proficiency rating based on score and outcome's proficiency ratings"""

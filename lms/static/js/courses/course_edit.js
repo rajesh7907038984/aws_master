@@ -22,30 +22,38 @@ window.CourseEditCleanup = {
     },
     
     addTimeout: function(callback, delay) {
-        const timeoutId = setTimeout(callback, delay);
+        var timeoutId = setTimeout(callback, delay);
         this.timeouts.push(timeoutId);
         return timeoutId;
     },
     
     addInterval: function(callback, delay) {
-        const intervalId = setInterval(callback, delay);
+        var intervalId = setInterval(callback, delay);
         this.intervals.push(intervalId);
         return intervalId;
     },
     
     cleanup: function() {
         // Remove all event listeners
-        this.listeners.forEach(({ element, event, handler }) => {
+        var self = this;
+        this.listeners.forEach(function(listener) {
+            var element = listener.element;
+            var event = listener.event;
+            var handler = listener.handler;
             element.removeEventListener(event, handler);
         });
         this.listeners = [];
         
         // Clear all timeouts
-        this.timeouts.forEach(timeoutId => clearTimeout(timeoutId));
+        this.timeouts.forEach(function(timeoutId) {
+            clearTimeout(timeoutId);
+        });
         this.timeouts = [];
         
         // Clear all intervals
-        this.intervals.forEach(intervalId => clearInterval(intervalId));
+        this.intervals.forEach(function(intervalId) {
+            clearInterval(intervalId);
+        });
         this.intervals = [];
         
         // Cleanup TinyMCE editors
@@ -68,7 +76,7 @@ document.addEventListener('DOMContentLoaded', function() {
     initializeModalButtons();
 
     // Add a small delay to ensure all elements are ready
-    const initTimeout = window.CourseEditCleanup.addTimeout(function() {
+    var initTimeout = window.CourseEditCleanup.addTimeout(function() {
         try {
             initializeTabButtons();
         } catch (error) {
@@ -103,18 +111,23 @@ document.addEventListener('DOMContentLoaded', function() {
             if (typeof showUnsavedChangesNotification !== 'function') {
                 // Create a fallback notification function
                 window.showUnsavedChangesNotification = function() {
-                    const notificationBanner = document.getElementById('unsaved-changes-notification');
+                    var notificationBanner = document.getElementById('unsaved-changes-notification');
                     if (notificationBanner) {
                         notificationBanner.classList.remove('hidden');
-                        setTimeout(() => {
+                        setTimeout(function() {
                             notificationBanner.classList.remove('-translate-y-full');
                         }, 10);
                     } else {
                         // Create a simple notification banner if it doesn't exist
-                        const newBanner = document.createElement('div');
+                        var newBanner = document.createElement('div');
                         newBanner.id = 'unsaved-changes-notification';
                         newBanner.className = 'fixed top-0 left-0 right-0 bg-yellow-500 text-white text-center py-3 z-50 shadow-md';
-                        newBanner.innerHTML = '<div class="container mx-auto px-4"><strong>Unsaved Changes!</strong> Please update course before leaving this page.</div>';
+                        // Use safe HTML setting to prevent XSS
+                        if (window.SafeHTMLUtils) {
+                            window.SafeHTMLUtils.setSafeInnerHTML(newBanner, '<div class="container mx-auto px-4"><strong>Unsaved Changes!</strong> Please update course before leaving this page.</div>');
+                        } else {
+                            newBanner.innerHTML = '<div class="container mx-auto px-4"><strong>Unsaved Changes!</strong> Please update course before leaving this page.</div>';
+                        }
                         document.body.appendChild(newBanner);
                     }
                 };
@@ -134,14 +147,14 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // Track if form has unsaved changes
-let formHasUnsavedChanges = false;
-let formInitialState = {};
-let editorsInitialized = new Set(); // Track which editors have been initialized
-let isFormSubmitting = false; // Track if form is currently being submitted
+var formHasUnsavedChanges = false;
+var formInitialState = {};
+var editorsInitialized = new Set(); // Track which editors have been initialized
+var isFormSubmitting = false; // Track if form is currently being submitted
 
 // Function to initialize cancel button handler
 function initializeCancelButton() {
-    const cancelButton = document.getElementById('cancel-edit-button');
+    var cancelButton = document.getElementById('cancel-edit-button');
     if (cancelButton) {
         cancelButton.addEventListener('click', function(e) {
             if (formHasUnsavedChanges) {
@@ -159,11 +172,11 @@ function initializeCancelButton() {
 
 // Function to initialize form change detection
 function initFormChangeDetection() {
-    const form = document.getElementById('courseCreateForm');
+    var form = document.getElementById('courseCreateForm');
     if (!form) {
         // Retry after a delay in case the form is loaded dynamically
-        setTimeout(() => {
-            const retryForm = document.getElementById('courseCreateForm');
+        setTimeout(function() {
+            var retryForm = document.getElementById('courseCreateForm');
             if (retryForm) {
                 initFormChangeDetection();
             }
@@ -175,17 +188,35 @@ function initFormChangeDetection() {
     saveFormInitialState(form);
     
     // Create notification banner
-    const notificationBanner = document.createElement('div');
+    var notificationBanner = document.createElement('div');
     notificationBanner.id = 'unsaved-changes-notification';
     notificationBanner.className = 'fixed top-0 left-0 right-0 bg-yellow-500 text-white text-center py-3 z-50 shadow-md hidden transform -translate-y-full transition-transform duration-300';
-    notificationBanner.innerHTML = '<div class="container mx-auto px-4 flex items-center justify-between">' +
-        '<span><strong>Unsaved Changes!</strong> Please update course before leaving this page or your changes will be lost.</span>' +
-        '<button id="dismiss-notification" class="bg-yellow-600 hover:bg-yellow-700 text-white px-3 py-1 rounded transition">Dismiss</button>' +
-        '</div>';
+    if (window.SafeHTMLUtils) {
+        window.SafeHTMLUtils.setSafeInnerHTML(notificationBanner, '<div class="container mx-auto px-4 flex items-center justify-between">' +
+            '<span><strong>Unsaved Changes!</strong> Please update course before leaving this page or your changes will be lost.</span>' +
+            '<button id="dismiss-notification" class="bg-yellow-600 hover:bg-yellow-700 text-white px-3 py-1 rounded transition">Dismiss</button>' +
+            '</div>');
+    } else {
+        // Create notification content safely
+        const container = document.createElement('div');
+        container.className = 'container mx-auto px-4 flex items-center justify-between';
+        
+        const span = document.createElement('span');
+        span.innerHTML = '<strong>Unsaved Changes!</strong> Please update course before leaving this page or your changes will be lost.';
+        
+        const button = document.createElement('button');
+        button.id = 'dismiss-notification';
+        button.className = 'bg-yellow-600 hover:bg-yellow-700 text-white px-3 py-1 rounded transition';
+        button.textContent = 'Dismiss';
+        
+        container.appendChild(span);
+        container.appendChild(button);
+        notificationBanner.appendChild(container);
+    }
     document.body.appendChild(notificationBanner);
     
     // Add dismiss button functionality
-    const dismissButton = document.getElementById('dismiss-notification');
+    var dismissButton = document.getElementById('dismiss-notification');
     if (dismissButton) {
         dismissButton.addEventListener('click', function() {
             hideUnsavedChangesNotification();
@@ -199,13 +230,18 @@ function initFormChangeDetection() {
         }
         
         try {
-            const formData = new FormData(form);
+            var formData = new FormData(form);
             formInitialState = {};
             
             // Process all form fields with robust error handling
             if (formData && typeof formData.entries === 'function') {
-                for (let [key, value] of formData.entries()) {
+                var entries = formData.entries();
+                var entry = entries.next();
+                while (!entry.done) {
+                    var key = entry.value[0];
+                    var value = entry.value[1];
                     formInitialState[key] = value;
+                    entry = entries.next();
                 }
             }
         } catch (error) {
@@ -216,7 +252,9 @@ function initFormChangeDetection() {
         initializeTinyMCEEditors();
         
         // Enhanced editor state saving with proper timing
-        const saveEditorStates = (attempt = 0, maxAttempts = 3) => {
+        var saveEditorStates = function(attempt, maxAttempts) {
+            attempt = attempt || 0;
+            maxAttempts = maxAttempts || 3;
             
             // Quill editors removed - using TinyMCE only
             
@@ -224,7 +262,7 @@ function initFormChangeDetection() {
             if (typeof CKEDITOR !== 'undefined' && CKEDITOR.instances) {
                 try {
                     Object.keys(CKEDITOR.instances).forEach(editorId => {
-                        const editor = CKEDITOR.instances[editorId];
+                        var editor = CKEDITOR.instances[editorId];
                         if (editor && typeof editor.getData === 'function') {
                             formInitialState[editorId] = editor.getData();
                         }
@@ -237,9 +275,9 @@ function initFormChangeDetection() {
             if (typeof jQuery !== 'undefined' && typeof jQuery.fn.summernote !== 'undefined') {
                 try {
                     jQuery('.summernote').each(function() {
-                        const editorId = this.id;
+                        var editorId = this.id;
                         if (editorId) {
-                            const content = jQuery(this).summernote('code');
+                            var content = jQuery(this).summernote('code');
                             formInitialState[editorId] = content;
                         }
                     });
@@ -248,7 +286,7 @@ function initFormChangeDetection() {
             }
             
             // ContentEditable elements (fallback)
-            const contentEditableElements = document.querySelectorAll('[contenteditable="true"]');
+            var contentEditableElements = document.querySelectorAll('[contenteditable="true"]');
             contentEditableElements.forEach(element => {
                 if (element.id && !formInitialState[element.id]) {
                     formInitialState[element.id] = element.innerHTML;
@@ -260,8 +298,8 @@ function initFormChangeDetection() {
         saveEditorStates();
         
         // Retry after delays for late-initializing editors (excluding TinyMCE)
-        setTimeout(() => saveEditorStates(1), 2000);
-        setTimeout(() => saveEditorStates(2), 5000);
+        setTimeout(function() { saveEditorStates(1); }, 2000);
+        setTimeout(function() { saveEditorStates(2); }, 5000);
     }
     
     // Initialize TinyMCE editors with proper timing
@@ -272,7 +310,7 @@ function initFormChangeDetection() {
         
         
         // Function to handle editor initialization
-        const handleEditorInit = (editor) => {
+        var handleEditorInit = function(editor) {
             if (!editor || !editor.id) {
                 return;
             }
@@ -286,7 +324,7 @@ function initFormChangeDetection() {
             
             // Save initial state only when editor is fully ready
             if (typeof editor.getContent === 'function') {
-                const initialContent = editor.getContent();
+                var initialContent = editor.getContent();
                 formInitialState[editor.id] = initialContent;
             }
             
@@ -326,14 +364,14 @@ function initFormChangeDetection() {
         
         
         // Debounced change handler
-        let changeTimeout;
-        const handleEditorChange = function(eventType) {
+        var changeTimeout = null;
+        var handleEditorChange = function(eventType) {
             clearTimeout(changeTimeout);
-            changeTimeout = setTimeout(() => {
+            changeTimeout = setTimeout(function() {
                 // Only trigger if content actually changed
                 if (typeof editor.getContent === 'function') {
-                    const currentContent = editor.getContent();
-                    const initialContent = formInitialState[editor.id] || '';
+                    var currentContent = editor.getContent();
+                    var initialContent = formInitialState[editor.id] || '';
                     
                     if (currentContent !== initialContent) {
                         updateFormChangedState();
@@ -360,13 +398,18 @@ function initFormChangeDetection() {
             }
             
             // Check regular form fields with robust error handling
-            const formData = new FormData(form);
+            var formData = new FormData(form);
             if (formData && typeof formData.entries === 'function') {
-                for (let [key, value] of formData.entries()) {
-                    const initialValue = formInitialState[key] || '';
+                var entries = formData.entries();
+                var entry = entries.next();
+                while (!entry.done) {
+                    var key = entry.value[0];
+                    var value = entry.value[1];
+                    var initialValue = formInitialState[key] || '';
                     if (value !== initialValue) {
                         return true;
                     }
+                    entry = entries.next();
                 }
             }
             
@@ -382,10 +425,10 @@ function initFormChangeDetection() {
         try {
             // Check TinyMCE editors
             if (typeof tinymce !== 'undefined' && tinymce.editors) {
-                for (let editor of tinymce.editors) {
+                for (var editor of tinymce.editors) {
                     if (editor && typeof editor.getContent === 'function') {
-                        const currentContent = editor.getContent();
-                        const initialContent = formInitialState[editor.id] || '';
+                        var currentContent = editor.getContent();
+                        var initialContent = formInitialState[editor.id] || '';
                         if (currentContent !== initialContent) {
                             return true;
                         }
@@ -397,11 +440,11 @@ function initFormChangeDetection() {
             
             // Check CKEditor
             if (typeof CKEDITOR !== 'undefined' && CKEDITOR.instances) {
-                for (let editorId of Object.keys(CKEDITOR.instances)) {
-                    const editor = CKEDITOR.instances[editorId];
+                for (var editorId of Object.keys(CKEDITOR.instances)) {
+                    var editor = CKEDITOR.instances[editorId];
                     if (editor && typeof editor.getData === 'function') {
-                        const currentContent = editor.getData();
-                        const initialContent = formInitialState[editorId] || '';
+                        var currentContent = editor.getData();
+                        var initialContent = formInitialState[editorId] || '';
                         if (currentContent !== initialContent) {
                             return true;
                         }
@@ -411,12 +454,12 @@ function initFormChangeDetection() {
             
             // Check Summernote
             if (typeof jQuery !== 'undefined' && typeof jQuery.fn.summernote !== 'undefined') {
-                const summernoteEditors = jQuery('.summernote');
-                for (let i = 0; i < summernoteEditors.length; i++) {
-                    const element = summernoteEditors[i];
+                var summernoteEditors = jQuery('.summernote');
+                for (var i = 0; i < summernoteEditors.length; i++) {
+                    var element = summernoteEditors[i];
                     if (element.id) {
-                        const currentContent = jQuery(element).summernote('code');
-                        const initialContent = formInitialState[element.id] || '';
+                        var currentContent = jQuery(element).summernote('code');
+                        var initialContent = formInitialState[element.id] || '';
                         if (currentContent !== initialContent) {
                             return true;
                         }
@@ -425,11 +468,11 @@ function initFormChangeDetection() {
             }
             
             // Check ContentEditable elements (fallback)
-            const contentEditableElements = document.querySelectorAll('[contenteditable="true"]');
-            for (let element of contentEditableElements) {
+            var contentEditableElements = document.querySelectorAll('[contenteditable="true"]');
+            for (var element of contentEditableElements) {
                 if (element.id) {
-                    const currentContent = element.innerHTML;
-                    const initialContent = formInitialState[element.id] || '';
+                    var currentContent = element.innerHTML;
+                    var initialContent = formInitialState[element.id] || '';
                     if (currentContent !== initialContent) {
                         return true;
                     }
@@ -444,10 +487,10 @@ function initFormChangeDetection() {
     
     // Function to show notification
     function showUnsavedChangesNotification() {
-        const notification = document.getElementById('unsaved-changes-notification');
+        var notification = document.getElementById('unsaved-changes-notification');
         if (notification) {
             notification.classList.remove('hidden');
-            setTimeout(() => {
+            setTimeout(function() {
                 notification.classList.remove('-translate-y-full');
             }, 10);
         }
@@ -456,10 +499,10 @@ function initFormChangeDetection() {
     
     // Function to hide notification
     function hideUnsavedChangesNotification() {
-        const notification = document.getElementById('unsaved-changes-notification');
+        var notification = document.getElementById('unsaved-changes-notification');
         if (notification) {
             notification.classList.add('-translate-y-full');
-            setTimeout(() => {
+            setTimeout(function() {
                 notification.classList.add('hidden');
             }, 300);
         }
@@ -467,7 +510,7 @@ function initFormChangeDetection() {
     
     // Function to update form changed state
     function updateFormChangedState() {
-        const hasChanged = checkFormChanged();
+        var hasChanged = checkFormChanged();
         if (hasChanged && !formHasUnsavedChanges) {
             formHasUnsavedChanges = true;
             showUnsavedChangesNotification();
@@ -479,7 +522,7 @@ function initFormChangeDetection() {
     
     // Function to enhance submit button appearance
     function enhanceSubmitButton() {
-        const submitButton = document.getElementById('course-submit-button');
+        var submitButton = document.getElementById('course-submit-button');
         if (submitButton) {
             // Change button color to green and add pulsing effect
             submitButton.classList.remove('bg-blue-600', 'hover:bg-blue-700', 'focus:ring-blue-600');
@@ -487,7 +530,7 @@ function initFormChangeDetection() {
             
             // Add a checkmark icon if not already present
             if (!submitButton.querySelector('svg')) {
-                const checkmarkIcon = document.createElement('span');
+                var checkmarkIcon = document.createElement('span');
                 checkmarkIcon.innerHTML = `
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline-block mr-1" viewBox="0 0 20 20" fill="currentColor">
                         <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
@@ -499,7 +542,7 @@ function initFormChangeDetection() {
     }
     
     // Get all form elements for change detection
-    const formElements = form.querySelectorAll('input, select, textarea');
+    var formElements = form.querySelectorAll('input, select, textarea');
     
     // Add change and input listeners to all form elements
     formElements.forEach(element => {
@@ -540,7 +583,7 @@ function initFormChangeDetection() {
     });
     
     // Additional specific detection for description field by multiple selectors
-    const descriptionSelectors = [
+    var descriptionSelectors = [
         '#id_description',
         'textarea[name="description"]',
         '[name="description"]',
@@ -548,12 +591,13 @@ function initFormChangeDetection() {
         '.description textarea'
     ];
     
-    descriptionSelectors.forEach(selector => {
-        const element = document.querySelector(selector);
+    // Fixed forEach to use function syntax for better compatibility
+    descriptionSelectors.forEach(function(selector) {
+        var element = document.querySelector(selector);
         if (element) {
             
             // Add comprehensive event listeners
-            ['input', 'change', 'keyup', 'paste', 'blur'].forEach(eventType => {
+            ['input', 'change', 'keyup', 'paste', 'blur'].forEach(function(eventType) {
                 element.addEventListener(eventType, function() {
                     updateFormChangedState();
                 });
@@ -562,16 +606,17 @@ function initFormChangeDetection() {
     });
     
     // Enhanced debugging for the form state
-    setTimeout(() => {
+    setTimeout(function() {
         
-        const descriptionField = form.querySelector('#id_description') || form.querySelector('[name="description"]');
+        var descriptionField = form.querySelector('#id_description') || form.querySelector('[name="description"]');
         if (descriptionField) {
-            console.log('Description field found:', {
+            // console.log('Description field found:', {
                 id: descriptionField.id,
                 name: descriptionField.name,
                 tagName: descriptionField.tagName,
                 type: descriptionField.type,
-                value: descriptionField.value?.substring(0, 50) + '...'
+                value: (descriptionField.value && descriptionField.value.substring) ? 
+                    descriptionField.value.substring(0, 50) + '...' : '...'
             });
         }
         
@@ -581,7 +626,7 @@ function initFormChangeDetection() {
     }, 1000);
     
     // Listen for file input changes
-    const fileInputs = form.querySelectorAll('input[type="file"]');
+    var fileInputs = form.querySelectorAll('input[type="file"]');
     fileInputs.forEach(input => {
         input.addEventListener('change', function() {
             formHasUnsavedChanges = true;
@@ -590,7 +635,7 @@ function initFormChangeDetection() {
     });
     
     // For custom editors - contentEditable elements
-    const contentEditableElements = document.querySelectorAll('[contenteditable="true"]');
+    var contentEditableElements = document.querySelectorAll('[contenteditable="true"]');
     contentEditableElements.forEach(element => {
         element.addEventListener('input', function() {
             formHasUnsavedChanges = true;
@@ -605,7 +650,7 @@ function initFormChangeDetection() {
         // CKEditor setup
         if (typeof CKEDITOR !== 'undefined' && CKEDITOR.instances) {
             Object.keys(CKEDITOR.instances).forEach(editorId => {
-                const editor = CKEDITOR.instances[editorId];
+                var editor = CKEDITOR.instances[editorId];
                 
                 // Listen for changes
                 editor.on('change', function() {
@@ -621,7 +666,7 @@ function initFormChangeDetection() {
         // Summernote setup
         if (typeof jQuery !== 'undefined' && typeof jQuery.fn.summernote !== 'undefined') {
             jQuery('.summernote').each(function() {
-                const editorId = this.id;
+                var editorId = this.id;
                 
                 // Listen for changes
                 jQuery(this).on('summernote.change', function() {
@@ -640,7 +685,7 @@ function initFormChangeDetection() {
         // Don't show confirmation if form is being submitted
         if (formHasUnsavedChanges && !isFormSubmitting) {
             // Standard way to show confirmation dialog when leaving page
-            const message = 'You have unsaved changes. Are you sure you want to leave this page?';
+            var message = 'You have unsaved changes. Are you sure you want to leave this page?';
             e.preventDefault(); // Required for some browsers
             e.returnValue = message; // Required for most browsers
             return message; // For older browsers
@@ -650,11 +695,11 @@ function initFormChangeDetection() {
     // Also handle link clicks to prevent navigation if there are unsaved changes
     document.addEventListener('click', function(e) {
         // Check if the clicked element is a link (or inside a link)
-        const link = e.target.closest('a');
+        var link = e.target.closest('a');
         
         if (link && formHasUnsavedChanges) {
             // Don't intercept form submission links or same-page anchors
-            const href = link.getAttribute('href');
+            var href = link.getAttribute('href');
             if (href && href !== '#' && !href.startsWith('#') && !link.hasAttribute('data-bypass-warning')) {
                 // If this is an external link or page navigation
                 if (confirm('You have unsaved changes. Are you sure you want to leave this page?')) {
@@ -681,10 +726,10 @@ function initFormChangeDetection() {
 // Function to truncate topic titles to first 4 characters + ellipsis
 function truncateTopicTitles() {
     // Get all topic titles
-    const topicTitles = document.querySelectorAll('.topic-title');
+    var topicTitles = document.querySelectorAll('.topic-title');
     topicTitles.forEach(title => {
         // Get the full title from the title attribute
-        const fullTitle = title.getAttribute('title');
+        var fullTitle = title.getAttribute('title');
         if (fullTitle && fullTitle.length > 4) {
             // Keep only first 4 characters + ellipsis
             title.textContent = fullTitle.substring(0, 4) + '...';
@@ -692,10 +737,10 @@ function truncateTopicTitles() {
     });
     
     // Handle section names - display full name without truncation
-    const sectionNames = document.querySelectorAll('.section-name');
+    var sectionNames = document.querySelectorAll('.section-name');
     sectionNames.forEach(name => {
         // Get the full name from the title attribute
-        const fullName = name.getAttribute('title');
+        var fullName = name.getAttribute('title');
         if (!fullName || fullName.trim() === '') {
             // If section name is empty, use "Section"
             name.textContent = "Section";
@@ -708,7 +753,7 @@ function truncateTopicTitles() {
 
 function initializeModalButtons() {
     // Add Category button
-    const addCategoryBtn = document.getElementById('add-category-btn');
+    var addCategoryBtn = document.getElementById('add-category-btn');
     if (addCategoryBtn) {
         addCategoryBtn.addEventListener('click', function(e) {
             e.preventDefault();
@@ -718,7 +763,7 @@ function initializeModalButtons() {
     }
     
     // Cancel button in category modal
-    const cancelCategoryBtn = document.querySelector('#popup-container .btn-cancel');
+    var cancelCategoryBtn = document.querySelector('#popup-container .btn-cancel');
     if (cancelCategoryBtn) {
         cancelCategoryBtn.addEventListener('click', function(e) {
             e.preventDefault();
@@ -729,28 +774,28 @@ function initializeModalButtons() {
 
 function initializeFileUploads() {
     // Course image upload
-    const courseImageInput = document.querySelector('input[name="course_image"]');
+    var courseImageInput = document.querySelector('input[name="course_image"]');
     if (courseImageInput) {
         courseImageInput.addEventListener('change', handleImageUpload);
     }
     
     // Course video upload
-    const courseVideoInput = document.querySelector('input[name="course_video"]');
+    var courseVideoInput = document.querySelector('input[name="course_video"]');
     if (courseVideoInput) {
         courseVideoInput.addEventListener('change', handleVideoUpload);
     }
     
     // Ensure existing videos load correctly
-    let videoPlayer = document.getElementById('course-video-preview');
+    var videoPlayer = document.getElementById('course-video-preview');
     if (videoPlayer) {
         // Check if it's a video element, if not, replace it with a proper video element
         if (videoPlayer.tagName.toLowerCase() !== 'video' || typeof videoPlayer.load !== 'function') {
             
             // Get parent element
-            const parentElement = videoPlayer.parentElement;
+            var parentElement = videoPlayer.parentElement;
             
             // Create a new video element with the same attributes
-            const newVideoPlayer = document.createElement('video');
+            var newVideoPlayer = document.createElement('video');
             newVideoPlayer.id = 'course-video-preview';
             
             // Copy classes
@@ -787,10 +832,10 @@ function initializeFileUploads() {
 
 function initializeExistingImagePreview() {
     
-    const imagePreview = document.getElementById('course-image-preview');
-    const imageContainer = document.querySelector('.course-image-container');
+    var imagePreview = document.getElementById('course-image-preview');
+    var imageContainer = document.querySelector('.course-image-container');
 
-    console.log('Image preview elements:', {
+    // console.log('Image preview elements:', {
         imagePreview: !!imagePreview,
         imageContainer: !!imageContainer
     });
@@ -813,7 +858,7 @@ function initializeExistingImagePreview() {
             this.style.display = 'none';
             
             // Show user-friendly error message
-            const errorDiv = document.createElement('div');
+            var errorDiv = document.createElement('div');
             errorDiv.className = 'image-error-message bg-red-50 border border-red-200 rounded-md p-3 mt-2';
             errorDiv.innerHTML = `
                 <div class="flex items-center">
@@ -823,7 +868,7 @@ function initializeExistingImagePreview() {
             `;
             
             // Insert error message after the image container
-            const imageContainer = this.closest('.course-image-container');
+            var imageContainer = this.closest('.course-image-container');
             if (imageContainer && imageContainer.parentNode) {
                 imageContainer.parentNode.insertBefore(errorDiv, imageContainer.nextSibling);
             }
@@ -838,52 +883,56 @@ function initializeExistingImagePreview() {
 
 function handleImageUpload(e) {
     // Handle both event object and direct input element
-    const input = e.target || e;
-    const fileInfo = document.getElementById('image-file-info');
-    const imagePreview = document.getElementById('course-image-preview');
+    var input = e.target || e;
+    var fileInfo = document.getElementById('image-file-info');
+    var imagePreview = document.getElementById('course-image-preview');
     
-    console.log('File input elements:', {
-        input: !!input,
-        fileInfo: !!fileInfo,
-        imagePreview: !!imagePreview
-    });
+    // Debug logging removed for production
     
     // Check if input has files property and is a file input
     if (input && input.files && input.files[0]) {
-        const file = input.files[0];
-        const fileSize = file.size / (1024 * 1024); // Convert to MB
+        var file = input.files[0];
+        var fileSize = file.size / (1024 * 1024); // Convert to MB
         
         // Check file type
         if (!file.type.match('image.*')) {
-            alert('Please upload an image file');
+            if (typeof showToast === 'function') {
+            showToast('Please upload an image file', 'error');
+        } else {
+            console.error('Please upload an image file');
+        }
             input.value = '';
             return;
         }
         
         // Validate using the comprehensive security validator
         if (typeof SecureFilenameValidator !== 'undefined') {
-            const validator = SecureFilenameValidator.createCategoryValidator('image', 10);
-            const result = validator.validateFile(file);
+            var validator = SecureFilenameValidator.createCategoryValidator('image', 10);
+            var result = validator.validateFile(file);
             if (!result.valid) {
                 // Show user-friendly error messages
-                const errorMsg = result.errors.join('\n\n');
-                alert('File Validation Error:\n\n' + errorMsg + '\n\nPlease choose a different file or rename your file using simple characters.');
+                var errorMsg = result.errors.join('\n\n');
+                if (typeof showToast === 'function') {
+                    showToast('File Validation Error: ' + errorMsg + ' Please choose a different file or rename your file using simple characters.', 'error');
+                } else {
+                    console.error('File Validation Error: ' + errorMsg + ' Please choose a different file or rename your file using simple characters.');
+                }
                 input.value = '';
                 return;
             }
         }
         
         // Update UI
-        fileInfo.textContent = `Selected: ${file.name} (${fileSize.toFixed(2)}MB)`;
+        fileInfo.textContent = 'Selected: ' + file.name + ' (' + fileSize.toFixed(2) + 'MB)';
 
         
         // Show preview
-        const reader = new FileReader();
+        var reader = new FileReader();
         reader.onload = function(e) {
             imagePreview.src = e.target.result;
             imagePreview.classList.remove('hidden');
             // Also show the container if it's hidden
-            const imageContainer = imagePreview.closest('.course-image-container');
+            var imageContainer = imagePreview.closest('.course-image-container');
             if (imageContainer) {
                 imageContainer.classList.remove('hidden');
             }
@@ -895,7 +944,7 @@ function handleImageUpload(e) {
 
         imagePreview.classList.add('hidden');
         // Also hide the container
-        const imageContainer = imagePreview.closest('.course-image-container');
+        var imageContainer = imagePreview.closest('.course-image-container');
         if (imageContainer) {
             imageContainer.classList.add('hidden');
         }
@@ -903,49 +952,57 @@ function handleImageUpload(e) {
 }
 
 function handleVideoUpload(e) {
-    const input = e.target;
-    const fileInfo = document.getElementById('video-file-info');
-    const filenameDisplay = document.getElementById('video-filename-display');
-    const videoPreviewContainer = document.getElementById('course-video-preview');
+    var input = e.target;
+    var fileInfo = document.getElementById('video-file-info');
+    var filenameDisplay = document.getElementById('video-filename-display');
+    var videoPreviewContainer = document.getElementById('course-video-preview');
     
     if (!videoPreviewContainer) {
         return;
     }
     
     if (input.files && input.files[0]) {
-        const file = input.files[0];
-        const fileSize = file.size / (1024 * 1024); // Convert to MB
+        var file = input.files[0];
+        var fileSize = file.size / (1024 * 1024); // Convert to MB
         
         // Check file type
         if (!file.type.match('video.*')) {
-            alert('Please upload a video file');
+            if (typeof showToast === 'function') {
+                showToast('Please upload a video file', 'error');
+            } else {
+                console.error('Please upload a video file');
+            }
             input.value = '';
             return;
         }
         
         // Validate using the comprehensive security validator
         if (typeof SecureFilenameValidator !== 'undefined') {
-            const validator = SecureFilenameValidator.createCategoryValidator('video', 500);
-            const result = validator.validateFile(file);
+            var validator = SecureFilenameValidator.createCategoryValidator('video', 500);
+            var result = validator.validateFile(file);
             if (!result.valid) {
                 // Show user-friendly error messages
-                const errorMsg = result.errors.join('\n\n');
-                alert('File Validation Error:\n\n' + errorMsg + '\n\nPlease choose a different file or rename your file using simple characters.');
+                var errorMsg = result.errors.join('\n\n');
+                if (typeof showToast === 'function') {
+                    showToast('File Validation Error: ' + errorMsg + ' Please choose a different file or rename your file using simple characters.', 'error');
+                } else {
+                    console.error('File Validation Error: ' + errorMsg + ' Please choose a different file or rename your file using simple characters.');
+                }
                 input.value = '';
                 return;
             }
         }
         
         // Update UI
-        fileInfo.textContent = `Selected: ${file.name} (${fileSize.toFixed(2)}MB)`;
+        fileInfo.textContent = 'Selected: ' + file.name + ' (' + fileSize.toFixed(2) + 'MB)';
 
         
         // Show preview
-        const videoUrl = URL.createObjectURL(file);
+        var videoUrl = URL.createObjectURL(file);
         
         // Make sure it's a video element and has source
         if (videoPreviewContainer.tagName.toLowerCase() === 'video') {
-            let sourceElement = videoPreviewContainer.querySelector('source');
+            var sourceElement = videoPreviewContainer.querySelector('source');
             if (!sourceElement) {
                 sourceElement = document.createElement('source');
                 sourceElement.type = 'video/mp4';
@@ -979,10 +1036,10 @@ function handleVideoUpload(e) {
 }
 
 function removeImage() {
-    const courseImageInput = document.querySelector('input[name="course_image"]');
-    const fileInfo = document.getElementById('image-file-info');
-    const imagePreview = document.getElementById('course-image-preview');
-    const imageContainer = document.querySelector('.course-image-container');
+    var courseImageInput = document.querySelector('input[name="course_image"]');
+    var fileInfo = document.getElementById('image-file-info');
+    var imagePreview = document.getElementById('course-image-preview');
+    var imageContainer = document.querySelector('.course-image-container');
     
     // Debug logging
     
@@ -999,14 +1056,14 @@ function removeImage() {
     if (imagePreview) {
         imagePreview.classList.add('hidden');
         // Also hide the container
-        const imageContainer = imagePreview.closest('.course-image-container');
+        var imageContainer = imagePreview.closest('.course-image-container');
         if (imageContainer) {
             imageContainer.classList.add('hidden');
         }
     }
     
     // Set a hidden input to indicate image should be removed
-    let removeImageInput = document.getElementById('remove_image');
+    var removeImageInput = document.getElementById('remove_image');
     
     if (!removeImageInput) {
         removeImageInput = document.createElement('input');
@@ -1019,7 +1076,7 @@ function removeImage() {
             courseImageInput.parentNode.appendChild(removeImageInput);
         } else {
             // Fallback - add to form
-            const form = document.querySelector('form');
+            var form = document.querySelector('form');
             if (form) {
                 form.appendChild(removeImageInput);
             } else {
@@ -1040,7 +1097,7 @@ function removeImage() {
 // Add event listeners as backup for the remove buttons
 document.addEventListener('DOMContentLoaded', function() {
     // Remove image button
-    const removeImageBtn = document.getElementById('remove-image-btn');
+    var removeImageBtn = document.getElementById('remove-image-btn');
     if (removeImageBtn) {
         removeImageBtn.addEventListener('click', function(e) {
             e.preventDefault();
@@ -1052,8 +1109,8 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // Remove video buttons (both existing and new)
-    const removeVideoBtnExisting = document.getElementById('remove-video-btn-existing');
-    const removeVideoBtnNew = document.getElementById('remove-video-btn-new');
+    var removeVideoBtnExisting = document.getElementById('remove-video-btn-existing');
+    var removeVideoBtnNew = document.getElementById('remove-video-btn-new');
     
     if (removeVideoBtnExisting) {
         removeVideoBtnExisting.addEventListener('click', function(e) {
@@ -1078,11 +1135,11 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function removeVideo() {
-    const courseVideoInput = document.querySelector('input[name="course_video"]');
-    const fileInfo = document.getElementById('video-file-info');
-    const filenameDisplay = document.getElementById('video-filename-display');
-    const videoPreviewContainer = document.getElementById('course-video-preview');
-    const videoContainer = document.querySelector('.course-video-container');
+    var courseVideoInput = document.querySelector('input[name="course_video"]');
+    var fileInfo = document.getElementById('video-file-info');
+    var filenameDisplay = document.getElementById('video-filename-display');
+    var videoPreviewContainer = document.getElementById('course-video-preview');
+    var videoContainer = document.querySelector('.course-video-container');
     
     // Reset input
     if (courseVideoInput) {
@@ -1100,7 +1157,7 @@ function removeVideo() {
     
     if (videoPreviewContainer) {
         // Reset video source
-        const sourceElement = videoPreviewContainer.querySelector('source');
+        var sourceElement = videoPreviewContainer.querySelector('source');
         if (sourceElement) {
             sourceElement.src = '';
         }
@@ -1116,7 +1173,7 @@ function removeVideo() {
     }
     
     // Set a hidden input to indicate video should be removed
-    let removeVideoInput = document.getElementById('remove_video');
+    var removeVideoInput = document.getElementById('remove_video');
     
     if (!removeVideoInput) {
         removeVideoInput = document.createElement('input');
@@ -1129,7 +1186,7 @@ function removeVideo() {
             courseVideoInput.parentNode.appendChild(removeVideoInput);
         } else {
             // Fallback - add to form
-            const form = document.querySelector('form');
+            var form = document.querySelector('form');
             if (form) {
                 form.appendChild(removeVideoInput);
             } else {
@@ -1150,15 +1207,19 @@ function removeVideo() {
 function handleFormSubmit(e) {
     
     // Get all form elements
-    const form = document.getElementById('courseCreateForm');
+    var form = document.getElementById('courseCreateForm');
     if (!form) {
         return true; // Allow form to submit normally if not found
     }
     
     // Check if title is provided
-    const titleInput = document.getElementById('title');
+    var titleInput = document.getElementById('title');
     if (titleInput && !titleInput.value.trim()) {
-        alert('Please enter a course title');
+        if (typeof showToast === 'function') {
+            showToast('Please enter a course title', 'error');
+        } else {
+            console.error('Please enter a course title');
+        }
         titleInput.focus();
         return false;
     }
@@ -1168,13 +1229,13 @@ function handleFormSubmit(e) {
     formHasUnsavedChanges = false;
     
     // Hide notification if it exists
-    const notification = document.getElementById('unsaved-changes-notification');
+    var notification = document.getElementById('unsaved-changes-notification');
     if (notification) {
         notification.classList.add('-translate-y-full', 'hidden');
     }
     
     // Disable the submit button and show loading state
-    const submitButton = document.getElementById('course-submit-button');
+    var submitButton = document.getElementById('course-submit-button');
     if (submitButton) {
         submitButton.disabled = true;
         submitButton.innerHTML = 'Updating...';
@@ -1188,34 +1249,34 @@ window.handleFormSubmit = handleFormSubmit;
 
 // Modal management functions
 function showSectionModal() {
-    const modal = document.getElementById('add-section-modal');
+    var modal = document.getElementById('add-section-modal');
     if (modal) {
         modal.classList.remove('hidden');
         document.body.classList.add('overflow-hidden');
         
         // Focus on first input
-        setTimeout(() => {
-            const firstInput = modal.querySelector('input[type="text"]');
+        setTimeout(function() {
+            var firstInput = modal.querySelector('input[type="text"]');
             if (firstInput) firstInput.focus();
         }, 100);
     }
 }
 
 function hideSectionModal() {
-    const modal = document.getElementById('add-section-modal');
+    var modal = document.getElementById('add-section-modal');
     if (modal) {
         modal.classList.add('hidden');
         document.body.classList.remove('overflow-hidden');
         
         // Reset form
-        const form = modal.querySelector('form');
+        var form = modal.querySelector('form');
         if (form) form.reset();
     }
 }
 
 function showMoveTopicModal(topicId) {
-    const modal = document.getElementById('move-topic-modal');
-    const topicIdInput = document.getElementById('topic_id_to_move');
+    var modal = document.getElementById('move-topic-modal');
+    var topicIdInput = document.getElementById('topic_id_to_move');
     
     if (modal && topicIdInput) {
         // Set the topic ID
@@ -1228,7 +1289,7 @@ function showMoveTopicModal(topicId) {
 }
 
 function hideMoveTopicModal() {
-    const modal = document.getElementById('move-topic-modal');
+    var modal = document.getElementById('move-topic-modal');
     if (modal) {
         modal.classList.add('hidden');
         document.body.classList.remove('overflow-hidden');
@@ -1236,21 +1297,21 @@ function hideMoveTopicModal() {
 }
 
 function showCategoryModal() {
-    const modal = document.getElementById('popup-container');
+    var modal = document.getElementById('popup-container');
     if (modal) {
         modal.classList.remove('hidden');
         document.body.classList.add('overflow-hidden');
         
         // Focus on first input
-        setTimeout(() => {
-            const firstInput = modal.querySelector('input[type="text"]');
+        setTimeout(function() {
+            var firstInput = modal.querySelector('input[type="text"]');
             if (firstInput) firstInput.focus();
         }, 100);
     }
 }
 
 function hideCategoryModal() {
-    const modal = document.getElementById('popup-container');
+    var modal = document.getElementById('popup-container');
     if (modal) {
         modal.classList.add('hidden');
         document.body.classList.remove('overflow-hidden');
@@ -1268,7 +1329,7 @@ window.hideCategoryModal = hideCategoryModal;
 // Initialize tab functionality
 function initializeTabButtons() {
     try {
-        const tabButtons = document.querySelectorAll('.tab-btn');
+        var tabButtons = document.querySelectorAll('.tab-btn');
         if (tabButtons.length === 0) {
             return;
         }
@@ -1297,9 +1358,9 @@ function initializeTabButtons() {
                     this.classList.remove('text-gray-500');
                     
                     // Show corresponding content
-                    const target = this.getAttribute('data-tab-target');
+                    var target = this.getAttribute('data-tab-target');
                     if (target) {
-                        const targetContent = document.querySelector(target);
+                        var targetContent = document.querySelector(target);
                         if (targetContent) {
                             targetContent.classList.add('active');
                             targetContent.style.display = 'block';
@@ -1326,4 +1387,4 @@ window.addEventListener('beforeunload', function() {
     if (window.CourseEditCleanup) {
         window.CourseEditCleanup.cleanup();
     }
-}); 
+});

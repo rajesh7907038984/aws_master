@@ -1,242 +1,61 @@
-/* ========================================
-   NEXSY LMS - Icon Size Consistency System
-   ======================================== */
-
-/* ========== Icon Size Variables ========== */
-:root {
-    /* Standardized icon sizes */
-    --icon-xs: 0.75rem;    /* 12px - for small indicators */
-    --icon-sm: 0.875rem;   /* 14px - for inline text icons */
-    --icon-md: 1rem;       /* 16px - standard size */
-    --icon-lg: 1.25rem;    /* 20px - for buttons */
-    --icon-xl: 1.5rem;     /* 24px - for headers */
-    --icon-2xl: 2rem;      /* 32px - for large displays */
-    --icon-3xl: 3rem;      /* 48px - for hero sections */
-    
-    /* Icon spacing */
-    --icon-spacing-xs: 0.25rem;
-    --icon-spacing-sm: 0.5rem;
-    --icon-spacing-md: 0.75rem;
-    --icon-spacing-lg: 1rem;
+/* Icon Consistency System for LMS */
+.icon-consistency {
+    font-family: 'Font Awesome 6 Free', 'Font Awesome 6 Brands', 'FontAwesome', sans-serif;
+    font-style: normal;
+    font-variant: normal;
+    text-rendering: auto;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
 }
 
-/* ========== Base Icon Styles ========== */
+/* Ensure consistent icon sizing */
 .fas, .far, .fab, .fa {
-    font-family: 'Font Awesome 6 Free', 'Font Awesome 6 Pro', 'FontAwesome', sans-serif !important;
     display: inline-block !important;
     font-style: normal !important;
     font-variant: normal !important;
     text-rendering: auto !important;
     -webkit-font-smoothing: antialiased !important;
     -moz-osx-font-smoothing: grayscale !important;
-    line-height: 1 !important;
-    vertical-align: middle !important;
-    text-decoration: none !important;
 }
 
-/* ========== Standardized Size Classes ========== */
-.icon-xs { 
-    font-size: var(--icon-xs) !important; 
-    line-height: 1 !important;
+/* Icon size classes */
+.icon-xs { font-size: 0.75rem; }
+.icon-sm { font-size: 0.875rem; }
+.icon-md { font-size: 1rem; }
+.icon-lg { font-size: 1.125rem; }
+.icon-xl { font-size: 1.25rem; }
+.icon-2xl { font-size: 1.5rem; }
+
+/* Icon color classes */
+.icon-primary { color: var(--brand-primary, #050c50); }
+.icon-secondary { color: var(--brand-primary-light, #4262FF); }
+.icon-accent { color: var(--brand-accent, #2F80ED); }
+.icon-success { color: #10b981; }
+.icon-warning { color: #f59e0b; }
+.icon-error { color: #ef4444; }
+.icon-info { color: var(--brand-primary-light, #4262FF); }
+
+/* Icon spacing */
+.icon-spacing-sm { margin-right: 0.25rem; }
+.icon-spacing-md { margin-right: 0.5rem; }
+.icon-spacing-lg { margin-right: 0.75rem; }
+
+/* Icon alignment */
+.icon-align-top { vertical-align: top; }
+.icon-align-middle { vertical-align: middle; }
+.icon-align-bottom { vertical-align: bottom; }
+
+/* Icon states */
+.icon-hover:hover {
+    opacity: 0.8;
+    transition: opacity 0.2s ease;
 }
 
-.icon-sm { 
-    font-size: var(--icon-sm) !important; 
-    line-height: 1 !important;
+.icon-active {
+    color: var(--brand-accent, #2F80ED);
 }
 
-.icon-md { 
-    font-size: var(--icon-md) !important; 
-    line-height: 1 !important;
-}
-
-.icon-lg { 
-    font-size: var(--icon-lg) !important; 
-    line-height: 1 !important;
-}
-
-.icon-xl { 
-    font-size: var(--icon-xl) !important; 
-    line-height: 1 !important;
-}
-
-.icon-2xl { 
-    font-size: var(--icon-2xl) !important; 
-    line-height: 1 !important;
-}
-
-.icon-3xl { 
-    font-size: var(--icon-3xl) !important; 
-    line-height: 1 !important;
-}
-
-/* ========== Context-Specific Icon Sizing ========== */
-.dashboard-icon { 
-    font-size: var(--icon-md) !important; 
-    margin-right: var(--icon-spacing-sm) !important;
-}
-
-.button-icon { 
-    font-size: var(--icon-sm) !important; 
-    margin-right: var(--icon-spacing-xs) !important;
-}
-
-.header-icon { 
-    font-size: var(--icon-lg) !important; 
-    margin-right: var(--icon-spacing-sm) !important;
-}
-
-.nav-icon { 
-    font-size: var(--icon-md) !important; 
-    margin-right: var(--icon-spacing-sm) !important;
-}
-
-.status-icon { 
-    font-size: var(--icon-sm) !important; 
-    margin-right: var(--icon-spacing-xs) !important;
-}
-
-.hero-icon { 
-    font-size: var(--icon-3xl) !important; 
-    margin-bottom: var(--icon-spacing-lg) !important;
-}
-
-.notification-icon { 
-    font-size: var(--icon-lg) !important; 
-    margin-right: var(--icon-spacing-md) !important;
-}
-
-.breadcrumb-icon { 
-    font-size: var(--icon-sm) !important; 
-    margin-right: var(--icon-spacing-xs) !important;
-}
-
-.timeline-icon { 
-    font-size: var(--icon-sm) !important; 
-    line-height: 1 !important;
-}
-
-/* ========== Responsive Icon Sizing ========== */
-@media (max-width: 768px) {
-    .icon-xl { 
-        font-size: var(--icon-lg) !important; 
-    }
-    
-    .icon-2xl { 
-        font-size: var(--icon-xl) !important; 
-    }
-    
-    .icon-3xl { 
-        font-size: var(--icon-2xl) !important; 
-    }
-    
-    .hero-icon { 
-        font-size: var(--icon-2xl) !important; 
-    }
-    
-    .notification-icon { 
-        font-size: var(--icon-md) !important; 
-    }
-}
-
-@media (max-width: 480px) {
-    .icon-lg { 
-        font-size: var(--icon-md) !important; 
-    }
-    
-    .icon-xl { 
-        font-size: var(--icon-lg) !important; 
-    }
-    
-    .icon-2xl { 
-        font-size: var(--icon-xl) !important; 
-    }
-    
-    .hero-icon { 
-        font-size: var(--icon-xl) !important; 
-    }
-    
-    .dashboard-icon { 
-        font-size: var(--icon-sm) !important; 
-    }
-    
-    .nav-icon { 
-        font-size: var(--icon-sm) !important; 
-    }
-}
-
-/* ========== Icon Color Consistency ========== */
-.icon-success { color: #10b981 !important; }
-.icon-error { color: #ef4444 !important; }
-.icon-warning { color: #f59e0b !important; }
-.icon-info { color: #3b82f6 !important; }
-.icon-primary { color: var(--brand-accent) !important; }
-.icon-secondary { color: #6b7280 !important; }
-.icon-muted { color: #9ca3af !important; }
-
-/* ========== Icon Animation ========== */
-.icon-spin {
-    animation: icon-spin 1s linear infinite !important;
-}
-
-.icon-pulse {
-    animation: icon-pulse 1s ease-in-out infinite !important;
-}
-
-@keyframes icon-spin {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
-}
-
-@keyframes icon-pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.5; }
-}
-
-/* ========== Icon Container Utilities ========== */
-.icon-container {
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-}
-
-.icon-container svg,
-.icon-container i {
-    display: inline-block !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-}
-
-/* ========== Override Conflicting Styles ========== */
-/* Remove conflicting font-size rules from other CSS files */
-.fas, .far, .fab, .fa {
-    font-size: inherit !important;
-}
-
-/* Override specific conflicting rules */
-.dashboard-quick-action-icon i,
-.dashboard-overview-icon i {
-    font-size: var(--icon-sm) !important;
-}
-
-.tab-accordion-content .fas,
-.tab-accordion-content .fa-solid,
-.tab-accordion-content .fa {
-    font-size: var(--icon-sm) !important;
-}
-
-/* ========== High DPI Display Fixes ========== */
-@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
-    .fas, .far, .fab, .fa {
-        -webkit-font-smoothing: antialiased !important;
-        -moz-osx-font-smoothing: grayscale !important;
-    }
-}
-
-/* ========== Print Styles ========== */
-@media print {
-    .fas, .far, .fab, .fa {
-        font-size: 12pt !important;
-        color: #000 !important;
-    }
+.icon-disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
 }

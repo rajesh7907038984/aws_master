@@ -42,15 +42,15 @@ class Command(BaseCommand):
         # Check overall storage health
         health = check_storage_health()
         
-        self.stdout.write(f"\n📊 Storage Health Summary:")
-        self.stdout.write(f"  S3 Configured: {'✅' if health['s3_configured'] else '❌'}")
-        self.stdout.write(f"  Local Media Available: {'✅' if health['local_media_available'] else '❌'}")
-        self.stdout.write(f"  Storage Accessible: {'✅' if health['storage_accessible'] else '❌'}")
+        self.stdout.write("\n📊 Storage Health Summary:")
+        self.stdout.write("  S3 Configured: {{'✅' if health['s3_configured'] else '❌'}}")
+        self.stdout.write("  Local Media Available: {{'✅' if health['local_media_available'] else '❌'}}")
+        self.stdout.write("  Storage Accessible: {{'✅' if health['storage_accessible'] else '❌'}}")
         
         if health['issues']:
-            self.stdout.write(f"\n⚠️  Issues Found:")
+            self.stdout.write("\n⚠️  Issues Found:")
             for issue in health['issues']:
-                self.stdout.write(f"  - {issue}")
+                self.stdout.write("  - {{issue}}")
         
         # Check specific models with file fields
         models_to_check = [
@@ -75,25 +75,25 @@ class Command(BaseCommand):
                 model_class = apps.get_model(app_label, model_name)
                 
                 if not model_class:
-                    self.stdout.write(f"❌ Model not found: {model_path}")
+                    self.stdout.write("❌ Model not found: {{model_path}}")
                     continue
                 
-                self.stdout.write(f"\n🔍 Checking {model_path}.{field_name}...")
+                self.stdout.write("\n🔍 Checking {{model_path}}.{{field_name}}...")
                 
                 # Check if field exists
                 if not hasattr(model_class, field_name):
-                    self.stdout.write(f"  ⚠️  Field {field_name} not found in {model_path}")
+                    self.stdout.write("  ⚠️  Field {{field_name}} not found in {{model_path}}")
                     continue
                 
                 # Get all objects with files
-                objects = model_class.objects.exclude(**{f"{field_name}__isnull": True}).exclude(**{f"{field_name}": ""})
+                objects = model_class.objects.exclude(**{"{{field_name}}__isnull": True}).exclude(**{"{{field_name}}": ""})
                 total_objects = objects.count()
                 
                 if total_objects == 0:
-                    self.stdout.write(f"  ℹ️  No objects with {field_name} found")
+                    self.stdout.write("  ℹ️  No objects with {{field_name}} found")
                     continue
                 
-                self.stdout.write(f"  📁 Found {total_objects} objects with {field_name}")
+                self.stdout.write("  📁 Found {{total_objects}} objects with {{field_name}}")
                 
                 issues_found = 0
                 for obj in objects:
@@ -106,7 +106,7 @@ class Command(BaseCommand):
                         issues_found += 1
                         total_issues += 1
                         
-                        self.stdout.write(f"    ❌ {obj} - {validation['error']}")
+                        self.stdout.write("    ❌ {{obj}} - {{validation['error']}}")
                         
                         if fix_mode:
                             # Apply fixes based on model type
@@ -123,21 +123,21 @@ class Command(BaseCommand):
                             
                             obj.save()
                             total_fixed += 1
-                            self.stdout.write(f"    ✅ Fixed {obj}")
+                            self.stdout.write("    ✅ Fixed {{obj}}")
                 
                 if issues_found == 0:
-                    self.stdout.write(f"  ✅ All {field_name} files are valid")
+                    self.stdout.write("  ✅ All {{field_name}} files are valid")
                 else:
-                    self.stdout.write(f"  ⚠️  Found {issues_found} issues with {field_name}")
+                    self.stdout.write("  ⚠️  Found {{issues_found}} issues with {{field_name}}")
                 
             except Exception as e:
-                self.stdout.write(f"❌ Error checking {model_path}: {str(e)}")
+                self.stdout.write("❌ Error checking {{model_path}}: {{str(e)}}")
         
         # Summary
-        self.stdout.write(f"\n📈 Summary:")
-        self.stdout.write(f"  Total Issues Found: {total_issues}")
+        self.stdout.write("\n📈 Summary:")
+        self.stdout.write("  Total Issues Found: {{total_issues}}")
         if fix_mode:
-            self.stdout.write(f"  Total Issues Fixed: {total_fixed}")
+            self.stdout.write("  Total Issues Fixed: {{total_fixed}}")
             if total_fixed > 0:
                 self.stdout.write("  ✅ Storage inconsistencies have been fixed")
         else:

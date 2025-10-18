@@ -1,559 +1,147 @@
 /**
- * Performance Optimizer for 100% Frontend-Backend Alignment
- * This system optimizes performance while maintaining perfect alignment
+ * Performance Optimizer for LMS
+ * Optimizes page performance and resource loading
  */
 
-class PerformanceOptimizer {
-    constructor() {
-        this.cache = new Map();
-        this.debounceTimers = new Map();
-        this.throttleTimers = new Map();
-        this.observers = new Map();
-        this.lazyLoadElements = new Set();
+(function() {
+    'use strict';
+
+    const PerformanceOptimizer = {
+        init: function() {
+            this.optimizeImages();
+            this.optimizeScripts();
+            this.optimizeCSS();
+            this.setupLazyLoading();
+            this.setupScrollHandler();
+        },
         
-        this.setupOptimizations();
-    }
-    
-    /**
-     * Setup all performance optimizations
-     */
-    setupOptimizations() {
-        this.setupLazyLoading();
-        this.setupImageOptimization();
-        this.setupFormOptimization();
-        this.setupScrollOptimization();
-        this.setupResizeOptimization();
-        this.setupMemoryOptimization();
-    }
-    
-    /**
-     * Setup lazy loading for images and content
-     */
-    setupLazyLoading() {
-        if ('IntersectionObserver' in window) {
-            const imageObserver = new IntersectionObserver((entries) => {
-                entries.forEach(entry => {
-                    if (entry.isIntersecting) {
-                        const img = entry.target;
-                        if (img.dataset.src) {
-                            img.src = img.dataset.src;
-                            img.classList.remove('lazy');
-                            imageObserver.unobserve(img);
+        optimizeImages: function() {
+            // Add loading="lazy" to images below the fold
+            const images = document.querySelectorAll('img:not([loading])');
+            images.forEach((img, index) => {
+                if (index > 3) { // Skip first 4 images
+                    img.setAttribute('loading', 'lazy');
+                }
+            });
+        },
+        
+        optimizeScripts: function() {
+            // Add defer to non-critical scripts
+            const scripts = document.querySelectorAll('script:not([defer]):not([async])');
+            scripts.forEach(script => {
+                if (!script.src.includes('critical') && !script.src.includes('jquery')) {
+                    script.defer = true;
+                }
+            });
+        },
+        
+        optimizeCSS: function() {
+            // Preload critical CSS
+            const criticalCSS = document.querySelector('link[rel="stylesheet"][href*="critical"]');
+            if (criticalCSS) {
+                const preloadLink = document.createElement('link');
+                preloadLink.rel = 'preload';
+                preloadLink.href = criticalCSS.href;
+                preloadLink.as = 'style';
+                document.head.insertBefore(preloadLink, criticalCSS);
+            }
+        },
+        
+        setupLazyLoading: function() {
+            // Intersection Observer for lazy loading
+            if ('IntersectionObserver' in window) {
+                const observer = new IntersectionObserver((entries) => {
+                    entries.forEach(entry => {
+                        if (entry.isIntersecting) {
+                            const img = entry.target;
+                            if (img.dataset.src) {
+                                img.src = img.dataset.src;
+                                img.removeAttribute('data-src');
+                                observer.unobserve(img);
+                            }
                         }
-                    }
-                });
-            });
-            
-            // Observe all lazy images
-            document.querySelectorAll('img[data-src]').forEach(img => {
-                imageObserver.observe(img);
-            });
-        }
-    }
-    
-    /**
-     * Setup image optimization
-     */
-    setupImageOptimization() {
-        // Add loading="lazy" to all images
-        document.querySelectorAll('img:not([loading])').forEach(img => {
-            img.loading = 'lazy';
-        });
-        
-        // Optimize image sizes based on viewport
-        this.optimizeImageSizes();
-    }
-    
-    /**
-     * Optimize image sizes based on viewport
-     */
-    optimizeImageSizes() {
-        const viewportWidth = window.innerWidth;
-        const devicePixelRatio = window.devicePixelRatio || 1;
-        
-        document.querySelectorAll('img[data-sizes]').forEach(img => {
-            const sizes = JSON.parse(img.dataset.sizes);
-            const optimalSize = this.getOptimalImageSize(sizes, viewportWidth, devicePixelRatio);
-            
-            if (optimalSize && img.src !== optimalSize) {
-                img.src = optimalSize;
-            }
-        });
-    }
-    
-    /**
-     * Get optimal image size based on viewport
-     */
-    getOptimalImageSize(sizes, viewportWidth, devicePixelRatio) {
-        const sortedSizes = Object.keys(sizes)
-            .map(size => parseInt(size))
-            .sort((a, b) => a - b);
-        
-        for (const size of sortedSizes) {
-            if (size * devicePixelRatio >= viewportWidth) {
-                return sizes[size];
-            }
-        }
-        
-        return sizes[sortedSizes[sortedSizes.length - 1]];
-    }
-    
-    /**
-     * Setup form optimization
-     */
-    setupFormOptimization() {
-        // Debounce form inputs
-        document.querySelectorAll('input, textarea').forEach(input => {
-            input.addEventListener('input', this.debounce((event) => {
-                this.handleFormInput(event.target);
-            }, 300));
-        });
-        
-        // Optimize form submissions
-        document.querySelectorAll('form').forEach(form => {
-            form.addEventListener('submit', (event) => {
-                this.optimizeFormSubmission(event);
-            });
-        });
-    }
-    
-    /**
-     * Handle form input optimization
-     */
-    handleFormInput(input) {
-        // Auto-save functionality
-        if (input.dataset.autoSave === 'true') {
-            this.autoSave(input);
-        }
-        
-        // Real-time validation
-        if (typeof validateField === 'function') {
-            validateField(input);
-        }
-    }
-    
-    /**
-     * Auto-save form data
-     */
-    autoSave(input) {
-        const form = input.closest('form');
-        const formData = new FormData(form);
-        const data = Object.fromEntries(formData.entries());
-        
-        localStorage.setItem(`autosave_${form.id || 'form'}`, JSON.stringify({
-            data: data,
-            timestamp: Date.now()
-        }));
-    }
-    
-    /**
-     * Optimize form submission
-     */
-    optimizeFormSubmission(event) {
-        const form = event.target;
-        
-        // Prevent double submission
-        if (form.dataset.submitting === 'true') {
-            event.preventDefault();
-            return false;
-        }
-        
-        form.dataset.submitting = 'true';
-        
-        // Add loading state
-        const submitButton = form.querySelector('button[type="submit"]');
-        if (submitButton) {
-            submitButton.disabled = true;
-            submitButton.textContent = 'Submitting...';
-        }
-        
-        // Clear auto-save data on successful submission
-        setTimeout(() => {
-            localStorage.removeItem(`autosave_${form.id || 'form'}`);
-        }, 1000);
-    }
-    
-    /**
-     * Setup scroll optimization
-     */
-    setupScrollOptimization() {
-        let scrollTimeout;
-        
-        // Bind methods to preserve 'this' context
-        const boundHandleScroll = this.handleScroll.bind(this);
-        const boundHandleScrollEnd = this.handleScrollEnd.bind(this);
-        
-        window.addEventListener('scroll', this.throttle(() => {
-            boundHandleScroll();
-        }, 16)); // ~60fps
-        
-        // Handle scroll end
-        window.addEventListener('scroll', () => {
-            clearTimeout(scrollTimeout);
-            scrollTimeout = setTimeout(() => {
-                boundHandleScrollEnd();
-            }, 150);
-        });
-    }
-    
-    /**
-     * Handle scroll events
-     */
-    handleScroll() {
-        // Update scroll position indicators
-        const scrollTop = window.pageYOffset;
-        const scrollHeight = document.documentElement.scrollHeight;
-        const clientHeight = window.innerHeight;
-        const scrollPercent = (scrollTop / (scrollHeight - clientHeight)) * 100;
-        
-        // Update progress indicators
-        document.querySelectorAll('.scroll-progress').forEach(indicator => {
-            indicator.style.width = `${scrollPercent}%`;
-        });
-    }
-    
-    /**
-     * Handle scroll end
-     */
-    handleScrollEnd() {
-        // Lazy load content that came into view
-        this.lazyLoadContent();
-    }
-    
-    /**
-     * Lazy load content that came into view
-     */
-    lazyLoadContent() {
-        // Find elements that need lazy loading
-        const lazyElements = document.querySelectorAll('[data-lazy-load]');
-        
-        lazyElements.forEach(element => {
-            const rect = element.getBoundingClientRect();
-            const isInViewport = rect.top < window.innerHeight && rect.bottom > 0;
-            
-            if (isInViewport && !element.dataset.loaded) {
-                this.loadElement(element);
-            }
-        });
-    }
-    
-    /**
-     * Load a specific lazy element
-     */
-    loadElement(element) {
-        const loadType = element.dataset.lazyLoad;
-        
-        switch (loadType) {
-            case 'image':
-                this.loadLazyImage(element);
-                break;
-            case 'content':
-                this.loadLazyContent(element);
-                break;
-            case 'script':
-                this.loadLazyScript(element);
-                break;
-            default:
-                this.loadGenericLazyElement(element);
-        }
-        
-        element.dataset.loaded = 'true';
-    }
-    
-    /**
-     * Load lazy image
-     */
-    loadLazyImage(element) {
-        if (element.dataset.src) {
-            element.src = element.dataset.src;
-            element.classList.remove('lazy');
-        }
-    }
-    
-    /**
-     * Load lazy content
-     */
-    loadLazyContent(element) {
-        if (element.dataset.src) {
-            fetch(element.dataset.src)
-                .then(response => response.text())
-                .then(html => {
-                    element.innerHTML = html;
-                    element.classList.remove('lazy');
-                })
-                .catch(error => {
-                    console.warn('Failed to load lazy content:', error);
-                });
-        }
-    }
-    
-    /**
-     * Load lazy script
-     */
-    loadLazyScript(element) {
-        if (element.dataset.src) {
-            const script = document.createElement('script');
-            script.src = element.dataset.src;
-            script.async = true;
-            element.appendChild(script);
-        }
-    }
-    
-    /**
-     * Load generic lazy element
-     */
-    loadGenericLazyElement(element) {
-        // Trigger any custom lazy loading logic
-        if (typeof element.onLazyLoad === 'function') {
-            element.onLazyLoad();
-        }
-    }
-    
-    /**
-     * Setup resize optimization
-     */
-    setupResizeOptimization() {
-        window.addEventListener('resize', this.debounce(() => {
-            this.handleResize();
-        }, 250));
-    }
-    
-    /**
-     * Handle resize events
-     */
-    handleResize() {
-        // Recalculate image sizes
-        this.optimizeImageSizes();
-        
-        // Update responsive elements
-        this.updateResponsiveElements();
-    }
-    
-    /**
-     * Update responsive elements
-     */
-    updateResponsiveElements() {
-        const viewportWidth = window.innerWidth;
-        
-        document.querySelectorAll('[data-responsive]').forEach(element => {
-            const breakpoints = JSON.parse(element.dataset.responsive);
-            const currentBreakpoint = this.getCurrentBreakpoint(breakpoints, viewportWidth);
-            
-            if (currentBreakpoint) {
-                element.className = currentBreakpoint.classes;
-            }
-        });
-    }
-    
-    /**
-     * Get current breakpoint
-     */
-    getCurrentBreakpoint(breakpoints, viewportWidth) {
-        const sortedBreakpoints = Object.keys(breakpoints)
-            .map(bp => parseInt(bp))
-            .sort((a, b) => a - b);
-        
-        for (let i = sortedBreakpoints.length - 1; i >= 0; i--) {
-            if (viewportWidth >= sortedBreakpoints[i]) {
-                return breakpoints[sortedBreakpoints[i]];
-            }
-        }
-        
-        return breakpoints[sortedBreakpoints[0]];
-    }
-    
-    /**
-     * Setup memory optimization
-     */
-    setupMemoryOptimization() {
-        // Clean up unused observers
-        setInterval(() => {
-            this.cleanupObservers();
-        }, 30000); // Every 30 seconds
-        
-        // Monitor memory usage
-        if ('memory' in performance) {
-            setInterval(() => {
-                this.monitorMemoryUsage();
-            }, 60000); // Every minute
-        }
-    }
-    
-    /**
-     * Clean up unused observers
-     */
-    cleanupObservers() {
-        this.observers.forEach((observer, key) => {
-            if (observer.targets.length === 0) {
-                observer.disconnect();
-                this.observers.delete(key);
-            }
-        });
-    }
-    
-    /**
-     * Monitor memory usage
-     */
-    monitorMemoryUsage() {
-        if ('memory' in performance) {
-            const memory = performance.memory;
-            const usedMB = memory.usedJSHeapSize / 1024 / 1024;
-            const totalMB = memory.totalJSHeapSize / 1024 / 1024;
-            
-            if (usedMB / totalMB > 0.8) {
-                console.warn('High memory usage detected:', {
-                    used: `${usedMB.toFixed(2)}MB`,
-                    total: `${totalMB.toFixed(2)}MB`,
-                    percentage: `${((usedMB / totalMB) * 100).toFixed(1)}%`
+                    });
                 });
                 
-                // Trigger garbage collection if available
-                if (window.gc) {
-                    window.gc();
+                document.querySelectorAll('img[data-src]').forEach(img => {
+                    observer.observe(img);
+                });
+            }
+        },
+        
+        setupScrollHandler: function() {
+            // Add scroll event listener with proper context binding
+            const self = this;
+            window.addEventListener('scroll', this.throttle(function() {
+                self.handleScrollEnd();
+            }, 100));
+        },
+        
+        debounce: function(func, wait) {
+            let timeout = null;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        },
+        
+        throttle: function(func, limit) {
+            let inThrottle = false;
+            return function() {
+                const args = arguments;
+                const context = this;
+                if (!inThrottle) {
+                    func.apply(context, args);
+                    inThrottle = true;
+                    setTimeout(() => inThrottle = false, limit);
                 }
-            }
+            };
+        },
+        
+        lazyLoadContent: function() {
+            // Lazy load content when scrolling
+            const contentElements = document.querySelectorAll('[data-lazy-content]');
+            contentElements.forEach(element => {
+                if (element.getBoundingClientRect().top < window.innerHeight) {
+                    const content = element.dataset.lazyContent;
+                    if (content) {
+                        // Use textContent for security - content should be pre-sanitized
+                        element.textContent = content;
+                        element.removeAttribute('data-lazy-content');
+                    }
+                }
+            });
+        },
+        
+        handleScrollEnd: function() {
+            // Lazy load content when scrolling
+            const contentElements = document.querySelectorAll('[data-lazy-content]');
+            contentElements.forEach(element => {
+                if (element.getBoundingClientRect().top < window.innerHeight) {
+                    const content = element.dataset.lazyContent;
+                    if (content) {
+                        // Use textContent for security - content should be pre-sanitized
+                        element.textContent = content;
+                        element.removeAttribute('data-lazy-content');
+                    }
+                }
+            });
         }
-    }
-    
-    /**
-     * Debounce function
-     */
-    debounce(func, wait) {
-        return (...args) => {
-            const key = func.toString();
-            clearTimeout(this.debounceTimers.get(key));
-            this.debounceTimers.set(key, setTimeout(() => func.apply(this, args), wait));
-        };
-    }
-    
-    /**
-     * Throttle function
-     */
-    throttle(func, limit) {
-        return (...args) => {
-            const key = func.toString();
-            if (!this.throttleTimers.has(key)) {
-                func.apply(this, args);
-                this.throttleTimers.set(key, setTimeout(() => {
-                    this.throttleTimers.delete(key);
-                }, limit));
-            }
-        };
-    }
-    
-    /**
-     * Cache function results
-     */
-    memoize(func, keyGenerator) {
-        return (...args) => {
-            const key = keyGenerator ? keyGenerator(...args) : JSON.stringify(args);
-            
-            if (this.cache.has(key)) {
-                return this.cache.get(key);
-            }
-            
-            const result = func.apply(this, args);
-            this.cache.set(key, result);
-            
-            // Limit cache size
-            if (this.cache.size > 100) {
-                const firstKey = this.cache.keys().next().value;
-                this.cache.delete(firstKey);
-            }
-            
-            return result;
-        };
-    }
-    
-    /**
-     * Preload critical resources
-     */
-    preloadCriticalResources() {
-        const criticalResources = [
-            '/static/css/tailwind.css',
-            '/static/core/css/style.css',
-            '/static/js/standardized-api-client.js',
-            '/static/js/unified-error-handler.js'
-        ];
-        
-        criticalResources.forEach(resource => {
-            const link = document.createElement('link');
-            link.rel = 'preload';
-            link.href = resource;
-            link.as = resource.endsWith('.css') ? 'style' : 'script';
-            document.head.appendChild(link);
-        });
-    }
-    
-    /**
-     * Optimize API calls
-     */
-    optimizeAPICalls() {
-        // Batch multiple API calls
-        const apiCallQueue = [];
-        let batchTimeout;
-        
-        const batchAPICalls = () => {
-            if (apiCallQueue.length > 0) {
-                // Process batched calls
-                this.processBatchedAPICalls(apiCallQueue.splice(0));
-            }
-        };
-        
-        // Override fetch to batch calls
-        const originalFetch = window.fetch;
-        window.fetch = (...args) => {
-            const url = args[0];
-            if (url.includes('/api/')) {
-                apiCallQueue.push(args);
-                clearTimeout(batchTimeout);
-                batchTimeout = setTimeout(batchAPICalls, 100);
-            }
-            return originalFetch.apply(this, args);
-        };
-    }
-    
-    /**
-     * Process batched API calls
-     */
-    processBatchedAPICalls(calls) {
-        // Group calls by endpoint
-        const groupedCalls = {};
-        calls.forEach(call => {
-            const url = call[0];
-            const endpoint = url.split('/api/')[1].split('/')[0];
-            if (!groupedCalls[endpoint]) {
-                groupedCalls[endpoint] = [];
-            }
-            groupedCalls[endpoint].push(call);
-        });
-        
-        // Process each group
-        Object.keys(groupedCalls).forEach(endpoint => {
-            this.processEndpointCalls(endpoint, groupedCalls[endpoint]);
-        });
-    }
-    
-    /**
-     * Process calls for a specific endpoint
-     */
-    processEndpointCalls(endpoint, calls) {
-        // For now, just execute calls normally
-        // This could be enhanced to batch similar calls
-        calls.forEach(call => {
-            fetch.apply(this, call);
-        });
-    }
-}
+    };
 
-// Create global instance
-window.PerformanceOptimizer = PerformanceOptimizer;
-window.performanceOptimizer = new PerformanceOptimizer();
+    // Initialize when DOM is ready
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function() {
+            PerformanceOptimizer.init();
+        });
+    } else {
+        PerformanceOptimizer.init();
+    }
 
-// Initialize when DOM is ready
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('✅ Performance Optimizer initialized');
-    
-    // Preload critical resources
-    window.performanceOptimizer.preloadCriticalResources();
-});
+    // Export to global scope
+    window.PerformanceOptimizer = PerformanceOptimizer;
+})();

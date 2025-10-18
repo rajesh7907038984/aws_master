@@ -23,7 +23,7 @@ def cleanup_scorm_topic_data(sender, instance, **kwargs):
             topic_id = instance.id
             topic_title = instance.title
             
-            logger.info(f"Starting SCORM cleanup for topic {topic_id}: {topic_title}")
+            logger.info("Starting SCORM cleanup for topic {{topic_id}}: {{topic_title}}")
             
             # 1. Delete all SCORM tracking records for this topic
             tracking_records = ELearningTracking.objects.filter(
@@ -32,7 +32,7 @@ def cleanup_scorm_topic_data(sender, instance, **kwargs):
             tracking_count = tracking_records.count()
             if tracking_count > 0:
                 tracking_records.delete()
-                logger.info(f"Deleted {tracking_count} SCORM tracking records for topic {topic_id}")
+                logger.info("Deleted {{tracking_count}} SCORM tracking records for topic {{topic_id}}")
             
             # 2. Delete SCORM package and clean up S3 files
             try:
@@ -41,14 +41,14 @@ def cleanup_scorm_topic_data(sender, instance, **kwargs):
                 cleanup_scorm_s3_files(scorm_package)
                 # Delete the package record
                 scorm_package.delete()
-                logger.info(f"Deleted SCORM package and S3 files for topic {topic_id}")
+                logger.info("Deleted SCORM package and S3 files for topic {{topic_id}}")
             except ELearningPackage.DoesNotExist:
-                logger.info(f"No SCORM package found for topic {topic_id}")
+                logger.info("No SCORM package found for topic {{topic_id}}")
             
-            logger.info(f"SCORM cleanup completed for topic {topic_id}")
+            logger.info("SCORM cleanup completed for topic {{topic_id}}")
             
     except Exception as e:
-        logger.error(f"Error during SCORM cleanup for topic {instance.id}: {str(e)}")
+        logger.error("Error during SCORM cleanup for topic {{instance.id}}: {{str(e)}}")
 
 @receiver(pre_delete, sender=Course)
 def cleanup_scorm_course_data(sender, instance, **kwargs):
@@ -61,7 +61,7 @@ def cleanup_scorm_course_data(sender, instance, **kwargs):
             course_id = instance.id
             course_title = instance.title
             
-            logger.info(f"Starting SCORM cleanup for course {course_id}: {course_title}")
+            logger.info("Starting SCORM cleanup for course {{course_id}}: {{course_title}}")
             
             # Get all topics in this course
             topics = Topic.objects.filter(coursetopic__course=instance)
@@ -74,7 +74,7 @@ def cleanup_scorm_course_data(sender, instance, **kwargs):
             tracking_count = tracking_records.count()
             if tracking_count > 0:
                 tracking_records.delete()
-                logger.info(f"Deleted {tracking_count} SCORM tracking records for course {course_id}")
+                logger.info("Deleted {{tracking_count}} SCORM tracking records for course {{course_id}}")
             
             # Delete SCORM packages and clean up S3 files for all topics
             scorm_packages = ELearningPackage.objects.filter(topic__in=topics)
@@ -82,10 +82,10 @@ def cleanup_scorm_course_data(sender, instance, **kwargs):
                 cleanup_scorm_s3_files(package)
             scorm_packages.delete()
             
-            logger.info(f"SCORM cleanup completed for course {course_id}")
+            logger.info("SCORM cleanup completed for course {{course_id}}")
             
     except Exception as e:
-        logger.error(f"Error during SCORM cleanup for course {instance.id}: {str(e)}")
+        logger.error("Error during SCORM cleanup for course {{instance.id}}: {{str(e)}}")
 
 def cleanup_scorm_s3_files(scorm_package):
     """
@@ -95,7 +95,7 @@ def cleanup_scorm_s3_files(scorm_package):
         if scorm_package.package_file:
             # Delete the main package file
             scorm_package.package_file.delete()
-            logger.info(f"Deleted SCORM package file: {scorm_package.package_file.name}")
+            logger.info("Deleted SCORM package file: {{scorm_package.package_file.name}}")
         
         if scorm_package.extracted_path:
             # Delete extracted content directory
@@ -109,22 +109,22 @@ def cleanup_scorm_s3_files(scorm_package):
                 
                 # Delete all files
                 for file in files:
-                    file_path = f"{scorm_package.extracted_path}/{file}"
+                    file_path = "{{scorm_package.extracted_path}}/{{file}}"
                     storage.delete(file_path)
-                    logger.info(f"Deleted SCORM extracted file: {file_path}")
+                    logger.info("Deleted SCORM extracted file: {{file_path}}")
                 
                 # Delete subdirectories recursively
                 for dir_name in dirs:
-                    dir_path = f"{scorm_package.extracted_path}/{dir_name}"
+                    dir_path = "{{scorm_package.extracted_path}}/{{dir_name}}"
                     cleanup_directory_recursive(storage, dir_path)
                 
-                logger.info(f"Cleaned up SCORM extracted directory: {scorm_package.extracted_path}")
+                logger.info("Cleaned up SCORM extracted directory: {{scorm_package.extracted_path}}")
                 
             except Exception as e:
-                logger.warning(f"Could not clean up extracted directory {scorm_package.extracted_path}: {str(e)}")
+                logger.warning("Could not clean up extracted directory {{scorm_package.extracted_path}}: {{str(e)}}")
         
     except Exception as e:
-        logger.error(f"Error cleaning up S3 files for SCORM package {scorm_package.id}: {str(e)}")
+        logger.error("Error cleaning up S3 files for SCORM package {{scorm_package.id}}: {{str(e)}}")
 
 def cleanup_directory_recursive(storage, dir_path):
     """
@@ -135,17 +135,17 @@ def cleanup_directory_recursive(storage, dir_path):
         
         # Delete all files in current directory
         for file in files:
-            file_path = f"{dir_path}/{file}"
+            file_path = "{{dir_path}}/{{file}}"
             storage.delete(file_path)
-            logger.info(f"Deleted file: {file_path}")
+            logger.info("Deleted file: {{file_path}}")
         
         # Recursively delete subdirectories
         for dir_name in dirs:
-            subdir_path = f"{dir_path}/{dir_name}"
+            subdir_path = "{{dir_path}}/{{dir_name}}"
             cleanup_directory_recursive(storage, subdir_path)
         
     except Exception as e:
-        logger.warning(f"Could not clean up directory {dir_path}: {str(e)}")
+        logger.warning("Could not clean up directory {{dir_path}}: {{str(e)}}")
 
 @receiver(post_delete, sender=ELearningPackage)
 def post_scorm_package_deletion(sender, instance, **kwargs):
@@ -154,13 +154,13 @@ def post_scorm_package_deletion(sender, instance, **kwargs):
     This runs after the SCORM package is deleted.
     """
     try:
-        logger.info(f"SCORM package {instance.id} deleted successfully")
+        logger.info("SCORM package {{instance.id}} deleted successfully")
         
         # Additional cleanup if needed
         # This could include clearing cache, updating search indexes, etc.
         
     except Exception as e:
-        logger.error(f"Error during post-deletion cleanup for SCORM package {instance.id}: {str(e)}")
+        logger.error("Error during post-deletion cleanup for SCORM package {{instance.id}}: {{str(e)}}")
 
 @receiver(post_delete, sender=ELearningTracking)
 def post_scorm_tracking_deletion(sender, instance, **kwargs):
@@ -169,10 +169,10 @@ def post_scorm_tracking_deletion(sender, instance, **kwargs):
     This runs after the tracking record is deleted.
     """
     try:
-        logger.info(f"SCORM tracking record for user {instance.user.id} and package {instance.elearning_package.id} deleted successfully")
+        logger.info("SCORM tracking record for user {{instance.user.id}} and package {{instance.elearning_package.id}} deleted successfully")
         
         # Additional cleanup if needed
         # This could include updating user progress, clearing cache, etc.
         
     except Exception as e:
-        logger.error(f"Error during post-deletion cleanup for SCORM tracking record: {str(e)}")
+        logger.error("Error during post-deletion cleanup for SCORM tracking record: {{str(e)}}")

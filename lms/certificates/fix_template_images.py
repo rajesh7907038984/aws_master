@@ -26,29 +26,29 @@ def fix_template_image(template_id, image_path=None):
     """Fix a template with missing S3 image"""
     try:
         template = CertificateTemplate.objects.get(id=template_id)
-        print(f"Found template: {template.name}")
+        print("Found template: {{template.name}}")
         
         # Check if image exists in S3
         if template.image:
             try:
                 exists = default_storage.exists(template.image.name)
-                print(f"Image exists in S3: {exists}")
+                print("Image exists in S3: {{exists}}")
                 if exists:
                     print(" Image already exists, no fix needed")
                     return True
             except Exception as e:
-                print(f"  Cannot check if image exists (expected with HeadObject permission issue): {str(e)}")
+                print("  Cannot check if image exists (expected with HeadObject permission issue): {{str(e)}}")
         
         # If we have a local image path, upload it
         if image_path and os.path.exists(image_path):
-            print(f"Uploading image from: {image_path}")
+            print("Uploading image from: {{image_path}}")
             
             with open(image_path, 'rb') as f:
                 image_content = f.read()
             
             # Generate S3 path
             filename = os.path.basename(image_path)
-            file_path = f"certificate_templates/{timezone.now().strftime('%Y/%m/%d')}/{filename}"
+            file_path = "certificate_templates/{{timezone.now().strftime('%Y/%m/%d')}}/{{filename}}"
             
             # Save directly to S3
             saved_path = default_storage.save(file_path, ContentFile(image_content))
@@ -64,8 +64,8 @@ def fix_template_image(template_id, image_path=None):
             # Refresh from database
             template.refresh_from_db()
             
-            print(f" Successfully uploaded image: {saved_path}")
-            print(f" Image URL: {template.get_image_url()}")
+            print(" Successfully uploaded image: {{saved_path}}")
+            print(" Image URL: {{template.get_image_url()}}")
             return True
             
         else:
@@ -84,7 +84,7 @@ def fix_template_image(template_id, image_path=None):
 </svg>"""
             
             # Save placeholder
-            file_path = f"certificate_templates/{timezone.now().strftime('%Y/%m/%d')}/placeholder_{template.id}.svg"
+            file_path = "certificate_templates/{{timezone.now().strftime('%Y/%m/%d')}}/placeholder_{{template.id}}.svg"
             saved_path = default_storage.save(file_path, ContentFile(placeholder_content.encode('utf-8')))
             
             # Update template - bypass model save to avoid HeadObject  
@@ -98,8 +98,8 @@ def fix_template_image(template_id, image_path=None):
             # Refresh from database
             template.refresh_from_db()
             
-            print(f" Created placeholder image: {saved_path}")
-            print(f" Image URL: {template.get_image_url()}")
+            print(" Created placeholder image: {{saved_path}}")
+            print(" Image URL: {{template.get_image_url()}}")
             return True
             
     except Exception as e:
@@ -111,11 +111,11 @@ if __name__ == "__main__":
     
     # Find templates with potential missing images
     templates = CertificateTemplate.objects.filter(image__isnull=False)
-    print(f"Found {templates.count()} templates with images:")
+    print("Found {{templates.count()}} templates with images:")
     
     for template in templates:
-        print(f"- ID {template.id}: {template.name}")
-        print(f"  Image: {template.image.name}")
+        print("- ID {{template.id}}: {{template.name}}")
+        print("  Image: {{template.image.name}}")
         
         # Try to check if exists (will likely fail with HeadObject error)
         try:
@@ -124,7 +124,7 @@ if __name__ == "__main__":
         except Exception:
             status = "  UNKNOWN (HeadObject permission issue)"
         
-        print(f"  Status: {status}")
+        print("  Status: {{status}}")
         print()
     
     # Fix the wdfw template specifically
@@ -133,8 +133,8 @@ if __name__ == "__main__":
     if wdfw_template:
         success = fix_template_image(wdfw_template.id)
         if success:
-            print(f" Fixed template '{wdfw_template.name}'")
+            print(" Fixed template '{{wdfw_template.name}}'")
         else:
-            print(f" Failed to fix template '{wdfw_template.name}'")
+            print(" Failed to fix template '{{wdfw_template.name}}'")
     else:
         print(" 'wdfw' template not found")

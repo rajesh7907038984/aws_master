@@ -59,7 +59,7 @@ class LRSBaseView(View):
             else:
                 return False, "Invalid credentials"
         except Exception as e:
-            return False, f"Authentication error: {str(e)}"
+            return False, "Authentication error: {{str(e)}}"
     
     def _authenticate_api_key(self, api_key):
         """Authenticate using API Key"""
@@ -173,7 +173,7 @@ class StatementsView(LRSBaseView):
         except json.JSONDecodeError:
             return JsonResponse({'error': 'Invalid JSON'}, status=400)
         except Exception as e:
-            logger.error(f"Error storing statement: {str(e)}")
+            logger.error("Error storing statement: {{str(e)}}")
             return JsonResponse({'error': str(e)}, status=500)
     
     def put(self, request):
@@ -202,7 +202,7 @@ class StatementsView(LRSBaseView):
         except json.JSONDecodeError:
             return JsonResponse({'error': 'Invalid JSON'}, status=400)
         except Exception as e:
-            logger.error(f"Error storing statement: {str(e)}")
+            logger.error("Error storing statement: {{str(e)}}")
             return JsonResponse({'error': str(e)}, status=500)
     
     def _filter_by_agent(self, queryset, agent_data):
@@ -714,11 +714,11 @@ class CMI5LaunchView(LRSBaseView):
             # Build launch URL with parameters
             launch_url = registration.launch_url
             params = {
-                'endpoint': f"{request.scheme}://{request.get_host()}/lrs/xapi/",
-                'fetch': f"{request.scheme}://{request.get_host()}/lrs/xapi/activities/state",
+                'endpoint': "{{request.scheme}}://{{request.get_host()}}/lrs/xapi/",
+                'fetch': "{{request.scheme}}://{{request.get_host()}}/lrs/xapi/activities/state",
                 'actor': json.dumps({
                     'account': {
-                        'homePage': f"{request.scheme}://{request.get_host()}/",
+                        'homePage': "{{request.scheme}}://{{request.get_host()}}/",
                         'name': str(registration.learner.id)
                     }
                 }),
@@ -738,7 +738,7 @@ class CMI5LaunchView(LRSBaseView):
         except CMI5Registration.DoesNotExist:
             return JsonResponse({'error': 'Invalid launch token'}, status=404)
         except Exception as e:
-            logger.error(f"Error launching cmi5 AU: {str(e)}")
+            logger.error("Error launching cmi5 AU: {{str(e)}}")
             return JsonResponse({'error': str(e)}, status=500)
 
 
@@ -807,7 +807,7 @@ class SCORM2004SequencingView(LRSBaseView):
             })
             
         except Exception as e:
-            logger.error(f"Error updating sequencing rules: {str(e)}")
+            logger.error("Error updating sequencing rules: {{str(e)}}")
             return JsonResponse({'error': str(e)}, status=500)
     
     def put(self, request, activity_id):
@@ -830,7 +830,7 @@ class SCORM2004SequencingView(LRSBaseView):
                 return JsonResponse({
                     'result': 'true',
                     'sequencing_result': result,
-                    'message': f'Sequencing action {action} processed successfully'
+                    'message': "Sequencing action {{action}} processed successfully"
                 })
             else:
                 return JsonResponse({
@@ -840,5 +840,5 @@ class SCORM2004SequencingView(LRSBaseView):
                 }, status=400)
                 
         except Exception as e:
-            logger.error(f"Error processing sequencing action: {str(e)}")
+            logger.error("Error processing sequencing action: {{str(e)}}")
             return JsonResponse({'error': str(e)}, status=500)

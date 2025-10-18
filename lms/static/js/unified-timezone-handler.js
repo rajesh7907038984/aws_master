@@ -34,18 +34,27 @@ if (typeof console === 'undefined') {
         },
         
         setupTimezoneDisplay: function() {
-            // Convert timestamps on page if needed
-            const timestamps = document.querySelectorAll('[data-timestamp]');
-            timestamps.forEach(element => {
-                const timestamp = element.getAttribute('data-timestamp');
-                if (timestamp) {
+            try {
+                // Convert timestamps on page if needed
+                const timestamps = document.querySelectorAll('[data-timestamp]');
+                timestamps.forEach(element => {
                     try {
-                        const date = new Date(parseInt(timestamp) * 1000);
-                        element.textContent = date.toLocaleString();
+                        const timestamp = element.getAttribute('data-timestamp');
+                        if (timestamp) {
+                            try {
+                                const date = new Date(parseInt(timestamp) * 1000);
+                                element.textContent = date.toLocaleString();
+                            } catch (error) {
+                                console.error('Error converting timestamp:', error);
+                            }
+                        }
                     } catch (error) {
+                        console.error('Error processing timestamp element:', error);
                     }
-                }
-            });
+                });
+            } catch (error) {
+                console.error('Error setting up timezone display:', error);
+            }
         },
         
         formatDate: function(date, format = 'full') {

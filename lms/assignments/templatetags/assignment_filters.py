@@ -60,11 +60,11 @@ def format_duration(seconds):
         remaining_seconds = seconds % 60
         
         if hours > 0:
-            return f"{hours}h {minutes}m {remaining_seconds}s"
+            return "{{hours}}h {{minutes}}m {{remaining_seconds}}s"
         elif minutes > 0:
-            return f"{minutes}m {remaining_seconds}s"
+            return "{{minutes}}m {{remaining_seconds}}s"
         else:
-            return f"{remaining_seconds}s"
+            return "{{remaining_seconds}}s"
     except (TypeError, ValueError):
         return "0s"
 
@@ -100,9 +100,9 @@ def format_file_size(size_bytes):
         size_bytes = int(size_bytes)
         for unit in ['B', 'KB', 'MB', 'GB']:
             if size_bytes < 1024.0:
-                return f"{size_bytes:.1f} {unit}"
+                return "{{size_bytes:.1f}} {{unit}}"
             size_bytes /= 1024.0
-        return f"{size_bytes:.1f} TB"
+        return "{{size_bytes:.1f}} TB"
     except (TypeError, ValueError):
         return "0 B"
 
@@ -245,13 +245,13 @@ def time_since_interaction(interaction_datetime):
         diff = now - interaction_datetime
         
         if diff.days > 0:
-            return f"{diff.days} day{'s' if diff.days != 1 else ''} ago"
+            return "{{diff.days}} day{{'s' if diff.days != 1 else ''}} ago"
         elif diff.seconds > 3600:
             hours = diff.seconds // 3600
-            return f"{hours} hour{'s' if hours != 1 else ''} ago"
+            return "{{hours}} hour{{'s' if hours != 1 else ''}} ago"
         elif diff.seconds > 60:
             minutes = diff.seconds // 60
-            return f"{minutes} minute{'s' if minutes != 1 else ''} ago"
+            return "{{minutes}} minute{{'s' if minutes != 1 else ''}} ago"
         else:
             return "Just now"
     except (TypeError, AttributeError):

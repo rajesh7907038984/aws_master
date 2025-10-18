@@ -3,11 +3,8 @@
  * Manages the course title field functionality
  */
 
-// Import field-specific CSS
-import '../../css/form_fields/title_field.css';
-
 // Initialization function
-export function init() {
+function init() {
   const titleField = document.querySelector('#id_title');
   if (!titleField) return;
 
@@ -39,11 +36,17 @@ export function init() {
 }
 
 // Validate the title field
-export function validate(titleField) {
+function validate(titleField) {
   if (!titleField) return true;
   
   return titleField.value.trim().length > 0;
 }
+
+// Export functions to global scope
+window.TitleFieldHandler = {
+    init: init,
+    validate: validate
+};
 
 // Auto-initialize if this script is loaded directly
 if (document.readyState === 'loading') {

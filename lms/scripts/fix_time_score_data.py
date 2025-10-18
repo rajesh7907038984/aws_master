@@ -39,10 +39,10 @@ class DataRepairService:
         # Fix negative time values
         negative_time_records = TopicProgress.objects.filter(total_time_spent__lt=0)
         if negative_time_records.exists():
-            print(f"  Found {negative_time_records.count()} records with negative time")
+            print("  Found {{negative_time_records.count()}} records with negative time")
             negative_time_records.update(total_time_spent=0)
             self.fixed_records += negative_time_records.count()
-            print(f"  ✅ Fixed {negative_time_records.count()} negative time records")
+            print("  ✅ Fixed {{negative_time_records.count()}} negative time records")
         
         # Fix null time values for accessed records
         null_time_accessed = TopicProgress.objects.filter(
@@ -51,11 +51,11 @@ class DataRepairService:
         ).exclude(last_accessed=F('first_accessed'))
         
         if null_time_accessed.exists():
-            print(f"  Found {null_time_accessed.count()} accessed records with zero time")
+            print("  Found {{null_time_accessed.count()}} accessed records with zero time")
             # Set minimum time for accessed records (1 minute)
             null_time_accessed.update(total_time_spent=60)
             self.fixed_records += null_time_accessed.count()
-            print(f"  ✅ Set minimum time for {null_time_accessed.count()} accessed records")
+            print("  ✅ Set minimum time for {{null_time_accessed.count()}} accessed records")
     
     def fix_score_data(self):
         """Fix score data inconsistencies"""
@@ -67,7 +67,7 @@ class DataRepairService:
         ).exclude(last_score__lte=100)
         
         if invalid_scores.exists():
-            print(f"  Found {invalid_scores.count()} records with invalid scores")
+            print("  Found {{invalid_scores.count()}} records with invalid scores")
             for record in invalid_scores:
                 try:
                     normalized_score = ScoreCalculationService.normalize_score(record.last_score)
@@ -76,8 +76,8 @@ class DataRepairService:
                         record.save()
                         self.fixed_records += 1
                 except Exception as e:
-                    self.errors.append(f"Error fixing score for record {record.id}: {e}")
-            print(f"  ✅ Fixed {invalid_scores.count()} invalid score records")
+                    self.errors.append("Error fixing score for record {{record.id}}: {{e}}")
+            print("  ✅ Fixed {{invalid_scores.count()}} invalid score records")
         
         # Fix null scores for completed records
         completed_null_scores = TopicProgress.objects.filter(
@@ -86,11 +86,11 @@ class DataRepairService:
         )
         
         if completed_null_scores.exists():
-            print(f"  Found {completed_null_scores.count()} completed records with null scores")
+            print("  Found {{completed_null_scores.count()}} completed records with null scores")
             # Set default score for completed records
             completed_null_scores.update(last_score=Decimal('0.00'))
             self.fixed_records += completed_null_scores.count()
-            print(f"  ✅ Set default scores for {completed_null_scores.count()} completed records")
+            print("  ✅ Set default scores for {{completed_null_scores.count()}} completed records")
     
     def recalculate_course_scores(self):
         """Recalculate course scores based on topic progress"""
@@ -127,7 +127,7 @@ class DataRepairService:
                         enrollment.save()
                         self.fixed_records += 1
         
-        print(f"  ✅ Recalculated scores for {users_with_courses.count()} users")
+        print("  ✅ Recalculated scores for {{users_with_courses.count()}} users")
     
     def add_missing_progress_records(self):
         """Add missing TopicProgress records for enrolled courses"""
@@ -158,11 +158,11 @@ class DataRepairService:
                     )
         
         if missing_records:
-            print(f"  Found {len(missing_records)} missing progress records")
+            print("  Found {{len(missing_records)}} missing progress records")
             with transaction.atomic():
                 TopicProgress.objects.bulk_create(missing_records, ignore_conflicts=True)
                 self.fixed_records += len(missing_records)
-                print(f"  ✅ Created {len(missing_records)} missing progress records")
+                print("  ✅ Created {{len(missing_records)}} missing progress records")
     
     def validate_data_consistency(self):
         """Validate data consistency after fixes"""
@@ -178,9 +178,9 @@ class DataRepairService:
             last_score__isnull=True
         ).exclude(last_score__gte=0).exclude(last_score__lte=100).count()
         
-        print(f"  Remaining negative time records: {negative_time}")
-        print(f"  Remaining completed records with null scores: {null_scores_completed}")
-        print(f"  Remaining invalid scores: {invalid_scores}")
+        print("  Remaining negative time records: {{negative_time}}")
+        print("  Remaining completed records with null scores: {{null_scores_completed}}")
+        print("  Remaining invalid scores: {{invalid_scores}}")
         
         if negative_time == 0 and null_scores_completed == 0 and invalid_scores == 0:
             print("  ✅ All data consistency issues resolved!")
@@ -205,14 +205,14 @@ class DataRepairService:
                 is_consistent = self.validate_data_consistency()
                 
                 print("=" * 50)
-                print(f"📊 Repair Summary:")
-                print(f"  Records fixed: {self.fixed_records}")
-                print(f"  Errors encountered: {len(self.errors)}")
+                print("📊 Repair Summary:")
+                print("  Records fixed: {{self.fixed_records}}")
+                print("  Errors encountered: {{len(self.errors)}}")
                 
                 if self.errors:
                     print("  Errors:")
                     for error in self.errors:
-                        print(f"    - {error}")
+                        print("    - {{error}}")
                 
                 if is_consistent:
                     print("  ✅ Data repair completed successfully!")
@@ -222,7 +222,7 @@ class DataRepairService:
                 return True
                 
         except Exception as e:
-            print(f"❌ Data repair failed: {e}")
+            print("❌ Data repair failed: {{e}}")
             self.errors.append(str(e))
             return False
 

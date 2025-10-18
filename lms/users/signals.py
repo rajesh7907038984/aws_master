@@ -25,7 +25,7 @@ def send_welcome_email(sender, instance, created, **kwargs):
             from lms_notifications.utils import send_notification
             
             # Prepare welcome message
-            welcome_message = f"""
+            welcome_message = """
             <h2>Welcome to our Learning Management System!</h2>
             <p>Dear {instance.first_name or instance.username},</p>
             <p>Your account has been successfully created. We're excited to have you join our learning community!</p>
@@ -34,7 +34,7 @@ def send_welcome_email(sender, instance, created, **kwargs):
                 <li>Username: {instance.username}</li>
                 <li>Email: {instance.email}</li>
                 <li>Role: {instance.get_role_display()}</li>
-                {f'<li>Branch: {instance.branch.name}</li>' if instance.branch else ''}
+                {"<li>Branch: {{instance.branch.name}}</li>" if instance.branch else ''}
             </ul>
             <p>You can now log in and start exploring the platform.</p>
             <p>If you have any questions, please don't hesitate to contact our support team.</p>
@@ -45,9 +45,9 @@ def send_welcome_email(sender, instance, created, **kwargs):
             notification = send_notification(
                 recipient=instance,
                 notification_type_name='welcome_mail',
-                title=f"Welcome to LMS, {instance.first_name or instance.username}!",
+                title="Welcome to LMS, {{instance.first_name or instance.username}}!",
                 message=welcome_message,
-                short_message=f"Welcome to our Learning Management System! Your account has been successfully created.",
+                short_message="Welcome to our Learning Management System! Your account has been successfully created.",
                 priority='normal',
                 action_url=reverse('users:role_based_redirect'),
                 action_text="Go to Dashboard",
@@ -55,10 +55,10 @@ def send_welcome_email(sender, instance, created, **kwargs):
             )
             
             if notification:
-                logger.info(f"Welcome email sent to new user: {instance.username}")
+                logger.info("Welcome email sent to new user: {{instance.username}}")
             else:
-                logger.warning(f"Welcome notification created but email may not have been sent for user: {instance.username}")
+                logger.warning("Welcome notification created but email may not have been sent for user: {{instance.username}}")
                 
         except Exception as e:
-            logger.error(f"Error sending welcome email to {instance.username}: {str(e)}")
+            logger.error("Error sending welcome email to {{instance.username}}: {{str(e)}}")
 

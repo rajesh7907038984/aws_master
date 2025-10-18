@@ -33,7 +33,7 @@ def display_name(user):
         return "Anonymous User"
     
     if user.first_name and user.last_name:
-        return f"{user.first_name} {user.last_name}"
+        return "{{user.first_name}} {{user.last_name}}"
     elif user.first_name:
         return user.first_name
     else:
@@ -53,13 +53,13 @@ def user_activity_summary(user):
         completed_courses = [course for course in enrolled_courses if getattr(course, 'completed', False)]
         
         return mark_safe(
-            f"<div class='user-activity-summary'>"
-            f"<p><strong>Enrolled Courses:</strong> {len(enrolled_courses)}</p>"
-            f"<p><strong>Completed Courses:</strong> {len(completed_courses)}</p>"
-            f"</div>"
+            "<div class='user-activity-summary'>"
+            "<p><strong>Enrolled Courses:</strong> {{len(enrolled_courses)}}</p>"
+            "<p><strong>Completed Courses:</strong> {{len(completed_courses)}}</p>"
+            "</div>"
         )
     except Exception as e:
-        return mark_safe(f"<span>Error retrieving activity data: {escape(str(e))}</span>")
+        return mark_safe("<span>Error retrieving activity data: {{escape(str(e))}}</span>")
 
 @register.inclusion_tag('users/tags/profile_avatar.html')
 def profile_avatar(user, size='md'):

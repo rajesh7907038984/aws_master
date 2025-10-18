@@ -7,7 +7,8 @@ from django.contrib.auth.models import AnonymousUser
 from .models import BranchGroup, GroupMemberRole, GroupMembership, CourseGroupAccess
 from courses.models import Course
 from django import forms
-from users.models import CustomUser, Branch
+from users.models import CustomUser
+from branches.models import Branch
 
 class GroupMemberRoleInline(admin.TabularInline):
     model = GroupMemberRole

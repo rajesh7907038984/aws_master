@@ -19,16 +19,24 @@ function handleOtherFieldVisibility() {
     
     if (sexField && sexOtherContainer) {
         sexField.addEventListener('change', function() {
-            if (this.value === 'other') {
-                sexOtherContainer.style.display = 'block';
-            } else {
-                sexOtherContainer.style.display = 'none';
+            try {
+                if (this.value === 'other') {
+                    sexOtherContainer.style.display = 'block';
+                } else {
+                    sexOtherContainer.style.display = 'none';
+                }
+            } catch (error) {
+                console.error('Error handling sex field change:', error);
             }
         });
         
         // Check initial state
-        if (sexField.value === 'other') {
-            sexOtherContainer.style.display = 'block';
+        try {
+            if (sexField.value === 'other') {
+                sexOtherContainer.style.display = 'block';
+            }
+        } catch (error) {
+            console.error('Error checking initial sex field state:', error);
         }
     }
     
@@ -38,16 +46,24 @@ function handleOtherFieldVisibility() {
     
     if (orientationField && orientationOtherContainer) {
         orientationField.addEventListener('change', function() {
-            if (this.value === 'other') {
-                orientationOtherContainer.style.display = 'block';
-            } else {
-                orientationOtherContainer.style.display = 'none';
+            try {
+                if (this.value === 'other') {
+                    orientationOtherContainer.style.display = 'block';
+                } else {
+                    orientationOtherContainer.style.display = 'none';
+                }
+            } catch (error) {
+                console.error('Error handling orientation field change:', error);
             }
         });
         
         // Check initial state  
-        if (orientationField.value === 'other') {
-            orientationOtherContainer.style.display = 'block';
+        try {
+            if (orientationField.value === 'other') {
+                orientationOtherContainer.style.display = 'block';
+            }
+        } catch (error) {
+            console.error('Error checking initial orientation field state:', error);
         }
     }
     
@@ -57,16 +73,24 @@ function handleOtherFieldVisibility() {
     
     if (ethnicityField && ethnicityOtherContainer) {
         ethnicityField.addEventListener('change', function() {
-            if (this.value === 'other') {
-                ethnicityOtherContainer.style.display = 'block';
-            } else {
-                ethnicityOtherContainer.style.display = 'none';
+            try {
+                if (this.value === 'other') {
+                    ethnicityOtherContainer.style.display = 'block';
+                } else {
+                    ethnicityOtherContainer.style.display = 'none';
+                }
+            } catch (error) {
+                console.error('Error handling ethnicity field change:', error);
             }
         });
         
         // Check initial state
-        if (ethnicityField.value === 'other') {
-            ethnicityOtherContainer.style.display = 'block';
+        try {
+            if (ethnicityField.value === 'other') {
+                ethnicityOtherContainer.style.display = 'block';
+            }
+        } catch (error) {
+            console.error('Error checking initial ethnicity field state:', error);
         }
     }
 }
@@ -77,15 +101,18 @@ function handleFileInputs() {
     
     fileInputs.forEach(input => {
         input.addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            const fileName = file ? file.name : 'No file chosen';
-            
-            // Find the corresponding file name display element
-            const fileNameElement = input.parentNode.parentNode.querySelector('.file-name');
-            if (fileNameElement) {
-                fileNameElement.textContent = fileName;
+            try {
+                const file = e.target.files[0];
+                const fileName = file ? file.name : 'No file chosen';
+                
+                // Find the corresponding file name display element
+                const fileNameElement = input.parentNode.parentNode.querySelector('.file-name');
+                if (fileNameElement) {
+                    fileNameElement.textContent = fileName;
+                }
+            } catch (error) {
+                console.error('Error handling file input change:', error);
             }
-            
         });
     });
 } 

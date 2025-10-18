@@ -178,7 +178,7 @@ class Discussion(models.Model):
 
     def __str__(self):
         if self.course:
-            return f"{self.title} - {self.course.title}"
+            return "{{self.title}} - {{self.course.title}}"
         return self.title
     
     class Meta:
@@ -190,11 +190,11 @@ class Comment(models.Model):
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='discussion_comments')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    parent = models.ForeignKey('self', null=True, blank=True, on_delete=models.CASCADE, related_name='replies')
+    parent = models.ForeignKey('self', null=True, blank=True, on_delete=models.CASCADE, related_name="replies")
     likes = models.ManyToManyField(settings.AUTH_USER_MODEL, related_name='liked_comments', blank=True)
     
     def __str__(self):
-        return f"Comment by {self.created_by.username} on {self.discussion.title}"
+        return "Comment by {{self.created_by.username}} on {{self.discussion.title}}"
     
     class Meta:
         ordering = ['created_at']
@@ -215,7 +215,7 @@ class Attachment(models.Model):
     uploaded_at = models.DateTimeField(auto_now_add=True)
     
     def __str__(self):
-        return f"Attachment for {self.discussion or self.comment}"
+        return "Attachment for {{self.discussion or self.comment}}"
 
     def delete(self, *args, **kwargs):
         """Enhanced delete method with S3 cleanup for discussion attachments."""
@@ -223,15 +223,15 @@ class Attachment(models.Model):
         logger = logging.getLogger(__name__)
         
         try:
-            logger.info(f"Starting deletion for Attachment ID: {self.id}")
+            logger.info("Starting deletion for Attachment ID: {{self.id}}")
             
             # Delete attachment file
             if self.file:
                 try:
                     self.file.delete(save=False)
-                    logger.info(f"Deleted discussion attachment: {self.file.name}")
+                    logger.info("Deleted discussion attachment: {{self.file.name}}")
                 except Exception as e:
-                    logger.error(f"Error deleting discussion attachment: {e}")
+                    logger.error("Error deleting discussion attachment: {{e}}")
             
             # S3 cleanup
             try:
@@ -240,14 +240,14 @@ class Attachment(models.Model):
                 successful_s3_deletions = sum(1 for success in s3_results.values() if success)
                 total_s3_files = len(s3_results)
                 if total_s3_files > 0:
-                    logger.info(f"S3 cleanup: {successful_s3_deletions}/{total_s3_files} discussion attachment files deleted successfully")
+                    logger.info("S3 cleanup: {{successful_s3_deletions}}/{{total_s3_files}} discussion attachment files deleted successfully")
             except Exception as e:
-                logger.error(f"Error during S3 cleanup for discussion attachment {self.id}: {str(e)}")
+                logger.error("Error during S3 cleanup for discussion attachment {{self.id}}: {{str(e)}}")
             
             # Call parent delete to remove the database record
             super().delete(*args, **kwargs)
-            logger.info(f"Successfully completed deletion for Attachment ID: {self.id}")
+            logger.info("Successfully completed deletion for Attachment ID: {{self.id}}")
             
         except Exception as e:
-            logger.error(f"Error in Attachment.delete(): {str(e)}")
+            logger.error("Error in Attachment.delete(): {{str(e)}}")
             raise

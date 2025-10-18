@@ -39,7 +39,7 @@ def is_celery_available():
                 import urllib.parse
                 parsed = urllib.parse.urlparse(redis_url)
                 redis_client = redis.Redis(
-                    host=parsed.hostname or '127.0.0.1'  # Redis fallback,
+                    host=parsed.hostname or '127.0.0.1',  # Redis fallback
                     port=parsed.port or 6379,
                     db=int(parsed.path.lstrip('/')) if parsed.path and parsed.path != '/' else 0
                 )

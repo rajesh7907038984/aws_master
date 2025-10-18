@@ -80,7 +80,7 @@ class Migration(migrations.Migration):
                     ),
                 ),
                 (
-                    "is_staff",
+                    "is_sta",
                     models.BooleanField(
                         default=False,
                         help_text="Designates whether the user can log into this admin site.",

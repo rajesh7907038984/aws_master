@@ -39,11 +39,11 @@ def sync_sharepoint_data(self, integration_id, sync_type='all', direction='to_sh
         # Get integration
         integration = SharePointIntegration.objects.get(id=integration_id)
         
-        logger.info(f"Starting async SharePoint sync for integration {integration.name}")
+        logger.info("Starting async SharePoint sync for integration {{integration.name}}")
         
         # Check if integration is active
         if not integration.is_active:
-            logger.warning(f"SharePoint integration {integration.name} is not active")
+            logger.warning("SharePoint integration {{integration.name}} is not active")
             return {
                 'success': False,
                 'message': 'Integration is not active'
@@ -101,21 +101,21 @@ def sync_sharepoint_data(self, integration_id, sync_type='all', direction='to_sh
         
         results['success'] = results['errors'] == 0
         
-        logger.info(f"SharePoint sync completed for integration {integration.name}: {results}")
+        logger.info("SharePoint sync completed for integration {{integration.name}}: {{results}}")
         
         return results
         
     except Exception as exc:
-        logger.error(f"SharePoint sync task failed: {str(exc)}")
+        logger.error("SharePoint sync task failed: {{str(exc)}}")
         
         # Retry the task if we haven't exceeded max retries
         if self.request.retries < self.max_retries:
-            logger.info(f"Retrying SharePoint sync task in 60 seconds (attempt {self.request.retries + 1})")
+            logger.info("Retrying SharePoint sync task in 60 seconds (attempt {{self.request.retries + 1}})")
             raise self.retry(countdown=60, exc=exc)
         
         return {
             'success': False,
-            'message': f'Task failed after {self.max_retries} retries: {str(exc)}'
+            'message': "Task failed after {{self.max_retries}} retries: {{str(exc)}}"
         }
 
 
@@ -140,18 +140,18 @@ def sync_user_data_to_sharepoint(integration_id, user_id=None):
         
         if user_id:
             # Sync specific user (would need additional implementation)
-            logger.info(f"Syncing specific user {user_id} to SharePoint")
+            logger.info("Syncing specific user {{user_id}} to SharePoint")
             # This would require modifying the service to handle single user sync
             results = user_service.sync_users_to_sharepoint()
         else:
             # Sync all users
             results = user_service.sync_users_to_sharepoint()
         
-        logger.info(f"User sync to SharePoint completed: {results}")
+        logger.info("User sync to SharePoint completed: {{results}}")
         return results
         
     except Exception as e:
-        logger.error(f"User sync task failed: {str(e)}")
+        logger.error("User sync task failed: {{str(e)}}")
         return {'success': False, 'message': str(e)}
 
 
@@ -175,11 +175,11 @@ def sync_enrollment_data_to_sharepoint(integration_id, course_id=None):
         enrollment_service = EnrollmentSyncService(integration)
         results = enrollment_service.sync_enrollments_to_sharepoint()
         
-        logger.info(f"Enrollment sync to SharePoint completed: {results}")
+        logger.info("Enrollment sync to SharePoint completed: {{results}}")
         return results
         
     except Exception as e:
-        logger.error(f"Enrollment sync task failed: {str(e)}")
+        logger.error("Enrollment sync task failed: {{str(e)}}")
         return {'success': False, 'message': str(e)}
 
 
@@ -202,11 +202,11 @@ def sync_progress_data_to_sharepoint(integration_id):
         progress_service = ProgressSyncService(integration)
         results = progress_service.sync_progress_to_sharepoint()
         
-        logger.info(f"Progress sync to SharePoint completed: {results}")
+        logger.info("Progress sync to SharePoint completed: {{results}}")
         return results
         
     except Exception as e:
-        logger.error(f"Progress sync task failed: {str(e)}")
+        logger.error("Progress sync task failed: {{str(e)}}")
         return {'success': False, 'message': str(e)}
 
 
@@ -229,11 +229,11 @@ def sync_certificates_to_sharepoint(integration_id):
         cert_service = CertificateSyncService(integration)
         results = cert_service.sync_certificates_to_sharepoint()
         
-        logger.info(f"Certificate sync to SharePoint completed: {results}")
+        logger.info("Certificate sync to SharePoint completed: {{results}}")
         return results
         
     except Exception as e:
-        logger.error(f"Certificate sync task failed: {str(e)}")
+        logger.error("Certificate sync task failed: {{str(e)}}")
         return {'success': False, 'message': str(e)}
 
 
@@ -256,11 +256,11 @@ def sync_reports_to_powerbi(integration_id):
         reports_service = ReportsSyncService(integration)
         results = reports_service.sync_reports_to_powerbi()
         
-        logger.info(f"Reports sync to Power BI completed: {results}")
+        logger.info("Reports sync to Power BI completed: {{results}}")
         return results
         
     except Exception as e:
-        logger.error(f"Reports sync task failed: {str(e)}")
+        logger.error("Reports sync task failed: {{str(e)}}")
         return {'success': False, 'message': str(e)}
 
 
@@ -313,7 +313,7 @@ def scheduled_sharepoint_sync():
                     'status': 'started'
                 })
                 
-                logger.info(f"Started scheduled sync for integration {integration.name}")
+                logger.info("Started scheduled sync for integration {{integration.name}}")
                 
             except Exception as e:
                 results['failed'] += 1
@@ -324,13 +324,13 @@ def scheduled_sharepoint_sync():
                     'status': 'failed'
                 })
                 
-                logger.error(f"Failed to start scheduled sync for integration {integration.name}: {str(e)}")
+                logger.error("Failed to start scheduled sync for integration {{integration.name}}: {{str(e)}}")
         
-        logger.info(f"Scheduled SharePoint sync completed: {results}")
+        logger.info("Scheduled SharePoint sync completed: {{results}}")
         return results
         
     except Exception as e:
-        logger.error(f"Scheduled SharePoint sync failed: {str(e)}")
+        logger.error("Scheduled SharePoint sync failed: {{str(e)}}")
         return {'success': False, 'message': str(e)}
 
 
@@ -355,23 +355,23 @@ def monitor_sharepoint_changes(self, integration_id=None):
             monitor = SharePointChangeMonitor(integration)
             results = monitor.start_monitoring()
             
-            logger.info(f"SharePoint monitoring completed for {integration.name}: {results}")
+            logger.info("SharePoint monitoring completed for {{integration.name}}: {{results}}")
             return results
         else:
             # Monitor all active integrations
             results = start_sharepoint_monitoring()
-            logger.info(f"SharePoint monitoring completed for all integrations: {results}")
+            logger.info("SharePoint monitoring completed for all integrations: {{results}}")
             return results
             
     except Exception as exc:
-        logger.error(f"SharePoint monitoring task failed: {str(exc)}")
+        logger.error("SharePoint monitoring task failed: {{str(exc)}}")
         
         # Retry the task if we haven't exceeded max retries
         if self.request.retries < self.max_retries:
-            logger.info(f"Retrying SharePoint monitoring task in {30 * (2 ** self.request.retries)} seconds")
+            logger.info("Retrying SharePoint monitoring task in {{30 * (2 ** self.request.retries)}} seconds")
             raise self.retry(countdown=30 * (2 ** self.request.retries), exc=exc)
         
-        return {'success': False, 'message': f'Monitoring failed after {self.max_retries} retries: {str(exc)}'}
+        return {'success': False, 'message': "Monitoring failed after {{self.max_retries}} retries: {{str(exc)}}"}
 
 
 @shared_task(bind=True, max_retries=3)
@@ -419,28 +419,28 @@ def batch_sync_users(self, integration_id, user_ids, batch_size=50):
                         results['successful'] += 1
                     else:
                         results['failed'] += 1
-                        results['errors'].append(f"Failed to sync user {user.email}")
+                        results['errors'].append("Failed to sync user {{user.email}}")
                         
                 except Exception as e:
                     results['failed'] += 1
-                    results['errors'].append(f"Error syncing user {user.email}: {str(e)}")
-                    logger.error(f"Error syncing user {user.email}: {str(e)}")
+                    results['errors'].append("Error syncing user {{user.email}}: {{str(e)}}")
+                    logger.error("Error syncing user {{user.email}}: {{str(e)}}")
             
             # Small delay between batches to avoid overwhelming SharePoint
             if i + batch_size < len(user_ids):
                 time.sleep(1)
         
-        logger.info(f"Batch user sync completed: {results}")
+        logger.info("Batch user sync completed: {{results}}")
         return results
         
     except Exception as exc:
-        logger.error(f"Batch user sync task failed: {str(exc)}")
+        logger.error("Batch user sync task failed: {{str(exc)}}")
         
         if self.request.retries < self.max_retries:
-            logger.info(f"Retrying batch user sync task in 60 seconds")
+            logger.info("Retrying batch user sync task in 60 seconds")
             raise self.retry(countdown=60, exc=exc)
         
-        return {'success': False, 'message': f'Batch sync failed: {str(exc)}'}
+        return {'success': False, 'message': "Batch sync failed: {{str(exc)}}"}
 
 
 @shared_task(bind=True, max_retries=2)
@@ -463,17 +463,17 @@ def resolve_sync_conflicts(self, integration_id):
         resolver = SharePointConflictResolver(integration)
         results = resolver.resolve_all_conflicts()
         
-        logger.info(f"Conflict resolution completed for {integration.name}: {results}")
+        logger.info("Conflict resolution completed for {{integration.name}}: {{results}}")
         return results
         
     except Exception as exc:
-        logger.error(f"Conflict resolution task failed: {str(exc)}")
+        logger.error("Conflict resolution task failed: {{str(exc)}}")
         
         if self.request.retries < self.max_retries:
-            logger.info(f"Retrying conflict resolution task in 120 seconds")
+            logger.info("Retrying conflict resolution task in 120 seconds")
             raise self.retry(countdown=120, exc=exc)
         
-        return {'success': False, 'message': f'Conflict resolution failed: {str(exc)}'}
+        return {'success': False, 'message': "Conflict resolution failed: {{str(exc)}}"}
 
 
 @shared_task
@@ -522,7 +522,7 @@ def sync_single_record(integration_id, record_type, record_id, direction='to_sha
                 success = False
                 
         else:
-            return {'success': False, 'message': f'Unsupported record type: {record_type}'}
+            return {'success': False, 'message': "Unsupported record type: {{record_type}}"}
         
         result = {
             'success': success,
@@ -531,11 +531,11 @@ def sync_single_record(integration_id, record_type, record_id, direction='to_sha
             'direction': direction
         }
         
-        logger.info(f"Single record sync completed: {result}")
+        logger.info("Single record sync completed: {{result}}")
         return result
         
     except Exception as e:
-        logger.error(f"Single record sync failed: {str(e)}")
+        logger.error("Single record sync failed: {{str(e)}}")
         return {'success': False, 'message': str(e)}
 
 
@@ -583,11 +583,11 @@ def health_check_sharepoint_integrations():
                     'last_sync': integration.last_sync_datetime.isoformat() if integration.last_sync_datetime else None
                 })
         
-        logger.info(f"SharePoint health check completed: {results}")
+        logger.info("SharePoint health check completed: {{results}}")
         return results
         
     except Exception as e:
-        logger.error(f"SharePoint health check failed: {str(e)}")
+        logger.error("SharePoint health check failed: {{str(e)}}")
         return {'success': False, 'message': str(e)}
 
 

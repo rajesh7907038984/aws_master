@@ -50,7 +50,7 @@ class xAPIStatementGenerator:
         
         if not self.base_activity:
             self.set_base_activity(
-                f"https://lms.example.com/scorm/{tracking.elearning_package.topic.id}",
+                "https://lms.example.com/scorm/{{tracking.elearning_package.topic.id}}",
                 tracking.elearning_package.title or tracking.elearning_package.topic.title
             )
         
@@ -98,7 +98,7 @@ class xAPIStatementGenerator:
             'contextActivities': {
                 'parent': [{
                     'objectType': 'Activity',
-                    'id': f"https://lms.example.com/course/{tracking.elearning_package.topic.course.id}",
+                    'id': "https://lms.example.com/course/{{tracking.elearning_package.topic.course.id}}",
                     'definition': {
                         'name': {'en-US': tracking.elearning_package.topic.course.title},
                         'type': 'http://adlnet.gov/expapi/activities/course'
@@ -143,7 +143,7 @@ class xAPIStatementGenerator:
         
         if not self.base_activity:
             self.set_base_activity(
-                f"https://lms.example.com/scorm2004/{tracking.elearning_package.topic.id}",
+                "https://lms.example.com/scorm2004/{{tracking.elearning_package.topic.id}}",
                 tracking.elearning_package.title or tracking.elearning_package.topic.title
             )
         
@@ -197,7 +197,7 @@ class xAPIStatementGenerator:
             'contextActivities': {
                 'parent': [{
                     'objectType': 'Activity',
-                    'id': f"https://lms.example.com/course/{tracking.elearning_package.topic.course.id}",
+                    'id': "https://lms.example.com/course/{{tracking.elearning_package.topic.course.id}}",
                     'definition': {
                         'name': {'en-US': tracking.elearning_package.topic.course.title},
                         'type': 'http://adlnet.gov/expapi/activities/course'
@@ -290,9 +290,9 @@ class xAPIStatementGenerator:
             'contextActivities': {
                 'parent': [{
                     'objectType': 'Activity',
-                    'id': f"https://lms.example.com/course/{registration.course_id}",
+                    'id': "https://lms.example.com/course/{{registration.course_id}}",
                     'definition': {
-                        'name': {'en-US': f"Course {registration.course_id}"},
+                        'name': {'en-US': "Course {{registration.course_id}}"},
                         'type': 'http://adlnet.gov/expapi/activities/course'
                     }
                 }]
@@ -323,7 +323,7 @@ class xAPIStatementGenerator:
         
         if not self.base_activity:
             self.set_base_activity(
-                f"https://lms.example.com/scorm/{tracking.elearning_package.topic.id}",
+                "https://lms.example.com/scorm/{{tracking.elearning_package.topic.id}}",
                 tracking.elearning_package.title or tracking.elearning_package.topic.title
             )
         
@@ -341,7 +341,7 @@ class xAPIStatementGenerator:
         
         activity = {
             "objectType": "Activity",
-            "id": f"https://lms.example.com/interaction/{interaction_data.get('id', 'unknown')}",
+            "id": "https://lms.example.com/interaction/{{interaction_data.get('id', 'unknown')}}",
             "definition": {
                 "name": {"en-US": interaction_data.get('description', 'Interaction')},
                 "type": interaction_type_mapping.get(
@@ -365,7 +365,7 @@ class xAPIStatementGenerator:
         if interaction_data.get('learner_response'):
             result['response'] = interaction_data['learner_response']
         if interaction_data.get('latency'):
-            result['duration'] = f"PT{interaction_data['latency']}S"
+            result['duration'] = "PT{{interaction_data['latency']}}S"
         
         statement = {
             'id': str(uuid.uuid4()),
@@ -395,13 +395,13 @@ class xAPIStatementGenerator:
         
         if not self.base_activity:
             self.set_base_activity(
-                f"https://lms.example.com/scorm/{tracking.elearning_package.topic.id}",
+                "https://lms.example.com/scorm/{{tracking.elearning_package.topic.id}}",
                 tracking.elearning_package.title or tracking.elearning_package.topic.title
             )
         
         activity = {
             "objectType": "Activity",
-            "id": f"https://lms.example.com/objective/{objective_data.get('id', 'unknown')}",
+            "id": "https://lms.example.com/objective/{{objective_data.get('id', 'unknown')}}",
             "definition": {
                 "name": {"en-US": objective_data.get('description', 'Learning Objective')},
                 "type": "http://adlnet.gov/expapi/activities/objective"
@@ -456,6 +456,9 @@ class xAPIStatementGenerator:
     def store_statement(self, statement_data, lrs=None):
         """Store xAPI statement in the database"""
         try:
+            # Extract nested values safely
+            actor_account = statement_data['actor'].get('account', {})
+            
             statement = Statement.objects.create(
                 statement_id=statement_data['id'],
                 actor_type=statement_data['actor'].get('objectType', 'Agent'),
@@ -463,8 +466,8 @@ class xAPIStatementGenerator:
                 actor_mbox=statement_data['actor'].get('mbox', ''),
                 actor_mbox_sha1sum=statement_data['actor'].get('mbox_sha1sum', ''),
                 actor_openid=statement_data['actor'].get('openid', ''),
-                actor_account_homepage=statement_data['actor'].get('account', {}).get('homePage', ''),
-                actor_account_name=statement_data['actor'].get('account', {}).get('name', ''),
+                actor_account_homepage=actor_account.get('homePage', ''),
+                actor_account_name=actor_account.get('name', ''),
                 verb_id=statement_data['verb']['id'],
                 verb_display=statement_data['verb']['display'],
                 object_type=statement_data['object'].get('objectType', 'Activity'),
@@ -495,5 +498,5 @@ class xAPIStatementGenerator:
             )
             return statement
         except Exception as e:
-            print(f"Error storing statement: {str(e)}")
+            print("Error storing statement: {{str(e)}}")
             return None

@@ -90,7 +90,7 @@ class SurveyField(models.Model):
         ]
     
     def __str__(self):
-        return f"{self.survey.title} - {self.label}"
+        return "{{self.survey.title}} - {{self.label}}"
 
 
 class SurveyResponse(models.Model):
@@ -135,7 +135,7 @@ class SurveyResponse(models.Model):
         ]
     
     def __str__(self):
-        return f"{self.user.username} - {self.survey_field.label} - {self.course.title}"
+        return "{{self.user.username}} - {{self.survey_field.label}} - {{self.course.title}}"
     
     @property
     def response_value(self):
@@ -193,7 +193,7 @@ class CourseReview(models.Model):
         ]
     
     def __str__(self):
-        return f"{self.user.username} - {self.course.title} - {self.average_rating}★"
+        return "{{self.user.username}} - {{self.course.title}} - {{self.average_rating}}★"
     
     @classmethod
     def create_from_responses(cls, user, course, survey):
@@ -217,7 +217,7 @@ class CourseReview(models.Model):
         
         # Compile review text from textarea fields
         text_responses = [
-            f"{r.survey_field.label}: {r.text_response}"
+            "{{r.survey_field.label}}: {{r.text_response}}"
             for r in responses
             if r.text_response and r.survey_field.field_type in ['textarea', 'text']
         ]

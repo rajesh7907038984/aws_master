@@ -18,10 +18,10 @@ def invalidate_gradebook_cache_on_topic_progress_update(sender, instance, **kwar
     Handle TopicProgress updates (cache functionality removed)
     """
     try:
-        logger.info(f"TopicProgress {instance.id} updated")
+        logger.info("TopicProgress {{instance.id}} updated")
         
     except Exception as e:
-        logger.error(f"Error handling TopicProgress update: {str(e)}")
+        logger.error("Error handling TopicProgress update: {{str(e)}}")
 
 @receiver(post_save, sender=ELearningTracking)
 def invalidate_gradebook_cache_on_scorm_tracking_update(sender, instance, **kwargs):
@@ -29,7 +29,7 @@ def invalidate_gradebook_cache_on_scorm_tracking_update(sender, instance, **kwar
     Handle SCORM tracking updates (cache functionality removed)
     """
     try:
-        logger.info(f"SCORM tracking {instance.id} updated for user {instance.user.id}")
+        logger.info("SCORM tracking {{instance.id}} updated for user {{instance.user.id}}")
         
     except Exception as e:
-        logger.error(f"Error handling SCORM tracking update: {str(e)}")
+        logger.error("Error handling SCORM tracking update: {{str(e)}}")

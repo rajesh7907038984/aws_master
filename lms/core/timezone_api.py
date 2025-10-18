@@ -59,7 +59,7 @@ def set_user_timezone(request):
             'error': 'Invalid JSON data'
         }, status=400)
     except Exception as e:
-        logger.error(f"Error setting timezone: {str(e)}")
+        logger.error("Error setting timezone: {{str(e)}}")
         return JsonResponse({
             'success': False,
             'error': 'Internal server error'
@@ -78,7 +78,7 @@ def get_user_timezone(request):
         })
         
     except Exception as e:
-        logger.error(f"Error getting timezone info: {str(e)}")
+        logger.error("Error getting timezone info: {{str(e)}}")
         return JsonResponse({
             'success': False,
             'error': 'Failed to get timezone information'
@@ -148,7 +148,7 @@ def convert_time(request):
             'error': 'Invalid JSON data'
         }, status=400)
     except Exception as e:
-        logger.error(f"Error converting time: {str(e)}")
+        logger.error("Error converting time: {{str(e)}}")
         return JsonResponse({
             'success': False,
             'error': 'Failed to convert time'
@@ -188,7 +188,7 @@ def get_timezone_list(request):
                     'name': tz_name,
                     'display_name': tz_name.replace('_', ' '),
                     'offset': offset,
-                    'offset_str': f"UTC{'+' if offset >= 0 else ''}{offset:.1f}"
+                    'offset_str': "UTC{{'+' if offset >= 0 else ''}}{{offset:.1f}}"
                 })
             except:
                 continue
@@ -199,7 +199,7 @@ def get_timezone_list(request):
         })
         
     except Exception as e:
-        logger.error(f"Error getting timezone list: {str(e)}")
+        logger.error("Error getting timezone list: {{str(e)}}")
         return JsonResponse({
             'success': False,
             'error': 'Failed to get timezone list'

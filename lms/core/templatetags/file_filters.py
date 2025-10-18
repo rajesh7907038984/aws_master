@@ -29,7 +29,7 @@ def safe_file_url(file_field):
     try:
         return file_field.url
     except Exception as e:
-        logger.warning(f"Error accessing file URL: {e}")
+        logger.warning("Error accessing file URL: {{e}}")
         return None
 
 
@@ -51,7 +51,7 @@ def safe_file_name(file_field):
     try:
         return file_field.name.split('/')[-1] if file_field.name else "Unknown File"
     except Exception as e:
-        logger.warning(f"Error accessing file name: {e}")
+        logger.warning("Error accessing file name: {{e}}")
         return "Unknown File"
 
 
@@ -83,17 +83,17 @@ def safe_file_exists(file_field):
             # Handle different types of errors
             if "403" in str(access_error) or "Forbidden" in str(access_error):
                 # Permission denied - log warning but return False (assume file doesn't exist for user)
-                logger.debug(f"S3 permission denied for file: {file_field.name}")
+                logger.debug("S3 permission denied for file: {{file_field.name}}")
                 return False
             elif "NoSuchKey" in str(access_error) or "not found" in str(access_error):
                 # File doesn't exist
                 return False
             else:
                 # Other error - log and return False
-                logger.debug(f"Error accessing file {file_field.name}: {access_error}")
+                logger.debug("Error accessing file {{file_field.name}}: {{access_error}}")
                 return False
     except Exception as e:
-        logger.warning(f"Error checking file existence: {e}")
+        logger.warning("Error checking file existence: {{e}}")
         return False
 
 
@@ -115,7 +115,7 @@ def safe_file_size(file_field):
     try:
         return file_field.size if hasattr(file_field, 'size') else 0
     except Exception as e:
-        logger.warning(f"Error accessing file size: {e}")
+        logger.warning("Error accessing file size: {{e}}")
         return 0
 
 
@@ -135,15 +135,15 @@ def format_file_size(size_bytes):
             return "0 B"
         
         if size_bytes < 1024:
-            return f"{size_bytes} B"
+            return "{{size_bytes}} B"
         elif size_bytes < 1024 * 1024:
-            return f"{round(size_bytes / 1024, 1)} KB"
+            return "{{round(size_bytes / 1024, 1)}} KB"
         elif size_bytes < 1024 * 1024 * 1024:
-            return f"{round(size_bytes / (1024 * 1024), 1)} MB"
+            return "{{round(size_bytes / (1024 * 1024), 1)}} MB"
         else:
-            return f"{round(size_bytes / (1024 * 1024 * 1024), 1)} GB"
+            return "{{round(size_bytes / (1024 * 1024 * 1024), 1)}} GB"
     except Exception as e:
-        logger.warning(f"Error formatting file size: {e}")
+        logger.warning("Error formatting file size: {{e}}")
         return "Unknown Size"
 
 
@@ -165,5 +165,5 @@ def safe_media_url(file_path):
     try:
         return default_storage.url(file_path)
     except Exception as e:
-        logger.warning(f"Error generating media URL for {file_path}: {e}")
+        logger.warning("Error generating media URL for {{file_path}}: {{e}}")
         return ""

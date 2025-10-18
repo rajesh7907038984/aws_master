@@ -68,7 +68,7 @@ class Migration(migrations.Migration):
                 (
                     "is_private",
                     models.BooleanField(
-                        default=False, help_text="Private notes only visible to staff"
+                        default=False, help_text="Private notes only visible to sta"
                     ),
                 ),
                 ("created_at", models.DateTimeField(auto_now_add=True)),
@@ -94,7 +94,7 @@ class Migration(migrations.Migration):
                         upload_to="health_safety_documents/",
                         validators=[
                             django.core.validators.FileExtensionValidator(
-                                allowed_extensions=["pdf", "doc", "docx", "txt"]
+                                allowed_extensions=["pd", "doc", "docx", "txt"]
                             )
                         ],
                     ),
@@ -558,7 +558,7 @@ class Migration(migrations.Migration):
                         validators=[
                             django.core.validators.FileExtensionValidator(
                                 allowed_extensions=[
-                                    "pdf",
+                                    "pd",
                                     "doc",
                                     "docx",
                                     "txt",
@@ -748,7 +748,7 @@ class Migration(migrations.Migration):
                         validators=[
                             django.core.validators.FileExtensionValidator(
                                 allowed_extensions=[
-                                    "pdf",
+                                    "pd",
                                     "doc",
                                     "docx",
                                     "txt",
@@ -957,7 +957,7 @@ class Migration(migrations.Migration):
                         upload_to="induction_documents/",
                         validators=[
                             django.core.validators.FileExtensionValidator(
-                                allowed_extensions=["pdf", "doc", "docx", "txt"]
+                                allowed_extensions=["pd", "doc", "docx", "txt"]
                             )
                         ],
                     ),
@@ -1380,7 +1380,7 @@ class Migration(migrations.Migration):
                         validators=[
                             django.core.validators.FileExtensionValidator(
                                 allowed_extensions=[
-                                    "pdf",
+                                    "pd",
                                     "doc",
                                     "docx",
                                     "txt",
@@ -1493,7 +1493,7 @@ class Migration(migrations.Migration):
                         validators=[
                             django.core.validators.FileExtensionValidator(
                                 allowed_extensions=[
-                                    "pdf",
+                                    "pd",
                                     "doc",
                                     "docx",
                                     "jpg",
@@ -1683,7 +1683,7 @@ class Migration(migrations.Migration):
                         upload_to="ilp/sop_files/",
                         validators=[
                             django.core.validators.FileExtensionValidator(
-                                allowed_extensions=["pdf", "doc", "docx"]
+                                allowed_extensions=["pd", "doc", "docx"]
                             )
                         ],
                     ),
@@ -1876,7 +1876,7 @@ class Migration(migrations.Migration):
                         validators=[
                             django.core.validators.FileExtensionValidator(
                                 allowed_extensions=[
-                                    "pdf",
+                                    "pd",
                                     "doc",
                                     "docx",
                                     "txt",

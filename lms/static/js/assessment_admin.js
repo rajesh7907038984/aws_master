@@ -4,75 +4,91 @@ document.addEventListener('DOMContentLoaded', function() {
     if (!questionTypeSelect) return;
 
     function updateQuestionFields(questionType) {
-        // Hide all dynamic form sections first
-        const inlineGroups = document.querySelectorAll('.inline-group');
-        inlineGroups.forEach(group => group.style.display = 'none');
+        try {
+            // Hide all dynamic form sections first
+            const inlineGroups = document.querySelectorAll('.inline-group');
+            inlineGroups.forEach(group => group.style.display = 'none');
 
-        const answerFieldsets = document.querySelectorAll('.answer-fieldset');
-        answerFieldsets.forEach(fieldset => {
-            const parentFieldset = fieldset.closest('fieldset');
-            if (parentFieldset) {
-                parentFieldset.style.display = 'none';
+            const answerFieldsets = document.querySelectorAll('.answer-fieldset');
+            answerFieldsets.forEach(fieldset => {
+                try {
+                    const parentFieldset = fieldset.closest('fieldset');
+                    if (parentFieldset) {
+                        parentFieldset.style.display = 'none';
+                    }
+                } catch (error) {
+                    console.error('Error hiding fieldset:', error);
+                }
+            });
+
+            // Show the appropriate fields based on question type
+            switch(questionType) {
+                case 'multiple_choice':
+                case 'multiple_select':
+                    // Show the options inline formset
+                    const optionsInline = document.querySelector('.inline-group');
+                    if (optionsInline) {
+                        optionsInline.style.display = 'block';
+                    }
+                    break;
+
+                case 'matching':
+                    // Show both the matching pairs fieldset and inline formset
+                    const matchingFieldset = document.querySelector('.field-matching_pairs');
+                    if (matchingFieldset) {
+                        const parentFieldset = matchingFieldset.closest('fieldset');
+                        if (parentFieldset) {
+                            parentFieldset.style.display = 'block';
+                        }
+                    }
+                    const matchingInline = document.querySelector('.inline-group');
+                    if (matchingInline) {
+                        matchingInline.style.display = 'block';
+                    }
+                    break;
+
+                case 'fill_blank':
+                    // Show the blank answer fieldset
+                    const blankFieldset = document.querySelector('.field-blank_answer');
+                    if (blankFieldset) {
+                        const parentFieldset = blankFieldset.closest('fieldset');
+                        if (parentFieldset) {
+                            parentFieldset.style.display = 'block';
+                        }
+                    }
+                    break;
+
+                case 'multi_blank':
+                    // Show the multiple blank answers fieldset
+                    const multiBlankFieldset = document.querySelector('.field-multiple_blank_answers');
+                    if (multiBlankFieldset) {
+                        const parentFieldset = multiBlankFieldset.closest('fieldset');
+                        if (parentFieldset) {
+                            parentFieldset.style.display = 'block';
+                        }
+                    }
+                    break;
             }
-        });
-
-        // Show the appropriate fields based on question type
-        switch(questionType) {
-            case 'multiple_choice':
-            case 'multiple_select':
-                // Show the options inline formset
-                const optionsInline = document.querySelector('.inline-group');
-                if (optionsInline) {
-                    optionsInline.style.display = 'block';
-                }
-                break;
-
-            case 'matching':
-                // Show both the matching pairs fieldset and inline formset
-                const matchingFieldset = document.querySelector('.field-matching_pairs');
-                if (matchingFieldset) {
-                    const parentFieldset = matchingFieldset.closest('fieldset');
-                    if (parentFieldset) {
-                        parentFieldset.style.display = 'block';
-                    }
-                }
-                const matchingInline = document.querySelector('.inline-group');
-                if (matchingInline) {
-                    matchingInline.style.display = 'block';
-                }
-                break;
-
-            case 'fill_blank':
-                // Show the blank answer fieldset
-                const blankFieldset = document.querySelector('.field-blank_answer');
-                if (blankFieldset) {
-                    const parentFieldset = blankFieldset.closest('fieldset');
-                    if (parentFieldset) {
-                        parentFieldset.style.display = 'block';
-                    }
-                }
-                break;
-
-            case 'multi_blank':
-                // Show the multiple blank answers fieldset
-                const multiBlankFieldset = document.querySelector('.field-multiple_blank_answers');
-                if (multiBlankFieldset) {
-                    const parentFieldset = multiBlankFieldset.closest('fieldset');
-                    if (parentFieldset) {
-                        parentFieldset.style.display = 'block';
-                    }
-                }
-                break;
+        } catch (error) {
+            console.error('Error updating question fields:', error);
         }
     }
 
     // Update fields when question type changes
     questionTypeSelect.addEventListener('change', function() {
-        updateQuestionFields(this.value);
-        // Add a small delay to ensure DOM is updated
-        setTimeout(() => {
+        try {
             updateQuestionFields(this.value);
-        }, 100);
+            // Add a small delay to ensure DOM is updated
+            setTimeout(() => {
+                try {
+                    updateQuestionFields(this.value);
+                } catch (error) {
+                    console.error('Error in delayed question field update:', error);
+                }
+            }, 100);
+        } catch (error) {
+            console.error('Error handling question type change:', error);
+        }
     });
 
     // Initial update when page loads

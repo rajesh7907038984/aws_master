@@ -39,4 +39,4 @@ except ImportError:
 
 @app.task(bind=True)
 def debug_task(self):
-    print(f'Request: {self.request!r}')
+    print("Request: {{self.request!r}}")

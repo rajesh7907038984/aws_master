@@ -55,11 +55,39 @@ def switch_branch(request):
         messages.error(request, 'Invalid branch ID.')
         return redirect('users:role_based_redirect')
     
+    # Validate that the admin has access to this branch
+    try:
+        branch = Branch.objects.get(id=branch_id)
+        
+        # Check if admin has access to this branch
+        if request.user.branch != branch:
+            # Check if admin has access through business assignments
+            if hasattr(request.user, 'business_assignments'):
+                has_business_access = request.user.business_assignments.filter(
+                    business=branch.business, 
+                    is_active=True
+                ).exists()
+                if not has_business_access:
+                    if request.headers.get('Accept') == 'application/json':
+                        return JsonResponse({'success': False, 'error': 'You do not have access to this branch'})
+                    messages.error(request, 'You do not have access to this branch.')
+                    return redirect('users:role_based_redirect')
+            else:
+                if request.headers.get('Accept') == 'application/json':
+                    return JsonResponse({'success': False, 'error': 'You do not have access to this branch'})
+                messages.error(request, 'You do not have access to this branch.')
+                return redirect('users:role_based_redirect')
+        
+    except Branch.DoesNotExist:
+        if request.headers.get('Accept') == 'application/json':
+            return JsonResponse({'success': False, 'error': 'Branch not found'})
+        messages.error(request, 'Branch not found.')
+        return redirect('users:role_based_redirect')
+    
     # Switch to the branch
     success = set_admin_active_branch(request, branch_id)
     
     if success:
-        branch = Branch.objects.get(id=branch_id)
         logger.info(f"Admin user {request.user.username} switched to branch {branch.name}")
         
         if request.headers.get('Accept') == 'application/json':

@@ -71,7 +71,7 @@ class ModelRelationshipOptimizer:
             recommendations.append({
                 'type': 'add_related_name',
                 'field': field.name,
-                'recommended': f'{field.model._meta.model_name}_set',
+                'recommended': "{{field.model._meta.model_name}}_set",
                 'reason': 'Related name improves reverse relationship queries'
             })
         
@@ -125,7 +125,7 @@ class ModelRelationshipOptimizer:
                             'field': field.name,
                             'issue': 'dangerous_cascade',
                             'severity': 'high',
-                            'description': f'CASCADE delete on {field.name} could cause data loss',
+                            'description': "CASCADE delete on {{field.name}} could cause data loss",
                             'recommendation': 'Consider using SET_NULL or PROTECT instead'
                         }
         
@@ -225,12 +225,12 @@ class ModelRelationshipOptimizer:
         
         for field in model_class._meta.get_fields():
             if isinstance(field, models.ForeignKey) and not field.db_index:
-                index_name = f"{model_class._meta.db_table}_{field.name}_idx"
+                index_name = "{{model_class._meta.db_table}}_{{field.name}}_idx"
                 indexes.append({
                     'name': index_name,
                     'table': model_class._meta.db_table,
                     'column': field.column,
-                    'sql': f"CREATE INDEX {index_name} ON {model_class._meta.db_table} ({field.column});"
+                    'sql': "CREATE INDEX {{index_name}} ON {{model_class._meta.db_table}} ({{field.column}});"
                 })
         
         return indexes

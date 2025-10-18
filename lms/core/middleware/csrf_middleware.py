@@ -32,7 +32,7 @@ class EnhancedCsrfMiddleware(CsrfViewMiddleware):
             return super().process_view(request, callback, callback_args, callback_kwargs)
             
         except Exception as e:
-            logger.error(f"CSRF middleware error: {e}")
+            logger.error("CSRF middleware error: {{e}}")
             return None
     
     def _should_skip_csrf(self, request):
@@ -78,7 +78,7 @@ class EnhancedCsrfMiddleware(CsrfViewMiddleware):
             return None  # CSRF check passed
             
         except Exception as e:
-            logger.error(f"AJAX CSRF handling error: {e}")
+            logger.error("AJAX CSRF handling error: {{e}}")
             return super().process_view(request, callback, callback_args, callback_kwargs)
     
     def _csrf_token_valid(self, request, token):
@@ -93,7 +93,7 @@ class EnhancedCsrfMiddleware(CsrfViewMiddleware):
             return token == session_token
             
         except Exception as e:
-            logger.error(f"CSRF token validation error: {e}")
+            logger.error("CSRF token validation error: {{e}}")
             return False
 
 
@@ -114,6 +114,6 @@ class CsrfTokenMiddleware(MiddlewareMixin):
                 response['X-Session-Key'] = request.session.session_key[:8] + '...' if request.session.session_key else 'None'
             
         except Exception as e:
-            logger.error(f"CSRF token middleware error: {e}")
+            logger.error("CSRF token middleware error: {{e}}")
         
         return response

@@ -27,7 +27,7 @@ def update_outcome_evaluations_on_rubric_evaluation(sender, instance, created, *
         # Log error but don't break the evaluation save
         import logging
         logger = logging.getLogger(__name__)
-        logger.error(f"Error updating outcome evaluations: {str(e)}")
+        logger.error("Error updating outcome evaluations: {{str(e)}}")
 
 
 @receiver(post_delete, sender='lms_rubrics.RubricEvaluation')
@@ -53,7 +53,7 @@ def update_outcome_evaluations_on_rubric_evaluation_delete(sender, instance, **k
         # Log error but don't break the deletion
         import logging
         logger = logging.getLogger(__name__)
-        logger.error(f"Error updating outcome evaluations after deletion: {str(e)}")
+        logger.error("Error updating outcome evaluations after deletion: {{str(e)}}")
 
 
 @receiver(post_save, sender='quiz.QuizRubricEvaluation')
@@ -79,7 +79,7 @@ def update_outcome_evaluations_on_quiz_rubric_evaluation(sender, instance, creat
         # Log error but don't break the evaluation save
         import logging
         logger = logging.getLogger(__name__)
-        logger.error(f"Error updating outcome evaluations from quiz: {str(e)}")
+        logger.error("Error updating outcome evaluations from quiz: {{str(e)}}")
 
 
 @receiver(post_delete, sender='quiz.QuizRubricEvaluation')
@@ -105,7 +105,7 @@ def update_outcome_evaluations_on_quiz_rubric_evaluation_delete(sender, instance
         # Log error but don't break the deletion
         import logging
         logger = logging.getLogger(__name__)
-        logger.error(f"Error updating outcome evaluations after quiz deletion: {str(e)}")
+        logger.error("Error updating outcome evaluations after quiz deletion: {{str(e)}}")
 
 
 @receiver(post_save, sender='conferences.ConferenceRubricEvaluation')
@@ -131,7 +131,7 @@ def update_outcome_evaluations_on_conference_rubric_evaluation(sender, instance,
         # Log error but don't break the evaluation save
         import logging
         logger = logging.getLogger(__name__)
-        logger.error(f"Error updating outcome evaluations from conference: {str(e)}")
+        logger.error("Error updating outcome evaluations from conference: {{str(e)}}")
 
 
 @receiver(post_delete, sender='conferences.ConferenceRubricEvaluation')
@@ -157,7 +157,7 @@ def update_outcome_evaluations_on_conference_rubric_evaluation_delete(sender, in
         # Log error but don't break the deletion
         import logging
         logger = logging.getLogger(__name__)
-        logger.error(f"Error updating outcome evaluations after conference deletion: {str(e)}")
+        logger.error("Error updating outcome evaluations after conference deletion: {{str(e)}}")
 
 
 @receiver(post_save, sender=RubricCriterionOutcome)
@@ -222,7 +222,7 @@ def update_outcome_evaluations_on_connection_change(sender, instance, created, *
         # Log error but don't break the connection save
         import logging
         logger = logging.getLogger(__name__)
-        logger.error(f"Error updating outcome evaluations on connection change: {str(e)}")
+        logger.error("Error updating outcome evaluations on connection change: {{str(e)}}")
 
 
 @receiver(post_delete, sender=RubricCriterionOutcome)
@@ -272,4 +272,4 @@ def update_outcome_evaluations_on_connection_delete(sender, instance, **kwargs):
         # Log error but don't break the deletion
         import logging
         logger = logging.getLogger(__name__)
-        logger.error(f"Error updating outcome evaluations on connection delete: {str(e)}")
+        logger.error("Error updating outcome evaluations on connection delete: {{str(e)}}")

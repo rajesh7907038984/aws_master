@@ -73,7 +73,7 @@ class ReportAttachment(models.Model):
         ]
 
     def __str__(self):
-        return f"{self.filename} ({self.report.title})"
+        return "{{self.filename}} ({{self.report.title}})"
 
     def delete(self, *args, **kwargs):
         """Enhanced delete method with S3 cleanup for report attachments."""
@@ -81,15 +81,15 @@ class ReportAttachment(models.Model):
         logger = logging.getLogger(__name__)
         
         try:
-            logger.info(f"Starting deletion for ReportAttachment: {self.filename} (ID: {self.id})")
+            logger.info("Starting deletion for ReportAttachment: {{self.filename}} (ID: {{self.id}})")
             
             # Delete attachment file
             if self.file:
                 try:
                     self.file.delete(save=False)
-                    logger.info(f"Deleted report attachment: {self.file.name}")
+                    logger.info("Deleted report attachment: {{self.file.name}}")
                 except Exception as e:
-                    logger.error(f"Error deleting report attachment: {e}")
+                    logger.error("Error deleting report attachment: {{e}}")
             
             # S3 cleanup
             try:
@@ -98,16 +98,16 @@ class ReportAttachment(models.Model):
                 successful_s3_deletions = sum(1 for success in s3_results.values() if success)
                 total_s3_files = len(s3_results)
                 if total_s3_files > 0:
-                    logger.info(f"S3 cleanup: {successful_s3_deletions}/{total_s3_files} report attachment files deleted successfully")
+                    logger.info("S3 cleanup: {{successful_s3_deletions}}/{{total_s3_files}} report attachment files deleted successfully")
             except Exception as e:
-                logger.error(f"Error during S3 cleanup for report attachment {self.id}: {str(e)}")
+                logger.error("Error during S3 cleanup for report attachment {{self.id}}: {{str(e)}}")
             
             # Call parent delete to remove the database record
             super().delete(*args, **kwargs)
-            logger.info(f"Successfully completed deletion for ReportAttachment: {self.filename} (ID: {self.id})")
+            logger.info("Successfully completed deletion for ReportAttachment: {{self.filename}} (ID: {{self.id}})")
             
         except Exception as e:
-            logger.error(f"Error in ReportAttachment.delete(): {str(e)}")
+            logger.error("Error in ReportAttachment.delete(): {{str(e)}}")
             raise
 
 class Event(models.Model):
@@ -140,7 +140,7 @@ class Event(models.Model):
         ]
 
     def __str__(self):
-        return f"{self.get_type_display()} by {self.user.username}"
+        return "{{self.get_type_display()}} by {{self.user.username}}"
 
 class ReportTemplate(models.Model):
     """Model for storing report templates"""

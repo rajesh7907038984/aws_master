@@ -243,24 +243,29 @@
         // Update message counts
         makeApiCall('/messages/api/count/')
             .then(data => {
-                const icon = document.querySelector('.discussion-icon');
-                const badge = document.getElementById('messages-count-badge');
-                const indicator = icon?.querySelector('span:first-of-type');
-                
-                if (icon) {
-                    icon.title = `Messages (${data.unread_count || 0} unread)`;
+                try {
+                    const icon = document.querySelector('.discussion-icon');
+                    const badge = document.getElementById('messages-count-badge');
+                    const indicator = icon?.querySelector('span:first-of-type');
                     
-                    if (indicator) {
-                        indicator.style.display = data.unread_count > 0 ? 'block' : 'none';
+                    if (icon) {
+                        icon.title = `Messages (${data.unread_count || 0} unread)`;
+                        
+                        if (indicator) {
+                            indicator.style.display = data.unread_count > 0 ? 'block' : 'none';
+                        }
+                        
+                        if (badge) {
+                            badge.textContent = data.unread_count > 9 ? '9+' : data.unread_count;
+                            badge.style.display = data.unread_count > 0 ? 'flex' : 'none';
+                        }
                     }
-                    
-                    if (badge) {
-                        badge.textContent = data.unread_count > 9 ? '9+' : data.unread_count;
-                        badge.style.display = data.unread_count > 0 ? 'flex' : 'none';
-                    }
+                } catch (error) {
+                    console.error('Error updating message counts:', error);
                 }
             })
-            .catch(() => {
+            .catch((error) => {
+                console.error('API error fetching message counts:', error);
                 // Silent fail - DO NOT hide icons on API errors
                 // Icons should remain visible regardless of API status
             });
@@ -268,39 +273,44 @@
         // Update notification counts
         makeApiCall('/notifications/api/count/')
             .then(data => {
-                const icon = document.querySelector('.notification-icon');
-                const badge = document.getElementById('notification-count-badge');
-                const indicator = document.getElementById('notification-indicator');
-                
-                if (icon) {
-                    const urgentText = data.urgent_count > 0 ? `, ${data.urgent_count} urgent` : '';
-                    icon.title = `Notifications (${data.unread_count || 0} unread${urgentText})`;
+                try {
+                    const icon = document.querySelector('.notification-icon');
+                    const badge = document.getElementById('notification-count-badge');
+                    const indicator = document.getElementById('notification-indicator');
                     
-                    if (indicator) {
-                        if (data.unread_count > 0) {
-                            indicator.classList.remove('hidden');
-                            indicator.classList.toggle('bg-red-500', data.urgent_count > 0);
-                            indicator.classList.toggle('bg-orange-500', data.urgent_count === 0);
-                            indicator.classList.toggle('animate-pulse', data.urgent_count > 0);
-                        } else {
-                            indicator.classList.add('hidden');
+                    if (icon) {
+                        const urgentText = data.urgent_count > 0 ? `, ${data.urgent_count} urgent` : '';
+                        icon.title = `Notifications (${data.unread_count || 0} unread${urgentText})`;
+                        
+                        if (indicator) {
+                            if (data.unread_count > 0) {
+                                indicator.classList.remove('hidden');
+                                indicator.classList.toggle('bg-red-500', data.urgent_count > 0);
+                                indicator.classList.toggle('bg-orange-500', data.urgent_count === 0);
+                                indicator.classList.toggle('animate-pulse', data.urgent_count > 0);
+                            } else {
+                                indicator.classList.add('hidden');
+                            }
+                        }
+                        
+                        if (badge) {
+                            if (data.unread_count > 0) {
+                                badge.textContent = data.unread_count > 9 ? '9+' : data.unread_count;
+                                badge.classList.remove('hidden');
+                                badge.classList.toggle('bg-red-500', data.urgent_count > 0);
+                                badge.classList.toggle('bg-orange-500', data.urgent_count === 0);
+                                badge.classList.toggle('animate-pulse', data.urgent_count > 0);
+                            } else {
+                                badge.classList.add('hidden');
+                            }
                         }
                     }
-                    
-                    if (badge) {
-                        if (data.unread_count > 0) {
-                            badge.textContent = data.unread_count > 9 ? '9+' : data.unread_count;
-                            badge.classList.remove('hidden');
-                            badge.classList.toggle('bg-red-500', data.urgent_count > 0);
-                            badge.classList.toggle('bg-orange-500', data.urgent_count === 0);
-                            badge.classList.toggle('animate-pulse', data.urgent_count > 0);
-                        } else {
-                            badge.classList.add('hidden');
-                        }
-                    }
+                } catch (error) {
+                    console.error('Error updating notification counts:', error);
                 }
             })
-            .catch(() => {
+            .catch((error) => {
+                console.error('API error fetching notification counts:', error);
                 // Silent fail - DO NOT hide icons on API errors
                 // Icons should remain visible regardless of API status
             });

@@ -61,7 +61,7 @@ def get_field_answer(submission, field_id):
         # Log error for debugging but don't break the template
         import logging
         logger = logging.getLogger(__name__)
-        logger.error(f"Error in get_field_answer filter: {e}")
+        logger.error("Error in get_field_answer filter: {{e}}")
     
     return ""
 
@@ -99,7 +99,7 @@ def get_question_answer(submission, question_id):
         # Log error for debugging but don't break the template
         import logging
         logger = logging.getLogger(__name__)
-        logger.error(f"Error in get_question_answer filter: {e}")
+        logger.error("Error in get_question_answer filter: {{e}}")
     
     return ""
 
@@ -208,7 +208,7 @@ def get_field_feedback(submission, field_id):
     except Exception as e:
         import logging
         logger = logging.getLogger(__name__)
-        logger.error(f"Error in get_field_feedback filter: {e}")
+        logger.error("Error in get_field_feedback filter: {{e}}")
         return ""
 
 @register.filter
@@ -222,7 +222,7 @@ def get_question_feedback(submission, question_id):
     logger = logging.getLogger(__name__)
     
     if not submission or not question_id:
-        logger.debug(f"get_question_feedback: No submission ({submission}) or question_id ({question_id})")
+        logger.debug("get_question_feedback: No submission ({{submission}}) or question_id ({{question_id}})")
         return ""
 
     try:
@@ -230,7 +230,7 @@ def get_question_feedback(submission, question_id):
         if isinstance(question_id, str) and question_id.isdigit():
             question_id = int(question_id)
         elif not isinstance(question_id, int):
-            logger.debug(f"get_question_feedback: Invalid question_id type: {type(question_id)}")
+            logger.debug("get_question_feedback: Invalid question_id type: {{type(question_id)}}")
             return ""
 
         # Attempt to locate the answer via prefetched cache
@@ -245,7 +245,7 @@ def get_question_feedback(submission, question_id):
             answer_obj = TextQuestionAnswer.objects.filter(submission=submission, question_id=question_id).first()
 
         if not answer_obj:
-            logger.debug(f"get_question_feedback: No answer found for submission {submission.id}, question {question_id}")
+            logger.debug("get_question_feedback: No answer found for submission {{submission.id}}, question {{question_id}}")
             return ""
 
         # Retrieve latest feedback
@@ -257,13 +257,13 @@ def get_question_feedback(submission, question_id):
             feedback_entry = answer_obj.feedback_entries.first()
 
         if feedback_entry:
-            logger.debug(f"get_question_feedback: Found feedback for submission {submission.id}, question {question_id}: {feedback_entry.feedback_text[:50]}...")
+            logger.debug("get_question_feedback: Found feedback for submission {{submission.id}}, question {{question_id}}: {{feedback_entry.feedback_text[:50]}}...")
             return feedback_entry.feedback_text
         else:
-            logger.debug(f"get_question_feedback: No feedback entry found for submission {submission.id}, question {question_id}")
+            logger.debug("get_question_feedback: No feedback entry found for submission {{submission.id}}, question {{question_id}}")
             return ""
     except Exception as e:
-        logger.error(f"Error in get_question_feedback filter: {e}")
+        logger.error("Error in get_question_feedback filter: {{e}}")
         return "" 
 
 @register.filter
@@ -314,6 +314,6 @@ def get_field_answer_timestamp(submission, field_id):
         # Log error for debugging but don't break the template
         import logging
         logger = logging.getLogger(__name__)
-        logger.error(f"Error in get_field_answer_timestamp filter: {e}")
+        logger.error("Error in get_field_answer_timestamp filter: {{e}}")
     
     return None 

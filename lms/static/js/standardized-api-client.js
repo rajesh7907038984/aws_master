@@ -3,6 +3,24 @@
  * This client ensures perfect alignment with backend API responses
  */
 
+// Browser compatibility checks
+if (typeof console === 'undefined') {
+    window.console = {
+        log: function() {},
+        error: function() {},
+        warn: function() {},
+        info: function() {}
+    };
+}
+
+if (typeof document === 'undefined') {
+    console.warn('Document object not available');
+}
+
+if (typeof window === 'undefined') {
+    console.warn('Window object not available');
+}
+
 class StandardizedAPIClient {
     constructor() {
         this.baseURL = '';
@@ -19,20 +37,32 @@ class StandardizedAPIClient {
      * Get CSRF token from multiple sources
      */
     getCSRFToken() {
-        const sources = [
-            () => document.querySelector('meta[name="csrf-token"]')?.getAttribute('content'),
-            () => document.querySelector('input[name="csrfmiddlewaretoken"]')?.value,
-            () => window.CSRF_TOKEN,
-            () => document.cookie.match(/csrftoken=([^;]+)/)?.[1]
+        var sources = [
+            function() {
+                var meta = document.querySelector('meta[name="csrf-token"]');
+                return meta ? meta.getAttribute('content') : null;
+            },
+            function() {
+                var input = document.querySelector('input[name="csrfmiddlewaretoken"]');
+                return input ? input.value : null;
+            },
+            function() {
+                return window.CSRF_TOKEN;
+            },
+            function() {
+                var match = document.cookie.match(/csrftoken=([^;]+)/);
+                return match ? match[1] : null;
+            }
         ];
 
-        for (let source of sources) {
+        for (var source of sources) {
             try {
-                const token = source();
+                var token = source();
                 if (token && token.length > 0 && /^[a-zA-Z0-9]+$/.test(token)) {
                     return token;
                 }
             } catch (e) {
+                console.error('Error getting CSRF token from source:', e);
                 continue;
             }
         }
@@ -42,11 +72,12 @@ class StandardizedAPIClient {
     /**
      * Get standardized headers for requests
      */
-    getHeaders(customHeaders = {}) {
-        const headers = { ...this.defaultHeaders, ...customHeaders };
+    getHeaders(customHeaders) {
+        customHeaders = customHeaders || {};
+        var headers = Object.assign({}, this.defaultHeaders, customHeaders);
         
         // Add CSRF token for non-GET requests
-        const csrfToken = this.getCSRFToken();
+        var csrfToken = this.getCSRFToken();
         if (csrfToken) {
             headers['X-CSRFToken'] = csrfToken;
         }
@@ -62,11 +93,11 @@ class StandardizedAPIClient {
             throw new Error('Invalid response format: Response is not an object');
         }
 
-        const requiredFields = ['success', 'status', 'message', 'timestamp', 'version'];
-        const missingFields = requiredFields.filter(field => !(field in response));
+        var requiredFields = ['success', 'status', 'message', 'timestamp', 'version'];
+        var missingFields = requiredFields.filter(field => !(field in response));
         
         if (missingFields.length > 0) {
-            throw new Error(`Invalid response format: Missing fields: ${missingFields.join(', ')}`);
+            throw new Error('Invalid response format: Missing fields: ' + missingFields.join(', '));
         }
 
         if (typeof response.success !== 'boolean') {
@@ -98,10 +129,10 @@ class StandardizedAPIClient {
                 };
             } else {
                 throw new StandardizedAPIError(
-                    response.message,
+                    response.message || 'API request failed',
                     response.errors || {},
-                    response.error_code,
-                    response.details
+                    response.error_code || 'API_ERROR',
+                    response.details || null
                 );
             }
         } catch (error) {
@@ -119,30 +150,32 @@ class StandardizedAPIClient {
     /**
      * Make HTTP request with retry logic
      */
-    async makeRequest(url, options = {}, attempt = 1) {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), this.timeout);
+    async makeRequest(url, options, attempt) {
+        options = options || {};
+        attempt = attempt || 1;
+        var controller = new AbortController();
+        var timeoutId = setTimeout(() => controller.abort(), this.timeout);
 
         try {
-            const response = await fetch(url, {
-                ...options,
+            var fetchOptions = Object.assign({}, options, {
                 headers: this.getHeaders(options.headers),
                 signal: controller.signal
             });
+            var response = await fetch(url, fetchOptions);
 
             clearTimeout(timeoutId);
 
             if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                throw new Error('HTTP ' + response.status + ': ' + response.statusText);
             }
 
-            const contentType = response.headers.get('Content-Type');
+            var contentType = response.headers.get('Content-Type');
             if (!contentType || !contentType.includes('application/json')) {
-                const text = await response.text();
-                throw new Error(`Expected JSON response, got: ${contentType}. Response: ${text.substring(0, 200)}`);
+                var text = await response.text();
+                throw new Error('Expected JSON response, got: ' + contentType + '. Response: ' + text.substring(0, 200));
             }
 
-            const data = await response.json();
+            var data = await response.json();
             return this.handleResponse(data);
 
         } catch (error) {
@@ -152,7 +185,7 @@ class StandardizedAPIClient {
             if (attempt < this.retryAttempts && 
                 (error.name === 'AbortError' || error.message.includes('Failed to fetch'))) {
                 
-                console.warn(`API request failed (attempt ${attempt}/${this.retryAttempts}), retrying...`, error.message);
+                console.warn('API request failed (attempt ' + attempt + '/' + this.retryAttempts + '), retrying...', error.message);
                 await new Promise(resolve => setTimeout(resolve, this.retryDelay * attempt));
                 return this.makeRequest(url, options, attempt + 1);
             }
@@ -164,72 +197,76 @@ class StandardizedAPIClient {
     /**
      * GET request
      */
-    async get(url, params = {}, options = {}) {
-        const queryString = new URLSearchParams(params).toString();
-        const fullUrl = queryString ? `${url}?${queryString}` : url;
+    async get(url, params, options) {
+        params = params || {};
+        options = options || {};
+        var queryString = new URLSearchParams(params).toString();
+        var fullUrl = queryString ? url + '?' + queryString : url;
         
-        return this.makeRequest(fullUrl, {
-            method: 'GET',
-            ...options
-        });
+        return this.makeRequest(fullUrl, Object.assign({}, options, {
+            method: 'GET'
+        }));
     }
 
     /**
      * POST request
      */
-    async post(url, data = {}, options = {}) {
-        return this.makeRequest(url, {
+    async post(url, data, options) {
+        data = data || {};
+        options = options || {};
+        return this.makeRequest(url, Object.assign({}, options, {
             method: 'POST',
-            body: JSON.stringify(data),
-            ...options
-        });
+            body: JSON.stringify(data)
+        }));
     }
 
     /**
      * PUT request
      */
-    async put(url, data = {}, options = {}) {
-        return this.makeRequest(url, {
+    async put(url, data, options) {
+        data = data || {};
+        options = options || {};
+        return this.makeRequest(url, Object.assign({}, options, {
             method: 'PUT',
-            body: JSON.stringify(data),
-            ...options
-        });
+            body: JSON.stringify(data)
+        }));
     }
 
     /**
      * PATCH request
      */
-    async patch(url, data = {}, options = {}) {
-        return this.makeRequest(url, {
+    async patch(url, data, options) {
+        data = data || {};
+        options = options || {};
+        return this.makeRequest(url, Object.assign({}, options, {
             method: 'PATCH',
-            body: JSON.stringify(data),
-            ...options
-        });
+            body: JSON.stringify(data)
+        }));
     }
 
     /**
      * DELETE request
      */
-    async delete(url, options = {}) {
-        return this.makeRequest(url, {
-            method: 'DELETE',
-            ...options
-        });
+    async delete(url, options) {
+        options = options || {};
+        return this.makeRequest(url, Object.assign({}, options, {
+            method: 'DELETE'
+        }));
     }
 
     /**
      * Upload file with FormData
      */
-    async upload(url, formData, options = {}) {
-        const headers = this.getHeaders();
+    async upload(url, formData, options) {
+        options = options || {};
+        var headers = this.getHeaders();
         delete headers['Content-Type']; // Let browser set content-type for FormData
 
-        return this.makeRequest(url, {
+        return this.makeRequest(url, Object.assign({}, options, {
             method: 'POST',
             body: formData,
-            headers,
-            ...options
-        });
+            headers: headers
+        }));
     }
 }
 
@@ -237,7 +274,10 @@ class StandardizedAPIClient {
  * Standardized API Error class
  */
 class StandardizedAPIError extends Error {
-    constructor(message, errors = {}, errorCode = null, details = null) {
+    constructor(message, errors, errorCode, details) {
+        errors = errors || {};
+        errorCode = errorCode || null;
+        details = details || null;
         super(message);
         this.name = 'StandardizedAPIError';
         this.errors = errors;
@@ -251,7 +291,7 @@ class StandardizedAPIError extends Error {
      */
     getUserFriendlyMessage() {
         if (this.errorCode === 'VALIDATION_ERROR' && Object.keys(this.errors).length > 0) {
-            const firstError = Object.values(this.errors)[0];
+            var firstError = Object.values(this.errors)[0];
             if (Array.isArray(firstError)) {
                 return firstError[0];
             }
@@ -301,23 +341,30 @@ window.api = new StandardizedAPIClient();
 /**
  * Convenience functions for common API operations
  */
-window.apiSuccess = (data, message = 'Success') => ({ success: true, data, message });
-window.apiError = (message, errors = {}) => ({ success: false, message, errors });
+window.apiSuccess = function(data, message) {
+    message = message || 'Success';
+    return { success: true, data: data, message: message };
+};
+window.apiError = function(message, errors) {
+    errors = errors || {};
+    return { success: false, message: message, errors: errors };
+};
 
 /**
  * Global error handler for API errors
  */
-window.handleAPIError = function(error, context = 'API Request') {
-    console.error(`${context} Error:`, error);
+window.handleAPIError = function(error, context) {
+    context = context || 'API Request';
+    console.error(context + ' Error:', error);
     
     if (error instanceof StandardizedAPIError) {
         // Show user-friendly error message
-        const message = error.getUserFriendlyMessage();
+        var message = error.getUserFriendlyMessage();
         
         if (typeof showToast === 'function') {
             showToast(message, 'error');
         } else {
-            alert(message);
+            console.error('Error (toast system unavailable):', message);
         }
         
         // Log detailed error for debugging
@@ -330,12 +377,12 @@ window.handleAPIError = function(error, context = 'API Request') {
         });
     } else {
         // Handle non-API errors
-        const message = error.message || 'An unexpected error occurred';
+        var message = error.message || 'An unexpected error occurred';
         
         if (typeof showToast === 'function') {
             showToast(message, 'error');
         } else {
-            alert(message);
+            console.error('Error (toast system unavailable):', message);
         }
     }
 };
@@ -344,7 +391,7 @@ window.handleAPIError = function(error, context = 'API Request') {
  * Initialize the standardized API client
  */
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('✅ Standardized API Client initialized');
+    // Debug logging removed for production
     
     // Set up global error handling
     window.addEventListener('unhandledrejection', function(event) {

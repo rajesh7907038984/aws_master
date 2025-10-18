@@ -65,6 +65,7 @@ class FileUploadValidator:
             'extensions': {'.zip', '.rar', '.7z', '.tar', '.gz', '.bz2'},
             'mime_types': {'application/zip', 'application/octet-stream', 'application/x-zip-compressed', 'application/x-rar-compressed', 'application/x-7z-compressed'}
         },
+        'zip_only': {
             'extensions': {'.zip'},
             'mime_types': {'application/zip', 'application/octet-stream', 'application/x-zip-compressed'}
         }
@@ -170,6 +171,7 @@ class FileUploadValidator:
         # Get file extension for conditional validation
         file_extension = os.path.splitext(uploaded_file.name)[1].lower()
         
+        if file_extension == '.zip':
             try:
                 import zipfile
                 uploaded_file.seek(0)
@@ -177,9 +179,11 @@ class FileUploadValidator:
                     file_list = zip_file.namelist()
                     has_manifest = any('imsmanifest.xml' in f.lower() for f in file_list)
                     if not has_manifest:
+                        errors.append(_('ZIP file does not contain required manifest'))
             except zipfile.BadZipFile:
                 errors.append(_('File is not a valid ZIP archive'))
             except Exception as e:
+                errors.append(_('Error validating ZIP file: {}').format(str(e)))
             finally:
                 uploaded_file.seek(0)
         

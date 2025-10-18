@@ -98,4 +98,4 @@ class BaseModelFormWithTinyMCE(ModelForm):
                 pass
 
 # Alias for backward compatibility
-BaseModelFormWithQuill = BaseModelFormWithTinyMCE 
+# BaseModelFormWithQuill = BaseModelFormWithTinyMCE  # Deprecated - use BaseModelFormWithTinyMCE directly 

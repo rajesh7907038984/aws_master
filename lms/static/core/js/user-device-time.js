@@ -1,126 +1,88 @@
 /**
- * User Device Time Handler for LMS
- * Captures and manages user device time information
+ * User Device Time Utility for LMS
+ * Handles user device time detection and synchronization
  */
+
 (function() {
     'use strict';
 
-    window.UserDeviceTime = {
-        // Get user's local time
-        getLocalTime: function() {
-            return new Date();
-        },
-
-        // Get timezone offset in minutes
-        getTimezoneOffset: function() {
-            return new Date().getTimezoneOffset();
-        },
-
-        // Get timezone name
-        getTimezoneName: function() {
-            try {
-                return Intl.DateTimeFormat().resolvedOptions().timeZone;
-            } catch (e) {
-                return 'Unknown';
-            }
-        },
-
-        // Get device time info object
-        getDeviceTimeInfo: function() {
-            const now = this.getLocalTime();
-            return {
-                localTime: now.toISOString(),
-                timestamp: now.getTime(),
-                timezoneOffset: this.getTimezoneOffset(),
-                timezoneName: this.getTimezoneName(),
-                localTimeString: now.toString()
-            };
-        },
-
-        // Send time info to server (if endpoint exists)
-        syncWithServer: function() {
-            const timeInfo = this.getDeviceTimeInfo();
-            
-            // Store locally
-            if (typeof(Storage) !== "undefined") {
-                sessionStorage.setItem('deviceTimeInfo', JSON.stringify(timeInfo));
-            }
-
-            // Optional: sync with server
-            const syncEndpoint = '/api/sync-device-time/';
-            if (window.fetch && typeof window.CSRFHandler !== 'undefined') {
-                // Create payload with correct field names expected by server
-                const serverPayload = {
-                    client_time: timeInfo.localTime,
-                    timezone: timeInfo.timezoneName
-                };
-                
-                fetch(syncEndpoint, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': window.CSRFHandler.getToken()
-                    },
-                    body: JSON.stringify(serverPayload)
-                }).then(response => {
-                    if (!response.ok) {
-                        return response.json().then(data => {
-                        });
-                    }
-                    return response.json();
-                }).then(data => {
-                    if (data && data.success) {
-                    }
-                }).catch(e => {
-                });
-            }
-        },
-
-        // Add time info to forms
-        addToForms: function() {
-            const timeInfo = this.getDeviceTimeInfo();
-            const forms = document.querySelectorAll('form');
-            
-            forms.forEach(form => {
-                // Add device timestamp if not exists
-                if (!form.querySelector('input[name="device_timestamp"]')) {
-                    const timestampInput = document.createElement('input');
-                    timestampInput.type = 'hidden';
-                    timestampInput.name = 'device_timestamp';
-                    timestampInput.value = timeInfo.timestamp;
-                    form.appendChild(timestampInput);
-                }
-
-                // Add timezone offset if not exists
-                if (!form.querySelector('input[name="timezone_offset"]')) {
-                    const offsetInput = document.createElement('input');
-                    offsetInput.type = 'hidden';
-                    offsetInput.name = 'timezone_offset';
-                    offsetInput.value = timeInfo.timezoneOffset;
-                    form.appendChild(offsetInput);
-                }
-            });
-        },
-
-        // Initialize device time handling
+    const UserDeviceTime = {
+        deviceTime: null,
+        serverTime: null,
+        timeOffset: 0,
+        
         init: function() {
-            this.syncWithServer();
-            this.addToForms();
-            
-            // Update device time periodically (every 5 minutes)
+            this.detectDeviceTime();
+            this.setupTimeSync();
+        },
+        
+        detectDeviceTime: function() {
+            this.deviceTime = new Date();
+            window.deviceTime = this.deviceTime;
+        },
+        
+        setupTimeSync: function() {
+            // Sync time with server every 5 minutes
             setInterval(() => {
                 this.syncWithServer();
             }, 5 * 60 * 1000);
-
+            
+            // Initial sync
+            this.syncWithServer();
+        },
+        
+        syncWithServer: function() {
+            fetch('/api/time/', {
+                method: 'GET',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.server_time) {
+                    this.serverTime = new Date(data.server_time);
+                    this.timeOffset = this.serverTime.getTime() - this.deviceTime.getTime();
+                    window.serverTime = this.serverTime;
+                    window.timeOffset = this.timeOffset;
+                }
+            })
+            .catch(error => {
+                console.warn('Time sync failed:', error);
+            });
+        },
+        
+        getCurrentTime: function() {
+            if (this.serverTime) {
+                return new Date(Date.now() + this.timeOffset);
+            }
+            return new Date();
+        },
+        
+        formatTime: function(date, format = 'datetime') {
+            const time = date || this.getCurrentTime();
+            
+            switch (format) {
+                case 'date':
+                    return time.toLocaleDateString();
+                case 'time':
+                    return time.toLocaleTimeString();
+                case 'datetime':
+                default:
+                    return time.toLocaleString();
+            }
         }
     };
 
-    // Auto-initialize when DOM is ready
+    // Initialize when DOM is ready
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', function() {
-            window.UserDeviceTime.init();
+            UserDeviceTime.init();
         });
     } else {
-        window.UserDeviceTime.init();
+        UserDeviceTime.init();
     }
+
+    // Export to global scope
+    window.UserDeviceTime = UserDeviceTime;
 })();

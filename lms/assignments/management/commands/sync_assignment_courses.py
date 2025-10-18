@@ -29,14 +29,14 @@ class Command(BaseCommand):
             try:
                 assignment = Assignment.objects.get(id=specific_id)
                 self.sync_single_assignment(assignment)
-                self.stdout.write(self.style.SUCCESS(f'Successfully synchronized assignment {specific_id}'))
+                self.stdout.write(self.style.SUCCESS("Successfully synchronized assignment {{specific_id}}"))
             except Assignment.DoesNotExist:
-                self.stdout.write(self.style.ERROR(f'Assignment with ID {specific_id} not found'))
+                self.stdout.write(self.style.ERROR("Assignment with ID {{specific_id}} not found"))
                 return
         else:
             # Get total count for progress reporting
             total_count = Assignment.objects.count()
-            self.stdout.write(self.style.SUCCESS(f'Found {total_count} assignments to process'))
+            self.stdout.write(self.style.SUCCESS("Found {{total_count}} assignments to process"))
             
             # Process in batches to avoid memory issues
             processed = 0
@@ -49,7 +49,7 @@ class Command(BaseCommand):
                 
                 self.process_batch(assignments)
                 processed += len(assignments)
-                self.stdout.write(self.style.SUCCESS(f'Processed {processed}/{total_count} assignments'))
+                self.stdout.write(self.style.SUCCESS("Processed {{processed}}/{{total_count}} assignments"))
         
         self.stdout.write(self.style.SUCCESS('Assignment-course synchronization completed successfully!'))
     
@@ -72,7 +72,7 @@ class Command(BaseCommand):
         
         # Report changes
         if before_count != after_count:
-            self.stdout.write(f'Assignment ID {assignment.id}: Courses changed from {before_count} to {after_count}')
+            self.stdout.write("Assignment ID {{assignment.id}}: Courses changed from {{before_count}} to {{after_count}}")
             
             # List the courses
             courses = assignment.courses.all()
@@ -81,8 +81,8 @@ class Command(BaseCommand):
             course_list = []
             for course in courses:
                 is_primary = primary_course and primary_course.id == course.id
-                course_list.append(f"{course.id}: {course.title}" + (" (Primary)" if is_primary else ""))
+                course_list.append("{{course.id}}: {{course.title}}" + (" (Primary)" if is_primary else ""))
             
-            self.stdout.write(f'  Courses: {", ".join(course_list)}')
+            self.stdout.write("  Courses: {{", ".join(course_list)}}")
         else:
-            self.stdout.write(f'Assignment ID {assignment.id}: No changes needed ({before_count} courses)') 
+            self.stdout.write("Assignment ID {{assignment.id}}: No changes needed ({{before_count}} courses)") 

@@ -61,7 +61,7 @@ class BranchGroup(models.Model):
 
     def __str__(self):
         branch_name = self.branch.name if self.branch else "No Branch"
-        return f"{self.name} ({branch_name})"
+        return "{{self.name}} ({{branch_name}})"
 
 class GroupMemberRole(models.Model):
     """Model to define custom roles within a group"""
@@ -90,7 +90,7 @@ class GroupMemberRole(models.Model):
 
     def __str__(self):
         group_name = self.group.name if self.group else "Global"
-        return f"{self.name} - {group_name}"
+        return "{{self.name}} - {{group_name}}"
 
     def save(self, *args, **kwargs):
         # Automatically set edit permission for instructor roles
@@ -162,7 +162,7 @@ class GroupMembership(models.Model):
 
     def __str__(self):
         role_name = self.custom_role.name if self.custom_role else "Member"
-        return f"{self.user.username} - {self.group.name} ({role_name})"
+        return "{{self.user.username}} - {{self.group.name}} ({{role_name}})"
 
 class CourseGroupAccess(models.Model):
     """Model to manage group access to courses"""
@@ -254,7 +254,7 @@ class CourseGroupAccess(models.Model):
                 )
 
     def __str__(self):
-        return f"{self.course.title} - {self.group.name}"
+        return "{{self.course.title}} - {{self.group.name}}"
 
 class CourseGroup(models.Model):
     """Model to associate groups with courses for the group management interface"""
@@ -281,7 +281,7 @@ class CourseGroup(models.Model):
         ordering = ['-created_at']
 
     def __str__(self):
-        return f"{self.course.title} - {self.group.name}"
+        return "{{self.course.title}} - {{self.group.name}}"
 
 class GroupPermissionManager:
     def check_user_permissions(self, user, course=None):
@@ -315,26 +315,26 @@ class GroupPermissionManager:
 def handle_group_membership_changes(sender, instance, created, **kwargs):
     """Handle changes to group membership including automatic enrollment"""
     try:
-        logger.info(f"============ GroupMembership Signal Triggered ============")
-        logger.info(f"User: {instance.user.username} ({instance.user.role})")
-        logger.info(f"Group: {instance.group.name}")
-        logger.info(f"Is Active: {instance.is_active}")
-        logger.info(f"Is New: {created}")
+        logger.info("============ GroupMembership Signal Triggered ============")
+        logger.info("User: {{instance.user.username}} ({{instance.user.role}})")
+        logger.info("Group: {{instance.group.name}}")
+        logger.info("Is Active: {{instance.is_active}}")
+        logger.info("Is New: {{created}}")
 
         # Log instructor group membership changes
         if instance.user.role == 'instructor':
-            logger.info(f"Instructor {instance.user.username} group membership changed")
+            logger.info("Instructor {{instance.user.username}} group membership changed")
 
         if instance.user.role == 'learner':
             from courses.models import CourseEnrollment
             
             # Get accessible courses
             courses = instance.group.accessible_courses.all()
-            logger.info(f"Found {courses.count()} accessible courses for group")
+            logger.info("Found {{courses.count()}} accessible courses for group")
             
             # List accessible courses for debugging
             for course in courses:
-                logger.info(f"Course available: {course.title}")
+                logger.info("Course available: {{course.title}}")
 
             if instance.is_active:
                 logger.info("Processing active membership - creating enrollments")
@@ -347,9 +347,9 @@ def handle_group_membership_changes(sender, instance, created, **kwargs):
                             source='auto_group'
                         )
                         status = "created" if created else "already exists"
-                        logger.info(f"Enrollment {status} for course: {course.title}")
+                        logger.info("Enrollment {{status}} for course: {{course.title}}")
                     except Exception as e:
-                        logger.error(f"Error creating enrollment for course {course.title}: {str(e)}")
+                        logger.error("Error creating enrollment for course {{course.title}}: {{str(e)}}")
             else:
                 logger.info("Processing inactive membership - checking for enrollment removal")
                 for course in courses:
@@ -360,35 +360,35 @@ def handle_group_membership_changes(sender, instance, created, **kwargs):
                             memberships__is_active=True
                         ).exclude(id=instance.group.id).exists()
                         
-                        logger.info(f"Other active memberships exist: {other_active_memberships}")
+                        logger.info("Other active memberships exist: {{other_active_memberships}}")
                         
                         if not other_active_memberships:
                             deleted_count = CourseEnrollment.objects.filter(
                                 user=instance.user,
                                 course=course
                             ).delete()
-                            logger.info(f"Deleted {deleted_count} enrollments for course: {course.title}")
+                            logger.info("Deleted {{deleted_count}} enrollments for course: {{course.title}}")
                     except Exception as e:
-                        logger.error(f"Error removing enrollment for course {course.title}: {str(e)}")
+                        logger.error("Error removing enrollment for course {{course.title}}: {{str(e)}}")
 
         logger.info("============ Signal Processing Complete ============\n")
 
     except Exception as e:
-        logger.error(f"Error in group membership signal handler: {str(e)}")
+        logger.error("Error in group membership signal handler: {{str(e)}}")
         logger.exception("Full traceback:")
 
 @receiver(post_delete, sender=GroupMembership)
 def handle_group_membership_delete(sender, instance, **kwargs):
     """Handle cache invalidation when group membership is deleted"""
     try:
-        logger.info(f"GroupMembership deleted for user: {instance.user.username} ({instance.user.role})")
+        logger.info("GroupMembership deleted for user: {{instance.user.username}} ({{instance.user.role}})")
         
         # Log instructor group membership removal
         if instance.user.role == 'instructor':
-            logger.info(f"Instructor {instance.user.username} group membership removed")
+            logger.info("Instructor {{instance.user.username}} group membership removed")
         
     except Exception as e:
-        logger.error(f"Error in group membership delete signal handler: {str(e)}")
+        logger.error("Error in group membership delete signal handler: {{str(e)}}")
         logger.exception("Full traceback:")
 
 @receiver([post_save, post_delete], sender='groups.GroupMemberRole')
@@ -406,7 +406,7 @@ def update_course_access_modify_permission(sender, instance, **kwargs):
 def handle_course_group_access_changes(sender, instance, **kwargs):
     """Invalidate cache for instructors when course group access changes"""
     try:
-        logger.info(f"CourseGroupAccess changed for course: {instance.course.title}, group: {instance.group.name}")
+        logger.info("CourseGroupAccess changed for course: {{instance.course.title}}, group: {{instance.group.name}}")
         
         # Log changes for all instructors in the affected group
         instructor_memberships = instance.group.memberships.filter(
@@ -415,12 +415,12 @@ def handle_course_group_access_changes(sender, instance, **kwargs):
         )
         
         for membership in instructor_memberships:
-            logger.info(f"Course access changed for instructor {membership.user.username}")
+            logger.info("Course access changed for instructor {{membership.user.username}}")
             
         # Also log for the direct instructor of the course if any
         if instance.course.instructor:
-            logger.info(f"Course access changed for course instructor {instance.course.instructor.username}")
+            logger.info("Course access changed for course instructor {{instance.course.instructor.username}}")
         
     except Exception as e:
-        logger.error(f"Error in course group access signal handler: {str(e)}")
+        logger.error("Error in course group access signal handler: {{str(e)}}")
         logger.exception("Full traceback:")

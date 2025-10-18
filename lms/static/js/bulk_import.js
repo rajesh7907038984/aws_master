@@ -34,32 +34,38 @@ function resetForm() {
 
 // Handle file upload and preview
 document.getElementById('file-upload').addEventListener('change', async (event) => {
-    const file = event.target.files[0];
-    if (!file) return;
-
-    const formData = new FormData();
-    formData.append('file', file);
-
     try {
-        const response = await fetch('/users/validate-bulk-import/', {
-            method: 'POST',
-            body: formData,
-            headers: {
-                'X-CSRFToken': getCookie('csrftoken')
-            }
-        });
+        const file = event.target.files[0];
+        if (!file) return;
 
-        const data = await response.json();
-        
-        if (response.ok) {
-            displayPreview(data.users);
-            validatedData = data.users;
-            hasErrors = data.has_errors;
-            document.getElementById('importButton').disabled = hasErrors;
-        } else {
-            showError(data.error || 'An error occurred while processing the file.');
+        const formData = new FormData();
+        formData.append('file', file);
+
+        try {
+            const response = await fetch('/users/validate-bulk-import/', {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-CSRFToken': getCookie('csrftoken')
+                }
+            });
+
+            const data = await response.json();
+            
+            if (response.ok) {
+                displayPreview(data.users);
+                validatedData = data.users;
+                hasErrors = data.has_errors;
+                document.getElementById('importButton').disabled = hasErrors;
+            } else {
+                showError(data.error || 'An error occurred while processing the file.');
+            }
+        } catch (error) {
+            console.error('Error in file upload fetch:', error);
+            showError('An error occurred while uploading the file.');
         }
     } catch (error) {
+        console.error('Error handling file upload:', error);
         showError('An error occurred while uploading the file.');
     }
 });

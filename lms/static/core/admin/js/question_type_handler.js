@@ -89,6 +89,7 @@
         });
 
         // Debug logging
+        console.log('Form rows found:', {
             multipleChoice: formRows.multipleChoice.length,
             matching: formRows.matching.length,
             fillBlank: formRows.fillBlank.length,

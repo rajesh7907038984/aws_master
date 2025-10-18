@@ -1,9 +1,14 @@
-/* Missing Icon Fallbacks for Nexsy LMS */
-/* This file provides fallback icons when FontAwesome fails to load */
+/* Icon Fallbacks for LMS */
+.icon-fallback {
+    display: inline-block;
+    width: 1em;
+    height: 1em;
+    text-align: center;
+    line-height: 1;
+}
 
-/* Ensure all FontAwesome icons are visible */
+/* Ensure icons are visible */
 .fas, .far, .fab, .fa {
-    font-family: 'Font Awesome 6 Free', 'Font Awesome 6 Pro', 'FontAwesome', sans-serif !important;
     display: inline-block !important;
     font-style: normal !important;
     font-variant: normal !important;
@@ -12,97 +17,42 @@
     -moz-osx-font-smoothing: grayscale !important;
 }
 
-/* Missing Icons - Dashboard & Quick Actions */
-.fa-video::before { content: "📹"; }
-.fa-graduation-cap::before { content: "🎓"; }
-.fa-chalkboard-teacher::before { content: "👨‍🏫"; }
-.fa-tachometer-alt::before { content: "📊"; }
-.fa-user-graduate::before { content: "🎓"; }
-
-/* Missing Icons - Navigation & Sidebar */
-.fa-building::before { content: "🏢"; }
-.fa-chart-line::before { content: "📈"; }
-.fa-book::before { content: "📚"; }
-.fa-users::before { content: "👥"; }
-.fa-comments::before { content: "💬"; }
-.fa-calendar::before { content: "📅"; }
-.fa-file-alt::before { content: "📄"; }
-
-/* Missing Icons - To-Do List */
-.fa-tasks::before { content: "📋"; }
-.fa-clock::before { content: "🕐"; }
-.fa-upload::before { content: "⬆"; }
-.fa-check-circle::before { content: "✅"; }
-.fa-user-check::before { content: "👤✓"; }
-.fa-chevron-right::before { content: "⌄"; }
-.fa-arrow-right::before { content: "→"; }
-
-/* Missing Icons - Forms & Actions */
-.fa-cogs::before { content: "⚙"; }
-.fa-save::before { content: "💾"; }
-.fa-edit::before { content: "✏"; }
-.fa-trash::before { content: "🗑"; }
-.fa-plus::before { content: "+"; }
-.fa-times::before { content: "✕"; }
-
-/* Missing Icons - Status & Notifications */
-.fa-bell::before { content: "🔔"; }
+/* Specific icon fallbacks for common icons */
+.fa-check-circle::before { content: "✓"; }
+.fa-exclamation-circle::before { content: "⚠"; }
 .fa-exclamation-triangle::before { content: "⚠"; }
 .fa-info-circle::before { content: "ℹ"; }
-.fa-check::before { content: "✓"; }
-.fa-spinner::before { content: "⟳"; }
-
-/* Missing Icons - Navigation Arrows */
-.fa-chevron-down::before { content: "⌄"; }
-.fa-chevron-up::before { content: "⌃"; }
-.fa-chevron-left::before { content: "⌃"; }
-.fa-chevron-right::before { content: "⌄"; }
-.fa-arrow-left::before { content: "←"; }
-.fa-arrow-right::before { content: "→"; }
-
-/* Missing Icons - Additional Dashboard Icons */
+.fa-times::before { content: "✕"; }
+.fa-plus::before { content: "+"; }
+.fa-search::before { content: "🔍"; }
+.fa-edit::before { content: "✏"; }
+.fa-trash::before { content: "🗑"; }
+.fa-play::before { content: "▶"; }
+.fa-user-graduate::before { content: "🎓"; }
+.fa-clock::before { content: "🕐"; }
 .fa-book-open::before { content: "📖"; }
 .fa-envelope::before { content: "✉"; }
-.fa-download::before { content: "⬇"; }
-.fa-sign-in-alt::before { content: "🔑"; }
-.fa-shield-alt::before { content: "🛡"; }
-.fa-ellipsis-h::before { content: "⋯"; }
-.fa-home::before { content: "🏠"; }
-.fa-search::before { content: "🔍"; }
-.fa-play::before { content: "▶"; }
+.fa-arrow-left::before { content: "←"; }
+.fa-save::before { content: "💾"; }
+.fa-spinner::before { content: "⟳"; }
 .fa-eye::before { content: "👁"; }
 .fa-filter::before { content: "🔽"; }
 .fa-th-large::before { content: "⊞"; }
 .fa-list::before { content: "☰"; }
+.fa-home::before { content: "🏠"; }
+.fa-book::before { content: "📚"; }
+.fa-users::before { content: "👥"; }
+.fa-tasks::before { content: "📋"; }
 .fa-question-circle::before { content: "❓"; }
 .fa-chart-bar::before { content: "📊"; }
 .fa-cog::before { content: "⚙"; }
-
-/* Ensure icons display properly in quick actions */
-.dashboard-quick-action-icon i {
-    color: var(--dashboard-primary-color) !important;
-    display: inline-block !important;
-}
-
-/* Ensure icons display properly in overview cards */
-.dashboard-overview-icon i {
-    color: var(--dashboard-accent-color) !important;
-    display: inline-block !important;
-}
-
-/* Ensure icons display properly in sidebar */
-.icon-container svg,
-.icon-container i {
-    display: inline-block !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-}
-
-/* Fallback for missing SVG icons */
-.icon-container svg:not([viewBox]) {
-    display: none !important;
-}
-
-.icon-container svg:not([viewBox]) + i {
-    display: inline-block !important;
-}
+.fa-bell::before { content: "🔔"; }
+.fa-comments::before { content: "💬"; }
+.fa-download::before { content: "⬇"; }
+.fa-sign-in-alt::before { content: "🔑"; }
+.fa-shield-alt::before { content: "🛡"; }
+.fa-ellipsis-h::before { content: "⋯"; }
+.fa-chevron-down::before { content: "⌄"; }
+.fa-chevron-up::before { content: "⌃"; }
+.fa-chevron-left::before { content: "⌃"; }
+.fa-chevron-right::before { content: "⌃"; }

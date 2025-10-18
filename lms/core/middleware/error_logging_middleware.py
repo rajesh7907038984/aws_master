@@ -24,35 +24,48 @@ class ErrorLoggingMiddleware:
         try:
             response = self.get_response(request)
             
-            # Log performance issues
+            # Log performance issues with memory optimization
             duration = time.time() - start_time
             if duration > 5.0:  # Log if request takes more than 5 seconds
-                error_logger.log_performance_issue(
-                    operation=f"{request.method} {request.path}",
-                    duration=duration,
-                    threshold=5.0,
-                    context={
-                        'user': request.user.username if request.user.is_authenticated else 'Anonymous',
+                # Use minimal context to prevent memory leaks
+                try:
+                    context = {
+                        'user': request.user.username if hasattr(request, 'user') and request.user.is_authenticated else 'Anonymous',
                         'ip': self._get_client_ip(request),
-                        'user_agent': request.META.get('HTTP_USER_AGENT', ''),
                     }
-                )
+                    error_logger.log_performance_issue(
+                        operation=f"{request.method} {request.path}",
+                        duration=duration,
+                        threshold=5.0,
+                        context=context
+                    )
+                except Exception as log_error:
+                    # Prevent logging errors from causing memory leaks
+                    logger.error(f"Error logging performance issue: {log_error}")
+                    # Clear context to free memory
+                    del context
             
             return response
             
         except Exception as e:
-            # Log the error with comprehensive context
-            log_error(
-                error=e,
-                request=request,
-                user=request.user if request.user.is_authenticated else None,
-                context={
-                    'middleware': 'ErrorLoggingMiddleware',
-                    'duration': time.time() - start_time,
-                }
-            )
+            # Log the error with minimal context to prevent memory leaks
+            try:
+                log_error(
+                    error=e,
+                    request=request,
+                    user=request.user if hasattr(request, 'user') and request.user.is_authenticated else None,
+                    context={
+                        'middleware': 'ErrorLoggingMiddleware',
+                        'duration': time.time() - start_time,
+                    },
+                    severity='CRITICAL'  # Mark middleware errors as critical
+                )
+            except Exception as log_error:
+                # Prevent logging errors from causing additional issues
+                logger.error(f"Error logging middleware exception: {log_error}")
             
             # Re-raise the exception to let Django handle it
+            # Don't mask the original exception
             raise
     
     def _get_client_ip(self, request: HttpRequest) -> str:

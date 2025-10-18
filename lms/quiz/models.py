@@ -286,7 +286,7 @@ class Quiz(models.Model):
                 stuck_attempts = concurrent_attempts.filter(last_activity__lt=stuck_time)
                 
                 if stuck_attempts.exists():
-                    logger.info(f"Cleaning up {stuck_attempts.count()} stuck attempts for user {user.id}")
+                    logger.info("Cleaning up {{stuck_attempts.count()}} stuck attempts for user {{user.id}}")
                     # Clean up stuck attempts
                     from .models import UserAnswer
                     UserAnswer.objects.filter(attempt__in=stuck_attempts).delete()
@@ -296,18 +296,18 @@ class Quiz(models.Model):
                 current_concurrent = self.get_concurrent_attempts(user)
                 
                 if current_concurrent >= self.max_concurrent_attempts:
-                    logger.warning(f"User {user.id} has reached max concurrent attempts ({current_concurrent}/{self.max_concurrent_attempts})")
+                    logger.warning("User {{user.id}} has reached max concurrent attempts ({{current_concurrent}}/{{self.max_concurrent_attempts}})")
                     return False
                 
                 # Check if quiz is available
                 if not self.is_available_for_user(user):
-                    logger.warning(f"Quiz {self.id} not available for user {user.id}")
+                    logger.warning("Quiz {{self.id}} not available for user {{user.id}}")
                     return False
                 
                 return True
                 
         except Exception as e:
-            logger.error(f"Error checking if user {user.id} can start new attempt for quiz {self.id}: {str(e)}", exc_info=True)
+            logger.error("Error checking if user {{user.id}} can start new attempt for quiz {{self.id}}: {{str(e)}}", exc_info=True)
             return False
         
     def clean_stale_attempts(self, user):
@@ -328,7 +328,7 @@ class Quiz(models.Model):
                 
                 count = stale_attempts.count()
                 if count > 0:
-                    logger.info(f"Cleaning up {count} stale attempts for user {user.id}")
+                    logger.info("Cleaning up {{count}} stale attempts for user {{user.id}}")
                     
                     # Get attempt IDs before deletion for logging
                     attempt_ids = list(stale_attempts.values_list('id', flat=True))
@@ -338,12 +338,12 @@ class Quiz(models.Model):
                     deleted_answers = UserAnswer.objects.filter(attempt__in=stale_attempts).delete()
                     deleted_attempts = stale_attempts.delete()
                     
-                    logger.info(f"Cleaned up {deleted_answers[0]} answers and {deleted_attempts[0]} attempts: {attempt_ids}")
+                    logger.info("Cleaned up {{deleted_answers[0]}} answers and {{deleted_attempts[0]}} attempts: {{attempt_ids}}")
                 
                 return count
                 
         except Exception as e:
-            logger.error(f"Error cleaning stale attempts for user {user.id}: {str(e)}", exc_info=True)
+            logger.error("Error cleaning stale attempts for user {{user.id}}: {{str(e)}}", exc_info=True)
             return 0
     
     def clean_expired_attempts(self, user=None):
@@ -451,7 +451,7 @@ class Question(models.Model):
         ]
 
     def __str__(self):
-        return f"{self.question_text[:50]}..."
+        return "{{self.question_text[:50]}}..."
 
     def clean(self):
         if self.question_type == 'multiple_select' and self.min_required < 1:
@@ -463,11 +463,11 @@ class Question(models.Model):
         logger = logging.getLogger(__name__)
         
         if not user_answer:
-            logger.debug(f"Empty answer for {self.question_type} question")
+            logger.debug("Empty answer for {{self.question_type}} question")
             return False
             
         correct_answers = self.get_correct_answers()
-        logger.debug(f"Question type: {self.question_type}, user answer: {user_answer}, correct answers: {correct_answers}")
+        logger.debug("Question type: {{self.question_type}}, user answer: {{user_answer}}, correct answers: {{correct_answers}}")
         
         if self.question_type in ['multiple_choice', 'multiple_select']:
             # Ensure all IDs are strings for consistent comparison
@@ -478,12 +478,12 @@ class Question(models.Model):
                 user_answer = [str(ans) for ans in user_answer if ans]
                 # For multiple_select, compare sets to ignore order
                 result = set(user_answer) == set(correct_answers)
-                logger.debug(f"Multiple select comparison: {set(user_answer)} == {set(correct_answers)} = {result}")
+                logger.debug("Multiple select comparison: {{set(user_answer)}} == {{set(correct_answers)}} = {{result}}")
                 return result
             
             # For multiple_choice
             result = str(user_answer) in correct_answers
-            logger.debug(f"Multiple choice comparison: {str(user_answer)} in {correct_answers} = {result}")
+            logger.debug("Multiple choice comparison: {{str(user_answer)}} in {{correct_answers}} = {{result}}")
             return result
             
         elif self.question_type == 'true_false':
@@ -588,7 +588,7 @@ class Answer(models.Model):
         ]
 
     def __str__(self):
-        return f"{self.answer_text[:50]}..."
+        return "{{self.answer_text[:50]}}..."
 
     def clean(self):
         if self.question.question_type == 'multiple_choice':
@@ -613,7 +613,7 @@ class MatchingPair(models.Model):
         ]
 
     def __str__(self):
-        return f"{self.left_item[:25]} -> {self.right_item[:25]}"
+        return "{{self.left_item[:25]}} -> {{self.right_item[:25]}}"
 
     def clean(self):
         if self.question.question_type not in ['matching', 'drag_drop_matching']:
@@ -700,7 +700,7 @@ class QuizAttempt(models.Model):
                 raise ValidationError({'ip_address': 'Invalid IP address format'})
 
     def __str__(self):
-        return f"{self.user.username} - {self.quiz.title}"
+        return "{{self.user.username}} - {{self.quiz.title}}"
         
     @property
     def passed(self):
@@ -733,7 +733,7 @@ class QuizAttempt(models.Model):
                     total_points += Decimal(str(question.points))
                 
                 if total_points == 0:
-                    logger.warning(f"Quiz {attempt.quiz.id} has no points assigned to questions")
+                    logger.warning("Quiz {{attempt.quiz.id}} has no points assigned to questions")
                     attempt.score = Decimal('0')
                     attempt.save(update_fields=['score'])
                     return Decimal('0')
@@ -776,14 +776,14 @@ class QuizAttempt(models.Model):
                         }
                     )
                 
-                logger.info(f"Score calculated for attempt {attempt.id}: "
-                           f"earned={earned_points}, total={total_points}, "
-                           f"percentage={percentage}%")
+                logger.info("Score calculated for attempt {{attempt.id}}: "
+                           "earned={{earned_points}}, total={{total_points}}, "
+                           "percentage={{percentage}}%")
                 
                 return percentage
                 
         except Exception as e:
-            logger.error(f"Error calculating score for attempt {self.id}: {str(e)}", exc_info=True)
+            logger.error("Error calculating score for attempt {{self.id}}: {{str(e)}}", exc_info=True)
             # Return 0 on error to prevent data corruption
             try:
                 with transaction.atomic():
@@ -791,7 +791,7 @@ class QuizAttempt(models.Model):
                     attempt.score = Decimal('0')
                     attempt.save(update_fields=['score'])
             except Exception as save_error:
-                logger.error(f"Failed to save error state for attempt {self.id}: {str(save_error)}")
+                logger.error("Failed to save error state for attempt {{self.id}}: {{str(save_error)}}")
             return Decimal('0')
     
     def calculate_assessment_classification(self):
@@ -898,12 +898,12 @@ class QuizAttempt(models.Model):
         
         # Only log when approaching or exceeding time limit to reduce noise
         if elapsed_time >= time_limit_seconds * 0.9:  # Log when 90% of time used
-            logger.info(f"Quiz attempt {self.id} time check - User: {self.user.username}, "
-                       f"Start: {self.start_time}, Now: {now}, "
-                       f"Elapsed: {elapsed_time:.1f}s, Original_Limit: {time_limit_seconds}s, "
-                       f"Adjusted_Limit: {adjusted_limit}s, Is_Expired: {is_expired}, "
-                       f"Quiz Time Limit: {self.quiz.time_limit} minutes, "
-                       f"Grace Period: {grace_period}s")
+            logger.info("Quiz attempt {{self.id}} time check - User: {{self.user.username}}, "
+                       "Start: {{self.start_time}}, Now: {{now}}, "
+                       "Elapsed: {{elapsed_time:.1f}}s, Original_Limit: {{time_limit_seconds}}s, "
+                       "Adjusted_Limit: {{adjusted_limit}}s, Is_Expired: {{is_expired}}, "
+                       "Quiz Time Limit: {{self.quiz.time_limit}} minutes, "
+                       "Grace Period: {{grace_period}}s")
         
         return is_expired
 
@@ -945,11 +945,11 @@ class QuizAttempt(models.Model):
         seconds = total_seconds % 60
         
         if hours > 0:
-            return f"{hours}h {minutes}m {seconds}s"
+            return "{{hours}}h {{minutes}}m {{seconds}}s"
         elif minutes > 0:
-            return f"{minutes}m {seconds}s"
+            return "{{minutes}}m {{seconds}}s"
         else:
-            return f"{seconds}s"
+            return "{{seconds}}s"
     
     @property
     def active_time_formatted(self):
@@ -963,11 +963,11 @@ class QuizAttempt(models.Model):
         seconds = total_seconds % 60
         
         if hours > 0:
-            return f"{hours}h {minutes}m {seconds}s"
+            return "{{hours}}h {{minutes}}m {{seconds}}s"
         elif minutes > 0:
-            return f"{minutes}m {seconds}s"
+            return "{{minutes}}m {{seconds}}s"
         else:
-            return f"{seconds}s"
+            return "{{seconds}}s"
     
     def update_active_time(self, additional_seconds=0):
         """Update active time and last activity ping"""
@@ -1107,7 +1107,7 @@ class UserAnswer(models.Model):
         ]
 
     def __str__(self):
-        return f"{self.attempt.user.username} - {self.question.question_text[:50]}..."
+        return "{{self.attempt.user.username}} - {{self.question.question_text[:50]}}..."
 
     def check_answer(self):
         """Check if the answer is correct and update points with atomic transaction"""
@@ -1148,37 +1148,37 @@ class UserAnswer(models.Model):
                                 answer_ids = [str(user_answer.answer.id)]  # Fall back to single answer
                             
                             # Log the values for debugging
-                            logger.debug(f"Checking multiple select answer: {answer_ids}")
+                            logger.debug("Checking multiple select answer: {{answer_ids}}")
                                 
                             # Get correct answer IDs for comparison
                             correct_answer_ids = [str(id) for id in user_answer.question.get_correct_answers()]
-                            logger.debug(f"Correct answers: {correct_answer_ids}")
+                            logger.debug("Correct answers: {{correct_answer_ids}}")
                             
                             # Get human-readable answer texts
                             try:
                                 selected_answers = list(user_answer.question.answers.filter(id__in=answer_ids))
                                 selected_texts = [ans.answer_text for ans in selected_answers]
-                                logger.debug(f"Selected answer texts: {selected_texts}")
+                                logger.debug("Selected answer texts: {{selected_texts}}")
                                 
                                 correct_answers = list(user_answer.question.answers.filter(is_correct=True))
                                 correct_texts = [ans.answer_text for ans in correct_answers]
-                                logger.debug(f"Correct answer texts: {correct_texts}")
+                                logger.debug("Correct answer texts: {{correct_texts}}")
                             except Exception as e:
-                                logger.error(f"Error getting answer texts: {e}")
+                                logger.error("Error getting answer texts: {{e}}")
                                 
                             # Compare as sets to ignore order
                             user_answer.is_correct = set(answer_ids) == set(correct_answer_ids)
-                            logger.debug(f"Is correct: {user_answer.is_correct}, User answers: {set(answer_ids)}, Correct answers: {set(correct_answer_ids)}")
+                            logger.debug("Is correct: {{user_answer.is_correct}}, User answers: {{set(answer_ids)}}, Correct answers: {{set(correct_answer_ids)}}")
                             
                             # If using answer IDs, update answer object reference
                             if answer_ids and not user_answer.answer_id and answer_ids[0].isdigit():
                                 try:
                                     user_answer.answer_id = answer_ids[0]
                                 except Exception as e:
-                                    logger.error(f"Error setting answer_id: {e}")
+                                    logger.error("Error setting answer_id: {{e}}")
                         except Exception as e:
                             # If there's an error parsing, mark as incorrect
-                            logger.error(f"Error processing multiple select: {e}")
+                            logger.error("Error processing multiple select: {{e}}")
                             user_answer.is_correct = False
                 
                 elif user_answer.question.question_type == 'multi_blank':
@@ -1198,7 +1198,7 @@ class UserAnswer(models.Model):
                         user_answer.is_correct = user_answer.question.check_answer(blank_answers)
                     except (json.JSONDecodeError, ValueError) as e:
                         # If parsing fails, mark as incorrect
-                        logger.error(f"Error parsing multi_blank answer: {user_answer.text_answer} - {str(e)}")
+                        logger.error("Error parsing multi_blank answer: {{user_answer.text_answer}} - {{str(e)}}")
                         user_answer.is_correct = False
                         
                 elif user_answer.question.question_type == 'multiple_choice':
@@ -1240,7 +1240,7 @@ class UserAnswer(models.Model):
                             user_answer.matching_answers = matching_pairs
                             user_answer.is_correct = user_answer.question.check_answer(matching_pairs)
                     except Exception as e:
-                        logger.error(f"Error checking matching answer: {e}")
+                        logger.error("Error checking matching answer: {{e}}")
                         user_answer.is_correct = False
                 
                 elif user_answer.question.question_type == 'drag_drop_matching':
@@ -1257,7 +1257,7 @@ class UserAnswer(models.Model):
                             
                             user_answer.is_correct = user_answer.question.check_answer(drag_drop_dict)
                     except Exception as e:
-                        logger.error(f"Error checking drag drop matching answer: {e}")
+                        logger.error("Error checking drag drop matching answer: {{e}}")
                         user_answer.is_correct = False
                 
                 else:
@@ -1274,7 +1274,7 @@ class UserAnswer(models.Model):
                 return user_answer.is_correct
                 
         except Exception as e:
-            logger.error(f"Error checking answer for UserAnswer {self.id}: {str(e)}", exc_info=True)
+            logger.error("Error checking answer for UserAnswer {{self.id}}: {{str(e)}}", exc_info=True)
             # Try to save error state
             try:
                 with transaction.atomic():
@@ -1283,7 +1283,7 @@ class UserAnswer(models.Model):
                     user_answer.points_earned = Decimal('0')
                     user_answer.save()
             except Exception as save_error:
-                logger.error(f"Failed to save error state for UserAnswer {self.id}: {str(save_error)}")
+                logger.error("Failed to save error state for UserAnswer {{self.id}}: {{str(save_error)}}")
             return False
 
     def get_feedback(self):
@@ -1343,7 +1343,7 @@ class UserAnswer(models.Model):
         except Exception as e:
             import logging
             logger = logging.getLogger(__name__)
-            logger.error(f"Error getting selected options for UserAnswer {self.id}: {str(e)}", exc_info=True)
+            logger.error("Error getting selected options for UserAnswer {{self.id}}: {{str(e)}}", exc_info=True)
             return []
 
 class QuizTag(models.Model):
@@ -1373,7 +1373,7 @@ class QuizGradeOverride(models.Model):
         ordering = ['-created_at']
         
     def __str__(self):
-        return f"Override for {self.quiz_attempt}"
+        return "Override for {{self.quiz_attempt}}"
 
 class QuizRubricEvaluation(models.Model):
     """Model for storing quiz rubric evaluations"""
@@ -1392,14 +1392,14 @@ class QuizRubricEvaluation(models.Model):
         ordering = ['criterion__position']
     
     def __str__(self):
-        return f"Evaluation for {self.quiz_attempt} - {self.criterion}"
+        return "Evaluation for {{self.quiz_attempt}} - {{self.criterion}}"
         
     def clean(self):
         """Validate evaluation data"""
         if self.points < 0:
             raise ValidationError({'points': 'Points cannot be negative'})
         if self.points > self.criterion.points:
-            raise ValidationError({'points': f'Points cannot exceed criterion maximum of {self.criterion.points}'})
+            raise ValidationError({'points': "Points cannot exceed criterion maximum of {{self.criterion.points}}"})
         super().clean()
         
     def save(self, *args, **kwargs):

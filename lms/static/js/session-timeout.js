@@ -4,9 +4,9 @@
 (function() {
     'use strict';
     
-    const SessionTimeout = {
-        timeoutDuration: 30 * 60 * 1000, // 30 minutes
-        warningDuration: 5 * 60 * 1000,  // 5 minutes warning
+    var SessionTimeout = {
+        timeoutDuration: 7 * 24 * 60 * 60 * 1000, // 7 days (matches Django settings)
+        warningDuration: 60 * 60 * 1000,  // 1 hour warning
         timeoutId: null,
         warningId: null,
         
@@ -21,16 +21,26 @@
         },
         
         startTimer: function() {
-            const self = this;
+            var self = this;
             
             // Set warning timer
             this.warningId = setTimeout(function() {
-                self.showWarning();
+                try {
+                    self.showWarning();
+                } catch (error) {
+                    console.error('Error showing session warning:', error);
+                }
             }, this.timeoutDuration - this.warningDuration);
             
             // Set timeout timer
             this.timeoutId = setTimeout(function() {
-                self.handleTimeout();
+                try {
+                    self.handleTimeout();
+                } catch (error) {
+                    console.error('Error handling session timeout:', error);
+                    // Fallback: redirect to login
+                    window.location.href = '/login/?timeout=1';
+                }
             }, this.timeoutDuration);
         },
         
@@ -46,8 +56,8 @@
         },
         
         setupActivityListeners: function() {
-            const self = this;
-            const activities = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart'];
+            var self = this;
+            var activities = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart'];
             
             activities.forEach(function(activity) {
                 document.addEventListener(activity, function() {

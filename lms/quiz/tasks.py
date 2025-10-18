@@ -46,7 +46,7 @@ def cleanup_expired_quiz_attempts(self):
                 
                 total_cleaned = expired_count + stale_count + orphaned_count
                 
-                logger.info(f"Quiz cleanup completed: {expired_count} expired, {stale_count} stale, {orphaned_count} orphaned")
+                logger.info("Quiz cleanup completed: {{expired_count}} expired, {{stale_count}} stale, {{orphaned_count}} orphaned")
                 
                 return {
                     "status": "success",
@@ -61,7 +61,7 @@ def cleanup_expired_quiz_attempts(self):
             cache.delete(lock_key)
             
     except Exception as e:
-        logger.error(f"Quiz cleanup task failed: {str(e)}")
+        logger.error("Quiz cleanup task failed: {{str(e)}}")
         raise self.retry(countdown=300, exc=e)
 
 
@@ -76,7 +76,7 @@ def cleanup_quiz_attempts_for_user(self, user_id, quiz_id=None):
         User = get_user_model()
         
         user = User.objects.get(id=user_id)
-        logger.info(f"Cleaning quiz attempts for user {user.username} (ID: {user_id})")
+        logger.info("Cleaning quiz attempts for user {{user.username}} (ID: {{user_id}})")
         
         # Build queryset
         queryset = QuizAttempt.objects.filter(
@@ -114,7 +114,7 @@ def cleanup_quiz_attempts_for_user(self, user_id, quiz_id=None):
                     stale_attempts.delete()
                     cleaned_count += stale_count
         
-        logger.info(f"Cleaned {cleaned_count} quiz attempts for user {user.username}")
+        logger.info("Cleaned {{cleaned_count}} quiz attempts for user {{user.username}}")
         
         return {
             "status": "success",
@@ -124,7 +124,7 @@ def cleanup_quiz_attempts_for_user(self, user_id, quiz_id=None):
         }
         
     except Exception as e:
-        logger.error(f"User-specific quiz cleanup failed: {str(e)}")
+        logger.error("User-specific quiz cleanup failed: {{str(e)}}")
         raise self.retry(countdown=60, exc=e)
 
 
@@ -148,7 +148,7 @@ def _cleanup_expired_attempts():
         # Delete the attempts
         QuizAttempt.objects.filter(id__in=expired_attempts).delete()
         
-        logger.info(f"Cleaned up {len(expired_attempts)} expired quiz attempts")
+        logger.info("Cleaned up {{len(expired_attempts)}} expired quiz attempts")
     
     return len(expired_attempts)
 
@@ -172,7 +172,7 @@ def _cleanup_stale_attempts():
         # Delete the attempts
         stale_attempts.delete()
         
-        logger.info(f"Cleaned up {count} stale quiz attempts")
+        logger.info("Cleaned up {{count}} stale quiz attempts")
     
     return count
 
@@ -185,7 +185,7 @@ def _cleanup_orphaned_answers():
     
     if count > 0:
         orphaned_answers.delete()
-        logger.info(f"Cleaned up {count} orphaned user answers")
+        logger.info("Cleaned up {{count}} orphaned user answers")
     
     return count
 
@@ -213,11 +213,11 @@ def quiz_health_check():
             "total_orphaned_answers": UserAnswer.objects.filter(attempt__isnull=True).count(),
         }
         
-        logger.info(f"Quiz health check: {stats}")
+        logger.info("Quiz health check: {{stats}}")
         
         # Alert if too many old attempts exist
         if stats["attempts_1d_old"] > 50:
-            logger.warning(f"High number of day-old incomplete attempts: {stats['attempts_1d_old']}")
+            logger.warning("High number of day-old incomplete attempts: {{stats['attempts_1d_old']}}")
         
         return {
             "status": "success",
@@ -226,7 +226,7 @@ def quiz_health_check():
         }
         
     except Exception as e:
-        logger.error(f"Quiz health check failed: {str(e)}")
+        logger.error("Quiz health check failed: {{str(e)}}")
         return {
             "status": "error",
             "error": str(e)

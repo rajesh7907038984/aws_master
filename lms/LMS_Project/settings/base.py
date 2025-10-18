@@ -7,8 +7,11 @@ import os
 import sys
 import mimetypes
 import warnings
+import logging
 from pathlib import Path
 from django.core.management.utils import get_random_secret_key
+
+logger = logging.getLogger(__name__)
 
 # Suppress Python 3.7 deprecation warnings early
 os.environ.setdefault('PYTHONWARNINGS', 'ignore::DeprecationWarning:cryptography,ignore::DeprecationWarning:boto3,ignore::DeprecationWarning:pdfminer')
@@ -141,14 +144,37 @@ LOGGING = {
 # CORE DJANGO SETTINGS
 # ==============================================
 
-# Session: Use SECRET_KEY from environment variables
+# Session: Use SECRET_KEY from environment variables with enhanced validation
 SECRET_KEY = get_env('DJANGO_SECRET_KEY', required=True)
 
-# Validate SECRET_KEY length and complexity
-if len(SECRET_KEY) < 50:
-    raise ValueError("SECRET_KEY must be at least 50 characters long for security")
-elif SECRET_KEY.startswith('django-insecure-'):
-    raise ValueError("SECRET_KEY cannot use insecure 'django-insecure-' prefix")
+# Enhanced SECRET_KEY validation with comprehensive security checks
+try:
+    if not SECRET_KEY or len(SECRET_KEY.strip()) == 0:
+        raise ValueError("SECRET_KEY cannot be empty")
+    
+    if len(SECRET_KEY) < 50:
+        raise ValueError("SECRET_KEY must be at least 50 characters long for security")
+    
+    if SECRET_KEY.startswith('django-insecure-'):
+        raise ValueError("SECRET_KEY cannot use insecure 'django-insecure-' prefix")
+    
+    # Check for common weak patterns
+    weak_patterns = ['123456', 'password', 'secret', 'key', 'admin']
+    if any(pattern in SECRET_KEY.lower() for pattern in weak_patterns):
+        logger.warning("SECRET_KEY contains potentially weak patterns")
+    
+    # Ensure SECRET_KEY has sufficient entropy
+    import string
+    if not any(c in string.ascii_letters for c in SECRET_KEY):
+        raise ValueError("SECRET_KEY must contain letters")
+    if not any(c in string.digits for c in SECRET_KEY):
+        raise ValueError("SECRET_KEY must contain digits")
+    if not any(c in "!@#$%^&*()_+-=[]{}|;:,.<>?" for c in SECRET_KEY):
+        logger.warning("SECRET_KEY should contain special characters for better security")
+        
+except Exception as e:
+    logger.error(f"SECRET_KEY validation failed: {e}")
+    raise
 
 print("✅ Using SECRET_KEY from environment variables")
 print("   Sessions will persist across server restarts")
@@ -227,10 +253,9 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',  # RE-ENABLED FOR PROPER CSRF PROTECTION
     'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'core.middleware.session_auth_middleware.SessionAuthMiddleware',  # Session recovery
-    'core.middleware.session_persistence.SessionPersistenceMiddleware',  # Session persistence
+    'core.middleware.error_logging_middleware.ErrorLoggingMiddleware',  # Enhanced error logging - moved up
+    'core.middleware.session_auth_middleware.SessionAuthMiddleware',  # Simplified session recovery
     'scorm.middleware.SCORMAuthenticationMiddleware',  # SCORM authentication for iframe scenarios
-    'core.middleware.error_logging_middleware.ErrorLoggingMiddleware',  # Enhanced error logging
     'core.middleware.csp_middleware.CSPMiddleware',  # Content Security Policy with unsafe-eval support
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
@@ -333,8 +358,8 @@ SESSION_COOKIE_AGE = 604800  # 7 days (extended from 24 hours to reduce logout i
 SESSION_EXPIRE_AT_BROWSER_CLOSE = False  # Keep sessions alive across browser restarts
 SESSION_SAVE_EVERY_REQUEST = True  # CRITICAL: Enable session saving for proper login/logout
 
-# Session serialization and security - Use PickleSerializer for better compatibility
-SESSION_SERIALIZER = 'django.contrib.sessions.serializers.PickleSerializer'
+# Session serialization and security - Use JSONSerializer for better security
+SESSION_SERIALIZER = 'django.contrib.sessions.serializers.JSONSerializer'
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = 'Lax'  # Changed from None to Lax for better security and compatibility
 SESSION_COOKIE_NAME = 'lms_sessionid'  # Custom session cookie name
@@ -343,7 +368,9 @@ SESSION_COOKIE_PATH = '/'
 
 # Session security (will be overridden in production settings)
 # Note: Secure flag is handled by SECURE_PROXY_SSL_HEADER for ALB deployments
-SESSION_COOKIE_SECURE = False  # Set to True in production.py when HTTPS is properly configured
+SESSION_COOKIE_SECURE = get_bool_env('SESSION_COOKIE_SECURE', False)  # Set to True in production.py when HTTPS is properly configured
+SESSION_COOKIE_HTTPONLY = True  # Prevent XSS attacks
+SESSION_COOKIE_SAMESITE = 'Lax'  # CSRF protection
 
 # Session timeout configuration
 SESSION_TIMEOUT_REDIRECT = '/login/'  # Redirect to login on session timeout
@@ -361,7 +388,9 @@ CSRF_USE_SESSIONS = False  # Use cookies for CSRF tokens
 CSRF_FAILURE_VIEW = 'django.views.csrf.csrf_failure'
 CSRF_COOKIE_HTTPONLY = False  # Allow JavaScript access for AJAX requests
 CSRF_COOKIE_SAMESITE = 'Lax'
-CSRF_COOKIE_SECURE = False  # Set to True in production with HTTPS
+CSRF_COOKIE_SECURE = get_bool_env('CSRF_COOKIE_SECURE', False)  # Set to True in production with HTTPS
+CSRF_TRUSTED_ORIGINS = []  # Will be populated in production settings
+CSRF_FAILURE_VIEW = 'core.views.csrf_failure'  # Use our custom CSRF failure view
 
 # ==============================================
 # CORS CONFIGURATION - STANDARDIZED ACROSS ALL ENVIRONMENTS
@@ -370,6 +399,8 @@ CSRF_COOKIE_SECURE = False  # Set to True in production with HTTPS
 CORS_ALLOW_ALL_ORIGINS = False
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGINS = [
+    'http://localhost:8000',
+    'http://127.0.0.1:8000',
 ]
 
 CORS_ALLOWED_HEADERS = [

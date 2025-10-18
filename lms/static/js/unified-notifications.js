@@ -23,8 +23,11 @@ class UnifiedNotificationSystem {
 
     init() {
         // Wait for DOM to be ready before creating container
+        var self = this;
         if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', () => this.createContainer());
+            document.addEventListener('DOMContentLoaded', function() {
+                self.createContainer();
+            });
         } else {
             this.createContainer();
         }
@@ -114,9 +117,20 @@ class UnifiedNotificationSystem {
             opacity: 0.7;
             transition: opacity 0.2s ease;
         `;
-        closeBtn.onmouseover = () => closeBtn.style.opacity = '1';
-        closeBtn.onmouseout = () => closeBtn.style.opacity = '0.7';
-        closeBtn.onclick = () => this.remove(notificationId);
+        var self = this;
+        closeBtn.onmouseover = function() {
+            closeBtn.style.opacity = '1';
+        };
+        closeBtn.onmouseout = function() {
+            closeBtn.style.opacity = '0.7';
+        };
+        closeBtn.onclick = function() {
+            try {
+                self.remove(notificationId);
+            } catch (error) {
+                console.error('Error removing notification:', error);
+            }
+        };
 
         // Assemble notification
         notification.appendChild(icon);
@@ -148,20 +162,28 @@ class UnifiedNotificationSystem {
     }
 
     remove(notificationId) {
-        const notification = document.getElementById(notificationId);
-        if (notification) {
-            notification.style.opacity = '0';
-            notification.style.transform = 'translateX(100%)';
-            
-            setTimeout(() => {
-                if (notification.parentNode) {
-                    notification.parentNode.removeChild(notification);
-                }
-                const index = this.notifications.indexOf(notificationId);
-                if (index > -1) {
-                    this.notifications.splice(index, 1);
-                }
-            }, 300);
+        try {
+            const notification = document.getElementById(notificationId);
+            if (notification) {
+                notification.style.opacity = '0';
+                notification.style.transform = 'translateX(100%)';
+                
+                setTimeout(() => {
+                    try {
+                        if (notification.parentNode) {
+                            notification.parentNode.removeChild(notification);
+                        }
+                        const index = this.notifications.indexOf(notificationId);
+                        if (index > -1) {
+                            this.notifications.splice(index, 1);
+                        }
+                    } catch (error) {
+                        console.error('Error removing notification element:', error);
+                    }
+                }, 300);
+            }
+        } catch (error) {
+            console.error('Error in notification remove function:', error);
         }
     }
 

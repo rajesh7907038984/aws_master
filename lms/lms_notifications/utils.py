@@ -56,13 +56,13 @@ def send_notification(
                 is_active=True
             )
         except NotificationType.DoesNotExist:
-            logger.warning(f"Warning: Notification type '{notification_type_name}' not found")
+            logger.warning("Warning: Notification type '{{notification_type_name}}' not found")
             return None
         
         # Check if user can receive this notification type
         if (notification_type.available_to_roles and 
             recipient.role not in notification_type.available_to_roles):
-            logger.warning(f"Warning: User {recipient.username} cannot receive {notification_type_name} notifications")
+            logger.warning("Warning: User %s cannot receive %s notifications", recipient.username, notification_type_name)
             return None
         
         # Set short message if not provided
@@ -124,7 +124,7 @@ def send_notification(
         return notification
         
     except Exception as e:
-        logger.error(f"Error sending notification: {str(e)}")
+        logger.error("Error sending notification: {{str(e)}}")
         return None
 
 
@@ -176,7 +176,7 @@ def send_bulk_notification(
                 is_active=True
             )
         except NotificationType.DoesNotExist:
-            logger.warning(f"Warning: Notification type '{notification_type_name}' not found")
+            logger.warning("Warning: Notification type '{{notification_type_name}}' not found")
             return None
         
         # Set short message if not provided
@@ -224,7 +224,7 @@ def send_bulk_notification(
         return bulk_notification
         
     except Exception as e:
-        logger.error(f"Error sending bulk notification: {str(e)}")
+        logger.error("Error sending bulk notification: {{str(e)}}")
         return None
 
 
@@ -305,20 +305,20 @@ def notify_assignment_due(assignment, recipient, days_until_due=1):
     """Send assignment due reminder notification."""
     # Validation: Ensure assignment exists and has required fields
     if not assignment or not assignment.id:
-        logger.warning(f"Warning: Cannot create notification for invalid assignment: {assignment}")
+        logger.warning("Warning: Cannot create notification for invalid assignment: {{assignment}}")
         return None
     
     if not assignment.title:
-        logger.warning(f"Warning: Assignment {assignment.id} has no title")
+        logger.warning("Warning: Assignment {{assignment.id}} has no title")
         return None
     
     return send_notification(
         recipient=recipient,
         notification_type_name='assignment_due',
-        title=f"Assignment Due: {assignment.title}",
-        message=f"Your assignment <strong>{assignment.title}</strong> is due in {days_until_due} day{'s' if days_until_due != 1 else ''}.",
+        title="Assignment Due: {{assignment.title}}",
+        message="Your assignment <strong>{{assignment.title}}</strong> is due in {{days_until_due}} day{{'s' if days_until_due != 1 else ''}}.",
         priority='high' if days_until_due <= 1 else 'normal',
-        action_url=f"/assignments/{assignment.id}/",
+        action_url="/assignments/{{assignment.id}}/",
         action_text="View Assignment",
         related_assignment=assignment,
         related_course=assignment.course if hasattr(assignment, 'course') else None
@@ -329,24 +329,24 @@ def notify_assignment_graded(assignment, recipient, grade=None):
     """Send assignment graded notification."""
     # Validation: Ensure assignment exists and has required fields
     if not assignment or not assignment.id:
-        logger.warning(f"Warning: Cannot create graded notification for invalid assignment: {assignment}")
+        logger.warning("Warning: Cannot create graded notification for invalid assignment: {{assignment}}")
         return None
     
     if not assignment.title:
-        logger.warning(f"Warning: Assignment {assignment.id} has no title")
+        logger.warning("Warning: Assignment {{assignment.id}} has no title")
         return None
     
-    message = f"Your assignment <strong>{assignment.title}</strong> has been graded."
+    message = "Your assignment <strong>{{assignment.title}}</strong> has been graded."
     if grade:
-        message += f" You received a grade of {grade}."
+        message += " You received a grade of {{grade}}."
     
     return send_notification(
         recipient=recipient,
         notification_type_name='assignment_graded',
-        title=f"Assignment Graded: {assignment.title}",
+        title="Assignment Graded: {{assignment.title}}",
         message=message,
         priority='normal',
-        action_url=f"/assignments/{assignment.id}/",
+        action_url="/assignments/{{assignment.id}}/",
         action_text="View Grade",
         related_assignment=assignment,
         related_course=assignment.course if hasattr(assignment, 'course') else None
@@ -358,11 +358,11 @@ def notify_course_enrollment(course, recipient, sender=None):
     return send_notification(
         recipient=recipient,
         notification_type_name='course_enrollment',
-        title=f"Enrolled in {course.title}",
-        message=f"You have been successfully enrolled in <strong>{course.title}</strong>.",
+        title="Enrolled in {{course.title}}",
+        message="You have been successfully enrolled in <strong>{{course.title}}</strong>.",
         sender=sender,
         priority='normal',
-        action_url=f"/courses/{course.id}/",
+        action_url="/courses/{{course.id}}/",
         action_text="View Course",
         related_course=course
     )
@@ -373,19 +373,19 @@ def notify_course_announcement(course, recipients, announcement_title, announcem
     return send_bulk_notification(
         sender=sender,
         notification_type_name='course_announcement',
-        title=f"Course Announcement: {announcement_title}",
+        title="Course Announcement: {{announcement_title}}",
         message=announcement_content,
         recipient_type='custom',
         custom_recipients=recipients,
         priority='normal',
-        action_url=f"/courses/{course.id}/",
+        action_url="/courses/{{course.id}}/",
         action_text="View Course"
     )
 
 
 def notify_system_maintenance(title, message, start_time, end_time, sender):
     """Send system maintenance notification to all users."""
-    full_message = f"{message}<br><br><strong>Maintenance Window:</strong> {start_time} - {end_time}"
+    full_message = "{{message}}<br><br><strong>Maintenance Window:</strong> {{start_time}} - {{end_time}}"
     
     return send_bulk_notification(
         sender=sender,

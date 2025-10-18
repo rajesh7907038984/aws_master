@@ -162,7 +162,7 @@ def outcomes_alignments(request):
         discussions = filter_queryset_by_business(Discussion.objects.all(), request.user, business_field_path='course__branch__business')
     elif request.user.role in ['admin', 'instructor']:
         if request.user.branch:
-            assignments = Assignment.objects.filter(course__branch=request.user.branch)
+            assignments = Assignment.objects.filter(courses__branch=request.user.branch)
             quizzes = Quiz.objects.filter(creator__branch=request.user.branch)
             discussions = Discussion.objects.filter(course__branch=request.user.branch)
         else:

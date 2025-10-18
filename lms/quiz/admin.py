@@ -42,12 +42,12 @@ class UserAnswerInline(admin.TabularInline):
             correct_ids = obj.question.get_correct_answers()
             correct_answers = Answer.objects.filter(id__in=correct_ids)
             correct_texts = [a.answer_text for a in correct_answers]
-            correct_display = f"correct answer: {', '.join(correct_texts)}"
+            correct_display = "correct answer: {{', '.join(correct_texts)}}"
             
             if selected_options:
                 # Format user's selected answers
                 selected_texts = [option.answer_text for option in selected_options]
-                selected_display = f"selected answer: {', '.join(selected_texts)}"
+                selected_display = "selected answer: {{', '.join(selected_texts)}}"
                 
                 # Check correctness
                 selected_ids = [str(option.id) for option in selected_options]
@@ -55,37 +55,37 @@ class UserAnswerInline(admin.TabularInline):
                 
                 # Update record if correctness doesn't match
                 if is_fully_correct != obj.is_correct:
-                    print(f"Warning: Multiple select answer correctness mismatch for question {obj.question_id}. " 
-                          f"Calculated={is_fully_correct}, Stored={obj.is_correct}. "
-                          f"User answers={selected_ids}, Correct answers={correct_ids}")
+                    print("Warning: Multiple select answer correctness mismatch for question {{obj.question_id}}. " 
+                          "Calculated={{is_fully_correct}}, Stored={{obj.is_correct}}. "
+                          "User answers={{selected_ids}}, Correct answers={{correct_ids}}")
                     obj.is_correct = is_fully_correct
                     obj.points_earned = obj.question.points if is_fully_correct else 0
                     obj.save(update_fields=['is_correct', 'points_earned'])
                 
                 status = "<span style='color:green'>✓ Correct</span>" if is_fully_correct else "<span style='color:red'>✗ Incorrect</span>"
-                return f"{selected_display}<br>{correct_display}<br>{status}"
+                return "{{selected_display}}<br>{{correct_display}}<br>{{status}}"
             else:
                 # No valid options selected
-                return f"No answer selected<br>{correct_display}"
+                return "No answer selected<br>{{correct_display}}"
         elif obj.question.question_type in ['multiple_choice', 'true_false']:
             if not obj.answer:
                 # Get the correct answer
                 correct_answer = obj.question.answers.filter(is_correct=True).first()
                 if correct_answer:
-                    return f"No answer selected<br>correct answer: {correct_answer.answer_text}"
+                    return "No answer selected<br>correct answer: {{correct_answer.answer_text}}"
                 return "No answer"
             
             # Get the correct answer
             correct_answer = obj.question.answers.filter(is_correct=True).first()
             
             # Format in the requested style
-            selected_display = f"selected answer: {obj.answer.answer_text}"
-            correct_display = f"correct answer: {correct_answer.answer_text if correct_answer else 'Unknown'}"
+            selected_display = "selected answer: {{obj.answer.answer_text}}"
+            correct_display = "correct answer: {{correct_answer.answer_text if correct_answer else 'Unknown'}}"
             
             # Add status indicator
             status = "<span style='color:green'>✓ Correct</span>" if obj.is_correct else "<span style='color:red'>✗ Incorrect</span>"
             
-            return f"{selected_display}<br>{correct_display}<br>{status}"
+            return "{{selected_display}}<br>{{correct_display}}<br>{{status}}"
             
         elif obj.question.question_type == 'fill_blank':
             return obj.text_answer or "No answer"
@@ -100,10 +100,10 @@ class UserAnswerInline(admin.TabularInline):
                     items = []
                     for i, answer in enumerate(blank_answers):
                         blank_number = i + 1
-                        items.append(f"Blank #{blank_number}: {answer}")
+                        items.append("Blank #{{blank_number}}: {{answer}}")
                     return "<br>".join(items)
                 except (json.JSONDecodeError, ValueError):
-                    return f"Error parsing: {obj.text_answer}"
+                    return "Error parsing: {{obj.text_answer}}"
             return "No answer"
             
         elif obj.question.question_type == 'matching':
@@ -111,10 +111,10 @@ class UserAnswerInline(admin.TabularInline):
                 try:
                     pairs = []
                     for pair in obj.matching_answers:
-                        pairs.append(f"{pair.get('left_item')} → {pair.get('right_item')}")
+                        pairs.append("{{pair.get('left_item')}} → {{pair.get('right_item')}}")
                     return "<br>".join(pairs)
                 except Exception as e:
-                    return f"Error parsing: {e}"
+                    return "Error parsing: {{e}}"
             return "No answer"
             
         return obj.text_answer or (obj.answer.answer_text if obj.answer else "No answer")
@@ -171,10 +171,4 @@ class QuizTagAdmin(admin.ModelAdmin):
     search_fields = ('name',)
     prepopulated_fields = {'slug': ('name',)}
 
-# Old admin registrations removed - using @admin.register decorators instead
-# admin.site.register(Quiz, QuizAdmin)
-# admin.site.register(Question, QuestionAdmin)
-# admin.site.register(QuizAttempt, QuizAttemptAdmin)
-# admin.site.register(Answer, AnswerAdmin)
-# admin.site.register(QuizGradeOverride, QuizGradeOverrideAdmin)
 # admin.site.register(QuizTag, QuizTagAdmin)

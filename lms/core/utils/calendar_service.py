@@ -17,7 +17,7 @@ class CalendarService:
         self.activities = []
         
         # Log calendar access for Session auditing
-        logger.info(f"Calendar service initialized for user {user.username} (role: {user.role}, branch: {user.branch})")
+        logger.info("Calendar service initialized for user {{user.username}} (role: {{user.role}}, branch: {{user.branch}})")
     
     def _validate_user_permission(self, obj, permission_type='view'):
         """Validate that user has permission to access the given object"""
@@ -38,7 +38,7 @@ class CalendarService:
             
         # Branch-based validation for other roles
         if not self.user.branch:
-            logger.warning(f"User {self.user.username} has no branch assignment, denying access")
+            logger.warning("User {{self.user.username}} has no branch assignment, denying access")
             return False
             
         # Check direct branch relationship
@@ -56,7 +56,7 @@ class CalendarService:
             return obj.created_by.branch == self.user.branch
             
         # Default deny for Session
-        logger.warning(f"Permission check failed for user {self.user.username} accessing {obj}")
+        logger.warning("Permission check failed for user {{self.user.username}} accessing {{obj}}")
         return False
     
     def _validate_activity_access(self, activity):
@@ -64,7 +64,7 @@ class CalendarService:
         
         # Basic activity structure validation
         if not isinstance(activity, dict) or 'type' not in activity:
-            logger.warning(f"Invalid activity structure for user {self.user.username}")
+            logger.warning("Invalid activity structure for user {{self.user.username}}")
             return False
         
         activity_type = activity.get('type')
@@ -75,14 +75,14 @@ class CalendarService:
             # Learners should only see their own activities
             allowed_types = ['assignment', 'quiz', 'conference', 'course_deadline', 'topic_deadline', 'personal_event']
             if activity_type not in allowed_types:
-                logger.debug(f"Activity type {activity_type} not allowed for learner {self.user.username}")
+                logger.debug("Activity type {{activity_type}} not allowed for learner {{self.user.username}}")
                 return False
         
         elif self.user.role == 'instructor':
             # Instructors can see grading activities and their courses
             allowed_types = ['assignment', 'quiz', 'conference', 'course_deadline', 'topic_deadline', 'grading', 'personal_event']
             if activity_type not in allowed_types:
-                logger.debug(f"Activity type {activity_type} not allowed for instructor {self.user.username}")
+                logger.debug("Activity type {{activity_type}} not allowed for instructor {{self.user.username}}")
                 return False
         
         elif self.user.role in ['admin', 'superadmin', 'globaladmin']:
@@ -91,7 +91,7 @@ class CalendarService:
         
         # URL validation - ensure URLs are internal and safe
         if activity_url and not self._validate_activity_url(activity_url):
-            logger.warning(f"Invalid activity URL for user {self.user.username}: {activity_url}")
+            logger.warning("Invalid activity URL for user {{self.user.username}}: {{activity_url}}")
             return False
         
         return True
@@ -151,12 +151,12 @@ class CalendarService:
             if self._validate_activity_access(activity):
                 validated_activities.append(activity)
             else:
-                logger.warning(f"Activity validation failed for user {self.user.username}: {activity.get('title', 'Unknown')}")
+                logger.warning("Activity validation failed for user {{self.user.username}}: {{activity.get('title', 'Unknown')}}")
         
         # Sort activities by date and time
         validated_activities.sort(key=lambda x: (x['date'], x.get('time', datetime.min.time())))
         
-        logger.info(f"Calendar service returned {len(validated_activities)} validated activities for user {self.user.username}")
+        logger.info("Calendar service returned {{len(validated_activities)}} validated activities for user {{self.user.username}}")
         return validated_activities
     
     def get_daily_activities(self, date):
@@ -301,13 +301,13 @@ class CalendarService:
                     # For instructors/admins, show assignment due dates
                     activities.append({
                         'type': activity_type,
-                        'title': f"Assignment Due: {assignment.title}",
-                        'description': f"Course: {assignment.course.title}",
+                        'title': "Assignment Due: {{assignment.title}}",
+                        'description': "Course: {{assignment.course.title}}",
                         'date': assignment.due_date.date(),
                         'time': assignment.due_date.time(),
                         'priority': priority,
                         'status': 'due',
-                        'url': f'/assignments/{assignment.id}/',
+                        'url': "/assignments/{{assignment.id}}/",
                         'course': assignment.course.title,
                         'icon': 'assignment'
                     })
@@ -325,18 +325,18 @@ class CalendarService:
                     
                     activities.append({
                         'type': activity_type,
-                        'title': f"Submit: {assignment.title}",
-                        'description': f"Course: {assignment.course.title}",
+                        'title': "Submit: {{assignment.title}}",
+                        'description': "Course: {{assignment.course.title}}",
                         'date': assignment.due_date.date(),
                         'time': assignment.due_date.time(),
                         'priority': priority,
                         'status': 'pending',
-                        'url': f'/assignments/{assignment.id}/',
+                        'url': "/assignments/{{assignment.id}}/",
                         'course': assignment.course.title,
                         'icon': 'assignment'
                     })
         except Exception as e:
-            logger.error(f"Error getting assignment activities: {e}")
+            logger.error("Error getting assignment activities: %s", e)
         
         return activities
     
@@ -368,7 +368,7 @@ class CalendarService:
             for conference in conferences:
                 # Validate user permission to access this conference
                 if not self._validate_user_permission(conference):
-                    logger.debug(f"User {self.user.username} denied access to conference {conference.id}")
+                    logger.debug("User {{self.user.username}} denied access to conference {{conference.id}}")
                     continue
                 
                 # Combine date and time
@@ -383,18 +383,18 @@ class CalendarService:
                 
                 activities.append({
                     'type': 'conference',
-                    'title': f"Conference: {conference.title}",
-                    'description': f"Course: {conference.course.title if conference.course else 'General'}",
+                    'title': "Conference: {{conference.title}}",
+                    'description': "Course: {{conference.course.title if conference.course else 'General'}}",
                     'date': conference.date,
                     'time': conference.start_time,
                     'priority': priority,
                     'status': 'scheduled',
-                    'url': f'/conferences/{conference.id}/',
+                    'url': "/conferences/{{conference.id}}/",
                     'course': conference.course.title if conference.course else 'General',
                     'icon': 'video'
                 })
         except Exception as e:
-            logger.error(f"Error getting conference activities: {e}")
+            logger.error("Error getting conference activities: {{e}}")
         
         return activities
     
@@ -415,23 +415,23 @@ class CalendarService:
             for course in courses:
                 # Validate user permission to access this course
                 if not self._validate_user_permission(course):
-                    logger.debug(f"User {self.user.username} denied access to course {course.id}")
+                    logger.debug("User {{self.user.username}} denied access to course {{course.id}}")
                     continue
                 
                 activities.append({
                     'type': 'course_deadline',
-                    'title': f"Course Ends: {course.title}",
-                    'description': f"Course access expires",
+                    'title': "Course Ends: {{course.title}}",
+                    'description': "Course access expires",
                     'date': course.end_date.date(),
                     'time': course.end_date.time(),
                     'priority': 'high',
                     'status': 'deadline',
-                    'url': f'/courses/{course.id}/',
+                    'url': "/courses/{{course.id}}/",
                     'course': course.title,
                     'icon': 'clock'
                 })
         except Exception as e:
-            logger.error(f"Error getting course deadline activities: {e}")
+            logger.error("Error getting course deadline activities: {{e}}")
         
         return activities
     
@@ -453,7 +453,7 @@ class CalendarService:
             for topic in topics:
                 # Validate user permission to access this topic
                 if not self._validate_user_permission(topic):
-                    logger.debug(f"User {self.user.username} denied access to topic {topic.id}")
+                    logger.debug("User {{self.user.username}} denied access to topic {{topic.id}}")
                     continue
                 
                 # Check if user has completed this topic
@@ -470,18 +470,18 @@ class CalendarService:
                 
                 activities.append({
                     'type': 'topic_deadline',
-                    'title': f"Topic Ends: {topic.title}",
-                    'description': f"Topic access expires",
+                    'title': "Topic Ends: {{topic.title}}",
+                    'description': "Topic access expires",
                     'date': topic.end_date,
                     'time': datetime.min.time(),
                     'priority': 'medium',
                     'status': 'deadline',
-                    'url': f'/courses/topic/{topic.id}/',
+                    'url': "/courses/topic/{{topic.id}}/",
                     'course': ', '.join([course.title for course in topic.courses.all()[:2]]),
                     'icon': 'bookmark'
                 })
         except Exception as e:
-            logger.error(f"Error getting topic deadline activities: {e}")
+            logger.error("Error getting topic deadline activities: {{e}}")
         
         return activities
     
@@ -503,7 +503,7 @@ class CalendarService:
             for quiz in quizzes:
                 # Validate user permission to access this quiz
                 if not self._validate_user_permission(quiz):
-                    logger.debug(f"User {self.user.username} denied access to quiz {quiz.id}")
+                    logger.debug("User {{self.user.username}} denied access to quiz {{quiz.id}}")
                     continue
                 
                 # For learners, check if they've completed the quiz
@@ -518,18 +518,18 @@ class CalendarService:
                 
                 activities.append({
                     'type': 'quiz',
-                    'title': f"Quiz: {quiz.title}",
-                    'description': f"Course: {quiz.course.title}",
+                    'title': "Quiz: {{quiz.title}}",
+                    'description': "Course: {{quiz.course.title}}",
                     'date': quiz.expires_at.date(),
                     'time': quiz.expires_at.time(),
                     'priority': 'medium',
                     'status': 'available',
-                    'url': f'/quiz/{quiz.id}/',
+                    'url': "/quiz/{{quiz.id}}/",
                     'course': quiz.course.title,
                     'icon': 'question-circle'
                 })
         except Exception as e:
-            logger.error(f"Error getting quiz activities: {e}")
+            logger.error("Error getting quiz activities: {{e}}")
         
         return activities
     
@@ -552,25 +552,25 @@ class CalendarService:
             for assignment in assignments_with_ungraded:
                 # Validate user permission to access this assignment for grading
                 if not self._validate_user_permission(assignment):
-                    logger.debug(f"User {self.user.username} denied access to grade assignment {assignment.id}")
+                    logger.debug("User {{self.user.username}} denied access to grade assignment {{assignment.id}}")
                     continue
                 
                 # Only show if the assignment due date is in our range or has passed
                 if assignment.due_date and assignment.due_date.date() <= end_datetime.date():
                     activities.append({
                         'type': 'grading',
-                        'title': f"Grade: {assignment.title}",
-                        'description': f"{assignment.ungraded_count} submission(s) to grade",
+                        'title': "Grade: {{assignment.title}}",
+                        'description': "{{assignment.ungraded_count}} submission(s) to grade",
                         'date': assignment.due_date.date() if assignment.due_date else timezone.now().date(),
                         'time': assignment.due_date.time() if assignment.due_date else datetime.min.time(),
                         'priority': 'high' if assignment.is_overdue else 'medium',
                         'status': 'needs_grading',
-                        'url': f'/assignments/{assignment.id}/submissions/',
+                        'url': "/assignments/{{assignment.id}}/submissions/",
                         'course': assignment.course.title,
                         'icon': 'edit'
                     })
         except Exception as e:
-            logger.error(f"Error getting grading activities: {e}")
+            logger.error("Error getting grading activities: {{e}}")
         
         return activities
     
@@ -583,7 +583,7 @@ class CalendarService:
             # Future expansion
             pass
         except Exception as e:
-            logger.error(f"Error getting branch activities: {e}")
+            logger.error("Error getting branch activities: {{e}}")
         
         return activities
     
@@ -604,7 +604,7 @@ class CalendarService:
                 # Personal events are already filtered by created_by=self.user, 
                 # but validate for completeness
                 if event.created_by != self.user:
-                    logger.warning(f"Session issue: Personal event {event.id} not owned by user {self.user.username}")
+                    logger.warning("Session issue: Personal event {{event.id}} not owned by user {{self.user.username}}")
                     continue
                 
                 activities.append({
@@ -615,11 +615,11 @@ class CalendarService:
                     'time': event.start_date.time(),
                     'priority': 'low',
                     'status': 'scheduled',
-                    'url': f'/calendar/events/{event.id}/',
+                    'url': "/calendar/events/{{event.id}}/",
                     'course': 'Personal',
                     'icon': 'calendar'
                 })
         except Exception as e:
-            logger.error(f"Error getting personal calendar events: {e}")
+            logger.error("Error getting personal calendar events: {{e}}")
         
         return activities 

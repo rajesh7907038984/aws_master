@@ -138,16 +138,18 @@ class ComplexPasswordValidator:
             return 'special'
 
     def validate(self, password, user=None):
-        """Validate password complexity"""
+        """Validate password complexity with enhanced security checks"""
         errors = []
+        
+        # Enhanced password length validation
+        if len(password) < 14:
+            errors.append(_('Password must be at least 14 characters long for security'))
         
         # Check for system-generated passwords first
         if self._is_system_generated_password(password):
             errors.append(_(
-                "Oops! It looks like you have used your system to generate the password. "
-                "According to our Session policy, we cannot secure your data if the password "
-                "doesn't meet our Session policy. Please review your password policies as per "
-                "the password guidelines."
+                "System-generated passwords are not allowed for security reasons. "
+                "Please create a custom password that meets our security requirements."
             ))
             # Return early to show only this message for system-generated passwords
             raise ValidationError(errors)
@@ -164,10 +166,24 @@ class ComplexPasswordValidator:
         if len(re.findall(r'[0-9]', password)) < self.min_digits:
             errors.append(_('Password must contain at least %(min)d digit.') % {'min': self.min_digits})
         
-        # Check for special characters
-        if len(re.findall(r'[!@#$%^&*(),.?":{}|<>]', password)) < self.min_special:
-            special_chars = '!@#$%^&*(),.?":{}|<>'
+        # Enhanced special character validation
+        special_chars = '!@#$%^&*(),.?":{}|<>'
+        special_count = len(re.findall(r'[!@#$%^&*(),.?":{}|<>]', password))
+        if special_count < self.min_special:
             errors.append(_('Password must contain at least {min} special character ({chars}).').format(min=self.min_special, chars=special_chars))
+        
+        # Additional security checks
+        # Check for common password patterns
+        if re.search(r'(.)\1{3,}', password):
+            errors.append(_('Password should not contain more than 3 repeated characters in a row'))
+        
+        # Check for sequential patterns
+        sequential_patterns = ['1234', 'abcd', 'qwerty', 'asdf', 'zxcv']
+        password_lower = password.lower()
+        for pattern in sequential_patterns:
+            if pattern in password_lower:
+                errors.append(_('Password should not contain sequential patterns like "{}"').format(pattern))
+                break
         
         # Check for weak patterns
         password_lower = password.lower()
@@ -178,7 +194,7 @@ class ComplexPasswordValidator:
         
         # Check for keyboard patterns
         keyboard_patterns = [
-            'qwerty', 'asdf', 'zxcv', '1234', 'abcd'
+            'qwerty', 'asd", "zxcv', '1234', 'abcd'
         ]
         for pattern in keyboard_patterns:
             if pattern in password_lower:
@@ -228,14 +244,19 @@ class SecureFilenameValidator:
         # Dangerous characters and patterns
         self.dangerous_chars = ['..', '/', '\\', ':', '*', '?', '"', '<', '>', '|']
         self.dangerous_extensions = [
-            '.exe', '.bat', '.cmd', '.com', '.pif', '.scr',
+            '.exe', '.bat', '.cmd', '.com', '.pi", ".scr',
             '.vbs', '.js', '.jar', '.php', '.asp', '.aspx',
             '.jsp', '.py', '.rb', '.pl', '.sh', '.ps1'
         ]
     
     def validate(self, filename):
-        """Validate filename for Session"""
+        """Validate filename for security"""
         errors = []
+        
+        # Check for empty filename
+        if not filename or not filename.strip():
+            errors.append(_('Filename cannot be empty'))
+            raise ValidationError(errors)
         
         # Check for dangerous characters
         for char in self.dangerous_chars:
@@ -252,16 +273,12 @@ class SecureFilenameValidator:
         parts = filename.split('.')
         if len(parts) > 2:
             for i, part in enumerate(parts[1:-1], 1):
-                if f'.{part.lower()}' in self.dangerous_extensions:
+                if f".{part.lower()}" in self.dangerous_extensions:
                     errors.append(_('Double extension detected with dangerous type: .%(ext)s') % {'ext': part})
         
         # Check filename length
         if len(filename) > 255:
             errors.append(_('Filename is too long (maximum 255 characters)'))
-        
-        # Check for empty filename
-        if not filename.strip():
-            errors.append(_('Filename cannot be empty'))
         
         # Check for hidden files (starting with .)
         if filename.startswith('.'):
@@ -270,6 +287,10 @@ class SecureFilenameValidator:
         # Check for control characters
         if any(ord(char) < 32 for char in filename):
             errors.append(_('Filename contains control characters'))
+        
+        # Check for path traversal attempts
+        if '..' in filename or filename.startswith('/') or '\\' in filename:
+            errors.append(_('Filename contains path traversal characters'))
         
         if errors:
             raise ValidationError(errors)

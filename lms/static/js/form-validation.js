@@ -15,34 +15,54 @@
 
         // Setup validation for all forms
         setupFormValidation: function() {
-            document.addEventListener('DOMContentLoaded', () => {
-                // Find all forms
-                const forms = document.querySelectorAll('form');
-                forms.forEach(form => {
-                    this.enhanceForm(form);
-                });
-            });
-
-            // Handle dynamically added forms
-            const observer = new MutationObserver((mutations) => {
-                mutations.forEach((mutation) => {
-                    mutation.addedNodes.forEach((node) => {
-                        if (node.nodeType === 1) { // Element node
-                            if (node.tagName === 'FORM') {
-                                this.enhanceForm(node);
+            try {
+                document.addEventListener('DOMContentLoaded', () => {
+                    try {
+                        // Find all forms
+                        const forms = document.querySelectorAll('form');
+                        forms.forEach(form => {
+                            try {
+                                this.enhanceForm(form);
+                            } catch (error) {
+                                console.error('Error enhancing form:', error);
                             }
-                            // Check for forms within added nodes
-                            const forms = node.querySelectorAll ? node.querySelectorAll('form') : [];
-                            forms.forEach(form => this.enhanceForm(form));
-                        }
-                    });
+                        });
+                    } catch (error) {
+                        console.error('Error in DOMContentLoaded form validation:', error);
+                    }
                 });
-            });
 
-            observer.observe(document.body, {
-                childList: true,
-                subtree: true
-            });
+                // Handle dynamically added forms
+                const observer = new MutationObserver((mutations) => {
+                    try {
+                        mutations.forEach((mutation) => {
+                            mutation.addedNodes.forEach((node) => {
+                                try {
+                                    if (node.nodeType === 1) { // Element node
+                                        if (node.tagName === 'FORM') {
+                                            this.enhanceForm(node);
+                                        }
+                                        // Check for forms within added nodes
+                                        const forms = node.querySelectorAll ? node.querySelectorAll('form') : [];
+                                        forms.forEach(form => this.enhanceForm(form));
+                                    }
+                                } catch (error) {
+                                    console.error('Error processing mutation node:', error);
+                                }
+                            });
+                        });
+                    } catch (error) {
+                        console.error('Error in mutation observer:', error);
+                    }
+                });
+
+                observer.observe(document.body, {
+                    childList: true,
+                    subtree: true
+                });
+            } catch (error) {
+                console.error('Error setting up form validation:', error);
+            }
         },
 
         // Enhance individual form

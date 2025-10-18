@@ -57,7 +57,7 @@ class Command(BaseCommand):
                 tracking_records = tracking_records.filter(user_id=user_id)
 
             total_records = tracking_records.count()
-            self.stdout.write(f'Found {total_records} SCORM tracking records to sync')
+            self.stdout.write("Found {{total_records}} SCORM tracking records to sync")
 
             if total_records == 0:
                 self.stdout.write(self.style.SUCCESS('No SCORM scores to sync'))
@@ -73,17 +73,17 @@ class Command(BaseCommand):
                     if not course:
                         self.stdout.write(
                             self.style.WARNING(
-                                f'Skipping tracking {tracking.id}: No course found for SCORM package {tracking.elearning_package.id}'
+                                "Skipping tracking {{tracking.id}}: No course found for SCORM package {{tracking.elearning_package.id}}"
                             )
                         )
                         continue
 
                     if dry_run:
                         self.stdout.write(
-                            f'Would sync: User {tracking.user.username} - '
-                            f'SCORM {tracking.elearning_package.title} - '
-                            f'Score: {tracking.score_raw}/{tracking.score_max} - '
-                            f'Course: {course.title}'
+                            "Would sync: User {{tracking.user.username}} - "
+                            "SCORM {{tracking.elearning_package.title}} - "
+                            "Score: {{tracking.score_raw}}/{{tracking.score_max}} - "
+                            "Course: {{course.title}}"
                         )
                         synced_count += 1
                     else:
@@ -91,36 +91,36 @@ class Command(BaseCommand):
                         # from the ELearningTracking model, so no explicit sync is needed
                         # Just log the successful processing
                         self.stdout.write(
-                            f'Processed: User {tracking.user.username} - '
-                            f'SCORM {tracking.elearning_package.title} - '
-                            f'Score: {tracking.score_raw}/{tracking.score_max} - '
-                            f'Course: {course.title}'
+                            "Processed: User {{tracking.user.username}} - "
+                            "SCORM {{tracking.elearning_package.title}} - "
+                            "Score: {{tracking.score_raw}}/{{tracking.score_max}} - "
+                            "Course: {{course.title}}"
                         )
                         synced_count += 1
 
                 except Exception as e:
                     error_count += 1
-                    logger.error(f'Error processing tracking {tracking.id}: {str(e)}')
+                    logger.error("Error processing tracking {{tracking.id}}: {{str(e)}}")
                     self.stdout.write(
-                        self.style.ERROR(f'Error processing tracking {tracking.id}: {str(e)}')
+                        self.style.ERROR("Error processing tracking {{tracking.id}}: {{str(e)}}")
                     )
 
             if dry_run:
                 self.stdout.write(
                     self.style.SUCCESS(
-                        f'DRY RUN: Would sync {synced_count} SCORM scores, {error_count} errors'
+                        "DRY RUN: Would sync {{synced_count}} SCORM scores, {{error_count}} errors"
                     )
                 )
             else:
                 self.stdout.write(
                     self.style.SUCCESS(
-                        f'Successfully processed {synced_count} SCORM scores, {error_count} errors'
+                        "Successfully processed {{synced_count}} SCORM scores, {{error_count}} errors"
                     )
                 )
 
         except Exception as e:
-            logger.error(f'Error in sync_scorm_scores command: {str(e)}')
+            logger.error("Error in sync_scorm_scores command: {{str(e)}}")
             self.stdout.write(
-                self.style.ERROR(f'Error in sync_scorm_scores command: {str(e)}')
+                self.style.ERROR("Error in sync_scorm_scores command: {{str(e)}}")
             )
             raise

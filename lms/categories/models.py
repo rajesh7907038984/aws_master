@@ -41,7 +41,7 @@ class CourseCategory(models.Model):
         # Use select_for_update to prevent race conditions
         with transaction.atomic():
             while CourseCategory.objects.filter(slug=slug).exclude(id=self.id).exists():
-                slug = f"{base_slug}-{counter}"
+                slug = "{{base_slug}}-{{counter}}"
                 counter += 1
                 if counter > 1000:  # Prevent infinite loop
                     raise ValueError("Unable to generate unique slug. Please try a different name.")
@@ -79,4 +79,4 @@ class CourseCategory(models.Model):
                 raise
 
     def get_full_path(self):
-        return f"/categories/{self.slug}/"
+        return "/categories/{{self.slug}}/"

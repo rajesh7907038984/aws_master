@@ -1269,7 +1269,7 @@ class TopicForm(BaseModelFormWithTinyMCE):
             'discussion': None
         }
         
-        # removed is handled same as video/audio/document - no special validation needed here
+        # SCORM is handled same as video/audio/document - no special validation needed here
         # ZIP validation is done in the main validation section below
         
         # Don't reset text_content as it might contain valid content
@@ -1288,7 +1288,7 @@ class TopicForm(BaseModelFormWithTinyMCE):
                 continue
             elif content_type_lower == 'discussion' and field == 'discussion':
                 continue
-            elif content_type_lower in ['video', 'audio', 'document', 'removed'] and field == 'content_file':
+            elif content_type_lower in ['video', 'audio', 'document', 'scorm'] and field == 'content_file':
                 continue
                 
             if field in cleaned_data:
@@ -1307,27 +1307,27 @@ class TopicForm(BaseModelFormWithTinyMCE):
         elif content_type_lower == 'embedvideo':
             if not cleaned_data.get('embed_code'):
                 self.add_error('embed_code', 'Embed code is required for embedded video topics.')
-        elif content_type_lower in ['audio', 'video', 'document', 'removed']:
+        elif content_type_lower in ['audio', 'video', 'document', 'scorm']:
             # Check if we're editing an existing topic with a file already
             if self.instance and self.instance.pk and self.instance.content_file:
                 # File already exists, no need to upload a new one unless one was provided
                 pass
-            elif content_type_lower == 'removed':
-                # removed now uses standard file upload like video
+            elif content_type_lower == 'scorm':
+                # SCORM now uses standard file upload like video
                 # Check if editing existing topic with file
                 if self.instance and self.instance.pk and self.instance.content_file:
-                    logger.info(f"removed validation - editing existing topic with file: {self.instance.content_file}")
+                    logger.info(f"SCORM validation - editing existing topic with file: {self.instance.content_file}")
                     # Existing file, no validation needed
                     pass
                 elif 'content_file' not in self.files:
-                    logger.error("removed validation failed - no file uploaded")
-                    self.add_error('content_file', 'removed package upload is required.')
+                    logger.error("SCORM validation failed - no file uploaded")
+                    self.add_error('content_file', 'SCORM package upload is required.')
                 else:
                     # File upload - validate ZIP
                     content_file = self.files.get('content_file')
-                    logger.info(f"removed validation - file provided: {content_file.name if content_file else 'None'}")
+                    logger.info(f"SCORM validation - file provided: {content_file.name if content_file else 'None'}")
                     if content_file and not content_file.name.lower().endswith('.zip'):
-                        self.add_error('content_file', 'removed package must be a ZIP file.')
+                        self.add_error('content_file', 'SCORM package must be a ZIP file.')
             elif 'content_file' not in self.files:
                 file_type = content_type_lower
                 self.add_error('content_file', f'File upload is required for {file_type} topics.')
@@ -1415,11 +1415,11 @@ class TopicForm(BaseModelFormWithTinyMCE):
         content_type = self.cleaned_data.get('content_type')
         content_type_lower = content_type.lower() if content_type else ''
         
-        if content_type_lower == 'removed':
-            # Handle removed package upload (standard file upload like video)
+        if content_type_lower == 'scorm':
+            # Handle SCORM package upload (standard file upload like video)
             if 'content_file' in self.files:
                 instance.content_file = self.files['content_file']
-                logger.info(f"Saving removed topic with file: {instance.content_file.name}")
+                logger.info(f"Saving SCORM topic with file: {instance.content_file.name}")
         elif content_type_lower == 'text':
             text_content = self.cleaned_data.get('text_content')
             # Check if the content is in JSON format
@@ -1441,7 +1441,7 @@ class TopicForm(BaseModelFormWithTinyMCE):
             instance.web_url = self.cleaned_data.get('web_url')
         elif content_type_lower == 'embedvideo':
             instance.embed_code = self.cleaned_data.get('embed_code')
-        elif content_type_lower in ['video', 'audio', 'document', 'removed']:
+        elif content_type_lower in ['video', 'audio', 'document', 'scorm']:
             if 'content_file' in self.files:
                 instance.content_file = self.files['content_file']
         elif content_type_lower == 'quiz':
@@ -1458,7 +1458,7 @@ class TopicForm(BaseModelFormWithTinyMCE):
             instance.save()
             self.save_m2m()
             
-            # removed ZIP files are stored like videos - no processing needed
+            # SCORM ZIP files are stored like videos - no processing needed
             # The file is already uploaded to S3 via content_file field
             
             # Handle course association for assignment topics

@@ -12,7 +12,7 @@ class QuizConfig(AppConfig):
         """
         # Import and activate Redis fallback mechanism
         try:
-            import core.utils.redis_fallback
+            from core.utils.redis_fallback import with_redis_fallback
             import logging
             logger = logging.getLogger(__name__)
             logger.info("Redis fallback mechanism loaded for quiz app")
@@ -30,4 +30,4 @@ class QuizConfig(AppConfig):
         except ImportError as e:
             import logging
             logger = logging.getLogger(__name__)
-            logger.error(f"Failed to load quiz signals: {e}")
+            logger.error("Failed to load quiz signals: {{e}}")

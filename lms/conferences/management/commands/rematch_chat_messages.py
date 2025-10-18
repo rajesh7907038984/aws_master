@@ -30,10 +30,10 @@ class Command(BaseCommand):
         try:
             conference = Conference.objects.get(id=conference_id)
         except Conference.DoesNotExist:
-            self.stdout.write(self.style.ERROR(f'Conference {conference_id} not found'))
+            self.stdout.write(self.style.ERROR("Conference {{conference_id}} not found"))
             return
         
-        self.stdout.write(f'Re-matching chat messages for conference: {conference.title}')
+        self.stdout.write("Re-matching chat messages for conference: {{conference.title}}")
         
         # Get current chat message stats
         total_messages = ConferenceChat.objects.filter(conference=conference).count()
@@ -43,7 +43,7 @@ class Command(BaseCommand):
         ).count()
         unmatched_messages = total_messages - matched_messages
         
-        self.stdout.write(f'Current status: {total_messages} total, {matched_messages} matched, {unmatched_messages} unmatched')
+        self.stdout.write("Current status: {{total_messages}} total, {{matched_messages}} matched, {{unmatched_messages}} unmatched")
         
         if reset_all:
             # Reset all chat messages to unmatched
@@ -62,9 +62,9 @@ class Command(BaseCommand):
         ).count()
         final_unmatched = total_messages - final_matched
         
-        self.stdout.write(self.style.SUCCESS(f'Re-matching complete!'))
-        self.stdout.write(f'Results: {matched_count} newly matched messages')
-        self.stdout.write(f'Final status: {total_messages} total, {final_matched} matched, {final_unmatched} unmatched')
+        self.stdout.write(self.style.SUCCESS("Re-matching complete!"))
+        self.stdout.write("Results: {{matched_count}} newly matched messages")
+        self.stdout.write("Final status: {{total_messages}} total, {{final_matched}} matched, {{final_unmatched}} unmatched")
         
         # Show breakdown by user role
         instructor_messages = ConferenceChat.objects.filter(
@@ -83,4 +83,4 @@ class Command(BaseCommand):
             sender__isnull=False
         ).exclude(sender=conference.created_by).exclude(sender__role='learner').count()
         
-        self.stdout.write(f'Breakdown: {instructor_messages} instructor, {learner_messages} learner, {other_messages} other, {final_unmatched} unmatched') 
+        self.stdout.write("Breakdown: {{instructor_messages}} instructor, {{learner_messages}} learner, {{other_messages}} other, {{final_unmatched}} unmatched") 

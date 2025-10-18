@@ -33,7 +33,7 @@ def send_message_notification(sender, instance, action, pk_set, **kwargs):
             for recipient in recipients:
                 try:
                     # Prepare message notification
-                    message_content = f"""
+                    message_content = """
                     <h2>New Message Received</h2>
                     <p>Dear {recipient.first_name or recipient.username},</p>
                     <p>You have received a new message:</p>
@@ -51,24 +51,24 @@ def send_message_notification(sender, instance, action, pk_set, **kwargs):
                     notification = send_notification(
                         recipient=recipient,
                         notification_type_name='message_received',
-                        title=f"New Message: {instance.subject}",
+                        title="New Message: {{instance.subject}}",
                         message=message_content,
-                        short_message=f"You have a new message from {instance.sender.get_full_name() or instance.sender.username}",
+                        short_message="You have a new message from {{instance.sender.get_full_name() or instance.sender.username}}",
                         sender=instance.sender,
                         priority='normal',
-                        action_url=f"/messages/{instance.id}/",
+                        action_url="/messages/{{instance.id}}/",
                         action_text="Read Message",
                         send_email=True
                     )
                     
                     if notification:
-                        logger.info(f"Message notification sent to user: {recipient.username} from {instance.sender.username}")
+                        logger.info("Message notification sent to user: {{recipient.username}} from {{instance.sender.username}}")
                     else:
-                        logger.warning(f"Message notification created but email may not have been sent for user: {recipient.username}")
+                        logger.warning("Message notification created but email may not have been sent for user: {{recipient.username}}")
                         
                 except Exception as e:
-                    logger.error(f"Error sending message notification to {recipient.username}: {str(e)}")
+                    logger.error("Error sending message notification to {{recipient.username}}: {{str(e)}}")
                     
         except Exception as e:
-            logger.error(f"Error processing message notification: {str(e)}")
+            logger.error("Error processing message notification: {{str(e)}}")
 

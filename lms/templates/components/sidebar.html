@@ -3,9 +3,9 @@
 <link rel="stylesheet" href="{% static 'css/sidebar-unified.css' %}">
 
 <!-- Sticky Sidebar - Hidden on mobile -->
-<aside id="sidebar" class="fixed top-16 left-0 h-[calc(100vh-4rem)] w-64 z-30 transition-all duration-300 hidden md:block">
-    <nav class="h-full py-1">
-        <div class="flex flex-col h-full space-y-0 items-start overflow-y-auto max-h-[calc(100vh-5rem)]">
+<aside id="sidebar" class="fixed top-16 left-0 h-[calc(100vh-4rem)] w-64 z-30 transition-all duration-300 hidden md:block overflow-x-hidden">
+    <nav class="h-full py-1 overflow-x-hidden">
+        <div class="flex flex-col h-full space-y-0 items-start overflow-y-auto overflow-x-hidden max-h-[calc(100vh-5rem)]">
             <!-- Dashboard -->
             <a href="{% if request.user.role == 'globaladmin' %}{% url 'dashboard_globaladmin' %}{% elif request.user.role == 'superadmin' %}{% url 'dashboard_superadmin' %}{% elif request.user.role == 'admin' %}{% url 'dashboard_admin' %}{% elif request.user.role == 'instructor' %}{% url 'dashboard_instructor' %}{% else %}{% url 'dashboard_learner' %}{% endif %}" class="menu-item flex items-center px-4 py-1 w-full {% if 'dashboard' in request.path %}active{% endif %}">
                 <div class="icon-container min-w-[20px] flex justify-center">

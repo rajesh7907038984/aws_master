@@ -48,30 +48,34 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Handle file selection and update display name
     cvFileInput.addEventListener('change', function(event) {
-        const file = event.target.files[0];
-        
-        if (file) {
-            // Update file name display
-            if (cvFileNameSpan) {
-                cvFileNameSpan.textContent = file.name;
-            }
+        try {
+            const file = event.target.files[0];
             
-            // Only process PDF files
-            if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
-                // Show processing status
-                showExtractionStatus('Extracting data from CV...');
+            if (file) {
+                // Update file name display
+                if (cvFileNameSpan) {
+                    cvFileNameSpan.textContent = file.name;
+                }
                 
-                // Process the CV file
-                extractCVData(file);
+                // Only process PDF files
+                if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
+                    // Show processing status
+                    showExtractionStatus('Extracting data from CV...');
+                    
+                    // Process the CV file
+                    extractCVData(file);
+                } else {
+                    hideExtractionStatus();
+                }
             } else {
+                // Reset file name display
+                if (cvFileNameSpan) {
+                    cvFileNameSpan.textContent = 'No file chosen';
+                }
                 hideExtractionStatus();
             }
-        } else {
-            // Reset file name display
-            if (cvFileNameSpan) {
-                cvFileNameSpan.textContent = 'No file chosen';
-            }
-            hideExtractionStatus();
+        } catch (error) {
+            console.error('Error handling CV file selection:', error);
         }
     });
 

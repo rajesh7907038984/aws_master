@@ -63,13 +63,13 @@ class Command(BaseCommand):
         if course_id:
             try:
                 courses = [Course.objects.get(id=course_id)]
-                self.stdout.write(f"Processing single course (ID: {course_id})")
+                self.stdout.write("Processing single course (ID: {{course_id}})")
             except Course.DoesNotExist:
-                self.stdout.write(self.style.ERROR(f"Course with ID {course_id} not found"))
+                self.stdout.write(self.style.ERROR("Course with ID {{course_id}} not found"))
                 return
         else:
             courses = Course.objects.all()
-            self.stdout.write(f"Processing all {courses.count()} courses")
+            self.stdout.write("Processing all {{courses.count()}} courses")
         
         fixed_count = 0
         skipped_count = 0
@@ -80,7 +80,7 @@ class Command(BaseCommand):
                 with transaction.atomic():
                     # Check if course has a branch assigned
                     if not course.branch:
-                        self.stdout.write(f"Course '{course.title}' has no branch, assigning to: {default_branch.name}")
+                        self.stdout.write("Course '{{course.title}}' has no branch, assigning to: {{default_branch.name}}")
                         course.branch = default_branch
                         course.save(update_fields=['branch'])
                     
@@ -89,7 +89,7 @@ class Command(BaseCommand):
                     course_access_count = CourseGroupAccess.objects.filter(course=course).count()
                     
                     if has_course_group and course_access_count >= 2 and not force:
-                        self.stdout.write(f"Course '{course.title}' already has groups set up. Skipping (use --force to override)")
+                        self.stdout.write("Course '{{course.title}}' already has groups set up. Skipping (use --force to override)")
                         skipped_count += 1
                         continue
                     
@@ -98,7 +98,7 @@ class Command(BaseCommand):
                     
                     # Delete existing groups if force is enabled or if groups are incomplete
                     if force or (has_course_group and course_access_count < 2):
-                        self.stdout.write(f"Removing existing groups for course '{course.title}'")
+                        self.stdout.write("Removing existing groups for course '{{course.title}}'")
                         
                         # Get existing groups
                         course_groups = CourseGroup.objects.filter(course=course).select_related('group')
@@ -132,36 +132,36 @@ class Command(BaseCommand):
                     
                     # Create groups
                     # 1. User group
-                    user_group_name = f"{course.title} Group"
+                    user_group_name = "{{course.title}} Group"
                     user_group, user_group_created = BranchGroup.objects.get_or_create(
                         name=user_group_name,
                         branch=course.branch,
                         defaults={
-                            "description": f"User group for {course.title}",
+                            "description": "User group for {{course.title}}",
                             "created_by": creator,
                             "group_type": 'user'
                         }
                     )
                     if user_group_created:
-                        self.stdout.write(f"Created user group: {user_group_name}")
+                        self.stdout.write("Created user group: {{user_group_name}}")
                     else:
-                        self.stdout.write(f"Using existing user group: {user_group_name}")
+                        self.stdout.write("Using existing user group: {{user_group_name}}")
                     
                     # 2. Course group
-                    course_group_name = f"{course.title} Course Group"
+                    course_group_name = "{{course.title}} Course Group"
                     course_group, course_group_created = BranchGroup.objects.get_or_create(
                         name=course_group_name,
                         branch=course.branch,
                         defaults={
-                            "description": f"Course group for {course.title}",
+                            "description": "Course group for {{course.title}}",
                             "created_by": creator,
                             "group_type": 'course'
                         }
                     )
                     if course_group_created:
-                        self.stdout.write(f"Created course group: {course_group_name}")
+                        self.stdout.write("Created course group: {{course_group_name}}")
                     else:
-                        self.stdout.write(f"Using existing course group: {course_group_name}")
+                        self.stdout.write("Using existing course group: {{course_group_name}}")
                     
                     # 3. Create roles
                     instructor_role, instructor_role_created = GroupMemberRole.objects.get_or_create(
@@ -270,7 +270,7 @@ class Command(BaseCommand):
                         instructor = course.instructor
                         # Make sure instructor has the same branch as the group
                         if instructor.branch != course.branch:
-                            self.stdout.write(f"Updating instructor {instructor.username} branch")
+                            self.stdout.write("Updating instructor {{instructor.username}} branch")
                             instructor.branch = course.branch
                             instructor.save(update_fields=['branch'])
                         
@@ -286,9 +286,9 @@ class Command(BaseCommand):
                             }
                         )
                         if created:
-                            self.stdout.write(f"Added instructor {instructor.username} to course group")
+                            self.stdout.write("Added instructor {{instructor.username}} to course group")
                         else:
-                            self.stdout.write(f"Instructor {instructor.username} already in course group")
+                            self.stdout.write("Instructor {{instructor.username}} already in course group")
                         
                         # Add to user group
                         user_membership, created = GroupMembership.objects.get_or_create(
@@ -301,13 +301,13 @@ class Command(BaseCommand):
                             }
                         )
                         if created:
-                            self.stdout.write(f"Added instructor {instructor.username} to user group")
+                            self.stdout.write("Added instructor {{instructor.username}} to user group")
                         else:
-                            self.stdout.write(f"Instructor {instructor.username} already in user group")
+                            self.stdout.write("Instructor {{instructor.username}} already in user group")
                     
                     # 7. Add enrolled users
                     enrollments = CourseEnrollment.objects.filter(course=course).select_related('user')
-                    self.stdout.write(f"Found {enrollments.count()} enrolled users to process")
+                    self.stdout.write("Found {{enrollments.count()}} enrolled users to process")
                     
                     for enrollment in enrollments:
                         user = enrollment.user
@@ -318,7 +318,7 @@ class Command(BaseCommand):
                             
                         # Make sure user has the same branch as the group
                         if user.branch != course.branch:
-                            self.stdout.write(f"Updating user {user.username} branch")
+                            self.stdout.write("Updating user {{user.username}} branch")
                             user.branch = course.branch
                             user.save(update_fields=['branch'])
                             
@@ -341,9 +341,9 @@ class Command(BaseCommand):
                             }
                         )
                         if created:
-                            self.stdout.write(f"Added user {user.username} to course group with role: {role.name}")
+                            self.stdout.write("Added user {{user.username}} to course group with role: {{role.name}}")
                         else:
-                            self.stdout.write(f"User {user.username} already in course group")
+                            self.stdout.write("User {{user.username}} already in course group")
                             
                         # Add to user group
                         user_membership, created = GroupMembership.objects.get_or_create(
@@ -356,19 +356,19 @@ class Command(BaseCommand):
                             }
                         )
                         if created:
-                            self.stdout.write(f"Added user {user.username} to user group")
+                            self.stdout.write("Added user {{user.username}} to user group")
                         else:
-                            self.stdout.write(f"User {user.username} already in user group")
+                            self.stdout.write("User {{user.username}} already in user group")
                     
                     fixed_count += 1
-                    self.stdout.write(f"Fixed group structure for course '{course.title}' - Created groups and added {enrollments.count()} users")
+                    self.stdout.write("Fixed group structure for course '{{course.title}}' - Created groups and added {{enrollments.count()}} users")
                     
             except Exception as e:
-                self.stdout.write(self.style.ERROR(f"Error fixing course '{course.title}': {e}"))
+                self.stdout.write(self.style.ERROR("Error fixing course '{{course.title}}': {{e}}"))
                 if options.get('traceback', False):
                     import traceback
                     traceback.print_exc()
         
         # Final summary
-        self.stdout.write(f"Command completed - Fixed: {fixed_count}, Skipped: {skipped_count}, Total: {courses.count()}")
+        self.stdout.write("Command completed - Fixed: {{fixed_count}}, Skipped: {{skipped_count}}, Total: {{courses.count()}}")
         return fixed_count 

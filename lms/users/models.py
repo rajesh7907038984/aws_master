@@ -1,8 +1,6 @@
 from django.contrib.auth.models import AbstractUser, Permission
 from django.db import models
-from branches.models import Branch
 from django.core.exceptions import ValidationError
-from role_management.models import RoleCapability, UserRole
 from django.core.validators import RegexValidator, MinValueValidator, MaxValueValidator
 from django.utils import timezone
 from datetime import timedelta
@@ -20,6 +18,7 @@ from django.http import HttpRequest
 if TYPE_CHECKING:
     from courses.models import Course, CourseEnrollment, TopicProgress
     from quiz.models import QuizAttempt, Quiz
+    from branches.models import Branch
 
 class CustomUser(AbstractUser):
     ROLE_CHOICES = [
@@ -183,11 +182,11 @@ class CustomUser(AbstractUser):
     )
 
     branch = models.ForeignKey(
-        Branch,
+        'branches.Branch',
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='users',
+        related_name='branch_users',
         help_text="The branch this user belongs to. Not required for Global Admin users."
     )
 
@@ -230,7 +229,7 @@ class CustomUser(AbstractUser):
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='assigned_students',
+        related_name='instructor_students',
         limit_choices_to={'role': 'instructor'},
         help_text="The instructor assigned to this learner."
     )
@@ -573,7 +572,6 @@ class CustomUser(AbstractUser):
         help_text="Date of functional skills assessment"
     )
     
-    # Legacy assessment score fields removed - no longer used
     
     functional_skills_level = models.CharField(
         max_length=20,
@@ -677,8 +675,6 @@ class CustomUser(AbstractUser):
         """
         Check if user has permission to access branch-specific content
         """
-        from core.utils.type_guards import safe_get_attribute, has_branch, is_django_model
-        
         # Global admins have permission to all content
         if self.is_superuser or self.role == 'globaladmin':
             return True
@@ -688,20 +684,17 @@ class CustomUser(AbstractUser):
             if obj is None:
                 return True
             
-            # Safely check for branch and business attributes
-            obj_branch = safe_get_attribute(obj, 'branch')
-            if obj_branch:
-                obj_business = safe_get_attribute(obj_branch, 'business')
-                if obj_business:
-                    # Check if user is assigned to the business that owns this branch
-                    try:
+            # Check for branch and business attributes safely
+            try:
+                if hasattr(obj, 'branch') and obj.branch:
+                    obj_business = getattr(obj.branch, 'business', None)
+                    if obj_business and hasattr(self, 'business_assignments'):
                         return self.business_assignments.filter(
                             business=obj_business, 
                             is_active=True
                         ).exists()
-                    except AttributeError:
-                        # User doesn't have business_assignments
-                        pass
+            except (AttributeError, TypeError):
+                pass
             return True
             
         # Other roles need a branch assignment
@@ -711,9 +704,12 @@ class CustomUser(AbstractUser):
         if obj is None:
             return True
             
-        # Safely check if object has branch attribute and compare
-        if has_branch(obj):
-            return obj.branch == self.branch
+        # Check if object has branch attribute and compare
+        try:
+            if hasattr(obj, 'branch'):
+                return obj.branch == self.branch
+        except (AttributeError, TypeError):
+            pass
             
         return False
 
@@ -802,11 +798,12 @@ class CustomUser(AbstractUser):
         
         # Role-specific validations - only validate if role or branch has changed, or it's a new user
         if (role_changed or branch_changed) and self.role in ['admin', 'instructor', 'learner'] and not self.branch:
-            # Add debugging information
-            # Log validation failure for debugging
-            logger = logging.getLogger(__name__)
-            logger.warning(f"User clean() validation failed - Role: {self.role}, Branch: {self.branch}")
-            raise ValidationError(f'{self.get_role_display()} users must be assigned to a branch')
+            # Allow temporary users without branches for system setup
+            if not getattr(self, '_is_system_setup', False):
+                # Add debugging information
+                logger = logging.getLogger(__name__)
+                logger.warning(f"User clean() validation failed - Role: {self.role}, Branch: {self.branch}")
+                raise ValidationError(f'{self.get_role_display()} users must be assigned to a branch')
         
         # Global admins have system-wide access and don't require branch restrictions
         # They can be assigned to any branch or left unassigned for full system access
@@ -876,117 +873,17 @@ class CustomUser(AbstractUser):
 
     def delete(self, *args: Any, **kwargs: Any) -> Tuple[int, Dict[str, int]]:
         """
-        Enhanced delete method with comprehensive cascade deletion for User.
-        This method ensures all related data is properly cleaned up when a user is deleted.
+        Simplified delete method that relies on Django's built-in cascade deletion.
+        Only handles file cleanup that can't be automated.
         """
         import logging
         logger = logging.getLogger(__name__)
         
         try:
-            logger.info(f"Starting comprehensive deletion for User: {self.username} (ID: {self.id})")
+            logger.info(f"Starting deletion for User: {self.username} (ID: {self.id})")
             
-            # 1. DELETE ALL COURSE ENROLLMENTS
+            # Only handle file cleanup that can't be automated by Django's cascade
             try:
-                from courses.models import CourseEnrollment
-                enrollments = CourseEnrollment.objects.filter(user=self)
-                enrollment_count = enrollments.count()
-                if enrollment_count > 0:
-                    logger.info(f"Deleting {enrollment_count} course enrollments")
-                    enrollments.delete()
-                    logger.info(f"Successfully deleted {enrollment_count} course enrollments")
-            except Exception as e:
-                logger.error(f"Error deleting course enrollments: {str(e)}")
-            
-            # 2. DELETE ALL TOPIC PROGRESS
-            try:
-                from courses.models import TopicProgress
-                progress = TopicProgress.objects.filter(user=self)
-                progress_count = progress.count()
-                if progress_count > 0:
-                    logger.info(f"Deleting {progress_count} topic progress records")
-                    progress.delete()
-                    logger.info(f"Successfully deleted {progress_count} topic progress records")
-            except Exception as e:
-                logger.error(f"Error deleting topic progress: {str(e)}")
-            
-            # 3. DELETE ALL ASSIGNMENT SUBMISSIONS
-            try:
-                from assignments.models import AssignmentSubmission, AssignmentFeedback
-                
-                # Get all submissions by this user
-                submissions = AssignmentSubmission.objects.filter(user=self)
-                submission_count = submissions.count()
-                if submission_count > 0:
-                    logger.info(f"Deleting {submission_count} assignment submissions")
-                    
-                    # Delete all feedback for these submissions
-                    for submission in submissions:
-                        feedback_count = AssignmentFeedback.objects.filter(submission=submission).count()
-                        if feedback_count > 0:
-                            AssignmentFeedback.objects.filter(submission=submission).delete()
-                            logger.info(f"Deleted {feedback_count} feedback records for submission {submission.id}")
-                    
-                    # Delete all submissions
-                    submissions.delete()
-                    logger.info(f"Successfully deleted {submission_count} assignment submissions")
-            except Exception as e:
-                logger.error(f"Error deleting assignment submissions: {str(e)}")
-            
-            # 4. DELETE ALL QUIZ ATTEMPTS
-            try:
-                from quiz.models import QuizAttempt, UserAnswer
-                
-                # Get all quiz attempts by this user
-                attempts = QuizAttempt.objects.filter(user=self)
-                attempt_count = attempts.count()
-                if attempt_count > 0:
-                    logger.info(f"Deleting {attempt_count} quiz attempts")
-                    
-                    # Delete all user answers for these attempts
-                    for attempt in attempts:
-                        answer_count = UserAnswer.objects.filter(attempt=attempt).count()
-                        if answer_count > 0:
-                            UserAnswer.objects.filter(attempt=attempt).delete()
-                            logger.info(f"Deleted {answer_count} user answers for attempt {attempt.id}")
-                    
-                    # Delete all attempts
-                    attempts.delete()
-                    logger.info(f"Successfully deleted {attempt_count} quiz attempts")
-            except Exception as e:
-                logger.error(f"Error deleting quiz attempts: {str(e)}")
-            
-            # 5. DELETE ALL GROUP MEMBERSHIPS
-            try:
-                from groups.models import GroupMembership
-                memberships = GroupMembership.objects.filter(user=self)
-                membership_count = memberships.count()
-                if membership_count > 0:
-                    logger.info(f"Deleting {membership_count} group memberships")
-                    memberships.delete()
-                    logger.info(f"Successfully deleted {membership_count} group memberships")
-            except Exception as e:
-                logger.error(f"Error deleting group memberships: {str(e)}")
-            
-            # 6. DELETE ALL GRADEBOOK DATA
-            try:
-                from gradebook.models import Grade
-                
-                # Delete all grades for this user
-                grades = Grade.objects.filter(student=self)
-                grade_count = grades.count()
-                if grade_count > 0:
-                    logger.info(f"Deleting {grade_count} gradebook entries")
-                    grades.delete()
-                    logger.info(f"Successfully deleted {grade_count} gradebook entries")
-            except Exception as e:
-                logger.error(f"Error deleting gradebook data: {str(e)}")
-            
-            # 7. DELETE ALL USER FILES
-            try:
-                import os
-                import shutil
-                from django.conf import settings
-                
                 # Delete profile image
                 if self.profile_image:
                     try:
@@ -1011,21 +908,6 @@ class CustomUser(AbstractUser):
                     except Exception as e:
                         logger.error(f"Error deleting statement of purpose file: {str(e)}")
                 
-                user_dirs = [
-                    f"user_files/{self.id}",
-                    f"profile_images/{self.id}",
-                    f"assignment_content/submissions/{self.id}",
-                    f"quiz_uploads/{self.id}"
-                ]
-                
-                for user_dir in user_dirs:
-                    try:
-                        if os.path.exists(user_dir):
-                            shutil.rmtree(user_dir)
-                            logger.info(f"Deleted user directory: {user_dir}")
-                    except Exception as e:
-                        logger.error(f"Error deleting user directory {user_dir}: {str(e)}")
-                
                 # S3 cleanup for user files
                 try:
                     from core.utils.s3_cleanup import cleanup_user_s3_files
@@ -1039,66 +921,6 @@ class CustomUser(AbstractUser):
                     
             except Exception as e:
                 logger.error(f"Error deleting user files: {str(e)}")
-            
-            # 8. DELETE ALL USER QUESTIONNAIRES
-            try:
-                from users.models import UserQuestionnaire
-                questionnaires = UserQuestionnaire.objects.filter(user=self)
-                questionnaire_count = questionnaires.count()
-                if questionnaire_count > 0:
-                    logger.info(f"Deleting {questionnaire_count} user questionnaires")
-                    questionnaires.delete()
-                    logger.info(f"Successfully deleted {questionnaire_count} user questionnaires")
-            except Exception as e:
-                logger.error(f"Error deleting user questionnaires: {str(e)}")
-            
-            # 9. DELETE ALL USER QUIZ ASSIGNMENTS
-            try:
-                from users.models import UserQuizAssignment
-                quiz_assignments = UserQuizAssignment.objects.filter(user=self)
-                assignment_count = quiz_assignments.count()
-                if assignment_count > 0:
-                    logger.info(f"Deleting {assignment_count} user quiz assignments")
-                    quiz_assignments.delete()
-                    logger.info(f"Successfully deleted {assignment_count} user quiz assignments")
-            except Exception as e:
-                logger.error(f"Error deleting user quiz assignments: {str(e)}")
-            
-            # 10. DELETE ALL MANUAL ASSESSMENT ENTRIES
-            try:
-                from users.models import ManualAssessmentEntry
-                assessments = ManualAssessmentEntry.objects.filter(user=self)
-                assessment_count = assessments.count()
-                if assessment_count > 0:
-                    logger.info(f"Deleting {assessment_count} manual assessment entries")
-                    assessments.delete()
-                    logger.info(f"Successfully deleted {assessment_count} manual assessment entries")
-            except Exception as e:
-                logger.error(f"Error deleting manual assessment entries: {str(e)}")
-            
-            # 11. DELETE ALL MANUAL VAK SCORES
-            try:
-                from users.models import ManualVAKScore
-                vak_scores = ManualVAKScore.objects.filter(user=self)
-                vak_count = vak_scores.count()
-                if vak_count > 0:
-                    logger.info(f"Deleting {vak_count} manual VAK scores")
-                    vak_scores.delete()
-                    logger.info(f"Successfully deleted {vak_count} manual VAK scores")
-            except Exception as e:
-                logger.error(f"Error deleting manual VAK scores: {str(e)}")
-            
-            # 12. DELETE ALL PASSWORD RESET TOKENS
-            try:
-                from users.models import PasswordResetToken
-                reset_tokens = PasswordResetToken.objects.filter(user=self)
-                token_count = reset_tokens.count()
-                if token_count > 0:
-                    logger.info(f"Deleting {token_count} password reset tokens")
-                    reset_tokens.delete()
-                    logger.info(f"Successfully deleted {token_count} password reset tokens")
-            except Exception as e:
-                logger.error(f"Error deleting password reset tokens: {str(e)}")
             
             # 13. DELETE ALL EMAIL VERIFICATION TOKENS
             try:

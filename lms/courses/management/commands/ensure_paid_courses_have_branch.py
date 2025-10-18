@@ -35,19 +35,19 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS('All paid courses already have branches assigned. No action needed.'))
             return
             
-        self.stdout.write(f'Found {count} paid course(s) without branch assignment.')
+        self.stdout.write("Found {{count}} paid course(s) without branch assignment.")
         
         # Assign the default branch to each paid course
         for course in paid_courses_without_branch:
-            self.stdout.write(f'Course: {course.title} (ID: {course.id}), Price: ${course.price}')
+            self.stdout.write("Course: {{course.title}} (ID: {{course.id}}), Price: ${{course.price}}")
             if not dry_run:
                 course.branch = default_branch
                 course.save(update_fields=['branch'])
-                self.stdout.write(self.style.SUCCESS(f'  - Assigned to branch: {default_branch.name}'))
+                self.stdout.write(self.style.SUCCESS("  - Assigned to branch: {{default_branch.name}}"))
             else:
-                self.stdout.write(self.style.WARNING(f'  - Would assign to branch: {default_branch.name} (dry run)'))
+                self.stdout.write(self.style.WARNING("  - Would assign to branch: {{default_branch.name}} (dry run)"))
         
         if not dry_run:
-            self.stdout.write(self.style.SUCCESS(f'Successfully assigned branches to {count} paid courses.'))
+            self.stdout.write(self.style.SUCCESS("Successfully assigned branches to {{count}} paid courses."))
         else:
-            self.stdout.write(self.style.WARNING(f'Dry run complete. Would assign branches to {count} paid courses.')) 
+            self.stdout.write(self.style.WARNING("Dry run complete. Would assign branches to {{count}} paid courses.")) 

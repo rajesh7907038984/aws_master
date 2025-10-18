@@ -82,7 +82,7 @@ class ScoreHistory(models.Model):
         ]
     
     def __str__(self):
-        return f"{self.get_change_type_display()} - {self.content_object} - {self.created_at}"
+        return "{{self.get_change_type_display()}} - {{self.content_object}} - {{self.created_at}}"
     
     @classmethod
     def log_score_change(cls, obj, old_score, new_score, changed_by, change_type, reason='', metadata=None):
@@ -117,7 +117,7 @@ class ScoreHistory(models.Model):
         except Exception as e:
             import logging
             logger = logging.getLogger(__name__)
-            logger.error(f"Failed to log score change: {str(e)}", exc_info=True)
+            logger.error("Failed to log score change: {{str(e)}}", exc_info=True)
     
     @classmethod
     def get_score_history(cls, obj):
@@ -237,7 +237,7 @@ class ScoreAuditLog(models.Model):
         ]
     
     def __str__(self):
-        return f"{self.get_severity_display()} - {self.operation} - {self.created_at}"
+        return "{{self.get_severity_display()}} - {{self.operation}} - {{self.created_at}}"
     
     @classmethod
     def log_operation(cls, operation, message, severity='info', score_history=None, 
@@ -269,4 +269,4 @@ class ScoreAuditLog(models.Model):
         except Exception as e:
             import logging
             logger = logging.getLogger(__name__)
-            logger.error(f"Failed to log audit operation: {str(e)}", exc_info=True)
+            logger.error("Failed to log audit operation: {{str(e)}}", exc_info=True)

@@ -35,15 +35,15 @@ def business_list(request):
     # Get base queryset with annotation
     businesses = Business.objects.annotate(
         branches_count=Count('branches'),
-        super_admins_count=Count('user_assignments', filter=models.Q(user_assignments__is_active=True))
+        super_admins_count=Count('business_user_assignments', filter=models.Q(business_user_assignments__is_active=True))
     ).order_by('name')
 
     # Filter based on user role
     if request.user.role == 'superadmin':
         # Super admins can only see businesses they're assigned to
         businesses = businesses.filter(
-            user_assignments__user=request.user,
-            user_assignments__is_active=True
+            business_user_assignments__user=request.user,
+            business_user_assignments__is_active=True
         )
     # Global admins can see all businesses (no filtering needed)
 
@@ -147,19 +147,19 @@ def business_detail(request, business_id):
     statistics = business.get_business_statistics()
     
     # Get assigned super admins
-    super_admins = business.user_assignments.filter(is_active=True).select_related('user', 'assigned_by')
+    super_admins = business.business_user_assignments.filter(is_active=True).select_related('user', 'assigned_by')
     
     # Get branches
     branches = business.branches.filter(is_active=True).annotate(
-        admins_count=Count('users', filter=models.Q(users__role='admin')),
-        instructors_count=Count('users', filter=models.Q(users__role='instructor')),
-        learners_count=Count('users', filter=models.Q(users__role='learner'))
+        admins_count=Count('branch_users', filter=models.Q(branch_users__role='admin')),
+        instructors_count=Count('branch_users', filter=models.Q(branch_users__role='instructor')),
+        learners_count=Count('branch_users', filter=models.Q(branch_users__role='learner'))
     )
 
     # Get available super admin users for assignment (only for Global Admin)
     available_super_admins = []
     if request.user.role == 'globaladmin':
-        assigned_user_ids = business.user_assignments.filter(is_active=True).values_list('user_id', flat=True)
+        assigned_user_ids = business.business_user_assignments.filter(is_active=True).values_list('user_id', flat=True)
         available_super_admins = CustomUser.objects.filter(
             role='superadmin'
         ).exclude(id__in=assigned_user_ids)

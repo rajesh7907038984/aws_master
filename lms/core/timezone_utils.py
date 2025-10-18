@@ -86,14 +86,14 @@ class TimezoneManager:
                 timezone_pref.auto_detected = auto_detected
                 timezone_pref.save()
             
-            logger.info(f"Set timezone for user {user.username}: {timezone_name}")
+            logger.info("Set timezone for user {{user.username}}: {{timezone_name}}")
             return True
             
         except pytz.UnknownTimeZoneError:
-            logger.error(f"Invalid timezone: {timezone_name}")
+            logger.error("Invalid timezone: {{timezone_name}}")
             return False
         except Exception as e:
-            logger.error(f"Error setting timezone for user {user.username}: {str(e)}")
+            logger.error("Error setting timezone for user {{user.username}}: {{str(e)}}")
             return False
     
     @staticmethod
@@ -115,7 +115,7 @@ class TimezoneManager:
             return utc_datetime.astimezone(user_tz)
             
         except Exception as e:
-            logger.error(f"Error converting to user timezone: {str(e)}")
+            logger.error("Error converting to user timezone: {{str(e)}}")
             return utc_datetime
     
     @staticmethod
@@ -137,7 +137,7 @@ class TimezoneManager:
             return local_datetime.astimezone(pytz.UTC)
             
         except Exception as e:
-            logger.error(f"Error converting to UTC: {str(e)}")
+            logger.error("Error converting to UTC: {{str(e)}}")
             return local_datetime
     
     @staticmethod
@@ -157,7 +157,7 @@ class TimezoneManager:
                 return user_dt.strftime("%Y-%m-%d %H:%M:%S %Z")
                 
         except Exception as e:
-            logger.error(f"Error formatting datetime: {str(e)}")
+            logger.error("Error formatting datetime: {{str(e)}}")
             return str(dt)
     
     @staticmethod
@@ -179,7 +179,7 @@ class TimezoneManager:
                 'timezone_name': now_user.tzname(),
             }
         except Exception as e:
-            logger.error(f"Error getting timezone info: {str(e)}")
+            logger.error("Error getting timezone info: {{str(e)}}")
             return {
                 'timezone': 'UTC',
                 'offset_minutes': 0,

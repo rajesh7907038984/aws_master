@@ -424,31 +424,43 @@
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Course filter functionality
-    const courseFilter = document.getElementById('courseFilter');
-    if (courseFilter) {
-        courseFilter.addEventListener('change', function() {
-            const courseId = this.value;
-            let url = new URL(window.location.href);
+    try {
+        // Course filter functionality
+        const courseFilter = document.getElementById('courseFilter');
+        if (courseFilter) {
+            courseFilter.addEventListener('change', function() {
+                try {
+                    const courseId = this.value;
+                    let url = new URL(window.location.href);
+                    
+                    // Clear pagination when filter changes
+                    url.searchParams.delete('page');
+                    
+                    if (courseId) {
+                        url.searchParams.set('course_id', courseId);
+                    } else {
+                        url.searchParams.delete('course_id');
+                    }
+                    
+                    window.location.href = url.toString();
+                } catch (error) {
+                    console.error('Error handling course filter change:', error);
+                }
+            });
             
-            // Clear pagination when filter changes
-            url.searchParams.delete('page');
-            
-            if (courseId) {
-                url.searchParams.set('course_id', courseId);
-            } else {
-                url.searchParams.delete('course_id');
+            // Set the current selection based on URL parameter
+            try {
+                const urlParams = new URLSearchParams(window.location.search);
+                const currentCourseId = urlParams.get('course_id');
+                if (currentCourseId) {
+                    courseFilter.value = currentCourseId;
+                }
+            } catch (error) {
+                console.error('Error setting course filter value:', error);
             }
-            
-            window.location.href = url.toString();
-        });
-        
-        // Set the current selection based on URL parameter
-        const urlParams = new URLSearchParams(window.location.search);
-        const currentCourseId = urlParams.get('course_id');
-        if (currentCourseId) {
-            courseFilter.value = currentCourseId;
         }
+    } catch (error) {
+        console.error('Error initializing assignment list:', error);
     }
 });
 </script>

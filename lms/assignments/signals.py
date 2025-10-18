@@ -93,7 +93,7 @@ def update_topic_progress(sender, instance, **kwargs):
             
     except Exception as e:
         # Log error but don't fail the save operation
-        logger.error(f"Error updating topic progress: {e}")
+        logger.error("Error updating topic progress: {{e}}")
     
     # Send grading notification if grade was changed
     if hasattr(instance, '_grade_changed') and instance._grade_changed and instance.grade is not None:
@@ -105,7 +105,7 @@ def update_topic_progress(sender, instance, **kwargs):
             percentage = (float(instance.grade) / float(instance.assignment.max_score)) * 100 if instance.assignment.max_score > 0 else 0
             
             # Prepare grading notification message
-            grading_message = f"""
+            grading_message = """
             <h2>Assignment Graded</h2>
             <p>Dear {instance.user.first_name or instance.user.username},</p>
             <p>Your assignment has been graded by the instructor.</p>
@@ -115,9 +115,9 @@ def update_topic_progress(sender, instance, **kwargs):
                 <li><strong>Grade:</strong> {instance.grade} / {instance.assignment.max_score}</li>
                 <li><strong>Percentage:</strong> {percentage:.1f}%</li>
                 <li><strong>Status:</strong> {instance.get_status_display()}</li>
-                {f'<li><strong>Graded At:</strong> {instance.graded_at.strftime("%B %d, %Y at %I:%M %p")}</li>' if instance.graded_at else ''}
+                {"<li><strong>Graded At:</strong> {{instance.graded_at.strftime("%B %d, %Y at %I:%M %p")}}</li>" if instance.graded_at else ''}
             </ul>
-            {f'<div style="background-color: #f5f5f5; padding: 15px; border-left: 4px solid #4CAF50; margin: 15px 0;"><p><strong>Instructor Feedback:</strong></p><p>{instance.feedback}</p></div>' if instance.feedback else ''}
+            {"<div style="background-color: #f5f5f5; padding: 15px; border-left: 4px solid #4CAF50; margin: 15px 0;"><p><strong>Instructor Feedback:</strong></p><p>{{instance.feedback}}</p></div>" if instance.feedback else ''}
             <p>You can view your submission and detailed feedback by clicking the button below.</p>
             <p>Keep up the good work!</p>
             <p>Best regards,<br>The LMS Team</p>
@@ -127,20 +127,20 @@ def update_topic_progress(sender, instance, **kwargs):
             notification = send_notification(
                 recipient=instance.user,
                 notification_type_name='assignment_graded',
-                title=f"Assignment Graded: {instance.assignment.title}",
+                title="Assignment Graded: {{instance.assignment.title}}",
                 message=grading_message,
-                short_message=f"Your assignment '{instance.assignment.title}' has been graded. Score: {instance.grade}/{instance.assignment.max_score}",
+                short_message="Your assignment '{{instance.assignment.title}}' has been graded. Score: {{instance.grade}}/{{instance.assignment.max_score}}",
                 priority='normal',
-                action_url=f"/assignments/{instance.assignment.id}/submission/{instance.id}/",
+                action_url="/assignments/{{instance.assignment.id}}/submission/{{instance.id}}/",
                 action_text="View Grade",
                 related_assignment=instance.assignment,
                 send_email=True
             )
             
             if notification:
-                logger.info(f"Grading notification sent to user: {instance.user.username} for assignment: {instance.assignment.title}")
+                logger.info("Grading notification sent to user: {{instance.user.username}} for assignment: {{instance.assignment.title}}")
             else:
-                logger.warning(f"Grading notification created but email may not have been sent for user: {instance.user.username}")
+                logger.warning("Grading notification created but email may not have been sent for user: {{instance.user.username}}")
                 
         except Exception as e:
-            logger.error(f"Error sending grading notification to {instance.user.username}: {str(e)}") 
+            logger.error("Error sending grading notification to {{instance.user.username}}: {{str(e)}}") 

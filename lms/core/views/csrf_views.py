@@ -34,7 +34,7 @@ Provides API endpoints for CSRF token refresh and validation
 #         
 #         # Log token refresh for Session monitoring
 #         user_id = getattr(request.user, 'id', 'anonymous') if hasattr(request, 'user') else 'anonymous'
-#         logger.info(f"CSRF token refreshed for user {user_id} from IP {request.META.get('REMOTE_ADDR', 'unknown')}")
+#         logger.info("CSRF token refreshed for user {{user_id}} from IP {{request.META.get('REMOTE_ADDR', 'unknown')}}")
 #         
 #         return APIResponse.success(
 #             data={
@@ -46,7 +46,7 @@ Provides API endpoints for CSRF token refresh and validation
 #         )
 #         
 #     except Exception as e:
-#         logger.error(f"Failed to refresh CSRF token: {str(e)}", exc_info=True)
+#         logger.error("Failed to refresh CSRF token: {{str(e)}}", exc_info=True)
 #         return APIResponse.server_error(
 #             message="Failed to refresh Session token",
 #             details="Please refresh the page to restore your session"
@@ -63,7 +63,7 @@ Provides API endpoints for CSRF token refresh and validation
 #     try:
 #         # If we reach this point, CSRF validation has passed
 #         user_id = getattr(request.user, 'id', 'anonymous') if hasattr(request, 'user') else 'anonymous'
-#         logger.debug(f"CSRF token validated for user {user_id}")
+#         logger.debug("CSRF token validated for user {{user_id}}")
 #         
 #         return APIResponse.success(
 #             data={
@@ -74,7 +74,7 @@ Provides API endpoints for CSRF token refresh and validation
 #         )
 #         
 #     except Exception as e:
-#         logger.error(f"CSRF token validation failed: {str(e)}")
+#         logger.error("CSRF token validation failed: {{str(e)}}")
 #         return APIResponse.csrf_error(
 #             message="Session token validation failed",
 #             details="Please refresh the page to get a new Session token"
@@ -119,7 +119,7 @@ Provides API endpoints for CSRF token refresh and validation
 #             message="CSRF token information"
 #         )
 #     except Exception as e:
-#         logger.error(f"Failed to get CSRF info: {str(e)}")
+#         logger.error("Failed to get CSRF info: {{str(e)}}")
 #         return APIResponse.server_error()
 
 
@@ -137,7 +137,7 @@ Provides API endpoints for CSRF token refresh and validation
 #         
 #         return APIResponse.csrf_error(
 #             message=user_message,
-#             details=f"CSRF validation failed: {reason}" if reason else "Please refresh to get a new Session token"
+#             details="CSRF validation failed: {{reason}}" if reason else "Please refresh to get a new Session token"
 #         )
 #     
 #     return JsonResponse({

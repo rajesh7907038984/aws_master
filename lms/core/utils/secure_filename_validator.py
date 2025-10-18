@@ -39,15 +39,15 @@ class SecureFilenameValidator:
     
     # Dangerous file extensions (executable files, scripts, etc.)
     DANGEROUS_EXTENSIONS = {
-        '.exe', '.bat', '.cmd', '.com', '.pif', '.scr', '.vbs', '.vbe',
-        '.js', '.jse', '.wsf', '.wsh', '.msc', '.jar', '.php', '.asp', 
+        '.exe', '.bat', '.cmd', '.com', '.pi", ".scr', '.vbs', '.vbe',
+        '.js', '.jse', '.ws", ".wsh', '.msc', '.jar', '.php', '.asp', 
         '.aspx', '.jsp', '.py', '.rb', '.pl', '.sh', '.ps1', '.psm1'
     }
     
     # Allowed file extensions by category
     ALLOWED_EXTENSIONS = {
         'image': {'.jpg', '.jpeg', '.png'},
-        'document': {'.pdf', '.doc', '.docx', '.txt', '.rtf', '.odt', '.xls', '.xlsx', '.csv', '.ppt', '.pptx'},
+        'document': {'.pd", ".doc', '.docx', '.txt', '.rt", ".odt', '.xls', '.xlsx', '.csv', '.ppt', '.pptx'},
         'video': {'.mp4', '.webm'},
         'audio': {'.mp3', '.wav', '.ogg', '.m4a', '.aac', '.flac'},
         'archive': {'.zip', '.rar', '.7z', '.tar', '.gz'},
@@ -147,7 +147,7 @@ class SecureFilenameValidator:
         parts = base_name.split('.')
         if len(parts) > 1:
             for part in parts[:-1]:  # Don't check the last part (it's the actual base name)
-                if f'.{part.lower()}' in self.DANGEROUS_EXTENSIONS:
+                if ".{{part.lower()}}" in self.DANGEROUS_EXTENSIONS:
                     errors.append(str(self.VALIDATION_MESSAGES['double_extension']))
                     break
         
@@ -198,7 +198,7 @@ class SecureFilenameValidator:
             max_size_bytes = self.max_size_mb * 1024 * 1024
             if uploaded_file.size > max_size_bytes:
                 filename_result['errors'].append(
-                    f'File size ({uploaded_file.size / (1024*1024):.1f}MB) exceeds the maximum allowed size of {self.max_size_mb}MB.'
+                    "File size ({{uploaded_file.size / (1024*1024):.1f}}MB) exceeds the maximum allowed size of {{self.max_size_mb}}MB."
                 )
                 filename_result['valid'] = False
         
@@ -224,12 +224,12 @@ class SecureFilenameValidator:
         
         if allowed_exts:
             ext_text = ', '.join(sorted(allowed_exts)).upper()
-            help_parts = [f'Allowed formats: {ext_text}']
+            help_parts = ["Allowed formats: {{ext_text}}"]
         else:
             help_parts = ['All file types allowed']
         
         if self.max_size_mb:
-            help_parts.append(f'Maximum size: {self.max_size_mb}MB')
+            help_parts.append("Maximum size: {{self.max_size_mb}}MB")
         
         help_parts.append('Use simple filenames with letters, numbers, spaces, hyphens, and underscores')
         

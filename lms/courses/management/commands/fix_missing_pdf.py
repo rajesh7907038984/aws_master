@@ -43,7 +43,7 @@ class Command(BaseCommand):
         
         for topic in topics:
             try:
-                self.stdout.write(f'Processing topic {topic.id}: {topic.title}')
+                self.stdout.write("Processing topic {{topic.id}}: {{topic.title}}")
                 
                 # Check if file exists in S3
                 if topic.content_file and topic.content_file.name:
@@ -54,28 +54,28 @@ class Command(BaseCommand):
                         try:
                             # Try to get file size to check if it exists
                             file_size = default_storage.size(topic.content_file.name)
-                            self.stdout.write(f'  ✓ File exists in S3: {topic.content_file.name} (size: {file_size} bytes)')
+                            self.stdout.write("  ✓ File exists in S3: {{topic.content_file.name}} (size: {{file_size}} bytes)")
                             continue
                         except Exception as storage_error:
-                            self.stdout.write(f'  ✗ File missing from S3: {topic.content_file.name} - {str(storage_error)}')
+                            self.stdout.write("  ✗ File missing from S3: {{topic.content_file.name}} - {{str(storage_error)}}")
                     except Exception as e:
-                        self.stdout.write(f'  ✗ Error checking file: {str(e)}')
+                        self.stdout.write("  ✗ Error checking file: {{str(e)}}")
                 
                 # Look for the file in local storage
                 local_paths = [
-                    f'/home/ec2-user/lms/media_local/{topic.content_file.name}' if topic.content_file else None,
-                    f'/home/ec2-user/lms/media_local/courses/{topic.course.id}/topics/{topic.id}/website_development_proposal_jc5Ky29.pdf',
+                    "/home/ec2-user/lms/media_local/{{topic.content_file.name}}" if topic.content_file else None,
+                    "/home/ec2-user/lms/media_local/courses/{{topic.course.id}}/topics/{{topic.id}}/website_development_proposal_jc5Ky29.pd",
                 ]
                 
                 local_file = None
                 for path in local_paths:
                     if path and os.path.exists(path):
                         local_file = path
-                        self.stdout.write(f'  ✓ Found local file: {path}')
+                        self.stdout.write("  ✓ Found local file: {{path}}")
                         break
                 
                 if not local_file:
-                    self.stdout.write(f'  ✗ No local file found for topic {topic.id}')
+                    self.stdout.write("  ✗ No local file found for topic {{topic.id}}")
                     error_count += 1
                     continue
                 
@@ -88,27 +88,27 @@ class Command(BaseCommand):
                         else:
                             # Generate new path
                             filename = os.path.basename(local_file)
-                            s3_path = f"courses/{topic.course.id}/topics/{topic.id}/{filename}"
+                            s3_path = "courses/{{topic.course.id}}/topics/{{topic.id}}/{{filename}}"
                         
                         # Upload to S3
                         saved_path = default_storage.save(s3_path, f)
-                        self.stdout.write(f'  ✓ Uploaded to S3: {saved_path}')
+                        self.stdout.write("  ✓ Uploaded to S3: {{saved_path}}")
                         
                         # Update the topic's content_file if needed
                         if not topic.content_file or topic.content_file.name != saved_path:
                             topic.content_file.name = saved_path
                             topic.save()
-                            self.stdout.write(f'  ✓ Updated topic file path')
+                            self.stdout.write("  ✓ Updated topic file path")
                 
                 fixed_count += 1
                 
             except Exception as e:
-                self.stdout.write(f'  ✗ Error processing topic {topic.id}: {str(e)}')
+                self.stdout.write("  ✗ Error processing topic {{topic.id}}: {{str(e)}}")
                 error_count += 1
-                logger.error(f'Error processing topic {topic.id}: {str(e)}')
+                logger.error("Error processing topic {{topic.id}}: {{str(e)}}")
         
         self.stdout.write(
             self.style.SUCCESS(
-                f'Completed: {fixed_count} topics fixed, {error_count} errors'
+                "Completed: {{fixed_count}} topics fixed, {{error_count}} errors"
             )
         )

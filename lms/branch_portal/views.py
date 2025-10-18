@@ -155,7 +155,7 @@ def manage_portal(request, branch_id=None):
                 if target_branch in accessible_branches:
                     branch = target_branch
                 else:
-                    messages.error(request, f"You don't have access to manage the portal for '{target_branch.name}'. You can only manage portals for branches within your assigned businesses.")
+                    messages.error(request, "You don't have access to manage the portal for '{{target_branch.name}}'. You can only manage portals for branches within your assigned businesses.")
                     return redirect('branch_portal:branch_dashboard')
             else:
                 # Other roles don't have portal management access
@@ -192,7 +192,7 @@ def manage_portal(request, branch_id=None):
                 if request.user.branch in accessible_branches:
                     branch = request.user.branch
                 else:
-                    messages.error(request, f"You don't have access to your assigned branch. You can only access branches within your assigned businesses.")
+                    messages.error(request, "You don't have access to your assigned branch. You can only access branches within your assigned businesses.")
                     # Use the first accessible branch instead
                     if accessible_branches.exists():
                         branch = accessible_branches.first()
@@ -273,7 +273,7 @@ def update_portal(request):
             if branch not in accessible_branches:
                 return JsonResponse({
                     'success': False, 
-                    'message': f"Access denied: You can only manage portals for branches within your assigned businesses"
+                    'message': "Access denied: You can only manage portals for branches within your assigned businesses"
                 })
         elif request.user.branch:
             # Validate that their assigned branch is within their business scope
@@ -367,7 +367,7 @@ def add_to_cart(request, course_id):
     # Add course to cart
     cart_item = cart.add_item(course)
     
-    messages.success(request, f"{course.title} added to your cart")
+    messages.success(request, "{{course.title}} added to your cart")
     
     # Always redirect to cart page
     return redirect('branch_portal:view_cart')
@@ -383,9 +383,9 @@ def remove_from_cart(request, course_id):
         removed = cart.remove_item(course)
         
         if removed:
-            messages.success(request, f"{course.title} removed from your cart")
+            messages.success(request, "{{course.title}} removed from your cart")
         else:
-            messages.warning(request, f"{course.title} is not in your cart")
+            messages.warning(request, "{{course.title}} is not in your cart")
     except Cart.DoesNotExist:
         messages.warning(request, "Your cart is empty")
     
@@ -479,7 +479,7 @@ def checkout(request, branch_id):
                 order.user_notes = request.POST['user_notes']
                 order.save()
             
-            messages.success(request, f"Your order has been submitted. Order number: {order.order_number}")
+            messages.success(request, "Your order has been submitted. Order number: {{order.order_number}}")
             return redirect('branch_portal:order_success', order_number=order.order_number)
     
     except Cart.DoesNotExist:
@@ -579,13 +579,13 @@ def branch_orders(request):
             # Validate that the requested branch is within their assigned businesses
             user_branch = get_object_or_404(Branch, id=branch_id)
             if user_branch not in accessible_branches:
-                messages.error(request, f"You don't have access to orders for branch '{user_branch.name}'. You can only access branches within your assigned businesses.")
+                messages.error(request, "You don't have access to orders for branch '{{user_branch.name}}'. You can only access branches within your assigned businesses.")
                 return redirect('branch_portal:branch_orders')
             
             # Check if order management is enabled for this branch
             branch_order_management_enabled = getattr(user_branch, 'order_management_enabled', False)
             if not branch_order_management_enabled:
-                messages.error(request, f"Order management is not enabled for branch '{user_branch.name}'. Please contact your administrator.")
+                messages.error(request, "Order management is not enabled for branch '{{user_branch.name}}'. Please contact your administrator.")
                 return redirect('branch_portal:branch_orders')
             
             orders = Order.objects.filter(branch=user_branch)
@@ -604,7 +604,7 @@ def branch_orders(request):
         # Check if order management is enabled for this branch
         branch_order_management_enabled = getattr(user_branch, 'order_management_enabled', False)
         if not branch_order_management_enabled:
-            messages.error(request, f"Order management is not enabled for your branch '{user_branch.name}'. Please contact your administrator.")
+            messages.error(request, "Order management is not enabled for your branch '{{user_branch.name}}'. Please contact your administrator.")
             return redirect('branch_portal:branch_dashboard')
         
         orders = Order.objects.filter(branch=user_branch)
@@ -697,7 +697,7 @@ def order_detail(request, order_number):
         # Check if order management is enabled for this branch
         branch_order_management_enabled = getattr(request.user.branch, 'order_management_enabled', False)
         if not branch_order_management_enabled:
-            messages.error(request, f"Order management is not enabled for your branch '{request.user.branch.name}'. Please contact your administrator.")
+            messages.error(request, "Order management is not enabled for your branch '{{request.user.branch.name}}'. Please contact your administrator.")
             return redirect('branch_portal:branch_dashboard')
         
         order = get_object_or_404(Order, order_number=order_number, branch=request.user.branch)
@@ -712,7 +712,7 @@ def order_detail(request, order_number):
     breadcrumbs = [
         {'url': reverse('users:role_based_redirect'), 'label': 'Dashboard', 'icon': 'fa-home'},
         {'url': reverse('branch_portal:branch_orders'), 'label': 'Orders', 'icon': 'fa-shopping-bag'},
-        {'label': f'Order #{order.order_number}', 'icon': 'fa-file-invoice'}
+        {'label': "Order #{{order.order_number}}", 'icon': 'fa-file-invoice'}
     ]
     
     context = {
@@ -762,12 +762,12 @@ def update_order_status(request, order_number):
         admin_note = request.POST.get('admin_note')
         if admin_note:
             if order.admin_notes:
-                order.admin_notes += f"\n\n[{timezone.now().strftime('%Y-%m-%d %H:%M')}] {admin_note}"
+                order.admin_notes += "\n\n[{{timezone.now().strftime('%Y-%m-%d %H:%M')}}] {{admin_note}}"
             else:
-                order.admin_notes = f"[{timezone.now().strftime('%Y-%m-%d %H:%M')}] {admin_note}"
+                order.admin_notes = "[{{timezone.now().strftime('%Y-%m-%d %H:%M')}}] {{admin_note}}"
             order.save()
         
-        messages.success(request, f"Order status updated to {dict(Order.ORDER_STATUS_CHOICES)[new_status]}")
+        messages.success(request, "Order status updated to {{dict(Order.ORDER_STATUS_CHOICES)[new_status]}}")
     else:
         messages.error(request, "Invalid status")
     
@@ -797,7 +797,7 @@ def delete_order(request, order_number):
     
     # Only allow deletion of pending, rejected, or cancelled orders
     if order.status not in ['pending', 'rejected', 'cancelled']:
-        messages.error(request, f"Cannot delete order with status '{order.get_status_display()}'. Only pending, rejected, or cancelled orders can be deleted.")
+        messages.error(request, "Cannot delete order with status '{{order.get_status_display()}}'. Only pending, rejected, or cancelled orders can be deleted.")
         return redirect('branch_portal:order_detail', order_number=order_number)
     
     # Store order number for success message
@@ -806,7 +806,7 @@ def delete_order(request, order_number):
     # Delete the order
     order.delete()
     
-    messages.success(request, f"Order #{order_num} has been successfully deleted.")
+    messages.success(request, "Order #{{order_num}} has been successfully deleted.")
     return redirect('branch_portal:branch_orders')
 
 @login_required
@@ -832,7 +832,7 @@ def delete_pending_orders(request):
         accessible_branches = filter_branches_by_business(request.user)
         branch = get_object_or_404(Branch, id=branch_id)
         if branch not in accessible_branches:
-            messages.error(request, f"You can only delete orders for branches within your assigned businesses")
+            messages.error(request, "You can only delete orders for branches within your assigned businesses")
             return redirect('branch_portal:branch_dashboard')
     elif request.user.role == 'admin':
         # Branch admin can only delete orders for their branch
@@ -849,9 +849,9 @@ def delete_pending_orders(request):
     
     if deleted_count > 0:
         pending_orders.delete()
-        messages.success(request, f"Successfully deleted {deleted_count} pending order(s) for {branch.name}.")
+        messages.success(request, "Successfully deleted {{deleted_count}} pending order(s) for {{branch.name}}.")
     else:
-        messages.info(request, f"No pending orders found for {branch.name}.")
+        messages.info(request, "No pending orders found for {{branch.name}}.")
     
     return redirect('branch_portal:branch_dashboard')
 
@@ -889,7 +889,7 @@ def branch_dashboard(request):
             # Validate that the requested branch is within their assigned businesses
             branch = get_object_or_404(Branch, id=branch_id)
             if branch not in accessible_branches:
-                messages.error(request, f"You don't have access to branch '{branch.name}'. You can only access branches within your assigned businesses.")
+                messages.error(request, "You don't have access to branch '{{branch.name}}'. You can only access branches within your assigned businesses.")
                 return redirect('branch_portal:branch_dashboard')
             branches = [branch]
         else:
@@ -996,7 +996,7 @@ def branch_dashboard(request):
         # Handle database errors gracefully [[memory:3584318]]
         import logging
         logger = logging.getLogger(__name__)
-        logger.error(f"Database error in branch_dashboard: {str(e)}")
+        logger.error("Database error in branch_dashboard: {{str(e)}}")
         
         # Fallback to empty stats if database fails
         branch_stats = []
@@ -1208,7 +1208,7 @@ def manage_main_content(request):
     except BranchPortal.DoesNotExist:
         return JsonResponse({'success': False, 'message': 'Portal not found'})
     except Exception as e:
-        return JsonResponse({'success': False, 'message': f'Error: {str(e)}'})
+        return JsonResponse({'success': False, 'message': "Error: {{str(e)}}"})
 
 
 @login_required
@@ -1245,7 +1245,7 @@ def delete_main_content(request):
     except MainContentSection.DoesNotExist:
         return JsonResponse({'success': False, 'message': 'Section not found'})
     except Exception as e:
-        return JsonResponse({'success': False, 'message': f'Error: {str(e)}'})
+        return JsonResponse({'success': False, 'message': "Error: {{str(e)}}"})
 
 
 @login_required
@@ -1352,7 +1352,7 @@ def manage_feature_grid(request):
     except BranchPortal.DoesNotExist:
         return JsonResponse({'success': False, 'message': 'Portal not found'})
     except Exception as e:
-        return JsonResponse({'success': False, 'message': f'Error: {str(e)}'})
+        return JsonResponse({'success': False, 'message': "Error: {{str(e)}}"})
 
 
 @login_required
@@ -1389,7 +1389,7 @@ def delete_feature_grid(request):
     except FeatureGridSection.DoesNotExist:
         return JsonResponse({'success': False, 'message': 'Feature grid section not found'})
     except Exception as e:
-        return JsonResponse({'success': False, 'message': f'Error: {str(e)}'})
+        return JsonResponse({'success': False, 'message': "Error: {{str(e)}}"})
 
 
 @login_required
@@ -1482,7 +1482,7 @@ def manage_feature_grid_item(request):
         except FeatureGridSection.DoesNotExist:
             return JsonResponse({'success': False, 'message': 'Feature grid section not found'})
         except Exception as e:
-            return JsonResponse({'success': False, 'message': f'Error: {str(e)}'})
+            return JsonResponse({'success': False, 'message': "Error: {{str(e)}}"})
     
     return JsonResponse({'success': False, 'message': 'Invalid request method'})
 
@@ -1521,7 +1521,7 @@ def delete_feature_grid_item(request):
     except FeatureGridItem.DoesNotExist:
         return JsonResponse({'success': False, 'message': 'Feature item not found'})
     except Exception as e:
-        return JsonResponse({'success': False, 'message': f'Error: {str(e)}'})
+        return JsonResponse({'success': False, 'message': "Error: {{str(e)}}"})
 
 
 @login_required
@@ -1598,7 +1598,7 @@ def manage_pre_footer(request):
                 pre_footer.save()
             
             action = 'created' if created else 'updated'
-            message = f'Pre-footer {action} successfully'
+            message = "Pre-footer {{action}} successfully"
             
             # Check if it's an AJAX request
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -1610,7 +1610,7 @@ def manage_pre_footer(request):
     except BranchPortal.DoesNotExist:
         return JsonResponse({'success': False, 'message': 'Portal not found'})
     except Exception as e:
-        return JsonResponse({'success': False, 'message': f'Error: {str(e)}'})
+        return JsonResponse({'success': False, 'message': "Error: {{str(e)}}"})
 
 
 @login_required
@@ -1707,7 +1707,7 @@ def manage_menu_link(request):
     except PreFooterSection.DoesNotExist:
         return JsonResponse({'success': False, 'message': 'Pre-footer section not found'})
     except Exception as e:
-        return JsonResponse({'success': False, 'message': f'Error: {str(e)}'})
+        return JsonResponse({'success': False, 'message': "Error: {{str(e)}}"})
 
 
 @login_required
@@ -1814,4 +1814,4 @@ def manage_social_icon(request):
     except PreFooterSection.DoesNotExist:
         return JsonResponse({'success': False, 'message': 'Pre-footer section not found'})
     except Exception as e:
-        return JsonResponse({'success': False, 'message': f'Error: {str(e)}'})
+        return JsonResponse({'success': False, 'message': "Error: {{str(e)}}"})

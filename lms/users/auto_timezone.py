@@ -48,17 +48,17 @@ def set_user_timezone_auto(request):
             timezone_obj.timezone = user_timezone
             timezone_obj.auto_detected = auto_detected
             timezone_obj.save()
-            logger.info(f"Updated auto-detected timezone for user {request.user.username} to {user_timezone}")
+            logger.info("Updated auto-detected timezone for user {{request.user.username}} to {{user_timezone}}")
         elif not created:
             # User has manually set timezone, don't override
-            logger.info(f"User {request.user.username} has manually set timezone {timezone_obj.timezone}, not overriding")
+            logger.info("User {{request.user.username}} has manually set timezone {{timezone_obj.timezone}}, not overriding")
             return JsonResponse({
                 'success': True,
                 'message': 'User has manually set timezone, not overriding',
                 'timezone': timezone_obj.timezone
             })
         else:
-            logger.info(f"Set initial timezone for user {request.user.username} to {user_timezone}")
+            logger.info("Set initial timezone for user {{request.user.username}} to {{user_timezone}}")
         
         # Mark user as having timezone detected for first time
         if not hasattr(request.user, 'timezone_detected_at') or not request.user.timezone_detected_at:
@@ -79,7 +79,7 @@ def set_user_timezone_auto(request):
             'error': 'Invalid JSON data'
         }, status=400)
     except Exception as e:
-        logger.error(f"Error setting auto timezone for user {request.user.username}: {str(e)}")
+        logger.error("Error setting auto timezone for user {{request.user.username}}: {{str(e)}}")
         return JsonResponse({
             'success': False,
             'error': 'Failed to set timezone'
@@ -115,7 +115,7 @@ def get_user_timezone_status(request):
         })
         
     except Exception as e:
-        logger.error(f"Error getting timezone status for user {request.user.username}: {str(e)}")
+        logger.error("Error getting timezone status for user {{request.user.username}}: {{str(e)}}")
         return JsonResponse({
             'success': False,
             'error': 'Failed to get timezone status'

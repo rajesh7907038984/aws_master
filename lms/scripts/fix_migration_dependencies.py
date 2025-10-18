@@ -53,7 +53,7 @@ class MigrationDependencyFixer:
             print(" No migration conflicts found")
             return []
         except Exception as e:
-            print(f" Migration conflicts detected: {e}")
+            print(" Migration conflicts detected: {{e}}")
             
             # Extract conflict information from error
             if "NodeNotFoundError" in str(e):
@@ -74,15 +74,15 @@ class MigrationDependencyFixer:
     
     def create_fake_migration(self, app_name, migration_name):
         """Create a fake migration to resolve missing dependencies"""
-        print(f" Creating fake migration for {app_name}.{migration_name}")
+        print(" Creating fake migration for {{app_name}}.{{migration_name}}")
         
         try:
             # Mark the migration as applied without running it
             call_command('migrate', app_name, migration_name, '--fake')
-            print(f" Fake migration created: {app_name}.{migration_name}")
+            print(" Fake migration created: {{app_name}}.{{migration_name}}")
             return True
         except Exception as e:
-            print(f" Failed to create fake migration: {e}")
+            print(" Failed to create fake migration: {{e}}")
             return False
     
     def fix_specific_conflicts(self, conflicts):
@@ -93,7 +93,7 @@ class MigrationDependencyFixer:
             migration = conflict['migration']
             missing_dep = conflict['missing_dependency']
             
-            print(f"   - Fixing: {migration} -> {missing_dep}")
+            print("   - Fixing: {{migration}} -> {{missing_dep}}")
             
             # Extract app and migration from missing dependency
             if "(" in missing_dep and ")" in missing_dep:
@@ -115,14 +115,14 @@ class MigrationDependencyFixer:
         
         for app in problematic_apps:
             try:
-                print(f"   - Checking {app} migrations...")
+                print("   - Checking {{app}} migrations...")
                 
                 # Get current migration state
                 applied_migrations = self.recorder.applied_migrations()
                 app_migrations = [m for m in applied_migrations if m[0] == app]
                 
                 if app_migrations:
-                    print(f"   - Found {len(app_migrations)} applied migrations for {app}")
+                    print("   - Found {{len(app_migrations)}} applied migrations for {{app}}")
                     
                     # If there are conflicts, we might need to fake some migrations
                     if app == 'assignments':
@@ -133,6 +133,7 @@ class MigrationDependencyFixer:
                         self.fix_discussions_migrations()
                         
             except Exception as e:
+                print("Error fixing migrations for {{app}}: {{e}}")
     
     def fix_assignments_migrations(self):
         """Fix assignments app migration issues"""
@@ -147,6 +148,7 @@ class MigrationDependencyFixer:
                 self.create_fake_migration('assignments', '0001_initial')
                 
         except Exception as e:
+            print("Error fixing assignments migrations: {{e}}")
     
     def fix_discussions_migrations(self):
         """Fix discussions app migration issues"""
@@ -168,6 +170,7 @@ class MigrationDependencyFixer:
                 self.create_fake_migration('discussions', '0002_initial')
                 
         except Exception as e:
+            print("Error fixing discussions migrations: {{e}}")
     
     def run_safe_migrations(self):
         """Run migrations in a safe order"""
@@ -210,11 +213,11 @@ class MigrationDependencyFixer:
         
         for app in safe_order:
             try:
-                print(f"   - Migrating {app}...")
+                print("   - Migrating {{app}}...")
                 call_command('migrate', app, verbosity=0)
-                print(f"    {app} migrated successfully")
+                print("    {{app}} migrated successfully")
             except Exception as e:
-                print(f"     {app} migration failed: {e}")
+                print("     {{app}} migration failed: {{e}}")
                 # Continue with other apps
                 continue
     
@@ -284,11 +287,12 @@ python manage.py makemigrations --dry-run
                             "INSERT INTO django_migrations (app, name, applied) VALUES (%s, %s, %s)",
                             [app_name, migration_name, '2024-01-01 00:00:00']
                         )
-                        print(f"    Added fake migration: {app_name}.{migration_name}")
+                        print("    Added fake migration: {{app_name}}.{{migration_name}}")
                     else:
-                        print(f"    Migration already exists: {app_name}.{migration_name}")
+                        print("    Migration already exists: {{app_name}}.{{migration_name}}")
                         
                 except Exception as e:
+                    print("    Error creating migration {{app_name}}.{{migration_name}}: {{e}}")
         
         print(" All missing dependencies fixed!")
 
@@ -306,7 +310,7 @@ python manage.py makemigrations --dry-run
             call_command('migrate', verbosity=1)
             print(" Migrations completed successfully!")
         except Exception as e:
-            print(f"  Some migrations may have failed: {e}")
+            print("  Some migrations may have failed: {{e}}")
             print(" Trying individual app migrations...")
             
             # Try individual apps
@@ -320,9 +324,9 @@ python manage.py makemigrations --dry-run
             for app in apps_to_migrate:
                 try:
                     call_command('migrate', app, verbosity=0)
-                    print(f"    {app} migrated")
+                    print("    {{app}} migrated")
                 except Exception as e:
-                    print(f"     {app} failed: {e}")
+                    print("     {{app}} failed: {{e}}")
         
         # Step 3: Create safeguards
         self.create_migration_safeguards()

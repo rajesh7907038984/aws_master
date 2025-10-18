@@ -132,7 +132,7 @@ class Command(BaseCommand):
         """Get columns for a specific table"""
         with connection.cursor() as cursor:
             if 'sqlite' in connection.settings_dict['ENGINE']:
-                cursor.execute(f"PRAGMA table_info({table_name})")
+                cursor.execute("PRAGMA table_info({{table_name}})")
                 columns = {row[1]: {
                     'type': row[2],
                     'nullable': not row[3],
@@ -152,7 +152,7 @@ class Command(BaseCommand):
                     'primary_key': False  # Would need additional query
                 } for row in cursor.fetchall()}
             else:  # MySQL
-                cursor.execute(f"DESCRIBE {table_name}")
+                cursor.execute("DESCRIBE {{table_name}}")
                 columns = {row[0]: {
                     'type': row[1],
                     'nullable': row[2] == 'YES',
@@ -192,21 +192,21 @@ class Command(BaseCommand):
         self.analysis_results['orphaned_tables'] = list(orphaned)
         self.analysis_results['missing_model_tables'] = list(missing)
         
-        self.stdout.write(f" Found {len(db_tables)} database tables")
-        self.stdout.write(f" Found {len(model_tables)} Django model tables")
-        self.stdout.write(f"  Found {len(orphaned)} orphaned tables")
-        self.stdout.write(f" Found {len(missing)} missing model tables")
+        self.stdout.write(" Found {{len(db_tables)}} database tables")
+        self.stdout.write(" Found {{len(model_tables)}} Django model tables")
+        self.stdout.write("  Found {{len(orphaned)}} orphaned tables")
+        self.stdout.write(" Found {{len(missing)}} missing model tables")
         
         if orphaned:
             self.stdout.write("\n🗑️  Orphaned Tables (exist in DB but not in models):")
             for table in sorted(orphaned):
                 row_count = self.get_table_row_count(table)
-                self.stdout.write(f"   • {table} ({row_count} rows)")
+                self.stdout.write("   • {{table}} ({{row_count}} rows)")
         
         if missing:
             self.stdout.write("\n  Missing Tables (defined in models but not in DB):")
             for table in sorted(missing):
-                self.stdout.write(f"   • {table}")
+                self.stdout.write("   • {{table}}")
 
     def analyze_table_columns(self):
         """Find columns that don't correspond to model fields"""
@@ -247,14 +247,14 @@ class Command(BaseCommand):
                         })
                         
             except Exception as e:
-                self.stdout.write(f"  Error analyzing {table_name}: {e}")
+                self.stdout.write("  Error analyzing {{table_name}}: {{e}}")
         
         self.analysis_results['orphaned_columns'] = orphaned_columns
         
         if orphaned_columns:
-            self.stdout.write(f"\n🗑️  Found {len(orphaned_columns)} orphaned columns:")
+            self.stdout.write("\n🗑️  Found {{len(orphaned_columns)}} orphaned columns:")
             for col_info in orphaned_columns:
-                self.stdout.write(f"   • {col_info['table']}.{col_info['column']} ({col_info['type']})")
+                self.stdout.write("   • {{col_info['table']}}.{{col_info['column']}} ({{col_info['type']}})")
 
     def analyze_indexes(self):
         """Find potentially orphaned indexes"""
@@ -292,10 +292,10 @@ class Command(BaseCommand):
                     })
                     
             except Exception as e:
-                self.stdout.write(f"  Error analyzing indexes: {e}")
+                self.stdout.write("  Error analyzing indexes: {{e}}")
         
         self.analysis_results['unknown_indexes'] = unknown_indexes
-        self.stdout.write(f"📇 Found {len(unknown_indexes)} custom indexes")
+        self.stdout.write("📇 Found {{len(unknown_indexes)}} custom indexes")
 
     def check_migration_artifacts(self):
         """Check for potential migration artifacts"""
@@ -319,9 +319,9 @@ class Command(BaseCommand):
         self.analysis_results['migration_artifacts'] = artifacts
         
         if artifacts:
-            self.stdout.write(f"🗑️  Found {len(artifacts)} potential migration artifacts:")
+            self.stdout.write("🗑️  Found {{len(artifacts)}} potential migration artifacts:")
             for artifact in artifacts:
-                self.stdout.write(f"   • {artifact['table']} ({artifact['rows']} rows)")
+                self.stdout.write("   • {{artifact['table']}} ({{artifact['rows']}} rows)")
 
     def compare_with_baseline(self):
         """Compare current schema with baseline"""
@@ -355,20 +355,20 @@ class Command(BaseCommand):
             self.analysis_results['baseline_differences'] = differences
             
             if differences:
-                self.stdout.write(f" Found {len(differences)} differences from baseline:")
+                self.stdout.write(" Found {{len(differences)}} differences from baseline:")
                 for diff in differences:
-                    self.stdout.write(f"   • {diff['type']}: {diff['name']}")
+                    self.stdout.write("   • {{diff['type']}}: {{diff['name']}}")
             else:
                 self.stdout.write(" Database matches baseline schema")
                 
         except Exception as e:
-            self.stdout.write(f" Error comparing with baseline: {e}")
+            self.stdout.write(" Error comparing with baseline: {{e}}")
 
     def get_table_row_count(self, table_name):
         """Get row count for a table"""
         try:
             with connection.cursor() as cursor:
-                cursor.execute(f"SELECT COUNT(*) FROM {connection.ops.quote_name(table_name)}")
+                cursor.execute("SELECT COUNT(*) FROM {{connection.ops.quote_name(table_name)}}")
                 return cursor.fetchone()[0]
         except:
             return "Unknown"
@@ -384,15 +384,15 @@ class Command(BaseCommand):
                 if row_count == 0 or row_count == "Unknown":
                     recommendations.append({
                         'priority': 'HIGH',
-                        'action': f"DROP TABLE {table}",
-                        'reason': f"Empty orphaned table with no corresponding model",
+                        'action': "DROP TABLE {{table}}",
+                        'reason': "Empty orphaned table with no corresponding model",
                         'risk': 'LOW'
                     })
                 else:
                     recommendations.append({
                         'priority': 'MEDIUM',
-                        'action': f"BACKUP and consider dropping {table}",
-                        'reason': f"Orphaned table with {row_count} rows",
+                        'action': "BACKUP and consider dropping {{table}}",
+                        'reason': "Orphaned table with {{row_count}} rows",
                         'risk': 'MEDIUM'
                     })
         
@@ -401,7 +401,7 @@ class Command(BaseCommand):
             for col in self.analysis_results['orphaned_columns']:
                 recommendations.append({
                     'priority': 'MEDIUM',
-                    'action': f"Consider dropping column {col['table']}.{col['column']}",
+                    'action': "Consider dropping column {{col['table']}}.{{col['column']}}",
                     'reason': "Column doesn't exist in model definition",
                     'risk': 'MEDIUM'
                 })
@@ -411,7 +411,7 @@ class Command(BaseCommand):
             for artifact in self.analysis_results['migration_artifacts']:
                 recommendations.append({
                     'priority': 'HIGH',
-                    'action': f"DROP TABLE {artifact['table']}",
+                    'action': "DROP TABLE {{artifact['table']}}",
                     'reason': "Migration artifact table",
                     'risk': 'LOW'
                 })
@@ -432,32 +432,32 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS(" No database cleanup issues found!"))
             return
         
-        self.stdout.write(f"  Found {total_issues} potential cleanup items")
+        self.stdout.write("  Found {{total_issues}} potential cleanup items")
         
         # Summary
-        self.stdout.write(f"\n Summary:")
-        self.stdout.write(f"   • Orphaned Tables: {len(self.analysis_results['orphaned_tables'])}")
-        self.stdout.write(f"   • Orphaned Columns: {len(self.analysis_results['orphaned_columns'])}")
-        self.stdout.write(f"   • Migration Artifacts: {len(self.analysis_results['migration_artifacts'])}")
-        self.stdout.write(f"   • Missing Model Tables: {len(self.analysis_results['missing_model_tables'])}")
+        self.stdout.write("\n Summary:")
+        self.stdout.write("   • Orphaned Tables: {{len(self.analysis_results['orphaned_tables'])}}")
+        self.stdout.write("   • Orphaned Columns: {{len(self.analysis_results['orphaned_columns'])}}")
+        self.stdout.write("   • Migration Artifacts: {{len(self.analysis_results['migration_artifacts'])}}")
+        self.stdout.write("   • Missing Model Tables: {{len(self.analysis_results['missing_model_tables'])}}")
         
         # Recommendations
         if self.analysis_results['recommendations']:
-            self.stdout.write(f"\n Recommended Actions:")
+            self.stdout.write("\n Recommended Actions:")
             high_priority = [r for r in self.analysis_results['recommendations'] if r['priority'] == 'HIGH']
             medium_priority = [r for r in self.analysis_results['recommendations'] if r['priority'] == 'MEDIUM']
             
             if high_priority:
-                self.stdout.write(f"\n HIGH PRIORITY ({len(high_priority)} items):")
+                self.stdout.write("\n HIGH PRIORITY ({{len(high_priority)}} items):")
                 for rec in high_priority:
-                    self.stdout.write(f"   • {rec['action']}")
-                    self.stdout.write(f"     Reason: {rec['reason']} (Risk: {rec['risk']})")
+                    self.stdout.write("   • {{rec['action']}}")
+                    self.stdout.write("     Reason: {{rec['reason']}} (Risk: {{rec['risk']}})")
             
             if medium_priority:
-                self.stdout.write(f"\n MEDIUM PRIORITY ({len(medium_priority)} items):")
+                self.stdout.write("\n MEDIUM PRIORITY ({{len(medium_priority)}} items):")
                 for rec in medium_priority:
-                    self.stdout.write(f"   • {rec['action']}")
-                    self.stdout.write(f"     Reason: {rec['reason']} (Risk: {rec['risk']})")
+                    self.stdout.write("   • {{rec['action']}}")
+                    self.stdout.write("     Reason: {{rec['reason']}} (Risk: {{rec['risk']}})")
 
     def export_to_json(self):
         """Export analysis results to JSON"""
@@ -467,6 +467,6 @@ class Command(BaseCommand):
             with open(output_file, 'w') as f:
                 json.dump(self.analysis_results, f, indent=2, default=str)
             
-            self.stdout.write(f"\n📄 Analysis results exported to {output_file}")
+            self.stdout.write("\n📄 Analysis results exported to {{output_file}}")
         except Exception as e:
-            self.stdout.write(f" Error exporting results: {e}")
+            self.stdout.write(" Error exporting results: {{e}}")

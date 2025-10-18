@@ -43,7 +43,7 @@ def generate_certificate_on_completion(sender, instance, created, **kwargs):
         
         # Check if certificate generation is enabled for this course
         if not (course.issue_certificate and course.certificate_template):
-            logger.info(f"Certificate generation not enabled for course '{course.title}'")
+            logger.info("Certificate generation not enabled for course '{{course.title}}'")
             return
         
         # Check if certificate already exists
@@ -53,11 +53,11 @@ def generate_certificate_on_completion(sender, instance, created, **kwargs):
         ).first()
         
         if existing_cert:
-            logger.info(f"Certificate already exists for {user.username} in course '{course.title}': {existing_cert.certificate_number}")
+            logger.info("Certificate already exists for {{user.username}} in course '{{course.title}}': {{existing_cert.certificate_number}}")
             return
         
         # Generate unique certificate number
-        certificate_number = f"CERT-{uuid.uuid4().hex[:8].upper()}"
+        certificate_number = "CERT-{{uuid.uuid4().hex[:8].upper()}}"
         
         # Get course instructor or superuser as issuer
         issuer = course.instructor
@@ -67,7 +67,7 @@ def generate_certificate_on_completion(sender, instance, created, **kwargs):
             issuer = User.objects.filter(is_superuser=True).first()
         
         if not issuer:
-            logger.warning(f"No issuer found for certificate generation for course '{course.title}'")
+            logger.warning("No issuer found for certificate generation for course '{{course.title}}'")
             issuer = user  # Fallback to user themselves
         
         # Create certificate
@@ -79,7 +79,7 @@ def generate_certificate_on_completion(sender, instance, created, **kwargs):
             certificate_number=certificate_number,
         )
         
-        logger.info(f"Auto-generated certificate {certificate.certificate_number} for {user.username} for course '{course.title}'")
+        logger.info("Auto-generated certificate {{certificate.certificate_number}} for {{user.username}} for course '{{course.title}}'")
         
     except Exception as e:
-        logger.error(f"Error generating certificate for {instance.user.username} in course '{instance.course.title}': {str(e)}")
+        logger.error("Error generating certificate for {{instance.user.username}} in course '{{instance.course.title}}': {{str(e)}}")

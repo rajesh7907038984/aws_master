@@ -17,7 +17,7 @@ def require_permission(permission_func):
             try:
                 # Check permission
                 if not permission_func(request.user, *args, **kwargs):
-                    logger.warning(f"Permission denied for user {request.user.id} in {view_func.__name__}")
+                    logger.warning("Permission denied for user {{request.user.id}} in {{view_func.__name__}}")
                     
                     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                         return JsonResponse({
@@ -32,7 +32,7 @@ def require_permission(permission_func):
                 return view_func(request, *args, **kwargs)
                 
             except Exception as e:
-                logger.error(f"Permission check error in {view_func.__name__}: {e}")
+                logger.error("Permission check error in {{view_func.__name__}}: {{e}}")
                 return JsonResponse({
                     'success': False,
                     'error': 'Permission check failed.'

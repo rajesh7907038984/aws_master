@@ -34,11 +34,11 @@ class Command(BaseCommand):
         missing_files = 0
         fixed_packages = 0
         
-        self.stdout.write(f"Found {total_packages} SCORM packages")
+        self.stdout.write("Found {{total_packages}} SCORM packages")
         
         for package in packages:
             if not package.package_file:
-                self.stdout.write(f"Package {package.id} ({package.title}): No file attached")
+                self.stdout.write("Package {{package.id}} ({{package.title}}): No file attached")
                 continue
                 
             # Check if file exists in storage using improved validation
@@ -49,7 +49,7 @@ class Command(BaseCommand):
                 missing_files += 1
                 self.stdout.write(
                     self.style.WARNING(
-                        f"Package {package.id} ({package.title}): {validation['error']}"
+                        "Package {{package.id}} ({{package.title}}): {{validation['error']}}"
                     )
                 )
                 
@@ -64,30 +64,30 @@ class Command(BaseCommand):
                     fixed_packages += 1
                     self.stdout.write(
                         self.style.SUCCESS(
-                            f"Fixed package {package.id}: Marked as not extracted"
+                            "Fixed package {{package.id}}: Marked as not extracted"
                         )
                     )
             else:
                 if package.is_extracted:
                     self.stdout.write(
                         self.style.SUCCESS(
-                            f"Package {package.id} ({package.title}): File exists and marked as extracted"
+                            "Package {{package.id}} ({{package.title}}): File exists and marked as extracted"
                         )
                     )
                 else:
                     self.stdout.write(
                         self.style.WARNING(
-                            f"Package {package.id} ({package.title}): File exists but not marked as extracted"
+                            "Package {{package.id}} ({{package.title}}): File exists but not marked as extracted"
                         )
                     )
         
-        self.stdout.write(f"\nSummary:")
-        self.stdout.write(f"Total packages: {total_packages}")
-        self.stdout.write(f"Missing files: {missing_files}")
+        self.stdout.write("\nSummary:")
+        self.stdout.write("Total packages: {{total_packages}}")
+        self.stdout.write("Missing files: {{missing_files}}")
         
         if dry_run:
             self.stdout.write(self.style.WARNING("DRY RUN: No changes made"))
         elif fix_missing:
-            self.stdout.write(f"Fixed packages: {fixed_packages}")
+            self.stdout.write("Fixed packages: {{fixed_packages}}")
         else:
             self.stdout.write("Use --fix-missing to fix missing file issues")

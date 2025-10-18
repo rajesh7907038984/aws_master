@@ -36,7 +36,11 @@ class ResponsiveTableManager {
 
         // Handle window resize
         window.addEventListener('resize', this.debounce(() => {
-            this.handleResize();
+            try {
+                this.handleResize();
+            } catch (error) {
+                console.error('Error handling window resize:', error);
+            }
         }, 250));
 
         // Handle dynamic content

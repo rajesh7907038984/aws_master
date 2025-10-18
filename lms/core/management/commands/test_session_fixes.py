@@ -65,7 +65,7 @@ class Command(BaseCommand):
                 self.stdout.write(self.style.ERROR(' Cache connection: FAILED'))
                 
         except Exception as e:
-            self.stdout.write(self.style.ERROR(f' Cache connection: ERROR - {e}'))
+            self.stdout.write(self.style.ERROR(" Cache connection: ERROR - {{e}}"))
 
     def test_cache_connection(self, verbose):
         """Test cache connection"""
@@ -83,7 +83,7 @@ class Command(BaseCommand):
                 self.stdout.write(self.style.WARNING(' Redis cache: DEGRADED'))
                 
         except Exception as e:
-            self.stdout.write(self.style.ERROR(f' Redis cache: ERROR - {e}'))
+            self.stdout.write(self.style.ERROR(" Redis cache: ERROR - {{e}}"))
 
     def test_session_creation(self, verbose):
         """Test session creation"""
@@ -95,12 +95,12 @@ class Command(BaseCommand):
             active_sessions = Session.objects.filter(expire_date__gt=timezone.now()).count()
             
             if verbose:
-                self.stdout.write(f'   Active sessions: {active_sessions}')
+                self.stdout.write("   Active sessions: {{active_sessions}}")
             
             self.stdout.write(self.style.SUCCESS(' Session creation: OK'))
             
         except Exception as e:
-            self.stdout.write(self.style.ERROR(f' Session creation: ERROR - {e}'))
+            self.stdout.write(self.style.ERROR(" Session creation: ERROR - {{e}}"))
 
     def test_session_recovery(self, verbose):
         """Test session recovery mechanisms"""
@@ -114,13 +114,13 @@ class Command(BaseCommand):
             
             if expired_count > 0:
                 if verbose:
-                    self.stdout.write(f'   Found {expired_count} expired sessions')
-                self.stdout.write(self.style.WARNING(f' Found {expired_count} expired sessions'))
+                    self.stdout.write("   Found {{expired_count}} expired sessions")
+                self.stdout.write(self.style.WARNING(" Found {{expired_count}} expired sessions"))
             else:
                 self.stdout.write(self.style.SUCCESS(' Session cleanup: OK'))
                 
         except Exception as e:
-            self.stdout.write(self.style.ERROR(f' Session recovery: ERROR - {e}'))
+            self.stdout.write(self.style.ERROR(" Session recovery: ERROR - {{e}}"))
 
     def test_anonymous_user_protection(self, verbose):
         """Test AnonymousUser protection"""
@@ -146,4 +146,4 @@ class Command(BaseCommand):
                 self.stdout.write(self.style.ERROR(' AnonymousUser protection: FAILED'))
                 
         except Exception as e:
-            self.stdout.write(self.style.ERROR(f' AnonymousUser protection: ERROR - {e}'))
+            self.stdout.write(self.style.ERROR(" AnonymousUser protection: ERROR - {{e}}"))

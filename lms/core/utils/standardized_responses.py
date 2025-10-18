@@ -147,7 +147,7 @@ class StandardizedResponse:
         Returns:
             JsonResponse: Standardized error response
         """
-        logger.error(f"Exception in {operation}: {str(exception)}", exc_info=True)
+        logger.error("Exception in {{operation}}: {{str(exception)}}", exc_info=True)
         
         if isinstance(exception, PermissionDenied):
             return StandardizedResponse.permission_denied()
@@ -167,7 +167,7 @@ class StandardizedResponse:
         
         else:
             return StandardizedResponse.server_error(
-                message=f"An unexpected error occurred during {operation}. Please try again."
+                message="An unexpected error occurred during {{operation}}. Please try again."
             )
 
 
@@ -256,7 +256,7 @@ def validate_required_fields(required_fields):
                 missing_fields = [field for field in required_fields if field not in data]
                 if missing_fields:
                     return StandardizedResponse.validation_error(
-                        message=f"Missing required fields: {', '.join(missing_fields)}",
+                        message="Missing required fields: {{', '.join(missing_fields)}}",
                         details={"missing_fields": missing_fields}
                     )
                 

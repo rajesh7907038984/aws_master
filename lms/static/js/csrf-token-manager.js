@@ -1,227 +1,125 @@
 /**
- * Centralized CSRF Token Management System
- * Provides consistent CSRF token handling across all AJAX requests
+ * CSRF Token Manager for LMS
+ * Centralized CSRF token handling
  */
 
-// Prevent duplicate class declaration
-if (typeof CSRFTokenManager === 'undefined') {
-class CSRFTokenManager {
-    constructor() {
-        this.token = null;
-        this.tokenElement = null;
-        this.init();
-    }
+(function() {
+    'use strict';
 
-    /**
-     * Initialize CSRF token manager
-     */
-    init() {
-        this.tokenElement = document.querySelector('[name=csrfmiddlewaretoken]');
-        this.token = this.tokenElement ? this.tokenElement.value : null;
+    const CSRFManager = {
+        token: null,
         
-        // Also check meta tag
-        if (!this.token) {
-            const metaToken = document.querySelector('meta[name=csrf-token]');
-            this.token = metaToken ? metaToken.getAttribute('content') : null;
-        }
-
-        // Fallback to cookie
-        if (!this.token) {
-            this.token = this.getCookie('csrftoken');
-        }
-
-        if (!this.token) {
-        }
-    }
-
-    /**
-     * Get current CSRF token
-     * @returns {string|null} CSRF token or null if not found
-     */
-    getToken() {
-        return this.token;
-    }
-
-    /**
-     * Refresh CSRF token from server
-     * @returns {Promise<string>} New CSRF token
-     */
-    async refreshToken() {
-        try {
-            const response = await fetch('/api/csrf/refresh/', {
-                method: 'GET',
-                credentials: 'same-origin'
-            });
-            
-            if (response.ok) {
-                const data = await response.json();
-                this.token = data.csrf_token;
-                
-                // Update token element if it exists
-                if (this.tokenElement) {
-                    this.tokenElement.value = this.token;
-                }
-                
-                return this.token;
-            } else {
-                throw new Error('Failed to refresh CSRF token');
-            }
-        } catch (error) {
-            throw error;
-        }
-    }
-
-    /**
-     * Get cookie value by name
-     * @param {string} name - Cookie name
-     * @returns {string|null} Cookie value or null
-     */
-    getCookie(name) {
-        const value = `; ${document.cookie}`;
-        const parts = value.split(`; ${name}=`);
-        if (parts.length === 2) {
-            return parts.pop().split(';').shift();
-        }
-        return null;
-    }
-
-    /**
-     * Add CSRF token to request headers
-     * @param {Object} headers - Request headers object
-     * @returns {Object} Headers with CSRF token added
-     */
-    addTokenToHeaders(headers = {}) {
-        if (this.token) {
-            headers['X-CSRFToken'] = this.token;
-        }
-        return headers;
-    }
-
-    /**
-     * Add CSRF token to form data
-     * @param {FormData} formData - Form data object
-     * @returns {FormData} Form data with CSRF token added
-     */
-    addTokenToFormData(formData) {
-        if (this.token) {
-            formData.append('csrfmiddlewaretoken', this.token);
-        }
-        return formData;
-    }
-
-    /**
-     * Add CSRF token to JSON data
-     * @param {Object} data - JSON data object
-     * @returns {Object} Data with CSRF token added
-     */
-    addTokenToData(data = {}) {
-        if (this.token) {
-            data.csrfmiddlewaretoken = this.token;
-        }
-        return data;
-    }
-
-    /**
-     * Validate CSRF token
-     * @returns {Promise<boolean>} True if token is valid
-     */
-    async validateToken() {
-        if (!this.token) {
-            return false;
-        }
-
-        try {
-            const response = await fetch('/api/csrf/validate/', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': this.token
+        init: function() {
+            this.loadToken();
+            this.setupTokenRefresh();
+        },
+        
+        loadToken: function() {
+            // Try multiple sources for CSRF token
+            const sources = [
+                function() {
+                    var meta = document.querySelector('meta[name="csrf-token"]');
+                    return meta ? meta.getAttribute('content') : null;
                 },
-                credentials: 'same-origin'
-            });
-            
-            return response.ok;
-        } catch (error) {
-            return false;
-        }
-    }
-}
+                function() {
+                    var input = document.querySelector('input[name="csrfmiddlewaretoken"]');
+                    return input ? input.value : null;
+                },
+                function() {
+                    return window.CSRF_TOKEN;
+                },
+                function() {
+                    return this.getTokenFromCookie();
+                }.bind(this)
+            ];
 
-// Global instance
-window.CSRFManager = new CSRFTokenManager();
-
-/**
- * Enhanced fetch function with automatic CSRF token handling
- * @param {string} url - Request URL
- * @param {Object} options - Fetch options
- * @returns {Promise<Response>} Fetch response
- */
-window.csrfFetch = async function(url, options = {}) {
-    // Add CSRF token to headers for state-changing requests
-    if (options.method && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(options.method.toUpperCase())) {
-        options.headers = options.headers || {};
-        options.headers = window.CSRFManager.addTokenToHeaders(options.headers);
-    }
-
-    // Add credentials for same-origin requests
-    if (!options.credentials) {
-        options.credentials = 'same-origin';
-    }
-
-    try {
-        const response = await fetch(url, options);
-        
-        // Handle CSRF errors
-        if (response.status === 403 && response.headers.get('content-type')?.includes('application/json')) {
-            const errorData = await response.json();
-            if (errorData.error_type === 'csrf_error') {
+            for (let source of sources) {
                 try {
-                    await window.CSRFManager.refreshToken();
-                    // Retry the request with new token
-                    if (options.method && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(options.method.toUpperCase())) {
-                        options.headers = window.CSRFManager.addTokenToHeaders(options.headers);
+                    const token = source();
+                    if (token && token.length > 0 && /^[a-zA-Z0-9]+$/.test(token)) {
+                        this.token = token;
+                        window.CSRF_TOKEN = token;
+                        return token;
                     }
-                    return await fetch(url, options);
-                } catch (refreshError) {
-                    throw new Error('Session expired. Please refresh the page.');
+                } catch (e) {
+                    console.error('Error getting CSRF token from source:', e);
+                    continue;
                 }
             }
-        }
+            
+            console.warn('CSRF token not found');
+            return null;
+        },
         
-        return response;
-    } catch (error) {
-        throw error;
-    }
-};
-
-/**
- * Enhanced XMLHttpRequest with automatic CSRF token handling
- */
-window.csrfXHR = function() {
-    const xhr = new XMLHttpRequest();
-    const originalOpen = xhr.open;
-    const originalSend = xhr.send;
-    
-    xhr.open = function(method, url, async, user, password) {
-        this._method = method;
-        this._url = url;
-        return originalOpen.call(this, method, url, async, user, password);
-    };
-    
-    xhr.send = function(data) {
-        // Add CSRF token for state-changing requests
-        if (this._method && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(this._method.toUpperCase())) {
-            this.setRequestHeader('X-CSRFToken', window.CSRFManager.getToken() || '');
+        getTokenFromCookie: function() {
+            const cookies = document.cookie.split(';');
+            for (let cookie of cookies) {
+                const [name, value] = cookie.trim().split('=');
+                if (name === 'csrftoken') {
+                    return value;
+                }
+            }
+            return null;
+        },
+        
+        getToken: function() {
+            if (!this.token) {
+                this.loadToken();
+            }
+            return this.token;
+        },
+        
+        setupTokenRefresh: function() {
+            try {
+                // Refresh token every 30 minutes
+                setInterval(() => {
+                    try {
+                        this.loadToken();
+                    } catch (error) {
+                        console.error('Error refreshing CSRF token:', error);
+                    }
+                }, 30 * 60 * 1000);
+            } catch (error) {
+                console.error('Error setting up token refresh:', error);
+            }
+        },
+        
+        addTokenToForm: function(form) {
+            const token = this.getToken();
+            if (!token) return false;
+            
+            // Check if token already exists
+            if (form.querySelector('input[name="csrfmiddlewaretoken"]')) {
+                return true;
+            }
+            
+            const csrfInput = document.createElement('input');
+            csrfInput.type = 'hidden';
+            csrfInput.name = 'csrfmiddlewaretoken';
+            csrfInput.value = token;
+            form.appendChild(csrfInput);
+            return true;
+        },
+        
+        addTokenToHeaders: function(headers = {}) {
+            const token = this.getToken();
+            if (token) {
+                headers['X-CSRFToken'] = token;
+            }
+            return headers;
         }
-        return originalSend.call(this, data);
     };
-    
-    return xhr;
-};
 
-// Export for module systems
-if (typeof module !== 'undefined' && module.exports) {
-    module.exports = CSRFTokenManager;
-}
+    // Initialize when DOM is ready
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function() {
+            CSRFManager.init();
+        });
+    } else {
+        CSRFManager.init();
+    }
 
-} // End of CSRFTokenManager class declaration check
+    // Export to global scope
+    window.CSRFManager = CSRFManager;
+    window.getCSRFToken = () => CSRFManager.getToken();
+})();

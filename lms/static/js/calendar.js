@@ -15,28 +15,54 @@ class Calendar {
     }
 
     bindEvents() {
-        // Navigation buttons
-        const prevBtn = this.container.querySelector('.calendar-prev');
-        const nextBtn = this.container.querySelector('.calendar-next');
-        const todayBtn = this.container.querySelector('.calendar-today');
+        try {
+            // Navigation buttons
+            const prevBtn = this.container.querySelector('.calendar-prev');
+            const nextBtn = this.container.querySelector('.calendar-next');
+            const todayBtn = this.container.querySelector('.calendar-today');
 
-        if (prevBtn) {
-            prevBtn.addEventListener('click', () => this.previousMonth());
-        }
-        if (nextBtn) {
-            nextBtn.addEventListener('click', () => this.nextMonth());
-        }
-        if (todayBtn) {
-            todayBtn.addEventListener('click', () => this.goToToday());
-        }
-
-        // Day clicks
-        this.container.addEventListener('click', (e) => {
-            const dayElement = e.target.closest('.calendar-day');
-            if (dayElement && !dayElement.classList.contains('other-month')) {
-                this.selectDate(dayElement);
+            if (prevBtn) {
+                prevBtn.addEventListener('click', () => {
+                    try {
+                        this.previousMonth();
+                    } catch (error) {
+                        console.error('Error in previousMonth:', error);
+                    }
+                });
             }
-        });
+            if (nextBtn) {
+                nextBtn.addEventListener('click', () => {
+                    try {
+                        this.nextMonth();
+                    } catch (error) {
+                        console.error('Error in nextMonth:', error);
+                    }
+                });
+            }
+            if (todayBtn) {
+                todayBtn.addEventListener('click', () => {
+                    try {
+                        this.goToToday();
+                    } catch (error) {
+                        console.error('Error in goToToday:', error);
+                    }
+                });
+            }
+
+            // Day clicks
+            this.container.addEventListener('click', (e) => {
+                try {
+                    const dayElement = e.target.closest('.calendar-day');
+                    if (dayElement && !dayElement.classList.contains('other-month')) {
+                        this.selectDate(dayElement);
+                    }
+                } catch (error) {
+                    console.error('Error handling calendar day click:', error);
+                }
+            });
+        } catch (error) {
+            console.error('Error binding calendar events:', error);
+        }
     }
 
     render() {

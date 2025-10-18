@@ -109,7 +109,7 @@ class TodoService:
             graded_at__isnull=False
         ).exclude(
             Q(feedback='') | Q(feedback__isnull=True)
-        ).select_related('assignment', 'assignment__course').order_by('-graded_at')[:10]
+        ).select_related('assignment').order_by('-graded_at')[:10]
         
         for submission in graded_submissions:
             days_ago = (self.now.date() - submission.graded_at.date()).days
@@ -394,7 +394,7 @@ class TodoService:
         pending_submissions = AssignmentSubmission.objects.filter(
             assignment__course__in=accessible_course_ids,
             status='submitted'
-        ).select_related('assignment', 'assignment__course', 'user').order_by('submitted_at')[:15]
+        ).select_related('assignment', 'user').order_by('submitted_at')[:15]
         
         for submission in pending_submissions:
             days_since = (self.now.date() - submission.submitted_at.date()).days
