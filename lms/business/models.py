@@ -36,8 +36,8 @@ class Business(models.Model):
         """Get all super admin users assigned to this business"""
         from users.models import CustomUser
         return CustomUser.objects.filter(
-            business_assignments__business=self,
-            business_assignments__is_active=True,
+            user_business_assignments__business=self,
+            user_business_assignments__is_active=True,
             role='superadmin'
         )
 
@@ -70,7 +70,7 @@ class Business(models.Model):
         """Get total count of users across all branches in this business - optimized version"""
         # Use database aggregation instead of Python loops
         result = self.branches.filter(is_active=True).aggregate(
-            total_users=Count('users', filter=Q(users__is_active=True))
+            total_users=Count('branch_users', filter=Q(branch_users__is_active=True))
         )
         return result.get('total_users', 0)
 
@@ -83,7 +83,7 @@ class Business(models.Model):
         total_learners = 0
         
         for branch in branches:
-            total_users += branch.users.filter(is_active=True).count()
+            total_users += branch.get_branch_users().filter(is_active=True).count()
             total_admins += branch.get_branch_admins().count()
             total_instructors += branch.get_branch_instructors().count()
             total_learners += branch.get_branch_learners().count()
@@ -112,13 +112,13 @@ class BusinessUserAssignment(models.Model):
     business = models.ForeignKey(
         Business,
         on_delete=models.CASCADE,
-        related_name='user_assignments',
+        related_name='business_user_assignments',
         help_text="The business this user is assigned to"
     )
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
-        related_name='business_assignments',
+        related_name='user_business_assignments',
         help_text="The super admin user assigned to this business"
     )
     assigned_at = models.DateTimeField(auto_now_add=True)
@@ -127,7 +127,7 @@ class BusinessUserAssignment(models.Model):
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='assigned_business_users',
+        related_name='assigned_user_business_assignments',
         help_text="Global admin who assigned this user to the business"
     )
     is_active = models.BooleanField(default=True, help_text="Whether this assignment is active")
@@ -151,7 +151,7 @@ class BusinessUserAssignment(models.Model):
             from core.utils.default_assignments import DefaultAssignmentManager
             if DefaultAssignmentManager.is_default_business(self.business):
                 if not DefaultAssignmentManager.can_user_access_default_business(self.user):
-                    raise ValidationError(f'Only Global Admin users can be assigned to the default business. User {self.user.username} has role: {self.user.role}')
+                    raise ValidationError(f"Only Global Admin users can be assigned to the default business. User {self.user.username} has role: {self.user.role}")
 
     def save(self, *args, **kwargs):
         self.clean()
@@ -291,10 +291,10 @@ class BusinessLimits(models.Model):
             current_branches = self.business.get_business_branch_count()
             
             if self.total_user_limit < current_users:
-                raise ValidationError(f'Total user limit ({self.total_user_limit}) cannot be less than current users ({current_users})')
+                raise ValidationError(f"Total user limit ({self.total_user_limit}) cannot be less than current users ({current_users})")
             
             if self.branch_creation_limit < current_branches:
-                raise ValidationError(f'Branch creation limit ({self.branch_creation_limit}) cannot be less than current branches ({current_branches})')
+                raise ValidationError(f"Branch creation limit ({self.branch_creation_limit}) cannot be less than current branches ({current_branches})")
 
     def save(self, *args, **kwargs):
         self.clean()

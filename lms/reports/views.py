@@ -14,7 +14,7 @@ from django.core.serializers.json import DjangoJSONEncoder
 from django.urls import reverse
 from .models import Report, ReportAttachment, Event
 from calendar_app.models import CalendarEvent
-from users.models import Branch
+from branches.models import Branch
 from groups.models import BranchGroup
 from courses.models import Course, CourseEnrollment, TopicProgress, Topic, CourseTopic
 from categories.models import CourseCategory
@@ -4914,7 +4914,7 @@ def branch_detail(request, branch_id):
     ).order_by('title')
     
     # Get user-level statistics with course enrollment data - filter for learner users only
-    users = branch.users.filter(role='learner').annotate(
+    users = branch.branch_users.filter(role='learner').annotate(
         total_enrollments=Count('courseenrollment', distinct=True),
         completed_courses=Count('courseenrollment', filter=Q(courseenrollment__completed=True)),
         courses_in_progress=Count('courseenrollment', filter=Q(courseenrollment__completed=False, courseenrollment__last_accessed__isnull=False)),
@@ -4938,7 +4938,7 @@ def branch_detail(request, branch_id):
     
     # Get timeline data for branch activities (last 30 days) - filter for learner users only
     thirty_days_ago = timezone.now() - timedelta(days=30)
-    branch_user_ids = list(branch.users.filter(role='learner').values_list('id', flat=True))
+    branch_user_ids = list(branch.branch_users.filter(role='learner').values_list('id', flat=True))
     
     # Get recent events from Event model
     timeline_events = Event.objects.filter(
@@ -5067,7 +5067,7 @@ def branch_detail_excel(request, branch_id):
     ).order_by('title')
     
     # Get user-level statistics - filter for learner users only
-    users = branch.users.filter(role='learner').annotate(
+    users = branch.branch_users.filter(role='learner').annotate(
         total_enrollments=Count('courseenrollment', distinct=True),
         completed_courses=Count('courseenrollment', filter=Q(courseenrollment__completed=True)),
         courses_in_progress=Count('courseenrollment', filter=Q(courseenrollment__completed=False, courseenrollment__last_accessed__isnull=False)),

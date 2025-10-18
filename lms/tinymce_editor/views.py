@@ -815,7 +815,7 @@ def ai_token_dashboard(request):
                 remaining_tokens = token_limits.get_remaining_tokens()
                 
                 # Get user count for this branch
-                user_count = branch.users.filter(is_active=True).count()
+                user_count = branch.branch_users.filter(is_active=True).count()
                 
                 branch_info = {
                     'branch': branch,
@@ -957,7 +957,7 @@ def manage_branch_tokens(request, branch_id):
             'recent_usage': recent_usage,
             'top_users': top_users,
             'daily_usage': list(daily_usage),
-            'user_count': branch.users.filter(is_active=True).count(),
+            'user_count': branch.branch_users.filter(is_active=True).count(),
         }
         
         return render(request, 'tinymce_editor/manage_branch_tokens.html', context)
@@ -1125,7 +1125,7 @@ def get_branch_token_data(request, branch_id):
             })
         
         # Get user count for this branch
-        user_count = branch.users.filter(is_active=True).count()
+        user_count = branch.branch_users.filter(is_active=True).count()
         
         # Prepare response data
         response_data = {

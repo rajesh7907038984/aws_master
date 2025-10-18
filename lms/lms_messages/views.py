@@ -10,7 +10,8 @@ from .models import Message, MessageAttachment, MessageReadStatus
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_POST
-from users.models import CustomUser, Branch
+from users.models import CustomUser
+from branches.models import Branch
 from django.utils.decorators import method_decorator
 from django.urls import reverse
 from django.utils import timezone
@@ -532,9 +533,9 @@ def new_message(request):
     # Apply role-based filtering - RBAC v0.1 Compliant
     if user.role == 'globaladmin' or user.is_superuser:
         # Global Admin: FULL access - can message anyone
-        branches = Branch.objects.all().prefetch_related('users')
+        branches = Branch.objects.all().prefetch_related('branch_users')
         for branch in branches:
-            branch_users[branch.name] = list(branch.users.values('id', 'username', 'first_name', 'last_name'))
+            branch_users[branch.name] = list(branch.branch_users.values('id', 'username', 'first_name', 'last_name'))
         
         # Get all groups
         groups = BranchGroup.objects.all()
@@ -544,9 +545,9 @@ def new_message(request):
         # Super Admin: CONDITIONAL access - can only message users in their assigned businesses
         if hasattr(user, 'business_assignments'):
             assigned_businesses = user.business_assignments.filter(is_active=True).values_list('business', flat=True)
-            branches = Branch.objects.filter(business__in=assigned_businesses).prefetch_related('users')
+            branches = Branch.objects.filter(business__in=assigned_businesses).prefetch_related('branch_users')
             for branch in branches:
-                branch_users[branch.name] = list(branch.users.values('id', 'username', 'first_name', 'last_name'))
+                branch_users[branch.name] = list(branch.branch_users.values('id', 'username', 'first_name', 'last_name'))
             
             # Get groups in assigned businesses
             groups = BranchGroup.objects.filter(branch__business__in=assigned_businesses)
@@ -559,7 +560,7 @@ def new_message(request):
     elif user.role == 'admin':
         # Branch Admin: CONDITIONAL access - can only message users in their assigned branches
         if user_branch:
-            branch_users[user_branch.name] = list(user_branch.users.values('id', 'username', 'first_name', 'last_name'))
+            branch_users[user_branch.name] = list(user_branch.branch_users.values('id', 'username', 'first_name', 'last_name'))
             
             # Get groups in their branch
             groups = BranchGroup.objects.filter(branch=user_branch)

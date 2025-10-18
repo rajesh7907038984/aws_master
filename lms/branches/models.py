@@ -42,19 +42,19 @@ class Branch(models.Model):
 
     def get_branch_users(self) -> 'QuerySet[CustomUser]':
         """Get all users belonging to this branch"""
-        return self.users.all()
+        return self.branch_users.all()
 
     def get_branch_admins(self) -> 'QuerySet[CustomUser]':
         """Get admin users of this branch"""
-        return self.users.filter(role='admin', is_active=True)
+        return self.branch_users.filter(role='admin', is_active=True)
 
     def get_branch_instructors(self) -> 'QuerySet[CustomUser]':
         """Get instructor users of this branch"""
-        return self.users.filter(role='instructor', is_active=True)
+        return self.branch_users.filter(role='instructor', is_active=True)
 
     def get_branch_learners(self) -> 'QuerySet[CustomUser]':
         """Get learner users of this branch"""
-        return self.users.filter(role='learner', is_active=True)
+        return self.branch_users.filter(role='learner', is_active=True)
 
     def clean(self) -> None:
         """Validate branch data"""
@@ -84,7 +84,7 @@ class Branch(models.Model):
     def get_branch_statistics(self) -> Dict[str, int]:
         """Get statistics about users in the branch"""
         return {
-            'total_users': self.users.filter(is_active=True).count(),
+            'total_users': self.branch_users.filter(is_active=True).count(),
             'admins': self.get_branch_admins().count(),
             'instructors': self.get_branch_instructors().count(),
             'learners': self.get_branch_learners().count()
@@ -92,11 +92,11 @@ class Branch(models.Model):
 
     def get_total_users(self) -> int:
         """Get total number of users in this branch"""
-        return self.users.count()
+        return self.branch_users.count()
 
     def get_active_users(self) -> int:
         """Get number of active users in this branch"""
-        return self.users.filter(is_active=True).count()
+        return self.branch_users.filter(is_active=True).count()
 
     def can_add_user(self) -> bool:
         """Check if branch can accommodate more users based on limits"""
@@ -178,13 +178,13 @@ class BranchUserLimits(models.Model):
     def is_role_limit_reached(self, role):
         """Check if the limit for a specific role has been reached"""
         if role == 'admin':
-            current_count = self.branch.users.filter(role='admin', is_active=True).count()
+            current_count = self.branch.branch_users.filter(role='admin', is_active=True).count()
             return current_count >= self.admin_limit
         elif role == 'instructor':
-            current_count = self.branch.users.filter(role='instructor', is_active=True).count()
+            current_count = self.branch.branch_users.filter(role='instructor', is_active=True).count()
             return current_count >= self.instructor_limit
         elif role == 'learner':
-            current_count = self.branch.users.filter(role='learner', is_active=True).count()
+            current_count = self.branch.branch_users.filter(role='learner', is_active=True).count()
             return current_count >= self.learner_limit
         return False
 
@@ -193,7 +193,7 @@ class BranchUserLimits(models.Model):
         from django.db.models import Count, Q
         
         # Use single aggregated query instead of multiple count queries
-        counts = self.branch.users.filter(is_active=True).aggregate(
+        counts = self.branch.branch_users.filter(is_active=True).aggregate(
             total_users=Count('id'),
             admin_count=Count('id', filter=Q(role='admin')),
             instructor_count=Count('id', filter=Q(role='instructor')),

@@ -2,7 +2,7 @@ from django.db import models
 from django.conf import settings
 from django.utils import timezone
 from core.utils.fields import TinyMCEField
-from users.models import Branch
+from branches.models import Branch
 from groups.models import BranchGroup
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
@@ -84,7 +84,7 @@ class NotificationSettings(models.Model):
         ]
 
     def __str__(self):
-        return f"Notification settings for {self.user.username}"
+        return "Notification settings for {{self.user.username}}"
 
 
 class NotificationTypeSettings(models.Model):
@@ -115,7 +115,7 @@ class NotificationTypeSettings(models.Model):
         ]
 
     def __str__(self):
-        return f"{self.user.username} - {self.notification_type.display_name}"
+        return "{{self.user.username}} - {{self.notification_type.display_name}}"
 
 
 class Notification(models.Model):
@@ -207,7 +207,7 @@ class Notification(models.Model):
         ]
 
     def __str__(self):
-        return f"{self.title} - {self.recipient.username}"
+        return "{{self.title}} - {{self.recipient.username}}"
 
     def mark_as_read(self):
         """Mark notification as read"""
@@ -251,7 +251,7 @@ class Notification(models.Model):
                 'action_url': self.get_absolute_action_url(),
             }
             
-            subject = f"[LMS] {self.title}"
+            subject = "[LMS] {{self.title}}"
             
             # Use certificate template for certificate notifications
             if self.notification_type.name == 'certificate_earned':
@@ -287,7 +287,7 @@ class Notification(models.Model):
                         raise Exception("Email configuration not found. Please configure SMTP settings via Global Admin Settings.")
                 except Exception as e:
                     # Re-raise the exception with a clear message
-                    raise Exception(f"Email configuration error: {str(e)}. Please configure SMTP settings via Global Admin Settings.")
+                    raise Exception("Email configuration error: {{str(e)}}. Please configure SMTP settings via Global Admin Settings.")
             
             # Create email message
             email = EmailMultiAlternatives(
@@ -325,7 +325,7 @@ class Notification(models.Model):
             else:
                 from django.contrib.sites.models import Site
                 current_site = Site.objects.get_current()
-                return f"https://{current_site.domain}{self.action_url}"
+                return "https://{{current_site.domain}}{{self.action_url}}"
         return None
 
 
@@ -405,7 +405,7 @@ class BulkNotification(models.Model):
         ]
 
     def __str__(self):
-        return f"Bulk: {self.title} ({self.status})"
+        return "Bulk: {{self.title}} ({{self.status}})"
 
     def get_recipients(self):
         """Get list of users who should receive this notification"""
@@ -425,7 +425,7 @@ class BulkNotification(models.Model):
                 
         elif self.recipient_type == 'branch':
             for branch in self.target_branches.all():
-                recipients.update(branch.users.filter(is_active=True))
+                recipients.update(branch.branch_users.filter(is_active=True))
                 
         elif self.recipient_type == 'group':
             for group in self.target_groups.all():
@@ -597,10 +597,10 @@ class NotificationLog(models.Model):
 
     def __str__(self):
         if self.notification:
-            return f"{self.action} - {self.notification.title}"
+            return "{{self.action}} - {{self.notification.title}}"
         elif self.bulk_notification:
-            return f"{self.action} - {self.bulk_notification.title}"
-        return f"{self.action} - {self.user.username}"
+            return "{{self.action}} - {{self.bulk_notification.title}}"
+        return "{{self.action}} - {{self.user.username}}"
 
 
 

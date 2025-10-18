@@ -345,34 +345,34 @@ def account_settings(request):
                             
                             test_email = EmailMessage(
                                 subject=' LMS SMTP Test - Configuration Successful',
-                                body=f'''Hello,
+                                body='''Hello,
 
 This is a test email from your LMS system to confirm that the SMTP configuration is working correctly.
 
 SMTP Configuration Details:
-• Host: {smtp_host}
-• Port: {smtp_port}
-• Username: {smtp_username}
-• Encryption: {'TLS' if smtp_use_tls else 'SSL' if smtp_use_ssl else 'None'}
-• From Email: {smtp_from_email}
+• Host: {}
+• Port: {}
+• Username: {}
+• Encryption: {}
+• From Email: {}
 
 Your email notifications should now be delivered successfully.
 
 Best regards,
-LMS System''',
+LMS System'''.format(smtp_host, smtp_port, smtp_username, 'TLS' if smtp_use_tls else 'SSL' if smtp_use_ssl else 'None', smtp_from_email),
                                 from_email=from_email,
                                 to=[test_smtp_email],
                                 connection=backend
                             )
                             test_email.send()
-                            messages.success(request, f'SMTP settings saved and test email sent successfully to {test_smtp_email}')
+                            messages.success(request, 'SMTP settings saved and test email sent successfully to {}'.format(test_smtp_email))
                         else:
-                            messages.warning(request, f'SMTP settings saved but test failed: {test_message}')
+                            messages.warning(request, 'SMTP settings saved but test failed: {}'.format(test_message))
                     except (SMTPException, ConnectionError, TimeoutError) as e:
-                        messages.warning(request, f'SMTP settings saved but test email failed: {str(e)}')
+                        messages.warning(request, 'SMTP settings saved but test email failed: {}'.format(str(e)))
                     except Exception as e:
                         logger.error(f"Unexpected error in SMTP test: {str(e)}")
-                        messages.warning(request, f'SMTP settings saved but test email failed: {str(e)}')
+                        messages.warning(request, 'SMTP settings saved but test email failed: {}'.format(str(e)))
                 else:
                     if smtp_enabled:
                         messages.success(request, 'SMTP settings saved successfully. Email notifications are now enabled.')
@@ -408,14 +408,14 @@ LMS System''',
                     try:
                         test_success, test_message = global_admin_settings.test_anthropic_ai_connection()
                         if test_success:
-                            messages.success(request, f'Anthropic AI settings saved and connection tested successfully: {test_message}')
+                            messages.success(request, 'Anthropic AI settings saved and connection tested successfully: {}'.format(test_message))
                         else:
-                            messages.warning(request, f'Anthropic AI settings saved but connection test failed: {test_message}')
+                            messages.warning(request, 'Anthropic AI settings saved but connection test failed: {}'.format(test_message))
                     except (ConnectionError, TimeoutError, ValueError) as e:
-                        messages.warning(request, f'Anthropic AI settings saved but connection test failed: {str(e)}')
+                        messages.warning(request, 'Anthropic AI settings saved but connection test failed: {}'.format(str(e)))
                     except Exception as e:
                         logger.error(f"Unexpected error in Anthropic AI test: {str(e)}")
-                        messages.warning(request, f'Anthropic AI settings saved but connection test failed: {str(e)}')
+                        messages.warning(request, 'Anthropic AI settings saved but connection test failed: {}'.format(str(e)))
                 else:
                     if anthropic_ai_enabled and anthropic_api_key:
                         messages.success(request, 'Anthropic AI settings saved successfully. AI content generation is now enabled for TinyMCE editors.')
@@ -434,11 +434,11 @@ LMS System''',
                 for setting in menu_control_settings:
                     setting_key = f"menu_{setting.id}"
                     setting.visible_to_globaladmin = f"{setting_key}_globaladmin" in request.POST
-                    setting.visible_to_superadmin = f"{setting_key}_superadmin" in request.POST
-                    setting.visible_to_admin = f"{setting_key}_admin" in request.POST
-                    setting.visible_to_instructor = f"{setting_key}_instructor" in request.POST
-                    setting.visible_to_learner = f"{setting_key}_learner" in request.POST
-                    setting.is_active = f"{setting_key}_active" in request.POST
+                    setting.visible_to_superadmin = "{setting_key}_superadmin" in request.POST
+                    setting.visible_to_admin = "{setting_key}_admin" in request.POST
+                    setting.visible_to_instructor = "{setting_key}_instructor" in request.POST
+                    setting.visible_to_learner = "{setting_key}_learner" in request.POST
+                    setting.is_active = "{setting_key}_active" in request.POST
                     setting.updated_by = request.user
                     setting.save()
                 
@@ -1088,7 +1088,7 @@ LMS System''',
                             
                             success_message = 'SharePoint system settings updated successfully.'
                             if updated_branches:
-                                success_message += f' Updated branches: {", ".join(updated_branches)}'
+                                success_message += ' Updated branches: {}'.format(", ".join(updated_branches))
                             
                             messages.success(request, success_message)
                             
@@ -1163,7 +1163,7 @@ LMS System''',
             
         # If we still have a None ID, fix the template context manually
         if zoom_integration and zoom_integration.id is None:
-            logger.warning(f"Still have a None ID for Zoom integration, setting to -1 for template rendering")
+            logger.warning("Still have a None ID for Zoom integration, setting to -1 for template rendering")
             zoom_integration.id = -1  # Set a temporary ID to make template render correctly
             
         # Define available Zoom meeting templates (for future implementation of template selection)
@@ -1202,7 +1202,7 @@ LMS System''',
                         usage_percentage = token_limits.get_usage_percentage()
                         
                         # Get user count for this branch
-                        user_count = branch.users.filter(is_active=True).count()
+                        user_count = branch.branch_users.filter(is_active=True).count()
                         
                         ai_branches_data.append({
                             'branch': branch,
@@ -1235,7 +1235,7 @@ LMS System''',
                     # Get current month usage and user count
                     current_usage = token_limits.get_current_month_usage()
                     usage_percentage = token_limits.get_usage_percentage()
-                    user_count = branch.users.filter(is_active=True).count()
+                    user_count = branch.branch_users.filter(is_active=True).count()
                     
                     # Get recent usage activity (last 10 records)
                     recent_usage = AITokenUsage.objects.filter(
@@ -1420,13 +1420,13 @@ LMS System''',
         
         return render(request, 'account_settings/settings.html', context)
     except NoReverseMatch as e:
-        logger.error(f"URL reverse error in account settings page: {str(e)}")
+        logger.error("URL reverse error in account settings page: {str(e)}")
         return render(request, 'core/error.html', {
             'error_message': f'An error occurred with URL generation: {str(e)}. Please ensure all integration IDs are valid.'
         }, status=400)
     except Exception as e:
         logger.exception("Error in account_settings view")
-        messages.error(request, f"An error occurred: {str(e)}")
+        messages.error(request, "An error occurred: {str(e)}")
         return redirect('users:role_based_redirect')
 
 @login_required
@@ -1454,7 +1454,7 @@ def toggle_2fa(request):
             
     except Exception as e:
         logger.exception("Error toggling regular 2FA")
-        messages.error(request, f"An error occurred while updating your Session settings: {str(e)}")
+        messages.error(request, "An error occurred while updating your Session settings: {str(e)}")
     
     # Redirect back to Session section
     return redirect(f"{reverse('account_settings:settings')}?tab=Session")
@@ -1484,7 +1484,7 @@ def toggle_oauth_2fa(request):
             
     except Exception as e:
         logger.exception("Error toggling OAuth 2FA")
-        messages.error(request, f"An error occurred while updating your OAuth Session settings: {str(e)}")
+        messages.error(request, "An error occurred while updating your OAuth Session settings: {str(e)}")
     
     # Redirect back to Session section
     return redirect(f"{reverse('account_settings:settings')}?tab=Session")
@@ -1637,7 +1637,7 @@ def toggle_totp_2fa(request):
             
     except Exception as e:
         logger.exception("Error toggling TOTP 2FA")
-        messages.error(request, f"An error occurred while updating your authenticator app settings: {str(e)}")
+        messages.error(request, "An error occurred while updating your authenticator app settings: {str(e)}")
     
     # Redirect back to Session section
     return redirect(f"{reverse('account_settings:settings')}?tab=Session")
@@ -1687,7 +1687,7 @@ def delete_integration(request, integration_type, integration_id):
         return redirect('account_settings:settings')
     except Exception as e:
         logger.error(f"Error deleting integration: {str(e)}")
-        messages.error(request, f"An error occurred: {str(e)}")
+        messages.error(request, "An error occurred: {str(e)}")
         return redirect('account_settings:settings')
 
 @login_required
@@ -1723,7 +1723,7 @@ def toggle_integration(request, integration_type, integration_id):
         integration.save()
         
         status = "enabled" if integration.is_active else "disabled"
-        messages.success(request, f"{integration.name} integration was {status} successfully.")
+        messages.success(request, "{{integration.name}} integration was {{status}} successfully.")
         
         # Return to the appropriate tab
         if integration_type in ['stripe', 'paypal']:
@@ -1738,7 +1738,7 @@ def toggle_integration(request, integration_type, integration_id):
         return redirect('account_settings:settings')
     except Exception as e:
         logger.error(f"Error toggling integration: {str(e)}")
-        messages.error(request, f"An error occurred: {str(e)}")
+        messages.error(request, "An error occurred: {str(e)}")
         return redirect('account_settings:settings')
 
 @login_required
@@ -1847,7 +1847,7 @@ def manage_branch_integrations(request):
                 integration_name = integration.name
                 integration.delete()
                 
-                logger.info(f"Super admin {request.user.id} deleted Zoom integration {integration_id} for branch {branch.name}")
+                logger.info(f"Super admin {request.user.id} deleted Zoom integration {{integration_id}} for branch {branch.name}")
                 messages.success(request, f'Zoom integration "{integration_name}" deleted successfully from {branch.name}')
                 
             except ZoomIntegration.DoesNotExist:
@@ -1894,7 +1894,7 @@ def update_branch_limits(request, branch_id):
     
     # Get or create user limits for this branch
     user_limits, created = BranchUserLimits.objects.get_or_create(branch=branch)
-    logger.info(f"User limits {'created' if created else 'found'} for branch {branch.name}")
+    logger.info(f"User limits {{'created' if created else 'found'}} for branch {branch.name}")
     
     # Update the total limit from the form
     total_limit = request.POST.get('total_limit')
@@ -1962,62 +1962,62 @@ def update_business_limits(request, business_id):
     logger.info(f"POST data: {dict(request.POST)}")
     
     business = get_object_or_404(Business, id=business_id)
-    logger.info(f"Found business: {business.name}")
+    logger.info("Found business: {{business.name}}")
     
     # Get or create business limits for this business
     business_limits, created = BusinessLimits.objects.get_or_create(
         business=business,
         defaults={'updated_by': request.user}
     )
-    logger.info(f"Business limits {'created' if created else 'found'} for business {business.name}")
+    logger.info("Business limits {{'created' if created else 'found'}} for business {{business.name}}")
     
     # Update the limits from the form
     total_user_limit = request.POST.get('total_user_limit')
     branch_creation_limit = request.POST.get('branch_creation_limit')
     
-    logger.info(f"Received total_user_limit: {total_user_limit}")
-    logger.info(f"Received branch_creation_limit: {branch_creation_limit}")
+    logger.info("Received total_user_limit: {{total_user_limit}}")
+    logger.info("Received branch_creation_limit: {{branch_creation_limit}}")
     
     if total_user_limit is not None:
         try:
             total_user_limit_int = int(total_user_limit)
-            logger.info(f"Parsed total_user_limit as integer: {total_user_limit_int}")
+            logger.info("Parsed total_user_limit as integer: {{total_user_limit_int}}")
             
             # Validate that the new limit is not less than current usage
             current_users = business.get_total_users_count()
-            logger.info(f"Current users in business: {current_users}")
+            logger.info("Current users in business: {current_users}")
             
             if total_user_limit_int < current_users:
-                logger.warning(f"Total user limit ({total_user_limit_int}) is less than current users ({current_users})")
+                logger.warning("Total user limit ({{total_user_limit_int}}) is less than current users ({current_users})")
                 return JsonResponse({
                     'success': False, 
                     'message': f'Total user limit ({total_user_limit_int}) cannot be less than current users ({current_users})'
                 })
             business_limits.total_user_limit = total_user_limit_int
-            logger.info(f"Set business_limits.total_user_limit to {total_user_limit_int}")
+            logger.info("Set business_limits.total_user_limit to {{total_user_limit_int}}")
         except ValueError as e:
-            logger.error(f"ValueError parsing total_user_limit: {e}")
+            logger.error("ValueError parsing total_user_limit: {e}")
             return JsonResponse({'success': False, 'message': 'Invalid total user limit value'})
     
     if branch_creation_limit is not None:
         try:
             branch_creation_limit_int = int(branch_creation_limit)
-            logger.info(f"Parsed branch_creation_limit as integer: {branch_creation_limit_int}")
+            logger.info("Parsed branch_creation_limit as integer: {{branch_creation_limit_int}}")
             
             # Validate that the new limit is not less than current branches
             current_branches = business.get_business_branch_count()
-            logger.info(f"Current branches in business: {current_branches}")
+            logger.info("Current branches in business: {{current_branches}}")
             
             if branch_creation_limit_int < current_branches:
-                logger.warning(f"Branch creation limit ({branch_creation_limit_int}) is less than current branches ({current_branches})")
+                logger.warning("Branch creation limit ({{branch_creation_limit_int}}) is less than current branches ({{current_branches}})")
                 return JsonResponse({
                     'success': False, 
-                    'message': f'Branch creation limit ({branch_creation_limit_int}) cannot be less than current branches ({current_branches})'
+                    'message': 'Branch creation limit ({}) cannot be less than current branches ({})'.format(branch_creation_limit_int, current_branches)
                 })
             business_limits.branch_creation_limit = branch_creation_limit_int
-            logger.info(f"Set business_limits.branch_creation_limit to {branch_creation_limit_int}")
+            logger.info("Set business_limits.branch_creation_limit to {{branch_creation_limit_int}}")
         except ValueError as e:
-            logger.error(f"ValueError parsing branch_creation_limit: {e}")
+            logger.error("ValueError parsing branch_creation_limit: {}".format(e))
             return JsonResponse({'success': False, 'message': 'Invalid branch creation limit value'})
     
     # Ensure at least one limit was provided
@@ -2026,22 +2026,22 @@ def update_business_limits(request, business_id):
         return JsonResponse({'success': False, 'message': 'At least one limit value is required'})
     
     business_limits.updated_by = request.user
-    logger.info(f"Set updated_by to {request.user.email}")
+    logger.info("Set updated_by to {}".format(request.user.email))
     
     try:
         business_limits.save()
         logger.info("Successfully saved business_limits")
     except Exception as e:
-        logger.error(f"Error saving business_limits: {e}")
-        return JsonResponse({'success': False, 'message': f'Error saving business limits: {str(e)}'})
+        logger.error("Error saving business_limits: {}".format(e))
+        return JsonResponse({'success': False, 'message': 'Error saving business limits: {}'.format(str(e))})
     
     # Get updated usage data
     usage_data = business_limits.get_usage_data()
-    logger.info(f"Retrieved usage data: {usage_data}")
+    logger.info("Retrieved usage data: {}".format(usage_data))
     
     return JsonResponse({
         'success': True, 
-        'message': f'Business limits for {business.name} updated successfully',
+        'message': 'Business limits for {} updated successfully'.format(business.name),
         'usage_data': usage_data
     })
 
@@ -2063,7 +2063,7 @@ def edit_integration(request, integration_type, integration_id):
     elif integration_type == 'paypal':
         integration = get_object_or_404(PayPalIntegration, id=integration_id)
     else:
-        messages.error(request, f"Unknown integration type: {integration_type}")
+        messages.error(request, "Unknown integration type: {}".format(integration_type))
         return redirect('account_settings:settings')
     
     # Check if user owns this integration or is superadmin
@@ -2096,8 +2096,8 @@ def edit_integration(request, integration_type, integration_id):
         # Save changes
         integration.save()
         
-        messages.success(request, f"{integration_type.title()} integration updated successfully.")
-        return redirect(f"{reverse('account_settings:settings')}?tab=integrations&integration={integration_type}")
+        messages.success(request, "{{integration_type.title()}} integration updated successfully.")
+        return redirect("{}?tab=integrations&integration={}".format(reverse('account_settings:settings'), integration_type))
     
     # If not POST, redirect to settings page
     return redirect('account_settings:settings')
@@ -2156,16 +2156,16 @@ def start_export(request):
             
         except subprocess.CalledProcessError as e:
             job.status = 'failed'
-            error_msg = f'Export command failed with exit code {e.returncode}'
+            error_msg = 'Export command failed with exit code {}'.format(e.returncode)
             if e.stdout:
-                error_msg += f'\nStdout: {e.stdout}'
+                error_msg += '\nStdout: {}'.format(e.stdout)
             if e.stderr:
-                error_msg += f'\nStderr: {e.stderr}'
+                error_msg += '\nStderr: {}'.format(e.stderr)
             job.error_message = error_msg
             job.save()
         except Exception as e:
             job.status = 'failed'
-            job.error_message = f'Unexpected error: {str(e)}'
+            job.error_message = 'Unexpected error: {}'.format(str(e))
             job.save()
     
     # Run export in background thread
@@ -2176,7 +2176,7 @@ def start_export(request):
     return JsonResponse({
         'success': True,
         'job_id': job.id,
-        'message': f'Export started for {export_type}'
+        'message': 'Export started for {}'.format(export_type)
     })
 
 @login_required
@@ -2259,7 +2259,7 @@ def start_import(request):
             job.save()
         except Exception as e:
             job.status = 'failed'
-            job.error_message = f'Unexpected error: {str(e)}'
+            job.error_message = 'Unexpected error: {}'.format(str(e))
             job.save()
     
     # Run import in background thread
@@ -2519,7 +2519,7 @@ def create_backup(request):
             error_msg += f'\nStderr: {e.stderr}'
         return JsonResponse({'success': False, 'error': error_msg})
     except Exception as e:
-        return JsonResponse({'success': False, 'error': f'Unexpected error: {str(e)}'})
+        return JsonResponse({'success': False, 'error': 'Unexpected error: {}'.format(str(e))})
 
 @login_required
 def get_backups(request):
@@ -2752,7 +2752,7 @@ def test_sharepoint_connection(request):
                 })
                 
         except SharePointAPIError as e:
-            logger.error(f"SharePoint API error during connection test: {str(e)}")
+            logger.error("SharePoint API error during connection test: {str(e)}")
             return JsonResponse({
                 'success': False,
                 'error': f'SharePoint API Error: {str(e)}'
@@ -2770,18 +2770,18 @@ def test_sharepoint_connection(request):
 @login_required
 def test_removed_connection(request):
     """Test removed Cloud connection for the current user"""
-    logger.info(f"removed connection test requested by user {request.user.username} (ID: {request.user.id})")
+    logger.info("removed connection test requested by user {request.user.username} (ID: {request.user.id})")
     
     if request.method != 'POST':
-        logger.warning(f"Invalid request method for removed test: {request.method}")
+        logger.warning("Invalid request method for removed test: {request.method}")
         return JsonResponse({'success': False, 'error': 'Invalid request method'})
     
     try:
         logger.info("Starting removed connection test process...")
         
         # Add CSRF debug info
-        logger.info(f"CSRF token present: {bool(request.META.get('CSRF_COOKIE'))}")
-        logger.info(f"Request headers: {dict(request.headers)}")
+        logger.info("CSRF token present: {{bool(request.META.get('CSRF_COOKIE'))}}")
+        logger.info("Request headers: {{dict(request.headers)}}")
         
         # Use the same lookup logic as get_removed_client to ensure consistency
         logger.info("Importing removed client...")
@@ -2789,35 +2789,35 @@ def test_removed_connection(request):
             from removed_cloud.utils.api import get_removed_client
             logger.info("removed client import successful")
         except ImportError as import_error:
-            logger.error(f"Failed to import removed client: {str(import_error)}")
+            logger.error("Failed to import removed client: {{str(import_error)}}")
             return JsonResponse({'success': False, 'error': f'removed module not available: {str(import_error)}'})
         
         # Get the removed client using the same logic as the main application
         logger.info("Getting removed client...")
         try:
             removed_client = get_removed_client(user=request.user)
-            logger.info(f"removed client obtained: {removed_client is not None}")
+            logger.info("removed client obtained: {{removed_client is not None}}")
         except Exception as client_error:
-            logger.error(f"Error getting removed client: {str(client_error)}")
+            logger.error(f"Error getting removed client: {{str(client_error)}}")
             return JsonResponse({'success': False, 'error': f'Error initializing removed client: {str(client_error)}'})
         
         if not removed_client:
-            logger.warning(f"Test connection - No removed client available for user {request.user.username}")
+            logger.warning("Test connection - No removed client available for user {request.user.username}")
             return JsonResponse({
                 'success': False, 
                 'error': 'No removed integration found. Please configure removed integration first.'
             })
         
         try:
-            logger.info(f"Checking removed client configuration...")
+            logger.info("Checking removed client configuration...")
             is_configured = removed_client.is_configured
-            logger.info(f"removed client configured: {is_configured}")
+            logger.info("removed client configured: {{is_configured}}")
         except Exception as config_error:
-            logger.error(f"Error checking removed client configuration: {str(config_error)}")
+            logger.error(f"Error checking removed client configuration: {{str(config_error)}}")
             return JsonResponse({'success': False, 'error': f'Error checking removed configuration: {str(config_error)}'})
         
         if not is_configured:
-            logger.warning(f"Test connection - removed client not properly configured for user {request.user.username}")
+            logger.warning("Test connection - removed client not properly configured for user {request.user.username}")
             return JsonResponse({
                 'success': False, 
                 'error': 'removed Cloud credentials are missing or invalid. Please check your configuration.'
@@ -2832,20 +2832,20 @@ def test_removed_connection(request):
                     removed_integration = removedIntegration.objects.filter(user=request.user).first()
                 if not removed_integration and request.user.branch:
                     removed_integration = removedIntegration.objects.filter(branch=request.user.branch, is_active=True).first()
-            logger.info(f"Found removed integration: {removed_integration is not None}")
+            logger.info("Found removed integration: {{removed_integration is not None}}")
         except Exception as db_error:
-            logger.error(f"Database error looking up removed integration: {str(db_error)}")
+            logger.error("Database error looking up removed integration: {{str(db_error)}}")
             # If we can't access the database, but we have a working removed client, 
             # we can still test the connection using the global settings
         
-        logger.info(f"Test connection - Using removed integration: {removed_integration}")
+        logger.info("Test connection - Using removed integration: {{removed_integration}}")
         
         # Test the connection using the client or model's test_connection method
         if removed_integration:
-            logger.info(f"Test connection - Testing branch integration with app_id: {removed_integration.app_id[:6]}****, base_url: {removed_integration.base_url}")
+            logger.info("Test connection - Testing branch integration with app_id: {{removed_integration.app_id[:6]}}****, base_url: {{removed_integration.base_url}}")
             try:
                 test_success, test_message = removed_integration.test_connection()
-                logger.info(f"Test connection - Result: success={test_success}, message={test_message}")
+                logger.info("Test connection - Result: success={{test_success}}, message={{test_message}}")
                 
                 if test_success:
                     return JsonResponse({
@@ -2858,11 +2858,11 @@ def test_removed_connection(request):
                 else:
                     return JsonResponse({'success': False, 'error': test_message})
             except Exception as test_error:
-                logger.error(f"Error testing branch integration: {str(test_error)}")
+                logger.error(f"Error testing branch integration: {{str(test_error)}}")
                 return JsonResponse({'success': False, 'error': f'Error testing branch integration: {str(test_error)}'})
         else:
             # Using global settings, test directly with client
-            logger.info(f"Test connection - Testing branch-specific removed settings with app_id: {removed_client.app_id[:6] if removed_client.app_id else 'None'}****, base_url: {removed_client.base_url}")
+            logger.info("Test connection - Testing branch-specific removed settings with app_id: {{removed_client.app_id[:6] if removed_client.app_id else 'None'}}****, base_url: {{removed_client.base_url}}")
             
             # Create a simple ping test using the same method as the model
             try:
@@ -2870,7 +2870,7 @@ def test_removed_connection(request):
                 # Create a simple test by making a basic API call
                 test_response = removed_client._make_request('GET', 'ping')
                 test_message = "removed Cloud connection successful (using branch-specific settings)"
-                logger.info(f"Test connection - Global settings test successful")
+                logger.info("Test connection - Global settings test successful")
                 
                 return JsonResponse({
                     'success': True, 
@@ -2881,12 +2881,12 @@ def test_removed_connection(request):
                 })
                     
             except Exception as test_error:
-                error_msg = f"Failed to test removed Cloud connection: {str(test_error)}"
-                logger.error(f"Test connection - Global settings test error: {error_msg}")
+                error_msg = "Failed to test removed Cloud connection: {{str(test_error)}}"
+                logger.error("Test connection - Global settings test error: {{error_msg}}")
                 return JsonResponse({'success': False, 'error': error_msg})
             
     except Exception as e:
-        logger.error(f"Unexpected error testing removed connection for user {request.user.id}: {str(e)}")
+        logger.error("Unexpected error testing removed connection for user {request.user.id}: {str(e)}")
         logger.exception("Full traceback:")
         
         # Check if it's a database error
@@ -2950,7 +2950,7 @@ def manual_sharepoint_sync(request):
             
         except (ConnectionError, WorkerLostError, Exception) as e:
             # Celery is not available, fall back to synchronous sync
-            logger.warning(f"Celery not available ({str(e)}), falling back to synchronous sync")
+            logger.warning("Celery not available ({str(e)}), falling back to synchronous sync")
             
             try:
                 # Import sync services for direct execution
@@ -2969,7 +2969,7 @@ def manual_sharepoint_sync(request):
                 }
                 
                 # Execute sync directly (synchronously)
-                logger.info(f"Starting synchronous {direction_label} sync for integration {sharepoint_integration.name}")
+                logger.info("Starting synchronous {{direction_label}} sync for integration {{sharepoint_integration.name}}")
                 
                 # User synchronization
                 if sync_type in ['all', 'users']:
@@ -3015,7 +3015,7 @@ def manual_sharepoint_sync(request):
                 
                 return JsonResponse({
                     'success': True,
-                    'message': f'{direction_label} sync completed successfully (synchronous)',
+                    'message': '{} sync completed successfully (synchronous)'.format(direction_label),
                     'task_id': 'sync_direct',
                     'direction': sync_direction,
                     'sync_type': sync_type,
@@ -3024,23 +3024,23 @@ def manual_sharepoint_sync(request):
                 })
                 
             except ImportError as ie:
-                logger.error(f"SharePoint sync services not available: {str(ie)}")
+                logger.error("SharePoint sync services not available: {{str(ie)}}")
                 return JsonResponse({
                     'success': False, 
                     'error': 'SharePoint sync services not available. Please ensure the sharepoint_integration app is properly configured.'
                 })
             except Exception as sync_error:
-                logger.error(f"Synchronous sync failed: {str(sync_error)}")
+                logger.error("Synchronous sync failed: {{str(sync_error)}}")
                 return JsonResponse({
                     'success': False,
-                    'error': f'Sync failed: {str(sync_error)}'
+                    'error': 'Sync failed: {}'.format(str(sync_error))
                 })
         
     except json.JSONDecodeError:
         return JsonResponse({'success': False, 'error': 'Invalid JSON data'})
     except Exception as e:
-        logger.error(f"Error starting manual SharePoint sync for user {request.user.id}: {str(e)}")
-        return JsonResponse({'success': False, 'error': f'Error starting sync: {str(e)}'})
+        logger.error("Error starting manual SharePoint sync for user {}: {}".format(request.user.id, str(e)))
+        return JsonResponse({'success': False, 'error': 'Error starting sync: {}'.format(str(e))})
 
 def _merge_sync_results(main_results, new_results):
     """Helper function to merge sync results"""
@@ -3113,8 +3113,8 @@ def sharepoint_sync_status(request, task_id):
         return JsonResponse(response_data)
         
     except Exception as e:
-        logger.error(f"Error checking SharePoint sync status for task {task_id}: {str(e)}")
-        return JsonResponse({'success': False, 'error': f'Error checking status: {str(e)}'})
+        logger.error("Error checking SharePoint sync status for task {}: {}".format(task_id, str(e)))
+        return JsonResponse({'success': False, 'error': 'Error checking status: {}'.format(str(e))})
 
 # AJAX endpoint views for lazy loading
 @login_required
@@ -3310,7 +3310,7 @@ def load_branches_data(request):
 @login_required
 def load_order_management_branches(request):
     """AJAX endpoint to load branches for order management system"""
-    logger.info(f"load_order_management_branches called by user: {request.user.username} (role: {request.user.role})")
+    logger.info("load_order_management_branches called by user: {request.user.username} (role: {request.user.role})")
     
     if not request.user.role in ['globaladmin', 'superadmin']:
         logger.warning(f"Unauthorized access attempt by user: {request.user.username} (role: {request.user.role})")
@@ -3323,7 +3323,7 @@ def load_order_management_branches(request):
         # Load branches grouped by business
         branches_query = filter_branches_by_business(request.user).select_related('business').order_by('business__name', 'name')
         
-        logger.info(f"Found {branches_query.count()} branches for order management")
+        logger.info("Found {{branches_query.count()}} branches for order management")
         
         # Group branches by business
         businesses_dict = {}
@@ -3352,7 +3352,7 @@ def load_order_management_branches(request):
         # Convert to list
         businesses_with_branches = list(businesses_dict.values())
         
-        logger.info(f"Returning {len(businesses_with_branches)} businesses with branches for order management")
+        logger.info("Returning {{len(businesses_with_branches)}} businesses with branches for order management")
         return JsonResponse({
             'success': True, 
             'businesses_with_branches': businesses_with_branches
