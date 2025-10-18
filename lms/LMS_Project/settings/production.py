@@ -49,6 +49,21 @@ CSRF_COOKIE_SAMESITE = 'Lax'  # Use Lax for better compatibility with AJAX
 import logging
 logging.getLogger('django.contrib.sessions').setLevel(logging.ERROR)
 
+# ==============================================
+# CACHE CONFIGURATION
+# ==============================================
+# Use database cache for production reliability
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.db.DatabaseCache',
+        'LOCATION': 'lms_cache_table',
+        'OPTIONS': {
+            'MAX_ENTRIES': 1000,
+            'CULL_FREQUENCY': 3,
+        }
+    }
+}
+
 # Production allowed hosts - Use environment variable with fallback
 # Get PRIMARY_DOMAIN and ALB_DOMAIN from environment
 PRIMARY_DOMAIN = get_env('PRIMARY_DOMAIN', 'localhost')
@@ -177,7 +192,7 @@ WHITENOISE_AUTOREFRESH = False  # Disabled for production
 
 # WhiteNoise middleware is configured in base.py
 
-print(" Using local static files storage for production (better performance)")
+logger.info(" Using local static files storage for production (better performance)")
 
 # ==============================================
 # SECURITY CONFIGURATION
@@ -264,12 +279,12 @@ FILE_UPLOAD_HANDLERS = [
     'django.core.files.uploadhandler.MemoryFileUploadHandler',
 ]
 
-print("☁️ Using S3 media storage configuration")
-print("☁️ S3 Bucket: {}".format(AWS_STORAGE_BUCKET_NAME))
-print("☁️ S3 Region: {}".format(AWS_S3_REGION_NAME))
-print("☁️ MEDIA_URL set to: {}".format(MEDIA_URL))
-print("🔒 Compliance features: Audit logging enabled, file permissions secured")
-print("📁 Max file size: {}MB (ZIP files supported)".format(MEDIA_FILE_MAX_SIZE // (1024*1024)))
+logger.info("☁️ Using S3 media storage configuration")
+logger.info("☁️ S3 Bucket: {}".format(AWS_STORAGE_BUCKET_NAME))
+logger.info("☁️ S3 Region: {}".format(AWS_S3_REGION_NAME))
+logger.info("☁️ MEDIA_URL set to: {}".format(MEDIA_URL))
+logger.info("🔒 Compliance features: Audit logging enabled, file permissions secured")
+logger.info("📁 Max file size: {}MB (ZIP files supported)".format(MEDIA_FILE_MAX_SIZE // (1024*1024)))
 
 # ==============================================
 # PRODUCTION SETTINGS
@@ -377,12 +392,13 @@ DEBUG = False
 # Production-specific security overrides (inherits base.py security config)
 # Override only if production needs different security settings
 
-print("🏗️ Production configuration loaded successfully!")
-print(" Environment: {}".format(ENVIRONMENT))
-print("🐛 Debug mode: {}".format(DEBUG))
-print("☁️ Media storage: S3 (Amazon Web Services)")
-print("🏠 Allowed hosts: {}...".format(', '.join(ALLOWED_HOSTS[:3])))
-print(" Log directory: {}".format(LOG_DIR or 'Console only'))
+# Production configuration loaded successfully
+logger.info("🏗️ Production configuration loaded successfully!")
+logger.info(" Environment: {}".format(ENVIRONMENT))
+logger.info("🐛 Debug mode: {}".format(DEBUG))
+logger.info("☁️ Media storage: S3 (Amazon Web Services)")
+logger.info("🏠 Allowed hosts: {}...".format(', '.join(ALLOWED_HOSTS[:3])))
+logger.info(" Log directory: {}".format(LOG_DIR or 'Console only'))
 # ==============================================
 # PRODUCTION SESSION PERSISTENCE OVERRIDES
 # ==============================================

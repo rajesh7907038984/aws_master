@@ -610,7 +610,7 @@ function initFormChangeDetection() {
         
         var descriptionField = form.querySelector('#id_description') || form.querySelector('[name="description"]');
         if (descriptionField) {
-            // console.log('Description field found:', {
+            // Description field found
                 id: descriptionField.id,
                 name: descriptionField.name,
                 tagName: descriptionField.tagName,
@@ -835,7 +835,7 @@ function initializeExistingImagePreview() {
     var imagePreview = document.getElementById('course-image-preview');
     var imageContainer = document.querySelector('.course-image-container');
 
-    // console.log('Image preview elements:', {
+    // Image preview elements
         imagePreview: !!imagePreview,
         imageContainer: !!imageContainer
     });
@@ -898,8 +898,6 @@ function handleImageUpload(e) {
         if (!file.type.match('image.*')) {
             if (typeof showToast === 'function') {
             showToast('Please upload an image file', 'error');
-        } else {
-            console.error('Please upload an image file');
         }
             input.value = '';
             return;
@@ -915,7 +913,7 @@ function handleImageUpload(e) {
                 if (typeof showToast === 'function') {
                     showToast('File Validation Error: ' + errorMsg + ' Please choose a different file or rename your file using simple characters.', 'error');
                 } else {
-                    console.error('File Validation Error: ' + errorMsg + ' Please choose a different file or rename your file using simple characters.');
+                    // File validation error handled by showToast
                 }
                 input.value = '';
                 return;
@@ -970,7 +968,7 @@ function handleVideoUpload(e) {
             if (typeof showToast === 'function') {
                 showToast('Please upload a video file', 'error');
             } else {
-                console.error('Please upload a video file');
+                // Video file validation error handled by showToast
             }
             input.value = '';
             return;
@@ -986,7 +984,7 @@ function handleVideoUpload(e) {
                 if (typeof showToast === 'function') {
                     showToast('File Validation Error: ' + errorMsg + ' Please choose a different file or rename your file using simple characters.', 'error');
                 } else {
-                    console.error('File Validation Error: ' + errorMsg + ' Please choose a different file or rename your file using simple characters.');
+                    // File validation error handled by showToast
                 }
                 input.value = '';
                 return;
@@ -1218,7 +1216,7 @@ function handleFormSubmit(e) {
         if (typeof showToast === 'function') {
             showToast('Please enter a course title', 'error');
         } else {
-            console.error('Please enter a course title');
+            // Course title validation error handled by showToast
         }
         titleInput.focus();
         return false;

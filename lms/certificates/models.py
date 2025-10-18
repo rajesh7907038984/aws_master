@@ -107,7 +107,7 @@ class IssuedCertificate(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return "Certificate #{{self.certificate_number}} for {{self.recipient.username}}"
+        return f"Certificate #{self.certificate_number} for {self.recipient.username}"
 
     def delete(self, *args, **kwargs):
         """Enhanced delete method with S3 cleanup for issued certificate files."""

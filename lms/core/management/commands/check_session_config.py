@@ -73,8 +73,8 @@ class Command(BaseCommand):
         secret_key = settings.SECRET_KEY
         if secret_key:
             self.stdout.write("   Status: ✅ SECRET_KEY is set")
-            self.stdout.write("   Length: {{len(secret_key)}} characters")
-            self.stdout.write("   Starts with: {{secret_key[:10]}}...")
+            self.stdout.write(f"   Length: {len(secret_key)} characters")
+            self.stdout.write(f"   Starts with: {secret_key[:10]}...")
             
             # Check if it's the persistent key
             if secret_key == 'azz$+s@(b7vaxopd=^6tly^a7om!8^bo2ebgpi-fj^21*8cr46':
@@ -89,7 +89,7 @@ class Command(BaseCommand):
         self.stdout.write('\n🗄️  Session Engine:')
         
         session_engine = settings.SESSION_ENGINE
-        self.stdout.write("   Engine: {{session_engine}}")
+        self.stdout.write(f"   Engine: {session_engine}")
         
         if 'db' in session_engine:
             self.stdout.write('   Status: ✅ Database sessions (persistent)')
@@ -102,12 +102,12 @@ class Command(BaseCommand):
         """Check session cookie configuration"""
         self.stdout.write('\n🍪 Session Cookies:')
         
-        self.stdout.write("   Cookie Age: {{settings.SESSION_COOKIE_AGE}} seconds ({{settings.SESSION_COOKIE_AGE // 3600}} hours)")
-        self.stdout.write("   Save Every Request: {{settings.SESSION_SAVE_EVERY_REQUEST}}")
-        self.stdout.write("   Expire at Browser Close: {{settings.SESSION_EXPIRE_AT_BROWSER_CLOSE}}")
-        self.stdout.write("   Cookie Name: {{settings.SESSION_COOKIE_NAME}}")
-        self.stdout.write("   Secure: {{settings.SESSION_COOKIE_SECURE}}")
-        self.stdout.write("   SameSite: {{settings.SESSION_COOKIE_SAMESITE}}")
+        self.stdout.write(f"   Cookie Age: {settings.SESSION_COOKIE_AGE} seconds ({settings.SESSION_COOKIE_AGE // 3600} hours)")
+        self.stdout.write(f"   Save Every Request: {settings.SESSION_SAVE_EVERY_REQUEST}")
+        self.stdout.write(f"   Expire at Browser Close: {settings.SESSION_EXPIRE_AT_BROWSER_CLOSE}")
+        self.stdout.write(f"   Cookie Name: {settings.SESSION_COOKIE_NAME}")
+        self.stdout.write(f"   Secure: {settings.SESSION_COOKIE_SECURE}")
+        self.stdout.write(f"   SameSite: {settings.SESSION_COOKIE_SAMESITE}")
         
         # Check for potential issues
         if settings.SESSION_COOKIE_AGE < 3600:  # Less than 1 hour
@@ -123,15 +123,15 @@ class Command(BaseCommand):
         try:
             # Count total sessions
             total_sessions = Session.objects.count()
-            self.stdout.write("   Total Sessions: {{total_sessions}}")
+            self.stdout.write(f"   Total Sessions: {total_sessions}")
             
             # Count active sessions
             active_sessions = Session.objects.filter(expire_date__gt=timezone.now()).count()
-            self.stdout.write("   Active Sessions: {{active_sessions}}")
+            self.stdout.write(f"   Active Sessions: {active_sessions}")
             
             # Count expired sessions
             expired_sessions = Session.objects.filter(expire_date__lt=timezone.now()).count()
-            self.stdout.write("   Expired Sessions: {{expired_sessions}}")
+            self.stdout.write(f"   Expired Sessions: {expired_sessions}")
             
             if active_sessions > 0:
                 self.stdout.write('   Status: ✅ Database sessions are working')
@@ -139,7 +139,7 @@ class Command(BaseCommand):
                 self.stdout.write('   Status: ⚠️  No active sessions found')
                 
         except Exception as e:
-            self.stdout.write("   Status: ❌ Database error: {{e}}")
+            self.stdout.write(f"   Status: ❌ Database error: {e}")
 
     def _check_cache_connection(self):
         """Check cache/Redis connection"""
@@ -156,7 +156,7 @@ class Command(BaseCommand):
                 self.stdout.write('   Status: ❌ Cache test failed')
                 
         except Exception as e:
-            self.stdout.write("   Status: ❌ Cache error: {{e}}")
+            self.stdout.write(f"   Status: ❌ Cache error: {e}")
 
     def _check_active_sessions(self, detailed=False):
         """Check active sessions and users"""
@@ -178,19 +178,19 @@ class Command(BaseCommand):
                     # Session data is corrupted
                     pass
             
-            self.stdout.write("   Active User Sessions: {{len(user_sessions)}}")
+            self.stdout.write(f"   Active User Sessions: {len(user_sessions)}")
             
             if detailed and user_sessions:
                 self.stdout.write('   User Session Details:')
                 for user_id, count in user_sessions.items():
                     try:
                         user = User.objects.get(id=user_id)
-                        self.stdout.write("     - {{user.username}} ({{user.email}}): {{count}} sessions")
+                        self.stdout.write(f"     - {user.username} ({user.email}): {count} sessions")
                     except User.DoesNotExist:
-                        self.stdout.write("     - User ID {{user_id}}: {{count}} sessions (user not found)")
+                        self.stdout.write(f"     - User ID {user_id}: {count} sessions (user not found)")
                         
         except Exception as e:
-            self.stdout.write("   Status: ❌ Error checking sessions: {{e}}")
+            self.stdout.write(f"   Status: ❌ Error checking sessions: {e}")
 
     def _check_common_issues(self):
         """Check for common session issues"""
@@ -217,7 +217,7 @@ class Command(BaseCommand):
         if issues_found:
             self.stdout.write('   Issues Found:')
             for issue in issues_found:
-                self.stdout.write("     ❌ {{issue}}")
+                self.stdout.write(f"     ❌ {issue}")
         else:
             self.stdout.write('   Status: ✅ No common issues detected')
 
@@ -230,7 +230,7 @@ class Command(BaseCommand):
             expired_count = Session.objects.filter(expire_date__lt=timezone.now()).count()
             if expired_count > 0:
                 Session.objects.filter(expire_date__lt=timezone.now()).delete()
-                self.stdout.write("   ✅ Cleared {{expired_count}} expired sessions")
+                self.stdout.write(f"   ✅ Cleared {expired_count} expired sessions")
             
             # Clear corrupted sessions
             corrupted_count = 0
@@ -242,7 +242,7 @@ class Command(BaseCommand):
                     corrupted_count += 1
             
             if corrupted_count > 0:
-                self.stdout.write("   ✅ Cleared {{corrupted_count}} corrupted sessions")
+                self.stdout.write(f"   ✅ Cleared {corrupted_count} corrupted sessions")
             
             # Extend sessions that are close to expiry
             near_expiry = Session.objects.filter(
@@ -256,9 +256,9 @@ class Command(BaseCommand):
                 extended_count += 1
             
             if extended_count > 0:
-                self.stdout.write("   ✅ Extended {{extended_count}} sessions")
+                self.stdout.write(f"   ✅ Extended {extended_count} sessions")
             
             self.stdout.write('   ✅ Common issues fixed')
             
         except Exception as e:
-            self.stdout.write("   ❌ Error fixing issues: {{e}}")
+            self.stdout.write(f"   ❌ Error fixing issues: {e}")

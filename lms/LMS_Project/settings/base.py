@@ -176,8 +176,8 @@ except Exception as e:
     logger.error(f"SECRET_KEY validation failed: {e}")
     raise
 
-print("✅ Using SECRET_KEY from environment variables")
-print("   Sessions will persist across server restarts")
+logger.info("✅ Using SECRET_KEY from environment variables")
+logger.info("   Sessions will persist across server restarts")
 
 # Site framework
 SITE_ID = 1
@@ -440,13 +440,13 @@ OUTLOOK_FROM_EMAIL = get_env('OUTLOOK_FROM_EMAIL', get_env('DEFAULT_FROM_EMAIL',
 # Email Backend - Use OAuth2 if configured, otherwise use Global Admin Settings
 if all([OUTLOOK_CLIENT_ID, OUTLOOK_CLIENT_SECRET, OUTLOOK_TENANT_ID]):
     EMAIL_BACKEND = 'lms_notifications.backends.OutlookOAuth2Backend'
-    print(" Using OAuth2 email backend")
+    logger.info(" Using OAuth2 email backend")
 else:
     # Use Global Admin Settings for email configuration
     EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
     # Email settings will be configured via Global Admin Settings
     # No hardcoded fallbacks - all email configuration must be done via Global Admin Settings
-    print("📧 Email configuration via Global Admin Settings")
+    logger.info("📧 Email configuration via Global Admin Settings")
 
 DEFAULT_FROM_EMAIL = OUTLOOK_FROM_EMAIL if OUTLOOK_FROM_EMAIL else get_env('DEFAULT_FROM_EMAIL', 'noreply@example.com')
 

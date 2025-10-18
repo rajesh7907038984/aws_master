@@ -34,6 +34,11 @@ class SessionAuthMiddleware:
     def process_request(self, request):
         """Process request to ensure proper authentication state with memory optimization"""
         try:
+            # Skip if Django apps aren't loaded yet
+            from django.apps import apps
+            if not apps.ready:
+                return
+            
             # Skip session recovery for logout requests
             if request.path == '/logout/' and request.method == 'POST':
                 return
@@ -68,18 +73,18 @@ class SessionAuthMiddleware:
                     request.session.flush()
                     logger.warning(f"Invalid session for user_id {user_id}, session cleared")
                 except Exception as e:
-                    logger.error(f"Error recovering session: {e}")
+                    logger.error(f"Error recovering session: {e}", exc_info=True)
                     # Don't flush session on unexpected errors - could be temporary
                     # Log the error but don't break the request flow
             
         except Exception as e:
-            logger.error(f"SessionAuthMiddleware error: {e}")
+            logger.error(f"SessionAuthMiddleware error: {e}", exc_info=True)
             # Ensure memory cleanup on errors
             try:
                 import gc
                 gc.collect()
             except Exception as gc_error:
-                logger.error(f"Error during garbage collection: {gc_error}")
+                logger.error(f"Error during garbage collection: {gc_error}", exc_info=True)
 
     def process_response(self, request, response):
         """Process response to maintain session health with memory optimization"""
@@ -100,7 +105,7 @@ class SessionAuthMiddleware:
                             del request.session[key]
                 
         except Exception as e:
-            logger.error(f"Error updating session activity: {e}")
+            logger.error(f"Error updating session activity: {e}", exc_info=True)
             # Memory cleanup on errors
             import gc
             gc.collect()

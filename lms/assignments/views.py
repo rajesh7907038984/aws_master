@@ -373,7 +373,7 @@ def assignment_list(request):
             # Assignments from directly assigned courses
             assigned_courses = Course.objects.filter(instructor=request.user)
             course_assignments = Assignment.objects.filter(
-                Q(course__in=assigned_courses) | Q(courses__in=assigned_courses)
+                Q(courses__in=assigned_courses)
             )
             
             # Assignments from group-assigned courses
@@ -383,7 +383,7 @@ def assignment_list(request):
                 accessible_groups__memberships__custom_role__name__icontains='instructor'
             )
             group_course_assignments = Assignment.objects.filter(
-                Q(course__in=group_assigned_courses) | Q(courses__in=group_assigned_courses)
+                Q(courses__in=group_assigned_courses)
             )
             
             # Also include assignments from courses where they are enrolled as instructor
@@ -391,7 +391,7 @@ def assignment_list(request):
                 enrolled_users=request.user
             )
             enrolled_course_assignments = Assignment.objects.filter(
-                Q(course__in=enrolled_courses) | Q(courses__in=enrolled_courses)
+                Q(courses__in=enrolled_courses)
             )
             
             # Combine all assignment sources
@@ -436,7 +436,7 @@ def assignment_list(request):
             # Must be linked to enrolled courses through any relationship
             Q(course__in=enrolled_courses) |  # Direct course relationship
             Q(courses__in=enrolled_courses) |  # M2M course relationship
-            Q(topics__courses__in=enrolled_courses)  # Topic-based course relationship
+            Q(topics__coursetopic__course__in=enrolled_courses)  # Topic-based course relationship
         ).filter(
             # Either have active topics OR have no topics at all
             Q(topics__status='active') |  # Has active topics
@@ -452,7 +452,7 @@ def assignment_list(request):
                     assignments_list = assignments_list.filter(
                         Q(course_id=course_filter_id) |
                         Q(courses__id=course_filter_id) |
-                        Q(topics__courses__id=course_filter_id)
+                        Q(topics__coursetopic__course__id=course_filter_id)
                     ).distinct()
             except (ValueError, TypeError):
                 pass
@@ -606,10 +606,10 @@ def assignment_detail(request, assignment_id):
                 if isinstance(description_data, dict) and 'html' in description_data:
                     # Keep the JSON but extract the HTML content for template rendering
                     assignment.description = description_data
-                    print(f"Processed description as JSON: {str(description_data)[:100]}")
+                    logger.debug(f"Processed description as JSON: {str(description_data)[:100]}")
         except json.JSONDecodeError:
             # Not valid JSON, leave as is
-            print(f"Description is not valid JSON: {assignment.description[:100]}")
+            logger.debug(f"Description is not valid JSON: {assignment.description[:100]}")
             pass
             
     if assignment.instructions:
@@ -619,10 +619,10 @@ def assignment_detail(request, assignment_id):
                 if isinstance(instructions_data, dict) and 'html' in instructions_data:
                     # Keep the JSON but extract the HTML content for template rendering
                     assignment.instructions = instructions_data
-                    print(f"Processed instructions as JSON: {str(instructions_data)[:100]}")
+                    logger.debug(f"Processed instructions as JSON: {str(instructions_data)[:100]}")
         except json.JSONDecodeError:
             # Not valid JSON, leave as is
-            print(f"Instructions is not valid JSON: {assignment.instructions[:100]}")
+            logger.debug(f"Instructions is not valid JSON: {assignment.instructions[:100]}")
             pass
     
     # Get attachments
@@ -636,7 +636,8 @@ def assignment_detail(request, assignment_id):
             'text_answer_iterations__question',
             'text_answer_iterations__feedback_entries',
         ).filter(assignment=assignment, user=request.user).order_by('-submitted_at').first()
-    except:
+    except Exception as e:
+        logger.warning(f"Error retrieving assignment submission: {e}")
         submission = None
     
     # Get ALL submissions by the current user for this assignment (for learners to see their submission history)
@@ -1569,7 +1570,7 @@ def create_assignment(request, course_id=None):
     available_rubrics = get_filtered_rubrics_for_user(request.user, course)
     
     if request.method == 'POST':
-        print("Received POST request for create_assignment")
+        logger.debug("Received POST request for create_assignment")
         
         # If creating from a course, pre-select it
         initial_data = {}
@@ -1586,7 +1587,7 @@ def create_assignment(request, course_id=None):
             form = AssignmentForm(request.POST, request.FILES, user=request.user)
             
         if form.is_valid():
-            print("Form is valid")
+            logger.debug("Form is valid")
             try:
                 with transaction.atomic():
                     # Create the assignment
@@ -1655,21 +1656,21 @@ def create_assignment(request, course_id=None):
                 if temp_questions:
                     try:
                         import json
-                        print(f"Temporary questions data: {temp_questions}")
+                        logger.debug(f"Temporary questions data: {temp_questions}")
                         questions_data = json.loads(temp_questions)
-                        print(f"Parsed questions data: {questions_data}")
+                        logger.debug(f"Parsed questions data: {questions_data}")
                         for i, question_data in enumerate(questions_data):
                             question_text = question_data.get('question_text', question_data.get('text', ''))
                             question_html = question_data.get('question_html', '')
                             order = question_data.get('order', i+1)
-                            print(f"Creating question {i}: {question_text}")
+                            logger.debug(f"Creating question {i}: {question_text}")
                             question = TextQuestion.objects.create(
                                 assignment=assignment,
                                 question_text=question_text,
                                 question_html=question_html,
                                 order=order
                             )
-                            print(f"Created question: {question.id}")
+                            logger.debug(f"Created question: {question.id}")
                     except (json.JSONDecodeError, KeyError, Exception) as e:
                         # Log the error but continue with assignment creation
                         import traceback
@@ -1680,12 +1681,12 @@ def create_assignment(request, course_id=None):
                 if text_fields:
                     try:
                         import json
-                        print(f"Text submission fields data: {text_fields}")
+                        logger.debug(f"Text submission fields data: {text_fields}")
                         
                         # Parse JSON data directly without attempting sanitization
                         try:
                             fields_data = json.loads(text_fields)
-                            print(f"Parsed fields data: {fields_data}")
+                            logger.debug(f"Parsed fields data: {fields_data}")
                             
                             # Delete all existing fields that aren't in the new data
                             existing_field_ids = set()
@@ -1708,7 +1709,7 @@ def create_assignment(request, course_id=None):
                             for field in existing_fields:
                                 if field.id not in new_field_ids:
                                     field.delete()
-                                    print(f"Deleted field {field.id}")
+                                    logger.debug(f"Deleted field {field.id}")
                             
                             # Create or update fields
                             for i, field_data in enumerate(fields_data):
@@ -1734,24 +1735,24 @@ def create_assignment(request, course_id=None):
                                 if isinstance(content_json, str):
                                     try:
                                         content_data = json.loads(content_json)
-                                        print(f"Parsed content string to JSON")
+                                        logger.debug(f"Parsed content string to JSON")
                                     except json.JSONDecodeError:
                                         # If not valid JSON, create a proper structure
                                         content_data = {"delta": {}, "html": content_json}
-                                        print(f"Created JSON structure for invalid content")
+                                        logger.debug(f"Created JSON structure for invalid content")
                                 # If it's already a dict
                                 elif isinstance(content_json, dict):
                                     content_data = content_json
-                                    print(f"Content is already a dict")
+                                    logger.debug(f"Content is already a dict")
                                 # Fallback for any other type
                                 else:
                                     content_data = {"delta": {}, "html": str(content_json)}
-                                    print(f"Created fallback JSON for content")
+                                    logger.debug(f"Created fallback JSON for content")
                                 
                                 # Ensure content has the required keys
                                 if not isinstance(content_data, dict) or 'html' not in content_data:
                                     content_data = {"delta": {}, "html": str(content_data)}
-                                    print(f"Fixed malformed content data")
+                                    logger.debug(f"Fixed malformed content data")
                                 
                                 try:
                                     if is_existing_field:
@@ -1762,7 +1763,7 @@ def create_assignment(request, course_id=None):
                                         field.order = i
                                         field.content = content_data
                                         field.save()
-                                        print(f"Updated field {field.id}")
+                                        logger.debug(f"Updated field {field.id}")
                                     else:
                                         # Create new field
                                         field = TextSubmissionField.objects.create(
@@ -1772,7 +1773,7 @@ def create_assignment(request, course_id=None):
                                             order=i,
                                             content=content_data
                                         )
-                                        print(f"Created new field: {field.id}")
+                                        logger.debug(f"Created new field: {field.id}")
                                 except TextSubmissionField.DoesNotExist:
                                     # If field doesn't exist, create a new one
                                     field = TextSubmissionField.objects.create(
@@ -1782,9 +1783,9 @@ def create_assignment(request, course_id=None):
                                         order=i,
                                         content=content_data
                                     )
-                                    print(f"Created field (after DoesNotExist): {field.id}")
+                                    logger.debug(f"Created field (after DoesNotExist): {field.id}")
                         except json.JSONDecodeError as e:
-                            print(f"Raw data: {text_fields}")
+                            logger.debug(f"Raw data: {text_fields}")
                             # Try a more flexible approach to parse the JSON
                             import re
                             # Try to create a single default field
@@ -1841,7 +1842,7 @@ def create_assignment(request, course_id=None):
                 error_message = "An error occurred while creating the assignment. Please try again."
                 messages.error(request, error_message)
         else:
-            print("Form is invalid. Errors:")
+            logger.debug("Form is invalid. Errors:")
             for field, errors in form.errors.items():
                 pass
             
@@ -2025,12 +2026,12 @@ def edit_assignment(request, assignment_id):
                 if text_fields:
                     try:
                         import json
-                        print(f"Text submission fields data: {text_fields}")
+                        logger.debug(f"Text submission fields data: {text_fields}")
                         
                         # Parse JSON data directly without attempting sanitization
                         try:
                             fields_data = json.loads(text_fields)
-                            print(f"Parsed fields data: {fields_data}")
+                            logger.debug(f"Parsed fields data: {fields_data}")
                             
                             # Delete all existing fields that aren't in the new data
                             existing_field_ids = set()
@@ -2053,7 +2054,7 @@ def edit_assignment(request, assignment_id):
                             for field in existing_fields:
                                 if field.id not in new_field_ids:
                                     field.delete()
-                                    print(f"Deleted field {field.id}")
+                                    logger.debug(f"Deleted field {field.id}")
                             
                             # Create or update fields
                             for i, field_data in enumerate(fields_data):
@@ -2079,24 +2080,24 @@ def edit_assignment(request, assignment_id):
                                 if isinstance(content_json, str):
                                     try:
                                         content_data = json.loads(content_json)
-                                        print(f"Parsed content string to JSON")
+                                        logger.debug(f"Parsed content string to JSON")
                                     except json.JSONDecodeError:
                                         # If not valid JSON, create a proper structure
                                         content_data = {"delta": {}, "html": content_json}
-                                        print(f"Created JSON structure for invalid content")
+                                        logger.debug(f"Created JSON structure for invalid content")
                                 # If it's already a dict
                                 elif isinstance(content_json, dict):
                                     content_data = content_json
-                                    print(f"Content is already a dict")
+                                    logger.debug(f"Content is already a dict")
                                 # Fallback for any other type
                                 else:
                                     content_data = {"delta": {}, "html": str(content_json)}
-                                    print(f"Created fallback JSON for content")
+                                    logger.debug(f"Created fallback JSON for content")
                                 
                                 # Ensure content has the required keys
                                 if not isinstance(content_data, dict) or 'html' not in content_data:
                                     content_data = {"delta": {}, "html": str(content_data)}
-                                    print(f"Fixed malformed content data")
+                                    logger.debug(f"Fixed malformed content data")
                                 
                                 try:
                                     if is_existing_field:
@@ -2107,7 +2108,7 @@ def edit_assignment(request, assignment_id):
                                         field.order = i
                                         field.content = content_data
                                         field.save()
-                                        print(f"Updated field {field.id}")
+                                        logger.debug(f"Updated field {field.id}")
                                     else:
                                         # Create new field
                                         field = TextSubmissionField.objects.create(
@@ -2117,7 +2118,7 @@ def edit_assignment(request, assignment_id):
                                             order=i,
                                             content=content_data
                                         )
-                                        print(f"Created new field: {field.id}")
+                                        logger.debug(f"Created new field: {field.id}")
                                 except TextSubmissionField.DoesNotExist:
                                     # If field doesn't exist, create a new one
                                     field = TextSubmissionField.objects.create(
@@ -2127,9 +2128,9 @@ def edit_assignment(request, assignment_id):
                                         order=i,
                                         content=content_data
                                     )
-                                    print(f"Created field (after DoesNotExist): {field.id}")
+                                    logger.debug(f"Created field (after DoesNotExist): {field.id}")
                         except json.JSONDecodeError as e:
-                            print(f"Raw data: {text_fields}")
+                            logger.debug(f"Raw data: {text_fields}")
                         except Exception as e:
                             import traceback
                             traceback.print_exc()
@@ -2167,7 +2168,7 @@ def edit_assignment(request, assignment_id):
             except Exception as e:
                 messages.error(request, f"Error saving assignment: {str(e)}")
         else:
-            print("Form is invalid during edit. Errors:")
+            logger.debug("Form is invalid during edit. Errors:")
             for field, errors in form.errors.items():
                 pass
             
@@ -3381,9 +3382,9 @@ def grade_submission(request, submission_id):
             
             if latest_iteration:
                 feedback = latest_iteration.feedback_entries.filter(created_by=request.user).first()
-                print(f"Field {field.id} - Iteration {latest_iteration.id} - User: {request.user.username} - Feedback: {feedback}")
+                logger.debug(f"Field {field.id} - Iteration {latest_iteration.id} - User: {request.user.username} - Feedback: {feedback}")
                 if feedback:
-                    print(f"  Feedback text: {feedback.feedback_text[:50]}...")
+                    logger.debug(f"  Feedback text: {feedback.feedback_text[:50]}...")
                 text_field_submissions.append({
                     'field': field,
                     'answer': latest_iteration,
@@ -5320,7 +5321,7 @@ def assignment_api_list(request):
             assignments_queryset = Assignment.objects.filter(
                 Q(course_id__in=enrolled_courses) |
                 Q(courses__id__in=enrolled_courses) |
-                Q(topics__courses__id__in=enrolled_courses)
+                Q(topics__coursetopic__course__id__in=enrolled_courses)
             ).distinct()
         
         # Convert to list with id and title

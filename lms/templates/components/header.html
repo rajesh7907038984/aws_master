@@ -1406,7 +1406,7 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(response => {
                 // Ensure response has proper status information
                 if (typeof response.status === 'undefined' || response.status === null) {
-                    console.log('Response status undefined:', {
+                    // Response status undefined
                         url: args[0],
                         status: response.status,
                         statusText: response.statusText,
@@ -1424,7 +1424,7 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .catch(error => {
                 // Enhanced error logging for fetch failures
-                console.log('Fetch error:', {
+                // Fetch error
                     url: args[0],
                     error: error.message,
                     name: error.name,
@@ -1562,9 +1562,9 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // Only log error if it's not a network issue (to avoid spam)
             if (!error.message.includes('Failed to fetch') && error.name !== 'TypeError') {
-                console.log('Message count API error:', errorDetails);
+                // Message count API error
             } else {
-                console.log('Network error for message count API');
+                // Network error for message count API
             }
             
             // Fallback: Hide message indicators on API failure
@@ -1648,9 +1648,9 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // Only log error if it's not a network issue (to avoid spam)
             if (!error.message.includes('Failed to fetch') && error.name !== 'TypeError') {
-                console.log('Notification count API error:', errorDetails);
+                // Notification count API error
             } else {
-                console.log('Network error for notification count API');
+                // Network error for notification count API
             }
             
             // Fallback: Hide notification indicators on API failure
@@ -1919,16 +1919,13 @@ document.addEventListener('DOMContentLoaded', function() {
         const profileDropdown = document.getElementById('profile-dropdown');
         const profileContainer = document.getElementById('profile-container');
         
-        // Profile Dropdown Debug - removed console.log statements for production
         
         if (profileDropdown) {
             const rect = profileDropdown.getBoundingClientRect();
-            // Dropdown position debug info removed for production
         }
         
         // Test click functionality
         if (profileButton) {
-            // Button debug info removed for production
         }
     };
     

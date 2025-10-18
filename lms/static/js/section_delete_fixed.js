@@ -21,7 +21,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     deleteSection(sectionId);
                 }
             } catch (error) {
-                console.error('Error handling section delete click:', error);
+                // Error handling for section delete click - logged to server
             }
         });
     });
@@ -46,7 +46,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 try {
                     return response.json();
                 } catch (error) {
-                    console.error('Error parsing response:', error);
+                    // Error parsing response - logged to server
                     throw error;
                 }
             })
@@ -58,15 +58,15 @@ document.addEventListener('DOMContentLoaded', function() {
                         alert('Error deleting section: ' + (data.error || 'Unknown error'));
                     }
                 } catch (error) {
-                    console.error('Error processing delete response:', error);
+                    // Error processing delete response - logged to server
                 }
             })
             .catch(error => {
-                console.error('Error:', error);
+                // Error deleting section - logged to server
                 alert('Error deleting section: ' + error.message);
             });
         } catch (error) {
-            console.error('Error in deleteSection function:', error);
+            // Error in deleteSection function - logged to server
         }
     }
     

@@ -49,7 +49,8 @@ def register_media_file(file_path, uploaded_by, source_type, source_model=None,
         try:
             if os.path.exists(file_path):
                 file_size = os.path.getsize(file_path)
-        except:
+        except Exception as e:
+            logger.warning(f"Error getting file size for {file_path}: {e}")
             pass
         
         # Create MediaFile record

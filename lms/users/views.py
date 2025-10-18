@@ -4769,11 +4769,11 @@ def global_admin_dashboard(request):
 
     # Get top businesses with optimized query
     try:
-        top_businesses = Business.objects.select_related().prefetch_related(
+        top_businesses = Business.objects.prefetch_related(
             'branches__branch_users'
         ).annotate(
             branches_count=Count('branches'),
-            users_count=Count('branches__branch_users')
+            users_count=Count('branches__branch_users', distinct=True)
         ).order_by('-users_count')[:5]
     except Exception as e:
         logger.error(f"Error fetching top businesses: {e}")
@@ -6123,11 +6123,11 @@ def instructor_dashboard(request):
     
     # 3. Upcoming assignment deadlines (instructor needs to prepare)
     upcoming_deadlines = Assignment.objects.filter(
-        course__in=assigned_courses,
+        courses__in=assigned_courses,
         due_date__gte=now,
         due_date__lte=now + timedelta(days=7),
         is_active=True
-    ).select_related('course').order_by('due_date')[:3]
+    ).select_related('user', 'rubric').order_by('due_date')[:3]
     
     for assignment in upcoming_deadlines:
         days_until = (assignment.due_date.date() - now.date()).days
@@ -6451,7 +6451,7 @@ def learner_dashboard(request):
     
     # 1. Assignment due dates
     assignments_due = Assignment.objects.filter(
-        course__in=enrolled_course_ids,
+        courses__in=enrolled_course_ids,
         due_date__gte=month_start,
         due_date__lt=month_end,
         is_active=True
@@ -6459,7 +6459,7 @@ def learner_dashboard(request):
         # Exclude already submitted assignments
         submissions__user=request.user,
         submissions__status__in=['submitted', 'graded']
-    ).select_related('course')
+    ).select_related('user', 'rubric')
     
     for assignment in assignments_due:
         calendar_events.append({
@@ -6569,13 +6569,13 @@ def learner_dashboard(request):
     
     # For assignment tab - get actual assignment objects
     pending_assignments_for_template = Assignment.objects.filter(
-        course__in=enrolled_course_ids,
+        courses__in=enrolled_course_ids,
         due_date__gte=now,
         is_active=True
     ).exclude(
         submissions__user=request.user,
         submissions__status__in=['submitted', 'graded']
-    ).select_related('course').order_by('due_date')[:10]
+    ).select_related('user', 'rubric').order_by('due_date')[:10]
     
     # For conference tab - get actual conference objects  
     upcoming_conferences_for_template = Conference.objects.filter(

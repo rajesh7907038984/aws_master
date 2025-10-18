@@ -338,8 +338,12 @@ def edit_conference(request, conference_id):
     """View to edit an existing conference"""
     try:
         conference = get_object_or_404(Conference, id=conference_id)
+    except (ValueError, TypeError) as e:
+        logger.error(f"Invalid conference ID format {conference_id}: {e}")
+        messages.error(request, f'Invalid conference ID format.')
+        return redirect('conferences:conference_list')
     except Exception as e:
-        logger.error(f"Error retrieving conference {conference_id}: {e}")
+        logger.error(f"Unexpected error retrieving conference {conference_id}: {e}")
         messages.error(request, f'Conference with ID {conference_id} does not exist or has been deleted.')
         return redirect('conferences:conference_list')
     
@@ -431,7 +435,12 @@ def edit_conference(request, conference_id):
 def delete_conference(request, conference_id):
     try:
         conference = get_object_or_404(Conference, id=conference_id)
-    except:
+    except (ValueError, TypeError) as e:
+        logger.error(f"Invalid conference ID format {conference_id}: {e}")
+        messages.error(request, f'Invalid conference ID format.')
+        return redirect('conferences:conference_list')
+    except Exception as e:
+        logger.error(f"Unexpected error retrieving conference {conference_id}: {e}")
         messages.error(request, f'Conference with ID {conference_id} does not exist or has been deleted.')
         return redirect('conferences:conference_list')
     
@@ -487,9 +496,12 @@ def delete_conference(request, conference_id):
                     logger.warning(f"No active Zoom integration found to delete meeting {conference.meeting_id}")
                     messages.warning(request, 'Conference will be deleted, but no Zoom integration found to remove the meeting.')
                     
-            except Exception as e:
+            except (requests.RequestException, ValueError, KeyError) as e:
                 logger.exception(f"Error deleting Zoom meeting {conference.meeting_id}: {str(e)}")
                 messages.warning(request, f'Conference will be deleted, but an error occurred removing the Zoom meeting: {str(e)}')
+            except Exception as e:
+                logger.error(f"Unexpected error deleting Zoom meeting {conference.meeting_id}: {str(e)}")
+                messages.warning(request, f'Conference will be deleted, but an unexpected error occurred: {str(e)}')
         
         # Delete the conference (this will also trigger the post_delete signal as a backup)
         conference_title = conference.title
@@ -970,7 +982,8 @@ def create_zoom_meeting(user, integration_id, title, description, start_datetime
                 error_data = response.json()
                 if 'message' in error_data:
                     error_msg = f"Zoom API: {error_data['message']}"
-            except:
+            except Exception as e:
+                logger.error(f"Unexpected error: {e}")
                 pass
             
             logger.error(f"Zoom API error: {error_msg} - {response.text}")
@@ -1025,7 +1038,8 @@ def sync_conference_data(request, conference_id):
     
     try:
         conference = get_object_or_404(Conference, id=conference_id)
-    except:
+    except Exception as e:
+        logger.error(f"Unexpected error: {e}")
         return JsonResponse({
             'success': False,
             'error': f'Conference with ID {conference_id} does not exist or has been deleted.'
@@ -1177,7 +1191,8 @@ def convert_zoom_registration_to_direct_join(registration_url):
                             meeting_id = numeric_match.group(1)
                             logger.info(f"Method 3a - Extracted meeting ID from standard base64: {meeting_id}")
                             break
-                    except:
+                    except Exception as e:
+                        logger.error(f"Unexpected error: {e}")
                         continue
             except Exception as e:
                 logger.debug(f"Base64 decoding failed: {e}")
@@ -1800,7 +1815,8 @@ def sync_zoom_meeting_data(conference):
                                         end_time = parse(recording_file['recording_end'])
                                         duration_seconds = (end_time - start_time).total_seconds()
                                         duration_minutes = int(duration_seconds // 60)
-                                    except:
+                                    except Exception as e:
+                                        logger.error(f"Unexpected error: {e}")
                                         duration_minutes = 0
                                 
                                 # Simple recording type detection
@@ -2162,13 +2178,15 @@ def sync_zoom_meeting_data(conference):
                                 if participant.get('join_time'):
                                     try:
                                         join_time = timezone.datetime.fromisoformat(participant['join_time'].replace('Z', '+00:00'))
-                                    except:
+                                    except Exception as e:
+                                        logger.error(f"Unexpected error: {e}")
                                         logger.warning(f"Could not parse join_time: {participant.get('join_time')}")
                                 
                                 if participant.get('leave_time'):
                                     try:
                                         leave_time = timezone.datetime.fromisoformat(participant['leave_time'].replace('Z', '+00:00'))
-                                    except:
+                                    except Exception as e:
+                                        logger.error(f"Unexpected error: {e}")
                                         logger.warning(f"Could not parse leave_time: {participant.get('leave_time')}")
                                 
                                 # Calculate attendance status based on join/leave times and duration
@@ -2314,13 +2332,15 @@ def sync_zoom_meeting_data(conference):
                                     if participant.get('join_time'):
                                         try:
                                             join_time = timezone.datetime.fromisoformat(participant['join_time'].replace('Z', '+00:00'))
-                                        except:
+                                        except Exception as e:
+                                            logger.error(f"Unexpected error: {e}")
                                             logger.warning(f"Could not parse join_time: {participant.get('join_time')}")
                                     
                                     if participant.get('leave_time'):
                                         try:
                                             leave_time = timezone.datetime.fromisoformat(participant['leave_time'].replace('Z', '+00:00'))
-                                        except:
+                                        except Exception as e:
+                                            logger.error(f"Unexpected error: {e}")
                                             logger.warning(f"Could not parse leave_time: {participant.get('leave_time')}")
                                     
                                     # Calculate duration
@@ -3138,7 +3158,8 @@ def conference_public_access(request, conference_id):
     """Handle public access to conferences (no authentication required)"""
     try:
         conference = get_object_or_404(Conference, id=conference_id)
-    except:
+    except Exception as e:
+        logger.error(f"Unexpected error: {e}")
         # For public access, we should show a proper error template
         context = {
             'message': f'Conference with ID {conference_id} does not exist or has been deleted.'
@@ -3181,7 +3202,8 @@ def conference_detail(request, conference_id):
     # Handle non-existent conference gracefully
     try:
         conference = get_object_or_404(Conference, id=conference_id)
-    except:
+    except Exception as e:
+        logger.error(f"Unexpected error: {e}")
         messages.error(request, f'Conference with ID {conference_id} does not exist or has been deleted.')
         return redirect('conferences:conference_list')
     
@@ -3805,7 +3827,8 @@ def guest_join_conference(request, conference_id):
     """
     try:
         conference = get_object_or_404(Conference, id=conference_id)
-    except:
+    except Exception as e:
+        logger.error(f"Unexpected error: {e}")
         # For guest access, we should show a proper error template
         context = {
             'message': f'Conference with ID {conference_id} does not exist or has been deleted.'
@@ -4106,7 +4129,8 @@ def create_direct_join_zoom_meeting(user, integration_id, title, description, st
                 error_data = response.json()
                 if 'message' in error_data:
                     error_msg = f"Zoom API: {error_data['message']}"
-            except:
+            except Exception as e:
+                logger.error(f"Unexpected error: {e}")
                 pass
             
             logger.error(f"Zoom API error: {error_msg}")
@@ -4645,7 +4669,8 @@ def auto_register_and_join(request, conference_id):
     """
     try:
         conference = get_object_or_404(Conference, id=conference_id)
-    except:
+    except Exception as e:
+        logger.error(f"Unexpected error: {e}")
         messages.error(request, f'Conference with ID {conference_id} does not exist or has been deleted.')
         return redirect('conferences:conference_list')
     
@@ -5292,7 +5317,8 @@ def conference_redirect_handler(request, conference_id):
     """
     try:
         conference = get_object_or_404(Conference, id=conference_id)
-    except:
+    except Exception as e:
+        logger.error(f"Unexpected error: {e}")
         messages.error(request, f'Conference with ID {conference_id} does not exist or has been deleted.')
         return redirect('conferences:conference_list')
     

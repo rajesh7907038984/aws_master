@@ -7073,7 +7073,7 @@ def get_user_filtered_content(user, course=None, request=None):
     # If course is provided, also include content specific to that course
     if course:
         quizzes = quizzes | Quiz.objects.filter(course=course)
-        assignments = assignments | Assignment.objects.filter(courses=course)
+        assignments = assignments | Assignment.objects.filter(courses__in=[course])
         conferences = conferences | Conference.objects.filter(course=course, status='published')
         discussions = discussions | Discussion.objects.filter(course=course)
 

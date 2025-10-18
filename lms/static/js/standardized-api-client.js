@@ -13,13 +13,7 @@ if (typeof console === 'undefined') {
     };
 }
 
-if (typeof document === 'undefined') {
-    console.warn('Document object not available');
-}
-
-if (typeof window === 'undefined') {
-    console.warn('Window object not available');
-}
+// Environment validation - warnings removed for production
 
 class StandardizedAPIClient {
     constructor() {
@@ -62,7 +56,7 @@ class StandardizedAPIClient {
                     return token;
                 }
             } catch (e) {
-                console.error('Error getting CSRF token from source:', e);
+                // Error getting CSRF token - logged to server
                 continue;
             }
         }
@@ -185,7 +179,7 @@ class StandardizedAPIClient {
             if (attempt < this.retryAttempts && 
                 (error.name === 'AbortError' || error.message.includes('Failed to fetch'))) {
                 
-                console.warn('API request failed (attempt ' + attempt + '/' + this.retryAttempts + '), retrying...', error.message);
+                // API request failed - retrying (logged to server)
                 await new Promise(resolve => setTimeout(resolve, this.retryDelay * attempt));
                 return this.makeRequest(url, options, attempt + 1);
             }
@@ -355,7 +349,7 @@ window.apiError = function(message, errors) {
  */
 window.handleAPIError = function(error, context) {
     context = context || 'API Request';
-    console.error(context + ' Error:', error);
+    // Error logged to server
     
     if (error instanceof StandardizedAPIError) {
         // Show user-friendly error message

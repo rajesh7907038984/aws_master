@@ -606,7 +606,8 @@ class ELearningPackage(models.Model):
                             return 'SCORM_2004'
                         else:
                             return 'SCORM_1_2'
-                    except:
+                    except Exception as e:
+                        logger.warning(f"Error determining SCORM version: {e}")
                         # Default to SCORM 1.2 if we can't determine version
                         return 'SCORM_1_2'
                 

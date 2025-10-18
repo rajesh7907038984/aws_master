@@ -150,7 +150,7 @@ def pre_calculate_student_scores(students, activities, grades, quiz_attempts, co
                                             'score_source': 'manual'  # Add this field
                                         }
                                 except Exception as e:
-                                    logger.error(f"Error processing assignment submission for student {student.id}, activity {activity_id}: {str(e)}")
+                                    logger.error(f"Error processing assignment submission for student {student.id}, activity {activity_id}: {str(e)}", exc_info=True)
                                     student_scores[student.id][activity_id] = {
                                         'score': None,
                                         'max_score': activity['max_score'],
@@ -180,7 +180,8 @@ def pre_calculate_student_scores(students, activities, grades, quiz_attempts, co
                                             max_score = quiz.rubric.total_points
                                             score_source = 'rubric'  # Set score source for rubric-based scoring
                                     except Exception as e:
-                                        logger.error(f"Error processing quiz rubric evaluation for student {student.id}, quiz {activity_id}: {str(e)}")
+                                        logger.error(f"Error processing quiz rubric evaluation for student {student.id}, quiz {activity_id}: {str(e)}", exc_info=True)
+                                        # Continue processing other activities
                                         pass
                                 else:
                                     # For non-rubric quizzes, attempt.score is a percentage (0-100)
@@ -603,7 +604,7 @@ def gradebook_index(request):
 
         # Get regular quizzes (exclude initial assessments and VAK tests from grading) - optimized
         quizzes = Quiz.objects.filter(
-            Q(course__in=courses) |  # Direct course relationship
+            Q(courses__in=courses) |  # Direct course relationship
             Q(topics__coursetopic__course__in=courses)  # Topic-based course relationship through CourseTopic
         ).filter(
             is_active=True  # Only active quizzes

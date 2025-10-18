@@ -3845,7 +3845,6 @@ def user_detail_report(request, user_id):
     # Get topic progress only for courses the user is enrolled in
     # Include course information for each topic
     enrolled_course_ids = CourseEnrollment.objects.filter(user=user).values_list('course_id', flat=True)
-    print(f"DEBUG: Enrolled course IDs: {list(enrolled_course_ids)}")
     
     # Get regular topic progress
     regular_topic_progress = TopicProgress.objects.filter(
@@ -3860,10 +3859,8 @@ def user_detail_report(request, user_id):
         )
     ).distinct()
     
-    print(f"DEBUG: Regular topic progress count: {regular_topic_progress.count()}")
     
     # Get SCORM tracking data for the same courses
-    print(f"DEBUG: Starting SCORM tracking query for user {user.id}")
     from scorm.models import ELearningTracking
     scorm_tracking = ELearningTracking.objects.filter(
         user=user,
@@ -3878,9 +3875,9 @@ def user_detail_report(request, user_id):
     ).distinct()
     
     # Debug logging
-    print(f"DEBUG: SCORM tracking query found {scorm_tracking.count()} records for user {user.id}")
+    logger.debug(f"DEBUG: SCORM tracking query found {scorm_tracking.count()} records for user {user.id}")
     for tracking in scorm_tracking:
-        print(f"DEBUG: SCORM tracking: Topic {tracking.elearning_package.topic.title}, Score: {tracking.get_score_percentage()}")
+        logger.debug(f"DEBUG: SCORM tracking: Topic {tracking.elearning_package.topic.title}, Score: {tracking.get_score_percentage()}")
     
     # Combine both regular progress and SCORM tracking into a unified list
     topic_progress = []
@@ -4134,7 +4131,7 @@ def _get_user_report_data(request, user_id):
     Includes data validation, consistency checks, and better error handling.
     """
     try:
-        print(f"DEBUG: _get_user_report_data called for user_id {user_id}")
+        logger.debug(f"DEBUG: _get_user_report_data called for user_id {user_id}")
         user = get_object_or_404(User, id=user_id)
         logger.info(f"Found user: {user.username}")
         
@@ -5039,7 +5036,7 @@ def branch_detail_excel(request, branch_id):
         assigned_users=Count('branch_users', filter=Q(branch_users__role='learner')),
         total_enrollments=Count('branch_users__courseenrollment', filter=Q(branch_users__role='learner'), distinct=True),
         completed_courses=Count('branch_users__courseenrollment', filter=Q(branch_users__courseenrollment__completed=True, branch_users__role='learner'), distinct=True),
-        training_time=Sum('users__topic_progress__total_time_spent', filter=Q(users__role='learner'))
+        training_time=Sum('branch_users__topic_progress__total_time_spent', filter=Q(branch_users__role='learner'))
     ).annotate(
         completion_rate=Case(
             When(total_enrollments=0, then=Value(0.0)),

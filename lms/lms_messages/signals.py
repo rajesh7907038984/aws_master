@@ -62,13 +62,13 @@ def send_message_notification(sender, instance, action, pk_set, **kwargs):
                     )
                     
                     if notification:
-                        logger.info("Message notification sent to user: {{recipient.username}} from {{instance.sender.username}}")
+                        logger.info("Message notification sent to user: %s from %s", recipient.username, instance.sender.username)
                     else:
-                        logger.warning("Message notification created but email may not have been sent for user: {{recipient.username}}")
+                        logger.warning("Message notification created but email may not have been sent for user: %s", recipient.username)
                         
                 except Exception as e:
-                    logger.error("Error sending message notification to {{recipient.username}}: {{str(e)}}")
+                    logger.error("Error sending message notification to %s: %s", recipient.username, str(e))
                     
         except Exception as e:
-            logger.error("Error processing message notification: {{str(e)}}")
+            logger.error("Error processing message notification: %s", str(e))
 

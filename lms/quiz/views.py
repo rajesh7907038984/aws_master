@@ -275,7 +275,7 @@ def quiz_list(request):
         ).filter(
             # AND must be linked to enrolled courses through any relationship
             Q(course__in=enrolled_courses) |  # Direct course relationship
-            Q(topics__courses__in=enrolled_courses)  # Topic-based course relationship
+            Q(topics__coursetopic__course__in=enrolled_courses)  # Topic-based course relationship
         ).distinct().order_by('-created_at')
         
         # Get enrolled courses for learners
@@ -485,8 +485,8 @@ def add_question(request, quiz_id):
         try:
             
             form = QuestionForm(request.POST, quiz=quiz)
-            print(f"Form data received: {dict(request.POST)}")
-            print(f"Form is valid: {form.is_valid()}")
+            logger.debug(f"Form data received: {dict(request.POST)}")
+            logger.debug(f"Form is valid: {form.is_valid()}")
             if not form.is_valid():
                 return JsonResponse({'success': False, 'error': 'Form is not valid'}, status=400)
             
@@ -1784,8 +1784,8 @@ def edit_question(request, question_id):
     learning_styles_json = json.dumps(learning_styles_array)
     
     # Debug logging for existing data (only in development)
-    print(f"Quiz Question Edit: Question ID {question_id}, Type: {question.question_type}")
-    print(f"Quiz Question Edit: Found {existing_answers.count()} existing answers")
+    logger.debug(f"Quiz Question Edit: Question ID {question_id}, Type: {question.question_type}")
+    logger.debug(f"Quiz Question Edit: Found {existing_answers.count()} existing answers")
     
     # Handle different question types for existing data
     if question.question_type == 'fill_blank':

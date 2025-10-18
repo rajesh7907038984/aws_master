@@ -325,13 +325,13 @@ class CalendarService:
                     
                     activities.append({
                         'type': activity_type,
-                        'title': "Submit: {{assignment.title}}",
-                        'description': "Course: {{assignment.course.title}}",
+                        'title': f"Submit: {assignment.title}",
+                        'description': f"Course: {assignment.course.title}",
                         'date': assignment.due_date.date(),
                         'time': assignment.due_date.time(),
                         'priority': priority,
                         'status': 'pending',
-                        'url': "/assignments/{{assignment.id}}/",
+                        'url': f"/assignments/{assignment.id}/",
                         'course': assignment.course.title,
                         'icon': 'assignment'
                     })

@@ -99,11 +99,11 @@ def send_deadline_reminders():
                             notification = send_notification(
                                 recipient=user,
                                 notification_type_name='deadline_reminder',
-                                title="Deadline Reminder: {{assignment.title}}",
+                                title=f"Deadline Reminder: {assignment.title}",
                                 message=message,
-                                short_message="Reminder: '{{assignment.title}}' is due in {{hours_until}} hours",
+                                short_message=f"Reminder: '{assignment.title}' is due in {hours_until} hours",
                                 priority='high',
-                                action_url="/assignments/{{assignment.id}}/",
+                                action_url=f"/assignments/{assignment.id}/",
                                 action_text="View Assignment",
                                 related_assignment=assignment,
                                 send_email=True
@@ -111,16 +111,16 @@ def send_deadline_reminders():
                             
                             if notification:
                                 reminder_count += 1
-                                logger.info("Deadline reminder sent to {{user.username}} for assignment: {{assignment.title}}")
+                                logger.info(f"Deadline reminder sent to {user.username} for assignment: {assignment.title}")
                                 
                         except Exception as e:
-                            logger.error("Error sending deadline reminder to user {{user_id}} for assignment {{assignment.id}}: {{str(e)}}")
+                            logger.error(f"Error sending deadline reminder to user {user_id} for assignment {assignment.id}: {str(e)}")
         
-        logger.info("Sent {{reminder_count}} deadline reminder notifications")
+        logger.info(f"Sent {reminder_count} deadline reminder notifications")
         return reminder_count
         
     except Exception as e:
-        logger.error("Error in send_deadline_reminders task: {{str(e)}}")
+        logger.error(f"Error in send_deadline_reminders task: {str(e)}")
         return 0
 
 

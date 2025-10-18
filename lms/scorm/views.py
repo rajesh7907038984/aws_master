@@ -409,7 +409,7 @@ def scorm_content(request, topic_id, file_path):
                     logger.info("SCORM Content: Found file at path: {{path}}")
                     break
             except Exception as e:
-                logger.warning("SCORM Content: Error checking path {{path}}: {{e}}")
+                logger.warning(f"SCORM Content: Error checking path {path}: {e}", exc_info=True)
                 continue
         
         if file_content is None:
@@ -464,8 +464,8 @@ def scorm_content(request, topic_id, file_path):
             logger.warning("SCORM Content: File not found in S3: {{s3_file_path}} (requested: {{file_path}})")
             return HttpResponse("File not found: {{file_path}}", status=404)
     except Exception as e:
-        logger.error("SCORM Content: Error serving file {{file_path}} (S3 path: {{s3_file_path}}): {{str(e)}}")
-        return HttpResponse("Error serving file: {{str(e)}}", status=500)
+        logger.error(f"SCORM Content: Error serving file {file_path} (S3 path: {s3_file_path}): {str(e)}", exc_info=True)
+        return HttpResponse(f"Error serving file: {str(e)}", status=500)
 
 @csrf_exempt
 def scorm_api(request, topic_id):

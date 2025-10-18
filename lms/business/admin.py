@@ -105,7 +105,7 @@ class BusinessUserAssignmentAdmin(admin.ModelAdmin):
         # Super Admins can only see assignments for businesses they're assigned to
         elif request.user.role in ['globaladmin', 'superadmin']:
             user_businesses = Business.objects.filter(
-                user_assignments__user=request.user, 
+                business_user_assignments__user=request.user, 
                 business_user_assignments__is_active=True
             )
             return qs.filter(business__in=user_businesses)
@@ -119,7 +119,7 @@ class BusinessUserAssignmentAdmin(admin.ModelAdmin):
             if request.user.role in ['globaladmin', 'superadmin']:
                 # Super Admins can only assign users to businesses they manage
                 kwargs["queryset"] = Business.objects.filter(
-                    user_assignments__user=request.user,
+                    business_user_assignments__user=request.user,
                     business_user_assignments__is_active=True
                 )
         return super().formfield_for_foreignkey(db_field, request, **kwargs)

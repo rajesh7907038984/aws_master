@@ -108,7 +108,7 @@ class TodoService:
             grade__isnull=False,
             graded_at__isnull=False
         ).exclude(
-            Q(feedback='') | Q(feedback__isnull=True)
+            Q(admin_approval_feedback='') | Q(admin_approval_feedback__isnull=True)
         ).select_related('assignment').order_by('-graded_at')[:10]
         
         for submission in graded_submissions:
@@ -126,7 +126,7 @@ class TodoService:
             todos.append({
                 'id': f'feedback_review_{submission.id}',
                 'title': f'View Feedback: {submission.assignment.title}',
-                'description': f'Grade: {grade_pct:.0f}% - {submission.assignment.course.title if submission.assignment.course else "General"}',
+                'description': f'Grade: {grade_pct:.0f}% - {submission.assignment.courses.first().title if submission.assignment.courses.exists() else "General"}',
                 'due_date': due_text,
                 'sort_date': submission.graded_at,
                 'type': 'feedback',
@@ -148,21 +148,20 @@ class TodoService:
         
         # 1. HIGH PRIORITY: Overdue assignments
         overdue_assignments = Assignment.objects.filter(
-            Q(course__in=enrolled_course_ids) |
             Q(courses__in=enrolled_course_ids),
             due_date__lt=self.now,
             is_active=True
         ).exclude(
             submissions__user=self.user,
             submissions__status__in=['submitted', 'graded']
-        ).distinct().select_related('course')[:5]
+        ).distinct().select_related('user', 'rubric').prefetch_related('courses')[:5]
         
         for assignment in overdue_assignments:
             days_overdue = (self.now.date() - assignment.due_date.date()).days
             todos.append({
                 'id': f'assignment_overdue_{assignment.id}',
                 'title': f'OVERDUE: {assignment.title}',
-                'description': f'{assignment.course.title if assignment.course else "General"} - {days_overdue} days overdue',
+                'description': f'{assignment.courses.first().title if assignment.courses.exists() else "General"} - {days_overdue} days overdue',
                 'due_date': f'{days_overdue} days overdue',
                 'sort_date': assignment.due_date - timedelta(days=1000),  # Highest priority
                 'type': 'assignment',
@@ -179,7 +178,6 @@ class TodoService:
         
         # 2. HIGH PRIORITY: Due today/tomorrow assignments
         urgent_assignments = Assignment.objects.filter(
-            Q(course__in=enrolled_course_ids) |
             Q(courses__in=enrolled_course_ids),
             due_date__gte=self.now,
             due_date__date__lte=self.tomorrow,
@@ -187,7 +185,7 @@ class TodoService:
         ).exclude(
             submissions__user=self.user,
             submissions__status__in=['submitted', 'graded']
-        ).distinct().select_related('course').order_by('due_date')[:10]
+        ).distinct().select_related('user', 'rubric').prefetch_related('courses').order_by('due_date')[:10]
         
         for assignment in urgent_assignments:
             due_text = self._format_due_date(assignment.due_date)
@@ -196,7 +194,7 @@ class TodoService:
             todos.append({
                 'id': f'assignment_urgent_{assignment.id}',
                 'title': assignment.title,
-                'description': f'{assignment.course.title if assignment.course else "General"}',
+                'description': f'{assignment.courses.first().title if assignment.courses.exists() else "General"}',
                 'due_date': due_text,
                 'sort_date': assignment.due_date,
                 'type': 'assignment',
@@ -212,7 +210,6 @@ class TodoService:
         
         # 3. MEDIUM PRIORITY: Upcoming assignments (within week)
         upcoming_assignments = Assignment.objects.filter(
-            Q(course__in=enrolled_course_ids) |
             Q(courses__in=enrolled_course_ids),
             due_date__gt=self.tomorrow,
             due_date__date__lte=self.next_week,
@@ -220,14 +217,14 @@ class TodoService:
         ).exclude(
             submissions__user=self.user,
             submissions__status__in=['submitted', 'graded']
-        ).distinct().select_related('course').order_by('due_date')[:10]
+        ).distinct().select_related('user', 'rubric').prefetch_related('courses').order_by('due_date')[:10]
         
         for assignment in upcoming_assignments:
             due_text = self._format_due_date(assignment.due_date)
             todos.append({
                 'id': f'assignment_upcoming_{assignment.id}',
                 'title': assignment.title,
-                'description': f'{assignment.course.title if assignment.course else "General"}',
+                'description': f'{assignment.courses.first().title if assignment.courses.exists() else "General"}',
                 'due_date': due_text,
                 'sort_date': assignment.due_date,
                 'type': 'assignment',

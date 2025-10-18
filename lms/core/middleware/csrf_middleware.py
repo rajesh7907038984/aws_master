@@ -1,119 +1,62 @@
 """
 Enhanced CSRF Middleware
-Handles CSRF token issues and provides better error handling
+Provides comprehensive CSRF protection with proper error handling
 """
 
 import logging
 from django.middleware.csrf import CsrfViewMiddleware
 from django.http import JsonResponse
-from django.utils.deprecation import MiddlewareMixin
 from django.conf import settings
+from django.utils.deprecation import MiddlewareMixin
 
 logger = logging.getLogger(__name__)
 
 
 class EnhancedCsrfMiddleware(CsrfViewMiddleware):
     """
-    Enhanced CSRF middleware with better error handling and AJAX support
+    Enhanced CSRF middleware with better error handling and logging
     """
     
     def process_view(self, request, callback, callback_args, callback_kwargs):
-        """Process view with enhanced CSRF handling"""
-        try:
-            # Skip CSRF for certain paths
-            if self._should_skip_csrf(request):
-                return None
-            
-            # Handle AJAX requests specially
-            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                return self._handle_ajax_csrf(request, callback, callback_args, callback_kwargs)
-            
-            # Standard CSRF processing
-            return super().process_view(request, callback, callback_args, callback_kwargs)
-            
-        except Exception as e:
-            logger.error("CSRF middleware error: {{e}}")
+        # Skip CSRF for certain views that don't need it
+        if hasattr(callback, 'csrf_exempt'):
             return None
-    
-    def _should_skip_csrf(self, request):
-        """Determine if CSRF should be skipped for this request"""
-        skip_paths = [
-            '/api/',        # API endpoints
-            '/admin/',      # Admin interface
-        ]
-        
-        for path in skip_paths:
-            if request.path.startswith(path):
-                return True
-        
-        return False
-    
-    def _handle_ajax_csrf(self, request, callback, callback_args, callback_kwargs):
-        """Handle CSRF for AJAX requests with better error messages"""
-        try:
-            # Check if CSRF token is present
-            csrf_token = request.META.get('HTTP_X_CSRFTOKEN') or request.POST.get('csrfmiddlewaretoken')
             
-            if not csrf_token:
-                if request.headers.get('Accept') == 'application/json':
-                    return JsonResponse({
-                        'error': 'CSRF token missing',
-                        'message': 'Please refresh the page and try again',
-                        'csrf_required': True
-                    }, status=403)
-                else:
-                    return super().process_view(request, callback, callback_args, callback_kwargs)
+        # Skip CSRF for API endpoints that use token authentication
+        if request.path.startswith('/api/') and request.META.get('HTTP_AUTHORIZATION'):
+            return None
             
-            # Validate CSRF token
-            if not self._csrf_token_valid(request, csrf_token):
-                if request.headers.get('Accept') == 'application/json':
-                    return JsonResponse({
-                        'error': 'Invalid CSRF token',
-                        'message': 'Your session may have expired. Please refresh the page and try again',
-                        'csrf_required': True
-                    }, status=403)
-                else:
-                    return super().process_view(request, callback, callback_args, callback_kwargs)
+        # Skip CSRF for health check endpoints
+        if request.path in ['/health/', '/status/']:
+            return None
             
-            return None  # CSRF check passed
-            
-        except Exception as e:
-            logger.error("AJAX CSRF handling error: {{e}}")
-            return super().process_view(request, callback, callback_args, callback_kwargs)
-    
-    def _csrf_token_valid(self, request, token):
-        """Validate CSRF token"""
-        try:
-            # Get the session CSRF token
-            session_token = request.session.get('csrf_token')
-            if not session_token:
-                return False
-            
-            # Compare tokens
-            return token == session_token
-            
-        except Exception as e:
-            logger.error("CSRF token validation error: {{e}}")
-            return False
-
-
-class CsrfTokenMiddleware(MiddlewareMixin):
-    """
-    Middleware to ensure CSRF tokens are available in templates
-    """
+        return super().process_view(request, callback, callback_args, callback_kwargs)
     
     def process_response(self, request, response):
-        """Add CSRF token to response headers for AJAX requests"""
-        try:
-            # Add CSRF token to response headers for AJAX
-            if hasattr(request, 'csrf_token'):
-                response['X-CSRFToken'] = str(request.csrf_token)
-            
-            # Add session info for debugging
-            if hasattr(request, 'session') and request.user.is_authenticated:
-                response['X-Session-Key'] = request.session.session_key[:8] + '...' if request.session.session_key else 'None'
-            
-        except Exception as e:
-            logger.error("CSRF token middleware error: {{e}}")
+        # Add CSRF token to response headers for AJAX requests
+        if request.method == 'GET' and request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            response['X-CSRFToken'] = request.META.get('CSRF_COOKIE', '')
         
         return response
+
+
+class CsrfErrorMiddleware(MiddlewareMixin):
+    """
+    Middleware to handle CSRF errors gracefully
+    """
+    
+    def process_exception(self, request, exception):
+        if isinstance(exception, Exception) and 'CSRF' in str(exception):
+            logger.warning(f"CSRF error for {request.path}: {exception}")
+            
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({
+                    'error': 'CSRF token missing or incorrect',
+                    'detail': 'Please refresh the page and try again'
+                }, status=403)
+            else:
+                # Redirect to login page for non-AJAX requests
+                from django.shortcuts import redirect
+                return redirect('users:login')
+        
+        return None

@@ -74,7 +74,7 @@ class Command(BaseCommand):
         
         # 1. ASSIGNMENTS (Manual Evaluation)
         self.stdout.write('\n--- ASSIGNMENTS (Manual Evaluation) ---')
-        assignments = Assignment.objects.filter(courses=course)
+        assignments = Assignment.objects.filter(courses__in=[course])
         
         for assignment in assignments:
             # Check Grade/Submission linking (should be fixed now)
