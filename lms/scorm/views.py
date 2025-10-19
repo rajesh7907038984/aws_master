@@ -226,17 +226,26 @@ def scorm_launch(request, topic_id):
     # Prepare data based on package type
     if elearning_package.package_type in ['SCORM_1_2', 'SCORM_2004']:
         # SCORM data
+        # Determine proper lesson status - SCORM 1.2 uses "not attempted" for new attempts
+        lesson_status = tracking.raw_data.get('cmi.core.lesson_status', '')
+        if not lesson_status or lesson_status == 'incomplete':
+            # If tracking has been accessed before, use appropriate status
+            if tracking.last_launch:
+                lesson_status = tracking.completion_status or 'incomplete'
+            else:
+                lesson_status = 'not attempted'
+        
         scorm_data = {
             'student_name': user.get_full_name() or user.username,
             'student_id': str(user.id),
             'suspend_data': tracking.raw_data.get('cmi.core.suspend_data', ''),
-            'total_time': str(tracking.total_time) if tracking.total_time else 'PT0S',
+            'total_time': str(tracking.total_time) if tracking.total_time else '0000:00:00.00',
             'lesson_location': tracking.raw_data.get('cmi.core.lesson_location', ''),
-            'lesson_status': tracking.completion_status or 'incomplete',
+            'lesson_status': lesson_status,
             'launch_data': tracking.raw_data.get('cmi.core.launch_data', ''),
             'score_raw': str(tracking.score_raw) if tracking.score_raw else '',
-            'score_min': str(tracking.score_min) if tracking.score_min else '',
-            'score_max': str(tracking.score_max) if tracking.score_max else '',
+            'score_min': str(tracking.score_min) if tracking.score_min else '0',
+            'score_max': str(tracking.score_max) if tracking.score_max else '100',
             'entry': tracking.raw_data.get('cmi.core.entry', 'ab-initio'),
             'exit': tracking.raw_data.get('cmi.core.exit', ''),
         }

@@ -79,6 +79,7 @@
 {% endblock %}
 
 {% block content %}
+{% csrf_token %}
 <div class="container mx-auto px-4 py-8">
     <!-- Main container -->
     <div class="bg-white rounded-lg shadow-md">
@@ -488,7 +489,9 @@
             return cookieValue;
         }
         
-        const csrftoken = getCookie('csrftoken');
+        // Get CSRF token from the form
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]');
+        const csrftoken = csrfToken ? csrfToken.value : getCookie('csrftoken');
         if (!csrftoken) {
             createSimpleNotification('CSRF token not found. Please refresh the page and try again.', 'error');
             return;
@@ -637,7 +640,9 @@
                     return cookieValue;
                 }
                 
-                const csrftoken = getCookie('csrftoken');
+                // Get CSRF token from the form
+                const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]');
+                const csrftoken = csrfToken ? csrfToken.value : getCookie('csrftoken');
                 if (!csrftoken) {
                     createSimpleNotification('CSRF token not found. Please refresh the page and try again.', 'error');
                     return;
@@ -656,7 +661,7 @@
                 `;
 
                 // Send bulk enrollment request
-                const courseId = parseInt('{{ course.id }}');
+                const courseId = {{ course.id }};
                 fetch('/courses/' + courseId + '/bulk-enroll/', {
                     method: 'POST',
                     headers: {

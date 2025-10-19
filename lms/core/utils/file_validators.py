@@ -176,10 +176,9 @@ class FileUploadValidator:
                 import zipfile
                 uploaded_file.seek(0)
                 with zipfile.ZipFile(uploaded_file, 'r') as zip_file:
+                    # Just check if it's a valid ZIP - no manifest requirement
                     file_list = zip_file.namelist()
-                    has_manifest = any('imsmanifest.xml' in f.lower() for f in file_list)
-                    if not has_manifest:
-                        errors.append(_('ZIP file does not contain required manifest'))
+                    logger.info(f"ZIP validation: Found {len(file_list)} files in ZIP")
             except zipfile.BadZipFile:
                 errors.append(_('File is not a valid ZIP archive'))
             except Exception as e:

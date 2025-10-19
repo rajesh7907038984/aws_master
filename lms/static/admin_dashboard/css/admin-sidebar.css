@@ -16,9 +16,11 @@
 }
 
 /* Collapsed sidebar styles */
+#sidebar.collapsed,
 .sidebar.sidebar-collapsed, 
 .sidebar.collapsed {
-    width: 4.5rem !important;
+    width: 5.5rem !important;
+    transition: width 0.3s ease !important;
 }
 
 .sidebar.sidebar-collapsed .sidebar-text,
@@ -53,8 +55,8 @@
 .main-content-expanded,
 .sidebar.collapsed ~ .main-content,
 .sidebar.collapsed ~ main .main-content {
-    margin-left: 64px;
-    width: calc(100% - 64px);
+    margin-left: 88px;
+    width: calc(100% - 88px);
 }
 
 /* Basic sidebar menu item styles */

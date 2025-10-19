@@ -2145,7 +2145,7 @@
         window.TOPIC_CREATE_URL_TEMPLATE = "{% url 'courses:topic_create' course_id=0 %}";
         
         // Inject course ID for JavaScript use
-        window.COURSE_ID = {% if course.id %}{{ course.id }}{% else %}null{% endif %};
+        window.COURSE_ID = {{ course.id|default:"null" }};
         
         // Check if we're in development mode (be more specific to avoid false positives)
         window.IS_DEVELOPMENT = window.location.hostname === 'localhost' || 

@@ -522,19 +522,38 @@ var API = {
         "cmi.core.student_name": "{{ scorm_data.student_name|default:''|escapejs }}",
         "cmi.core.student_id": "{{ scorm_data.student_id|default:'' }}",
         "cmi.core.suspend_data": "{{ scorm_data.suspend_data|default:''|escapejs }}",
-        "cmi.core.total_time": "{{ scorm_data.total_time|default:'PT0S'|escapejs }}",
+        "cmi.core.total_time": "{{ scorm_data.total_time|default:'0000:00:00.00'|escapejs }}",
+        "cmi.core.session_time": "0000:00:00.00",
         "cmi.core.lesson_location": "{{ scorm_data.lesson_location|default:''|escapejs }}",
-        "cmi.core.lesson_status": "{{ scorm_data.lesson_status|default:'incomplete'|escapejs }}",
+        "cmi.core.lesson_status": "{{ scorm_data.lesson_status|default:'not attempted'|escapejs }}",
         "cmi.core.launch_data": "{{ scorm_data.launch_data|default:''|escapejs }}",
         "cmi.core.score.raw": "{{ scorm_data.score_raw|default:''|escapejs }}",
-        "cmi.core.score.min": "{{ scorm_data.score_min|default:''|escapejs }}",
-        "cmi.core.score.max": "{{ scorm_data.score_max|default:''|escapejs }}",
+        "cmi.core.score.min": "{{ scorm_data.score_min|default:'0'|escapejs }}",
+        "cmi.core.score.max": "{{ scorm_data.score_max|default:'100'|escapejs }}",
         "cmi.core.entry": "{{ scorm_data.entry|default:'ab-initio'|escapejs }}",
         "cmi.core.exit": "{{ scorm_data.exit|default:''|escapejs }}",
         "cmi.core.credit": "credit",
         "cmi.core.lesson_mode": "normal",
         "cmi.core.max_time_allowed": "",
-        "cmi.core.mastery_score": ""
+        "cmi.core.mastery_score": "",
+        // Additional commonly required elements
+        "cmi.suspend_data": "{{ scorm_data.suspend_data|default:''|escapejs }}",
+        "cmi.launch_data": "{{ scorm_data.launch_data|default:''|escapejs }}",
+        "cmi.comments": "",
+        "cmi.comments_from_lms": "",
+        "cmi.student_data.mastery_score": "",
+        "cmi.student_data.max_time_allowed": "",
+        "cmi.student_data.time_limit_action": "",
+        // SCORM 2004 elements for compatibility
+        "cmi.learner_id": "{{ scorm_data.student_id|default:'' }}",
+        "cmi.learner_name": "{{ scorm_data.student_name|default:''|escapejs }}",
+        "cmi.completion_status": "{{ scorm_data.lesson_status|default:'not attempted'|escapejs }}",
+        "cmi.success_status": "unknown",
+        "cmi.score.scaled": "",
+        "cmi.progress_measure": "0",
+        "cmi.location": "{{ scorm_data.lesson_location|default:''|escapejs }}",
+        "cmi.session_time": "PT0H0M0S",
+        "cmi.total_time": "{{ scorm_data.total_time|default:'PT0H0M0S'|escapejs }}"
     },
     
     // Error handling methods
@@ -1823,22 +1842,30 @@ console.log('SCORM API: Initialized and available globally');
         const iframe = document.getElementById('scorm-iframe');
         if (iframe && iframe.contentWindow) {
             try {
+                // CRITICAL: First make sure API is available in parent
+                if (!window.API) {
+                    window.API = API;
+                }
+                
                 // CRITICAL: Send API via postMessage for better cross-origin support
                 iframe.contentWindow.postMessage({
                     type: 'SCORM_API_READY',
                     api: API
                 }, '*');
                 
-                // Inject the API into the iframe - MULTIPLE METHODS
+                // Inject BOTH SCORM 1.2 and SCORM 2004 APIs into the iframe - MULTIPLE METHODS
                 iframe.contentWindow.API = API;
+                iframe.contentWindow.API_1484_11 = window.API_1484_11;
                 
                 // Set up parent references for SCORM content discovery
                 iframe.contentWindow.parent = iframe.contentWindow.parent || iframe.contentWindow;
                 iframe.contentWindow.top = iframe.contentWindow.top || iframe.contentWindow;
                 
-                // Set API in all possible locations
+                // Set both APIs in all possible locations
                 iframe.contentWindow.parent.API = API;
+                iframe.contentWindow.parent.API_1484_11 = window.API_1484_11;
                 iframe.contentWindow.top.API = API;
+                iframe.contentWindow.top.API_1484_11 = window.API_1484_11;
                 
                 // Additional API references for complex SCORM content
                 if (iframe.contentWindow.parent && iframe.contentWindow.parent !== iframe.contentWindow) {
@@ -1928,12 +1955,15 @@ console.log('SCORM API: Initialized and available globally');
                         // Create a script element with the API
                         const script = iframeDoc.createElement('script');
                         script.textContent = `
-                            // SCORM API for iframe content
+                            // SCORM API for iframe content - BOTH SCORM 1.2 and SCORM 2004
                             window.API = parent.API || window.parent.API || window.top.API;
+                            window.API_1484_11 = parent.API_1484_11 || window.parent.API_1484_11 || window.top.API_1484_11;
                             window.parent = window.parent || window;
                             window.top = window.top || window;
                             window.parent.API = window.API;
+                            window.parent.API_1484_11 = window.API_1484_11;
                             window.top.API = window.API;
+                            window.top.API_1484_11 = window.API_1484_11;
                             
                             // Make sure API is available globally
                             if (typeof window.API === 'undefined') {
@@ -2108,13 +2138,167 @@ function enableVideoControls() {
     }
 }
 
+// CRITICAL FIX: Initialize API IMMEDIATELY before iframe loads
+// This ensures the API is available when SCORM content starts looking for it
+console.log('SCORM API: Initializing API immediately before iframe loads...');
+
+// Initialize the API right away - don't wait for window.onload
+// This is CRITICAL because SCORM content will try to find the API as soon as it loads
+if (!API.initialized) {
+    API.initialized = false; // Set to false initially, SCORM content must call LMSInitialize
+    console.log('SCORM API: API object ready for SCORM content to initialize');
+}
+
+// Make API globally available immediately
+window.API = API;
+
+// CRITICAL FIX: Add SCORM 2004 API support (API_1484_11)
+// SCORM 2004 uses different object name and method names
+window.API_1484_11 = {
+    initialized: false,
+    
+    // SCORM 2004 uses Initialize instead of LMSInitialize
+    Initialize: function(param) {
+        console.log('SCORM 2004 API: Initialize called');
+        const result = API.LMSInitialize(param);
+        this.initialized = (result === "true");
+        return result;
+    },
+    
+    // SCORM 2004 uses Terminate instead of LMSFinish
+    Terminate: function(param) {
+        console.log('SCORM 2004 API: Terminate called');
+        return API.LMSFinish(param);
+    },
+    
+    // SCORM 2004 uses GetValue instead of LMSGetValue
+    GetValue: function(element) {
+        console.log('SCORM 2004 API: GetValue called for:', element);
+        // Map SCORM 2004 elements to SCORM 1.2 elements
+        let scorm12Element = element;
+        if (element.startsWith('cmi.') && !element.startsWith('cmi.core.')) {
+            // Map common SCORM 2004 elements to SCORM 1.2
+            scorm12Element = element
+                .replace('cmi.learner_id', 'cmi.core.student_id')
+                .replace('cmi.learner_name', 'cmi.core.student_name')
+                .replace('cmi.location', 'cmi.core.lesson_location')
+                .replace('cmi.completion_status', 'cmi.core.lesson_status')
+                .replace('cmi.success_status', 'cmi.core.lesson_status')
+                .replace('cmi.score.scaled', 'cmi.core.score.raw')
+                .replace('cmi.session_time', 'cmi.core.session_time')
+                .replace('cmi.total_time', 'cmi.core.total_time');
+        }
+        return API.LMSGetValue(scorm12Element);
+    },
+    
+    // SCORM 2004 uses SetValue instead of LMSSetValue
+    SetValue: function(element, value) {
+        console.log('SCORM 2004 API: SetValue called:', element, '=', value);
+        // Map SCORM 2004 elements to SCORM 1.2 elements
+        let scorm12Element = element;
+        if (element.startsWith('cmi.') && !element.startsWith('cmi.core.')) {
+            scorm12Element = element
+                .replace('cmi.learner_id', 'cmi.core.student_id')
+                .replace('cmi.learner_name', 'cmi.core.student_name')
+                .replace('cmi.location', 'cmi.core.lesson_location')
+                .replace('cmi.completion_status', 'cmi.core.lesson_status')
+                .replace('cmi.success_status', 'cmi.core.lesson_status')
+                .replace('cmi.score.scaled', 'cmi.core.score.raw')
+                .replace('cmi.session_time', 'cmi.core.session_time')
+                .replace('cmi.total_time', 'cmi.core.total_time')
+                .replace('cmi.exit', 'cmi.core.exit')
+                .replace('cmi.suspend_data', 'cmi.core.suspend_data');
+        }
+        return API.LMSSetValue(scorm12Element, value);
+    },
+    
+    // SCORM 2004 uses Commit instead of LMSCommit
+    Commit: function(param) {
+        console.log('SCORM 2004 API: Commit called');
+        return API.LMSCommit(param);
+    },
+    
+    // SCORM 2004 error handling
+    GetLastError: function() {
+        console.log('SCORM 2004 API: GetLastError called');
+        return API.LMSGetLastError();
+    },
+    
+    GetErrorString: function(errorCode) {
+        console.log('SCORM 2004 API: GetErrorString called');
+        return API.LMSGetErrorString(errorCode);
+    },
+    
+    GetDiagnostic: function(errorCode) {
+        console.log('SCORM 2004 API: GetDiagnostic called');
+        return API.LMSGetDiagnostic(errorCode);
+    }
+};
+
+// Make both APIs globally available
+if (window.parent && window.parent !== window) {
+    try { 
+        window.parent.API = API;
+        window.parent.API_1484_11 = window.API_1484_11;
+    } catch(e) {}
+}
+if (window.top && window.top !== window) {
+    try { 
+        window.top.API = API;
+        window.top.API_1484_11 = window.API_1484_11;
+    } catch(e) {}
+}
+
+console.log('SCORM API: Both SCORM 1.2 (API) and SCORM 2004 (API_1484_11) are now globally available and ready');
+
+// CRITICAL FIX: Add error handlers to prevent SCORM content errors from breaking the page
+window.addEventListener('error', function(event) {
+    // Log SCORM content errors but don't let them break the page
+    if (event.message && (
+        event.message.includes('string table') ||
+        event.message.includes('frame.desktop.min.js') ||
+        event.message.includes('Cannot read properties of undefined')
+    )) {
+        console.warn('SCORM Content Warning:', event.message);
+        event.preventDefault(); // Prevent the error from breaking the page
+        return true;
+    }
+});
+
+// Add unhandledrejection handler for promises
+window.addEventListener('unhandledrejection', function(event) {
+    console.warn('SCORM Content Promise Rejection:', event.reason);
+    event.preventDefault();
+});
+
+// CRITICAL FIX: Set up message listener IMMEDIATELY to handle API requests
+window.addEventListener('message', function(event) {
+    // Handle API requests from SCORM content
+    if (event.data && event.data.type === 'REQUEST_SCORM_API') {
+        console.log('SCORM API: Received API request from iframe, sending API...');
+        event.source.postMessage({
+            type: 'SCORM_API_RESPONSE',
+            apiAvailable: true,
+            message: 'API is available in parent.API or window.parent.API'
+        }, '*');
+    }
+    
+    // Handle SCORM initialization requests
+    if (event.data && event.data.type === 'SCORM_INITIALIZE') {
+        console.log('SCORM API: SCORM content requesting initialization');
+        if (API && typeof API.LMSInitialize === 'function') {
+            const result = API.LMSInitialize('');
+            event.source.postMessage({
+                type: 'SCORM_INITIALIZE_RESPONSE',
+                result: result
+            }, '*');
+        }
+    }
+});
+
 // Initialize SCORM when page loads
 window.onload = function () {
-    console.log('SCORM API: Page loaded, initializing...');
-    
-    // CRITICAL FIX: Initialize the API immediately
-    API.initialized = true;
-    console.log('SCORM API: API initialized for proper SCORM communication');
+    console.log('SCORM API: Page loaded, completing setup...');
     
     // Fix layout issues
     fixLayoutIssues();
@@ -2192,10 +2376,13 @@ window.onload = function () {
                         api: API
                     }, '*');
                     
-                    // Re-inject API periodically
+                    // Re-inject both SCORM 1.2 and SCORM 2004 APIs periodically
                     iframe.contentWindow.API = API;
+                    iframe.contentWindow.API_1484_11 = window.API_1484_11;
                     iframe.contentWindow.parent.API = API;
+                    iframe.contentWindow.parent.API_1484_11 = window.API_1484_11;
                     iframe.contentWindow.top.API = API;
+                    iframe.contentWindow.top.API_1484_11 = window.API_1484_11;
                     iframe.contentWindow.SD = API;
                     iframe.contentWindow.parent.SD = API;
                     iframe.contentWindow.ConcedeControl = function() {
@@ -2245,10 +2432,11 @@ window.onload = function () {
                         return "true";
                     };
                     
-                    // CRITICAL FIX: Also ensure API is available in the iframe's global scope
+                    // CRITICAL FIX: Also ensure both APIs are available in the iframe's global scope
                     try {
                         if (iframe.contentWindow.window) {
                             iframe.contentWindow.window.API = API;
+                            iframe.contentWindow.window.API_1484_11 = window.API_1484_11;
                             iframe.contentWindow.window.parent = iframe.contentWindow.parent;
                             iframe.contentWindow.window.top = iframe.contentWindow.top;
                         }
@@ -2262,10 +2450,14 @@ window.onload = function () {
                                 const script = iframeDoc.createElement('script');
                                 script.setAttribute('data-scorm-api', 'true');
                                 script.textContent = `
-                                    // Ensure API is always available
+                                    // Ensure both SCORM 1.2 and SCORM 2004 APIs are always available
                                     if (typeof window.API === 'undefined' || !window.API.SetBookmark) {
                                         window.API = parent.API || window.parent.API || window.top.API;
-                                        if (typeof window.API === 'undefined') {
+                                    }
+                                    if (typeof window.API_1484_11 === 'undefined') {
+                                        window.API_1484_11 = parent.API_1484_11 || window.parent.API_1484_11 || window.top.API_1484_11;
+                                    }
+                                    if (typeof window.API === 'undefined') {
                                             window.API = {
                                                 SetBookmark: function(bookmark) { 
                                                     if (parent.API && parent.API.SetBookmark) {
@@ -2408,10 +2600,13 @@ window.onload = function () {
         if (!iframe || !iframe.contentWindow) return;
         
         try {
-            // Inject API into iframe's contentWindow
+            // Inject both SCORM 1.2 and SCORM 2004 APIs into iframe's contentWindow
             iframe.contentWindow.API = window.API;
+            iframe.contentWindow.API_1484_11 = window.API_1484_11;
             iframe.contentWindow.parent.API = window.API;
+            iframe.contentWindow.parent.API_1484_11 = window.API_1484_11;
             iframe.contentWindow.top.API = window.API;
+            iframe.contentWindow.top.API_1484_11 = window.API_1484_11;
             
             // Use postMessage for cross-origin communication
             // Enhanced cross-origin communication with fallbacks
