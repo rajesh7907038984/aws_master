@@ -573,7 +573,7 @@ def gradebook_index(request):
 
         # Get regular quizzes (exclude initial assessments and VAK tests from grading) - optimized
         quizzes = Quiz.objects.filter(
-            Q(courses__in=courses) |  # Direct course relationship
+            Q(course__in=courses) |  # Direct course relationship
             Q(topics__coursetopic__course__in=courses)  # Topic-based course relationship through CourseTopic
         ).filter(
             is_active=True  # Only active quizzes
