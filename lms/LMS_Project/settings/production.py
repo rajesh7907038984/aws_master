@@ -275,15 +275,17 @@ ENABLE_FILE_ENCRYPTION = get_bool_env('ENABLE_FILE_ENCRYPTION', False)
 ENABLE_AUDIT_LOGGING = get_bool_env('ENABLE_AUDIT_LOGGING', True)
 ENABLE_FILE_QUARANTINE = get_bool_env('ENABLE_FILE_QUARANTINE', False)
 
-# Large file upload settings (600MB support) - optimized for memory
-DATA_UPLOAD_MAX_MEMORY_SIZE = 20 * 1024 * 1024  # 20MB in memory, rest to disk
-FILE_UPLOAD_MAX_MEMORY_SIZE = 20 * 1024 * 1024  # 20MB in memory, rest to disk
+# Large file upload settings (600MB support) - optimized for S3 streaming
+# Note: Files larger than FILE_UPLOAD_MAX_MEMORY_SIZE will be streamed to temp disk,
+# then uploaded to S3. This prevents memory issues with large SCORM packages.
+DATA_UPLOAD_MAX_MEMORY_SIZE = 650 * 1024 * 1024  # 650MB - allow 600MB SCORM files
+FILE_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024   # 10MB in memory, larger files to temp disk
 
-# Temporary file handling for large uploads
+# Temporary file handling for large uploads - use /tmp with sufficient space
 FILE_UPLOAD_TEMP_DIR = get_env('FILE_UPLOAD_TEMP_DIR', '/tmp')
 FILE_UPLOAD_HANDLERS = [
-    'django.core.files.uploadhandler.TemporaryFileUploadHandler',
-    'django.core.files.uploadhandler.MemoryFileUploadHandler',
+    'django.core.files.uploadhandler.TemporaryFileUploadHandler',  # Large files to temp
+    'django.core.files.uploadhandler.MemoryFileUploadHandler',      # Small files in memory
 ]
 
 logger.info("☁️ Using S3 media storage configuration")

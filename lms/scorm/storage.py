@@ -26,7 +26,8 @@ class SCORMS3Storage(S3Boto3Storage):
             if not base_url:
                 base_url = f"https://{settings.AWS_STORAGE_BUCKET_NAME}.s3.{settings.AWS_S3_REGION_NAME}.amazonaws.com/elearning/"
         
-        # Set S3-specific options
+        # Set S3-specific options optimized for large file uploads (600MB+)
+        # Note: S3Boto3Storage automatically uses multipart upload for large files
         kwargs.update({
             'bucket_name': settings.AWS_STORAGE_BUCKET_NAME,
             'region_name': settings.AWS_S3_REGION_NAME,

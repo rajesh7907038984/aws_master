@@ -7006,8 +7006,8 @@ def get_user_filtered_content(user, course=None, request=None):
                 Q(course=None, creator__branch__business__in=assigned_businesses)
             ).order_by('title')
             assignments = Assignment.objects.filter(
-                Q(course__branch__business__in=assigned_businesses) |
-                Q(course=None, user__branch__business__in=assigned_businesses)
+                Q(courses__branch__business__in=assigned_businesses) |
+                Q(user__branch__business__in=assigned_businesses, courses__isnull=True)
             ).order_by('title')
             conferences = Conference.objects.filter(
                 Q(course__branch__business__in=assigned_businesses, status='published') |
@@ -7027,8 +7027,8 @@ def get_user_filtered_content(user, course=None, request=None):
                     Q(creator=user)
                 ).order_by('title')
                 assignments = Assignment.objects.filter(
-                    Q(course__branch=default_branch) |
-                    Q(course=None, user__branch=default_branch) |
+                    Q(courses__branch=default_branch) |
+                    Q(user__branch=default_branch, courses__isnull=True) |
                     Q(user=user)
                 ).order_by('title')
                 conferences = Conference.objects.filter(
@@ -7059,8 +7059,8 @@ def get_user_filtered_content(user, course=None, request=None):
                 Q(course=None, creator__branch=effective_branch)
             ).order_by('title')
             assignments = Assignment.objects.filter(
-                Q(course__branch=effective_branch) |
-                Q(course=None, user__branch=effective_branch)
+                Q(courses__branch=effective_branch) |
+                Q(user__branch=effective_branch, courses__isnull=True)
             ).order_by('title')
             conferences = Conference.objects.filter(
                 Q(course__branch=effective_branch, status='published') |
@@ -7086,8 +7086,8 @@ def get_user_filtered_content(user, course=None, request=None):
                 Q(creator=user)  # Include their own content regardless of branch
             ).order_by('title')
             assignments = Assignment.objects.filter(
-                Q(course__branch=user_branch) |
-                Q(course=None, user__branch=user_branch) |
+                Q(courses__branch=user_branch) |
+                Q(user__branch=user_branch, courses__isnull=True) |
                 Q(user=user)  # Include their own content regardless of branch
             ).order_by('title')
             conferences = Conference.objects.filter(

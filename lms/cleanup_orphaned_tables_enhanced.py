@@ -20,16 +20,14 @@ logger = logging.getLogger(__name__)
 def cleanup_orphaned_tables():
     """Drop all orphaned tables identified in database analysis"""
     
+    # NOTE: BulkNotification tables are NOT orphaned - they are required by the model!
     orphaned_tables = [
         "users_customuser_groups",
         "lms_messages_message_recipients", 
         "reports_report_shared_with",
         "courses_comment_likes",
-        "lms_notifications_bulknotification_target_branches",
         "courses_course_prerequisites",
-        "lms_notifications_bulknotification_custom_recipients",
         "courses_discussion_likes",
-        "lms_notifications_bulknotification_target_groups",
         "account_settings_menucontrolsettings_visible_to_custom_roles",
         "users_customuser_user_permissions",
         "account_settings_ipwhitelistentry"

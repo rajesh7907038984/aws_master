@@ -235,17 +235,11 @@
         
         // Configure external plugin paths - ensure no trailing slashes
         if (config.plugins) {
-            // Only add media plugin if it's explicitly in the plugins array and not already configured
-            if (config.plugins.includes('media') && !config.external_plugins.media) {
-                // Use base_url if available, otherwise use absolute path
-                if (config.base_url) {
-                    config.external_plugins.media = config.base_url.replace(/\/$/, '') + '/plugins/media/plugin.min.js';
-                } else {
-                    config.external_plugins.media = '/static/tinymce_editor/tinymce/plugins/media/plugin.min.js';
-                }
-            }
-            // Remove media from plugins array since it's defined as external
-            if (config.external_plugins && config.external_plugins.media) {
+            // Media plugin is not available in our TinyMCE installation, so we skip it
+            // Remove media from plugins array if it was somehow added
+            if (typeof config.plugins === 'string') {
+                config.plugins = config.plugins.replace(/\bmedia\b,?\s*/g, '').replace(/,\s*,/g, ',').replace(/,\s*$/,'');
+            } else if (Array.isArray(config.plugins)) {
                 config.plugins = config.plugins.filter(plugin => plugin !== 'media');
             }
             

@@ -127,9 +127,9 @@
     <script>
         try {
             window.userAuthenticated = {% if user.is_authenticated %}true{% else %}false{% endif %};
-            window.userName = {{ user.username|escapejs|default:"''" }};
-            window.userRole = {{ user.role|escapejs|default:"'anonymous'" }};
-            window.userBranch = {{ user.branch.name|escapejs|default:"'none'" }};
+            window.userName = "{{ user.username|escapejs|default:'' }}";
+            window.userRole = "{{ user.role|escapejs|default:'anonymous' }}";
+            window.userBranch = "{{ user.branch.name|escapejs|default:'none' }}";
         } catch (e) {
             console.error('Error setting user variables:', e);
             window.userAuthenticated = false;

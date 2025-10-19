@@ -50,6 +50,13 @@
         // SCORM API Methods
         LMSInitialize: function(param) {
             console.log('SCORM API: LMSInitialize called with:', param);
+            
+            // Gracefully handle double initialization (common with Articulate content)
+            if (this.initialized) {
+                console.log('SCORM API: Already initialized, returning success');
+                return "true";
+            }
+            
             this.initialized = true;
             return "true";
         },

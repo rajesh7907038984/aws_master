@@ -273,7 +273,8 @@ def scorm_console_cleaner(request):
                 'passive event listener', 'touch-action',
                 'webkit', 'vendor prefix', 'deprecated',
                 'autoplay', 'muted', 'playsinline',
-                'x-frame-options', 'content-security-policy'
+                'x-frame-options', 'content-security-policy',
+                '301', 'Already initialized', 'already initialized'
             ];
             
             return filteredErrors.some(filter => 

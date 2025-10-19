@@ -158,10 +158,11 @@ class TodoService:
         
         for assignment in overdue_assignments:
             days_overdue = (self.now.date() - assignment.due_date.date()).days
+            first_course = assignment.courses.first()
             todos.append({
                 'id': f'assignment_overdue_{assignment.id}',
                 'title': f'OVERDUE: {assignment.title}',
-                'description': f'{assignment.courses.first().title if assignment.courses.exists() else "General"} - {days_overdue} days overdue',
+                'description': f'{first_course.title if first_course else "General"} - {days_overdue} days overdue',
                 'due_date': f'{days_overdue} days overdue',
                 'sort_date': assignment.due_date - timedelta(days=1000),  # Highest priority
                 'type': 'assignment',
@@ -170,7 +171,7 @@ class TodoService:
                 'url': f'/assignments/{assignment.id}/',
                 'metadata': {
                     'assignment_id': assignment.id,
-                    'course_id': assignment.course.id if assignment.course else None,
+                    'course_id': first_course.id if first_course else None,
                     'points': getattr(assignment, 'points', None),
                     'days_overdue': days_overdue
                 }
@@ -190,11 +191,12 @@ class TodoService:
         for assignment in urgent_assignments:
             due_text = self._format_due_date(assignment.due_date)
             priority = 'high' if assignment.due_date.date() <= self.tomorrow else 'medium'
+            first_course = assignment.courses.first()
             
             todos.append({
                 'id': f'assignment_urgent_{assignment.id}',
                 'title': assignment.title,
-                'description': f'{assignment.courses.first().title if assignment.courses.exists() else "General"}',
+                'description': f'{first_course.title if first_course else "General"}',
                 'due_date': due_text,
                 'sort_date': assignment.due_date,
                 'type': 'assignment',
@@ -203,7 +205,7 @@ class TodoService:
                 'url': f'/assignments/{assignment.id}/',
                 'metadata': {
                     'assignment_id': assignment.id,
-                    'course_id': assignment.course.id if assignment.course else None,
+                    'course_id': first_course.id if first_course else None,
                     'points': getattr(assignment, 'points', None)
                 }
             })
@@ -221,10 +223,11 @@ class TodoService:
         
         for assignment in upcoming_assignments:
             due_text = self._format_due_date(assignment.due_date)
+            first_course = assignment.courses.first()
             todos.append({
                 'id': f'assignment_upcoming_{assignment.id}',
                 'title': assignment.title,
-                'description': f'{assignment.courses.first().title if assignment.courses.exists() else "General"}',
+                'description': f'{first_course.title if first_course else "General"}',
                 'due_date': due_text,
                 'sort_date': assignment.due_date,
                 'type': 'assignment',
@@ -233,7 +236,7 @@ class TodoService:
                 'url': f'/assignments/{assignment.id}/',
                 'metadata': {
                     'assignment_id': assignment.id,
-                    'course_id': assignment.course.id if assignment.course else None,
+                    'course_id': first_course.id if first_course else None,
                     'points': getattr(assignment, 'points', None)
                 }
             })
@@ -388,10 +391,11 @@ class TodoService:
         accessible_course_ids = list(accessible_courses.values_list('id', flat=True))
         
         # 1. HIGH PRIORITY: Submissions pending grading
+        # Fixed: Assignment uses many-to-many 'courses' relationship, not direct 'course'
         pending_submissions = AssignmentSubmission.objects.filter(
-            assignment__course__in=accessible_course_ids,
+            assignment__courses__in=accessible_course_ids,
             status='submitted'
-        ).select_related('assignment', 'user').order_by('submitted_at')[:15]
+        ).select_related('assignment', 'user').prefetch_related('assignment__courses').distinct().order_by('submitted_at')[:15]
         
         for submission in pending_submissions:
             days_since = (self.now.date() - submission.submitted_at.date()).days
@@ -404,10 +408,14 @@ class TodoService:
             else:
                 due_text, priority = f"Submitted {days_since} days ago", 'medium'
             
+            # Get first course for display
+            first_course = submission.assignment.courses.first()
+            course_title = first_course.title if first_course else "General"
+            
             todos.append({
                 'id': f'submission_grade_{submission.id}',
                 'title': f'Grade: {submission.assignment.title}',
-                'description': f'{submission.user.get_full_name()} - {submission.assignment.course.title}',
+                'description': f'{submission.user.get_full_name()} - {course_title}',
                 'due_date': due_text,
                 'sort_date': submission.submitted_at,
                 'type': 'grading',

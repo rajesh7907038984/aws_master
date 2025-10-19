@@ -17,8 +17,8 @@ class CustomTinyMCEFormField(TinyMCEFormField):
         # Set custom TinyMCE configuration
         custom_config = {
             'skin': 'oxide',
-            'plugins': 'advlist autolink link image lists charmap preview anchor searchreplace visualblocks code fullscreen insertdatetime media table wordcount help aiwriter toolbarfix',
-            'toolbar': 'formatselect bold italic underline strikethrough | forecolor backcolor | alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | removeformat | link image media table | code fullscreen help aiwriter',
+            'plugins': 'advlist autolink link image lists charmap preview anchor searchreplace visualblocks code fullscreen insertdatetime table wordcount help aiwriter toolbarfix',
+            'toolbar': 'formatselect bold italic underline strikethrough | forecolor backcolor | alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | removeformat | link image table | code fullscreen help aiwriter',
             'toolbar_mode': 'sliding',
             'toolbar_sticky': True,
             'toolbar_location': 'top',

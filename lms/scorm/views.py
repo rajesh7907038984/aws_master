@@ -839,7 +839,7 @@ def scorm_preview(request, topic_id):
         request.session['scorm_preview_mode'] = True
         request.session['scorm_preview_topic'] = topic_id
         
-        messages.info(request, "Preview mode enabled - tracking is disabled")
+        # Note: Preview mode banner is displayed on the launch page
         
     except ELearningPackage.DoesNotExist:
         messages.error(request, "No e-learning package found for this content.")
@@ -865,7 +865,7 @@ def xapi_preview(request, topic_id):
         request.session['scorm_preview_mode'] = True
         request.session['scorm_preview_topic'] = topic_id
         
-        messages.info(request, "xAPI Preview mode enabled - tracking is disabled")
+        # Note: Preview mode banner is displayed on the launch page
         
     except ELearningPackage.DoesNotExist:
         messages.error(request, "No e-learning package found for this content.")
@@ -891,7 +891,7 @@ def cmi5_preview(request, topic_id):
         request.session['scorm_preview_mode'] = True
         request.session['scorm_preview_topic'] = topic_id
         
-        messages.info(request, "cmi5 Preview mode enabled - tracking is disabled")
+        # Note: Preview mode banner is displayed on the launch page
         
     except ELearningPackage.DoesNotExist:
         messages.error(request, "No e-learning package found for this content.")

@@ -36,7 +36,7 @@
     </script>
     
     <!-- Font Awesome -->
-    <link rel="stylesheet" href="{% static 'scorm/vendor/font-awesome.min.css' %}" type="text/css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" crossorigin="anonymous" referrerpolicy="no-referrer" type="text/css">
     
     <!-- Google Fonts -->
     <link href="{% static 'scorm/vendor/google-fonts.css' %}" rel="stylesheet" type="text/css">
@@ -44,6 +44,53 @@
     <!-- Favicon -->
     <link rel="icon" href="{% static 'core/img/favicon.png' %}" type="image/x-icon">
     <link rel="shortcut icon" href="{% static 'core/img/favicon.png' %}" type="image/x-icon">
+    
+    <!-- Toast Notification Styles -->
+    <style>
+        .toast-enter {
+            animation: slideInRight 0.3s ease-out;
+        }
+        
+        .toast-leave {
+            animation: slideOutRight 0.3s ease-out;
+            opacity: 0;
+            transform: translateX(100%);
+        }
+        
+        @keyframes slideInRight {
+            from {
+                opacity: 0;
+                transform: translateX(100%);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+        
+        @keyframes slideOutRight {
+            from {
+                opacity: 1;
+                transform: translateX(0);
+            }
+            to {
+                opacity: 0;
+                transform: translateX(100%);
+            }
+        }
+        
+        /* Auto-hide toasts after 5 seconds */
+        .toast-enter {
+            animation: slideInRight 0.3s ease-out, fadeOut 0.5s ease-out 4.5s forwards;
+        }
+        
+        @keyframes fadeOut {
+            to {
+                opacity: 0;
+                transform: translateX(100%);
+            }
+        }
+    </style>
     
     <!-- User Authentication Status for JavaScript -->
     <script>
@@ -146,6 +193,22 @@
             {% block content %}{% endblock %}
         </div>
     </div>
+
+    <!-- Auto-hide toast notifications -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Auto-hide toast notifications after 5 seconds
+            const toasts = document.querySelectorAll('.toast-enter');
+            toasts.forEach(function(toast) {
+                setTimeout(function() {
+                    toast.classList.add('toast-leave');
+                    setTimeout(function() {
+                        toast.remove();
+                    }, 300);
+                }, 5000);
+            });
+        });
+    </script>
 
     {% block extra_js %}{% endblock %}
 </body>

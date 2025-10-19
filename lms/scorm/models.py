@@ -594,33 +594,34 @@ class ELearningPackage(models.Model):
             raise
     
     def detect_package_type(self):
-        """Detect the package type based on manifest files"""
+        """Detect the package type based on manifest files - S3 compatible"""
         if not self.package_file:
             return None
         
+        zip_path = None
+        cleanup_temp = False
+        
         try:
-            # Handle both S3 and remote storage
-            if hasattr(self.package_file.storage, 'path'):
-                # S3 storage - use path directly
-                zip_path = self.package_file.path
-            else:
-                # Remote storage - need to handle differently
-                import tempfile
-                with tempfile.NamedTemporaryFile(suffix='.zip', delete=False) as temp_file:
-                    try:
-                        with self.package_file.open('rb') as source:
-                            content = source.read()
-                            temp_file.write(content)
-                    except (AttributeError, TypeError):
-                        # Handle bytes or other formats
-                        if hasattr(self.package_file, 'read'):
-                            content = self.package_file.read()
-                            temp_file.write(content)
-                        elif isinstance(self.package_file, bytes):
-                            temp_file.write(self.package_file)
-                        else:
-                            return None
-                    zip_path = temp_file.name
+            # For S3 storage, always download to temp file first
+            # S3 storage returns S3 key for .path, not a local file path
+            import tempfile
+            
+            with tempfile.NamedTemporaryFile(suffix='.zip', delete=False) as temp_file:
+                try:
+                    with self.package_file.open('rb') as source:
+                        content = source.read()
+                        temp_file.write(content)
+                except (AttributeError, TypeError):
+                    # Handle bytes or other formats
+                    if hasattr(self.package_file, 'read'):
+                        content = self.package_file.read()
+                        temp_file.write(content)
+                    elif isinstance(self.package_file, bytes):
+                        temp_file.write(self.package_file)
+                    else:
+                        return None
+                zip_path = temp_file.name
+                cleanup_temp = True
             
             with zipfile.ZipFile(zip_path, 'r') as zip_ref:
                 file_list = zip_ref.namelist()
@@ -675,14 +676,19 @@ class ELearningPackage(models.Model):
                 elif any('presenter' in f.lower() or 'adobe_presenter' in f.lower() for f in file_list):
                     return 'ADOBE_PRESENTER'
             
-            # Clean up temp file if we created one
-            if not hasattr(self.package_file.storage, 'path'):
-                os.unlink(zip_path)
+            # Return None as default (no recognized package type)
+            return None
                 
         except Exception as e:
             logger.error("Error detecting package type: {}".format(str(e)))
-        
-        return None
+            return None
+        finally:
+            # Always clean up temp file if we created one
+            if cleanup_temp and zip_path and os.path.exists(zip_path):
+                try:
+                    os.unlink(zip_path)
+                except Exception as cleanup_error:
+                    logger.warning(f"Failed to clean up temp file {zip_path}: {cleanup_error}")
     
     def get_launch_url(self):
         """Get the URL to launch this e-learning package"""

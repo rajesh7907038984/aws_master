@@ -127,8 +127,8 @@ class CourseForm(BaseModelFormWithTinyMCE):
                 'skin': 'oxide',
                 'content_css': False,
                 'body_class': 'white-bg',
-                'plugins': 'advlist autolink link image lists charmap preview anchor searchreplace visualblocks code fullscreen insertdatetime media table wordcount help aiwriter toolbarfix',
-                'toolbar': 'formatselect bold italic underline strikethrough | forecolor backcolor | alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | removeformat | link image media table | code fullscreen help aiwriter',
+                'plugins': 'advlist autolink link image lists charmap preview anchor searchreplace visualblocks code fullscreen insertdatetime table wordcount help aiwriter toolbarfix',
+                'toolbar': 'formatselect bold italic underline strikethrough | forecolor backcolor | alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | removeformat | link image table | code fullscreen help aiwriter',
                 'toolbar_mode': 'sliding',
                 'toolbar_sticky': True,
                 'toolbar_location': 'top',
@@ -972,7 +972,7 @@ class TopicForm(BaseModelFormWithTinyMCE):
                     Q(course=course) | Q(course__isnull=True)
                 ).order_by('title')
                 self.fields['assignment'].queryset = Assignment.objects.filter(
-                    Q(course=course) | Q(course__isnull=True)
+                    Q(courses=course) | Q(courses__isnull=True)
                 ).order_by('title')
                 self.fields['conference'].queryset = Conference.objects.filter(
                     Q(course=course) | Q(course__isnull=True)
@@ -1058,8 +1058,8 @@ class TopicForm(BaseModelFormWithTinyMCE):
                 'height': 300,
                 'menubar': 'edit view insert format tools table',
                 'skin': 'oxide',
-                'plugins': 'advlist autolink link image lists charmap preview anchor searchreplace visualblocks code fullscreen insertdatetime media table wordcount help aiwriter toolbarfix',
-                'toolbar': 'formatselect bold italic underline strikethrough | forecolor backcolor | alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | removeformat | link image media table | code fullscreen help aiwriter',
+                'plugins': 'advlist autolink link image lists charmap preview anchor searchreplace visualblocks code fullscreen insertdatetime table wordcount help aiwriter toolbarfix',
+                'toolbar': 'formatselect bold italic underline strikethrough | forecolor backcolor | alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | removeformat | link image table | code fullscreen help aiwriter',
                 'toolbar_mode': 'sliding',
                 'toolbar_sticky': True,
                 'toolbar_location': 'top',
@@ -1170,8 +1170,8 @@ class TopicForm(BaseModelFormWithTinyMCE):
                 'height': 450,
                 'menubar': 'edit view insert format tools table',
                 'skin': 'oxide',
-                'plugins': 'advlist autolink link image lists charmap preview anchor searchreplace visualblocks code fullscreen insertdatetime media table wordcount help aiwriter toolbarfix',
-                'toolbar': 'formatselect bold italic underline strikethrough | forecolor backcolor | alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | removeformat | link image media table | code fullscreen help aiwriter',
+                'plugins': 'advlist autolink link image lists charmap preview anchor searchreplace visualblocks code fullscreen insertdatetime table wordcount help aiwriter toolbarfix',
+                'toolbar': 'formatselect bold italic underline strikethrough | forecolor backcolor | alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | removeformat | link image table | code fullscreen help aiwriter',
                 'toolbar_mode': 'sliding',
                 'toolbar_sticky': True,
                 'toolbar_location': 'top',
@@ -1193,8 +1193,8 @@ class TopicForm(BaseModelFormWithTinyMCE):
                 'min_height': 450,
                 'menubar': 'edit view insert format tools table',
                 'skin': 'oxide',
-                'plugins': 'advlist autolink link image lists charmap preview anchor searchreplace visualblocks code fullscreen insertdatetime media table wordcount help aiwriter toolbarfix',
-                'toolbar': 'formatselect bold italic underline strikethrough | forecolor backcolor | alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | removeformat | link image media table | code fullscreen help aiwriter',
+                'plugins': 'advlist autolink link image lists charmap preview anchor searchreplace visualblocks code fullscreen insertdatetime table wordcount help aiwriter toolbarfix',
+                'toolbar': 'formatselect bold italic underline strikethrough | forecolor backcolor | alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | removeformat | link image table | code fullscreen help aiwriter',
                 'toolbar_mode': 'sliding',
                 'toolbar_sticky': True,
                 'toolbar_location': 'top',
@@ -1213,7 +1213,7 @@ class TopicForm(BaseModelFormWithTinyMCE):
             'content_file': forms.FileInput(attrs={
                 'class': 'w-full px-4 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500',
                 'data-validate': 'general',
-                'data-max-size': str(100 * 1024 * 1024),  # 100MB
+                'data-max-size': str(600 * 1024 * 1024),  # 600MB - increased for large ZIP files
                 'data-categories': 'document,video,audio,archive'
             }),
             'web_url': forms.URLInput(attrs={

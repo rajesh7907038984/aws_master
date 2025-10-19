@@ -6053,9 +6053,12 @@ def instructor_dashboard(request):
     from django.utils import timezone
     from datetime import timedelta
     
+    # Get list of assigned course IDs for filtering
+    assigned_course_ids = list(assigned_courses.values_list('id', flat=True))
+    
     # 1. Assignments pending grading (high priority)
     pending_submissions = AssignmentSubmission.objects.filter(
-        assignment__course__in=assigned_courses,
+        assignment__courses__id__in=assigned_course_ids,
         status='submitted'
     ).select_related('assignment', 'user').order_by('submitted_at')[:5]
     

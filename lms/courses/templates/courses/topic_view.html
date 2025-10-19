@@ -1010,7 +1010,8 @@
             if (isCompleted === true) return;
             
             const topicType = $('meta[name="topic-type"]').attr('content');
-                
+            
+            if (topicType === 'SCORM') {
                 try {
                     if (window.opener && window.opener.API) {
                         window.opener.API.LMSCommit('');

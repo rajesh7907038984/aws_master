@@ -23,13 +23,11 @@ class Command(BaseCommand):
         self.stdout.write('🧹 Starting orphaned table cleanup...')
         
         # List of orphaned tables from the database analysis
+        # NOTE: BulkNotification tables are NOT orphaned - they are required by the model!
         orphaned_tables = [
             "discussions_discussion_likes",
-            "lms_notifications_bulknotification_target_courses",
             "courses_topic_restricted_learners",
-            "lms_notifications_bulknotification_target_groups",
             "courses_comment_likes",
-            "lms_notifications_bulknotification_custom_recipients",
             "account_settings_menucontrolsettings_visible_to_custom_roles",
             "courses_course_prerequisites",
             "users_customuser_user_permissions",
@@ -37,7 +35,6 @@ class Command(BaseCommand):
             "reports_report_shared_with",
             "users_customuser_groups",
             "lms_messages_message_recipients",
-            "lms_notifications_bulknotification_target_branches",
             "discussions_comment_likes"
         ]
 

@@ -29,9 +29,9 @@ class FileUploadValidator:
         'image': 10 * 1024 * 1024,      # 10MB for images
         'document': 50 * 1024 * 1024,   # 50MB for documents
         'video': 500 * 1024 * 1024,     # 500MB for videos (consistent with frontend)
-        'audio': 100 * 1024 * 1024,     # 100MB for audio
-        'archive': 200 * 1024 * 1024,   # 200MB for archives
-        'general': 100 * 1024 * 1024    # 100MB for general files (corrected to match specification)
+        'audio': 600 * 1024 * 1024,     # 600MB for audio
+        'archive': 600 * 1024 * 1024,   # 600MB for archives (increased for large ZIP files)
+        'general': 600 * 1024 * 1024    # 600MB for general files (increased for large ZIP files)
     }
     
     # File type categories

@@ -346,8 +346,9 @@ document.addEventListener('DOMContentLoaded', function() {
             updateToCurrentTimezone();
         });
     }
-        
-        // Auto-detect on page load if timezone is not set, is UTC, or if user wants to update
+    
+    // Auto-detect on page load if timezone is not set, is UTC, or if user wants to update
+    if (timezoneSelect) {
         if (timezoneSelect.value === '' || timezoneSelect.value === 'UTC' || timezoneSelect.value === '') {
             setTimeout(() => {
                 detectAndSetTimezone();

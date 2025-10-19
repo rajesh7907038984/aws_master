@@ -32,6 +32,32 @@
         min-height: 60px;
         flex-wrap: wrap;
         gap: 1rem;
+        position: relative;
+        z-index: 10;
+    }
+    
+    .topic-title {
+        flex: 1;
+        display: flex;
+        align-items: center;
+    }
+    
+    .topic-title h2 {
+        margin: 0;
+        font-size: 1.2rem;
+        font-weight: 600;
+        color: white;
+        text-overflow: ellipsis;
+        overflow: hidden;
+        white-space: nowrap;
+        max-width: 400px;
+    }
+    
+    .header-actions {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        flex-shrink: 0;
     }
     
     .preview-mode-banner {
@@ -76,6 +102,8 @@
         background: white;
         display: block;
         min-height: 600px;
+        position: relative;
+        z-index: 1;
     }
     
     .scorm-error {
@@ -234,6 +262,22 @@
             padding: 0.75rem;
         }
         
+        .topic-title {
+            order: 1;
+            text-align: center;
+        }
+        
+        .topic-title h2 {
+            font-size: 1rem;
+            max-width: 100%;
+        }
+        
+        .header-actions {
+            order: 2;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        
     }
     
 </style>
@@ -244,13 +288,18 @@
 {% csrf_token %}
 
 <div class="scorm-header">
-    <a href="{% url 'courses:topic_view' topic.id %}" class="back-to-topic-btn">Back to Topic</a>
-    {% if preview_mode %}
-    <div class="preview-mode-banner">
-        <i class="fas fa-eye"></i>
-        Preview Mode - Progress Not Saved
+    <div class="topic-title">
+        <h2>{{ topic.title }}</h2>
     </div>
-    {% endif %}
+    <div class="header-actions">
+        {% if preview_mode %}
+        <div class="preview-mode-banner">
+            <i class="fas fa-eye"></i>
+            Preview Mode - Progress Not Saved
+        </div>
+        {% endif %}
+        <a href="{% url 'courses:topic_view' topic.id %}" class="back-to-topic-btn">Back to Topic</a>
+    </div>
 </div>
 
 
@@ -629,9 +678,11 @@ var API = {
     LMSInitialize: function(param) {
         console.log('SCORM API: LMSInitialize called with:', param);
         
+        // Gracefully handle double initialization (common with Articulate content)
         if (this.initialized) {
-            this.setError(301, "Already initialized");
-            return "false";
+            console.log('SCORM API: Already initialized, returning success');
+            this.clearError(); // Clear any previous errors
+            return "true"; // Return true instead of false for better compatibility
         }
         
         this.initialized = true;
@@ -1228,7 +1279,7 @@ var API = {
             
             // ENHANCED: Validate response
             if (data.result === 'false') {
-                console.warning(`SCORM API: Server rejected ${element}:`, data.error);
+                console.warn(`SCORM API: Server rejected ${element}:`, data.error);
                 this.setError(101, "Server error: " + (data.error || 'Unknown error'));
             }
         }).catch(error => {

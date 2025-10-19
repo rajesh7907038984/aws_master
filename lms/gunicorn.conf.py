@@ -13,7 +13,7 @@ LOGS_DIR = os.environ.get('LOGS_DIR', '/home/ec2-user/lmslogs')
 SERVER_USER = os.environ.get('SERVER_USER', 'ec2-user')
 SERVER_GROUP = os.environ.get('SERVER_GROUP', 'ec2-user')
 GUNICORN_BIND = os.environ.get('GUNICORN_BIND', '0.0.0.0:8000')
-GUNICORN_TIMEOUT = int(os.environ.get('GUNICORN_TIMEOUT', '60'))  # Optimized timeout for better performance
+GUNICORN_TIMEOUT = int(os.environ.get('GUNICORN_TIMEOUT', '3600'))  # 1 hour for large SCORM uploads (600MB) and extraction
 
 # Calculate workers - optimized for 2 CPU cores (3.8GB RAM)
 workers_env = os.environ.get('GUNICORN_WORKERS', 'auto')
@@ -70,8 +70,11 @@ preload_app = False  # Disabled to reduce memory usage at startup
 worker_tmp_dir = "/dev/shm"
 
 # Graceful timeout for worker restart
-graceful_timeout = 15  # Optimized for faster worker recycling
-timeout = GUNICORN_TIMEOUT  # Use the timeout setting
+graceful_timeout = 600  # Extended for large file uploads (600MB SCORM) - 10 minutes
+timeout = GUNICORN_TIMEOUT  # Use the timeout setting (1 hour for upload + extraction)
+
+# Additional timeout settings for file uploads
+client_max_body_size = "600M"  # Allow 600MB file uploads
 
 # Additional timeout settings for better handling
 capture_output = True  # Capture worker output for debugging

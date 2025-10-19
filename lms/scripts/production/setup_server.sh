@@ -252,7 +252,7 @@ server {{
     add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
     
     # Client max body size for file uploads
-    client_max_body_size 100M;
+    client_max_body_size 600M;
     
     # Proxy settings
     proxy_connect_timeout 60s;
