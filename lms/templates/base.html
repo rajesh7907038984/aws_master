@@ -11,6 +11,7 @@
     <!-- Essential scripts only - loaded in dependency order -->
     
     <!-- 1. Core utilities (no dependencies) -->
+    <script src="{% static 'js/production-logger.js' %}"></script>
     <script src="{% static 'core/js/version-manager.js' %}"></script>
     
     <!-- 2. CSRF handling (depends on core utilities) -->
@@ -74,11 +75,16 @@
     <!-- Modern event handling - no deprecated events -->
     <script>
         // Use MutationObserver for DOM changes instead of deprecated events
+        // Wait for DOM to be ready before observing
         if (window.MutationObserver) {
-            const observer = new MutationObserver(function(mutations) {
-                // Handle DOM changes here if needed
+            document.addEventListener('DOMContentLoaded', function() {
+                if (document.body) {
+                    const observer = new MutationObserver(function(mutations) {
+                        // Handle DOM changes here if needed
+                    });
+                    observer.observe(document.body, { childList: true, subtree: true });
+                }
             });
-            observer.observe(document.body, { childList: true, subtree: true });
         }
     </script>
     
@@ -260,22 +266,24 @@
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" type="text/css">
     
-    <!-- Tailwind CSS -->
-    <link href="{% static 'css/tailwind.css' %}" rel="stylesheet">
+    <!-- Base CSS Variables and Core Styles (Load First) -->
+    <link href="{% static 'core/css/style.css' %}?v={{ timestamp|default:'20251019' }}" rel="stylesheet" type="text/css">
+    <link href="{% static 'core/css/font-standards.css' %}?v={{ timestamp|default:'20251019' }}" rel="stylesheet" type="text/css">
+    <link href="{% static 'core/css/table-standards.css' %}?v={{ timestamp|default:'20251019' }}" rel="stylesheet" type="text/css">
+    <link href="{% static 'core/css/chart-styles-unified.css' %}?v={{ timestamp|default:'20251019' }}" rel="stylesheet" type="text/css">
     
-    <!-- Custom CSS -->
-    <link href="{% static 'core/css/style.css' %}" rel="stylesheet" type="text/css">
-    <link href="{% static 'core/css/font-standards.css' %}" rel="stylesheet" type="text/css">
-    <link href="{% static 'core/css/table-standards.css' %}" rel="stylesheet" type="text/css">
-    <link href="{% static 'core/css/chart-styles-unified.css' %}" rel="stylesheet" type="text/css">
-    <link href="{% static 'courses/css/course_create.css' %}" rel="stylesheet" type="text/css">
-    <!-- Font Awesome fixes and fallbacks -->
-    <link href="{% static 'core/css/font-awesome-fixes.css' %}" rel="stylesheet" type="text/css">
-    <!-- Unified Button System -->
-    <link href="{% static 'css/unified-button-system.css' %}" rel="stylesheet" type="text/css">
-    <!-- Sidebar styles handled by sidebar-unified.css -->
-    <link href="{% static 'css/styles.css' %}" rel="stylesheet" type="text/css">
-    <link href="{% static 'css/dashboard-shared.css' %}" rel="stylesheet" type="text/css">
+    <!-- Tailwind CSS (Load After Base Styles) -->
+    <link href="{% static 'css/tailwind.css' %}?v={{ timestamp|default:'20251019' }}" rel="stylesheet">
+    
+    <!-- Component-Specific CSS (Load After Tailwind) -->
+    <link href="{% static 'css/unified-button-system.css' %}?v={{ timestamp|default:'20251019' }}" rel="stylesheet" type="text/css">
+    <link href="{% static 'css/sidebar-unified.css' %}?v={{ timestamp|default:'20251019' }}" rel="stylesheet" type="text/css">
+    <link href="{% static 'css/dashboard-shared.css' %}?v={{ timestamp|default:'20251019' }}" rel="stylesheet" type="text/css">
+    <link href="{% static 'css/styles.css' %}?v={{ timestamp|default:'20251019' }}" rel="stylesheet" type="text/css">
+    <link href="{% static 'courses/css/course_create.css' %}?v={{ timestamp|default:'20251019' }}" rel="stylesheet" type="text/css">
+    
+    <!-- Font Awesome fixes and fallbacks (Load Last) -->
+    <link href="{% static 'core/css/font-awesome-fixes.css' %}?v={{ timestamp|default:'20251019' }}" rel="stylesheet" type="text/css">
     
     <!-- Enhanced responsive styles -->
     <style>
@@ -1083,8 +1091,15 @@
                 header.style.opacity = '1';
                 header.style.zIndex = '50';
             }
-
-            // Search container responsive behavior is handled in header.html
+            
+            // Ensure all header icons are visible
+            const headerIcons = document.querySelectorAll('.header-icon, .discussion-icon, .notification-icon, #mobile-menu-toggle, #profile-button');
+            headerIcons.forEach(icon => {
+                icon.style.display = 'flex';
+                icon.style.visibility = 'visible';
+                icon.style.opacity = '1';
+            });
+        }
 
             // Mobile search toggle responsive behavior is handled in header.html
 

@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Session Expired - {{ block.super }}{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="card shadow">
+                <div class="card-body text-center p-5">
+                    <div class="mb-4">
+                        <i class="fas fa-exclamation-triangle text-warning" style="font-size: 4rem;"></i>
+                    </div>
+                    
+                    <h2 class="card-title text-danger mb-3">Session Expired</h2>
+                    
+                    <p class="card-text text-muted mb-4">
+                        Your session has expired for security reasons. This usually happens when:
+                    </p>
+                    
+                    <ul class="list-unstyled text-start mb-4">
+                        <li class="mb-2"><i class="fas fa-check text-success me-2"></i>You've been inactive for too long</li>
+                        <li class="mb-2"><i class="fas fa-check text-success me-2"></i>You opened the page in a new tab</li>
+                        <li class="mb-2"><i class="fas fa-check text-success me-2"></i>Your browser's security settings changed</li>
+                    </ul>
+                    
+                    <div class="d-grid gap-2 d-md-block">
+                        <button onclick="window.location.reload()" class="btn btn-primary btn-lg">
+                            <i class="fas fa-refresh me-2"></i>Refresh Page
+                        </button>
+                        
+                        <a href="{% url 'login' %}" class="btn btn-outline-secondary btn-lg">
+                            <i class="fas fa-sign-in-alt me-2"></i>Go to Login
+                        </a>
+                    </div>
+                    
+                    {% if can_retry %}
+                    <div class="mt-4">
+                        <small class="text-muted">
+                            <i class="fas fa-info-circle me-1"></i>
+                            If this problem persists, please contact support.
+                        </small>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Auto-refresh after 30 seconds if user doesn't take action
+setTimeout(function() {
+    if (confirm('Would you like to refresh the page automatically?')) {
+        window.location.reload();
+    }
+}, 30000);
+</script>
+{% endblock %}

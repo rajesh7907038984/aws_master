@@ -85,7 +85,7 @@ def portal_landing(request, slug):
         courses__is_active=True,
         courses__catalog_visibility='visible',
         is_active=True
-    ).distinct().annotate(course_count=Count('courses'))
+    ).distinct().annotate(course_count=Count('course'))
     
     # Get portal sections
     main_content_sections = MainContentSection.objects.filter(
@@ -222,7 +222,7 @@ def manage_portal(request, branch_id=None):
         courses__branch=branch,
         courses__is_active=True,
         is_active=True
-    ).distinct().annotate(course_count=Count('courses'))
+    ).distinct().annotate(course_count=Count('course'))
     
     # Define breadcrumbs for this view
     breadcrumbs = [

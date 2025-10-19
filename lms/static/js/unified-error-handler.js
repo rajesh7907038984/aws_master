@@ -99,8 +99,8 @@ class UnifiedErrorHandler {
                 console.error('JavaScript syntax error detected:', event.error.message);
                 // Only show popup in development mode with sanitized content
                 if (window.location.hostname === 'localhost' || window.location.hostname.includes('dev') || window.location.hostname.includes('staging')) {
-                    const sanitizedMessage = this.sanitizeErrorMessage(event.error.message);
-                    const sanitizedFilename = this.sanitizeErrorMessage(event.filename);
+                    var sanitizedMessage = self.sanitizeErrorMessage(event.error ? event.error.message : '');
+                    var sanitizedFilename = self.sanitizeErrorMessage(event.filename || '');
                     alert('JavaScript Syntax Error:\n' + sanitizedMessage + '\nFile: ' + sanitizedFilename + '\nLine: ' + event.lineno);
                 }
                 return;

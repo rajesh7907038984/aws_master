@@ -172,6 +172,7 @@ urlpatterns += [
 if settings.DEBUG:
     # In development, serve static files through Django
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 # In production, WhiteNoise middleware handles static files automatically
 # Media files are served via S3, no local URL patterns needed
 

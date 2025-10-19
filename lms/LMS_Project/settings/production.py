@@ -85,6 +85,13 @@ if get_env('DJANGO_ENV', 'production') == 'development':
         'testserver',  # For Django test client
     ])
 
+# Always add localhost for local testing and development
+ALLOWED_HOSTS.extend([
+    'localhost',
+    '127.0.0.1',
+    '0.0.0.0',
+])
+
 # IP blocking configuration
 BLOCKED_IPS = []
 ALLOW_ALL_IPS = get_bool_env('ALLOW_ALL_IPS', False)  # Restrict IP access by default
@@ -177,10 +184,12 @@ DATABASES = {
 # Fallback uses parent directory to avoid hardcoded paths
 STATIC_ROOT = get_env('STATIC_ROOT', str(Path(__file__).resolve().parent.parent.parent.parent / 'lmsstaticfiles'))
 
-# Use local static files storage for better performance
-STATICFILES_STORAGE = 'whitenoise.storage.StaticFilesStorage'
-WHITENOISE_USE_FINDERS = True
-WHITENOISE_AUTOREFRESH = False  # Disabled for production
+# Use Django's default static files storage - nginx serves static files
+STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.StaticFilesStorage'
+# WHITENOISE_USE_FINDERS = True  # DISABLED - nginx serves static files
+# WHITENOISE_AUTOREFRESH = True  # DISABLED - nginx serves static files
+# WHITENOISE_INDEX_FILE = True  # DISABLED - nginx serves static files
+# WHITENOISE_ADD_HEADERS_FUNCTION = 'core.utils.whitenoise_headers.whitenoise_headers'  # DISABLED - nginx serves static files
 
 # WhiteNoise middleware is configured in base.py
 

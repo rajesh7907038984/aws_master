@@ -5,7 +5,7 @@
         <!-- Left Section: Logo and Sidebar Toggle -->
         <div class="header-left">
             <a href="{% url 'users:role_based_redirect' %}" class="logo-link">
-                <img src="{% static 'core/img/logo-light.png' %}" alt="Nexsy LMS" class="logo-img">
+                <img src="{% static 'core/img/logo-light.png' %}?v={{ timestamp|default:'20251019' }}" alt="Nexsy LMS" class="logo-img">
             </a>
             
             <!-- Sidebar Toggle Button (works for both mobile and desktop) -->

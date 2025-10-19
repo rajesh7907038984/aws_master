@@ -29,11 +29,20 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 # Add the project root to the Python path
 sys.path.insert(0, str(BASE_DIR))
 
-# Add proper MIME type for CSS files
+# Add proper MIME types for CSS and other static files
 mimetypes.add_type("text/css", ".css", True)
+mimetypes.add_type("text/css", ".css.map", True)  # CSS source maps
 mimetypes.add_type("text/javascript", ".js", True)
 mimetypes.add_type("application/javascript", ".js", True)
 mimetypes.add_type("application/pdf", ".pdf", True)
+
+# Additional MIME types for better static file handling
+mimetypes.add_type("font/woff", ".woff", True)
+mimetypes.add_type("font/woff2", ".woff2", True)
+mimetypes.add_type("font/ttf", ".ttf", True)
+mimetypes.add_type("font/eot", ".eot", True)
+mimetypes.add_type("image/svg+xml", ".svg", True)
+mimetypes.add_type("image/webp", ".webp", True)
 
 # ==============================================
 # MEMORY MANAGEMENT SETTINGS
@@ -258,7 +267,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',  # ENABLED for development
     'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
