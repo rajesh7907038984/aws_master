@@ -5,6 +5,13 @@
 
 class UnifiedErrorHandler {
     constructor() {
+        // Check if we're in development mode (be more specific to avoid false positives)
+        this.isDevelopment = window.location.hostname === 'localhost' || 
+                            window.location.hostname === '127.0.0.1' ||
+                            window.location.hostname.includes('localhost:') ||
+                            window.location.hostname.includes('dev.') ||
+                            window.location.hostname.includes('.dev');
+        
         this.errorCategories = {
             'VALIDATION': 'validation_error',
             'AUTHENTICATION': 'auth_error',
@@ -39,28 +46,33 @@ class UnifiedErrorHandler {
      * Setup periodic cleanup for error cooldown to prevent memory leaks
      */
     setupErrorCooldownCleanup() {
-        // Clean up old error cooldown entries more frequently with shorter retention
-        setInterval(() => {
-            const now = Date.now();
-            const maxAge = 120000; // 2 minutes (reduced from 5 minutes)
-            
-            for (const [key, time] of this.errorCooldown.entries()) {
-                if (now - time > maxAge) {
-                    this.errorCooldown.delete(key);
+        // Store interval ID for cleanup
+        this.cleanupInterval = setInterval(() => {
+            try {
+                const now = Date.now();
+                const maxAge = 120000; // 2 minutes
+                
+                // Clean up old entries
+                for (const [key, time] of this.errorCooldown.entries()) {
+                    if (now - time > maxAge) {
+                        this.errorCooldown.delete(key);
+                    }
                 }
+                
+                // Limit total entries to prevent memory buildup
+                if (this.errorCooldown.size > 50) {
+                    const entries = Array.from(this.errorCooldown.entries());
+                    entries.sort((a, b) => a[1] - b[1]); // Sort by timestamp
+                    // Keep only the 25 most recent entries
+                    this.errorCooldown.clear();
+                    entries.slice(-25).forEach(([key, time]) => {
+                        this.errorCooldown.set(key, time);
+                    });
+                }
+            } catch (error) {
+                console.error('Error in cleanup interval:', error);
             }
-            
-            // Also limit the total number of entries to prevent memory buildup
-            if (this.errorCooldown.size > 50) {
-                const entries = Array.from(this.errorCooldown.entries());
-                entries.sort((a, b) => a[1] - b[1]); // Sort by timestamp
-                // Keep only the 25 most recent entries
-                this.errorCooldown.clear();
-                entries.slice(-25).forEach(([key, time]) => {
-                    this.errorCooldown.set(key, time);
-                });
-            }
-        }, 30000); // Run every 30 seconds (increased frequency)
+        }, 30000); // Run every 30 seconds
     }
     
     /**
@@ -94,21 +106,40 @@ class UnifiedErrorHandler {
         // Handle global JavaScript errors
         var self = this;
         window.addEventListener('error', function(event) {
-            // Check if it's a syntax error - handle silently in production
-            if (self.isSyntaxError(event.error)) {
-                console.error('JavaScript syntax error detected:', event.error.message);
-                // Only show popup in development mode with sanitized content
-                if (window.location.hostname === 'localhost' || window.location.hostname.includes('dev') || window.location.hostname.includes('staging')) {
-                    var sanitizedMessage = self.sanitizeErrorMessage(event.error ? event.error.message : '');
-                    var sanitizedFilename = self.sanitizeErrorMessage(event.filename || '');
-                    alert('JavaScript Syntax Error:\n' + sanitizedMessage + '\nFile: ' + sanitizedFilename + '\nLine: ' + event.lineno);
-                }
+            // Skip if no meaningful error information
+            if (!event.error && !event.message && !event.filename) {
                 return;
             }
             
-            // Prevent default browser error popup for other errors
-            event.preventDefault();
-            self.handleError(event.error, 'Global JavaScript Error');
+            // Check if it's a syntax error - handle silently in production
+            if (self.isSyntaxError(event.error)) {
+                console.error('JavaScript syntax error detected:', event.error.message);
+                // Log syntax errors to console instead of showing popups
+                var sanitizedMessage = self.sanitizeErrorMessage(event.error ? event.error.message : '');
+                var sanitizedFilename = self.sanitizeErrorMessage(event.filename || '');
+                console.error('JavaScript Syntax Error:', {
+                    message: sanitizedMessage,
+                    file: sanitizedFilename,
+                    line: event.lineno
+                });
+                return;
+            }
+            
+            // Create error object if event.error is undefined
+            var errorToHandle = event.error;
+            if (!errorToHandle && event.message) {
+                errorToHandle = new Error(event.message);
+                errorToHandle.filename = event.filename;
+                errorToHandle.lineno = event.lineno;
+                errorToHandle.colno = event.colno;
+            }
+            
+            // Only handle if we have meaningful error information
+            if (errorToHandle || event.message) {
+                // Prevent default browser error popup for other errors
+                event.preventDefault();
+                self.handleError(errorToHandle, 'Global JavaScript Error');
+            }
         });
         
         // Handle fetch errors
@@ -216,7 +247,8 @@ class UnifiedErrorHandler {
             'Unexpected token',
             'SyntaxError',
             'Unexpected end of input',
-            'Unexpected end of input'
+            'Unexpected end of input',
+            'Invalid or unexpected token'
         ];
         
         return syntaxErrorPatterns.some(function(pattern) {
@@ -243,13 +275,30 @@ class UnifiedErrorHandler {
      */
     handleError(error, context) {
         context = context || 'Unknown';
-        // Skip syntax errors to prevent popups
-        if (this.isSyntaxError(error)) {
-            console.warn('[' + context + '] Syntax error (handled silently):', error.message);
+        
+        // Skip if error is null or undefined
+        if (!error) {
             return;
         }
+        
+        // Skip hideInstructionsTypes errors as they're handled by fallbacks
+        if (error.message && error.message.includes('hideInstructionsTypes is not defined')) {
+            if (this.isDevelopment) {
+                console.warn('[' + context + '] hideInstructionsTypes error handled by fallback');
+            }
+            return;
+        }
+        
+        // Skip syntax errors to prevent popups
+        if (this.isSyntaxError(error)) {
+            if (this.isDevelopment) {
+                console.warn('[' + context + '] Syntax error (handled silently):', error.message);
+            }
+            return;
+        }
+        
         // Create error key for cooldown check
-        var errorKey = context + '-' + (error.message || error.name);
+        var errorKey = context + '-' + (error.message || error.name || 'unknown');
         var now = Date.now();
         var lastError = this.errorCooldown.get(errorKey);
         
@@ -261,7 +310,9 @@ class UnifiedErrorHandler {
         // Update cooldown
         this.errorCooldown.set(errorKey, now);
         
-        console.error('[' + context + '] Error:', error);
+        if (this.isDevelopment) {
+            console.error('[' + context + '] Error:', error);
+        }
         
         // Categorize error
         var category = this.categorizeError(error);
@@ -380,11 +431,13 @@ class UnifiedErrorHandler {
             console.warn('Failed to store error in localStorage:', e);
         }
         
-        // Log to console with details
-        console.group('🚨 ' + category + ' Error in ' + context);
-        console.error('Error Details:', errorDetails);
-        console.error('Original Error:', error);
-        console.groupEnd();
+        // Log to console with details (development only)
+        if (this.isDevelopment) {
+            console.group('🚨 ' + category + ' Error in ' + context);
+            console.error('Error Details:', errorDetails);
+            console.error('Original Error:', error);
+            console.groupEnd();
+        }
     }
     
     /**
@@ -450,7 +503,36 @@ class UnifiedErrorHandler {
      * Clear recent errors
      */
     clearRecentErrors() {
-        localStorage.removeItem('lms_recent_errors');
+        try {
+            localStorage.removeItem('lms_recent_errors');
+        } catch (error) {
+            console.warn('Failed to clear recent errors from localStorage:', error);
+        }
+    }
+    
+    /**
+     * Cleanup method to prevent memory leaks
+     */
+    cleanup() {
+        try {
+            // Clear interval
+            if (this.cleanupInterval) {
+                clearInterval(this.cleanupInterval);
+                this.cleanupInterval = null;
+            }
+            
+            // Clear error cooldown
+            this.errorCooldown.clear();
+            
+            // Clear recent errors
+            this.clearRecentErrors();
+            
+            if (this.isDevelopment) {
+                console.log('Error handler cleanup completed');
+            }
+        } catch (error) {
+            console.error('Error during error handler cleanup:', error);
+        }
     }
     
     /**
@@ -504,4 +586,11 @@ window.handleFormValidationErrors = (errors) => window.unifiedErrorHandler.handl
 // Initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', function() {
     // console.log('✅ Unified Error Handler initialized');
+});
+
+// Cleanup on page unload to prevent memory leaks
+window.addEventListener('beforeunload', function() {
+    if (window.unifiedErrorHandler && typeof window.unifiedErrorHandler.cleanup === 'function') {
+        window.unifiedErrorHandler.cleanup();
+    }
 });

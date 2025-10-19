@@ -2147,6 +2147,14 @@
         // Inject course ID for JavaScript use
         window.COURSE_ID = {% if course.id %}{{ course.id }}{% else %}null{% endif %};
         
+        // Check if we're in development mode (be more specific to avoid false positives)
+        window.IS_DEVELOPMENT = window.location.hostname === 'localhost' || 
+                               window.location.hostname === '127.0.0.1' ||
+                               window.location.hostname.includes('localhost:') ||
+                               window.location.hostname.includes('dev.') ||
+                               window.location.hostname.includes('.dev') ||
+                               window.location.hostname.includes('127.0.0.1');
+        
         // Cache busting for drag and drop fixes - 2025-01-26
         
         // Force template reload detection
@@ -2158,7 +2166,24 @@
     <!-- Additional scripts for topic management -->
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            // Helper function for conditional logging
+            function debugLog(message, ...args) {
+                if (window.IS_DEVELOPMENT) {
+                    console.log(message, ...args);
+                }
+            }
             
+            function debugError(message, ...args) {
+                if (window.IS_DEVELOPMENT) {
+                    console.error(message, ...args);
+                }
+            }
+            
+            function debugWarn(message, ...args) {
+                if (window.IS_DEVELOPMENT) {
+                    console.warn(message, ...args);
+                }
+            }
             
             // Initialize topic status toggling
             initializeTopicStatusToggle();
@@ -2205,11 +2230,11 @@
             
             // Initialize sections sortable functionality
             function initializeSectionsSortable() {
-                console.log('Initializing sections sortable...');
+                debugLog('Initializing sections sortable...');
                 
                 // Check if Sortable is available
                 if (typeof Sortable === 'undefined') {
-                    console.error('Sortable.js not loaded');
+                    debugError('Sortable.js not loaded');
                     return false;
                 }
                 
@@ -2217,32 +2242,44 @@
                 const sectionsContainer = document.getElementById('sections-container');
                 
                 if (!sectionsContainer) {
-                    console.error('Sections container not found');
+                    debugError('Sections container not found');
                     return false;
                 }
                 
-                console.log('Sections container found:', sectionsContainer);
+                debugLog('Sections container found:', sectionsContainer);
                 
                 // Check if container has sections
                 const sectionItems = sectionsContainer.querySelectorAll('.section-item[data-id]');
                 if (sectionItems.length === 0) {
-                    console.warn('No section items found in container');
+                    debugWarn('No section items found in container');
                     return false;
                 }
                 
                 // Skip if already initialized
                 if (sectionsContainer.hasAttribute('data-sortable-initialized')) {
-                    console.log('Sections sortable already initialized');
+                    debugLog('Sections sortable already initialized');
                     return true;
                 }
                 
+                // Prevent multiple initializations
+                if (sectionsContainer.getAttribute('data-initializing') === 'true') {
+                    debugLog('Sections sortable initialization already in progress');
+                    return false;
+                }
+                
+                sectionsContainer.setAttribute('data-initializing', 'true');
+                
                 // Destroy any existing sortable instance
                 if (sectionsContainer.sortable) {
-                    sectionsContainer.sortable.destroy();
+                    try {
+                        sectionsContainer.sortable.destroy();
+                    } catch (error) {
+                        debugWarn('Error destroying existing sortable:', error);
+                    }
                 }
                 
                 try {
-                    console.log('Creating Sortable instance for sections...');
+                    debugLog('Creating Sortable instance for sections...');
                     const sortableInstance = new Sortable(sectionsContainer, {
                         animation: 150,
                         ghostClass: 'sortable-ghost',
@@ -2253,20 +2290,20 @@
                         fallbackOnBody: true,
                         swapThreshold: 0.65,
                         onStart: function(evt) {
-                            console.log('Section drag started');
+                            debugLog('Section drag started');
                             document.body.classList.add('section-dragging-active');
                             evt.item.classList.add('is-dragging');
                             evt.item.setAttribute('data-drag-active', 'true');
                         },
                         onEnd: function(evt) {
-                            console.log('Section drag ended');
+                            debugLog('Section drag ended');
                             document.body.classList.remove('section-dragging-active');
                             evt.item.classList.remove('is-dragging');
                             evt.item.removeAttribute('data-drag-active');
                             
                             // Save new order if needed
                             if (evt.oldIndex !== evt.newIndex) {
-                                console.log('Section order changed, saving...');
+                                debugLog('Section order changed, saving...');
                                 saveSectionOrder();
                             }
                         }
@@ -2275,10 +2312,12 @@
                     // Store the sortable instance
                     sectionsContainer.sortable = sortableInstance;
                     sectionsContainer.setAttribute('data-sortable-initialized', 'true');
-                    console.log('Sections sortable initialized successfully');
+                    sectionsContainer.removeAttribute('data-initializing');
+                    debugLog('Sections sortable initialized successfully');
                     return true;
                 } catch (error) {
-                    console.error('Error initializing sections sortable:', error);
+                    debugError('Error initializing sections sortable:', error);
+                    sectionsContainer.removeAttribute('data-initializing');
                     return false;
                 }
             }
@@ -2363,9 +2402,21 @@
                         return;
                     }
                     
+                    // Prevent multiple initializations
+                    if (container.getAttribute('data-initializing') === 'true') {
+                        console.log('Container ' + index + ' initialization already in progress');
+                        return;
+                    }
+                    
+                    container.setAttribute('data-initializing', 'true');
+                    
                     // Destroy any existing sortable instance
                     if (container.sortable) {
-                        container.sortable.destroy();
+                        try {
+                            container.sortable.destroy();
+                        } catch (error) {
+                            console.warn('Error destroying existing sortable for container ' + index + ':', error);
+                        }
                     }
                     
                     try {
@@ -2373,10 +2424,12 @@
                         const sortableInstance = new Sortable(container, sortableOptions);
                         container.sortable = sortableInstance;
                         container.setAttribute('data-sortable-initialized', 'true');
+                        container.removeAttribute('data-initializing');
                         console.log('Container ' + index + ' initialized successfully');
                         successCount++;
                     } catch (error) {
                         console.error('Error initializing sortable for container:', error);
+                        container.removeAttribute('data-initializing');
                     }
                 });
                 
@@ -2389,6 +2442,11 @@
                 try {
                     console.log('Saving section order...');
                     const sectionsContainer = document.getElementById('sections-container');
+                    
+                    if (!sectionsContainer) {
+                        throw new Error('Sections container not found');
+                    }
+                    
                     const sectionItems = sectionsContainer.querySelectorAll('.section-item[data-id]');
                     const sectionOrders = [];
                     
@@ -2412,6 +2470,13 @@
                     }
                     
                     const csrfToken = getCSRFToken();
+                    if (!csrfToken) {
+                        throw new Error('CSRF token not available');
+                    }
+                    
+                    if (!window.COURSE_ID) {
+                        throw new Error('Course ID not available');
+                    }
                     
                     const requestData = {
                         course_id: window.COURSE_ID,
@@ -2430,13 +2495,18 @@
                     });
                     
                     console.log('Response status:', response.status);
+                    
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    
                     const data = await response.json();
                     console.log('Response data:', data);
                     
                     if (data.success) {
                         showNotification('Section order updated successfully', 'success');
                     } else {
-                        showNotification('Failed to update section order: ' + data.error, 'error');
+                        throw new Error(data.error || 'Failed to update section order');
                     }
                 } catch (error) {
                     console.error('Error updating section order:', error);
@@ -2447,21 +2517,34 @@
             // Function to save topic order with section change
             async function saveTopicOrderWithSectionChange(topicItem, newContainer, originalSectionId, newSectionId) {
                 try {
+                    if (!topicItem) {
+                        throw new Error('Topic item not found');
+                    }
+                    
+                    if (!newContainer) {
+                        throw new Error('New container not found');
+                    }
                     
                     const topicId = topicItem.getAttribute('data-topic-id');
                     if (!topicId) {
-                        return;
+                        throw new Error('Topic ID not found');
                     }
                     
                     // Get all topics in the new section to determine order
                     const topicItems = newContainer.querySelectorAll('.topic-item[data-topic-id]');
                     const newOrder = Array.from(topicItems).indexOf(topicItem) + 1;
                     
+                    if (newOrder < 1) {
+                        throw new Error('Invalid topic order');
+                    }
                     
                     const csrfToken = getCSRFToken();
                     if (!csrfToken) {
-                        showNotification('Security token not found. Please refresh the page.', 'error');
-                        return;
+                        throw new Error('Security token not found. Please refresh the page.');
+                    }
+                    
+                    if (!window.COURSE_ID) {
+                        throw new Error('Course ID not available');
                     }
                     
                     // Call the topic move API
@@ -2489,7 +2572,7 @@
                     console.log('API response status:', response.status);
                     
                     if (!response.ok) {
-                        throw new Error('HTTP error! status: ' + response.status);
+                        throw new Error(`HTTP error! status: ${response.status}`);
                     }
                     
                     const data = await response.json();
@@ -2501,16 +2584,21 @@
                         // Update the topic's data attributes
                         topicItem.setAttribute('data-section-id', newSectionId);
                     } else {
-                        showNotification('Failed to move topic: ' + (data.error || 'Unknown error'), 'error');
-                        
-                        // Revert the move by moving the topic back
+                        throw new Error(data.error || 'Failed to move topic');
+                    }
+                } catch (error) {
+                    console.error('Error moving topic:', error);
+                    showNotification('Error moving topic: ' + error.message, 'error');
+                    
+                    // Revert the move by moving the topic back
+                    try {
                         const originalContainer = document.querySelector('[data-section-id="' + originalSectionId + '"] .topic-list');
                         if (originalContainer) {
                             originalContainer.appendChild(topicItem);
                         }
+                    } catch (revertError) {
+                        console.error('Error reverting topic move:', revertError);
                     }
-                } catch (error) {
-                    showNotification('Error moving topic: ' + error.message, 'error');
                 }
             }
             
@@ -2839,7 +2927,7 @@
             };
             
             // Add a button to manually initialize sortable if needed (for debugging)
-            if (window.location.hostname.includes('staging') || window.location.hostname.includes('localhost')) {
+            if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.hostname.includes('localhost:')) {
                 const debugButton = document.createElement('button');
                 debugButton.textContent = 'Fix Drag & Drop';
                 debugButton.style.cssText = 'position: fixed; top: 10px; right: 10px; z-index: 9999; background: #ff6b6b; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-size: 12px;';
@@ -2877,7 +2965,7 @@
             }
             
             if (!csrfToken) {
-                alert('Error: CSRF token not found. Please refresh the page.');
+                console.error('Error: CSRF token not found. Please refresh the page.');
                 return;
             }
             
@@ -3147,8 +3235,8 @@
                                  window.location.hostname.includes('.local');
             
             if (isDevelopment) {
-                // In development, use alert as fallback to ensure user sees the message
-                alert(`${type.toUpperCase()}: ${message}`);
+                // Log error to console instead of showing popup
+                console.error(`${type.toUpperCase()}: ${message}`);
                 return;
             }
             
@@ -5715,11 +5803,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     }, 1000);
                     
                 } else {
-                    alert('Failed to update topic status: ' + (data.error || 'Unknown error'));
+                    console.error('Failed to update topic status: ' + (data.error || 'Unknown error'));
                 }
             })
             .catch(error => {
-                alert('Error updating topic status. Please try again.');
+                console.error('Error updating topic status. Please try again.');
             })
             .finally(() => {
                 // Remove loading state
@@ -6049,7 +6137,7 @@ function handleFormSubmit(event) {
         // Validate required fields
         const title = document.getElementById('id_title');
         if (title && !title.value.trim()) {
-            alert('Course title is required');
+            console.error('Course title is required');
             if (submitButton) {
                 submitButton.disabled = false;
                 submitButton.innerHTML = '<i class="fas fa-save mr-2"></i>Update Course';
@@ -6094,7 +6182,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const title = document.getElementById('id_title');
             if (title && !title.value.trim()) {
                 e.preventDefault();
-                alert('Course title is required');
+                console.error('Course title is required');
                 return false;
             }
             

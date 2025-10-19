@@ -27,7 +27,7 @@ from django.urls import path, include, re_path
 from django.conf import settings
 from django.conf.urls.static import static
 from django.views.static import serve
-from django.shortcuts import redirect
+from django.shortcuts import redirect, render
 from django.contrib.auth import views as auth_views
 from users.views import role_based_redirect, learner_dashboard, instructor_dashboard, admin_dashboard, global_admin_dashboard, users_admin_dashboard, custom_login, register, forgot_password, custom_logout
 from core.views import health_check
@@ -133,6 +133,9 @@ urlpatterns = [
     
     # API fallback endpoints for common AJAX requests
     path('api/health/', health_check, name='api_health_check'),
+    
+    # Debug test pages
+    path('debug/profile-dropdown/', lambda request: render(request, 'test_profile_dropdown_debug.html'), name='debug_profile_dropdown'),
     
     # Calendar API endpoints are already included via core.urls at root level
 ]

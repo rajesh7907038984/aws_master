@@ -609,17 +609,13 @@ MEDIA_ROOT = get_env('MEDIA_ROOT', None)  # S3 storage - no local fallback neede
 # CELERY CONFIGURATION
 # ==============================================
 
-# Conditional celery import to avoid import errors during deployment
-try:
-    from celery.schedules import crontab
-    
-    CELERY_BEAT_SCHEDULE = {
-        'sync-gradebook-daily': {
-            'task': 'gradebook.tasks.sync_gradebook',
-            'schedule': crontab(hour=2, minute=0),  # Run at 2 AM every day
-            'args': (),
-        },
-    }
-except ImportError:
-    # Fallback when celery is not available
-    CELERY_BEAT_SCHEDULE = {}
+# NOTE: Celery configuration is centralized in LMS_Project/celery_config.py
+# The celery.py file imports and applies all configuration from celery_config.py
+# This includes:
+# - CELERY_BEAT_SCHEDULE (periodic tasks)
+# - CELERY_TASK_ROUTES (task routing)
+# - CELERY_TASK_SERIALIZER (serialization settings)
+# - Worker settings and performance tuning
+#
+# To add new periodic tasks or configure Celery, edit:
+# /home/ec2-user/lms/LMS_Project/celery_config.py

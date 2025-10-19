@@ -82,7 +82,7 @@ def tinymce_init(selector='textarea.tinymce-editor', config=None):
         'plugins': [
             'advlist', 'autolink', 'lists', 'link', 'image', 'charmap', 'preview',
             'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen',
-            'insertdatetime', 'media', 'table', 'help', 'wordcount'
+            'insertdatetime', 'table', 'help', 'wordcount'
         ],
         'toolbar': 'undo redo | blocks | ' +
                   'bold italic forecolor | alignleft aligncenter ' +
@@ -145,7 +145,7 @@ def tinymce_field(field, **kwargs):
     config = {
         'height': 300,
         'menubar': 'edit view insert format tools table',
-        'plugins': 'lists advlist autolink link image charmap preview anchor searchreplace visualblocks code fullscreen insertdatetime media table paste code help wordcount',
+        'plugins': 'lists advlist autolink link image charmap preview anchor searchreplace visualblocks code fullscreen insertdatetime table code help wordcount',
         'toolbar': 'undo redo | formatselect | bold italic backcolor | alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | removeformat | help'
     }
     
@@ -178,7 +178,7 @@ def tinymce_field_es5(field, **kwargs):
     config = {
         'height': 300,
         'menubar': 'edit view insert format tools table',
-        'plugins': 'lists advlist autolink link image charmap preview anchor searchreplace visualblocks code fullscreen insertdatetime media table paste code help wordcount',
+        'plugins': 'lists advlist autolink link image charmap preview anchor searchreplace visualblocks code fullscreen insertdatetime table code help wordcount',
         'toolbar': 'undo redo | formatselect | bold italic | alignleft aligncenter alignright | bullist numlist | link image | code',
         'statusbar': False,
         'resize': False,

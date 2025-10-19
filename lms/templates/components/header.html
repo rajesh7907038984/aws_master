@@ -1,23 +1,24 @@
 {% load static %}
 <!-- Main Header -->
-<header class="main-header">
-    <div class="header-container">
+<header class="bg-white border-b border-gray-200 fixed top-0 left-0 right-0 w-full z-50 h-16 min-h-[4rem]">
+    <div class="flex items-center justify-between h-full px-2 sm:px-4 mx-auto max-w-[1920px]">
         <!-- Left Section: Logo and Sidebar Toggle -->
-        <div class="header-left">
-            <a href="{% url 'users:role_based_redirect' %}" class="logo-link">
-                <img src="{% static 'core/img/logo-light.png' %}?v={{ timestamp|default:'20251019' }}" alt="Nexsy LMS" class="logo-img">
+        <div class="flex items-center gap-1 sm:gap-2 md:gap-4 flex-shrink-0">
+            <a href="{% url 'users:role_based_redirect' %}" class="flex items-center transition-transform hover:scale-105 flex-shrink-0">
+                <img src="{% static 'core/img/logo-light.png' %}" alt="Nexsy LMS" class="h-8 sm:h-10 md:h-12 w-auto">
             </a>
             
             <!-- Sidebar Toggle Button (works for both mobile and desktop) -->
             <button id="mobile-menu-toggle" 
-                    class="btn btn-icon sidebar-toggle-btn" 
+                    class="flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-full hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition-all flex-shrink-0" 
                     type="button"
                     aria-label="Toggle navigation menu"
                     aria-expanded="false"
                     aria-controls="mobile-menu"
-                    style="display: flex !important; visibility: visible !important; opacity: 1 !important; min-width: 44px !important; min-height: 44px !important;">
+                    style="display: flex !important; visibility: visible !important; opacity: 1 !important;"
+                    data-sidebar-toggle="true">
                 <!-- Hamburger menu icon (three horizontal lines) -->
-                <svg class="hamburger-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+                <svg class="w-5 h-5 sm:w-5 sm:h-5 md:w-6 md:h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
                 </svg>
             </button>
@@ -28,7 +29,7 @@
             <form class="flex w-full shadow-sm rounded-xl overflow-hidden bg-gray-50 ring-1 ring-gray-200 focus-within:ring-2 focus-within:ring-primary-500 transition-all" method="GET" action="{% url 'users:search' %}">
                 <!-- Category Selector -->
                 <div class="relative">
-                    <select name="category" class="h-10 pl-4 pr-8 text-sm bg-transparent border-0 rounded-l-xl text-gray-600 focus:outline-none focus:ring-0 cursor-pointer appearance-none border-r border-gray-300">
+                    <select name="category" class="h-10 pl-4 pr-8 text-base bg-transparent border-0 rounded-l-xl text-gray-600 focus:outline-none focus:ring-0 cursor-pointer appearance-none border-r border-gray-300">
                         <option value="all" selected>All</option>
                         {% if user.is_authenticated and user.role in 'globaladmin,superadmin,admin,instructor' %}
                         <option value="users">Users</option>
@@ -54,7 +55,7 @@
                     <input type="text" 
                            name="q"
                            placeholder="Search anything..." 
-                           class="w-full h-10 pl-12 pr-4 bg-transparent border-0 text-sm text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-0 rounded-r-xl">
+                           class="w-full h-10 pl-12 pr-4 bg-transparent border-0 text-base text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-0 rounded-r-xl">
                 </div>
             </form>
         </div>
@@ -63,22 +64,20 @@
         <div class="flex items-center gap-1 sm:gap-2 md:gap-3 flex-shrink-0">
             <!-- Mobile Search Link (Visible on mobile only) -->
             <a href="{% url 'users:search' %}" 
-               class="btn btn-icon btn-ghost md:hidden"
+               class="md:hidden flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-full hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition-all flex-shrink-0"
                title="Search"
-               aria-label="Search"
-               style="display: flex !important; visibility: visible !important; opacity: 1 !important; min-width: 44px !important; min-height: 44px !important;">
-                <svg class="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
+               aria-label="Search">
+                <svg class="w-4 h-4 sm:w-4 sm:h-4" viewBox="0 0 20 20" fill="currentColor">
                     <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/>
                 </svg>
             </a>
 
             <!-- Messages Button - Hidden on smallest screens -->
             <a href="{% url 'lms_messages:messages' %}" 
-               class="btn btn-icon btn-ghost header-icon discussion-icon hidden xs:flex relative" 
+               class="header-icon discussion-icon hidden xs:flex relative items-center justify-center w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-full hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition-all flex-shrink-0" 
                title="Messages ({{ unread_messages_count|default:0 }} unread)"
                aria-label="Messages ({{ unread_messages_count|default:0 }} unread)"
-               role="button"
-               style="display: flex !important; visibility: visible !important; opacity: 1 !important; min-width: 44px !important; min-height: 44px !important;">
+               role="button">
                 <svg class="w-4 h-4 sm:w-4 sm:h-4 md:w-5 md:h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                 </svg>
@@ -94,11 +93,10 @@
 
             <!-- Notification Bell Button -->
             <a href="{% url 'lms_notifications:notification_center' %}" 
-               class="btn btn-icon btn-ghost header-icon notification-icon relative" 
+               class="header-icon notification-icon relative flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-full hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition-all flex-shrink-0" 
                title="Notifications ({{ unread_notifications_count|default:0 }} unread{% if urgent_notifications_count and urgent_notifications_count > 0 %}, {{ urgent_notifications_count }} urgent{% endif %})"
                aria-label="Notifications ({{ unread_notifications_count|default:0 }} unread{% if urgent_notifications_count and urgent_notifications_count > 0 %}, {{ urgent_notifications_count }} urgent{% endif %})"
-               role="button"
-               style="display: flex !important; visibility: visible !important; opacity: 1 !important; min-width: 44px !important; min-height: 44px !important;">
+               role="button">
                 <svg class="w-4 h-4 sm:w-4 sm:h-4 md:w-5 md:h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
                 </svg>
@@ -117,21 +115,16 @@
             <!-- Profile Picture with Dropdown -->
             <div class="flex items-center relative flex-shrink-0" id="profile-container">
                 <button 
-                    class="btn btn-icon btn-ghost relative overflow-hidden"
-                    style="z-index: 60; -webkit-tap-highlight-color: transparent; touch-action: manipulation; display: flex !important; visibility: visible !important; opacity: 1 !important; min-width: 44px !important; min-height: 44px !important;"
+                    class="relative flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-full hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition-all overflow-hidden flex-shrink-0"
+                    style="z-index: 60; -webkit-tap-highlight-color: transparent; touch-action: manipulation;"
                     aria-label="Profile menu"
                     id="profile-button"
                     type="button"
-                    onclick="toggleProfileDropdown()"
                 >
                     {% if user.profile_image %}
-                    <img src="{{ user.profile_image.url }}" alt="{{ user.username }}" class="w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-full object-cover border-2 border-white shadow-sm">
+                    <img src="{{ user.profile_image.url }}" alt="{{ user.username }}" class="w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-full object-cover">
                     {% else %}
-                    <div class="w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-full bg-gray-300 flex items-center justify-center border-2 border-white shadow-sm">
-                        <svg class="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 text-gray-600" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"/>
-                        </svg>
-                    </div>
+                    <img src="{% static 'img/default-avatar.svg' %}" alt="Profile" class="w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-full object-cover">
                     {% endif %}
                 </button>
 
@@ -204,9 +197,9 @@
                     <div class="border-t border-gray-100 my-1"></div>
                     {% endif %}
                     
-                    <form action="{% url 'logout' %}" method="POST" class="w-full" id="logout-form">
+                    <form action="{% url 'logout' %}" method="POST" class="w-full">
                         {% csrf_token %}
-                        <button type="submit" class="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors" id="logout-button">
+                        <button type="submit" class="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors">
                             <svg class="w-4 h-4 mr-3" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                             </svg>
@@ -240,8 +233,8 @@
     <div id="mobile-menu-overlay" class="absolute inset-0 bg-black bg-opacity-50"></div>
     
     <!-- Menu Content -->
-    <div class="absolute top-0 left-0 w-64 h-full bg-primary shadow-lg transform transition-all duration-300 ease-in-out">
-        <div class="flex items-center justify-between p-4 border-b border-gray-200" style="background-color: var(--brand-primary);">
+    <div class="absolute top-0 left-0 w-64 h-full bg-[#1C2260] shadow-lg transform transition-all duration-300 ease-in-out">
+        <div class="flex items-center justify-between p-4 border-b border-gray-200" style="background-color: #191f56;">
             <a href="{% url 'users:role_based_redirect' %}" class="flex items-center">
                 <img src="{% static 'img/logo-dark.png' %}" alt="Nexsy LMS" class="h-8" style="display: block !important; visibility: visible !important; opacity: 1 !important;">
             </a>
@@ -251,7 +244,7 @@
                 </svg>
             </button>
         </div>
-        <div class="py-4 h-full overflow-y-auto bg-primary">
+        <div class="py-4 h-full overflow-y-auto bg-[#1C2260]">
             <!-- Mobile menu content will be dynamically loaded from sidebar once -->
         </div>
     </div>
@@ -356,7 +349,7 @@
         left: 0 !important;
         width: 16rem !important;
         height: 100% !important;
-        background: var(--brand-primary) !important;
+        background: #1C2260 !important;
         z-index: 51 !important;
         transform: translateX(0) !important;
     }
@@ -368,7 +361,7 @@
 
     /* Mobile menu styles to match sidebar */
     #mobile-menu .py-4 {
-        background-color: var(--brand-primary) !important;
+        background-color: #1C2260 !important;
     }
 
     #mobile-menu .menu-item {
@@ -419,8 +412,8 @@
 
     #mobile-menu .menu-text {
         color: white !important;
-        font-size: 0.75rem;
-        line-height: 1.1rem;
+        font-size: 0.875rem;
+        line-height: 1.25rem;
         margin-left: 0.5rem;
         white-space: nowrap;
         overflow: hidden;
@@ -430,7 +423,7 @@
     /* Active state - dark blue background with white text and icons */
     #mobile-menu a.menu-item.active,
     #mobile-menu button.menu-item.active {
-        background-color: var(--brand-primary-hover) !important;
+        background-color: #050c50 !important;
         color: white !important;
         border-radius: 0 !important;
         border-left: 4px solid #02f711 !important;
@@ -439,7 +432,7 @@
     /* Hover state - dark blue background with white text and icons */
     #mobile-menu a.menu-item:hover,
     #mobile-menu button.menu-item:hover {
-        background-color: var(--brand-primary-hover) !important;
+        background-color: #050c50 !important;
         color: white !important;
         border-radius: 0 !important;
         border-left: 4px solid #02f711 !important;
@@ -488,7 +481,7 @@
     #mobile-menu .submenu a.menu-item,
     #mobile-menu .submenu button.menu-item {
         padding: 12px 24px 12px 52px !important;
-        font-size: 0.875rem !important;
+        font-size: 0.9375rem !important;
         opacity: 0.9;
         height: 48px !important;
         min-height: 48px !important;
@@ -507,7 +500,7 @@
 
     #mobile-menu .submenu a.menu-item:hover,
     #mobile-menu .submenu button.menu-item:hover {
-        background-color: var(--brand-primary-hover) !important;
+        background-color: #050c50 !important;
         opacity: 1;
         color: white !important;
     }
@@ -526,7 +519,7 @@
     #mobile-menu .submenu a.menu-item span.menu-text,
     #mobile-menu .submenu button.menu-item span.menu-text {
         color: white !important;
-        font-size: 0.875rem !important;
+        font-size: 0.9375rem !important;
         margin-left: 0.5rem;
     }
 
@@ -577,7 +570,7 @@
 
     #mobile-menu .submenu .menu-item.active {
         border-left: 3px solid #02f711 !important;
-        background-color: var(--brand-primary-hover) !important;
+        background-color: #050c50 !important;
     }
 
     /* Ensure mobile submenu icons are properly sized */
@@ -630,7 +623,7 @@
         #mobile-menu .submenu a.menu-item,
         #mobile-menu .submenu button.menu-item {
             padding: 10px 16px 10px 40px !important;
-            font-size: 0.8rem !important;
+            font-size: 0.875rem !important;
             height: 44px !important;
             min-height: 44px !important;
         }
@@ -843,20 +836,62 @@
     }
     
     
-    /* Profile dropdown - simplified styles */
+    /* Profile dropdown fixes - Simple approach */
     #profile-container {
-        position: relative;
-        z-index: 60;
-        overflow: visible;
+        position: relative !important;
+        z-index: 60 !important;
+        overflow: visible !important;
     }
     
     #profile-button {
-        touch-action: manipulation;
-        -webkit-tap-highlight-color: transparent;
-        cursor: pointer;
+        touch-action: manipulation !important;
+        -webkit-tap-highlight-color: transparent !important;
+        cursor: pointer !important;
+        min-height: 44px !important;
+        min-width: 44px !important;
     }
     
-    /* Mobile specific fixes - Resolved conflicts */
+    #profile-dropdown {
+        position: absolute !important;
+        top: 3.5rem !important;
+        right: 0 !important;
+        z-index: 9999 !important;
+        min-width: 12rem !important;
+        max-width: calc(100vw - 2rem) !important;
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04) !important;
+        background-color: white !important;
+        border-radius: 0.75rem !important;
+        border: 1px solid #e5e7eb !important;
+        transition: all 0.2s ease-in-out !important;
+        transform: translateY(-5px) !important;
+        opacity: 0 !important;
+        visibility: hidden !important;
+        display: none !important;
+    }
+    
+    #profile-dropdown.hidden {
+        display: none !important;
+        visibility: hidden !important;
+        opacity: 0 !important;
+        transform: translateY(-5px) !important;
+    }
+    
+    #profile-dropdown:not(.hidden) {
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        transform: translateY(0) !important;
+    }
+    
+    /* Enhanced profile dropdown animation */
+    #profile-dropdown.show {
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        transform: translateY(0) !important;
+    }
+    
+    /* Mobile specific fixes */
     @media (max-width: 768px) {
         /* Ensure header allows overflow for dropdown */
         header .flex.items-center {
@@ -869,31 +904,43 @@
         
         #profile-container {
             overflow: visible !important;
-            position: relative !important;
         }
         
-        /* Mobile dropdown adjustments */
         #profile-dropdown {
-            max-width: calc(100vw - 1rem);
-            right: 0;
-            width: max-content;
+            max-width: calc(100vw - 1rem) !important;
+            right: -0.25rem !important;
+            width: max-content !important;
         }
         
-        /* Touch-friendly menu items on mobile */
+        /* Ensure dropdown menu items are touch-friendly on mobile */
         #profile-dropdown a,
         #profile-dropdown button[type="submit"] {
-            min-height: 48px;
-            touch-action: manipulation;
-            -webkit-tap-highlight-color: transparent;
-            padding: 14px 16px;
+            min-height: 48px !important;
+            touch-action: manipulation !important;
+            -webkit-tap-highlight-color: transparent !important;
+            padding: 14px 16px !important;
+        }
+        
+        /* Better visual feedback for touch on menu items */
+        #profile-dropdown a:active,
+        #profile-dropdown button[type="submit"]:active {
+            background-color: #e5e7eb !important;
+            transform: scale(0.98) !important;
+        }
+        
+        /* Ensure dropdown stays within viewport on small screens */
+        #profile-dropdown {
+            max-height: calc(100vh - 5rem) !important;
+            overflow-y: auto !important;
+            -webkit-overflow-scrolling: touch !important;
         }
     }
     
     /* Extra small screens - adjust dropdown positioning */
     @media (max-width: 480px) {
         #profile-dropdown {
-            right: -0.25rem;
-            max-width: calc(100vw - 1rem);
+            right: -0.25rem !important;
+            max-width: calc(100vw - 1rem) !important;
         }
     }
     
@@ -931,47 +978,94 @@
 
 <!-- Ensure all header icons are visible script -->
 <script>
-// Define global functions immediately - before DOMContentLoaded
-window.toggleProfileDropdown = function() {
-    const dropdown = document.getElementById('profile-dropdown');
-    const container = document.getElementById('profile-container');
-    
-    if (dropdown && container) {
-        const isHidden = dropdown.classList.contains('hidden');
+// Comprehensive header visibility fix
+function forceHeaderVisibility() {
+    const header = document.querySelector('header');
+    if (header) {
+        // Force header visibility with maximum priority
+        header.style.setProperty('display', 'block', 'important');
+        header.style.setProperty('visibility', 'visible', 'important');
+        header.style.setProperty('opacity', '1', 'important');
+        header.style.setProperty('z-index', '9999', 'important');
+        header.style.setProperty('position', 'fixed', 'important');
+        header.style.setProperty('top', '0', 'important');
+        header.style.setProperty('left', '0', 'important');
+        header.style.setProperty('right', '0', 'important');
+        header.style.setProperty('width', '100%', 'important');
+        header.style.setProperty('height', '4rem', 'important');
+        header.style.setProperty('background', 'white', 'important');
+        header.style.setProperty('border-bottom', '1px solid #e5e7eb', 'important');
+        header.style.setProperty('box-shadow', '0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1)', 'important');
         
-        if (isHidden) {
-            // Show dropdown
-            dropdown.classList.remove('hidden');
-            
-            // Close dropdown when clicking outside
-            const closeOnOutsideClick = function(e) {
-                if (!container.contains(e.target)) {
-                    dropdown.classList.add('hidden');
-                    document.removeEventListener('click', closeOnOutsideClick);
-                }
-            };
-            
-            // Add event listener after a small delay to prevent immediate closure
-            setTimeout(() => {
-                document.addEventListener('click', closeOnOutsideClick);
-            }, 10);
-            
-            // Close on escape key
-            const closeOnEscape = function(e) {
-                if (e.key === 'Escape') {
-                    dropdown.classList.add('hidden');
-                    document.removeEventListener('keydown', closeOnEscape);
-                    document.removeEventListener('click', closeOnOutsideClick);
-                }
-            };
-            
-            document.addEventListener('keydown', closeOnEscape);
-        } else {
-            // Hide dropdown
-            dropdown.classList.add('hidden');
+        // Force header content visibility
+        const headerContent = header.querySelector('.flex.items-center');
+        if (headerContent) {
+            headerContent.style.setProperty('display', 'flex', 'important');
+            headerContent.style.setProperty('visibility', 'visible', 'important');
+            headerContent.style.setProperty('opacity', '1', 'important');
         }
+        
+        // Force all header icons to be visible
+        const headerIcons = header.querySelectorAll('.header-icon, .discussion-icon, .notification-icon, #mobile-menu-toggle, #profile-button');
+        headerIcons.forEach(icon => {
+            icon.style.setProperty('display', 'flex', 'important');
+            icon.style.setProperty('visibility', 'visible', 'important');
+            icon.style.setProperty('opacity', '1', 'important');
+        });
+        
+        // Force SVG icons to be visible
+        const svgIcons = header.querySelectorAll('svg');
+        svgIcons.forEach(svg => {
+            svg.style.setProperty('display', 'inline-block', 'important');
+            svg.style.setProperty('visibility', 'visible', 'important');
+            svg.style.setProperty('opacity', '1', 'important');
+        });
     }
-};
+}
+
+// Run header fix immediately and on various events
+forceHeaderVisibility();
+document.addEventListener('DOMContentLoaded', forceHeaderVisibility);
+window.addEventListener('load', forceHeaderVisibility);
+window.addEventListener('resize', forceHeaderVisibility);
+
+// Run header fix after any DOM changes
+const headerObserver = new MutationObserver(function(mutations) {
+    let shouldFix = false;
+    mutations.forEach(function(mutation) {
+        if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
+            for (let node of mutation.addedNodes) {
+                if (node.nodeType === Node.ELEMENT_NODE) {
+                    // Check if any editor elements were added that might interfere
+                    if (node.classList && (node.classList.contains('tox-tinymce') || 
+                                         node.classList.contains('tox-toolbar') ||
+                                         node.querySelector('.tox-tinymce, .tox-toolbar'))) {
+                        shouldFix = true;
+                        break;
+                    }
+                }
+            }
+        }
+    });
+    if (shouldFix) {
+        setTimeout(forceHeaderVisibility, 100);
+    }
+});
+
+// Start observing when DOM is ready
+if (document.body) {
+    headerObserver.observe(document.body, {
+        childList: true,
+        subtree: true
+    });
+} else {
+    document.addEventListener('DOMContentLoaded', function() {
+        headerObserver.observe(document.body, {
+            childList: true,
+            subtree: true
+        });
+    });
+}
 
 // Consolidated header JavaScript
 document.addEventListener('DOMContentLoaded', function() {
@@ -983,19 +1077,23 @@ document.addEventListener('DOMContentLoaded', function() {
     // Load branch data when dropdown is opened
     const branchMenuButton = document.querySelector('#branch-switcher-button');
     if (branchMenuButton) {
+        console.log('Branch menu button found, adding click listener');
         // Load branches when menu is first opened
         branchMenuButton.addEventListener('click', function(e) {
+            console.log('Branch button clicked, isLoading:', isLoading, 'branchData:', branchData);
             if (!isLoading && !branchData) {
                 loadUserBranches();
             }
         });
     } else {
+        console.log('Branch menu button not found');
     }
     
     async function loadUserBranches() {
         if (isLoading) return;
         isLoading = true;
         
+        console.log('Loading user branches...');
         
         try {
             const response = await fetch('{% url "branches:get_user_branches" %}', {
@@ -1006,16 +1104,19 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             });
             
+            console.log('Branch response status:', response.status);
             
             if (!response.ok) {
                 throw new Error('Failed to load branches');
             }
             
             branchData = await response.json();
+            console.log('Branch data loaded:', branchData);
             renderBranchOptions();
             updateCurrentBranchDisplay();
             
         } catch (error) {
+            console.error('Error loading branches:', error);
             renderBranchError();
         } finally {
             isLoading = false;
@@ -1042,7 +1143,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 >
                     <div class="flex-1 text-left">
                         <div class="font-medium">${branch.name}</div>
-                        ${branch.business_name ? '<div class="text-xs text-gray-500">' + branch.business_name + '</div>' : ''}
+                        ${branch.business_name ? `<div class="text-xs text-gray-500">${branch.business_name}</div>` : ''}
                         ${branch.is_primary ? '<div class="text-xs text-blue-600 mt-1">Primary Branch</div>' : ''}
                     </div>
                     ${currentIndicator}
@@ -1114,6 +1215,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
         } catch (error) {
+            console.error('Error switching branch:', error);
             showBranchMessage('Error switching branch', 'error');
         }
     };
@@ -1153,7 +1255,7 @@ document.addEventListener('DOMContentLoaded', function() {
         return window.isFirstVisit === true;
     }
     
-    // Mobile menu toggle
+    // Simplified mobile menu toggle - prevents conflicts
     const mobileMenuToggle = document.getElementById('mobile-menu-toggle');
     const mobileMenu = document.getElementById('mobile-menu');
     const mobileMenuOverlay = document.getElementById('mobile-menu-overlay');
@@ -1184,202 +1286,92 @@ document.addEventListener('DOMContentLoaded', function() {
                 mobileMenuContent.innerHTML = '';
                 mobileMenuContent.appendChild(clone);
                 mobileMenuContentLoaded = true;
-            } catch (error) {
-                return;
-            }
-            
-            // Reinitialize submenu toggles in mobile menu with improved error handling
-            const submenuToggleButtons = mobileMenuContent.querySelectorAll('.menu-item.has-submenu');
-            
-            submenuToggleButtons.forEach((button, index) => {
-                try {
-                    // Remove any existing onclick attributes to avoid conflicts
-                    button.removeAttribute('onclick');
-                    
-                    // Extract submenu ID from data attributes or existing onclick
-                    let submenuId = button.getAttribute('data-submenu');
-                    if (!submenuId && button.getAttribute('onclick')) {
-                        const onclickMatch = button.getAttribute('onclick').match(/'([^']+)'/);
-                        submenuId = onclickMatch ? onclickMatch[1] : null;
-                    }
-                    
-                    
+                
+                // Initialize mobile submenus
+                const submenuButtons = mobileMenuContent.querySelectorAll('.menu-item.has-submenu');
+                submenuButtons.forEach(button => {
+                    const submenuId = button.getAttribute('data-submenu');
                     if (submenuId) {
-                        // Ensure arrow icon is visible
-                        const arrow = button.querySelector('.arrow-icon');
-                        if (arrow) {
-                            arrow.style.display = 'inline-block';
-                            arrow.style.visibility = 'visible';
-                            arrow.style.opacity = '1';
-                            arrow.style.color = 'white';
-                            arrow.style.stroke = 'white';
-                            arrow.style.fill = 'none';
-                        }
-                        
-                        // Create a new click handler with improved error handling
                         button.addEventListener('click', function(e) {
-                            // Don't interfere with form submissions or submit buttons
-                            if (e.target.type === 'submit' || 
-                                e.target.closest('form') || 
-                                (e.target.tagName === 'BUTTON' && e.target.type === 'submit') ||
-                                e.target.id === 'logout-button' ||
-                                e.target.closest('#logout-form') ||
-                                e.target.closest('#profile-dropdown')) {
-                                return;
-                            }
-                            
                             e.preventDefault();
                             e.stopPropagation();
-                            
-                            
-                            try {
-                                const submenu = document.getElementById(submenuId);
-                                if (!submenu) {
-                                    return;
-                                }
-                                
-                                // Toggle submenu visibility
-                                const wasHidden = submenu.classList.contains('hidden');
+                            const submenu = document.getElementById(submenuId);
+                            if (submenu) {
                                 submenu.classList.toggle('hidden');
-                                
-                                // Toggle expanded state for arrow rotation
                                 this.classList.toggle('expanded');
-                                
-                                // Apply active class
                                 this.classList.toggle('active');
                                 
-                                // Rotate arrow if present
                                 const arrow = this.querySelector('.arrow-icon');
                                 if (arrow) {
                                     const isNowHidden = submenu.classList.contains('hidden');
                                     arrow.style.transform = isNowHidden ? '' : 'rotate(180deg)';
-                                    // Ensure arrow remains visible
-                                    arrow.style.display = 'inline-block';
-                                    arrow.style.visibility = 'visible';
-                                    arrow.style.opacity = '1';
                                 }
-                                
-                                
-                                // Close other submenus when opening a new one
-                                if (!submenu.classList.contains('hidden')) {
-                                    const allSubmenus = mobileMenuContent.querySelectorAll('.submenu');
-                                    allSubmenus.forEach(menu => {
-                                        if (menu.id !== submenuId && !menu.classList.contains('hidden')) {
-                                            menu.classList.add('hidden');
-                                            
-                                            // Find and update the button state
-                                            const menuButton = mobileMenuContent.querySelector('[data-submenu="' + menu.id + '"]');
-                                            if (menuButton) {
-                                                menuButton.classList.remove('active', 'expanded');
-                                                
-                                                // Reset arrow rotation
-                                                const menuArrow = menuButton.querySelector('.arrow-icon');
-                                                if (menuArrow) {
-                                                    menuArrow.style.transform = '';
-                                                }
-                                            }
-                                        }
-                                    });
-                                }
-                            } catch (error) {
                             }
                         });
-                        
-                    } else {
                     }
-                } catch (error) {
-                }
-            });
-            
-            // Ensure all mobile menu items have proper styling classes
-            const menuItems = mobileMenuContent.querySelectorAll('.menu-item');
-            menuItems.forEach(item => {
-                // Make sure active items have the same styling as desktop
-                if (item.classList.contains('active')) {
-                    item.classList.add('border-l-4', 'border-accent');
-                }
-            });
+                });
+            } catch (error) {
+                console.error('Error loading mobile menu content:', error);
+            }
         }
     }
     
     if (mobileMenuToggle && mobileMenu) {
-        // Check if event listener already exists to prevent duplicates
-        if (mobileMenuToggle.hasAttribute('data-listener-added')) {
-            return;
+        // Remove any existing listeners to prevent conflicts
+        const newButton = mobileMenuToggle.cloneNode(true);
+        if (mobileMenuToggle.parentNode) {
+            mobileMenuToggle.parentNode.replaceChild(newButton, mobileMenuToggle);
         }
         
-        // Mark as having listener to prevent duplicates
-        mobileMenuToggle.setAttribute('data-listener-added', 'true');
-        
-        // Toggle menu or sidebar
-        mobileMenuToggle.addEventListener('click', function(e) {
-            // Don't interfere with form submissions or submit buttons
-            if (e.target.type === 'submit' || 
-                e.target.closest('form') || 
-                (e.target.tagName === 'BUTTON' && e.target.type === 'submit') ||
-                e.target.id === 'logout-button' ||
-                e.target.closest('#logout-form') ||
-                e.target.closest('#profile-dropdown')) {
-                return;
-            }
-            
+        // Add simplified event listener
+        newButton.addEventListener('click', function(e) {
             e.preventDefault();
             e.stopPropagation();
             
-            
-            // On mobile, open the menu 
             if (window.innerWidth < 768) {
+                // Mobile behavior
                 const wasOpen = mobileMenu.classList.contains('open');
-                
                 mobileMenu.classList.toggle('open');
                 
                 if (!wasOpen) {
                     document.body.classList.add('overflow-hidden');
-                    // Load sidebar content if it hasn't been loaded yet
                     loadSidebarContentToMobileMenu();
                 } else {
                     document.body.classList.remove('overflow-hidden');
                 }
             } else {
-                // On desktop, toggle sidebar collapse/expand
-                
-                if (typeof window.SidebarManager !== 'undefined' && window.SidebarManager.toggle) {
-                    // Use SidebarManager if available
-                    window.SidebarManager.toggle();
-                } else if (typeof window.toggleSidebar === 'function') {
-                    // Use global toggleSidebar function
-                    window.toggleSidebar();
-                } else {
-                    // Fallback if the functions aren't available yet
-                    if (sidebar && mainContent) {
-                        const wasCollapsed = sidebar.classList.contains('collapsed');
-                        sidebar.classList.toggle('collapsed');
-                        mainContent.classList.toggle('sidebar-collapsed');
-                        
-                        // Store state in localStorage
-                        const isNowCollapsed = sidebar.classList.contains('collapsed');
-                        localStorage.setItem('sidebar_collapsed', isNowCollapsed);
-                        
-                        // Hide tooltip when expanding sidebar
-                        if (window.hideTooltip) {
-                            window.hideTooltip();
-                        }
+                // Desktop behavior - toggle sidebar
+                if (sidebar && mainContent) {
+                    const wasCollapsed = sidebar.classList.contains('collapsed');
+                    sidebar.classList.toggle('collapsed');
+                    mainContent.classList.toggle('sidebar-collapsed');
+                    
+                    // Store state in localStorage
+                    const isNowCollapsed = sidebar.classList.contains('collapsed');
+                    localStorage.setItem('sidebar_collapsed', isNowCollapsed);
+                    
+                    // Update layout immediately
+                    if (isNowCollapsed) {
+                        mainContent.style.marginLeft = '3.5rem';
+                        mainContent.style.width = 'calc(100% - 3.5rem)';
+                        mainContent.style.maxWidth = 'calc(100% - 3.5rem)';
                     } else {
+                        mainContent.style.marginLeft = '16rem';
+                        mainContent.style.width = 'calc(100% - 16rem)';
+                        mainContent.style.maxWidth = 'calc(100% - 16rem)';
                     }
                 }
             }
         });
         
-        // Close mobile menu
-        if (closeMobileMenu && mobileMenuOverlay) {
-            const closeMenu = function() {
-                mobileMenu.classList.remove('open');
-                document.body.classList.remove('overflow-hidden');
-            };
-            
-            closeMobileMenu.addEventListener('click', closeMenu);
-            mobileMenuOverlay.addEventListener('click', closeMenu);
-        }
+        // Close mobile menu handlers
+        const closeMenu = () => {
+            mobileMenu.classList.remove('open');
+            document.body.classList.remove('overflow-hidden');
+        };
+        
+        if (closeMobileMenu) closeMobileMenu.addEventListener('click', closeMenu);
+        if (mobileMenuOverlay) mobileMenuOverlay.addEventListener('click', closeMenu);
     }
     
     // Mobile search is now a direct link - no toggle functionality needed
@@ -1406,7 +1398,7 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(response => {
                 // Ensure response has proper status information
                 if (typeof response.status === 'undefined' || response.status === null) {
-                    // Response status undefined
+                    console.warn('Response with undefined status detected:', {
                         url: args[0],
                         status: response.status,
                         statusText: response.statusText,
@@ -1424,7 +1416,7 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .catch(error => {
                 // Enhanced error logging for fetch failures
-                // Fetch error
+                console.error('Fetch error:', {
                     url: args[0],
                     error: error.message,
                     name: error.name,
@@ -1440,11 +1432,13 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Skip update if polling is paused
         if (isPollingPaused) {
+            console.log('Skipping notification count update - polling paused');
             return;
         }
         
         // Skip notification updates for first-time visitors or unauthenticated users
         if (!isUserAuthenticated() || isFirstVisit()) {
+            console.log('Skipping notification count update - first visit or unauthenticated');
             return;
         }
 
@@ -1460,8 +1454,10 @@ document.addEventListener('DOMContentLoaded', function() {
             return fetch(url, {
                 method: 'GET',
                 headers: {
-                    'X-CSRFToken': getCSRFToken(),
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || '',
                     'Content-Type': 'application/json',
+                    'Cache-Control': 'no-cache',
+                    'Pragma': 'no-cache'
                 },
                 credentials: 'same-origin',
                 signal: AbortSignal.timeout(30000) // Increased to 30 seconds for production
@@ -1469,13 +1465,15 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(response => {
                 if (!response.ok) {
                     // Log specific error details for debugging
-                    const error = new Error('HTTP error! status: ' + response.status);
+                    console.error(`API call failed with status ${response.status}: ${response.statusText}`);
+                    const error = new Error(`HTTP error! status: ${response.status}`);
                     error.status = response.status;
                     error.statusText = response.statusText;
                     throw error;
                 }
                 const contentType = response.headers.get('content-type');
                 if (!contentType || !contentType.includes('application/json')) {
+                    console.error('API response is not JSON:', contentType);
                     throw new Error('Response is not JSON');
                 }
                 return response.json();
@@ -1496,6 +1494,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 const isHttpError = error.status && (error.status >= 400 && error.status < 600);
                 
                 if (retryCount < maxRetries && isRetryableError && !isHttpError) {
+                    console.warn(`API call failed, retrying... (${retryCount + 1}/${maxRetries}) - Error: ${error.message}`);
                     return new Promise(resolve => {
                         setTimeout(() => {
                             resolve(makeApiCall(url, retryCount + 1));
@@ -1513,6 +1512,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     timestamp: new Date().toISOString()
                 };
                 
+                console.error(`API call failed after ${retryCount + 1} attempts:`, errorInfo);
                 throw error;
             });
         }
@@ -1526,7 +1526,7 @@ document.addEventListener('DOMContentLoaded', function() {
             
             if (messagesIcon) {
                 // Update title
-                messagesIcon.title = 'Messages (' + (data.unread_count || 0) + ' unread)';
+                messagesIcon.title = `Messages (${data.unread_count || 0} unread)`;
                 
                 // Show/hide indicator dot
                 if (messagesIndicator) {
@@ -1562,9 +1562,9 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // Only log error if it's not a network issue (to avoid spam)
             if (!error.message.includes('Failed to fetch') && error.name !== 'TypeError') {
-                // Message count API error
+                console.error('Error updating message counts:', errorDetails);
             } else {
-                // Network error for message count API
+                console.warn('Network issue with message count API:', errorDetails);
             }
             
             // Fallback: Hide message indicators on API failure
@@ -1589,8 +1589,8 @@ document.addEventListener('DOMContentLoaded', function() {
             
             if (notificationIcon) {
                 // Update title
-                const urgentText = data.urgent_count > 0 ? ', ' + data.urgent_count + ' urgent' : '';
-                notificationIcon.title = 'Notifications (' + (data.unread_count || 0) + ' unread' + urgentText + ')';
+                const urgentText = data.urgent_count > 0 ? `, ${data.urgent_count} urgent` : '';
+                notificationIcon.title = `Notifications (${data.unread_count || 0} unread${urgentText})`;
                 
                 // Show/hide and style indicator dot
                 if (notificationIndicator) {
@@ -1648,9 +1648,9 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // Only log error if it's not a network issue (to avoid spam)
             if (!error.message.includes('Failed to fetch') && error.name !== 'TypeError') {
-                // Notification count API error
+                console.error('Error updating notification counts:', errorDetails);
             } else {
-                // Network error for notification count API
+                console.warn('Network issue with notification count API:', errorDetails);
             }
             
             // Fallback: Hide notification indicators on API failure
@@ -1741,6 +1741,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // Resume polling if it was paused
             if (isPollingPaused) {
                 isPollingPaused = false;
+                console.log('Resuming notification polling after course creation context');
             }
             
             pollingTimeout = setTimeout(() => {
@@ -1770,6 +1771,7 @@ document.addEventListener('DOMContentLoaded', function() {
     forms.forEach(form => {
         form.addEventListener('submit', function() {
             isPollingPaused = true;
+            console.log('Pausing notification polling during form submission');
         });
     });
     
@@ -1777,6 +1779,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (typeof tinymce !== 'undefined') {
         tinymce.on('AddEditor', function(e) {
             isPollingPaused = true;
+            console.log('Pausing notification polling during TinyMCE editing');
         });
         
         tinymce.on('RemoveEditor', function(e) {
@@ -1784,6 +1787,7 @@ document.addEventListener('DOMContentLoaded', function() {
             setTimeout(() => {
                 if (!shouldPausePolling()) {
                     isPollingPaused = false;
+                    console.log('Resuming notification polling after TinyMCE editing');
                 }
             }, 2000);
         });
@@ -1814,6 +1818,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 scheduleNextUpdate();
             }, 1000);
         } else {
+            console.log('Skipping notification polling - first visit or unauthenticated user');
         }
     }
     
@@ -1830,111 +1835,185 @@ document.addEventListener('DOMContentLoaded', function() {
     window.addEventListener('beforeunload', cleanupPolling);
     window.addEventListener('pagehide', cleanupPolling);
     
-    // Simplified profile dropdown - using global function with onclick handler
-    // The onclick="toggleProfileDropdown()" on the button handles the main functionality
+    // Enhanced profile dropdown system with better error handling
+    console.log('Enhanced profile dropdown system loading...');
     
-    // Function already defined globally at the top of the script
-    
-    // Global logout button protection - ensures logout buttons always work
-    function protectLogoutButtons() {
-        // Find all logout buttons and forms
-        const logoutButtons = document.querySelectorAll('button[id*="logout"], button[type="submit"][form*="logout"]');
-        const logoutForms = document.querySelectorAll('form[action*="logout"]');
+    // Profile dropdown functionality with comprehensive error handling
+    function initializeProfileDropdown() {
+        console.log('Initializing profile dropdown...');
         
-        logoutButtons.forEach(button => {
-            // Add high-priority click handler that prevents interference
-            button.addEventListener('click', function(e) {
-                // Stop other handlers from interfering
-                e.stopImmediatePropagation();
-                // Don't prevent default - allow form submission
-            }, true); // Capture phase - runs first
-        });
-        
-        logoutForms.forEach(form => {
-            // Add form submit protection
-            form.addEventListener('submit', function(e) {
-                // Don't prevent default - allow form submission
-            });
-        });
-    }
-    
-    // Run protection immediately and on DOM changes
-    protectLogoutButtons();
-    
-    // Re-run protection when new content is added
-    const observer = new MutationObserver(function(mutations) {
-        let shouldProtect = false;
-        mutations.forEach(function(mutation) {
-            if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
-                for (let node of mutation.addedNodes) {
-                    if (node.nodeType === Node.ELEMENT_NODE) {
-                        if (node.id && node.id.includes('logout') || 
-                            node.querySelector && node.querySelector('[id*="logout"]')) {
-                            shouldProtect = true;
-                            break;
-                        }
-                    }
-                }
-            }
-        });
-        if (shouldProtect) {
-            setTimeout(protectLogoutButtons, 100);
-        }
-    });
-    
-    observer.observe(document.body, {
-        childList: true,
-        subtree: true
-    });
-    
-    // Ensure logout form works properly
-    const logoutForm = document.getElementById('logout-form');
-    const logoutButton = document.getElementById('logout-button');
-    
-    if (logoutForm && logoutButton) {
-        // Add specific event listener for logout button with higher priority
-        logoutButton.addEventListener('click', function(e) {
-            // Ensure the form submission is not prevented by other handlers
-            e.stopImmediatePropagation();
-            // Don't prevent default - let the form submit naturally
-        }, true); // Use capture phase to ensure this runs first
-        
-        // Add form submit event listener
-        logoutForm.addEventListener('submit', function(e) {
-            // Don't prevent default - let the form submit naturally
-        });
-        
-        // Additional safety: ensure logout button is not affected by other handlers
-        logoutButton.addEventListener('click', function(e) {
-            // This handler runs in the bubble phase and ensures form submission
-            if (e.target.id === 'logout-button') {
-                // Let the form submit naturally
-            }
-        });
-    }
-    
-    // Debug function for profile dropdown
-    window.debugProfileDropdown = function() {
         const profileButton = document.getElementById('profile-button');
         const profileDropdown = document.getElementById('profile-dropdown');
         const profileContainer = document.getElementById('profile-container');
         
-        
-        if (profileDropdown) {
-            const rect = profileDropdown.getBoundingClientRect();
+        // Check if all required elements exist
+        if (!profileButton) {
+            console.error('Profile button not found');
+            return false;
+        }
+        if (!profileDropdown) {
+            console.error('Profile dropdown not found');
+            return false;
+        }
+        if (!profileContainer) {
+            console.error('Profile container not found');
+            return false;
         }
         
-        // Test click functionality
-        if (profileButton) {
+        console.log('All profile dropdown elements found, setting up functionality...');
+        
+        let isProfileOpen = false;
+        
+        // Enhanced toggle function with better state management
+        function toggleProfileDropdown() {
+            console.log('Toggling profile dropdown, current state:', isProfileOpen);
+            isProfileOpen = !isProfileOpen;
+            
+            if (isProfileOpen) {
+                console.log('Opening profile dropdown');
+                profileDropdown.classList.remove('hidden');
+                profileDropdown.style.display = 'block';
+                profileDropdown.style.visibility = 'visible';
+                profileDropdown.style.opacity = '1';
+                profileDropdown.style.zIndex = '9999';
+                
+                // Add a small delay to ensure proper rendering
+                setTimeout(() => {
+                    profileDropdown.style.transform = 'translateY(0)';
+                }, 10);
+            } else {
+                console.log('Closing profile dropdown');
+                profileDropdown.classList.add('hidden');
+                profileDropdown.style.display = 'none';
+                profileDropdown.style.visibility = 'hidden';
+                profileDropdown.style.opacity = '0';
+            }
         }
-    };
+        
+        // Enhanced close function
+        function closeProfileDropdown() {
+            console.log('Force closing profile dropdown');
+            isProfileOpen = false;
+            profileDropdown.classList.add('hidden');
+            profileDropdown.style.display = 'none';
+            profileDropdown.style.visibility = 'hidden';
+            profileDropdown.style.opacity = '0';
+        }
+        
+        // Remove any existing event listeners to prevent duplicates
+        const newProfileButton = profileButton.cloneNode(true);
+        profileButton.parentNode.replaceChild(newProfileButton, profileButton);
+        
+        // Profile button click handler with enhanced logging
+        newProfileButton.addEventListener('click', function(e) {
+            console.log('Profile button clicked');
+            e.preventDefault();
+            e.stopPropagation();
+            toggleProfileDropdown();
+        });
+        
+        // Close dropdown when clicking outside with better target checking
+        document.addEventListener('click', function(e) {
+            if (isProfileOpen) {
+                const isClickInside = profileContainer.contains(e.target);
+                const isDropdownClick = profileDropdown.contains(e.target);
+                
+                console.log('Outside click detected, inside container:', isClickInside, 'inside dropdown:', isDropdownClick);
+                
+                if (!isClickInside && !isDropdownClick) {
+                    console.log('Clicking outside, closing dropdown');
+                    closeProfileDropdown();
+                }
+            }
+        });
+        
+        // Close dropdown on escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && isProfileOpen) {
+                console.log('Escape key pressed, closing dropdown');
+                closeProfileDropdown();
+            }
+        });
+        
+        // Handle window resize to close dropdown
+        window.addEventListener('resize', function() {
+            if (isProfileOpen) {
+                console.log('Window resized, closing dropdown');
+                closeProfileDropdown();
+            }
+        });
+        
+        console.log('Profile dropdown initialized successfully');
+        return true;
+    }
     
-    // Test function to manually trigger dropdown
+    // Initialize profile dropdown with retry mechanism
+    function initProfileDropdownWithRetry() {
+        let attempts = 0;
+        const maxAttempts = 5;
+        
+        function tryInit() {
+            attempts++;
+            console.log(`Profile dropdown initialization attempt ${attempts}/${maxAttempts}`);
+            
+            if (initializeProfileDropdown()) {
+                console.log('Profile dropdown initialized successfully');
+                return;
+            }
+            
+            if (attempts < maxAttempts) {
+                console.log('Retrying profile dropdown initialization in 100ms...');
+                setTimeout(tryInit, 100);
+            } else {
+                console.error('Failed to initialize profile dropdown after', maxAttempts, 'attempts');
+            }
+        }
+        
+        tryInit();
+    }
+    
+    // Initialize immediately and on DOM ready
+    initProfileDropdownWithRetry();
+    
+    // Also try again when DOM is fully loaded
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initProfileDropdownWithRetry);
+    }
+    
+    // Global function for manual testing
     window.testProfileDropdown = function() {
+        console.log('Manual profile dropdown test triggered');
         const profileButton = document.getElementById('profile-button');
         if (profileButton) {
             profileButton.click();
+        } else {
+            console.error('Profile button not found for manual test');
         }
+    };
+    
+    // Global function to check profile dropdown status
+    window.checkProfileDropdownStatus = function() {
+        const profileButton = document.getElementById('profile-button');
+        const profileDropdown = document.getElementById('profile-dropdown');
+        const profileContainer = document.getElementById('profile-container');
+        
+        console.log('Profile Dropdown Status Check:');
+        console.log('- Button exists:', !!profileButton);
+        console.log('- Dropdown exists:', !!profileDropdown);
+        console.log('- Container exists:', !!profileContainer);
+        
+        if (profileDropdown) {
+            console.log('- Dropdown classes:', profileDropdown.className);
+            console.log('- Dropdown style display:', profileDropdown.style.display);
+            console.log('- Dropdown style visibility:', profileDropdown.style.visibility);
+            console.log('- Dropdown style opacity:', profileDropdown.style.opacity);
+        }
+        
+        return {
+            button: !!profileButton,
+            dropdown: !!profileDropdown,
+            container: !!profileContainer
+        };
     };
     
     // Branch switcher functionality
@@ -1975,16 +2054,6 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Branch button click handler
         branchSwitcherButton.addEventListener('click', function(e) {
-            // Don't interfere with form submissions or submit buttons
-            if (e.target.type === 'submit' || 
-                e.target.closest('form') || 
-                (e.target.tagName === 'BUTTON' && e.target.type === 'submit') ||
-                e.target.id === 'logout-button' ||
-                e.target.closest('#logout-form') ||
-                e.target.closest('#profile-dropdown')) {
-                return;
-            }
-            
             e.preventDefault();
             e.stopPropagation();
             toggleBranchMenu();
@@ -1992,16 +2061,6 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Close branch menu when clicking outside
         document.addEventListener('click', function(e) {
-            // Don't interfere with form submissions or submit buttons
-            if (e.target.type === 'submit' || 
-                e.target.closest('form') || 
-                (e.target.tagName === 'BUTTON' && e.target.type === 'submit') ||
-                e.target.id === 'logout-button' ||
-                e.target.closest('#logout-form') ||
-                e.target.closest('#profile-dropdown')) {
-                return;
-            }
-            
             if (isBranchMenuOpen && !branchSwitcherButton.contains(e.target) && !branchSwitcherMenu.contains(e.target)) {
                 closeBranchMenu();
             }
@@ -2022,31 +2081,5 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 250);
     });
 });
-
-// CSRF Token helper function with multiple fallback methods
-function getCSRFToken() {
-    // Method 1: Meta tag (preferred)
-    const csrfMeta = document.querySelector('meta[name="csrf-token"]');
-    if (csrfMeta) {
-        return csrfMeta.getAttribute('content');
-    }
-    
-    // Method 2: Input field
-    const csrfInput = document.querySelector('input[name="csrfmiddlewaretoken"]');
-    if (csrfInput) {
-        return csrfInput.value;
-    }
-    
-    // Method 3: Cookie fallback
-    const cookies = document.cookie.split(';');
-    for (let cookie of cookies) {
-        const [name, value] = cookie.trim().split('=');
-        if (name === 'csrftoken') {
-            return value;
-        }
-    }
-    
-    console.error('CSRF token not found');
-    return '';
-}
+});
 </script> 

@@ -24,7 +24,7 @@ class NotificationType(models.Model):
     
     # Role-based access
     available_to_roles = models.JSONField(
-        default=lambda: [],
+        default=list,
         help_text="List of roles that can receive this notification type (empty = all roles)"
     )
     
@@ -70,7 +70,7 @@ class NotificationSettings(models.Model):
         help_text="How many days before certificate expiry to send reminder (0 = no reminder)"
     )
     certificate_expiry_reminder_intervals = models.JSONField(
-        default=lambda: [],
+        default=list,
         blank=True,
         help_text="List of days before expiry to send reminders (e.g., [30, 7, 1])"
     )

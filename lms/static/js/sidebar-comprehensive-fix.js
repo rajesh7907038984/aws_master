@@ -319,94 +319,139 @@
     }
 
     /**
-     * Setup submenu toggle functionality
+     * Setup submenu toggle functionality - Simplified to prevent conflicts
      */
     function setupSubmenuToggles() {
         if (!elements.sidebar) return;
         
-        // Remove existing event listeners and reinitialize
+        console.log('Setting up submenu toggles...');
+        
+        // Remove ALL existing event listeners to prevent conflicts
         document.querySelectorAll('.menu-item.has-submenu, [data-submenu]').forEach(button => {
-            var submenuId = button.getAttribute('data-submenu');
-            if (!submenuId) return;
-            
-            // Remove any existing onclick handlers
             button.removeAttribute('onclick');
             
-            // Remove existing event listeners by cloning the element
-            var newButton = button.cloneNode(true);
+            // Clone the button to remove all event listeners
+            const newButton = button.cloneNode(true);
             if (button.parentNode) {
                 button.parentNode.replaceChild(newButton, button);
+            }
+        });
+        
+        // Reinitialize all submenu buttons with simplified logic
+        document.querySelectorAll('.menu-item.has-submenu, [data-submenu]').forEach(button => {
+            const submenuId = button.getAttribute('data-submenu');
+            if (!submenuId) {
+                console.warn('Button without data-submenu attribute:', button);
+                return;
+            }
+            
+            console.log('Setting up submenu button for:', submenuId);
+            
+            // Ensure arrow icon is visible and properly styled
+            const arrow = button.querySelector('.arrow-icon');
+            if (arrow) {
+                arrow.style.display = 'inline-block';
+                arrow.style.visibility = 'visible';
+                arrow.style.opacity = '1';
+                arrow.style.color = 'white';
+                arrow.style.stroke = 'white';
+                arrow.style.fill = 'none';
+                arrow.style.position = 'absolute';
+                arrow.style.right = '1rem';
+                arrow.style.width = '0.75rem';
+                arrow.style.height = '0.75rem';
+                arrow.style.zIndex = '10';
+                arrow.style.transition = 'transform 0.3s ease';
+            }
+            
+            // Add simplified event listener
+            button.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
                 
-                // Ensure arrow icon is visible with enhanced styling
-                var arrow = newButton.querySelector('.arrow-icon');
-                if (arrow) {
-                    arrow.style.display = 'inline-block';
-                    arrow.style.visibility = 'visible';
-                    arrow.style.opacity = '1';
-                    arrow.style.color = 'white';
-                    arrow.style.stroke = 'white';
-                    arrow.style.fill = 'none';
-                    arrow.style.position = 'absolute';
-                    arrow.style.right = '1rem';
-                    arrow.style.width = '0.75rem';
-                    arrow.style.height = '0.75rem';
-                    arrow.style.zIndex = '10';
-                    arrow.style.transition = 'transform 0.3s ease';
+                console.log('Submenu button clicked:', submenuId);
+                
+                // Don't allow submenu toggling when sidebar is collapsed
+                if (state.isCollapsed) {
+                    console.log('Sidebar is collapsed, ignoring submenu toggle');
+                    return;
                 }
                 
-                // Add new event listener with enhanced error handling
-                newButton.addEventListener('click', function(e) {
-                    try {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        
-                        // Don't allow submenu toggling when sidebar is collapsed
-                        if (state.isCollapsed) {
-                            return;
-                        }
-                        
-                        toggleSubmenu(submenuId, this, arrow);
-                    } catch (error) {
-                        console.error('Error handling submenu toggle:', error);
-                    }
-                });
-            }
+                const submenu = document.getElementById(submenuId);
+                if (!submenu) {
+                    console.error('Submenu not found:', submenuId);
+                    return;
+                }
+                
+                const wasHidden = submenu.classList.contains('hidden');
+                submenu.classList.toggle('hidden');
+                this.classList.toggle('active');
+                this.classList.toggle('expanded');
+                
+                // Rotate arrow
+                if (arrow) {
+                    const isNowHidden = submenu.classList.contains('hidden');
+                    arrow.style.transform = isNowHidden ? '' : 'rotate(180deg)';
+                }
+                
+                // Close other submenus if opening this one
+                if (!submenu.classList.contains('hidden')) {
+                    closeOtherSubmenus(submenuId);
+                    state.currentSubmenu = submenuId;
+                } else {
+                    state.currentSubmenu = null;
+                }
+                
+                console.log('Submenu toggle completed for:', submenuId);
+            });
         });
         
         // Check for active items in submenus and expand them
         checkActiveSubmenus();
+        console.log('Submenu toggles setup completed');
     }
 
     /**
-     * Toggle submenu visibility
+     * Toggle submenu visibility - Enhanced with better error handling
      */
     function toggleSubmenu(submenuId, button, arrow) {
         try {
+            console.log('Toggling submenu:', submenuId);
+            
             var submenu = document.getElementById(submenuId);
-            if (!submenu) return;
+            if (!submenu) {
+                console.error('Submenu not found:', submenuId);
+                return;
+            }
             
             var wasHidden = submenu.classList.contains('hidden');
+            console.log('Submenu was hidden:', wasHidden);
             
             // Toggle submenu
             submenu.classList.toggle('hidden');
             button.classList.toggle('active');
             button.classList.toggle('expanded');
             
-            // Rotate arrow
+            // Rotate arrow with enhanced styling
             if (arrow) {
                 var isNowHidden = submenu.classList.contains('hidden');
                 arrow.style.transform = isNowHidden ? '' : 'rotate(180deg)';
+                console.log('Arrow rotated for submenu:', submenuId, 'hidden:', isNowHidden);
             }
             
             // Close other submenus if opening this one
             if (!submenu.classList.contains('hidden')) {
+                console.log('Opening submenu, closing others');
                 closeOtherSubmenus(submenuId);
                 state.currentSubmenu = submenuId;
             } else {
+                console.log('Closing submenu');
                 state.currentSubmenu = null;
             }
+            
+            console.log('Submenu toggle completed for:', submenuId);
         } catch (error) {
-            console.error('Error toggling submenu:', error);
+            console.error('Error toggling submenu:', submenuId, error);
         }
     }
 

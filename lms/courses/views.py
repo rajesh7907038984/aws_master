@@ -3347,26 +3347,6 @@ def topic_edit(request, topic_id, section_id=None):
             # Process text content - directly use the content from TinyMCE
             text_content = form_data.get('text_content', '')
             topic.text_content = text_content
-            content_file = files['content_file']
-            
-            # Check file size for all content types - maximum 600MB
-            max_size = 600 * 1024 * 1024  # 600MB in bytes
-            if content_file.size > max_size:
-                error_msg = f" File size limit exceeded! Your file size: {(content_file.size / (1024 * 1024)):.2f}MB. Maximum allowed: 600MB. Please upload a smaller file."
-                logger.warning(f"File size exceeded limit: {error_msg}")
-                
-                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                    return JsonResponse({
-                        'success': False,
-                        'error': error_msg,
-                        'details': {'content_file': [error_msg]}
-                    }, status=400)
-                
-                messages.error(request, error_msg)
-                if course:
-                    return redirect('courses:course_edit', course_id=course.id)
-                else:
-                    return redirect('courses:course_list')
             
         elif content_type == 'web':
             # Handle web content
@@ -3390,6 +3370,61 @@ def topic_edit(request, topic_id, section_id=None):
             discussion_id = form_data.get('discussion')
             if discussion_id:
                 topic.discussion_id = discussion_id
+        elif content_type in ['video', 'audio', 'document', 'scorm']:
+            # Handle file uploads for video, audio, document, and SCORM content
+            if 'content_file' in files:
+                content_file = files['content_file']
+                
+                # Check file size for all content types - maximum 600MB
+                max_size = 600 * 1024 * 1024  # 600MB in bytes
+                if content_file.size > max_size:
+                    error_msg = f"File size limit exceeded! Your file size: {(content_file.size / (1024 * 1024)):.2f}MB. Maximum allowed: 600MB. Please upload a smaller file."
+                    logger.warning(f"File size exceeded limit: {error_msg}")
+                    
+                    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                        return JsonResponse({
+                            'success': False,
+                            'error': error_msg,
+                            'details': {'content_file': [error_msg]}
+                        }, status=400)
+                    
+                    messages.error(request, error_msg)
+                    if course:
+                        return redirect('courses:course_edit', course_id=course.id)
+                    else:
+                        return redirect('courses:course_list')
+                
+                # Save the new file
+                topic.content_file = content_file
+                
+                # For SCORM packages, handle e-learning package update
+                if content_type == 'scorm':
+                    from scorm.models import ELearningPackage
+                    
+                    # Get or create the e-learning package
+                    elearning_package, created = ELearningPackage.objects.get_or_create(
+                        topic=topic,
+                        defaults={'package_file': content_file}
+                    )
+                    
+                    if not created:
+                        # Update existing package
+                        elearning_package.package_file = content_file
+                        elearning_package.save()
+                    
+                    # Auto-detect package type
+                    detected_type = elearning_package.detect_package_type()
+                    if detected_type:
+                        elearning_package.package_type = detected_type
+                        elearning_package.save()
+                    
+                    # Extract the package
+                    if elearning_package.extract_package():
+                        package_type_display = elearning_package.get_package_type_display()
+                        logger.info(f"{package_type_display} package uploaded and extracted successfully for topic {topic.id}")
+                    else:
+                        error_msg = elearning_package.extraction_error or "Unknown extraction error"
+                        logger.error(f"E-learning package extraction failed for topic {topic.id}: {error_msg}")
         # removed content type removed
         
         # Handle section assignment
@@ -6845,13 +6880,13 @@ def topic_create(request, course_id):
                 )
                 
                 # Handle e-learning package creation (SCORM, xAPI, cmi5)
-                if new_topic.content_type == 'SCORM' and 'scorm_file' in request.FILES:
+                if new_topic.content_type == 'SCORM' and 'content_file' in request.FILES:
                     from scorm.models import ELearningPackage
                     
                     # Create the e-learning package
                     elearning_package = ELearningPackage.objects.create(
                         topic=new_topic,
-                        package_file=request.FILES['scorm_file']
+                        package_file=request.FILES['content_file']
                     )
                     
                     # Auto-detect package type

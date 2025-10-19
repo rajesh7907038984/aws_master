@@ -29,6 +29,9 @@
         display: flex;
         justify-content: space-between;
         align-items: center;
+        min-height: 60px;
+        flex-wrap: wrap;
+        gap: 1rem;
     }
     
     .preview-mode-banner {
@@ -65,11 +68,14 @@
         text-decoration: none;
     }
     
+    
     .scorm-iframe {
         width: 100%;
         height: calc(100vh - 80px);
         border: none;
         background: white;
+        display: block;
+        min-height: 600px;
     }
     
     .scorm-error {
@@ -215,7 +221,21 @@
             visibility: visible !important;
             background: rgba(0, 0, 0, 0.9) !important;
         }
+        
+        
+        .scorm-iframe {
+            height: calc(100vh - 100px);
+            min-height: 400px;
+        }
+        
+        .scorm-header {
+            flex-direction: column;
+            gap: 0.5rem;
+            padding: 0.75rem;
+        }
+        
     }
+    
 </style>
 {% endblock %}
 
@@ -224,14 +244,15 @@
 {% csrf_token %}
 
 <div class="scorm-header">
+    <a href="{% url 'courses:topic_view' topic.id %}" class="back-to-topic-btn">Back to Topic</a>
     {% if preview_mode %}
     <div class="preview-mode-banner">
         <i class="fas fa-eye"></i>
         Preview Mode - Progress Not Saved
     </div>
     {% endif %}
-    <a href="{% url 'courses:topic_view' topic.id %}" class="back-to-topic-btn">Back to Topic</a>
 </div>
+
 
 <div id="scorm-content">
     {% if launch_url %}
@@ -239,8 +260,6 @@
         id="scorm-iframe" 
         class="scorm-iframe" 
         src="{{ launch_url }}"
-        width="100%" 
-        height="100vh"
         frameborder="0"
         scrolling="auto"
         allowfullscreen="allowfullscreen" 
@@ -251,8 +270,7 @@
         sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-presentation allow-top-navigation allow-downloads allow-modals"
         allow="fullscreen; microphone; camera; autoplay; encrypted-media; picture-in-picture; web-share; accelerometer; gyroscope; clipboard-write; clipboard-read; payment; usb; bluetooth"
         referrerpolicy="strict-origin-when-cross-origin"
-        loading="eager"
-        style="border: none; width: 100%; height: 100%; background: white; display: block;">
+        loading="eager">
     </iframe>
     {% else %}
     <div class="scorm-error">
@@ -1942,6 +1960,52 @@ window.addEventListener('load', function() {
     }
 });
 
+// Fix layout and visibility issues
+function fixLayoutIssues() {
+    console.log('SCORM API: Fixing layout issues...');
+    
+    // Ensure proper iframe sizing
+    const iframe = document.getElementById('scorm-iframe');
+    if (iframe) {
+        // Set proper dimensions
+        iframe.style.width = '100%';
+        iframe.style.height = 'calc(100vh - 200px)';
+        iframe.style.minHeight = '600px';
+        iframe.style.display = 'block';
+        iframe.style.border = 'none';
+        iframe.style.background = 'white';
+        
+        // Ensure iframe loads content properly
+        iframe.addEventListener('load', function() {
+            console.log('SCORM API: Iframe loaded successfully');
+            // Force content to be visible
+            iframe.style.visibility = 'visible';
+            iframe.style.opacity = '1';
+        });
+        
+        // Handle iframe errors
+        iframe.addEventListener('error', function() {
+            console.error('SCORM API: Iframe failed to load');
+            // Show error message
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'scorm-error';
+            errorDiv.innerHTML = '<h3>Content Loading Error</h3><p>Unable to load SCORM content. Please try refreshing the page.</p>';
+            iframe.parentNode.replaceChild(errorDiv, iframe);
+        });
+    }
+    
+    
+    // Ensure content area is visible
+    const contentDiv = document.getElementById('scorm-content');
+    if (contentDiv) {
+        contentDiv.style.display = 'block';
+        contentDiv.style.visibility = 'visible';
+        contentDiv.style.opacity = '1';
+    }
+    
+    console.log('SCORM API: Layout issues fixed');
+}
+
 // Enhanced video control support for SCORM content
 function enableVideoControls() {
     const iframe = document.getElementById('scorm-iframe');
@@ -2000,6 +2064,9 @@ window.onload = function () {
     // CRITICAL FIX: Initialize the API immediately
     API.initialized = true;
     console.log('SCORM API: API initialized for proper SCORM communication');
+    
+    // Fix layout issues
+    fixLayoutIssues();
     
     // Enable video controls
     enableVideoControls();

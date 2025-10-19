@@ -1,11 +1,11 @@
 // Admin Sidebar Functionality
 document.addEventListener('DOMContentLoaded', function() {
     // Elements
-    const sidebarToggle = document.getElementById('sidebar-toggle');
-    const sidebarToggleHeader = document.getElementById('sidebar-toggle-header');
-    const mobileSidebarToggle = document.getElementById('mobile-sidebar-toggle');
-    const sidebar = document.getElementById('sidebar');
-    const mainContent = document.getElementById('main-content');
+    var sidebarToggle = document.getElementById('sidebar-toggle');
+    var sidebarToggleHeader = document.getElementById('sidebar-toggle-header');
+    var mobileSidebarToggle = document.getElementById('mobile-sidebar-toggle');
+    var sidebar = document.getElementById('sidebar');
+    var mainContent = document.getElementById('main-content');
     
     // Toggle sidebar function
     function toggleSidebar() {
@@ -13,18 +13,21 @@ document.addEventListener('DOMContentLoaded', function() {
         mainContent.classList.toggle('main-content-expanded');
         
         // Toggle visibility of text in sidebar items
-        document.querySelectorAll('.sidebar-text').forEach(el => {
-            el.classList.toggle('hidden');
-        });
+        var sidebarTextElements = document.querySelectorAll('.sidebar-text');
+        for (var i = 0; i < sidebarTextElements.length; i++) {
+            sidebarTextElements[i].classList.toggle('hidden');
+        }
         
         // Adjust icon containers
-        document.querySelectorAll('.sidebar-icon').forEach(el => {
+        var sidebarIconElements = document.querySelectorAll('.sidebar-icon');
+        for (var i = 0; i < sidebarIconElements.length; i++) {
+            var el = sidebarIconElements[i];
             el.classList.toggle('w-full');
             el.classList.toggle('justify-center');
-        });
+        }
         
         // Update toggle icon
-        const icon = sidebarToggle.querySelector('i');
+        var icon = sidebarToggle.querySelector('i');
         if (icon) {
             if (sidebar.classList.contains('sidebar-collapsed')) {
                 icon.classList.remove('fa-chevron-left');
@@ -99,7 +102,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     // Restore sidebar state from localStorage
-    const savedState = localStorage.getItem('admin_sidebar_collapsed');
+    var savedState = localStorage.getItem('admin_sidebar_collapsed');
     if (savedState === 'true' && window.innerWidth > 768) {
         toggleSidebar();
     }
@@ -112,11 +115,11 @@ document.addEventListener('DOMContentLoaded', function() {
             mainContent.classList.remove('main-content-expanded');
         } else {
             sidebar.classList.remove('mobile-sidebar', 'mobile-open');
-            const overlay = document.getElementById('mobile-sidebar-overlay');
+            var overlay = document.getElementById('mobile-sidebar-overlay');
             if (overlay) overlay.remove();
             
             // Restore desktop collapsed state
-            const savedState = localStorage.getItem('admin_sidebar_collapsed');
+            var savedState = localStorage.getItem('admin_sidebar_collapsed');
             if (savedState === 'true') {
                 sidebar.classList.add('sidebar-collapsed');
                 mainContent.classList.add('main-content-expanded');
@@ -125,38 +128,40 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     // Submenu toggles
-    const submenuToggles = document.querySelectorAll('.submenu-toggle');
-    submenuToggles.forEach(toggle => {
+    var submenuToggles = document.querySelectorAll('.submenu-toggle');
+    for (var i = 0; i < submenuToggles.length; i++) {
+        var toggle = submenuToggles[i];
         toggle.addEventListener('click', function(e) {
             e.preventDefault();
-            const submenuId = this.getAttribute('data-submenu');
-            const submenu = document.getElementById(submenuId);
+            var submenuId = this.getAttribute('data-submenu');
+            var submenu = document.getElementById(submenuId);
             if (submenu) {
                 submenu.classList.toggle('open');
                 
                 // Toggle icon
-                const icon = this.querySelector('.toggle-icon');
+                var icon = this.querySelector('.toggle-icon');
                 if (icon) {
                     icon.classList.toggle('fa-chevron-down');
                     icon.classList.toggle('fa-chevron-up');
                 }
             }
         });
-    });
+    }
     
     // Get current URL path
-    const currentPath = window.location.pathname;
+    var currentPath = window.location.pathname;
     
     // Get user's role from the dashboard link
-    const dashboardLink = document.querySelector('[data-role]');
-    const userRole = dashboardLink ? dashboardLink.getAttribute('data-role') : null;
+    var dashboardLink = document.querySelector('[data-role]');
+    var userRole = dashboardLink ? dashboardLink.getAttribute('data-role') : null;
     
     // Find all sidebar menu items
-    const menuItems = document.querySelectorAll('.sidebar-menu-item, a[href]');
+    var menuItems = document.querySelectorAll('.sidebar-menu-item, a[href]');
     
-    menuItems.forEach(item => {
+    for (var i = 0; i < menuItems.length; i++) {
+        var item = menuItems[i];
         // Get the href attribute
-        const link = item.getAttribute('href');
+        var link = item.getAttribute('href');
         
         // Add click handler to prevent unnecessary reloading
         item.addEventListener('click', function(e) {
@@ -167,7 +172,7 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // Check if it's a dashboard link and matches the user's role
             if (link && link.includes('dashboard') && userRole) {
-                const isDashboardMatch = (
+                var isDashboardMatch = (
                     (userRole === 'superadmin' && link.includes('dashboard_superadmin')) ||
                     (userRole === 'admin' && link.includes('dashboard_admin')) ||
                     (userRole === 'instructor' && link.includes('dashboard_instructor')) ||
@@ -184,14 +189,14 @@ document.addEventListener('DOMContentLoaded', function() {
         if (link && currentPath === link) {
             item.classList.add('active');
             // Also add active class to parent li if it exists
-            const parentLi = item.closest('li');
+            var parentLi = item.closest('li');
             if (parentLi) {
                 parentLi.classList.add('active');
             }
         }
         // Special case for dashboard
         else if (currentPath.includes('/dashboard/') && link && link.includes('dashboard')) {
-            const isDashboardMatch = (
+            var isDashboardMatch = (
                 (userRole === 'superadmin' && currentPath.includes('superadmin')) ||
                 (userRole === 'admin' && currentPath.includes('admin')) ||
                 (userRole === 'instructor' && currentPath.includes('instructor')) ||
@@ -200,27 +205,28 @@ document.addEventListener('DOMContentLoaded', function() {
             
             if (isDashboardMatch) {
                 item.classList.add('active');
-                const parentLi = item.closest('li');
+                var parentLi = item.closest('li');
                 if (parentLi) {
                     parentLi.classList.add('active');
                 }
             }
         }
-    });
+    }
     
     // Auto-hide messages after 5 seconds
-    const messages = document.querySelectorAll('.animate-fade-in-down');
+    var messages = document.querySelectorAll('.animate-fade-in-down');
     if (messages.length > 0) {
-        setTimeout(() => {
-            messages.forEach(message => {
+        setTimeout(function() {
+            for (var i = 0; i < messages.length; i++) {
+                var message = messages[i];
                 message.style.opacity = '0';
                 message.style.transform = 'translateY(-10px)';
                 message.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
                 
-                setTimeout(() => {
+                setTimeout(function() {
                     message.remove();
                 }, 500);
-            });
+            }
         }, 5000);
     }
 }); 

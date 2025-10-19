@@ -263,7 +263,7 @@ class ELearningPackage(models.Model):
                     except Exception as e:
                         logger.warning(f"Failed to clean up extraction directory {full_topic_dir}: {e}")
             
-            self.extracted_path = f"packages/{topic_dir}"  # Store without elearning prefix to avoid double prefixing
+            self.extracted_path = topic_dir  # Store without elearning prefix to avoid double prefixing
             self.is_extracted = True
             self.extraction_error = ""
             self.save()
@@ -704,7 +704,7 @@ class ELearningPackage(models.Model):
             # Fix double prefixing issue
             self.extracted_path = self.extracted_path.replace('elearning/', '')
             self.save()
-            logger.info("Fixed double prefixing for topic {{self.topic.id}}: {{self.extracted_path}}")
+            logger.info(f"Fixed double prefixing for topic {self.topic.id}: {self.extracted_path}")
         return self.extracted_path
 
 
@@ -1732,29 +1732,29 @@ class ELearningTracking(models.Model):
             # Check for exact matches first
             for launch_file in articulate_launch_files:
                 if launch_file in files:
-                    return "{{self.elearning_package.extracted_path}}/{{launch_file}}"
+                    return f"{self.elearning_package.extracted_path}/{launch_file}"
             
             # Check for files that start with Articulate keywords
             for file in files:
                 if file.lower().startswith(('story', 'rise', 'presenter', 'quizmaker', 'articulate')):
                     if file.lower().endswith(('.html', '.htm')):
-                        return "{{self.elearning_package.extracted_path}}/{{file}}"
+                        return f"{self.elearning_package.extracted_path}/{file}"
             
             # Check for files that contain Articulate keywords
             for file in files:
                 if any(keyword in file.lower() for keyword in ['story', 'rise', 'presenter', 'quizmaker', 'articulate']):
                     if file.lower().endswith(('.html', '.htm')):
-                        return "{{self.elearning_package.extracted_path}}/{{file}}"
+                        return f"{self.elearning_package.extracted_path}/{file}"
             
             # Fallback: Check for any HTML file
             for file in files:
                 if file.lower().endswith(('.html', '.htm')):
-                    return "{{self.elearning_package.extracted_path}}/{{file}}"
+                    return f"{self.elearning_package.extracted_path}/{file}"
             
             return None
             
         except Exception as e:
-            logger.error("SCORM: Error finding Articulate launch file: {{str(e)}}")
+            logger.error(f"SCORM: Error finding Articulate launch file: {str(e)}")
             return None
 
     def _is_articulate_file(self, file_path):

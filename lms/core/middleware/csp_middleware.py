@@ -1,6 +1,6 @@
 """
 Content Security Policy (CSP) Middleware
-Sets permissive CSP headers to allow eval() and other JavaScript features
+Sets secure CSP headers while maintaining compatibility with SCORM content and third-party libraries
 """
 
 from django.http import HttpRequest, HttpResponse
@@ -8,8 +8,24 @@ from django.http import HttpRequest, HttpResponse
 
 class CSPMiddleware:
     """
-    Middleware to set permissive Content Security Policy headers
-    Allows unsafe-eval for JavaScript compatibility
+    Middleware to set Content Security Policy headers
+    
+    Security Features:
+    - Prevents XSS attacks by restricting script sources
+    - Allows necessary third-party content (S3, SCORM vendors)
+    - Uses 'unsafe-inline' for styles (required for TinyMCE and dynamic styling)
+    - Does NOT use 'unsafe-eval' (good security practice)
+    
+    Third-Party Sources Allowed:
+    - AWS S3 for media and SCORM content
+    - Articulate, Adobe, Captivate for SCORM content
+    - Google Fonts for typography
+    - CDN libraries (cdnjs, jQuery CDN)
+    
+    Note: 'unsafe-inline' is required for:
+    - TinyMCE rich text editor
+    - Dynamic CSS from SCORM packages
+    - Inline event handlers (being phased out)
     """
     
     def __init__(self, get_response):

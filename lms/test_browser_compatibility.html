@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Browser Compatibility Test</title>
+</head>
+<body>
+    <h1>Browser Compatibility Test</h1>
+    <div id="results"></div>
+    
+    <script>
+        // Test ES5 compatibility
+        function testCompatibility() {
+            var results = document.getElementById('results');
+            var tests = [];
+            
+            // Test 1: Arrow functions (should fail in old browsers)
+            try {
+                eval('() => {}');
+                tests.push('✅ Arrow functions supported');
+            } catch (e) {
+                tests.push('❌ Arrow functions not supported: ' + e.message);
+            }
+            
+            // Test 2: Template literals (should fail in old browsers)
+            try {
+                eval('`template ${"literal"}`');
+                tests.push('✅ Template literals supported');
+            } catch (e) {
+                tests.push('❌ Template literals not supported: ' + e.message);
+            }
+            
+            // Test 3: const/let (should fail in old browsers)
+            try {
+                eval('const test = 1; let test2 = 2;');
+                tests.push('✅ const/let supported');
+            } catch (e) {
+                tests.push('❌ const/let not supported: ' + e.message);
+            }
+            
+            // Test 4: Array.from (should fail in old browsers)
+            try {
+                Array.from([1, 2, 3]);
+                tests.push('✅ Array.from supported');
+            } catch (e) {
+                tests.push('❌ Array.from not supported: ' + e.message);
+            }
+            
+            // Test 5: forEach (should work in most browsers)
+            try {
+                [1, 2, 3].forEach(function(x) { return x; });
+                tests.push('✅ forEach supported');
+            } catch (e) {
+                tests.push('❌ forEach not supported: ' + e.message);
+            }
+            
+            // Display results
+            results.innerHTML = '<ul>' + tests.map(function(test) {
+                return '<li>' + test + '</li>';
+            }).join('') + '</ul>';
+        }
+        
+        // Run tests when page loads
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', testCompatibility);
+        } else {
+            testCompatibility();
+        }
+    </script>
+</body>
+</html>

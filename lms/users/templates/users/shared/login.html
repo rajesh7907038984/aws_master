@@ -7,7 +7,7 @@
     <title>Login - Nexsy LMS</title>
     <link href="{% static 'css/tailwind.css' %}" rel="stylesheet">
     <link href="{% static 'css/styles.css' %}" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" crossorigin="anonymous" referrerpolicy="no-referrer">
     <style>
         /* Floating animations removed to prevent flickering */
 
@@ -90,15 +90,22 @@
             animation: fadeInUp 0.8s ease-out 0.2s both;
         }
         
-        .logo {
-            height: auto;
-            width: 180px;
-            object-fit: contain;
+        .logo-text {
+            text-align: center;
             transition: transform 0.3s ease;
         }
 
-        .logo:hover {
+        .logo-text:hover {
             transform: scale(1.02);
+        }
+
+        .logo-text h1 {
+            background: linear-gradient(135deg, #1c2260, #3b82f6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-weight: 700;
+            letter-spacing: -0.5px;
         }
 
         .welcome-text {
@@ -523,6 +530,24 @@
             z-index: -1;
         }
 
+        /* Font Awesome icon fallbacks */
+        .fa-user::before { content: "👤"; }
+        .fa-lock::before { content: "🔒"; }
+        .fa-sign-in-alt::before { content: "🔑"; }
+        .fa-key::before { content: "🗝️"; }
+        .fa-arrow-left::before { content: "←"; }
+        .fa-lightbulb::before { content: "💡"; }
+        .fa-spinner::before { content: "⟳"; }
+        .fa-sync-alt::before { content: "🔄"; }
+        .fa-exclamation-circle::before { content: "⚠️"; }
+        .fa-check-circle::before { content: "✅"; }
+        .fa-info-circle::before { content: "ℹ️"; }
+        .fa-exclamation-triangle::before { content: "⚠️"; }
+        .fa-shield-alt::before { content: "🛡️"; }
+        .fa-clock::before { content: "🕐"; }
+        .fa-hourglass-half::before { content: "⏳"; }
+        .fa-lock::before { content: "🔒"; }
+
         /* Custom scrollbar for login container */
         .login-container::-webkit-scrollbar {
             width: 6px;
@@ -557,7 +582,10 @@
 
     <div class="login-container">
         <div class="logo-container">
-            <img src="{% static 'core/img/logo-light.png' %}" alt="Nexsy LMS Logo" class="logo">
+            <div class="logo-text">
+                <img src="{% static 'core/img/logo-light.png' %}" alt="Nexsy LMS" class="logo mx-auto mb-2" style="max-height: 60px; width: auto;">
+                <div class="text-sm text-gray-600">Learning Management System</div>
+            </div>
         </div>
         
         <div class="text-center mb-6 welcome-text">

@@ -38,12 +38,16 @@
     }
     
     /**
-     * Initialize submenu toggles in mobile menu
+     * Initialize submenu toggles in mobile menu - Enhanced to prevent conflicts
      */
     function initializeMobileSubmenus(container) {
-        const submenuButtons = container.querySelectorAll('.menu-item.has-submenu');
+        console.log('Initializing mobile submenus...');
         
-        submenuButtons.forEach((button) => {
+        const submenuButtons = container.querySelectorAll('.menu-item.has-submenu');
+        console.log('Found mobile submenu buttons:', submenuButtons.length);
+        
+        submenuButtons.forEach((button, index) => {
+            // Remove any existing onclick handlers
             button.removeAttribute('onclick');
             
             let submenuId = button.getAttribute('data-submenu');
@@ -53,24 +57,45 @@
             }
             
             if (submenuId) {
+                console.log(`Setting up mobile submenu ${index + 1}:`, submenuId);
+                
+                // Ensure arrow icon is visible
+                const arrow = button.querySelector('.arrow-icon');
+                if (arrow) {
+                    arrow.style.display = 'inline-block';
+                    arrow.style.visibility = 'visible';
+                    arrow.style.opacity = '1';
+                    arrow.style.color = 'white';
+                    arrow.style.stroke = 'white';
+                }
+                
                 button.addEventListener('click', function(e) {
                     e.preventDefault();
                     e.stopPropagation();
                     
-                    const submenu = document.getElementById(submenuId);
-                    if (!submenu) return;
+                    console.log('Mobile submenu button clicked:', submenuId);
                     
+                    const submenu = document.getElementById(submenuId);
+                    if (!submenu) {
+                        console.error('Mobile submenu not found:', submenuId);
+                        return;
+                    }
+                    
+                    const wasHidden = submenu.classList.contains('hidden');
                     submenu.classList.toggle('hidden');
                     this.classList.toggle('expanded');
                     this.classList.toggle('active');
                     
                     const arrow = this.querySelector('.arrow-icon');
                     if (arrow) {
-                        arrow.style.transform = submenu.classList.contains('hidden') ? '' : 'rotate(180deg)';
+                        const isNowHidden = submenu.classList.contains('hidden');
+                        arrow.style.transform = isNowHidden ? '' : 'rotate(180deg)';
+                        console.log('Mobile arrow rotated for:', submenuId, 'hidden:', isNowHidden);
                     }
                     
                     // Close other submenus
                     if (!submenu.classList.contains('hidden')) {
+                        console.log('Opening mobile submenu, closing others');
                         container.querySelectorAll('.submenu').forEach(menu => {
                             if (menu.id !== submenuId && !menu.classList.contains('hidden')) {
                                 menu.classList.add('hidden');
@@ -83,9 +108,15 @@
                             }
                         });
                     }
+                    
+                    console.log('Mobile submenu toggle completed for:', submenuId);
                 });
+            } else {
+                console.warn('Mobile submenu button without ID:', button);
             }
         });
+        
+        console.log('Mobile submenus initialization completed');
     }
     
     /**
@@ -345,7 +376,8 @@
     // Expose functions globally if needed
     window.HeaderHandler = {
         updateCounts: updateHeaderCounts,
-        loadMobileMenu: loadSidebarContentToMobileMenu
+        loadMobileMenu: loadSidebarContentToMobileMenu,
+        initializeMobileSubmenus: initializeMobileSubmenus
     };
 })();
 

@@ -16,21 +16,45 @@
         },
         
         getCSRFToken: function() {
-            // Try to get from meta tag first
-            const metaTag = document.querySelector('meta[name="csrf-token"]');
-            if (metaTag) {
-                return metaTag.getAttribute('content');
-            }
-            
-            // Fall back to cookie
-            const cookies = document.cookie.split(';');
-            for (let cookie of cookies) {
-                const [name, value] = cookie.trim().split('=');
-                if (name === 'csrftoken') {
-                    return value;
+            try {
+                // Try to get from meta tag first
+                const metaTag = document.querySelector('meta[name="csrf-token"]');
+                if (metaTag) {
+                    const token = metaTag.getAttribute('content');
+                    if (token && token.trim() !== '') {
+                        return token;
+                    }
                 }
+                
+                // Try to get from input field
+                const inputField = document.querySelector('input[name="csrfmiddlewaretoken"]');
+                if (inputField) {
+                    const token = inputField.value;
+                    if (token && token.trim() !== '') {
+                        return token;
+                    }
+                }
+                
+                // Try to get from window object
+                if (window.CSRF_TOKEN && window.CSRF_TOKEN.trim() !== '') {
+                    return window.CSRF_TOKEN;
+                }
+                
+                // Fall back to cookie
+                const cookies = document.cookie.split(';');
+                for (let cookie of cookies) {
+                    const [name, value] = cookie.trim().split('=');
+                    if (name === 'csrftoken' && value && value.trim() !== '') {
+                        return value;
+                    }
+                }
+                
+                console.warn('CSRF token not found in any source');
+                return null;
+            } catch (error) {
+                console.error('Error getting CSRF token:', error);
+                return null;
             }
-            return null;
         },
         
         enhanceFetch: function() {
@@ -39,10 +63,18 @@
             
             window.fetch = function(url, options = {}) {
                 try {
-                    // Add CSRF token to requests
-                    if (self.csrfToken && (options.method === 'POST' || options.method === 'PUT' || options.method === 'DELETE' || options.method === 'PATCH')) {
-                        options.headers = options.headers || {};
-                        options.headers['X-CSRFToken'] = self.csrfToken;
+                    // Add CSRF token to requests that need it
+                    if (options.method === 'POST' || options.method === 'PUT' || options.method === 'DELETE' || options.method === 'PATCH' || 
+                        (options.method === undefined && url && typeof url === 'string')) {
+                        
+                        // Get fresh CSRF token for each request
+                        const csrfToken = self.getCSRFToken();
+                        if (csrfToken) {
+                            options.headers = options.headers || {};
+                            options.headers['X-CSRFToken'] = csrfToken;
+                        } else {
+                            console.warn('CSRF token not available for request to:', url);
+                        }
                     }
                     
                     return originalFetch.call(this, url, options);

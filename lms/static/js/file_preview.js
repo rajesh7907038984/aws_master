@@ -29,8 +29,14 @@ document.addEventListener('DOMContentLoaded', function() {
     // Generic file preview handler
     function handleFilePreview(input, fileType) {
         try {
+            if (!input || !input.files) {
+                console.warn('Invalid file input provided');
+                return;
+            }
+            
             const container = input.closest('.file-upload-container');
             if (!container) {
+                console.warn('File upload container not found');
                 return;
             }
             
@@ -55,8 +61,10 @@ document.addEventListener('DOMContentLoaded', function() {
             const fileSize = file.size / (1024 * 1024); // Convert to MB
             
             // Update filename display
-            filenameDisplay.textContent = `Selected: ${file.name} (${fileSize.toFixed(2)}MB)`;
-            filenameDisplay.classList.remove('hidden');
+            if (filenameDisplay) {
+                filenameDisplay.textContent = `Selected: ${file.name} (${fileSize.toFixed(2)}MB)`;
+                filenameDisplay.classList.remove('hidden');
+            }
             
             // Handle different file types
             switch(fileType) {
@@ -68,12 +76,16 @@ document.addEventListener('DOMContentLoaded', function() {
                         preview.appendChild(img);
                     }
                     const img = preview.querySelector('img');
-                    const reader = new FileReader();
-                    reader.onload = function(e) {
-                        img.src = e.target.result;
-                        preview.classList.remove('hidden');
-                    };
-                    reader.readAsDataURL(file);
+                    if (img) {
+                        const reader = new FileReader();
+                        reader.onload = function(e) {
+                            if (img && preview) {
+                                img.src = e.target.result;
+                                preview.classList.remove('hidden');
+                            }
+                        };
+                        reader.readAsDataURL(file);
+                    }
                     break;
                     
                 case 'video':
@@ -86,10 +98,15 @@ document.addEventListener('DOMContentLoaded', function() {
                         preview.appendChild(video);
                     }
                     const video = preview.querySelector('video');
-                    const videoUrl = URL.createObjectURL(file);
-                    video.querySelector('source').src = videoUrl;
-                    video.load();
-                    preview.classList.remove('hidden');
+                    if (video) {
+                        const videoUrl = URL.createObjectURL(file);
+                        const source = video.querySelector('source');
+                        if (source) {
+                            source.src = videoUrl;
+                            video.load();
+                            preview.classList.remove('hidden');
+                        }
+                    }
                     break;
                     
                 case 'audio':
@@ -102,10 +119,15 @@ document.addEventListener('DOMContentLoaded', function() {
                         preview.appendChild(audio);
                     }
                     const audio = preview.querySelector('audio');
-                    const audioUrl = URL.createObjectURL(file);
-                    audio.querySelector('source').src = audioUrl;
-                    audio.load();
-                    preview.classList.remove('hidden');
+                    if (audio) {
+                        const audioUrl = URL.createObjectURL(file);
+                        const source = audio.querySelector('source');
+                        if (source) {
+                            source.src = audioUrl;
+                            audio.load();
+                            preview.classList.remove('hidden');
+                        }
+                    }
                     break;
                     
                 case 'document':
@@ -129,8 +151,15 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         } else {
             // If no file selected, hide preview
-            preview.classList.add('hidden');
-            filenameDisplay.classList.add('hidden');
+            if (preview) {
+                preview.classList.add('hidden');
+            }
+            if (filenameDisplay) {
+                filenameDisplay.classList.add('hidden');
+            }
+        }
+        } catch (error) {
+            console.error('Error handling file preview:', error);
         }
     }
     

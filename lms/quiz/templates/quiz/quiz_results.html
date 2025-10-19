@@ -2,6 +2,7 @@
 {% load static %}
 {% load assessment_filters %}
 {% load quiz_filters %}
+{% load safe_html %}
 
 {% block title %}{{ quiz.title }} - Results{% endblock %}
 
@@ -505,7 +506,7 @@
                                         Question {{ forloop.counter }}
                                     </h3>
                                     <div class="prose max-w-none text-gray-700">
-                                        {{ response.question.question_text|safe }}
+                                        {{ response.question.question_text|safe_html }}
                                     </div>
                                 </div>
                                 <div class="ml-4 text-right">
@@ -565,11 +566,11 @@
                                                 <div class="flex items-center flex-1">
                                                     {% if response.answer == answer %}
                                                         <i class="fas fa-dot-circle text-blue-600 mr-3"></i>
-                                                        <strong class="text-gray-800">{{ answer.answer_text|safe }}</strong>
+                                                        <strong class="text-gray-800">{{ answer.answer_text|safe_html }}</strong>
                                                         <span class="ml-2 text-sm text-gray-600">(Your Answer)</span>
                                                     {% else %}
                                                         <i class="far fa-circle text-gray-400 mr-3"></i>
-                                                        <span class="text-gray-700">{{ answer.answer_text|safe }}</span>
+                                                        <span class="text-gray-700">{{ answer.answer_text|safe_html }}</span>
                                                     {% endif %}
                                                 </div>
                                                 
@@ -603,11 +604,11 @@
                                                 <div class="flex items-center flex-1">
                                                     {% if answer in response.selected_options %}
                                                         <i class="fas fa-check-square text-blue-600 mr-3"></i>
-                                                        <strong class="text-gray-800">{{ answer.answer_text|safe }}</strong>
+                                                        <strong class="text-gray-800">{{ answer.answer_text|safe_html }}</strong>
                                                         <span class="ml-2 text-sm text-gray-600">(Selected)</span>
                                                     {% else %}
                                                         <i class="far fa-square text-gray-400 mr-3"></i>
-                                                        <span class="text-gray-700">{{ answer.answer_text|safe }}</span>
+                                                        <span class="text-gray-700">{{ answer.answer_text|safe_html }}</span>
                                                     {% endif %}
                                                 </div>
                                                 

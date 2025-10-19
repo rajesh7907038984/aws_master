@@ -1,4 +1,19 @@
 /* Unified Sidebar Styles for LMS */
+/* High specificity to override Tailwind and other CSS */
+#sidebar {
+    background-color: var(--brand-primary, #050c50) !important;
+    color: white !important;
+    position: fixed !important;
+    top: 4rem !important;
+    left: 0 !important;
+    width: 16rem !important;
+    height: calc(100vh - 4rem) !important;
+    z-index: 30 !important;
+    transition: all 0.3s ease !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+}
+
 .sidebar {
     position: fixed;
     top: 4rem;
@@ -14,7 +29,45 @@
 }
 
 .sidebar.collapsed {
-    width: 4rem;
+    width: 3.5rem !important;
+    transition: width 0.3s ease !important;
+}
+
+#sidebar.collapsed {
+    width: 3.5rem !important;
+    transition: width 0.3s ease !important;
+}
+
+#sidebar.collapsed .menu-text {
+    display: none !important;
+}
+
+#sidebar.collapsed .submenu {
+    display: none !important;
+}
+
+/* Fix main content adjustment */
+#main-content.sidebar-collapsed {
+    margin-left: 3.5rem !important;
+    width: calc(100% - 3.5rem) !important;
+    transition: margin-left 0.3s ease, width 0.3s ease !important;
+}
+
+/* High specificity for menu items */
+#sidebar .menu-item {
+    display: flex !important;
+    align-items: center !important;
+    padding: 0.75rem 1rem !important;
+    color: white !important;
+    text-decoration: none !important;
+    transition: all 0.3s ease !important;
+    border-left: 4px solid transparent !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    background-color: transparent !important;
 }
 
 .sidebar .menu-item {
@@ -32,6 +85,19 @@
     text-overflow: ellipsis;
 }
 
+/* High specificity for hover and active states */
+#sidebar .menu-item:hover {
+    background-color: var(--brand-primary-hover, #02071e) !important;
+    border-left-color: #02f711 !important;
+    color: white !important;
+}
+
+#sidebar .menu-item.active {
+    background-color: var(--brand-primary-hover, #02071e) !important;
+    border-left-color: #02f711 !important;
+    color: white !important;
+}
+
 .sidebar .menu-item:hover {
     background-color: var(--brand-primary-hover, #02071e);
     border-left-color: #02f711;
@@ -40,6 +106,25 @@
 .sidebar .menu-item.active {
     background-color: var(--brand-primary-hover, #02071e);
     border-left-color: #02f711;
+}
+
+/* High specificity for icon and text elements */
+#sidebar .menu-item .icon-container {
+    min-width: 20px !important;
+    display: flex !important;
+    justify-content: center !important;
+    margin-right: 0.75rem !important;
+}
+
+#sidebar .menu-item .menu-text {
+    font-size: 0.875rem !important;
+    font-weight: 500 !important;
+    flex: 1 !important;
+    min-width: 0 !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+    color: white !important;
 }
 
 .sidebar .menu-item .icon-container {
@@ -78,6 +163,71 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+}
+
+/* High specificity for mobile responsiveness */
+@media (max-width: 768px) {
+    #sidebar {
+        display: none !important;
+        visibility: hidden !important;
+        opacity: 0 !important;
+        transform: translateX(-100%) !important;
+    }
+}
+
+/* Enhanced submenu arrow visibility and styling */
+#sidebar .menu-item.has-submenu .arrow-icon {
+    display: inline-block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    color: white !important;
+    stroke: white !important;
+    fill: none !important;
+    position: absolute !important;
+    right: 1rem !important;
+    width: 0.75rem !important;
+    height: 0.75rem !important;
+    z-index: 10 !important;
+    transition: transform 0.3s ease !important;
+}
+
+/* Ensure submenu buttons are properly clickable */
+#sidebar .menu-item.has-submenu {
+    cursor: pointer !important;
+    position: relative !important;
+}
+
+/* Mobile menu submenu fixes */
+#mobile-menu .menu-item.has-submenu .arrow-icon {
+    display: inline-block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    color: white !important;
+    stroke: white !important;
+    fill: none !important;
+    transition: transform 0.3s ease !important;
+}
+
+/* Enhanced submenu styling */
+#sidebar .submenu {
+    background-color: rgba(0, 0, 0, 0.1) !important;
+    max-height: 0 !important;
+    overflow: hidden !important;
+    transition: max-height 0.3s ease !important;
+}
+
+#sidebar .submenu:not(.hidden) {
+    max-height: 1000px !important;
+}
+
+#sidebar .submenu .menu-item {
+    padding-left: 3rem !important;
+    font-size: 0.8rem !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
 }
 
 /* Mobile responsiveness */

@@ -177,23 +177,29 @@ DATABASES = {
 # Database configuration loaded
 
 # ==============================================
-# PRODUCTION STATIC FILES CONFIGURATION
+# PRODUCTION STATIC FILES CONFIGURATION - WHITENOISE
 # ==============================================
 
 # Override base static root for production - use environment variable
 # Fallback uses parent directory to avoid hardcoded paths
 STATIC_ROOT = get_env('STATIC_ROOT', str(Path(__file__).resolve().parent.parent.parent.parent / 'lmsstaticfiles'))
 
-# Use Django's default static files storage - nginx serves static files
-STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.StaticFilesStorage'
-# WHITENOISE_USE_FINDERS = True  # DISABLED - nginx serves static files
-# WHITENOISE_AUTOREFRESH = True  # DISABLED - nginx serves static files
-# WHITENOISE_INDEX_FILE = True  # DISABLED - nginx serves static files
-# WHITENOISE_ADD_HEADERS_FUNCTION = 'core.utils.whitenoise_headers.whitenoise_headers'  # DISABLED - nginx serves static files
+# Use WhiteNoise for static file serving (better than nginx for Django apps)
+STATICFILES_STORAGE = 'whitenoise.storage.StaticFilesStorage'
+
+# WhiteNoise configuration - ENABLED for proper static file serving
+WHITENOISE_USE_FINDERS = True
+WHITENOISE_AUTOREFRESH = True
+WHITENOISE_INDEX_FILE = True
+WHITENOISE_ADD_HEADERS_FUNCTION = 'core.utils.whitenoise_headers.whitenoise_headers'
+
+# Static files compression and caching
+WHITENOISE_MAX_AGE = 31536000  # 1 year
+WHITENOISE_SKIP_COMPRESS_EXTENSIONS = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'zip', 'gz', 'mp4', 'webm', 'ogg']
 
 # WhiteNoise middleware is configured in base.py
 
-logger.info(" Using local static files storage for production (better performance)")
+logger.info("✅ Using WhiteNoise for static file serving (optimized for Django)")
 
 # ==============================================
 # SECURITY CONFIGURATION

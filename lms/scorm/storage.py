@@ -24,7 +24,7 @@ class SCORMS3Storage(S3Boto3Storage):
             # Use SCORM-specific media URL if available, otherwise construct it
             base_url = getattr(settings, 'SCORM_MEDIA_URL', None)
             if not base_url:
-                base_url = "https://{{settings.AWS_STORAGE_BUCKET_NAME}}.s3.{{settings.AWS_S3_REGION_NAME}}.amazonaws.com/elearning/"
+                base_url = f"https://{settings.AWS_STORAGE_BUCKET_NAME}.s3.{settings.AWS_S3_REGION_NAME}.amazonaws.com/elearning/"
         
         # Set S3-specific options
         kwargs.update({
@@ -52,9 +52,9 @@ class SCORMS3Storage(S3Boto3Storage):
     def path(self, name):
         """Return the S3 key path (not a local path)"""
         # Avoid double prefixing if name already includes the location
-        if name.startswith("{{self.location}}/"):
+        if name.startswith(f"{self.location}/"):
             return name
-        return "{{self.location}}/{{name}}"
+        return f"{self.location}/{name}"
     
     def exists(self, name):
         """Check if the file exists in S3"""
@@ -79,7 +79,7 @@ class SCORMS3Storage(S3Boto3Storage):
             # Log error but don't raise exception
             import logging
             logger = logging.getLogger(__name__)
-            logger.error("Failed to delete S3 file: {{name}}")
+            logger.error(f"Failed to delete S3 file: {name}")
             return False
     
     def size(self, name):
@@ -92,11 +92,9 @@ class SCORMS3Storage(S3Boto3Storage):
     def url(self, name):
         """Get the URL for the file (signed URL for private files)"""
         try:
-            # Avoid double prefixing if name already includes the location
-            if not name.startswith("{{self.location}}/"):
-                name = "{{self.location}}/{{name}}"
-            
-            # Generate signed URL
+            # The parent class S3Boto3Storage will handle the location prefix
+            # We should NOT add it manually here to avoid double prefixing
+            # Just pass the name as-is to the parent class
             signed_url = super().url(name)
             return signed_url
         except Exception as e:
@@ -105,11 +103,16 @@ class SCORMS3Storage(S3Boto3Storage):
             logger = logging.getLogger(__name__)
             logger.error("Error generating S3 URL for {}: {}".format(name, e))
             
-            # Fallback to direct S3 URL
+            # Fallback to direct S3 URL with proper path construction
+            if not name.startswith(f"{self.location}/"):
+                full_path = f"{self.location}/{name}"
+            else:
+                full_path = name
+            
             fallback_url = "https://{}.s3.{}.amazonaws.com/{}".format(
                 settings.AWS_STORAGE_BUCKET_NAME, 
                 settings.AWS_S3_REGION_NAME, 
-                name
+                full_path
             )
             logger.warning("Using fallback URL: {}".format(fallback_url))
             return fallback_url

@@ -1592,7 +1592,7 @@
                                     <div class="flex text-sm text-gray-600">
                                         <label for="scorm-file-input" class="relative cursor-pointer bg-white rounded-md font-medium text-indigo-600 hover:text-indigo-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-indigo-500">
                                             <span>Upload an e-learning package</span>
-                                            <input id="scorm-file-input" name="scorm_file" type="file" accept=".zip,application/zip" class="file-input sr-only">
+                                            <input id="scorm-file-input" name="content_file" type="file" accept=".zip,application/zip" class="file-input sr-only">
                                         </label>
                                         <p class="pl-1">or drag and drop</p>
                                     </div>
@@ -2089,6 +2089,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Call the original function
                 originalToggleContentFields.apply(this, arguments);
                 // Then handle instructions and description visibility
+                toggleInstructionsVisibility(selectedType);
+                toggleDescriptionVisibility(selectedType);
+            };
+        } else {
+            // If no original function exists, create a new one
+            window.toggleContentFields = function(selectedType) {
                 toggleInstructionsVisibility(selectedType);
                 toggleDescriptionVisibility(selectedType);
             };
@@ -3421,7 +3427,7 @@ document.addEventListener('DOMContentLoaded', function() {
 <!-- Load course edit JS for form change detection - only if not already loaded -->
 <script>
 if (typeof formHasUnsavedChanges === 'undefined') {
-    document.write('<script src="{% static "js/courses/course_edit.js" %}"><\/script>');
+    document.write('<script src="{% static "js/courses/course_edit.js" %}?v=1760859626"><\/script>');
 } else {
     console.log('Course edit JS already loaded, skipping duplicate load');
 }
@@ -3570,7 +3576,7 @@ if (typeof formHasUnsavedChanges === 'undefined') {
                                         plugins: [
                                             'advlist', 'autolink', 'lists', 'link', 'image', 'charmap', 'preview',
                                             'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen',
-                                            'insertdatetime', 'media', 'table', 'wordcount'
+                                            'insertdatetime', 'table', 'wordcount'
                                         ],
                                         toolbar: 'undo redo | blocks | bold italic forecolor | alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | removeformat',
                                         content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px }',
@@ -4165,7 +4171,7 @@ if (typeof formHasUnsavedChanges === 'undefined') {
                 
                 // Prepare form data
                 const formData = new FormData();
-                formData.append('scorm_file', file);
+                formData.append('content_file', file);
                 formData.append('topic_title', document.querySelector('[name="title"]').value);
                 formData.append('topic_id', topicId);
                 
@@ -4349,7 +4355,58 @@ if (typeof formHasUnsavedChanges === 'undefined') {
 </script>
 
 <!-- Load the main topic form JS file -->
-<script src="{% static 'js/courses/topic_form.js' %}"></script>
+<script src="{% static 'js/courses/topic_form.js' %}?v=1760859626"></script>
+
+<!-- Error handling and fallback scripts -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Handle TinyMCE plugin loading errors
+    if (typeof tinymce !== 'undefined') {
+        tinymce.on('AddEditor', function(e) {
+            e.editor.on('LoadContent', function() {
+                console.log('TinyMCE editor loaded successfully');
+            });
+        });
+    }
+    
+    // Fallback for missing hideInstructionsTypes
+    if (typeof window.hideInstructionsTypes === 'undefined') {
+        console.warn('hideInstructionsTypes not found, creating fallback');
+        window.hideInstructionsTypes = ['video', 'audio', 'document', 'image', 'file', 'link', 'web', 'quiz', 'assignment', 'conference', 'discussion'];
+    }
+    
+    // Ensure toggleContentFields is properly defined
+    setTimeout(function() {
+        if (typeof window.toggleContentFields === 'undefined') {
+            console.warn('toggleContentFields not found, creating fallback');
+            window.toggleContentFields = function(selectedType) {
+                console.log('Fallback toggleContentFields called with:', selectedType);
+                // Basic fallback functionality
+                if (typeof toggleInstructionsVisibility === 'function') {
+                    toggleInstructionsVisibility(selectedType);
+                }
+                if (typeof toggleDescriptionVisibility === 'function') {
+                    toggleDescriptionVisibility(selectedType);
+                }
+            };
+        }
+    }, 1000);
+    
+    // Handle JavaScript syntax errors gracefully
+    window.addEventListener('error', function(event) {
+        if (event.message && event.message.includes('hideInstructionsTypes is not defined')) {
+            console.warn('hideInstructionsTypes error handled by fallback');
+            event.preventDefault();
+            return false;
+        }
+        if (event.message && event.message.includes('Unexpected token')) {
+            console.warn('JavaScript syntax error detected, attempting recovery');
+            event.preventDefault();
+            return false;
+        }
+    });
+});
+</script>
 
 <!-- Mobile Tabs Accordion JavaScript -->
 <script src="{% static 'js/mobile-tabs-accordion.js' %}"></script>

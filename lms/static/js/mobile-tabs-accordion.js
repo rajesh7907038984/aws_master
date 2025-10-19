@@ -1376,7 +1376,6 @@ if (!window.reinitializeMobileAccordion) {
             MobileTabsAccordion.init();
         }
     };
-}
-
-} else {
 } // End of duplicate prevention check
+
+} // End of main if statement

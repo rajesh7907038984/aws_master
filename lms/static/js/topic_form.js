@@ -22,6 +22,8 @@ function updateContentTypeSections(selectedType) {
                 instructionsContainer.style.display = 'block';
             }
         }
+    } else {
+        console.warn('Instructions field not found in DOM');
     }
     
     // First hide all content fields
@@ -98,8 +100,19 @@ document.addEventListener('DOMContentLoaded', function() {
     fileInputs.forEach(input => {
         input.addEventListener('change', function() {
             try {
-                const filenameDiv = this.closest('.file-upload-container').querySelector('.selected-filename');
-                const previewDiv = this.closest('.file-upload-container').querySelector('.file-preview');
+                const container = this.closest('.file-upload-container');
+                if (!container) {
+                    console.warn('File upload container not found');
+                    return;
+                }
+                
+                const filenameDiv = container.querySelector('.selected-filename');
+                const previewDiv = container.querySelector('.file-preview');
+                
+                if (!filenameDiv || !previewDiv) {
+                    console.warn('Required elements not found in file upload container');
+                    return;
+                }
                 
                 if (this.files && this.files[0]) {
                     filenameDiv.textContent = this.files[0].name;
@@ -108,15 +121,18 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Show preview for video/audio files
                     if (this.files[0].type.startsWith('video/') || this.files[0].type.startsWith('audio/')) {
                         const url = URL.createObjectURL(this.files[0]);
-                    const element = this.files[0].type.startsWith('video/') ? 'video' : 'audio';
-                    previewDiv.innerHTML = `<${element} controls><source src="${url}"></${element}>`;
-                    previewDiv.classList.remove('hidden');
+                        const element = this.files[0].type.startsWith('video/') ? 'video' : 'audio';
+                        previewDiv.innerHTML = `<${element} controls><source src="${url}"></${element}>`;
+                        previewDiv.classList.remove('hidden');
+                    }
+                } else {
+                    filenameDiv.textContent = '';
+                    filenameDiv.classList.add('hidden');
+                    previewDiv.innerHTML = '';
+                    previewDiv.classList.add('hidden');
                 }
-            } else {
-                filenameDiv.textContent = '';
-                filenameDiv.classList.add('hidden');
-                previewDiv.innerHTML = '';
-                previewDiv.classList.add('hidden');
+            } catch (error) {
+                console.error('Error handling file input:', error);
             }
         });
     });
@@ -202,7 +218,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     throw new Error(data.error || 'An error occurred while saving the topic');
                 }
             } catch (error) {
-                alert('An error occurred while saving the topic. Please try again.');
+                console.error('An error occurred while saving the topic. Please try again.');
             } finally {
                 // Reset button state
                 submitBtn.disabled = false;
@@ -256,6 +272,7 @@ window.onload = function() {
     
     // Original code for Quill/BetterTable initialization
     if (typeof Quill === 'undefined' || typeof QuillBetterTable === 'undefined') {
+        console.warn('Quill or QuillBetterTable not available, skipping initialization');
         return;
     }
-}; 
+} 

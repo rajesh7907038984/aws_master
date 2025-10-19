@@ -1103,10 +1103,6 @@ document.addEventListener('DOMContentLoaded', function() {
                         questionsList.innerHTML = `
                             <div class="text-center py-8">
                                 <div class="text-gray-500">No questions have been added to this quiz yet.</div>
-                                <a href="{% url 'quiz:edit_quiz' quiz.id %}" 
-                                   class="mt-4 inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700">
-                                    Add Questions
-                                </a>
                             </div>
                         `;
                     }

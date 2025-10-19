@@ -19,7 +19,6 @@
     
     <!-- 3. Error handling (depends on CSRF) -->
     <script src="{% static 'js/unified-error-handler.js' %}"></script>
-    <script src="{% static 'js/error-handler-fixes.js' %}"></script>
     
     <!-- 4. API client (depends on CSRF and error handling) -->
     <script src="{% static 'js/standardized-api-client.js' %}"></script>
@@ -63,7 +62,7 @@
     <script>
     // Global profile dropdown function - fallback for all pages
     window.toggleProfileDropdown = function() {
-        const dropdown = document.getElementById('profile-dropdown');
+        var dropdown = document.getElementById('profile-dropdown');
         if (dropdown) {
             dropdown.classList.toggle('hidden');
         }
@@ -79,7 +78,7 @@
         if (window.MutationObserver) {
             document.addEventListener('DOMContentLoaded', function() {
                 if (document.body) {
-                    const observer = new MutationObserver(function(mutations) {
+                    var observer = new MutationObserver(function(mutations) {
                         // Handle DOM changes here if needed
                     });
                     observer.observe(document.body, { childList: true, subtree: true });
@@ -91,9 +90,9 @@
     <!-- Disable console logs in production -->
     <script src="{% static 'core/js/disable-console-logs.js' %}"></script>
     
-    <!-- Development Error Display - Disabled to prevent error popups -->
+    <!-- Enhanced Error Display - Better handling of syntax errors -->
     <script>
-        // Error popup functionality disabled to prevent unwanted popups
+        // Enhanced error handling to prevent popups and provide better debugging
         window.addEventListener('error', function(event) {
             // Log syntax errors to console instead of showing popups
             if (event.message && (event.message.includes('Unexpected token') || 
@@ -101,9 +100,18 @@
                 console.error('Syntax Error Detected:', event.message);
                 var filename = event.filename || 'Unknown';
                 var lineno = event.lineno || 'Unknown';
-                // DISABLED: alert('JavaScript Syntax Error:\n' + event.message + '\nFile: ' + filename + '\nLine: ' + lineno);
-                // Log to console instead of showing popup
-                console.warn('JavaScript Syntax Error (popup disabled):', event.message, 'File:', filename, 'Line:', lineno);
+                
+                // Log detailed error information
+                console.warn('JavaScript Syntax Error (popup disabled):', {
+                    message: event.message,
+                    filename: filename,
+                    line: lineno,
+                    column: event.colno || 'Unknown',
+                    stack: event.error ? event.error.stack : 'No stack trace'
+                });
+                
+                // Prevent the error popup
+                event.preventDefault();
                 return true;
             }
         });
@@ -117,10 +125,18 @@
     
     <!-- User Authentication Status for JavaScript -->
     <script>
-        window.userAuthenticated = {% if user.is_authenticated %}true{% else %}false{% endif %};
-        window.userName = "{{ user.username|escapejs }}";
-        window.userRole = "{% if user.role %}{{ user.role|escapejs }}{% else %}anonymous{% endif %}";
-        window.userBranch = "{% if user.branch %}{{ user.branch.name|escapejs }}{% else %}none{% endif %}";
+        try {
+            window.userAuthenticated = {% if user.is_authenticated %}true{% else %}false{% endif %};
+            window.userName = {{ user.username|escapejs|default:"''" }};
+            window.userRole = {{ user.role|escapejs|default:"'anonymous'" }};
+            window.userBranch = {{ user.branch.name|escapejs|default:"'none'" }};
+        } catch (e) {
+            console.error('Error setting user variables:', e);
+            window.userAuthenticated = false;
+            window.userName = '';
+            window.userRole = 'anonymous';
+            window.userBranch = 'none';
+        }
     </script>
     
     <!-- Favicon -->
@@ -176,15 +192,15 @@
         document.addEventListener('DOMContentLoaded', function() {
             // Check if Font Awesome is loaded
             function checkFontAwesome() {
-                const testIcon = document.createElement('i');
+                var testIcon = document.createElement('i');
                 testIcon.className = 'fas fa-check';
                 testIcon.style.position = 'absolute';
                 testIcon.style.left = '-9999px';
                 testIcon.style.visibility = 'hidden';
                 document.body.appendChild(testIcon);
                 
-                const computedStyle = window.getComputedStyle(testIcon);
-                const fontFamily = computedStyle.getPropertyValue('font-family');
+                var computedStyle = window.getComputedStyle(testIcon);
+                var fontFamily = computedStyle.getPropertyValue('font-family');
                 
                 document.body.removeChild(testIcon);
                 
@@ -202,63 +218,62 @@
             setTimeout(checkFontAwesome, 1000);
             
             // Add fallback styles for missing icons
-            const style = document.createElement('style');
-            style.textContent = `
-                /* Fallback for missing Font Awesome icons */
-                .fas, .far, .fab, .fa {
-                    font-family: 'Font Awesome 6 Free', 'Font Awesome 6 Pro', 'FontAwesome', sans-serif !important;
-                }
-                
-                /* Ensure icons are visible */
-                .fas, .far, .fab, .fa {
-                    display: inline-block !important;
-                    font-style: normal !important;
-                    font-variant: normal !important;
-                    text-rendering: auto !important;
-                    -webkit-font-smoothing: antialiased !important;
-                    -moz-osx-font-smoothing: grayscale !important;
-                }
-                
-                /* Specific icon fallbacks */
-                .fa-check-circle::before { content: "✓"; }
-                .fa-exclamation-circle::before { content: "⚠"; }
-                .fa-exclamation-triangle::before { content: "⚠"; }
-                .fa-info-circle::before { content: "ℹ"; }
-                .fa-times::before { content: "✕"; }
-                .fa-plus::before { content: "+"; }
-                .fa-search::before { content: "🔍"; }
-                .fa-edit::before { content: "✏"; }
-                .fa-trash::before { content: "🗑"; }
-                .fa-play::before { content: "▶"; }
-                .fa-user-graduate::before { content: "🎓"; }
-                .fa-clock::before { content: "🕐"; }
-                .fa-book-open::before { content: "📖"; }
-                .fa-envelope::before { content: "✉"; }
-                .fa-arrow-left::before { content: "←"; }
-                .fa-save::before { content: "💾"; }
-                .fa-spinner::before { content: "⟳"; }
-                .fa-eye::before { content: "👁"; }
-                .fa-filter::before { content: "🔽"; }
-                .fa-th-large::before { content: "⊞"; }
-                .fa-list::before { content: "☰"; }
-                .fa-home::before { content: "🏠"; }
-                .fa-book::before { content: "📚"; }
-                .fa-users::before { content: "👥"; }
-                .fa-tasks::before { content: "📋"; }
-                .fa-question-circle::before { content: "❓"; }
-                .fa-chart-bar::before { content: "📊"; }
-                .fa-cog::before { content: "⚙"; }
-                .fa-bell::before { content: "🔔"; }
-                .fa-comments::before { content: "💬"; }
-                .fa-download::before { content: "⬇"; }
-                .fa-sign-in-alt::before { content: "🔑"; }
-                .fa-shield-alt::before { content: "🛡"; }
-                .fa-ellipsis-h::before { content: "⋯"; }
-                .fa-chevron-down::before { content: "⌄"; }
-                .fa-chevron-up::before { content: "⌃"; }
-                .fa-chevron-left::before { content: "⌃"; }
-                .fa-chevron-right::before { content: "⌃"; }
-            `;
+            var style = document.createElement('style');
+            style.textContent = 
+                '/* Fallback for missing Font Awesome icons */' +
+                '.fas, .far, .fab, .fa {' +
+                    'font-family: "Font Awesome 6 Free", "Font Awesome 6 Pro", "FontAwesome", sans-serif !important;' +
+                '}' +
+                '' +
+                '/* Ensure icons are visible */' +
+                '.fas, .far, .fab, .fa {' +
+                    'display: inline-block !important;' +
+                    'font-style: normal !important;' +
+                    'font-variant: normal !important;' +
+                    'text-rendering: auto !important;' +
+                    '-webkit-font-smoothing: antialiased !important;' +
+                    '-moz-osx-font-smoothing: grayscale !important;' +
+                '}' +
+                '' +
+                '/* Specific icon fallbacks */' +
+                '.fa-check-circle::before { content: "✓"; }' +
+                '.fa-exclamation-circle::before { content: "⚠"; }' +
+                '.fa-exclamation-triangle::before { content: "⚠"; }' +
+                '.fa-info-circle::before { content: "ℹ"; }' +
+                '.fa-times::before { content: "✕"; }' +
+                '.fa-plus::before { content: "+"; }' +
+                '.fa-search::before { content: "🔍"; }' +
+                '.fa-edit::before { content: "✏"; }' +
+                '.fa-trash::before { content: "🗑"; }' +
+                '.fa-play::before { content: "▶"; }' +
+                '.fa-user-graduate::before { content: "🎓"; }' +
+                '.fa-clock::before { content: "🕐"; }' +
+                '.fa-book-open::before { content: "📖"; }' +
+                '.fa-envelope::before { content: "✉"; }' +
+                '.fa-arrow-left::before { content: "←"; }' +
+                '.fa-save::before { content: "💾"; }' +
+                '.fa-spinner::before { content: "⟳"; }' +
+                '.fa-eye::before { content: "👁"; }' +
+                '.fa-filter::before { content: "🔽"; }' +
+                '.fa-th-large::before { content: "⊞"; }' +
+                '.fa-list::before { content: "☰"; }' +
+                '.fa-home::before { content: "🏠"; }' +
+                '.fa-book::before { content: "📚"; }' +
+                '.fa-users::before { content: "👥"; }' +
+                '.fa-tasks::before { content: "📋"; }' +
+                '.fa-question-circle::before { content: "❓"; }' +
+                '.fa-chart-bar::before { content: "📊"; }' +
+                '.fa-cog::before { content: "⚙"; }' +
+                '.fa-bell::before { content: "🔔"; }' +
+                '.fa-comments::before { content: "💬"; }' +
+                '.fa-download::before { content: "⬇"; }' +
+                '.fa-sign-in-alt::before { content: "🔑"; }' +
+                '.fa-shield-alt::before { content: "🛡"; }' +
+                '.fa-ellipsis-h::before { content: "⋯"; }' +
+                '.fa-chevron-down::before { content: "⌄"; }' +
+                '.fa-chevron-up::before { content: "⌃"; }' +
+                '.fa-chevron-left::before { content: "⌃"; }' +
+                '.fa-chevron-right::before { content: "⌃"; }';
             document.head.appendChild(style);
         });
     </script>
@@ -704,7 +719,34 @@
             display: block !important;
             visibility: visible !important;
             opacity: 1 !important;
-            z-index: 50 !important;
+            z-index: 9999 !important;
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
+            width: 100% !important;
+            height: 4rem !important;
+            background: white !important;
+            border-bottom: 1px solid #e5e7eb !important;
+            box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1) !important;
+        }
+        
+        /* Force header content visibility */
+        header .flex.items-center {
+            display: flex !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+        }
+        
+        /* Force header icons visibility */
+        header .header-icon,
+        header .discussion-icon,
+        header .notification-icon,
+        header #mobile-menu-toggle,
+        header #profile-button {
+            display: flex !important;
+            visibility: visible !important;
+            opacity: 1 !important;
         }
         
         /* Mobile header improvements */
@@ -892,7 +934,7 @@
             {% endblock %}
 
             <!-- Main Content - Responsive adjustments handled by JavaScript and CSS -->
-            <main id="main-content" class="flex-1 transition-all duration-300 ml-0 md:ml-[16rem] mr-0 lg:mr-0 w-full md:w-calc-16rem lg:w-calc-16rem overflow-x-hidden bg-white text-gray-900 p-6" style="transition: margin-left 0.3s ease, margin-right 0.3s ease, width 0.3s ease;">
+            <main id="main-content" class="flex-1 transition-all duration-300 ml-0 md:ml-[16rem] mr-0 lg:mr-0 w-full md:w-calc-16rem lg:w-calc-16rem overflow-x-hidden bg-white text-gray-900 p-6" style="transition: margin-left 0.3s ease, margin-right 0.3s ease, width 0.3s ease; padding-top: 4rem;">
                 {% if messages %}
                 <div class="fixed top-20 right-4 z-[100] space-y-4 pointer-events-none">
                     {% for message in messages %}
@@ -909,7 +951,7 @@
                             {% endif %}
                             <span class="text-sm font-medium">{{ message }}</span>
                         </div>
-                        <button class="ml-4 text-gray-500 hover:text-gray-700 focus:outline-none" onclick="this.parentElement.classList.add('toast-leave'); setTimeout(() => this.parentElement.remove(), 300)">
+                        <button class="ml-4 text-gray-500 hover:text-gray-700 focus:outline-none" onclick="this.parentElement.classList.add('toast-leave'); setTimeout(function() { this.parentElement.remove(); }.bind(this), 300)">
                             <i class="fas fa-times"></i>
                         </button>
                     </div>
@@ -944,19 +986,22 @@
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             // Try multiple methods to get CSRF token
-            let csrfToken = null;
+            var csrfToken = null;
             
             // Method 1: Meta tag
-            const csrfTokenMeta = document.querySelector('meta[name="csrf-token"]');
+            var csrfTokenMeta = document.querySelector('meta[name="csrf-token"]');
             if (csrfTokenMeta) {
                 csrfToken = csrfTokenMeta.getAttribute('content');
             }
             
             // Method 2: Cookie (if HTTPONLY is disabled)
             if (!csrfToken) {
-                const cookies = document.cookie.split(';');
-                for (let cookie of cookies) {
-                    const [name, value] = cookie.trim().split('=');
+                var cookies = document.cookie.split(';');
+                for (var i = 0; i < cookies.length; i++) {
+                    var cookie = cookies[i].trim();
+                    var parts = cookie.split('=');
+                    var name = parts[0];
+                    var value = parts[1];
                     if (name === 'csrftoken') {
                         csrfToken = value;
                         break;
@@ -966,7 +1011,7 @@
             
             // Method 3: Form input
             if (!csrfToken) {
-                const csrfInput = document.querySelector('input[name="csrfmiddlewaretoken"]');
+                var csrfInput = document.querySelector('input[name="csrfmiddlewaretoken"]');
                 if (csrfInput) {
                     csrfToken = csrfInput.value;
                 }
@@ -984,11 +1029,11 @@
             }
             
             // Enhanced CSRF token handling for fetch requests
-            const originalFetch = window.fetch;
+            var originalFetch = window.fetch;
             window.fetch = function() {
-                const args = Array.from(arguments);
-                const url = args[0];
-                const options = args[1] || {};
+                var args = Array.prototype.slice.call(arguments);
+                var url = args[0];
+                var options = args[1] || {};
                 
                 // Skip external URLs
                 if (typeof url === 'string' && (url.startsWith('http://') || url.startsWith('https://')) && !url.includes(window.location.host)) {
@@ -1006,9 +1051,9 @@
             };
             
             // Legacy XMLHttpRequest support
-            const originalXhr = window.XMLHttpRequest.prototype.open;
+            var originalXhr = window.XMLHttpRequest.prototype.open;
             window.XMLHttpRequest.prototype.open = function() {
-                const result = originalXhr.apply(this, arguments);
+                var result = originalXhr.apply(this, arguments);
                 this.addEventListener('loadstart', function() {
                     if (this._method && this._method.toUpperCase() !== 'GET') {
                         this.setRequestHeader('X-CSRFToken', csrfToken);
@@ -1029,6 +1074,20 @@
                     navigator.userAgent.match(/BlackBerry/i) ||
                     navigator.userAgent.match(/Windows Phone/i));
         }
+        
+        // Global error handler to prevent JavaScript syntax errors from breaking the page
+        window.addEventListener('error', function(event) {
+            if (event.message && event.message.includes('Unexpected token')) {
+                console.error('JavaScript Syntax Error caught and handled:', {
+                    message: event.message,
+                    filename: event.filename,
+                    line: event.lineno,
+                    column: event.colno
+                });
+                event.preventDefault();
+                return true;
+            }
+        });
 
         // Handle toast notifications
         function showToast(message, type = 'info') {
@@ -1036,45 +1095,44 @@
                 return;
             }
             
-            const toastContainer = document.querySelector('.fixed.top-20.right-4') || document.createElement('div');
+            var toastContainer = document.querySelector('.fixed.top-20.right-4') || document.createElement('div');
             if (toastContainer && !toastContainer.classList.contains('fixed')) {
                 toastContainer.classList.add('fixed', 'top-20', 'right-4', 'z-[100]', 'space-y-4', 'pointer-events-none');
                 document.body.appendChild(toastContainer);
             }
             
-            const toast = document.createElement('div');
+            var toast = document.createElement('div');
             toast.classList.add('toast-enter', 'bg-white', 'text-black', 'px-6', 'py-4', 'rounded-xl', 'shadow-lg', 'flex', 'items-center', 'justify-between', 'max-w-md', 'border', 'border-gray-200', 'backdrop-blur-sm', 'pointer-events-auto');
             
-            let iconClass = 'fas fa-info-circle text-blue-500 notification-icon';
+            var iconClass = 'fas fa-info-circle text-blue-500 notification-icon';
             if (type === 'success') iconClass = 'fas fa-check-circle text-emerald-500 notification-icon';
             if (type === 'error') iconClass = 'fas fa-exclamation-circle text-red-500 notification-icon';
             if (type === 'warning') iconClass = 'fas fa-exclamation-triangle text-amber-500 notification-icon';
             
-            toast.innerHTML = `
-                <div class="flex items-center">
-                    <i class="${iconClass}"></i>
-                    <span class="text-sm font-medium">${message}</span>
-                </div>
-                <button class="ml-4 text-gray-500 hover:text-gray-700 focus:outline-none">
-                    <i class="fas fa-times"></i>
-                </button>
-            `;
+            toast.innerHTML = 
+                '<div class="flex items-center">' +
+                    '<i class="' + iconClass + '"></i>' +
+                    '<span class="text-sm font-medium">' + message + '</span>' +
+                '</div>' +
+                '<button class="ml-4 text-gray-500 hover:text-gray-700 focus:outline-none">' +
+                    '<i class="fas fa-times"></i>' +
+                '</button>';
             
-            const closeButton = toast.querySelector('button');
+            var closeButton = toast.querySelector('button');
             if (closeButton) {
                 closeButton.addEventListener('click', function() {
                     toast.classList.add('toast-leave');
-                    setTimeout(() => toast.remove(), 300);
+                    setTimeout(function() { toast.remove(); }, 300);
                 });
             }
             
             toastContainer.appendChild(toast);
             
             // Auto-remove after 5 seconds
-            setTimeout(() => {
+            setTimeout(function() {
                 if (toast.parentElement) {
                     toast.classList.add('toast-leave');
-                    setTimeout(() => toast.remove(), 300);
+                    setTimeout(function() { toast.remove(); }, 300);
                 }
             }, 5000);
         }
@@ -1082,36 +1140,65 @@
         // Make toast function globally available
         window.showToast = showToast;
 
-        // Global header fix to prevent display issues
+        // Comprehensive header fix to prevent display issues
         function ensureHeaderVisibility() {
-            const header = document.querySelector('header');
+            var header = document.querySelector('header');
             if (header) {
-                header.style.display = 'block';
-                header.style.visibility = 'visible';
-                header.style.opacity = '1';
-                header.style.zIndex = '50';
+                // Force header visibility with maximum priority
+                header.style.setProperty('display', 'block', 'important');
+                header.style.setProperty('visibility', 'visible', 'important');
+                header.style.setProperty('opacity', '1', 'important');
+                header.style.setProperty('z-index', '9999', 'important');
+                header.style.setProperty('position', 'fixed', 'important');
+                header.style.setProperty('top', '0', 'important');
+                header.style.setProperty('left', '0', 'important');
+                header.style.setProperty('right', '0', 'important');
+                header.style.setProperty('width', '100%', 'important');
+                header.style.setProperty('height', '4rem', 'important');
+                header.style.setProperty('background', 'white', 'important');
+                header.style.setProperty('border-bottom', '1px solid #e5e7eb', 'important');
+                header.style.setProperty('box-shadow', '0 1px 3px 0 rgb(0 0 0 / 0.1)', 'important');
+                
+                // Force header content visibility
+                var headerContent = header.querySelector('.flex.items-center');
+                if (headerContent) {
+                    headerContent.style.setProperty('display', 'flex', 'important');
+                    headerContent.style.setProperty('visibility', 'visible', 'important');
+                    headerContent.style.setProperty('opacity', '1', 'important');
+                }
             }
             
             // Ensure all header icons are visible
-            const headerIcons = document.querySelectorAll('.header-icon, .discussion-icon, .notification-icon, #mobile-menu-toggle, #profile-button');
-            headerIcons.forEach(icon => {
-                icon.style.display = 'flex';
-                icon.style.visibility = 'visible';
-                icon.style.opacity = '1';
-            });
+            var headerIcons = document.querySelectorAll('.header-icon, .discussion-icon, .notification-icon, #mobile-menu-toggle, #profile-button');
+            for (var i = 0; i < headerIcons.length; i++) {
+                var icon = headerIcons[i];
+                icon.style.setProperty('display', 'flex', 'important');
+                icon.style.setProperty('visibility', 'visible', 'important');
+                icon.style.setProperty('opacity', '1', 'important');
+            }
+            
+            // Force SVG icons to be visible
+            var svgIcons = document.querySelectorAll('header svg');
+            for (var i = 0; i < svgIcons.length; i++) {
+                var svg = svgIcons[i];
+                svg.style.setProperty('display', 'inline-block', 'important');
+                svg.style.setProperty('visibility', 'visible', 'important');
+                svg.style.setProperty('opacity', '1', 'important');
+            }
         }
 
             // Mobile search toggle responsive behavior is handled in header.html
 
             // Fix header icons
-            const headerIcons = document.querySelectorAll('.header-icon, .discussion-icon, .notification-icon');
-            headerIcons.forEach(icon => {
+            var headerIcons = document.querySelectorAll('.header-icon, .discussion-icon, .notification-icon');
+            for (var i = 0; i < headerIcons.length; i++) {
+                var icon = headerIcons[i];
                 icon.style.display = 'flex';
                 icon.style.visibility = 'visible';
                 icon.style.opacity = '1';
                 
                 // Fix SVG icons
-                const svg = icon.querySelector('svg');
+                var svg = icon.querySelector('svg');
                 if (svg) {
                     svg.style.display = 'inline';
                     svg.style.visibility = 'visible';
@@ -1119,25 +1206,29 @@
                 }
                 
                 // Fix notification dots
-                const span = icon.querySelector('span');
+                var span = icon.querySelector('span');
                 if (span) {
                     span.style.display = 'block';
                     span.style.visibility = 'visible';
                     span.style.opacity = '1';
                 }
-            });
+            }
         }
 
-        // Run header fix on page load and after DOM changes
+        // Run header fix immediately and on various events
+        ensureHeaderVisibility();
         document.addEventListener('DOMContentLoaded', ensureHeaderVisibility);
         window.addEventListener('load', ensureHeaderVisibility);
+        window.addEventListener('resize', ensureHeaderVisibility);
         
         // Run header fix after any dynamic content changes
-        const observer = new MutationObserver(function(mutations) {
-            let shouldFix = false;
-            mutations.forEach(function(mutation) {
+            var observer = new MutationObserver(function(mutations) {
+            var shouldFix = false;
+            for (var i = 0; i < mutations.length; i++) {
+                var mutation = mutations[i];
                 if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
-                    for (let node of mutation.addedNodes) {
+                    for (var j = 0; j < mutation.addedNodes.length; j++) {
+                        var node = mutation.addedNodes[j];
                         if (node.nodeType === Node.ELEMENT_NODE) {
                             // Check if any TinyMCE or other editor elements were added
                             if (node.classList && (node.classList.contains('tox-tinymce') || 
@@ -1149,16 +1240,29 @@
                         }
                     }
                 }
-            });
+            }
             if (shouldFix) {
                 setTimeout(ensureHeaderVisibility, 100);
             }
         });
         
-        observer.observe(document.body, {
-            childList: true,
-            subtree: true
-        });
+        // Start observing when DOM is ready
+        if (document.body) {
+            observer.observe(document.body, {
+                childList: true,
+                subtree: true
+            });
+        } else {
+            document.addEventListener('DOMContentLoaded', function() {
+                observer.observe(document.body, {
+                    childList: true,
+                    subtree: true
+                });
+            });
+        }
+        
+        // Additional header protection - run every 2 seconds to catch any issues
+        setInterval(ensureHeaderVisibility, 2000);
     </script>
     
     {% block extra_js %}
@@ -1175,19 +1279,23 @@
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             // Find all toast notifications
-            const toasts = document.querySelectorAll('.toast-enter');
+            var toasts = document.querySelectorAll('.toast-enter');
             
             // Check each toast for the specific error message
-            toasts.forEach(toast => {
-                const messageText = toast.textContent.trim();
+            for (var i = 0; i < toasts.length; i++) {
+                var toast = toasts[i];
+                var messageText = toast.textContent.trim();
                 if (messageText.includes('No attempt ID provided for grading')) {
                     // Auto-dismiss this notification
                     toast.classList.add('toast-leave');
-                    setTimeout(() => toast.remove(), 300);
+                    setTimeout(function() { toast.remove(); }, 300);
                 }
-            });
+            }
         });
     </script>
+    
+    <!-- Header Handler - Manages header functionality -->
+    <script src="{% static 'js/header-handler.js' %}"></script>
     
     <!-- Comprehensive Sidebar Fix - Handles all sidebar functionality -->
     <script src="{% static 'js/sidebar-comprehensive-fix.js' %}"></script>

@@ -7,7 +7,9 @@ window.onload = function() {
 };
 
 // Define content types that should hide the Instructions field - moved to global scope
-const hideInstructionsTypes = ['video', 'audio', 'document', 'image', 'file', 'link', 'web', 'quiz', 'assignment', 'conference', 'discussion'];
+// Make hideInstructionsTypes globally available to prevent scope issues
+window.hideInstructionsTypes = ['video', 'audio', 'document', 'image', 'file', 'link', 'web', 'quiz', 'assignment', 'conference', 'discussion'];
+const hideInstructionsTypes = window.hideInstructionsTypes;
 
 // Global function to toggle content type fields visibility
 function toggleContentFields(selectedType) {
@@ -204,145 +206,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Real-time progress tracking for form completion
-    function initializeFormProgressTracking() {
-        const progressContainer = document.createElement('div');
-        progressContainer.id = 'form-progress-container';
-        progressContainer.className = 'fixed bottom-4 right-4 bg-white p-3 rounded-lg shadow-lg z-40 border border-gray-200 max-w-xs';
-        progressContainer.innerHTML = `
-            <div class="flex items-center justify-between mb-2">
-                <div class="text-xs font-medium text-gray-700">Form Progress</div>
-                <div class="text-xs text-gray-500"><span id="form-progress-percent">0%</span></div>
-            </div>
-            <div class="w-full bg-gray-200 rounded-full h-1.5">
-                <div id="form-progress-bar" class="bg-green-500 h-1.5 rounded-full transition-all duration-300" style="width: 0%"></div>
-            </div>
-            <div id="form-progress-status" class="text-xs text-gray-600 mt-1">Start filling out the form</div>
-        `;
-        
-        // Only show for create mode
-        if (isCreateMode) {
-            document.body.appendChild(progressContainer);
-        }
-        
-        // Track form completion progress
-        function updateFormProgress() {
-            if (!isCreateMode) return;
-            
-            let progress = 0;
-            let status = 'Start filling out the form';
-            let completedFields = 0;
-            let totalFields = 0;
-            
-            // Check required fields
-            const titleField = document.querySelector('[name="title"]');
-            const contentTypeField = document.querySelector('input[name="content_type"]:checked');
-            
-            if (titleField && titleField.value.trim()) {
-                progress += 30;
-                completedFields++;
-                status = 'Title added';
-            }
-            totalFields++;
-            
-            if (contentTypeField) {
-                progress += 20;
-                completedFields++;
-                status = 'Content type selected';
-            }
-            totalFields++;
-            
-            // Check content-specific fields based on selected type
-            if (contentTypeField) {
-                const selectedType = contentTypeField.value.toLowerCase();
-                
-                if (selectedType === 'text') {
-                    const textContent = document.querySelector('[name="text_content"]');
-                    if (textContent && textContent.value.trim() && textContent.value !== '<p></p>' && textContent.value !== '<p>&nbsp;</p>') {
-                        progress += 30;
-                        completedFields++;
-                        status = 'Text content added';
-                    }
-                    totalFields++;
-                } else if (selectedType === 'web') {
-                    const webUrl = document.querySelector('[name="web_url"]');
-                    if (webUrl && webUrl.value.trim()) {
-                        progress += 30;
-                        completedFields++;
-                        status = 'Web URL added';
-                    }
-                    totalFields++;
-                } else if (selectedType === 'embedvideo') {
-                    const embedCode = document.querySelector('[name="embed_code"]');
-                    if (embedCode && embedCode.value.trim()) {
-                        progress += 30;
-                        completedFields++;
-                        status = 'Embed code added';
-                    }
-                    totalFields++;
-                } else if (['video', 'document', 'audio'].includes(selectedType)) {
-                    const fileInput = document.querySelector('input[type="file"]');
-                    if (fileInput && fileInput.files.length > 0) {
-                        progress += 30;
-                        completedFields++;
-                        status = 'File selected';
-                    }
-                    totalFields++;
-                } else if (['quiz', 'assignment', 'conference', 'discussion'].includes(selectedType)) {
-                    const dropdownField = document.querySelector('[name="' + selectedType + '"]');
-                    if (dropdownField && dropdownField.value) {
-                        progress += 30;
-                        completedFields++;
-                        status = selectedType.charAt(0).toUpperCase() + selectedType.slice(1) + ' selected';
-                    }
-                    totalFields++;
-                }
-            }
-            
-            // Check description field
-            const descriptionField = document.querySelector('[name="description"]');
-            if (descriptionField && descriptionField.value.trim()) {
-                progress += 10;
-                completedFields++;
-                if (status === 'Start filling out the form') {
-                    status = 'Description added';
-                }
-            }
-            totalFields++;
-            
-            // Update progress display
-            const progressBar = document.getElementById('form-progress-bar');
-            const progressText = document.getElementById('form-progress-percent');
-            const statusElement = document.getElementById('form-progress-status');
-            
-            if (progressBar && progressText && statusElement) {
-                progressBar.style.width = progress + '%';
-                progressText.textContent = progress + '%';
-                statusElement.textContent = status;
-                
-                // Change color based on progress
-                if (progress >= 80) {
-                    progressBar.className = 'bg-green-500 h-1.5 rounded-full transition-all duration-300';
-                } else if (progress >= 50) {
-                    progressBar.className = 'bg-yellow-500 h-1.5 rounded-full transition-all duration-300';
-                } else {
-                    progressBar.className = 'bg-blue-500 h-1.5 rounded-full transition-all duration-300';
-                }
-            }
-        }
-        
-        // Update progress on form changes
-        if (topicForm) {
-            topicForm.addEventListener('input', updateFormProgress);
-            topicForm.addEventListener('change', updateFormProgress);
-            
-            // Initial progress check
-            setTimeout(updateFormProgress, 500);
-        }
-    }
-    
-    // Initialize form progress tracking
-    initializeFormProgressTracking();
+    // Form progress tracking removed per user request
     
     function hasUserStartedEditing() {
         const titleField = document.querySelector('input[name="title"], #topic_title');
@@ -821,12 +685,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     
                     // Always show progress for topic creation
                     document.body.appendChild(progressContainer);
-                    
-                    // Hide form progress when submission starts
-                    const formProgressContainer = document.getElementById('form-progress-container');
-                    if (formProgressContainer) {
-                        formProgressContainer.style.display = 'none';
-                    }
                     
                     // Initialize progress tracking
                     updateProgressStatus('Preparing submission...', 0);

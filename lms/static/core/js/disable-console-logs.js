@@ -3,9 +3,12 @@
  * This prevents development debugging messages from appearing in the browser console
  */
 (function() {
-    // Always disable logs in production - check multiple environments
-    // Disabled for development - only disable logs in true production
-    const isProduction = false; // Disabled for development
+    // Check if we're in production environment
+    const isProduction = !window.location.hostname.includes('localhost') && 
+                        !window.location.hostname.includes('127.0.0.1') &&
+                        !window.location.hostname.includes('localhost:') &&
+                        !window.location.hostname.includes('dev.') &&
+                        !window.location.hostname.includes('.dev');
     
     // Only disable logs in production
     if (isProduction) {
