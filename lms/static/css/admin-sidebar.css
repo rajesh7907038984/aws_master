@@ -521,7 +521,7 @@ main.flex-1.bg-white {
 
 /* Ensure the background colors for progress bars */
 .bg-blue-500 {
-    background-color: var(--brand-primary) !important;
+    background-color: var(--sidebar-bg, #1C2260) !important;
 }
 
 .bg-red-500 {
@@ -624,7 +624,7 @@ main.flex-1.bg-white {
 
 /* Ensure the background colors for the chart */
 .bg-green-500 {
-    background-color: var(--brand-primary) !important;
+    background-color: var(--sidebar-bg, #1C2260) !important;
 }
 
 .bg-yellow-400 {

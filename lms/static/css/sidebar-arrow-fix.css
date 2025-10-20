@@ -1,0 +1,82 @@
+/* Sidebar Arrow Icon Visibility Fix */
+/* This file ensures submenu arrow icons are always visible */
+
+/* Force visibility for all arrow icons in sidebar */
+#sidebar .menu-item.has-submenu svg,
+#sidebar .menu-item.has-submenu .arrow-icon,
+#sidebar .menu-item[data-submenu] svg,
+#sidebar .menu-item[data-submenu] .arrow-icon {
+    display: inline-block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    color: white !important;
+    stroke: white !important;
+    fill: none !important;
+    position: absolute !important;
+    right: 1rem !important;
+    width: 0.75rem !important;
+    height: 0.75rem !important;
+    z-index: 10 !important;
+    transition: transform 0.3s ease !important;
+}
+
+/* Force visibility for mobile menu arrow icons */
+#nexsy-mobile-menu .menu-item.has-submenu svg,
+#nexsy-mobile-menu .menu-item.has-submenu .arrow-icon,
+#nexsy-mobile-menu .menu-item[data-submenu] svg,
+#nexsy-mobile-menu .menu-item[data-submenu] .arrow-icon {
+    display: inline-block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    color: white !important;
+    stroke: white !important;
+    fill: none !important;
+    position: absolute !important;
+    right: 1rem !important;
+    width: 0.75rem !important;
+    height: 0.75rem !important;
+    z-index: 10 !important;
+    transition: transform 0.3s ease !important;
+}
+
+/* Override any conflicting styles */
+#sidebar svg[class*="arrow"],
+#sidebar .arrow-icon,
+#nexsy-mobile-menu svg[class*="arrow"],
+#nexsy-mobile-menu .arrow-icon {
+    display: inline-block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    color: white !important;
+    stroke: white !important;
+    fill: none !important;
+}
+
+/* Ensure submenu buttons have proper positioning for arrow icons */
+#sidebar .menu-item.has-submenu,
+#sidebar .menu-item[data-submenu] {
+    position: relative !important;
+    cursor: pointer !important;
+}
+
+/* Hide arrows only when sidebar is collapsed */
+#sidebar.collapsed .menu-item.has-submenu .arrow-icon,
+#sidebar.collapsed .menu-item[data-submenu] .arrow-icon {
+    display: none !important;
+}
+
+/* Ensure proper hover states for arrow icons */
+#sidebar .menu-item.has-submenu:hover .arrow-icon,
+#sidebar .menu-item[data-submenu]:hover .arrow-icon {
+    color: white !important;
+    stroke: white !important;
+    opacity: 1 !important;
+}
+
+/* Mobile menu arrow icon fixes */
+#nexsy-mobile-menu .menu-item.has-submenu:hover .arrow-icon,
+#nexsy-mobile-menu .menu-item[data-submenu]:hover .arrow-icon {
+    color: white !important;
+    stroke: white !important;
+    opacity: 1 !important;
+}

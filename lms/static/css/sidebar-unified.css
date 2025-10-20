@@ -1,50 +1,7 @@
-/* Unified Sidebar Styles for LMS */
+/* Enhanced Unified Sidebar Styles for LMS */
 /* High specificity to override Tailwind and other CSS */
-/* All variables consolidated here to prevent conflicts */
-
-:root {
-    /* Sidebar Dimensions */
-    --sidebar-width: 16rem;
-    --sidebar-collapsed-width: 3.5rem;
-    --sidebar-height: calc(100vh - 4rem);
-    
-    /* Z-Index Hierarchy */
-    --z-sidebar: 30;
-    --z-mobile-overlay: 40;
-    --z-mobile-menu: 50;
-    --z-profile-dropdown: 60;
-    --z-toast: 70;
-    --z-modal-overlay: 80;
-    --z-modal: 90;
-    --z-tooltip: 100;
-    
-    /* Transitions */
-    --sidebar-transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    --sidebar-transition-fast: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-    --sidebar-transition-slow: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-    
-    /* Colors - Match Screenshot Exactly */
-    --sidebar-bg: #1C2260;
-    --sidebar-bg-hover: #02071e;
-    --sidebar-accent: #02f711;
-    --sidebar-text: white;
-    
-    /* Spacing */
-    --sidebar-padding: 1rem;
-    --sidebar-item-padding: 0.75rem 1rem;
-    --sidebar-submenu-padding: 0.75rem 1rem 0.75rem 3rem;
-    
-    /* Border Radius */
-    --sidebar-radius: 0.5rem;
-    --sidebar-item-radius: 0.375rem;
-    
-    /* Shadows */
-    --sidebar-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-    --sidebar-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-}
-
 #sidebar {
-    background-color: #1C2260 !important; /* Dark blue from screenshot */
+    background: var(--sidebar-bg, #1C2260) !important;
     color: white !important;
     position: fixed !important;
     top: 4rem !important;
@@ -52,60 +9,39 @@
     width: 16rem !important;
     height: calc(100vh - 4rem) !important;
     z-index: 30 !important;
-    transition: all 0.3s ease !important;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
     overflow-y: auto !important;
     overflow-x: hidden !important;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1) !important;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
+    backdrop-filter: blur(10px) !important;
 }
 
 .sidebar {
     position: fixed;
     top: 4rem;
     left: 0;
-    width: var(--sidebar-width);
-    height: var(--sidebar-height);
-    background-color: var(--sidebar-bg);
-    color: var(--sidebar-text);
-    z-index: var(--z-sidebar);
-    transition: var(--sidebar-transition);
+    width: 16rem;
+    height: calc(100vh - 4rem);
+    background-color: var(--sidebar-bg, #1C2260);
+    color: white;
+    z-index: 30;
+    transition: all 0.3s ease;
     overflow-y: auto;
     overflow-x: hidden;
-    box-shadow: var(--sidebar-shadow);
 }
 
 .sidebar.collapsed {
-    width: var(--sidebar-collapsed-width) !important;
-    transition: var(--sidebar-transition) !important;
+    width: 4rem;
 }
 
-#sidebar.collapsed {
-    width: var(--sidebar-collapsed-width) !important;
-    transition: var(--sidebar-transition) !important;
-}
-
-#sidebar.collapsed .menu-text {
-    display: none !important;
-}
-
-#sidebar.collapsed .submenu {
-    display: none !important;
-}
-
-/* Fix main content adjustment */
-#main-content.sidebar-collapsed {
-    margin-left: var(--sidebar-collapsed-width) !important;
-    width: calc(100% - var(--sidebar-collapsed-width)) !important;
-    transition: var(--sidebar-transition) !important;
-}
-
-/* High specificity for menu items */
+/* Enhanced menu items with improved visual feedback */
 #sidebar .menu-item {
     display: flex !important;
     align-items: center !important;
-    padding: var(--sidebar-item-padding) !important;
-    color: var(--sidebar-text) !important;
+    padding: 0.75rem 1rem !important;
+    color: white !important;
     text-decoration: none !important;
-    transition: var(--sidebar-transition) !important;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
     border-left: 4px solid transparent !important;
     width: 100% !important;
     box-sizing: border-box !important;
@@ -113,7 +49,10 @@
     overflow: hidden !important;
     text-overflow: ellipsis !important;
     background-color: transparent !important;
-    border-radius: var(--sidebar-item-radius) !important;
+    position: relative !important;
+    border-radius: 0.375rem !important;
+    margin: 0.125rem 0.5rem !important;
+    width: calc(100% - 1rem) !important;
 }
 
 .sidebar .menu-item {
@@ -131,29 +70,32 @@
     text-overflow: ellipsis;
 }
 
-/* High specificity for hover and active states */
+/* Enhanced hover and active states with smooth animations */
 #sidebar .menu-item:hover {
-    background-color: var(--sidebar-bg-hover) !important;
-    border-left-color: var(--sidebar-accent) !important;
-    color: var(--sidebar-text) !important;
-    transform: translateX(2px) !important;
+    background-color: var(--sidebar-bg-hover, #02071e) !important;
+    border-left-color: var(--sidebar-accent, #02f711) !important;
+    color: white !important;
+    transform: translateX(4px) !important;
+    box-shadow: 0 4px 12px rgba(2, 247, 17, 0.3) !important;
 }
 
 #sidebar .menu-item.active {
-    background-color: var(--sidebar-bg-hover) !important;
-    border-left-color: var(--sidebar-accent) !important;
-    color: var(--sidebar-text) !important;
+    background-color: var(--sidebar-bg-hover, #02071e) !important;
+    border-left-color: var(--sidebar-accent, #02f711) !important;
+    color: white !important;
+    transform: translateX(4px) !important;
+    box-shadow: 0 4px 12px rgba(2, 247, 17, 0.4) !important;
     font-weight: 600 !important;
 }
 
 .sidebar .menu-item:hover {
-    background-color: var(--brand-primary-hover, #02071e);
-    border-left-color: #02f711;
+    background-color: var(--sidebar-bg-hover, #02071e);
+    border-left-color: var(--sidebar-accent, #02f711);
 }
 
 .sidebar .menu-item.active {
-    background-color: var(--brand-primary-hover, #02071e);
-    border-left-color: #02f711;
+    background-color: var(--sidebar-bg-hover, #02071e);
+    border-left-color: var(--sidebar-accent, #02f711);
 }
 
 /* High specificity for icon and text elements */
@@ -213,14 +155,6 @@
     text-overflow: ellipsis;
 }
 
-/* CRITICAL: Fix main content positioning with CSS variables */
-#main-content {
-    margin-left: var(--sidebar-width, 16rem) !important;
-    width: calc(100% - var(--sidebar-width, 16rem)) !important;
-    transition: var(--sidebar-transition, all 0.3s ease) !important;
-    padding-top: 4rem !important;
-}
-
 /* High specificity for mobile responsiveness */
 @media (max-width: 768px) {
     #sidebar {
@@ -229,52 +163,54 @@
         opacity: 0 !important;
         transform: translateX(-100%) !important;
     }
+}
+
+/* Enhanced mobile responsiveness */
+@media (max-width: 768px) {
+    .sidebar {
+        display: none;
+    }
     
-    #main-content {
-        margin-left: 0 !important;
-        width: 100% !important;
+    #sidebar {
+        transform: translateX(-100%) !important;
+        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    }
+    
+    #sidebar.mobile-open {
+        transform: translateX(0) !important;
+        display: block !important;
+        z-index: 50 !important;
     }
 }
 
-/* Enhanced submenu arrow visibility and styling */
-#sidebar .menu-item.has-submenu .arrow-icon {
-    display: inline-block !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-    color: white !important;
-    stroke: white !important;
-    fill: none !important;
-    position: absolute !important;
-    right: 1rem !important;
-    width: 0.75rem !important;
-    height: 0.75rem !important;
-    z-index: 10 !important;
-    transition: transform 0.3s ease !important;
+/* Custom scrollbar styling */
+#sidebar::-webkit-scrollbar {
+    width: 6px;
 }
 
-/* Ensure submenu buttons are properly clickable */
-#sidebar .menu-item.has-submenu {
-    cursor: pointer !important;
-    position: relative !important;
+#sidebar::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
 }
 
-/* Mobile menu submenu fixes */
-#mobile-menu .menu-item.has-submenu .arrow-icon {
-    display: inline-block !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-    color: white !important;
-    stroke: white !important;
-    fill: none !important;
-    transition: transform 0.3s ease !important;
+#sidebar::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 3px;
+    transition: background 0.3s ease;
 }
 
-/* Enhanced submenu styling */
+#sidebar::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.5);
+}
+
+/* Enhanced submenu animations */
 #sidebar .submenu {
     background-color: rgba(0, 0, 0, 0.1) !important;
     max-height: 0 !important;
     overflow: hidden !important;
-    transition: max-height 0.3s ease !important;
+    transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    border-radius: 0.375rem !important;
+    margin: 0.25rem 0.5rem !important;
 }
 
 #sidebar .submenu:not(.hidden) {
@@ -282,73 +218,52 @@
 }
 
 #sidebar .submenu .menu-item {
-    padding: var(--sidebar-submenu-padding) !important;
+    padding-left: 3rem !important;
     font-size: 0.8rem !important;
-    width: 100% !important;
-    box-sizing: border-box !important;
-    white-space: nowrap !important;
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
-    border-radius: var(--sidebar-item-radius) !important;
+    margin: 0.125rem 0 !important;
+    width: calc(100% - 0.5rem) !important;
 }
 
-/* Mobile responsiveness */
-@media (max-width: 768px) {
-    .sidebar {
-        display: none;
-    }
+/* Arrow icon styles - Enhanced visibility and positioning */
+#sidebar .arrow-icon {
+    display: inline-block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    color: white !important;
+    stroke: white !important;
+    fill: none !important;
+    width: 1rem !important;
+    height: 1rem !important;
+    transition: transform 0.3s ease !important;
+    flex-shrink: 0 !important;
+    margin-left: auto !important;
 }
 
-/* Tooltip for collapsed sidebar */
-#sidebar.collapsed .menu-item {
+/* Arrow rotation when expanded */
+#sidebar .menu-item.expanded .arrow-icon {
+    transform: rotate(180deg) !important;
+}
+
+/* Ensure arrow is visible on hover */
+#sidebar .menu-item:hover .arrow-icon {
+    color: white !important;
+    stroke: white !important;
+    opacity: 1 !important;
+}
+
+/* Arrow positioning in menu items */
+#sidebar .menu-item.has-submenu {
     position: relative !important;
 }
 
-#sidebar.collapsed .menu-item:hover::after {
-    content: attr(data-tooltip) !important;
+#sidebar .menu-item.has-submenu .arrow-icon {
     position: absolute !important;
-    left: calc(100% + 0.5rem) !important;
+    right: 1rem !important;
     top: 50% !important;
     transform: translateY(-50%) !important;
-    background-color: #1e293b !important;
-    color: white !important;
-    padding: 0.5rem 1rem !important;
-    border-radius: 0.375rem !important;
-    white-space: nowrap !important;
-    z-index: 100 !important;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
-    pointer-events: none !important;
-    opacity: 0 !important;
-    animation: tooltipFadeIn 0.2s ease-in-out forwards !important;
+    z-index: 10 !important;
 }
 
-@keyframes tooltipFadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(-50%) translateX(-5px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(-50%) translateX(0);
-    }
-}
-
-/* Hide submenu chevron when collapsed */
-#sidebar.collapsed .menu-item.has-submenu .arrow-icon {
-    display: none !important;
-}
-
-/* Optional: subtle indicator on hover for submenu items when collapsed */
-#sidebar.collapsed .menu-item.has-submenu:hover::before {
-    content: '' !important;
-    position: absolute !important;
-    right: 0.5rem !important;
-    top: 50% !important;
-    transform: translateY(-50%) !important;
-    width: 0 !important;
-    height: 0 !important;
-    border-left: 4px solid transparent !important;
-    border-right: 4px solid transparent !important;
-    border-top: 4px solid white !important;
-    opacity: 0.6 !important;
+#sidebar .menu-item.has-submenu.expanded .arrow-icon {
+    transform: translateY(-50%) rotate(180deg) !important;
 }

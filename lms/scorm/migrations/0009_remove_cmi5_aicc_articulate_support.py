@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('scorm', '0008_auto_20251020_1546'),
+        ('scorm', '0006_alter_elearningpackage_package_type'),
     ]
 
     operations = [

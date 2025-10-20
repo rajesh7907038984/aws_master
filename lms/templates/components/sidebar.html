@@ -1,12 +1,19 @@
 {% load static %}
-<!-- Sticky Sidebar - Hidden on mobile -->
-<aside id="sidebar" class="fixed top-16 left-0 h-[calc(100vh-4rem)] w-64 z-30 transition-all duration-300 hidden md:block overflow-x-hidden">
-    <nav class="h-full py-1 overflow-x-hidden">
-        <div class="flex flex-col h-full space-y-0 items-start overflow-y-auto overflow-x-hidden max-h-[calc(100vh-5rem)]">
+<!-- Enhanced Sticky Sidebar - Optimized for performance and accessibility -->
+<aside id="sidebar" class="fixed top-16 left-0 h-[calc(100vh-4rem)] w-64 z-30 transition-all duration-300 hidden md:block overflow-x-hidden shadow-lg" style="background: var(--sidebar-bg, #1C2260);">
+    <nav class="h-full py-1 overflow-x-hidden" role="navigation" aria-label="Main navigation">
+        <div class="flex flex-col h-full space-y-0 items-start overflow-y-auto overflow-x-hidden max-h-[calc(100vh-5rem)] scrollbar-thin scrollbar-thumb-blue-300 scrollbar-track-transparent">
             <!-- Dashboard -->
-            <a href="{% if request.user.role == 'globaladmin' %}{% url 'dashboard_globaladmin' %}{% elif request.user.role == 'superadmin' %}{% url 'dashboard_superadmin' %}{% elif request.user.role == 'admin' %}{% url 'dashboard_admin' %}{% elif request.user.role == 'instructor' %}{% url 'dashboard_instructor' %}{% else %}{% url 'dashboard_learner' %}{% endif %}" class="menu-item flex items-center px-4 py-1 w-full {% if 'dashboard' in request.path %}active{% endif %}">
+            <a href="{% if request.user.role == 'globaladmin' %}{% url 'dashboard_globaladmin' %}{% elif request.user.role == 'superadmin' %}{% url 'dashboard_superadmin' %}{% elif request.user.role == 'admin' %}{% url 'dashboard_admin' %}{% elif request.user.role == 'instructor' %}{% url 'dashboard_instructor' %}{% else %}{% url 'dashboard_learner' %}{% endif %}" 
+               class="menu-item flex items-center px-4 py-2 w-full transition-all duration-200 {% if 'dashboard' in request.path %}active{% endif %}"
+               aria-current="{% if 'dashboard' in request.path %}page{% else %}false{% endif %}">
                 <div class="icon-container min-w-[20px] flex justify-center">
-                    <i class="fas fa-th-large w-4 h-4"></i>
+                    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+                        <rect x="3" y="3" width="7" height="7" stroke="currentColor" stroke-width="2"/>
+                        <rect x="14" y="3" width="7" height="7" stroke="currentColor" stroke-width="2"/>
+                        <rect x="3" y="14" width="7" height="7" stroke="currentColor" stroke-width="2"/>
+                        <rect x="14" y="14" width="7" height="7" stroke="currentColor" stroke-width="2"/>
+                    </svg>
                 </div>
                 <span class="menu-text ml-3 text-sm font-medium">Dashboard</span>
             </a>

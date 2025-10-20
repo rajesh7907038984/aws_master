@@ -24,10 +24,6 @@ class ELearningPackageAdmin(admin.ModelAdmin):
         ('Package Metadata', {
             'fields': ('version', 'organization')
         }),
-        ('xAPI Settings', {
-            'fields': ('xapi_endpoint', 'xapi_actor'),
-            'classes': ('collapse',)
-        }),
         ('Extraction Details', {
             'fields': (
                 'is_extracted', 'extracted_path', 'manifest_path', 

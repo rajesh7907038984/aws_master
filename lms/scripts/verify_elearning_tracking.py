@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 E-Learning Ecosystem Verification Script
-Verifies SCORM and xAPI tracking data and identifies issues
+Verifies SCORM tracking data and identifies issues
 """
 
 import os
@@ -14,7 +14,6 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'LMS_Project.settings')
 django.setup()
 
 from scorm.models import ELearningTracking, ELearningPackage
-from lrs.models import Statement
 from django.utils import timezone
 from datetime import timedelta
 import json
@@ -61,9 +60,6 @@ def verify_elearning_ecosystem():
     )
     print("Incomplete tracking records (last 24h): {{incomplete_tracking.count()}}")
     
-    # Check xAPI statements
-    statements = Statement.objects.all()
-    print("\nTotal xAPI Statements: {{statements.count()}}")
     
     recent_statements = statements.filter(
         timestamp__gte=timezone.now() - timedelta(days=7)
@@ -183,7 +179,6 @@ def main():
         print("=" * 40)
         print("E-Learning Packages: {{results['packages']}}")
         print("Tracking Records: {{results['tracking']}}")
-        print("xAPI Statements: {{results['statements']}}")
         print("Recent Activity (24h): {{recent_activity}}")
         
         # Issues summary

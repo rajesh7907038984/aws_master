@@ -874,7 +874,6 @@ class TopicForm(BaseModelFormWithTinyMCE):
             ('', 'Auto-detect package type'),
             ('SCORM_1_2', 'SCORM 1.2'),
             ('SCORM_2004', 'SCORM 2004'),
-            ('XAPI', 'xAPI (Tin Can)'),
         ],
         required=False,
         widget=forms.Select(attrs={

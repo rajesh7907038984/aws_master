@@ -16,22 +16,9 @@ from datetime import timedelta
 
 logger = logging.getLogger(__name__)
 
-def validate_xapi_endpoint(value):
-    """Validate xAPI endpoint URL"""
-    if value and not value.startswith(('http://', 'https://')):
-        raise ValidationError("xAPI endpoint must be a valid URL")
-    if value and not value.endswith('/'):
-        raise ValidationError("xAPI endpoint should end with '/'")
-
-def validate_xapi_actor_json(value):
-    """Validate xAPI actor JSON structure"""
-    if not isinstance(value, dict):
-        raise ValidationError("xAPI actor must be a JSON object")
-    if 'objectType' in value and value['objectType'] != 'Agent':
-        raise ValidationError("xAPI actor objectType must be 'Agent'")
 
 def elearning_package_path(instance, filename):
-    """Generate file path for e-learning packages (SCORM, xAPI)"""
+    """Generate file path for e-learning packages (SCORM)"""
     from core.s3_storage import validate_s3_path, sanitize_s3_path
     
     # Get the base filename and extension
@@ -59,12 +46,18 @@ def elearning_package_path(instance, filename):
     return full_path
 
 class ELearningPackage(models.Model):
-    """Model for e-learning packages (SCORM, xAPI)"""
+    """Model for e-learning packages (SCORM)"""
     
     PACKAGE_TYPES = [
         ('SCORM_1_2', 'SCORM 1.2'),
         ('SCORM_2004', 'SCORM 2004'),
-        ('XAPI', 'xAPI (Tin Can)'),
+        ('CMI5', 'cmi5'),
+        ('AICC', 'AICC'),
+        ('ARTICULATE', 'Articulate (Storyline/Rise)'),
+        ('CAPTIVATE', 'Adobe Captivate'),
+        ('LECTORA', 'Lectora'),
+        ('ISPRING', 'iSpring'),
+        ('ADOBE_PRESENTER', 'Adobe Presenter'),
     ]
     
     topic = models.OneToOneField(
@@ -97,42 +90,6 @@ class ELearningPackage(models.Model):
     launch_file = models.CharField(max_length=500, blank=True)
     extracted_path = models.CharField(max_length=500, blank=True)
     
-    # Enhanced xAPI specific fields
-    xapi_endpoint = models.URLField(
-        blank=True, 
-        help_text="xAPI endpoint URL",
-        validators=[validate_xapi_endpoint]
-    )
-    xapi_actor = models.JSONField(
-        default=dict, 
-        blank=True, 
-        help_text="xAPI actor information",
-        validators=[validate_xapi_actor_json]
-    )
-    xapi_username = models.CharField(
-        max_length=255, 
-        blank=True, 
-        null=True,
-        help_text="xAPI authentication username"
-    )
-    xapi_password = models.CharField(
-        max_length=255, 
-        blank=True, 
-        null=True,
-        help_text="xAPI authentication password"
-    )
-    xapi_version = models.CharField(
-        max_length=10, 
-        default='1.0.3', 
-        help_text="xAPI version"
-    )
-    lrs = models.ForeignKey(
-        'lrs.LRS', 
-        on_delete=models.SET_NULL, 
-        null=True, 
-        blank=True,
-        help_text="Associated LRS"
-    )
     
     
     # Status
@@ -156,7 +113,7 @@ class ELearningPackage(models.Model):
                 logger.error(error_msg)
                 self.extraction_error = error_msg
                 self.is_extracted = False
-                self.save()
+                self.save(update_fields=['extraction_error', 'is_extracted'])
                 return False
             
             # Enhanced file existence check
@@ -165,7 +122,7 @@ class ELearningPackage(models.Model):
                 logger.error(error_msg)
                 self.extraction_error = error_msg
                 self.is_extracted = False
-                self.save()
+                self.save(update_fields=['extraction_error', 'is_extracted'])
                 return False
             
             # Auto-detect package type if not set
@@ -173,11 +130,11 @@ class ELearningPackage(models.Model):
                 detected_type = self.detect_package_type()
                 if detected_type:
                     self.package_type = detected_type
-                    self.save()
+                    self.save(update_fields=['package_type'])
                 else:
                     # Default to SCORM_1_2 if detection fails
                     self.package_type = 'SCORM_1_2'
-                    self.save()
+                    self.save(update_fields=['package_type'])
             
             # Create topic-based directory structure using the custom storage
             topic_dir = f"packages/{self.topic.id}"
@@ -290,7 +247,8 @@ class ELearningPackage(models.Model):
                     self.extracted_path = topic_dir
                     self.is_extracted = True
                     self.extraction_error = ""
-                    self.save()
+                    # Use update_fields to avoid triggering signals again
+                    self.save(update_fields=['extracted_path', 'is_extracted', 'extraction_error'])
                     
                     # Final garbage collection
                     gc.collect()
@@ -303,7 +261,7 @@ class ELearningPackage(models.Model):
                 logger.error(error_msg)
                 self.extraction_error = error_msg
                 self.is_extracted = False
-                self.save()
+                self.save(update_fields=['extraction_error', 'is_extracted'])
                 return False
             
         except Exception as e:
@@ -311,7 +269,7 @@ class ELearningPackage(models.Model):
             logger.error(error_msg)
             self.extraction_error = error_msg
             self.is_extracted = False
-            self.save()
+            self.save(update_fields=['extraction_error', 'is_extracted'])
             return False
     
     
@@ -320,8 +278,6 @@ class ELearningPackage(models.Model):
         try:
             if self.package_type in ['SCORM_1_2', 'SCORM_2004']:
                 self._parse_scorm_manifest_from_bytes(manifest_bytes, manifest_path)
-            elif self.package_type == 'XAPI':
-                self._parse_xapi_manifest_from_bytes(manifest_bytes, manifest_path)
             
             self.save()
             
@@ -382,58 +338,6 @@ class ELearningPackage(models.Model):
         except Exception as e:
             logger.error(f"Error parsing SCORM manifest from bytes: {str(e)}")
     
-    def _parse_xapi_manifest(self, manifest_path):
-        """Parse xAPI (Tin Can) manifest to extract metadata"""
-        if manifest_path.endswith('.json'):
-            with open(manifest_path, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-                
-            self.title = data.get('name', {}).get('en-US', '') or data.get('name', '')
-            self.description = data.get('description', {}).get('en-US', '') or data.get('description', '')
-            self.version = data.get('version', '')
-            
-            # Extract xAPI specific data
-            if 'launch' in data:
-                self.xapi_endpoint = data['launch']
-            if 'actor' in data:
-                self.xapi_actor = data['actor']
-        else:
-            # Parse XML format
-            tree = ET.parse(manifest_path)
-            root = tree.getroot()
-            
-            # Basic parsing for XML xAPI manifests
-            title_elem = root.find('.//title')
-            if title_elem is not None:
-                self.title = title_elem.text or ""
-    
-    def _parse_xapi_manifest_from_bytes(self, manifest_bytes, manifest_path):
-        """Parse xAPI (Tin Can) manifest directly from bytes - no temp files needed"""
-        try:
-            if manifest_path.endswith('.json'):
-                # Parse JSON directly from bytes
-                data = json.loads(manifest_bytes.decode('utf-8'))
-                
-                self.title = data.get('name', {}).get('en-US', '') or data.get('name', '')
-                self.description = data.get('description', {}).get('en-US', '') or data.get('description', '')
-                self.version = data.get('version', '')
-                
-                # Extract xAPI specific data
-                if 'launch' in data:
-                    self.xapi_endpoint = data['launch']
-                if 'actor' in data:
-                    self.xapi_actor = data['actor']
-            else:
-                # Parse XML directly from bytes
-                root = ET.fromstring(manifest_bytes)
-                
-                # Basic parsing for XML xAPI manifests
-                title_elem = root.find('.//title')
-                if title_elem is not None:
-                    self.title = title_elem.text or ""
-                    
-        except Exception as e:
-            logger.error(f"Error parsing xAPI manifest from bytes: {str(e)}")
     
     
     
@@ -462,10 +366,8 @@ class ELearningPackage(models.Model):
         name = filename.lower()
         if self.package_type in ['SCORM_1_2', 'SCORM_2004', 'ARTICULATE']:
             return 'imsmanifest.xml' in name or 'manifest.xml' in name
-        if self.package_type == 'XAPI':
-            return 'tincan.xml' in name or 'tincan.json' in name
         return any(m in name for m in [
-            'imsmanifest.xml','manifest.xml','tincan.xml','tincan.json'
+            'imsmanifest.xml','manifest.xml'
         ])
 
 
@@ -480,11 +382,13 @@ class ELearningPackage(models.Model):
                 'content/index.html','data/index.html',
                 'lms/blank.html'
             ]
-        elif self.package_type == 'XAPI':
+        elif self.package_type == 'ARTICULATE':
             launch_files = [
-                'tincan.html','launch.html','player.html','index.html','start.html','main.html',
-                'tincan/index.html','tincan/launch.html','xapi/index.html','xapi/launch.html',
-                'content/index.html','data/index.html','player/index.html'
+                'story.html','index.html','launch.html','start.html','main.html',
+                'story_content/index.html','story_content/launch.html','story_content/start.html',
+                'content/index.html','content/launch.html','content/start.html',
+                'data/index.html','data/launch.html','data/start.html',
+                'player/index.html','player/launch.html','player/start.html'
             ]
         else:
             launch_files = ['index.html','launch.html','start.html','main.html']
@@ -523,13 +427,22 @@ class ELearningPackage(models.Model):
             with zipfile.ZipFile(io.BytesIO(zip_data), 'r') as zip_ref:
                 file_list = zip_ref.namelist()
                 
-                # PRIORITY 1: Check for xAPI/Tin Can manifests
-                has_xapi = any('tincan.xml' in f.lower() or 'tincan.json' in f.lower() for f in file_list)
-                if has_xapi:
-                    logger.info("Package detection: xAPI/Tin Can manifest found")
-                    return 'XAPI'
                 
-                # PRIORITY 2: Check for SCORM manifests (most common)
+                # PRIORITY 2: Check for Articulate Storyline/Rise packages
+                has_articulate = any(
+                    'story.html' in f.lower() or 
+                    'story_content' in f.lower() or 
+                    'storyline' in f.lower() or
+                    'rise' in f.lower() or
+                    'articulate' in f.lower() or
+                    'story_data' in f.lower()
+                    for f in file_list
+                )
+                if has_articulate:
+                    logger.info("Package detection: Articulate Storyline/Rise package found")
+                    return 'ARTICULATE'
+                
+                # PRIORITY 3: Check for SCORM manifests (most common)
                 has_scorm = any('imsmanifest.xml' in f.lower() for f in file_list)
                 if has_scorm:
                     # Check SCORM version by examining the manifest content
@@ -559,7 +472,7 @@ class ELearningPackage(models.Model):
                         # Default to SCORM 1.2 if we can't determine version
                         return 'SCORM_1_2'
                 
-                # PRIORITY 3: Check for generic HTML5 content (fallback)
+                # PRIORITY 4: Check for generic HTML5 content (fallback)
                 html_files = [f for f in file_list if f.lower().endswith(('.html', '.htm'))]
                 if html_files:
                     logger.warning(f"Package detection: HTML content found without standard manifest ({len(html_files)} HTML files) - defaulting to SCORM 1.2")
@@ -616,7 +529,7 @@ class ELearningPackage(models.Model):
 
 
 class ELearningTracking(models.Model):
-    """Model for tracking e-learning learner interactions (SCORM, xAPI)"""
+    """Model for tracking e-learning learner interactions (SCORM)"""
     user = models.ForeignKey(
         CustomUser,
         on_delete=models.CASCADE,
@@ -1148,37 +1061,6 @@ class ELearningTracking(models.Model):
                 has_exit_suspend or has_location or has_suspend_data
             )
             
-        elif package_type == 'XAPI':
-            # xAPI packages with memory optimization
-            lesson_location = raw_data.get('xapi.state', '')
-            suspend_data = raw_data.get('xapi.activity_state', '')
-            
-            bookmark_data.update({
-                'lesson_location': lesson_location,
-                'suspend_data': suspend_data,
-                'entry': 'ab-initio',
-                'exit': '',
-                'launch_data': '',
-            })
-            
-            has_lesson_location = bool(lesson_location)
-            has_suspend_data = bool(suspend_data)
-            has_resume_flag = raw_data.get('xapi.resume', False)
-            
-            bookmark_data['progress_indicators'] = [
-                f"xAPI State: {has_lesson_location}",
-                f"Activity State: {has_suspend_data}",
-                f"Resume Flag: {has_resume_flag}",
-                f"Progress: {has_progress}",
-                f"Time: {has_time}",
-                f"Score: {has_score}"
-            ]
-            
-            bookmark_data['can_resume'] = (
-                has_lesson_location or has_suspend_data or has_resume_flag or
-                has_progress or has_time or has_score or 
-                has_location or has_suspend_data
-            )
             
         else:
             # Default fallback for unknown package types with memory optimization
@@ -1336,12 +1218,6 @@ class ELearningTracking(models.Model):
                     logger.warning(f"SCORM 2004: Data size {data_size} exceeds limit of {max_size} bytes")
                     return False, f"Data size {data_size} bytes exceeds SCORM 2004 limit of {max_size} bytes"
                     
-            elif package_type == 'XAPI':
-                # xAPI has much larger limits (practically unlimited)
-                max_size = 1000000  # 1MB practical limit
-                if data_size > max_size:
-                    logger.warning(f"{package_type}: Data size {data_size} exceeds practical limit of {max_size} bytes")
-                    return False, f"Data size {data_size} bytes exceeds practical limit of {max_size} bytes"
                     
             else:
                 # Default fallback

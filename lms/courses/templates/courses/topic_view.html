@@ -645,11 +645,6 @@
                                     
                                     <!-- ENHANCED: Preview buttons for non-learners with package type detection -->
                                     <div class="flex flex-col sm:flex-row gap-4">
-                                        {% if elearning_package.package_type == 'XAPI' %}
-                                            <a href="{% url 'scorm:xapi_preview' topic.id %}" class="btn btn-warning">
-                                                <i class="fas fa-eye mr-2"></i>Preview xAPI Content
-                                            </a>
-                                        {% else %}
                                             <a href="{% url 'scorm:preview' topic.id %}" class="btn btn-warning">
                                                 <i class="fas fa-eye mr-2"></i>Preview SCORM Content
                                             </a>
@@ -674,11 +669,6 @@
                                                 </a>
                                             {% elif scorm_tracking.completion_status == 'incomplete' or scorm_tracking.success_status == 'failed' %}
                                                 <!-- Topic incomplete/failed - show Resume and Retake buttons -->
-                                                {% if elearning_package.package_type == 'XAPI' %}
-                                                    <a href="{% url 'scorm:xapi_resume' topic.id %}" class="btn btn-primary">
-                                                        <i class="fas fa-play mr-2"></i>Resume xAPI Content
-                                                    </a>
-                                                {% else %}
                                                     <a href="{% url 'scorm:resume' topic.id %}" class="btn btn-primary">
                                                         <i class="fas fa-play mr-2"></i>Resume SCORM Content
                                                     </a>
@@ -688,11 +678,6 @@
                                                 </a>
                                             {% else %}
                                                 <!-- Topic in progress - show Resume button -->
-                                                {% if elearning_package.package_type == 'XAPI' %}
-                                                    <a href="{% url 'scorm:xapi_resume' topic.id %}" class="btn btn-primary">
-                                                        <i class="fas fa-play mr-2"></i>Resume xAPI Content
-                                                    </a>
-                                                {% else %}
                                                     <a href="{% url 'scorm:resume' topic.id %}" class="btn btn-primary">
                                                         <i class="fas fa-play mr-2"></i>Resume SCORM Content
                                                     </a>
@@ -700,11 +685,6 @@
                                             {% endif %}
                                         {% else %}
                                             <!-- First time - show Launch button -->
-                                            {% if elearning_package.package_type == 'XAPI' %}
-                                                <a href="{% url 'scorm:xapi_launch' topic.id %}" class="btn btn-primary">
-                                                    <i class="fas fa-play mr-2"></i>Launch xAPI Content
-                                                </a>
-                                            {% else %}
                                                 <a href="{% url 'scorm:launch' topic.id %}" class="btn btn-primary">
                                                     <i class="fas fa-play mr-2"></i>Launch SCORM Content
                                                 </a>

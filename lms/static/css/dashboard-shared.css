@@ -4,7 +4,7 @@
 
 /* ========== Global Dashboard Variables ========== */
 :root {
-    --dashboard-primary-color: var(--brand-primary, #050c50);
+    --dashboard-primary-color: var(--brand-primary, #1C2260);
     --dashboard-primary-hover: var(--brand-primary-hover, #02071e);
     --dashboard-accent-color: #2F80ED;
     --dashboard-accent-light: #EBF3FE;
@@ -1379,22 +1379,22 @@ html body .dashboard-main {
 }
 
 .dashboard-role-superadmin {
-    --dashboard-primary-color: var(--brand-primary, #050c50);
+    --dashboard-primary-color: var(--brand-primary, #1C2260);
     --dashboard-primary-hover: var(--brand-primary-hover, #02071e);
 }
 
 .dashboard-role-admin {
-    --dashboard-primary-color: var(--brand-primary, #050c50);
+    --dashboard-primary-color: var(--brand-primary, #1C2260);
     --dashboard-primary-hover: var(--brand-primary-hover, #02071e);
 }
 
 .dashboard-role-instructor {
-    --dashboard-primary-color: var(--brand-primary, #050c50);
+    --dashboard-primary-color: var(--brand-primary, #1C2260);
     --dashboard-primary-hover: var(--brand-primary-hover, #02071e);
 }
 
 .dashboard-role-learner {
-    --dashboard-primary-color: var(--brand-primary, #050c50);
+    --dashboard-primary-color: var(--brand-primary, #1C2260);
     --dashboard-primary-hover: var(--brand-primary-hover, #02071e);
 }
 

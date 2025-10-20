@@ -206,8 +206,6 @@
                         <a href="{% url 'scorm:resume' topic.id %}" class="btn btn-success">
                             <i class="fas fa-play-circle mr-2"></i>Resume
                         </a>
-                    {% elif elearning_package.package_type == 'XAPI' %}
-                        <a href="{% url 'scorm:xapi_resume' topic.id %}" class="btn btn-success">
                             <i class="fas fa-play-circle mr-2"></i>Resume
                         </a>
                     {% endif %}

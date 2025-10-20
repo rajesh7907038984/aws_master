@@ -6897,7 +6897,7 @@ def topic_create(request, course_id):
                     order=CourseTopic.objects.filter(course=course).count() + 1
                 )
                 
-                # Handle e-learning package creation (SCORM, xAPI)
+                # Handle e-learning package creation (SCORM)
                 if new_topic.content_type == 'SCORM' and 'content_file' in request.FILES:
                     from scorm.models import ELearningPackage
                     

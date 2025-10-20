@@ -67,7 +67,6 @@ ALB_DOMAIN = get_env('ALB_DOMAIN', '')
 # Build ALLOWED_HOSTS list dynamically
 ALLOWED_HOSTS = [
     PRIMARY_DOMAIN,  # Primary production domain from environment
-    '3.8.4.75',      # Add IP that was causing errors
     'testserver',    # Add testserver for testing
 ]
 
@@ -78,6 +77,10 @@ if ALB_DOMAIN:
 # Add additional hosts from environment (comma-separated)
 additional_hosts = get_list_env('ADDITIONAL_ALLOWED_HOSTS', default=[])
 ALLOWED_HOSTS.extend(additional_hosts)
+
+# Add trusted IPs from environment if configured
+trusted_ips = get_list_env('TRUSTED_IPS', default=[])
+ALLOWED_HOSTS.extend(trusted_ips)
 
 # Add test server for Django test client (development only)
 if get_env('DJANGO_ENV', 'production') == 'development':

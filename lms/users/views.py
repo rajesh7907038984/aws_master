@@ -5449,7 +5449,7 @@ def admin_dashboard(request):
     
     # 5. Assignments pending instructor grading (admin oversight)
     pending_submissions_count = AssignmentSubmission.objects.filter(
-        assignment__course__branch=effective_branch,
+        assignment__courses__branch=effective_branch,
         status='submitted'
     ).count()
     
@@ -6073,7 +6073,7 @@ def instructor_dashboard(request):
     
     # 1. Assignments pending grading (high priority)
     pending_submissions = AssignmentSubmission.objects.filter(
-        assignment__course_id__in=assigned_course_ids,
+        assignment__courses__in=assigned_course_ids,
         status='submitted'
     ).select_related('assignment', 'user').order_by('submitted_at')[:5]
     
@@ -6399,7 +6399,7 @@ def learner_dashboard(request):
     # Get all assignments available to this learner through their enrolled courses
     enrolled_course_ids = enrolled_courses.values_list('course_id', flat=True)
     available_assignments = Assignment.objects.filter(
-        course__in=enrolled_course_ids,
+        courses__in=enrolled_course_ids,
         is_active=True
     ).distinct()
     
@@ -6477,7 +6477,7 @@ def learner_dashboard(request):
             'title': f"{assignment.title}",
             'type': 'assignment',
             'color': 'red',
-            'course': assignment.course.title if assignment.course else 'General',
+            'course': assignment.courses.first().title if assignment.courses.exists() else 'General',
             'date': assignment.due_date,
             'url': f'/assignments/{assignment.id}/'
         })

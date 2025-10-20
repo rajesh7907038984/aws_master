@@ -1,10 +1,10 @@
 /* Main Styles for LMS Public Pages */
 :root {
     /* Brand Colors - Unified */
-    --brand-primary: #1c2260;
-    --brand-primary-hover: #141a4a;
+    --brand-primary: #1C2260;
+    --brand-primary-hover: #02071e;
     --brand-secondary: #4262FF;
-    --brand-accent: #2F80ED;
+    --brand-accent: #02f711;
     
     /* Legacy support */
     --primary-color: var(--brand-primary);

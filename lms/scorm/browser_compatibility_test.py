@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Browser Compatibility Test for SCORM and xAPI Implementation
+Browser Compatibility Test for SCORM Implementation
 Tests all browser compatibility fixes and optimizations
 """
 

@@ -1547,7 +1547,7 @@
                         <!-- Removed Quiz Description and Instructions section -->
                     </div>
 
-                    <!-- E-Learning Content (SCORM, xAPI) -->
+                    <!-- E-Learning Content (SCORM) -->
                     <div id="scorm-content" class="content-type-field">
                         <div class="file-upload-container">
                             <label class="block text-sm font-medium text-gray-700 mb-1">E-Learning Package (ZIP file)</label>
@@ -1597,7 +1597,7 @@
                                         <p class="pl-1">or drag and drop</p>
                                     </div>
                                     <p class="text-xs text-gray-500">
-                                        Supported formats: SCORM 1.2, SCORM 2004, xAPI (Tin Can)<br>
+                                        Supported formats: SCORM 1.2, SCORM 2004<br>
                                         ZIP files up to 600MB
                                     </p>
                                     <div class="mt-2 text-xs text-gray-400">
@@ -2837,9 +2837,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 // Prepare text content if needed
                 if (document.querySelector('input[name="content_type"]:checked')?.value.toLowerCase() === 'text') {
-                    // Make sure TinyMCE content is saved
-                    if (tinymce && tinymce.get('text_content')) {
-                        tinymce.get('text_content').save();
+                    // Make sure TinyMCE content is saved with error handling
+                    try {
+                        if (typeof tinymce !== 'undefined' && tinymce.get('text_content')) {
+                            const editor = tinymce.get('text_content');
+                            if (editor && editor.save) {
+                                editor.save();
+                            }
+                        }
+                    } catch (error) {
+                        console.error('Error saving TinyMCE content:', error);
                     }
                 }
                 
@@ -3286,30 +3293,65 @@ document.addEventListener('DOMContentLoaded', function() {
 <!-- Include TinyMCE Global Components - Same as course edit page -->
 {% include 'components/tinymce_includes.html' %}
 
-<!-- TinyMCE is already included via global components above -->
-<script src="{% static 'core/js/courses/tinymce-simple-init.js' %}"></script>
+<!-- TinyMCE Error Handler -->
 <script>
-// Additional topic-specific TinyMCE handling - Same pattern as course edit page
-(function() {
-    console.log('=== TinyMCE Setup for Topic Creation (Standardized) ===');
-    
-    // Wait for TinyMCE to be available
-    function waitForTinyMCE(callback) {
-        let attempts = 0;
-        const maxAttempts = 50;
-        
-        function checkTinyMCE() {
-            attempts++;
-            if (typeof tinymce !== 'undefined' && tinymce.init) {
-                console.log('TinyMCE available, proceeding with initialization');
-                callback();
-            } else if (attempts < maxAttempts) {
-                setTimeout(checkTinyMCE, 100);
-            } else {
-                console.error('TinyMCE failed to load after maximum attempts');
+// Global TinyMCE error handler to prevent serialize errors
+window.addEventListener('error', function(e) {
+    if (e.message && e.message.includes('serialize')) {
+        console.warn('TinyMCE serialize error caught and handled:', e.message);
+        e.preventDefault();
+        return false;
+    }
+});
+
+// Override TinyMCE getContent to handle serialize errors
+if (typeof tinymce !== 'undefined') {
+    const originalGetContent = tinymce.getContent;
+    tinymce.getContent = function(options) {
+        try {
+            return originalGetContent.call(this, options);
+        } catch (error) {
+            if (error.message && error.message.includes('serialize')) {
+                console.warn('TinyMCE getContent serialize error handled:', error.message);
+                return '';
             }
+            throw error;
         }
-        checkTinyMCE();
+    };
+    
+    // Add global error handler for TinyMCE
+    if (tinymce.on) {
+        tinymce.on('error', function(e) {
+            if (e.message && e.message.includes('serialize')) {
+                console.warn('Global TinyMCE serialize error handled:', e.message);
+                e.preventDefault();
+            }
+        });
+    }
+}
+</script>
+
+<!-- TinyMCE is already included via global components above -->
+<!-- Removed duplicate tinymce-simple-init.js to prevent conflicts -->
+<script>
+// Simplified TinyMCE handling for topic creation
+(function() {
+    console.log('=== TinyMCE Setup for Topic Creation (Simplified) ===');
+    
+    // Wait for DOM and TinyMCE to be ready
+    function initializeWhenReady() {
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initializeWhenReady);
+            return;
+        }
+        
+        // Check if TinyMCE is available
+        if (typeof tinymce === 'undefined') {
+            setTimeout(initializeWhenReady, 200);
+            return;
+        }
+        
+        console.log('TinyMCE is ready, topic creation page initialized');
     }
     
     // Declare TinyMCE initialization flag
@@ -3322,7 +3364,7 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
-        console.log('Initializing TinyMCE editors for topic creation');
+        console.log('Using global TinyMCE components - no manual initialization needed');
         
         // Use TinyMCE widget system for text content field - Same as course edit
         if (typeof window.TinyMCEWidget !== 'undefined' && window.TinyMCEWidget.initializeAll) {
@@ -3330,87 +3372,16 @@ document.addEventListener('DOMContentLoaded', function() {
             window.TinyMCEWidget.initializeAll();
         }
         
-        const textareas = document.querySelectorAll('textarea.tinymce-editor:not([data-tinymce-config])');
-        console.log('Found textareas for manual TinyMCE init:', textareas.length);
-        
-        if (textareas.length === 0) {
-            console.log('No textareas found for manual TinyMCE initialization');
-            tinymceInitialized = true;
-            return;
-        }
-        
-        textareas.forEach(function(textarea) {
-            // Skip if already initialized
-            if (textarea.classList.contains('tinymce-initialized')) {
-                console.log('Textarea already initialized:', textarea.id);
-                return;
-            }
-            
-            // Skip if no ID
-            if (!textarea.id) {
-                console.log('Textarea has no ID, skipping:', textarea);
-                return;
-            }
-            
-            console.log('Initializing TinyMCE for:', textarea.id);
-            
-            // Mark as being initialized
-            textarea.classList.add('tinymce-initialized');
-            
-            const config = {
-                selector: '#' + textarea.id,
-                plugins: 'link image lists table code',
-                toolbar: 'undo redo | styles | bold italic | alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | link image | table | code',
-                menubar: 'edit view insert format table',
-                statusbar: true,
-                resize: true,
-                height: 450,
-                min_height: 450,
-                license_key: 'gpl',
-                setup: function(editor) {
-                    editor.on('init', function() {
-                        console.log('TinyMCE editor initialized:', editor.id);
-                        // Force height after initialization
-                        setTimeout(function() {
-                            const container = editor.getContainer();
-                            if (container) {
-                                container.style.minHeight = '450px';
-                                container.style.height = '450px';
-                                const iframe = container.querySelector('.tox-edit-area__iframe');
-                                if (iframe) {
-                                    iframe.style.minHeight = '400px';
-                                    iframe.style.height = '400px';
-                                }
-                            }
-                        }, 100);
-                    });
-                }
-            };
-            
-            // Initialize TinyMCE
-            try {
-                tinymce.init(config).then(function(editors) {
-                    if (editors && editors.length > 0) {
-                        console.log('TinyMCE initialized successfully for:', textarea.id);
-                    }
-                }).catch(function(error) {
-                    console.error('Failed to initialize TinyMCE for:', textarea.id, error);
-                    // Remove the initialization flag so it can be retried
-                    textarea.classList.remove('tinymce-initialized');
-                });
-            } catch (error) {
-                console.error('Error calling tinymce.init for:', textarea.id, error);
-                textarea.classList.remove('tinymce-initialized');
-            }
-        });
+        // Skip manual initialization - let global components handle it
+        console.log('Skipping manual TinyMCE initialization - using global components only');
         
         tinymceInitialized = true;
     }
     
     // Initialize when DOM is ready
     document.addEventListener('DOMContentLoaded', function() {
-        console.log('DOM loaded, waiting for TinyMCE');
-        waitForTinyMCE(initializeTinyMCEEditors);
+        console.log('DOM loaded, using global TinyMCE components');
+        initializeTinyMCEEditors();
     });
     
     // Global function to force TinyMCE visibility for text content
@@ -3450,16 +3421,14 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Expose function globally for reinitializing if needed
     window.reinitializeTinyMCE = function() {
-        console.log('Reinitializing TinyMCE...');
-        tinymceInitialized = false;
+        console.log('Reinitializing TinyMCE using global components...');
         
-        // Remove initialization flags
-        document.querySelectorAll('textarea.tinymce-initialized').forEach(function(textarea) {
-            textarea.classList.remove('tinymce-initialized');
-        });
-        
-        // Reinitialize
-        waitForTinyMCE(initializeTinyMCEEditors);
+        // Use global TinyMCE widget system if available
+        if (typeof window.TinyMCEWidget !== 'undefined' && window.TinyMCEWidget.reinitialize) {
+            window.TinyMCEWidget.reinitialize();
+        } else {
+            console.log('Global TinyMCE widget system not available');
+        }
     };
     
 })();
@@ -3991,8 +3960,16 @@ if (typeof formHasUnsavedChanges === 'undefined') {
                 const contentTypeRadio = document.querySelector('input[name="content_type"]:checked');
                 const scormFile = document.querySelector('input[name="content_file"]');
                 
-                // SCORM now uses standard file upload like video - no special handling needed
-                console.log(' Standard form submission for all content types');
+                // Check if this is a SCORM topic with a file
+                if (contentTypeRadio && contentTypeRadio.value === 'SCORM' && scormFile && scormFile.files.length > 0) {
+                    console.log('SCORM topic with file detected - using AJAX upload');
+                    e.preventDefault(); // Prevent default form submission
+                    handleSCORMUpload(); // Use AJAX upload for SCORM
+                    return false;
+                } else {
+                    console.log('Standard form submission for non-SCORM or SCORM without file');
+                    // Allow normal form submission for other content types
+                }
             });
             
             function handleSCORMUpload() {
@@ -4023,18 +4000,21 @@ if (typeof formHasUnsavedChanges === 'undefined') {
                     }
                 }
                 
-                // Submit via AJAX - CSRF token is already in FormData from form
+                // Submit via AJAX with proper headers for SCORM uploads
                 fetch(topicForm.action, {
                     method: 'POST',
                     body: formData,
-                    // Do NOT include any headers - let browser handle it for file uploads
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                    }
                 })
                 .then(response => {
                     if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        return response.json();
-    })
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
                 .then(data => {
                     if (data.success && data.is_scorm) {
                         // Start progress monitoring
@@ -4081,10 +4061,10 @@ if (typeof formHasUnsavedChanges === 'undefined') {
                 })
                 .then(response => {
                     if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        return response.json();
-    })
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
                 .then(data => {
                     if (data.success && data.is_scorm_direct) {
                         // Topic created successfully, now prompt for file upload

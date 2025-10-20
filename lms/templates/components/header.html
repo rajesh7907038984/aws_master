@@ -346,7 +346,7 @@
         left: 0 !important;
         width: 16rem !important;
         height: 100% !important;
-        background: #1C2260 !important;
+        background: var(--sidebar-bg, #1C2260) !important;
         z-index: 100051 !important;
         transform: translateX(0) !important;
     }
@@ -358,7 +358,7 @@
 
     /* Mobile menu styles to match sidebar */
     #mobile-menu .py-4 {
-        background-color: #1C2260 !important;
+        background-color: var(--sidebar-bg, #1C2260) !important;
     }
 
     #mobile-menu .menu-item {
@@ -420,7 +420,7 @@
     /* Active state - dark blue background with white text and icons */
     #mobile-menu a.menu-item.active,
     #mobile-menu button.menu-item.active {
-        background-color: #050c50 !important;
+        background-color: var(--sidebar-bg, #1C2260) !important;
         color: white !important;
         border-radius: 0 !important;
         border-left: 4px solid #02f711 !important;
@@ -429,7 +429,7 @@
     /* Hover state - dark blue background with white text and icons */
     #mobile-menu a.menu-item:hover,
     #mobile-menu button.menu-item:hover {
-        background-color: #050c50 !important;
+        background-color: var(--sidebar-bg, #1C2260) !important;
         color: white !important;
         border-radius: 0 !important;
         border-left: 4px solid #02f711 !important;
@@ -497,7 +497,7 @@
 
     #mobile-menu .submenu a.menu-item:hover,
     #mobile-menu .submenu button.menu-item:hover {
-        background-color: #050c50 !important;
+        background-color: var(--sidebar-bg, #1C2260) !important;
         opacity: 1;
         color: white !important;
     }
@@ -567,7 +567,7 @@
 
     #mobile-menu .submenu .menu-item.active {
         border-left: 3px solid #02f711 !important;
-        background-color: #050c50 !important;
+        background-color: var(--sidebar-bg, #1C2260) !important;
     }
 
     /* Ensure mobile submenu icons are properly sized */
@@ -631,10 +631,49 @@
             height: 12px !important;
         }
         
-        #mobile-menu .submenu .icon-container svg {
-            width: 12px !important;
-            height: 12px !important;
-        }
+    #mobile-menu .submenu .icon-container svg {
+        width: 12px !important;
+        height: 12px !important;
+    }
+    
+    /* Mobile menu tooltips */
+    #nexsy-mobile-menu .menu-item:hover::after {
+        content: attr(data-tooltip) !important;
+        position: absolute !important;
+        left: calc(100% + 0.75rem) !important;
+        top: 50% !important;
+        transform: translateY(-50%) !important;
+        background-color: var(--sidebar-bg-hover, #02071e) !important;
+        color: white !important;
+        padding: 0.75rem 1rem !important;
+        border-radius: 0.5rem !important;
+        white-space: nowrap !important;
+        z-index: 1000 !important;
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05) !important;
+        pointer-events: none !important;
+        opacity: 0 !important;
+        animation: tooltipFadeIn 0.3s ease-in-out forwards !important;
+        font-size: 0.875rem !important;
+        font-weight: 500 !important;
+        max-width: 200px !important;
+    }
+    
+    /* Mobile menu tooltip arrow */
+    #nexsy-mobile-menu .menu-item:hover::before {
+        content: '' !important;
+        position: absolute !important;
+        left: calc(100% + 0.5rem) !important;
+        top: 50% !important;
+        transform: translateY(-50%) !important;
+        width: 0 !important;
+        height: 0 !important;
+        border-top: 6px solid transparent !important;
+        border-bottom: 6px solid transparent !important;
+        border-right: 6px solid #1e293b !important;
+        z-index: 1001 !important;
+        pointer-events: none !important;
+        opacity: 0 !important;
+        animation: tooltipArrowFadeIn 0.3s ease-in-out forwards !important;
     }
     
     /* Header height adjustment on very small screens */

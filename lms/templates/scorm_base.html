@@ -16,8 +16,11 @@
     <!-- Tailwind CSS - Local Production Build -->
     <link href="{% static 'css/tailwind.css' %}?v={{ timestamp|default:'20251019' }}" rel="stylesheet" type="text/css">
     
-    <!-- Font Awesome -->
-    <!-- Font Awesome loaded via base.html -->
+    <!-- Font Awesome - Local files to avoid CSP issues -->
+    <link rel="stylesheet" href="{% static 'css/font-awesome-local.css' %}?v={{ timestamp|default:'20251019' }}" type="text/css">
+    
+    <!-- Font Awesome fixes and fallbacks -->
+    <link href="{% static 'core/css/font-awesome-fixes.css' %}?v={{ timestamp|default:'20251019' }}" rel="stylesheet" type="text/css">
     
     <!-- Google Fonts -->
     <link href="{% static 'scorm/vendor/google-fonts.css' %}" rel="stylesheet" type="text/css">
@@ -188,6 +191,38 @@
                     }, 300);
                 }, 5000);
             });
+        });
+    </script>
+
+    <!-- Font Awesome loading verification script -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Check if Font Awesome is loaded
+            function checkFontAwesome() {
+                var testIcon = document.createElement('i');
+                testIcon.className = 'fas fa-check';
+                testIcon.style.position = 'absolute';
+                testIcon.style.left = '-9999px';
+                testIcon.style.visibility = 'hidden';
+                document.body.appendChild(testIcon);
+                
+                var computedStyle = window.getComputedStyle(testIcon);
+                var fontFamily = computedStyle.getPropertyValue('font-family');
+                
+                document.body.removeChild(testIcon);
+                
+                // Check if Font Awesome font is loaded
+                if (fontFamily.includes('Font Awesome') || fontFamily.includes('FontAwesome')) {
+                    console.log('SCORM: Font Awesome loaded successfully');
+                    return true;
+                } else {
+                    console.warn('SCORM: Font Awesome not loaded, using fallback');
+                    return false;
+                }
+            }
+            
+            // Check Font Awesome loading after a short delay
+            setTimeout(checkFontAwesome, 500);
         });
     </script>
 

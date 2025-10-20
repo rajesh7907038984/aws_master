@@ -3,11 +3,11 @@
 
 :root {
   /* Brand Colors - Primary System */
-  --brand-primary: #1c2260;
-  --brand-primary-hover: #141a4a;
+  --brand-primary: #1C2260;
+  --brand-primary-hover: #02071e;
   --brand-primary-light: #dbeafe;
   --brand-secondary: #4262FF;
-  --brand-accent: #2F80ED;
+  --brand-accent: #02f711;
   --brand-info: #1e40af;
   
   /* Legacy Color Support (for backward compatibility) */

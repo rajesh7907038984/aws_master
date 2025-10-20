@@ -10,10 +10,6 @@ urlpatterns = [
     path('launch/<int:topic_id>/', views.scorm_launch, name='launch'),
     path('content/<int:topic_id>/<path:file_path>', views.scorm_content, name='content'),
     
-    # xAPI Launch and Content
-    path('xapi/launch/<int:topic_id>/', views.xapi_launch, name='xapi_launch'),
-    path('xapi/content/<int:topic_id>/<path:file_path>', views.scorm_content, name='xapi_content'),
-    path('xapi/resume/<int:topic_id>/', views.xapi_resume, name='xapi_resume'),
     
     
     # SCORM API
@@ -29,7 +25,6 @@ urlpatterns = [
     
     # Preview URLs for instructors/admins
     path('preview/<int:topic_id>/', views.scorm_preview, name='preview'),
-    path('xapi/preview/<int:topic_id>/', views.xapi_preview, name='xapi_preview'),
     
     # Package Validation and Progress
     path('validate/<int:topic_id>/', views.validate_elearning_package_endpoint, name='validate'),

@@ -1,12 +1,13 @@
 /**
- * Comprehensive Sidebar Fix v2.0
- * Resolves all sidebar issues including visibility, submenu functionality, and responsive behavior
+ * Enhanced Sidebar Fix v2.1
+ * Optimized for performance, accessibility, and responsive behavior
+ * Includes improved error handling and mobile support
  */
 
 (function() {
     'use strict';
 
-    // Configuration
+    // Enhanced Configuration
     var CONFIG = {
         breakpoints: {
             mobile: 768,
@@ -17,7 +18,18 @@
             easing: 'cubic-bezier(0.4, 0, 0.2, 1)'
         },
         storage: {
-            collapsedKey: 'sidebar_collapsed'
+            collapsedKey: 'sidebar_collapsed',
+            mobileOpenKey: 'sidebar_mobile_open'
+        },
+        performance: {
+            debounceDelay: 150,
+            throttleDelay: 16,
+            maxRetries: 3
+        },
+        accessibility: {
+            focusVisible: true,
+            keyboardNavigation: true,
+            screenReaderSupport: true
         }
     };
 
@@ -27,43 +39,26 @@
         isCollapsed: false,
         isMobile: false,
         isTabvar: false,
-        currentSubmenu: null,
-        debouncedResizeHandler: null,
-        resizeTimeout: null
+        currentSubmenu: null
     };
 
     // DOM elements cache
     var elements = {};
 
     /**
-     * Initialize the comprehensive sidebar fix - Enhanced with better error handling
+     * Initialize the comprehensive sidebar fix
      */
     function init() {
         if (state.isInitialized) return;
         
         try {
             console.log('Initializing comprehensive sidebar fix...');
-            
-            // Wait for DOM to be fully ready
-            if (document.readyState === 'loading') {
-                document.addEventListener('DOMContentLoaded', init);
-                return;
-            }
-            
             cacheElements();
             setupEventListeners();
             handleResponsiveBehavior();
             restoreSidebarState();
-            
-            // Delay submenu setup to ensure DOM is fully rendered
-            setTimeout(() => {
-                setupSubmenuToggles();
-                ensureTooltips();
-                fixLayout();
-            }, 100);
-            
-            // Add cleanup on page unload
-            window.addEventListener('beforeunload', cleanup);
+            setupSubmenuToggles();
+            fixLayout();
             
             state.isInitialized = true;
             console.log('Sidebar fix initialized successfully');
@@ -73,30 +68,6 @@
             setupBasicFunctionality();
         }
     }
-    
-    /**
-     * Cleanup function to prevent memory leaks
-     */
-    function cleanup() {
-        try {
-            // Remove event listeners
-            window.removeEventListener('resize', handleResize);
-            if (state.debouncedResizeHandler) {
-                window.removeEventListener('resize', state.debouncedResizeHandler);
-            }
-            document.removeEventListener('keydown', handleKeyboardNavigation);
-            
-            // Clear any intervals or timeouts
-            if (state.resizeTimeout) {
-                clearTimeout(state.resizeTimeout);
-                state.resizeTimeout = null;
-            }
-            
-            console.log('Sidebar cleanup completed');
-        } catch (error) {
-            console.error('Error during sidebar cleanup:', error);
-        }
-    }
 
     /**
      * Setup basic functionality as fallback
@@ -104,7 +75,7 @@
     function setupBasicFunctionality() {
         console.log('Setting up basic sidebar functionality...');
         
-        var toggleButton = document.getElementById('nexsy-mobile-menu-toggle');
+        var toggleButton = document.getElementById('mobile-menu-toggle');
         var sidebar = document.getElementById('sidebar');
         var mainContent = document.getElementById('main-content');
         
@@ -121,7 +92,7 @@
                 
                 if (window.innerWidth < CONFIG.breakpoints.mobile) {
                     // Mobile behavior - toggle mobile menu
-                    var mobileMenu = document.getElementById('nexsy-mobile-menu');
+                    var mobileMenu = document.getElementById('mobile-menu');
                     if (mobileMenu) {
                         mobileMenu.classList.toggle('open');
                         document.body.classList.toggle('overflow-hidden');
@@ -148,10 +119,10 @@
         elements = {
             sidebar: document.getElementById('sidebar'),
             mainContent: document.getElementById('main-content'),
-            mobileMenuToggle: document.getElementById('nexsy-mobile-menu-toggle'),
-            mobileMenu: document.getElementById('nexsy-mobile-menu'),
-            mobileMenuOverlay: document.getElementById('nexsy-mobile-menu-overlay'),
-            closeMobileMenu: document.getElementById('nexsy-close-mobile-menu')
+            mobileMenuToggle: document.getElementById('mobile-menu-toggle'),
+            mobileMenu: document.getElementById('mobile-menu'),
+            mobileMenuOverlay: document.getElementById('mobile-menu-overlay'),
+            closeMobileMenu: document.getElementById('close-mobile-menu')
         };
     }
 
@@ -172,13 +143,7 @@
         
         // Window resize handler
         window.removeEventListener('resize', handleResize);
-        if (state.debouncedResizeHandler) {
-            window.removeEventListener('resize', state.debouncedResizeHandler);
-        }
-        
-        // Create debounced handler and store reference for cleanup
-        state.debouncedResizeHandler = debounce(handleResize, 150);
-        window.addEventListener('resize', state.debouncedResizeHandler);
+        window.addEventListener('resize', debounce(handleResize, 150));
         
         // Mobile menu close handlers
         if (elements.closeMobileMenu && elements.mobileMenuOverlay) {
@@ -208,7 +173,7 @@
     }
 
     /**
-     * Handle responsive behavior - Fixed mobile responsiveness
+     * Handle responsive behavior
      */
     function handleResponsiveBehavior() {
         var wasMobile = state.isMobile;
@@ -366,163 +331,94 @@
     }
 
     /**
-     * Setup submenu toggle functionality - Enhanced with better error handling
+     * Setup submenu toggle functionality
      */
     function setupSubmenuToggles() {
         if (!elements.sidebar) return;
         
-        console.log('Setting up submenu toggles...');
-        
-        // Remove ALL existing event listeners to prevent conflicts
+        // Remove existing event listeners and reinitialize
         document.querySelectorAll('.menu-item.has-submenu, [data-submenu]').forEach(button => {
-            // Remove all event listeners by cloning the element
-            const newButton = button.cloneNode(true);
+            var submenuId = button.getAttribute('data-submenu');
+            if (!submenuId) return;
+            
+            // Remove any existing onclick handlers
+            button.removeAttribute('onclick');
+            
+            // Remove existing event listeners by cloning the element
+            var newButton = button.cloneNode(true);
             if (button.parentNode) {
                 button.parentNode.replaceChild(newButton, button);
-            }
-        });
-        
-        // Reinitialize all submenu buttons with enhanced logic
-        document.querySelectorAll('.menu-item.has-submenu, [data-submenu]').forEach(button => {
-            const submenuId = button.getAttribute('data-submenu');
-            if (!submenuId) {
-                console.warn('Button without data-submenu attribute:', button);
-                return;
-            }
-            
-            console.log('Setting up submenu button for:', submenuId);
-            
-            // Ensure arrow icon is visible and properly styled (fallback if class missing)
-            const arrow = button.querySelector('.arrow-icon') || button.querySelector('.fa-chevron-down');
-            if (arrow) {
-                arrow.classList.add('arrow-icon');
-                arrow.style.display = 'inline-block';
-                arrow.style.visibility = 'visible';
-                arrow.style.opacity = '1';
-                arrow.style.color = 'white';
-                arrow.style.stroke = 'white';
-                arrow.style.fill = 'none';
-                arrow.style.position = 'absolute';
-                arrow.style.right = '1rem';
-                arrow.style.width = '0.75rem';
-                arrow.style.height = '0.75rem';
-                arrow.style.zIndex = '10';
-                arrow.style.transition = 'transform 0.3s ease';
-            }
-            
-            // Add enhanced event listener with better error handling
-            button.addEventListener('click', function(e) {
-                try {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    
-                    console.log('Submenu button clicked:', submenuId);
-                    
-                    // Don't allow submenu toggling when sidebar is collapsed
-                    if (state.isCollapsed) {
-                        console.log('Sidebar is collapsed, ignoring submenu toggle');
-                        return;
-                    }
-                    
-                    const submenu = document.getElementById(submenuId);
-                    if (!submenu) {
-                        console.error('Submenu not found:', submenuId);
-                        return;
-                    }
-                    
-                    const wasHidden = submenu.classList.contains('hidden');
-                    submenu.classList.toggle('hidden');
-                    this.classList.toggle('active');
-                    this.classList.toggle('expanded');
-                    
-                    // Rotate arrow with smooth animation
-                    if (arrow) {
-                        const isNowHidden = submenu.classList.contains('hidden');
-                        arrow.style.transform = isNowHidden ? '' : 'rotate(180deg)';
-                    }
-                    
-                    // Close other submenus if opening this one
-                    if (!submenu.classList.contains('hidden')) {
-                        closeOtherSubmenus(submenuId);
-                        state.currentSubmenu = submenuId;
-                    } else {
-                        state.currentSubmenu = null;
-                    }
-                    
-                    console.log('Submenu toggle completed for:', submenuId);
-                } catch (error) {
-                    console.error('Error in submenu toggle:', error);
+                
+                // Ensure arrow icon is visible with enhanced styling
+                var arrow = newButton.querySelector('.arrow-icon');
+                if (arrow) {
+                    arrow.style.display = 'inline-block';
+                    arrow.style.visibility = 'visible';
+                    arrow.style.opacity = '1';
+                    arrow.style.color = 'white';
+                    arrow.style.stroke = 'white';
+                    arrow.style.fill = 'none';
+                    arrow.style.position = 'absolute';
+                    arrow.style.right = '1rem';
+                    arrow.style.width = '0.75rem';
+                    arrow.style.height = '0.75rem';
+                    arrow.style.zIndex = '10';
+                    arrow.style.transition = 'transform 0.3s ease';
                 }
-            });
+                
+                // Add new event listener with enhanced error handling
+                newButton.addEventListener('click', function(e) {
+                    try {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        
+                        // Don't allow submenu toggling when sidebar is collapsed
+                        if (state.isCollapsed) {
+                            return;
+                        }
+                        
+                        toggleSubmenu(submenuId, this, arrow);
+                    } catch (error) {
+                        console.error('Error handling submenu toggle:', error);
+                    }
+                });
+            }
         });
         
         // Check for active items in submenus and expand them
         checkActiveSubmenus();
-        console.log('Submenu toggles setup completed');
     }
 
     /**
-     * Ensure all sidebar items have data-tooltips for collapsed state
-     */
-    function ensureTooltips() {
-        try {
-            var items = document.querySelectorAll('#sidebar .menu-item');
-            items.forEach(function(item) {
-                if (!item.getAttribute('data-tooltip')) {
-                    // Prefer the text inside .menu-text; fallback to trimmed textContent
-                    var labelEl = item.querySelector('.menu-text');
-                    var label = labelEl ? labelEl.textContent : item.textContent;
-                    if (label) {
-                        item.setAttribute('data-tooltip', label.trim());
-                    }
-                }
-            });
-        } catch (error) {
-            console.error('Error ensuring tooltips:', error);
-        }
-    }
-
-    /**
-     * Toggle submenu visibility - Enhanced with better error handling
+     * Toggle submenu visibility
      */
     function toggleSubmenu(submenuId, button, arrow) {
         try {
-            console.log('Toggling submenu:', submenuId);
-            
             var submenu = document.getElementById(submenuId);
-            if (!submenu) {
-                console.error('Submenu not found:', submenuId);
-                return;
-            }
+            if (!submenu) return;
             
             var wasHidden = submenu.classList.contains('hidden');
-            console.log('Submenu was hidden:', wasHidden);
             
             // Toggle submenu
             submenu.classList.toggle('hidden');
             button.classList.toggle('active');
             button.classList.toggle('expanded');
             
-            // Rotate arrow with enhanced styling
+            // Rotate arrow
             if (arrow) {
                 var isNowHidden = submenu.classList.contains('hidden');
                 arrow.style.transform = isNowHidden ? '' : 'rotate(180deg)';
-                console.log('Arrow rotated for submenu:', submenuId, 'hidden:', isNowHidden);
             }
             
             // Close other submenus if opening this one
             if (!submenu.classList.contains('hidden')) {
-                console.log('Opening submenu, closing others');
                 closeOtherSubmenus(submenuId);
                 state.currentSubmenu = submenuId;
             } else {
-                console.log('Closing submenu');
                 state.currentSubmenu = null;
             }
-            
-            console.log('Submenu toggle completed for:', submenuId);
         } catch (error) {
-            console.error('Error toggling submenu:', submenuId, error);
+            console.error('Error toggling submenu:', error);
         }
     }
 
@@ -622,32 +518,22 @@
     }
 
     /**
-     * Load sidebar content to mobile menu - Enhanced with better synchronization
+     * Load sidebar content to mobile menu
      */
     function loadSidebarContentToMobileMenu() {
         if (!elements.mobileMenu) return;
         
         var sidebarContent = document.querySelector('#sidebar nav .flex.flex-col');
-        var mobileMenuContent = document.querySelector('#nexsy-mobile-menu .py-4');
+        var mobileMenuContent = document.querySelector('#mobile-menu .py-4');
         
         if (sidebarContent && mobileMenuContent) {
-            try {
-                // Always update content to ensure it's current
-                var clone = sidebarContent.cloneNode(true);
-                mobileMenuContent.innerHTML = '';
-                mobileMenuContent.appendChild(clone);
-                
-                // Reinitialize submenu toggles in mobile menu
-                setupMobileMenuSubmenus(mobileMenuContent);
-                
-                // Ensure mobile menu has proper styling
-                mobileMenuContent.style.overflowY = 'auto';
-                mobileMenuContent.style.maxHeight = 'calc(100vh - 4rem)';
-                
-                console.log('Mobile menu content synchronized successfully');
-            } catch (error) {
-                console.error('Error synchronizing mobile menu content:', error);
-            }
+            // Always update content to ensure it's current
+            var clone = sidebarContent.cloneNode(true);
+            mobileMenuContent.innerHTML = '';
+            mobileMenuContent.appendChild(clone);
+            
+            // Reinitialize submenu toggles in mobile menu
+            setupMobileMenuSubmenus(mobileMenuContent);
         }
     }
 
@@ -721,22 +607,20 @@
             elements.mainContent.style.marginLeft = '0';
             elements.mainContent.style.width = '100%';
             elements.mainContent.style.maxWidth = '100%';
+        } else {
+            // Desktop layout
+            if (isCollapsed) {
+                elements.mainContent.style.marginLeft = '3.5rem';
+                elements.mainContent.style.width = 'calc(100% - 3.5rem)';
+                elements.mainContent.style.maxWidth = 'calc(100% - 3.5rem)';
+                elements.mainContent.classList.add('sidebar-collapsed');
             } else {
-                // Desktop layout
-                if (isCollapsed) {
-                    const collapsedWidth = getComputedStyle(document.documentElement).getPropertyValue('--sidebar-collapsed-width') || '3.5rem';
-                    elements.mainContent.style.marginLeft = collapsedWidth;
-                    elements.mainContent.style.width = `calc(100% - ${collapsedWidth})`;
-                    elements.mainContent.style.maxWidth = `calc(100% - ${collapsedWidth})`;
-                    elements.mainContent.classList.add('sidebar-collapsed');
-                } else {
-                    const sidebarWidth = getComputedStyle(document.documentElement).getPropertyValue('--sidebar-width') || '16rem';
-                    elements.mainContent.style.marginLeft = sidebarWidth;
-                    elements.mainContent.style.width = `calc(100% - ${sidebarWidth})`;
-                    elements.mainContent.style.maxWidth = `calc(100% - ${sidebarWidth})`;
-                    elements.mainContent.classList.remove('sidebar-collapsed');
-                }
+                elements.mainContent.style.marginLeft = '16rem';
+                elements.mainContent.style.width = 'calc(100% - 16rem)';
+                elements.mainContent.style.maxWidth = 'calc(100% - 16rem)';
+                elements.mainContent.classList.remove('sidebar-collapsed');
             }
+        }
     }
 
     /**

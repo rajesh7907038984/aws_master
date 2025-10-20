@@ -17,7 +17,6 @@ from django.db import transaction
 from .models import ELearningPackage, ELearningTracking, SCORMReport
 from courses.models import Topic, Course
 from users.models import CustomUser
-from lrs.scorm2004_sequencing import sequencing_processor
 # SCORM2004Sequencing and SCORM2004ActivityState models removed
 
 logger = logging.getLogger(__name__)
@@ -160,7 +159,7 @@ def clear_scorm_preview_session(request):
 
 
 def scorm_launch(request, topic_id):
-    """Launch SCORM and xAPI packages with enhanced support.
+    """Launch SCORM packages with enhanced support.
     FIXED: Consolidated access control logic for consistent behavior.
     """
     user = request.user if request.user.is_authenticated else None
@@ -335,38 +334,6 @@ def scorm_launch(request, topic_id):
             'entry': tracking.raw_data.get('cmi.core.entry', 'ab-initio'),
             'exit': tracking.raw_data.get('cmi.core.exit', ''),
         }
-    elif elearning_package.package_type == 'XAPI':
-        # Enhanced xAPI data with proper actor structure
-        from django.conf import settings
-        site_url = getattr(settings, 'SITE_URL', 'https://staging.nexsy.io')
-        
-        # Enhanced actor with all required fields
-        actor = {
-            'objectType': 'Agent',
-            'name': (user.get_full_name() or user.username) if user else 'Guest',
-            'account': {
-                'homePage': f"{site_url}/",
-                'name': str(user.id) if user else 'guest'
-            }
-        }
-        
-        # Add email if available
-        if user and user.email:
-            actor['mbox'] = f"mailto:{user.email}"
-        
-        # Enhanced scorm_data structure
-        scorm_data = {
-            'actor': actor,
-            'endpoint': elearning_package.xapi_endpoint or f"{site_url}/lrs/xapi/",
-            'version': '1.0.3',
-            'actor_data': elearning_package.xapi_actor or {},
-            'lrs_config': {
-                'endpoint': elearning_package.xapi_endpoint or f"{site_url}/lrs/xapi/",
-                'auth': 'basic' if hasattr(elearning_package, 'xapi_username') and elearning_package.xapi_username else 'none',
-                'username': getattr(elearning_package, 'xapi_username', '') or '',
-                'password': getattr(elearning_package, 'xapi_password', '') or ''
-            }
-        }
     else:
         # Default data
         scorm_data = {
@@ -406,7 +373,7 @@ def scorm_launch(request, topic_id):
     return render(request, template_name, context)
 
 def scorm_content(request, topic_id, file_path):
-    """Serve SCORM and xAPI content files with enhanced support.
+    """Serve SCORM content files with enhanced support.
     FIXED: Consistent access control logic matching scorm_launch.
     """
     # FIXED: Use same access control logic as scorm_launch
@@ -584,8 +551,6 @@ def scorm_content(request, topic_id, file_path):
         # ENHANCED: Add specific headers for different package types
         if elearning_package.package_type in ['SCORM_1_2', 'SCORM_2004']:
             response['X-SCORM-Version'] = '1.2' if elearning_package.package_type == 'SCORM_1_2' else '2004'
-        elif elearning_package.package_type == 'XAPI':
-            response['X-xAPI-Version'] = '1.0.3'
         
         return response
     except Exception as e:
@@ -600,7 +565,7 @@ def scorm_content(request, topic_id, file_path):
 
 @csrf_exempt
 def scorm_api(request, topic_id):
-    """SCORM and xAPI API endpoint with enhanced support for e-learning standards"""
+    """SCORM API endpoint with enhanced support for e-learning standards"""
     if request.method == 'OPTIONS':
         # Handle preflight requests
         response = HttpResponse()
@@ -656,7 +621,7 @@ def scorm_api(request, topic_id):
     )
     
     if request.method == 'GET':
-        # Handle GET requests (LMSGetValue, xAPI Get)
+        # Handle GET requests (LMSGetValue)
         element = request.GET.get('element', '')
         if element:
             value = tracking.raw_data.get(element, '')
@@ -781,51 +746,6 @@ def scorm_api(request, topic_id):
                 logger.info(f"SCORM API: Finish called for user {user.id}")
                 return JsonResponse({'result': 'true'})
         
-        elif elearning_package.package_type == 'XAPI':
-            # Enhanced xAPI handling with comprehensive validation
-            if action == 'SendStatement':
-                statement_data = request.POST.get('statement', '{}')
-                
-                try:
-                    import json
-                    statement = json.loads(statement_data)
-                    
-                    # Enhanced validation
-                    validation_result = _validate_xapi_statement(statement)
-                    if not validation_result['valid']:
-                        logger.error(f"xAPI Statement Validation Failed: {validation_result['errors']}")
-                        return JsonResponse({
-                            'result': 'false', 
-                            'error': 'Invalid xAPI statement',
-                            'details': validation_result['errors']
-                        }, status=400)
-                    
-                    # Enhanced statement processing
-                    from lrs.xapi_generator import xAPIStatementGenerator
-                    generator = xAPIStatementGenerator()
-                    
-                    # Store in LRS with proper error handling
-                    stored_statement = generator.store_statement(statement)
-                    
-                    if stored_statement:
-                        # Update tracking with enhanced data
-                        tracking.raw_data['xapi_statement'] = statement
-                        tracking.raw_data['xapi_statement_id'] = stored_statement.statement_id
-                        tracking.raw_data['xapi_timestamp'] = statement.get('timestamp')
-                        tracking.save()
-                        
-                        logger.info(f"xAPI Statement Stored: {stored_statement.statement_id}")
-                        return JsonResponse({'result': 'true', 'statement_id': stored_statement.statement_id})
-                    else:
-                        logger.error("xAPI Statement Storage Failed")
-                        return JsonResponse({'result': 'false', 'error': 'Failed to store statement'}, status=500)
-                        
-                except json.JSONDecodeError as e:
-                    logger.error(f"xAPI JSON Decode Error: {str(e)}")
-                    return JsonResponse({'result': 'false', 'error': 'Invalid JSON format'}, status=400)
-                except Exception as e:
-                    logger.error(f"xAPI Statement Processing Error: {str(e)}")
-                    return JsonResponse({'result': 'false', 'error': 'Statement processing failed'}, status=500)
         
         
         else:
@@ -833,47 +753,6 @@ def scorm_api(request, topic_id):
     
     return JsonResponse({'result': 'false', 'error': 'Invalid request method'})
 
-def _validate_xapi_statement(statement):
-    """Enhanced xAPI statement validation"""
-    errors = []
-    
-    # Required fields validation
-    required_fields = ['id', 'actor', 'verb', 'object', 'timestamp']
-    for field in required_fields:
-        if field not in statement:
-            errors.append(f"Missing required field: {field}")
-    
-    # Actor validation
-    if 'actor' in statement:
-        actor = statement['actor']
-        if actor.get('objectType') != 'Agent':
-            errors.append("Actor must have objectType 'Agent'")
-        
-        # Validate actor identification
-        has_identification = any(key in actor for key in ['mbox', 'mbox_sha1sum', 'openid', 'account'])
-        if not has_identification:
-            errors.append("Actor must have at least one identification method")
-    
-    # Verb validation
-    if 'verb' in statement:
-        verb = statement['verb']
-        if 'id' not in verb:
-            errors.append("Verb must have 'id' field")
-        if 'display' not in verb:
-            errors.append("Verb must have 'display' field")
-    
-    # Object validation
-    if 'object' in statement:
-        obj = statement['object']
-        if 'id' not in obj:
-            errors.append("Object must have 'id' field")
-        if obj.get('objectType') not in ['Activity', 'Agent', 'Group', 'SubStatement']:
-            errors.append("Object must have valid objectType")
-    
-    return {
-        'valid': len(errors) == 0,
-        'errors': errors
-    }
 
 @csrf_exempt
 @require_http_methods(["POST"])
@@ -955,9 +834,6 @@ def scorm_resume(request, topic_id):
             if elearning_package.package_type in ['SCORM_1_2', 'SCORM_2004']:
                 tracking.raw_data['cmi.core.entry'] = 'resume'
                 logger.info(f"SCORM Resume: Setting resume mode for user {user.username} on topic {topic_id}")
-            elif elearning_package.package_type == 'XAPI':
-                tracking.raw_data['xapi.resume'] = True
-                logger.info(f"xAPI Resume: Setting resume mode for user {user.username} on topic {topic_id}")
             
             tracking.save()
             
@@ -974,41 +850,6 @@ def scorm_resume(request, topic_id):
     
     return redirect('scorm:launch', topic_id=topic_id)
 
-# xAPI Launch and Content
-def xapi_launch(request, topic_id):
-    """Launch xAPI content"""
-    return scorm_launch(request, topic_id)
-
-def xapi_resume(request, topic_id):
-    """ENHANCED: Resume xAPI content with proper state handling"""
-    user = request.user
-    topic = get_object_or_404(Topic, id=topic_id)
-    
-    try:
-        elearning_package = ELearningPackage.objects.get(topic=topic)
-        tracking = ELearningTracking.objects.get(user=user, elearning_package=elearning_package)
-        
-        # Get xAPI-specific bookmark data
-        bookmark_data = tracking.get_bookmark_data()
-        
-        if bookmark_data['can_resume']:
-            # Set xAPI resume mode
-            tracking.raw_data['xapi.resume'] = True
-            tracking.save()
-            logger.info(f"xAPI Resume: Setting resume mode for user {user.username} on topic {topic_id}")
-            
-            # Show resume message
-            if bookmark_data['lesson_location']:
-                messages.info(request, f"Resuming xAPI content from: {bookmark_data['lesson_location']}")
-            else:
-                messages.info(request, "Resuming xAPI content from your last position")
-        else:
-            messages.info(request, "Starting xAPI content from the beginning")
-        
-    except (ELearningPackage.DoesNotExist, ELearningTracking.DoesNotExist):
-        messages.error(request, "No xAPI tracking data found for this content.")
-    
-    return redirect('scorm:xapi_launch', topic_id=topic_id)
 
 
 
@@ -1046,38 +887,6 @@ def scorm_preview(request, topic_id):
     
     return redirect('scorm:launch', topic_id=topic_id)
 
-@login_required
-def xapi_preview(request, topic_id):
-    """ENHANCED: Preview xAPI content for instructors (bypasses tracking).
-    FIXED: Proper session state management.
-    """
-    user = request.user
-    topic = get_object_or_404(Topic, id=topic_id)
-    
-    # Check if user has preview permissions
-    user_role = getattr(user, 'role', 'learner')
-    if not (user_role in ['instructor', 'admin', 'superadmin', 'globaladmin']):
-        messages.error(request, "You don't have permission to preview this content.")
-        return redirect('courses:topic_view', topic_id=topic_id)
-    
-    try:
-        elearning_package = ELearningPackage.objects.get(topic=topic)
-        
-        # FIXED: Use centralized session cleanup function
-        clear_scorm_preview_session(request)
-        
-        # FIXED: Set new preview state with proper cleanup
-        request.session['scorm_preview_mode'] = True
-        request.session['scorm_preview_topic'] = topic_id
-        request.session.save()
-        
-        logger.info(f"xAPI Preview: Set preview mode for user {user.username} on topic {topic_id}")
-        
-    except ELearningPackage.DoesNotExist:
-        messages.error(request, "No e-learning package found for this content.")
-        return redirect('courses:topic_view', topic_id=topic_id)
-    
-    return redirect('scorm:xapi_launch', topic_id=topic_id)
 
 @login_required
 

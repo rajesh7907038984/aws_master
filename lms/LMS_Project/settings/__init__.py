@@ -18,7 +18,7 @@ if DJANGO_ENV == 'staging':
     ENVIRONMENT = 'staging'
     DEBUG = False  # Force False for staging security
     # Get allowed hosts from environment, default to specific staging domains
-    staging_hosts = os.environ.get('STAGING_ALLOWED_HOSTS', 'localhost,127.0.0.1,staging.nexsy.io').split(',')
+    staging_hosts = os.environ.get('STAGING_ALLOWED_HOSTS', 'localhost,127.0.0.1,staging.nexsy.io,3.8.4.75').split(',')
     ALLOWED_HOSTS = [host.strip() for host in staging_hosts if host.strip()]
     
     logger.info("🏗️ Loading STAGING environment configuration")

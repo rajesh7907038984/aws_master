@@ -17,16 +17,24 @@ logger = logging.getLogger(__name__)
 @receiver(post_save, sender=ELearningPackage)
 def auto_extract_package(sender, instance, created, **kwargs):
     """
-    Automatically extract SCORM/xAPI package to S3 when uploaded.
+    Automatically extract SCORM package to S3 when uploaded.
     This ensures packages are always ready to use immediately after upload.
     """
     try:
+        # CRITICAL FIX: Prevent infinite loops by checking if extraction is already in progress
+        if hasattr(instance, '_extraction_in_progress') and instance._extraction_in_progress:
+            logger.info(f"Extraction already in progress for package {instance.id}, skipping...")
+            return
+        
         # Only auto-extract if:
         # 1. Package has a file
         # 2. Package is not already extracted
-        # 3. Avoid re-extraction loops
+        # 3. Not already being processed
         if instance.package_file and not instance.is_extracted:
             logger.info(f"Auto-extracting package {instance.id} for topic {instance.topic_id}")
+            
+            # Set extraction in progress flag to prevent loops
+            instance._extraction_in_progress = True
             
             # Ensure package_type is set (auto-detect if needed)
             if not instance.package_type:
@@ -34,11 +42,13 @@ def auto_extract_package(sender, instance, created, **kwargs):
                 detected_type = instance.detect_package_type()
                 if detected_type:
                     instance.package_type = detected_type
+                    # Use update_fields to avoid triggering signals again
                     instance.save(update_fields=['package_type'])
                     logger.info(f"Auto-detected package type: {detected_type}")
                 else:
                     # Default to SCORM_1_2 if detection fails
                     instance.package_type = 'SCORM_1_2'
+                    # Use update_fields to avoid triggering signals again
                     instance.save(update_fields=['package_type'])
                     logger.warning(f"Could not detect package type, using default: SCORM_1_2")
             
@@ -57,9 +67,15 @@ def auto_extract_package(sender, instance, created, **kwargs):
                         logger.error(f"   Error: {instance.extraction_error}")
             else:
                 logger.warning(f"Package file {instance.package_file.name} not found in storage")
+            
+            # Clear the extraction in progress flag
+            instance._extraction_in_progress = False
                 
     except Exception as e:
         logger.error(f"Error during auto-extraction for package {instance.id}: {str(e)}", exc_info=True)
+        # Clear the extraction in progress flag on error
+        if hasattr(instance, '_extraction_in_progress'):
+            instance._extraction_in_progress = False
 
 @receiver(pre_delete, sender=Topic)
 def cleanup_scorm_topic_data(sender, instance, **kwargs):

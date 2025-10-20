@@ -81,3 +81,4 @@ lms/.env.backup
 # Documentation (if you don't want to commit)
 *.md
 lms/production.env
+.git-credentials

@@ -22,11 +22,11 @@
     --sidebar-transition-fast: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     --sidebar-transition-slow: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
     
-    /* Colors - Match Screenshot Exactly */
-    --sidebar-bg: #1C2260; /* Dark blue from screenshot */
-    --sidebar-bg-hover: #02071e;
-    --sidebar-accent: #02f711;
-    --sidebar-text: white;
+    /* Colors - Unified Sidebar Colors */
+    --sidebar-bg: #1C2260; /* Primary sidebar background */
+    --sidebar-bg-hover: #02071e; /* Hover and active states */
+    --sidebar-accent: #02f711; /* Accent color for borders */
+    --sidebar-text: white; /* Text color */
     
     /* Spacing */
     --sidebar-padding: 1rem;

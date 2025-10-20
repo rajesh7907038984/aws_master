@@ -1,6 +1,6 @@
 """
 Django management command to test resume functionality for all package types
-Tests SCORM and xAPI resume button paths and preview functionality
+Tests SCORM resume button paths and preview functionality
 """
 
 from django.core.management.base import BaseCommand
@@ -24,7 +24,7 @@ class Command(BaseCommand):
         parser.add_argument(
             '--package-type',
             type=str,
-            choices=['SCORM_1_2', 'SCORM_2004', 'XAPI'],
+            choices=['SCORM_1_2', 'SCORM_2004'],
             help='Test specific package type',
         )
 
@@ -77,7 +77,6 @@ class Command(BaseCommand):
         results = {
             'SCORM_1_2': {'total': 0, 'with_tracking': 0, 'can_resume': 0},
             'SCORM_2004': {'total': 0, 'with_tracking': 0, 'can_resume': 0},
-            'XAPI': {'total': 0, 'with_tracking': 0, 'can_resume': 0},
         }
         
         for package in packages:
@@ -122,11 +121,6 @@ class Command(BaseCommand):
                 'resume': '/scorm/resume/{topic_id}/',
                 'preview': '/scorm/preview/{topic_id}/',
             },
-            'XAPI': {
-                'launch': '/scorm/xapi/launch/{topic_id}/',
-                'resume': '/scorm/xapi/resume/{topic_id}/',
-                'preview': '/scorm/xapi/preview/{topic_id}/',
-            },
         }
         
         for pkg_type, urls in url_patterns.items():
@@ -141,7 +135,6 @@ class Command(BaseCommand):
         test_cases = [
             ('SCORM_1_2', 4096, '4KB limit'),
             ('SCORM_2004', 64000, '64KB limit'),
-            ('XAPI', 1000000, '1MB practical limit'),
         ]
         
         for pkg_type, max_size, description in test_cases:
