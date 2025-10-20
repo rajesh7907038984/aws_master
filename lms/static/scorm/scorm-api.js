@@ -30,6 +30,7 @@
         commit_url: window.location.origin + '/scorm/api/' + getTopicIdFromUrl(),
         user_id: null,
         topic_id: null,
+        preview_mode: false,
         
         // Browser compatibility detection
         browserInfo: {
@@ -75,7 +76,14 @@
                 return "true";
             }
             
+            // Set default values
+            this.data['cmi.core.student_id'] = this.user_id || 'guest';
+            this.data['cmi.core.student_name'] = this.user_name || 'Guest User';
+            this.data['cmi.core.lesson_status'] = this.data['cmi.core.lesson_status'] || 'incomplete';
+            this.data['cmi.core.entry'] = this.data['cmi.core.entry'] || 'ab-initio';
+            
             this.initialized = true;
+            this.startTime = new Date();
             return "true";
         },
         
@@ -86,7 +94,20 @@
         
         LMSSetValue: function(element, value) {
             console.log('SCORM API: LMSSetValue called:', element, '=', value);
+            
+            if (!this.initialized) {
+                console.warn('SCORM API: Not initialized, cannot set value');
+                return "false";
+            }
+            
+            // Store the value
             this.data[element] = value;
+            
+            // Send to server if not in preview mode
+            if (!this.preview_mode) {
+                this.sendDataToServer(element, value);
+            }
+            
             return "true";
         },
         

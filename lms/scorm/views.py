@@ -78,44 +78,35 @@ def can_preview_scorm_content(user, topic):
     """
     try:
         # Allow all authenticated users to preview SCORM content
-        if user.is_authenticated:
+        if user and user.is_authenticated:
             return True
         
-        # For unauthenticated users, check if they have any role that allows content viewing
-        from role_management.models import UserRole
-        course = topic.course
+        # For unauthenticated users, return False (they can't preview)
+        if not user or not user.is_authenticated:
+            return False
         
-        if course:
-            # Check for any role that allows content access
-            has_access_role = UserRole.objects.filter(
-                user=user,
-                course=course,
-                role__name__in=['Instructor', 'Admin', 'Global Admin', 'Super Admin']
-            ).exists()
-            
-            return has_access_role
-        else:
-            # If no course relationship, check global permissions
-            return user.has_perm('scorm.view_elearning_package')
+        # Check if user has permission to view e-learning packages
+        return user.has_perm('scorm.view_elearning_package')
         
     except Exception:
         # Fallback to basic permission check
-        return user.has_perm('scorm.view_elearning_package')
+        return user and user.is_authenticated and user.has_perm('scorm.view_elearning_package')
 
 def can_access_scorm_content(user, topic):
     """
     Check if user can access SCORM content (full access, progress saved)
     Only learners need enrollment - other roles can access without enrollment
     """
-    if not user.is_authenticated:
+    if not user or not user.is_authenticated:
         return False
     
     # Check user role - only learners need enrollment
     user_role = getattr(user, 'role', 'learner')
     
-    # Non-learner roles can access without enrollment
+    # CRITICAL FIX: Non-learner roles ALWAYS get full access (not preview mode)
+    # This ensures instructors/admins see content properly
     if user_role in ['instructor', 'admin', 'superadmin', 'globaladmin']:
-        logger.info(f"SCORM Access: {user_role} {user.username} granted access without enrollment")
+        logger.info(f"SCORM Access: {user_role} {user.username} granted FULL access without enrollment")
         return True
     
     # For learners, check enrollment
@@ -126,7 +117,7 @@ def can_access_scorm_content(user, topic):
         if hasattr(course, 'enrollments') and course.enrollments.filter(user=user).exists():
             return True
         
-        # Check if user is instructor
+        # Check if user is the course instructor
         if hasattr(course, 'instructor') and course.instructor == user:
             return True
     
@@ -144,44 +135,70 @@ def scorm_launch(request, topic_id):
     
     topic = get_object_or_404(Topic, id=topic_id)
     
-    # Check if user has access to this topic
-    # CRITICAL FIX: Only require enrollment for learner role users
-    try:
-        course = topic.course
-        if course and not course.user_has_access(user):
-            # Check user role - only learners need enrollment
-            user_role = getattr(user, 'role', 'learner') if user else 'learner'
-            
-            if user_role == 'learner':
-                # Learners must be enrolled to access content
-                username = getattr(user, 'username', 'anonymous')
-                logger.warning(f"E-Learning Launch: Learner {username} not enrolled in course for topic {topic_id}")
-                messages.error(request, "You need to be enrolled in this course to access the content.")
-                return redirect('courses:course_list')
-            else:
-                # Non-learner roles (instructor, admin, etc.) can access without enrollment
-                username = getattr(user, 'username', 'anonymous')
-                logger.info(f"E-Learning Launch: {user_role} {username} granted access to topic {topic_id} (bypassing enrollment requirement)")
-    except AttributeError:
-        logger.info(f"E-Learning Launch: Topic {topic_id} has no course relationship, allowing access")
-        pass
+    # ENHANCED: Better access control for different user roles
+    # Non-learner roles (instructor, admin, superadmin, globaladmin) get full access
+    # Learners need enrollment
+    if user:
+        user_role = getattr(user, 'role', 'learner')
+        logger.info(f"E-Learning Launch: User {user.username} with role '{user_role}' accessing topic {topic_id}")
+        
+        # Non-learner roles get automatic access
+        if user_role in ['instructor', 'admin', 'superadmin', 'globaladmin']:
+            logger.info(f"E-Learning Launch: {user_role} {user.username} granted automatic access to topic {topic_id}")
+        else:
+            # For learners, check enrollment
+            try:
+                course = topic.course
+                if course and not course.user_has_access(user):
+                    logger.warning(f"E-Learning Launch: Learner {user.username} not enrolled in course for topic {topic_id}")
+                    messages.error(request, "You need to be enrolled in this course to access the content.")
+                    return redirect('courses:course_list')
+            except AttributeError:
+                logger.info(f"E-Learning Launch: Topic {topic_id} has no course relationship, allowing access")
+                pass
     
-    # ENHANCED: Role-based access control for all e-learning content
-    can_access = can_access_scorm_content(user, topic) if user else False
-    can_preview = can_preview_scorm_content(user, topic) if user else True
+    # CORRECT ACCESS CONTROL:
+    # 1. Unauthenticated users: NO ACCESS
+    # 2. Non-enrolled learners: NO ACCESS  
+    # 3. Instructors/Admins: Full view access WITHOUT tracking
+    # 4. Enrolled learners: Full access WITH tracking
     
-    # Allow preview for all authenticated users
-    if (not can_access) and (not can_preview):
+    if not user or not user.is_authenticated:
+        # Unauthenticated users - NO ACCESS
+        logger.warning(f"E-Learning Launch: Unauthenticated user denied access to topic {topic_id}")
+        messages.error(request, "You must be logged in to access this content.")
+        return redirect('users:login')  # Redirect to login page
+    
+    user_role = getattr(user, 'role', 'learner')
+    
+    if user_role in ['instructor', 'admin', 'superadmin', 'globaladmin']:
+        # Instructors/Admins get view access WITHOUT tracking
+        preview_mode = True  # View without tracking
+        can_access = False   # No tracking/saving progress
+        can_preview = True   # Can view content
+        logger.info(f"E-Learning Launch: {user_role} {user.username} granted view access (no tracking) to topic {topic_id}")
+    else:
+        # Learners - must be enrolled
+        can_access = can_access_scorm_content(user, topic)
+        
+        if not can_access:
+            # Non-enrolled learners - NO ACCESS
+            logger.warning(f"E-Learning Launch: Non-enrolled learner {user.username} denied access to topic {topic_id}")
+            messages.error(request, "You must be enrolled in this course to access the content.")
+            return redirect('courses:course_list')
+        
+        # Enrolled learners get full access with tracking
+        preview_mode = False
         can_preview = True
-        username = getattr(user, 'username', 'anonymous')
-        logger.info(f"E-Learning Launch: User {username} granted preview access for topic {topic_id}")
-    
-    # Set preview mode if user can only preview
-    preview_mode = not can_access and can_preview
+        logger.info(f"E-Learning Launch: Enrolled learner {user.username} granted full access with tracking to topic {topic_id}")
     if preview_mode:
         username = getattr(user, 'username', 'anonymous')
         logger.info(f"E-Learning Launch: User {username} accessing e-learning content in preview mode for topic {topic_id}")
-        messages.info(request, "You are viewing this content in preview mode. Your progress will not be saved.")
+        # Different message for instructors/admins vs preview mode
+        if user_role in ['instructor', 'admin', 'superadmin', 'globaladmin']:
+            messages.info(request, "Instructor/Admin View: Progress tracking is disabled for this role.")
+        else:
+            messages.info(request, "You are viewing this content in preview mode. Your progress will not be saved.")
     
     try:
         elearning_package = ELearningPackage.objects.get(topic=topic)
@@ -198,9 +215,9 @@ def scorm_launch(request, topic_id):
             messages.error(request, "E-learning package extraction failed.")
             return redirect('courses:topic_view', topic_id=topic_id)
     
-    # Get or create tracking record (only if not in preview mode)
+    # Get or create tracking record (only if not in preview mode and user is authenticated)
     tracking = None
-    if not preview_mode:
+    if not preview_mode and user:  # Only create tracking if user is authenticated
         with transaction.atomic():
             tracking, created = ELearningTracking.objects.select_for_update().get_or_create(
                 user=user,
@@ -456,32 +473,42 @@ def scorm_launch(request, topic_id):
 
 def scorm_content(request, topic_id, file_path):
     """Serve SCORM, xAPI, cmi5, and Articulate content files with enhanced support"""
+    # ENFORCE ACCESS CONTROL for content files
     user = None
-    
-    # ENHANCED: More permissive authentication for all e-learning content
     if request.user.is_authenticated:
         user = request.user
-    elif request.session.get('_auth_user_id'):
-        try:
-            from django.contrib.auth import get_user_model
-            User = get_user_model()
-            user = User.objects.get(id=request.session.get('_auth_user_id'))
-            request.user = user
-        except User.DoesNotExist:
-            pass
     
-    # CRITICAL FIX: Allow content access even without user for e-learning packages
+    # Try to get user from session if not authenticated
     if not user and request.session.get('_auth_user_id'):
         try:
             from django.contrib.auth import get_user_model
             User = get_user_model()
             user = User.objects.get(id=request.session.get('_auth_user_id'))
             request.user = user
-        except User.DoesNotExist:
+        except (User.DoesNotExist, ValueError, TypeError):
             pass
     
-    # Get the topic and package
+    # Deny access to unauthenticated users
+    if not user or not user.is_authenticated:
+        logger.warning(f"SCORM Content: Unauthenticated user denied access to {file_path}")
+        return HttpResponse("Authentication required", status=401)
+    
+    # Log access attempt
+    username = getattr(user, 'username', 'anonymous')
+    user_role = getattr(user, 'role', 'learner')
+    
+    # Get the topic and check access based on role
     topic = get_object_or_404(Topic, id=topic_id)
+    
+    if user_role in ['instructor', 'admin', 'superadmin', 'globaladmin']:
+        # Instructors/Admins can view content
+        logger.info(f"SCORM Content: {user_role} {username} accessing {file_path} for topic {topic_id}")
+    else:
+        # Learners must be enrolled
+        if not can_access_scorm_content(user, topic):
+            logger.warning(f"SCORM Content: Non-enrolled learner {username} denied access to {file_path}")
+            return HttpResponse("Enrollment required", status=403)
+        logger.info(f"SCORM Content: Enrolled learner {username} accessing {file_path} for topic {topic_id}")
     
     try:
         elearning_package = ELearningPackage.objects.get(topic=topic)
@@ -491,22 +518,23 @@ def scorm_content(request, topic_id, file_path):
     if not elearning_package.is_extracted:
         return HttpResponse("E-learning package not extracted", status=404)
     
-    # FIXED: Simplified S3 path construction to prevent double prefixing
-    # Build the full file path for S3 storage
+    # FIXED: Proper S3 path construction for all package types
     base_path = elearning_package.extracted_path
     
-    # Ensure no double prefixing - handle multiple scenarios
+    # Clean up any double prefixing
     if base_path.startswith('elearning/elearning/'):
         base_path = base_path.replace('elearning/elearning/', 'elearning/')
+    if base_path.startswith('elearning/packages/'):
+        base_path = base_path.replace('elearning/', '')  # Remove elearning prefix as storage adds it
     if base_path.startswith('packages/packages/'):
         base_path = base_path.replace('packages/packages/', 'packages/')
-    if not base_path.startswith('elearning/') and not base_path.startswith('packages/'):
-        base_path = f"elearning/{base_path}"
-    elif base_path.startswith('packages/'):
-        # If it starts with packages/, we should NOT add elearning/ prefix since SCORMS3Storage handles it
-        pass
     
-    s3_file_path = f"{base_path}/{file_path}"
+    # Ensure consistent path format
+    if not base_path.startswith('packages/'):
+        base_path = f"packages/{topic_id}"
+    
+    # Build the file path
+    s3_file_path = os.path.join(base_path, file_path).replace('\\', '/')
     
     # Debug S3 path construction
     logger.info(f"SCORM Content: Topic {topic_id}, Extracted Path: {elearning_package.extracted_path}")
@@ -523,8 +551,16 @@ def scorm_content(request, topic_id, file_path):
             s3_file_path,
             f"packages/{topic_id}/{file_path}",
             f"elearning/packages/{topic_id}/{file_path}",
+            os.path.join(elearning_package.extracted_path, file_path).replace('\\', '/'),
             file_path,
-            f"elearning/{file_path}"
+            f"elearning/{file_path}",
+            # Additional paths for nested content
+            f"{base_path}/scormcontent/{file_path}",
+            f"{base_path}/scormdriver/{file_path}",
+            f"{base_path}/html5/{file_path}",
+            f"{base_path}/story_content/{file_path}",
+            f"{base_path}/mobile/{file_path}",
+            f"{base_path}/data/{file_path}"
         ]
 
         # Locale fallback: if path references locales/i18n, try en-US and en variants
@@ -653,9 +689,8 @@ def scorm_api(request, topic_id):
         response['Access-Control-Allow-Headers'] = 'Content-Type, X-Requested-With, X-CSRFToken, X-SCORM-User-ID, Authorization'
         return response
     
+    # ENFORCE ACCESS CONTROL for API
     user = None
-    
-    # ENHANCED: More permissive authentication for all e-learning APIs
     if request.user.is_authenticated:
         user = request.user
     elif request.session.get('_auth_user_id'):
@@ -667,18 +702,9 @@ def scorm_api(request, topic_id):
         except User.DoesNotExist:
             pass
     
-    # CRITICAL FIX: Allow API access even without user for e-learning packages
-    if not user and request.session.get('_auth_user_id'):
-        try:
-            from django.contrib.auth import get_user_model
-            User = get_user_model()
-            user = User.objects.get(id=request.session.get('_auth_user_id'))
-            request.user = user
-        except User.DoesNotExist:
-            pass
-    
-    if not user:
-        logger.warning(f"E-Learning API: No authentication found for topic {topic_id}")
+    # Deny API access to unauthenticated users
+    if not user or not user.is_authenticated:
+        logger.warning(f"E-Learning API: Unauthenticated user denied API access for topic {topic_id}")
         return JsonResponse({'result': 'false', 'error': 'Authentication required'}, status=401)
     
     topic = get_object_or_404(Topic, id=topic_id)
@@ -688,7 +714,22 @@ def scorm_api(request, topic_id):
     except ELearningPackage.DoesNotExist:
         return JsonResponse({'result': 'false', 'error': 'E-learning package not found'}, status=404)
     
-    # Get or create tracking record
+    # Check user role to determine if tracking should be saved
+    user_role = getattr(user, 'role', 'learner')
+    
+    # Only create/save tracking for enrolled learners, not instructors/admins
+    if user_role in ['instructor', 'admin', 'superadmin', 'globaladmin']:
+        # Instructors/Admins - no tracking, just return success
+        logger.info(f"E-Learning API: {user_role} {user.username} API call (no tracking) for topic {topic_id}")
+        # Return dummy success response without saving
+        return JsonResponse({'result': 'true', 'message': 'No tracking for instructor/admin role'})
+    
+    # For learners, check enrollment
+    if not can_access_scorm_content(user, topic):
+        logger.warning(f"E-Learning API: Non-enrolled learner {user.username} denied API access for topic {topic_id}")
+        return JsonResponse({'result': 'false', 'error': 'Enrollment required'}, status=403)
+    
+    # Get or create tracking record for enrolled learners only
     tracking, created = ELearningTracking.objects.get_or_create(
         user=user,
         elearning_package=elearning_package
@@ -1044,7 +1085,8 @@ def scorm_preview(request, topic_id):
     topic = get_object_or_404(Topic, id=topic_id)
     
     # Check if user has preview permissions
-    if not (user.role in ['instructor', 'admin', 'superadmin', 'globaladmin']):
+    user_role = getattr(user, 'role', 'learner')
+    if not (user_role in ['instructor', 'admin', 'superadmin', 'globaladmin']):
         messages.error(request, "You don't have permission to preview this content.")
         return redirect('courses:topic_view', topic_id=topic_id)
     
@@ -1054,7 +1096,10 @@ def scorm_preview(request, topic_id):
         # Set preview mode in session
         request.session['scorm_preview_mode'] = True
         request.session['scorm_preview_topic'] = topic_id
+        request.session.save()  # Ensure session is saved
         
+        logger.info(f"SCORM Preview: Set preview mode for user {user.username} on topic {topic_id}")
+        messages.info(request, "You are now in preview mode. Your progress will not be saved.")
         # Note: Preview mode banner is displayed on the launch page
         
     except ELearningPackage.DoesNotExist:
@@ -1070,7 +1115,8 @@ def xapi_preview(request, topic_id):
     topic = get_object_or_404(Topic, id=topic_id)
     
     # Check if user has preview permissions
-    if not (user.role in ['instructor', 'admin', 'superadmin', 'globaladmin']):
+    user_role = getattr(user, 'role', 'learner')
+    if not (user_role in ['instructor', 'admin', 'superadmin', 'globaladmin']):
         messages.error(request, "You don't have permission to preview this content.")
         return redirect('courses:topic_view', topic_id=topic_id)
     
@@ -1080,7 +1126,10 @@ def xapi_preview(request, topic_id):
         # Set preview mode in session
         request.session['scorm_preview_mode'] = True
         request.session['scorm_preview_topic'] = topic_id
+        request.session.save()  # Ensure session is saved
         
+        logger.info(f"xAPI Preview: Set preview mode for user {user.username} on topic {topic_id}")
+        messages.info(request, "You are now in preview mode. Your progress will not be saved.")
         # Note: Preview mode banner is displayed on the launch page
         
     except ELearningPackage.DoesNotExist:
@@ -1096,7 +1145,8 @@ def cmi5_preview(request, topic_id):
     topic = get_object_or_404(Topic, id=topic_id)
     
     # Check if user has preview permissions
-    if not (user.role in ['instructor', 'admin', 'superadmin', 'globaladmin']):
+    user_role = getattr(user, 'role', 'learner')
+    if not (user_role in ['instructor', 'admin', 'superadmin', 'globaladmin']):
         messages.error(request, "You don't have permission to preview this content.")
         return redirect('courses:topic_view', topic_id=topic_id)
     
@@ -1106,7 +1156,10 @@ def cmi5_preview(request, topic_id):
         # Set preview mode in session
         request.session['scorm_preview_mode'] = True
         request.session['scorm_preview_topic'] = topic_id
+        request.session.save()  # Ensure session is saved
         
+        logger.info(f"cmi5 Preview: Set preview mode for user {user.username} on topic {topic_id}")
+        messages.info(request, "You are now in preview mode. Your progress will not be saved.")
         # Note: Preview mode banner is displayed on the launch page
         
     except ELearningPackage.DoesNotExist:

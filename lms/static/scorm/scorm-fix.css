@@ -1,0 +1,222 @@
+/* SCORM Content Display Fix - Ensures SCORM content is always visible */
+
+/* Reset body margins for SCORM pages */
+body.scorm-launch-page {
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    height: 100vh;
+}
+
+/* Main container fixes */
+.scorm-container {
+    position: relative;
+    width: 100%;
+    height: 100vh;
+    overflow: hidden;
+}
+
+/* Header styling */
+.scorm-header {
+    position: relative;
+    z-index: 100;
+    height: 60px;
+    min-height: 60px;
+    max-height: 60px;
+    background: #1c2260;
+    color: white;
+    padding: 0.75rem 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-sizing: border-box;
+}
+
+/* Content container - CRITICAL FOR DISPLAY */
+#scorm-content {
+    position: absolute !important;
+    top: 60px !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: 100% !important;
+    height: calc(100vh - 60px) !important;
+    overflow: hidden !important;
+    background: white !important;
+    z-index: 1 !important;
+}
+
+/* Iframe fixes - CRITICAL FOR CONTENT VISIBILITY */
+#scorm-iframe,
+.scorm-iframe {
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    min-height: 100% !important;
+    border: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: auto !important;
+    background: white !important;
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    z-index: 1 !important;
+    /* Disable any transforms that might hide content */
+    transform: none !important;
+    -webkit-transform: none !important;
+    -moz-transform: none !important;
+    -ms-transform: none !important;
+    -o-transform: none !important;
+}
+
+/* Ensure iframe content is not scaled */
+#scorm-iframe body,
+.scorm-iframe body {
+    transform: none !important;
+    zoom: 1 !important;
+    -webkit-transform: none !important;
+    -moz-transform: none !important;
+    -ms-transform: none !important;
+    -o-transform: none !important;
+}
+
+/* Remove any conflicting styles from parent containers */
+.main-content,
+.content-wrapper,
+.page-content {
+    position: static !important;
+    transform: none !important;
+    height: auto !important;
+    overflow: visible !important;
+}
+
+/* Mobile responsive fixes */
+@media (max-width: 768px) {
+    .scorm-header {
+        height: 80px;
+        min-height: 80px;
+        max-height: 80px;
+        flex-direction: column;
+        padding: 0.5rem;
+    }
+    
+    #scorm-content {
+        top: 80px !important;
+        height: calc(100vh - 80px) !important;
+    }
+    
+    .topic-title h2 {
+        font-size: 0.9rem;
+    }
+    
+    .back-to-topic-btn {
+        font-size: 0.85rem;
+        padding: 0.4rem 0.8rem;
+    }
+}
+
+/* Tablet responsive fixes */
+@media (min-width: 769px) and (max-width: 1024px) {
+    #scorm-iframe,
+    .scorm-iframe {
+        min-height: 600px !important;
+    }
+}
+
+/* Loading state */
+#scorm-content.loading::after {
+    content: "Loading SCORM content...";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 1.2rem;
+    color: #666;
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    z-index: 10;
+}
+
+/* Error state styling */
+.scorm-error {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: #fff;
+    padding: 2rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 20px rgba(0,0,0,0.1);
+    max-width: 600px;
+    width: 90%;
+    z-index: 100;
+}
+
+/* Ensure video controls are visible in SCORM content */
+#scorm-iframe video,
+.scorm-iframe video {
+    pointer-events: auto !important;
+    controls: true !important;
+}
+
+/* Fix for Articulate Storyline content */
+#scorm-iframe .slide-container,
+.scorm-iframe .slide-container {
+    width: 100% !important;
+    height: 100% !important;
+}
+
+/* Fix for Adobe Captivate content */
+#scorm-iframe #CPMovie_mc,
+.scorm-iframe #CPMovie_mc {
+    width: 100% !important;
+    height: 100% !important;
+}
+
+/* Fix for iSpring content */
+#scorm-iframe .ispring-player,
+.scorm-iframe .ispring-player {
+    width: 100% !important;
+    height: 100% !important;
+}
+
+/* Debug helper - remove in production */
+.scorm-debug {
+    position: fixed;
+    bottom: 10px;
+    right: 10px;
+    background: rgba(0,0,0,0.8);
+    color: #0f0;
+    padding: 10px;
+    font-family: monospace;
+    font-size: 12px;
+    z-index: 9999;
+    max-width: 300px;
+    max-height: 200px;
+    overflow: auto;
+    display: none; /* Hidden by default */
+}
+
+/* Show debug info when needed */
+body.debug .scorm-debug {
+    display: block;
+}
+
+/* Ensure no Bootstrap or other framework conflicts */
+.scorm-launch-page * {
+    box-sizing: border-box !important;
+}
+
+/* Override any theme styles that might interfere */
+.scorm-launch-page .container,
+.scorm-launch-page .container-fluid {
+    max-width: 100% !important;
+    width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+}

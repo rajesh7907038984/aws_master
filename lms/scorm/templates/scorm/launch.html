@@ -9,6 +9,9 @@
 <script src="{% url 'scorm:console_cleaner' %}"></script>
 <script src="{% url 'scorm:string_table_fix' %}"></script>
 
+<!-- SCORM Display Fix CSS -->
+<link rel="stylesheet" href="{% static 'scorm/scorm-fix.css' %}">
+
 <!-- Browser Compatibility Meta Tags -->
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="mobile-web-app-capable" content="yes">
@@ -102,9 +105,38 @@
         border: none;
         background: white;
         display: block;
-        min-height: 600px;
+        min-height: 700px;
         position: relative;
         z-index: 1;
+    }
+    
+    /* Fix for SCORM content not showing properly */
+    #scorm-content {
+        height: calc(100vh - 80px);
+        min-height: 700px;
+        overflow: hidden;
+        position: relative;
+        background: white;
+    }
+    
+    /* Ensure iframe takes full available space */
+    #scorm-iframe {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        width: 100%;
+        height: 100%;
+        border: none;
+        background: white;
+    }
+    
+    /* Fix for content visibility */
+    body {
+        margin: 0;
+        padding: 0;
+        overflow-x: hidden;
     }
     
     .scorm-error {
@@ -284,10 +316,18 @@
 </style>
 {% endblock %}
 
+{% block body_class %}scorm-launch-page{% endblock %}
+
 {% block content %}
+<!-- Add body class for SCORM pages -->
+<script>
+    document.body.classList.add('scorm-launch-page');
+</script>
+
 <!-- CSRF Token for SCORM API -->
 {% csrf_token %}
 
+<div class="scorm-container">
 <div class="scorm-header">
     <div class="topic-title">
         <h2>{{ topic.title }}</h2>
@@ -304,7 +344,7 @@
 </div>
 
 
-<div id="scorm-content">
+<div id="scorm-content" style="position: relative;">
     {% if launch_url %}
     <iframe 
         id="scorm-iframe" 
@@ -317,9 +357,9 @@
         msallowfullscreen="msallowfullscreen" 
         oallowfullscreen="oallowfullscreen" 
         webkitallowfullscreen="webkitallowfullscreen"
-        sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-presentation allow-top-navigation allow-downloads allow-modals"
+        sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-presentation allow-top-navigation allow-downloads allow-modals allow-pointer-lock allow-storage-access-by-user-activation"
         allow="fullscreen; microphone; camera; autoplay; encrypted-media; picture-in-picture; web-share; accelerometer; gyroscope; clipboard-write; clipboard-read; payment; usb; bluetooth"
-        referrerpolicy="strict-origin-when-cross-origin"
+        referrerpolicy="no-referrer-when-downgrade"
         loading="eager">
     </iframe>
     {% else %}
@@ -389,9 +429,9 @@
 var API = {
     initialized: false,
     commit_url: "{% url 'scorm:api' topic.id %}",
-    user_id: {{ user.id|default:'null' }},
+    user_id: {% if user and user.id %}{{ user.id }}{% else %}null{% endif %},
     topic_id: {{ topic.id }},
-    user_email: "{{ user.email|default:''|escapejs }}",
+    user_email: "{% if user %}{{ user.email|escapejs }}{% else %}{% endif %}",
     session_key: "{{ request.session.session_key|default:''|escapejs }}",
     
     // ENHANCED: Auto-completion and progress tracking
@@ -520,8 +560,8 @@ var API = {
     
     // SCORM data with proper CMI structure
     data: {
-        "cmi.core.student_name": "{{ scorm_data.student_name|default:''|escapejs }}",
-        "cmi.core.student_id": "{{ scorm_data.student_id|default:'' }}",
+        "cmi.core.student_name": "{% if scorm_data and scorm_data.student_name %}{{ scorm_data.student_name|escapejs }}{% else %}Guest{% endif %}",
+        "cmi.core.student_id": "{% if scorm_data and scorm_data.student_id %}{{ scorm_data.student_id }}{% else %}guest{% endif %}",
         "cmi.core.suspend_data": "{{ scorm_data.suspend_data|default:''|escapejs }}",
         "cmi.core.total_time": "{{ scorm_data.total_time|default:'PT0S'|escapejs }}",
         "cmi.core.lesson_location": "{{ scorm_data.lesson_location|default:''|escapejs }}",
@@ -2077,13 +2117,18 @@ function fixLayoutIssues() {
     // Ensure proper iframe sizing
     const iframe = document.getElementById('scorm-iframe');
     if (iframe) {
-        // Set proper dimensions
+        // CRITICAL FIX: Set proper dimensions for content visibility
         iframe.style.width = '100%';
-        iframe.style.height = 'calc(100vh - 200px)';
-        iframe.style.minHeight = '600px';
+        iframe.style.height = 'calc(100vh - 80px)';  // Fixed height calculation
+        iframe.style.minHeight = '700px';
         iframe.style.display = 'block';
         iframe.style.border = 'none';
         iframe.style.background = 'white';
+        iframe.style.position = 'absolute';
+        iframe.style.top = '0';
+        iframe.style.left = '0';
+        iframe.style.right = '0';
+        iframe.style.bottom = '0';
         
         // Ensure iframe loads content properly
         iframe.addEventListener('load', function() {
@@ -2171,9 +2216,9 @@ function enableVideoControls() {
 window.onload = function () {
     console.log('SCORM API: Page loaded, initializing...');
     
-    // CRITICAL FIX: Initialize the API immediately
-    API.initialized = true;
-    console.log('SCORM API: API initialized for proper SCORM communication');
+    // CRITICAL FIX: DO NOT auto-initialize - let SCORM content call LMSInitialize
+    // API.initialized = true;  // REMOVED - causes issues with some SCORM packages
+    console.log('SCORM API: API ready, waiting for LMSInitialize call from content');
     
     // Fix layout issues
     fixLayoutIssues();
@@ -2600,4 +2645,5 @@ function updateProgress(response) {
 }
 
 </script>
+</div><!-- End scorm-container -->
 {% endblock %}
