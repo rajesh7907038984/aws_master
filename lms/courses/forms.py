@@ -875,12 +875,6 @@ class TopicForm(BaseModelFormWithTinyMCE):
             ('SCORM_1_2', 'SCORM 1.2'),
             ('SCORM_2004', 'SCORM 2004'),
             ('XAPI', 'xAPI (Tin Can)'),
-            ('CMI5', 'cmi5'),
-            ('AICC', 'AICC'),
-            ('ARTICULATE', 'Articulate (Storyline/Rise)'),
-            ('CAPTIVATE', 'Adobe Captivate'),
-            ('LECTORA', 'Lectora'),
-            ('ISPRING', 'iSpring'),
         ],
         required=False,
         widget=forms.Select(attrs={

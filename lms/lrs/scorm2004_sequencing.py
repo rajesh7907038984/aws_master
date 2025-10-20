@@ -8,7 +8,7 @@ import logging
 from datetime import datetime, timezone
 from django.utils import timezone as django_timezone
 from django.db import transaction
-from .models import SCORM2004Sequencing, SCORM2004ActivityState
+# SCORM2004Sequencing and SCORM2004ActivityState models removed
 from users.models import CustomUser
 
 logger = logging.getLogger(__name__)

@@ -52,7 +52,7 @@ def scorm_error_fixes(request):
                 // Suppress common SCORM-related errors
                 const suppressedErrors = [
                     '.map', '404', 'Source Map', 'minimal-ui',
-                    'metrics.articulate.com', 'analytics',
+                    'analytics',
                     'Cross-Origin', 'CORS', 'iframe'
                 ];
                 
@@ -76,14 +76,14 @@ def scorm_error_fixes(request):
             };
         }
         
-        // Fix Articulate analytics connection issues
-        function fixArticulateAnalytics() {
-            // Override fetch to handle Articulate analytics gracefully
+        // Fix analytics connection issues
+        function fixAnalytics() {
+            // Override fetch to handle analytics gracefully
             if (typeof window.fetch !== 'undefined') {
                 const originalFetch = window.fetch;
                 window.fetch = function(url, options) {
-                    // Handle Articulate analytics requests
-                    if (typeof url === 'string' && url.includes('metrics.articulate.com')) {
+                    // Handle analytics requests
+                    if (typeof url === 'string' && url.includes('analytics')) {
                         return Promise.resolve(new Response('{"status": "ok"}', {
                             status: 200,
                             headers: {'Content-Type': 'application/json'}
@@ -100,8 +100,8 @@ def scorm_error_fixes(request):
                     const xhr = new originalXHR();
                     const originalOpen = xhr.open;
                     xhr.open = function(method, url, async, user, password) {
-                        if (typeof url === 'string' && url.includes('metrics.articulate.com')) {
-                            // Block Articulate analytics requests
+                        if (typeof url === 'string' && url.includes('analytics')) {
+                            // Block analytics requests
                             return;
                         }
                         return originalOpen.apply(this, arguments);
@@ -210,8 +210,8 @@ def scorm_error_fixes(request):
             document.head.appendChild(style);
         }
         
-        // Fix Articulate string table issues (CRITICAL FIX for "could not find PREV/NEXT/SUBMIT")
-        function fixArticulateStringTable() {
+        // Fix string table issues (CRITICAL FIX for "could not find PREV/NEXT/SUBMIT")
+        function fixStringTable() {
             // Intercept string table lookups and provide fallback values
             const stringTableFallbacks = {
                 'PREV': 'Previous',
@@ -272,7 +272,7 @@ def scorm_error_fixes(request):
                 };
             }
             
-            // Patch Articulate's getValue function if it exists
+            // Patch getValue function if it exists
             if (typeof window.getValue === 'undefined') {
                 window.getValue = function(key) {
                     return stringTableFallbacks[key] || key;
@@ -357,12 +357,12 @@ def scorm_error_fixes(request):
         function initializeFixes() {
             fixViewportWarnings();
             suppressSourceMapErrors();
-            fixArticulateAnalytics();
+            fixAnalytics();
             fixIECompatibility();
             fixMobileTouchEvents();
             fixIframeCrossOrigin();
             fixVideoControls();
-            fixArticulateStringTable();
+            fixStringTable();
             
             console.log('SCORM Error Fixes: Applied successfully for', 
                 browserInfo.isIE ? 'Internet Explorer' :
@@ -387,13 +387,13 @@ def scorm_error_fixes(request):
 
 @csrf_exempt
 @require_http_methods(["GET"])
-def articulate_string_table_fix(request):
+def string_table_fix(request):
     """
-    Provide string table fix for Articulate Storyline content
+    Provide string table fix for SCORM content
     This script is injected directly into the SCORM iframe to intercept and fix string table lookups
     """
     fix_js = """
-    // Articulate String Table Fix - Inject into SCORM iframe
+    // String Table Fix - Inject into SCORM iframe
     (function() {
         'use strict';
         
@@ -476,7 +476,7 @@ def articulate_string_table_fix(request):
         };
         
         // Patch the 'value' accessor to return fallback strings
-        // This intercepts Articulate's string table lookup mechanism
+        // This intercepts string table lookup mechanism
         if (typeof Object.defineProperty !== 'undefined') {
             const originalDefineProperty = Object.defineProperty;
             Object.defineProperty = function(obj, prop, descriptor) {
@@ -516,14 +516,12 @@ def articulate_string_table_fix(request):
             return false;
         };
         
-        // Try to patch Articulate's string table directly if it exists
-        function patchArticulateStringTable() {
-            // Look for Articulate's string table object
+        // Try to patch string table directly if it exists
+        function patchStringTable() {
+            // Look for string table object
             const possiblePaths = [
                 'window.ds',
                 'window.DS',
-                'window.articulate',
-                'window.Articulate',
                 'window.storyline',
                 'window.Storyline'
             ];
@@ -558,17 +556,17 @@ def articulate_string_table_fix(request):
         }
         
         // Try patching immediately and on DOM ready
-        patchArticulateStringTable();
+        patchStringTable();
         if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', patchArticulateStringTable);
+            document.addEventListener('DOMContentLoaded', patchStringTable);
         }
         
-        // Also try after a short delay to ensure Articulate code has loaded
-        setTimeout(patchArticulateStringTable, 100);
-        setTimeout(patchArticulateStringTable, 500);
-        setTimeout(patchArticulateStringTable, 1000);
+        // Also try after a short delay to ensure code has loaded
+        setTimeout(patchStringTable, 100);
+        setTimeout(patchStringTable, 500);
+        setTimeout(patchStringTable, 1000);
         
-        console.log('Articulate String Table Fix: Initialized');
+        console.log('String Table Fix: Initialized');
     })();
     """
     
@@ -603,7 +601,7 @@ def scorm_console_cleaner(request):
         function shouldFilterError(message) {
             const filteredErrors = [
                 'minimal-ui', '.map', '404', 'Source Map',
-                'metrics.articulate.com', 'analytics',
+                    'analytics',
                 'Cross-Origin', 'CORS', 'iframe',
                 'passive event listener', 'touch-action',
                 'webkit', 'vendor prefix', 'deprecated',
@@ -726,7 +724,7 @@ def scorm_console_cleaner(request):
         if (originalFetch) {
             window.fetch = function(url, options) {
                 if (typeof url === 'string' && (
-                    url.includes('metrics.articulate.com') ||
+                    url.includes('analytics') ||
                     url.includes('analytics') ||
                     url.includes('tracking')
                 )) {
@@ -750,7 +748,7 @@ def scorm_console_cleaner(request):
                 
                 xhr.open = function(method, url, async, user, password) {
                     if (typeof url === 'string' && (
-                        url.includes('metrics.articulate.com') ||
+                        url.includes('analytics') ||
                         url.includes('analytics') ||
                         url.includes('tracking')
                     )) {
@@ -762,7 +760,7 @@ def scorm_console_cleaner(request):
                 
                 xhr.send = function(data) {
                     if (this._url && (
-                        this._url.includes('metrics.articulate.com') ||
+                        this._url.includes('analytics') ||
                         this._url.includes('analytics') ||
                         this._url.includes('tracking')
                     )) {

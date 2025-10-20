@@ -16,8 +16,22 @@ from datetime import timedelta
 
 logger = logging.getLogger(__name__)
 
+def validate_xapi_endpoint(value):
+    """Validate xAPI endpoint URL"""
+    if value and not value.startswith(('http://', 'https://')):
+        raise ValidationError("xAPI endpoint must be a valid URL")
+    if value and not value.endswith('/'):
+        raise ValidationError("xAPI endpoint should end with '/'")
+
+def validate_xapi_actor_json(value):
+    """Validate xAPI actor JSON structure"""
+    if not isinstance(value, dict):
+        raise ValidationError("xAPI actor must be a JSON object")
+    if 'objectType' in value and value['objectType'] != 'Agent':
+        raise ValidationError("xAPI actor objectType must be 'Agent'")
+
 def elearning_package_path(instance, filename):
-    """Generate file path for e-learning packages (SCORM, xAPI, cmi5)"""
+    """Generate file path for e-learning packages (SCORM, xAPI)"""
     from core.s3_storage import validate_s3_path, sanitize_s3_path
     
     # Get the base filename and extension
@@ -45,19 +59,12 @@ def elearning_package_path(instance, filename):
     return full_path
 
 class ELearningPackage(models.Model):
-    """Model for e-learning packages (SCORM, xAPI, cmi5)"""
+    """Model for e-learning packages (SCORM, xAPI)"""
     
     PACKAGE_TYPES = [
         ('SCORM_1_2', 'SCORM 1.2'),
         ('SCORM_2004', 'SCORM 2004'),
         ('XAPI', 'xAPI (Tin Can)'),
-        ('CMI5', 'cmi5'),
-        ('AICC', 'AICC'),
-        ('ARTICULATE', 'Articulate (Storyline/Rise)'),
-        ('CAPTIVATE', 'Adobe Captivate'),
-        ('LECTORA', 'Lectora'),
-        ('ISPRING', 'iSpring'),
-        ('ADOBE_PRESENTER', 'Adobe Presenter'),
     ]
     
     topic = models.OneToOneField(
@@ -90,13 +97,43 @@ class ELearningPackage(models.Model):
     launch_file = models.CharField(max_length=500, blank=True)
     extracted_path = models.CharField(max_length=500, blank=True)
     
-    # xAPI specific fields
-    xapi_endpoint = models.URLField(blank=True, help_text="xAPI endpoint URL")
-    xapi_actor = models.JSONField(default=dict, blank=True, help_text="xAPI actor information")
+    # Enhanced xAPI specific fields
+    xapi_endpoint = models.URLField(
+        blank=True, 
+        help_text="xAPI endpoint URL",
+        validators=[validate_xapi_endpoint]
+    )
+    xapi_actor = models.JSONField(
+        default=dict, 
+        blank=True, 
+        help_text="xAPI actor information",
+        validators=[validate_xapi_actor_json]
+    )
+    xapi_username = models.CharField(
+        max_length=255, 
+        blank=True, 
+        null=True,
+        help_text="xAPI authentication username"
+    )
+    xapi_password = models.CharField(
+        max_length=255, 
+        blank=True, 
+        null=True,
+        help_text="xAPI authentication password"
+    )
+    xapi_version = models.CharField(
+        max_length=10, 
+        default='1.0.3', 
+        help_text="xAPI version"
+    )
+    lrs = models.ForeignKey(
+        'lrs.LRS', 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True,
+        help_text="Associated LRS"
+    )
     
-    # cmi5 specific fields
-    cmi5_au_id = models.CharField(max_length=255, blank=True, help_text="cmi5 AU ID")
-    cmi5_launch_url = models.URLField(blank=True, help_text="cmi5 launch URL")
     
     # Status
     is_extracted = models.BooleanField(default=False)
@@ -249,52 +286,8 @@ class ELearningPackage(models.Model):
                 except Exception as e:
                     logger.warning(f"SCORM: Manifest parse failed: {str(e)}")
             
-            # Determine launch file from uploaded file list using enhanced priority rules
-            # PRIORITY 1 (CMI5): Use launch URL from cmi5 manifest when available
-            if self.package_type == 'CMI5' and self.cmi5_launch_url:
-                normalized_launch = self._normalize_manifest_launch_path(self.cmi5_launch_url)
-                # Absolute URLs should be used as-is (handled in get_content_url)
-                if normalized_launch.startswith('http://') or normalized_launch.startswith('https://'):
-                    self.launch_file = normalized_launch
-                else:
-                    # For relative launch paths, ensure it exists within extracted file list
-                    lower_files = [p.lower().rstrip('/') for p in file_list]
-                    if normalized_launch.lower() in lower_files:
-                        # Preserve original casing from file_list
-                        original = file_list[lower_files.index(normalized_launch.lower())]
-                        self.launch_file = original
-                    else:
-                        # Try without leading slashes or dots and common prefixes
-                        candidates = [
-                            normalized_launch.lstrip('./'),
-                            normalized_launch.lstrip('/'),
-                            f"cmi5/{normalized_launch.lstrip('./').lstrip('/')}",
-                            f"au/{normalized_launch.lstrip('./').lstrip('/')}",
-                            f"content/{normalized_launch.lstrip('./').lstrip('/')}",
-                            f"lms/{normalized_launch.lstrip('./').lstrip('/')}",
-                            f"src/{normalized_launch.lstrip('./').lstrip('/')}",
-                            f"dist/{normalized_launch.lstrip('./').lstrip('/')}",
-                            f"build/{normalized_launch.lstrip('./').lstrip('/')}",
-                        ]
-                        matched = None
-                        for candidate in candidates:
-                            if candidate.lower() in lower_files:
-                                matched = file_list[lower_files.index(candidate.lower())]
-                                break
-                            # Partial match: end-with or contains
-                            for idx, lf in enumerate(lower_files):
-                                if lf.endswith(candidate.lower()) or candidate.lower() in lf:
-                                    matched = file_list[idx]
-                                    break
-                            if matched:
-                                break
-                        if matched:
-                            self.launch_file = matched
-                        else:
-                            # Fall back to heuristic search for cmi5 launch files
-                            self.launch_file = self._find_launch_file_from_list(file_list)
-            else:
-                self.launch_file = self._find_launch_file_from_list(file_list)
+            # Determine launch file from uploaded file list
+            self.launch_file = self._find_launch_file_from_list(file_list)
             if self.launch_file:
                 logger.info(f"SCORM: Launch file detected: {self.launch_file} for package type {self.package_type}")
             else:
@@ -329,10 +322,6 @@ class ELearningPackage(models.Model):
             manifest_files = ['imsmanifest.xml', 'manifest.xml']
         elif self.package_type == 'XAPI':
             manifest_files = ['tincan.xml', 'tincan.json']
-        elif self.package_type == 'CMI5':
-            manifest_files = ['cmi5.xml', 'cmi5.json']
-        elif self.package_type == 'AICC':
-            manifest_files = ['coursestruct.cst', 'au.txt']
         
         for root, dirs, files in os.walk(base_path):
             for file in files:
@@ -347,10 +336,6 @@ class ELearningPackage(models.Model):
                 self._parse_scorm_manifest(manifest_path)
             elif self.package_type == 'XAPI':
                 self._parse_xapi_manifest(manifest_path)
-            elif self.package_type == 'CMI5':
-                self._parse_cmi5_manifest(manifest_path)
-            elif self.package_type == 'AICC':
-                self._parse_aicc_manifest(manifest_path)
             
             self.save()
             
@@ -407,133 +392,6 @@ class ELearningPackage(models.Model):
             if title_elem is not None:
                 self.title = title_elem.text or ""
     
-    def _parse_cmi5_manifest(self, manifest_path):
-        """ENHANCED: Parse cmi5 manifest to extract metadata with comprehensive support"""
-        try:
-            if manifest_path.endswith('.json'):
-                with open(manifest_path, 'r', encoding='utf-8') as f:
-                    data = json.load(f)
-                    
-                # Enhanced title extraction with multiple language support
-                self.title = (
-                    data.get('name', {}).get('en-US', '') or 
-                    data.get('name', {}).get('en', '') or 
-                    data.get('name', '') or 
-                    data.get('title', '') or
-                    'CMI5 Package'
-                )
-                
-                # Enhanced description extraction
-                self.description = (
-                    data.get('description', {}).get('en-US', '') or 
-                    data.get('description', {}).get('en', '') or 
-                    data.get('description', '') or
-                    ''
-                )
-                
-                # Enhanced cmi5 specific data extraction
-                if 'id' in data:
-                    self.cmi5_au_id = data['id']
-                elif 'au_id' in data:
-                    self.cmi5_au_id = data['au_id']
-                elif 'identifier' in data:
-                    self.cmi5_au_id = data['identifier']
-                
-                if 'launch' in data:
-                    self.cmi5_launch_url = data['launch']
-                elif 'launch_url' in data:
-                    self.cmi5_launch_url = data['launch_url']
-                elif 'url' in data:
-                    self.cmi5_launch_url = data['url']
-                
-                # Extract additional cmi5 metadata
-                if 'version' in data:
-                    self.version = data['version']
-                if 'organization' in data:
-                    self.organization = data['organization']
-                elif 'publisher' in data:
-                    self.organization = data['publisher']
-                
-                logger.info(f"CMI5: Parsed JSON manifest - Title: {self.title}, AU ID: {self.cmi5_au_id}")
-                
-            else:
-                # Parse XML format with enhanced support
-                tree = ET.parse(manifest_path)
-                root = tree.getroot()
-                
-                # Enhanced XML parsing with multiple namespace support
-                namespaces = {
-                    'cmi5': 'http://www.adlnet.org/xapi/cmi5',
-                    'xapi': 'http://adlnet.gov/expapi/activities/',
-                    'ims': 'http://www.imsglobal.org/xsd/imscp_rootv1p1p0',
-                    'adlcp': 'http://www.adlnet.org/xsd/adlcp_rootv1p2'
-                }
-                
-                # Try multiple namespace paths for title
-                title_elem = None
-                for ns_prefix, ns_uri in namespaces.items():
-                    title_elem = root.find(f'.//{{{ns_uri}}}title') or root.find(f'.//{{{ns_uri}}}name')
-                    if title_elem is not None:
-                        break
-                
-                if title_elem is not None:
-                    self.title = title_elem.text or ""
-                else:
-                    # Fallback to any title element
-                    title_elem = root.find('.//title') or root.find('.//name')
-                    if title_elem is not None:
-                        self.title = title_elem.text or ""
-                
-                # Try multiple namespace paths for description
-                desc_elem = None
-                for ns_prefix, ns_uri in namespaces.items():
-                    desc_elem = root.find(f'.//{{{ns_uri}}}description')
-                    if desc_elem is not None:
-                        break
-                
-                if desc_elem is not None:
-                    self.description = desc_elem.text or ""
-                
-                # Extract cmi5 specific data from XML
-                au_id_elem = root.find('.//{http://www.adlnet.org/xapi/cmi5}id')
-                if au_id_elem is not None:
-                    self.cmi5_au_id = au_id_elem.text or ""
-                
-                launch_elem = root.find('.//{http://www.adlnet.org/xapi/cmi5}launch')
-                if launch_elem is not None:
-                    self.cmi5_launch_url = launch_elem.text or ""
-                
-                logger.info(f"CMI5: Parsed XML manifest - Title: {self.title}, AU ID: {self.cmi5_au_id}")
-                
-        except Exception as e:
-            logger.error(f"CMI5: Error parsing manifest {manifest_path}: {str(e)}")
-            # Set fallback values
-            if not self.title:
-                self.title = "CMI5 Package"
-            if not self.cmi5_au_id:
-                self.cmi5_au_id = f"au_{self.topic.id}"
-    
-    def _parse_aicc_manifest(self, manifest_path):
-        """Parse AICC manifest to extract metadata"""
-        # AICC uses different file formats
-        if manifest_path.endswith('.cst'):
-            # Parse course structure file
-            with open(manifest_path, 'r', encoding='utf-8') as f:
-                content = f.read()
-                # Basic parsing for AICC course structure
-                lines = content.split('\n')
-                for line in lines:
-                    if line.startswith('COURSE_TITLE'):
-                        self.title = line.split('=')[1].strip() if '=' in line else ""
-        elif manifest_path.endswith('.txt'):
-            # Parse AU file
-            with open(manifest_path, 'r', encoding='utf-8') as f:
-                content = f.read()
-                # Basic parsing for AICC AU file
-                lines = content.split('\n')
-                for line in lines:
-                    if line.startswith('TITLE'):
-                        self.title = line.split('=')[1].strip() if '=' in line else ""
     
     def _find_launch_file(self, base_path):
         """Find the main launch file based on package type with enhanced priority selection"""
@@ -541,7 +399,7 @@ class ELearningPackage(models.Model):
         
         if self.package_type in ['SCORM_1_2', 'SCORM_2004']:
             launch_files = [
-                # Articulate Storyline files (priority order)
+                # SCORM content files (priority order)
                 'index_lms.html',      # LMS mode (SCORM integration) - HIGHEST PRIORITY
                 'story.html',          # Standalone mode (no SCORM)
                 'analytics-frame.html', # Analytics mode
@@ -560,9 +418,8 @@ class ELearningPackage(models.Model):
                 'content/index.html',
                 'data/index.html',
                 
-                # Additional Articulate files
+                # Additional SCORM files
                 'lms/blank.html',      # Blank page
-                'lms/AICCComm.html'   # AICC communication
             ]
         elif self.package_type == 'XAPI':
             launch_files = [
@@ -579,83 +436,6 @@ class ELearningPackage(models.Model):
                 'tincan/launch.html',
                 'xapi/index.html',
                 'xapi/launch.html',
-                'content/index.html',
-                'data/index.html',
-                'player/index.html'
-            ]
-        elif self.package_type == 'CMI5':
-            launch_files = [
-                # Articulate in cmi5 mode (highest priority when present)
-                'index_lms.html',
-                'story.html',
-                'analytics-frame.html',
-                'lms/index_lms.html',
-                'lms/goodbye.html',
-                'lms/blank.html',
-                'lms/AICCComm.html',
-                
-                # cmi5 specific files (priority order)
-                'cmi5.html',
-                'au.html',
-                'launch.html',
-                'player.html',
-                'index.html',
-                'start.html',
-                'main.html',
-                
-                # Common content directory patterns
-                'content/index.html',
-                'content/launch.html',
-                'content/index_lms.html',
-                'content/lesson1/index.html',
-                'content/lesson1/launch.html',
-                
-                # Build/distribution patterns
-                'src/index.html',
-                'src/launch.html',
-                'dist/index.html',
-                'dist/launch.html',
-                'build/index.html',
-                'build/launch.html',
-                
-                # cmi5 subdirectory patterns
-                'cmi5/index.html',
-                'cmi5/launch.html',
-                'au/index.html',
-                'au/launch.html',
-                'player/index.html',
-                'data/index.html',
-                
-                # Additional group folders
-                'assets/index.html',
-                'lessons/index.html',
-                'modules/index.html',
-                
-                # Enhanced subdirectory patterns for compliance packages
-                'compliance/index.html',
-                'compliance/launch.html',
-                'training/index.html',
-                'training/launch.html',
-                'anti-bribery/index.html',
-                'anti-bribery/launch.html',
-                'level3/index.html',
-                'level3/launch.html'
-            ]
-        elif self.package_type == 'AICC':
-            launch_files = [
-                # AICC specific files (priority order)
-                'au.html',              # AICC Assignable Unit
-                'launch.html',          # AICC launch file
-                'player.html',          # AICC player
-                'index.html',           # Standard HTML entry point
-                'start.html',           # Alternative start file
-                'main.html',            # Main content file
-                
-                # AICC subdirectory patterns
-                'aicc/index.html',
-                'aicc/launch.html',
-                'au/index.html',
-                'au/launch.html',
                 'content/index.html',
                 'data/index.html',
                 'player/index.html'
@@ -789,31 +569,10 @@ class ELearningPackage(models.Model):
             return 'imsmanifest.xml' in name or 'manifest.xml' in name
         if self.package_type == 'XAPI':
             return 'tincan.xml' in name or 'tincan.json' in name
-        if self.package_type == 'CMI5':
-            return 'cmi5.xml' in name or 'cmi5.json' in name
-        if self.package_type == 'AICC':
-            return 'coursestruct.cst' in name or 'au.txt' in name
         return any(m in name for m in [
-            'imsmanifest.xml','manifest.xml','tincan.xml','tincan.json','cmi5.xml','cmi5.json','coursestruct.cst','au.txt'
+            'imsmanifest.xml','manifest.xml','tincan.xml','tincan.json'
         ])
 
-    def _is_cmi5_file(self, file_path):
-        """Heuristic check for cmi5-related HTML files (vendor variations)."""
-        try:
-            if not file_path:
-                return False
-            name = file_path.lower()
-            if not name.endswith(('.html', '.htm')):
-                return False
-            cmi5_keywords = [
-                'cmi5', 'au', 'assignable', 'unit', 'launch', 'player',
-                'analytics-frame', 'frame', 'content', 'lesson', 'module',
-                'course', 'training', 'compliance', 'anti-bribery', 'bribery',
-                'level3'
-            ]
-            return any(k in name for k in cmi5_keywords)
-        except Exception:
-            return False
 
     def _find_launch_file_from_list(self, file_list):
         """Find launch file from a flat list of file paths using existing priorities."""
@@ -824,30 +583,13 @@ class ELearningPackage(models.Model):
                 'index.html','launch.html','start.html','main.html',
                 'scormcontent/index.html','scormcontent/launch.html','scormcontent/start.html',
                 'content/index.html','data/index.html',
-                'lms/blank.html','lms/AICCComm.html'
+                'lms/blank.html'
             ]
         elif self.package_type == 'XAPI':
             launch_files = [
                 'tincan.html','launch.html','player.html','index.html','start.html','main.html',
                 'tincan/index.html','tincan/launch.html','xapi/index.html','xapi/launch.html',
                 'content/index.html','data/index.html','player/index.html'
-            ]
-        elif self.package_type == 'CMI5':
-            launch_files = [
-                'index_lms.html','story.html','analytics-frame.html','lms/index_lms.html','lms/goodbye.html','lms/blank.html','lms/AICCComm.html',
-                'cmi5.html','au.html','launch.html','player.html','index.html','start.html','main.html',
-                'content/index.html','content/launch.html','content/index_lms.html','content/lesson1/index.html','content/lesson1/launch.html',
-                'src/index.html','src/launch.html','dist/index.html','dist/launch.html','build/index.html','build/launch.html',
-                'cmi5/index.html','cmi5/launch.html','au/index.html','au/launch.html','player/index.html','data/index.html',
-                'assets/index.html','lessons/index.html','modules/index.html',
-                'compliance/index.html','compliance/launch.html','training/index.html','training/launch.html','anti-bribery/index.html','anti-bribery/launch.html',
-                'level3/index.html','level3/launch.html'
-            ]
-        elif self.package_type == 'AICC':
-            launch_files = [
-                'au.html','launch.html','player.html','index.html','start.html','main.html',
-                'aicc/index.html','aicc/launch.html','au/index.html','au/launch.html','content/index.html',
-                'data/index.html','player/index.html'
             ]
         else:
             launch_files = ['index.html','launch.html','start.html','main.html']
@@ -899,13 +641,7 @@ class ELearningPackage(models.Model):
             with zipfile.ZipFile(zip_path, 'r') as zip_ref:
                 file_list = zip_ref.namelist()
                 
-                # PRIORITY 1: Check for CMI5 manifests (highest priority for modern standards)
-                has_cmi5 = any('cmi5.xml' in f.lower() or 'cmi5.json' in f.lower() for f in file_list)
-                if has_cmi5:
-                    logger.info("Package detection: CMI5 manifest found")
-                    return 'CMI5'
-                
-                # PRIORITY 2: Check for xAPI/Tin Can manifests
+                # PRIORITY 1: Check for xAPI/Tin Can manifests
                 has_xapi = any('tincan.xml' in f.lower() or 'tincan.json' in f.lower() for f in file_list)
                 if has_xapi:
                     logger.info("Package detection: xAPI/Tin Can manifest found")
@@ -921,19 +657,13 @@ class ELearningPackage(models.Model):
                         if manifest_file:
                             manifest_content = zip_ref.read(manifest_file).decode('utf-8', errors='ignore')
                             
-                            # Detect if it's from Articulate (for enhanced handling)
-                            is_articulate = any(indicator in file_list for indicator in [
-                                'story_content', 'story.html', 'story_html5.html',
-                                'meta.xml', 'lms/index_lms.html'
-                            ])
-                            
                             # Determine SCORM version
                             if 'scorm_2004' in manifest_content.lower() or 'adlcp:scormtype' in manifest_content.lower() or '2004' in manifest_content:
                                 package_type = 'SCORM_2004'
-                                logger.info(f"Package detection: SCORM 2004 found{' (Articulate)' if is_articulate else ''}")
+                                logger.info("Package detection: SCORM 2004 found")
                             else:
                                 package_type = 'SCORM_1_2'
-                                logger.info(f"Package detection: SCORM 1.2 found{' (Articulate)' if is_articulate else ''}")
+                                logger.info("Package detection: SCORM 1.2 found")
                             
                             return package_type
                     except Exception as e:
@@ -941,44 +671,7 @@ class ELearningPackage(models.Model):
                         # Default to SCORM 1.2 if we can't determine version
                         return 'SCORM_1_2'
                 
-                # PRIORITY 4: Check for AICC manifests
-                has_aicc = any('coursestruct.cst' in f.lower() or 'au.txt' in f.lower() for f in file_list)
-                if has_aicc:
-                    logger.info("Package detection: AICC manifest found")
-                    return 'AICC'
-                
-                # PRIORITY 5: Check for authoring tool-specific patterns (as fallback)
-                # These tools typically export SCORM, so this is a fallback for non-standard packages
-                
-                # Check for Articulate content (Storyline/Rise without standard manifest)
-                is_articulate_storyline = any('story_content' in f.lower() or 'story_html5' in f.lower() for f in file_list)
-                is_articulate_rise = any('rise_content' in f.lower() or 'rise_html5' in f.lower() or 'scormcontent/index.html' in f.lower() for f in file_list)
-                
-                if is_articulate_storyline or is_articulate_rise:
-                    logger.warning("Package detection: Articulate content found without standard manifest - defaulting to SCORM 1.2")
-                    return 'SCORM_1_2'  # Treat as SCORM since Articulate exports SCORM
-                
-                # Check for Captivate content
-                if any('captivate' in f.lower() or 'cp_' in f.lower() or 'captivate.css' in f.lower() for f in file_list):
-                    logger.warning("Package detection: Captivate content found without standard manifest - defaulting to SCORM 1.2")
-                    return 'SCORM_1_2'
-                
-                # Check for Lectora content
-                if any('lectora' in f.lower() or 'trivantis' in f.lower() for f in file_list):
-                    logger.warning("Package detection: Lectora content found without standard manifest - defaulting to SCORM 1.2")
-                    return 'SCORM_1_2'
-                
-                # Check for iSpring content
-                if any('ispring' in f.lower() or 'ispring_content' in f.lower() or 'data/meta.xml' in f.lower() for f in file_list):
-                    logger.warning("Package detection: iSpring content found without standard manifest - defaulting to SCORM 1.2")
-                    return 'SCORM_1_2'
-                
-                # Check for Adobe Presenter content
-                if any('presenter' in f.lower() or 'adobe_presenter' in f.lower() for f in file_list):
-                    logger.warning("Package detection: Adobe Presenter content found without standard manifest - defaulting to SCORM 1.2")
-                    return 'SCORM_1_2'
-                
-                # Check for generic HTML5 content
+                # PRIORITY 3: Check for generic HTML5 content (fallback)
                 html_files = [f for f in file_list if f.lower().endswith(('.html', '.htm'))]
                 if html_files:
                     logger.warning(f"Package detection: HTML content found without standard manifest ({len(html_files)} HTML files) - defaulting to SCORM 1.2")
@@ -1010,10 +703,6 @@ class ELearningPackage(models.Model):
         """Get the URL to access the e-learning content"""
         if not self.is_extracted or not self.launch_file:
             return None
-        # If CMI5 launch is an absolute URL, return it directly
-        if self.package_type == 'CMI5' and self.cmi5_launch_url:
-            if self.launch_file.startswith('http://') or self.launch_file.startswith('https://'):
-                return self.launch_file
         return "/scorm/content/{}/{}".format(self.topic.id, self.launch_file)
     
     def validate_s3_path(self):
@@ -1027,7 +716,7 @@ class ELearningPackage(models.Model):
 
 
 class ELearningTracking(models.Model):
-    """Model for tracking e-learning learner interactions (SCORM, xAPI, cmi5)"""
+    """Model for tracking e-learning learner interactions (SCORM, xAPI)"""
     user = models.ForeignKey(
         CustomUser,
         on_delete=models.CASCADE,
@@ -1040,7 +729,7 @@ class ELearningTracking(models.Model):
         related_name='tracking_records'
     )
     
-    # Registration ID for SCORM 2004 and cmi5
+    # Registration ID for SCORM 2004
     registration_id = models.UUIDField(default=uuid.uuid4, editable=False)
     
     # SCORM 1.2 and 2004 data model elements
@@ -1587,37 +1276,6 @@ class ELearningTracking(models.Model):
                 has_location or has_suspend_data
             )
             
-        elif package_type == 'CMI5':
-            # cmi5 packages
-            lesson_location = self.raw_data.get('cmi5.au_state', '')
-            suspend_data = self.raw_data.get('cmi5.state', '')
-            
-            bookmark_data.update({
-                'lesson_location': lesson_location,
-                'suspend_data': suspend_data,
-                'entry': 'ab-initio',
-                'exit': '',
-                'launch_data': '',
-            })
-            
-            has_lesson_location = bool(lesson_location)
-            has_suspend_data = bool(suspend_data)
-            has_resume_flag = self.raw_data.get('cmi5.resume', False)
-            
-            bookmark_data['progress_indicators'] = [
-                f"AU State: {has_lesson_location}",
-                f"cmi5 State: {has_suspend_data}",
-                f"Resume Flag: {has_resume_flag}",
-                f"Progress: {has_progress}",
-                f"Time: {has_time}",
-                f"Score: {has_score}"
-            ]
-            
-            bookmark_data['can_resume'] = (
-                has_lesson_location or has_suspend_data or has_resume_flag or
-                has_progress or has_time or has_score or 
-                has_location or has_suspend_data
-            )
             
         else:
             # Default fallback for unknown package types
@@ -1748,145 +1406,6 @@ class ELearningTracking(models.Model):
         
         return score_percentage >= mastery_threshold
 
-    def get_articulate_bookmark_data(self):
-        """
-        ENHANCED: Articulate-specific bookmark data extraction with comprehensive support.
-        Handles Storyline, Rise, Presenter, Quizmaker, and Articulate 360 packages.
-        """
-        articulate_bookmarks = {
-            'storyline': {},
-            'rise': {},
-            'presenter': {},
-            'quizmaker': {},
-            'generic': {},
-            'can_resume': False,
-            'package_type': 'Articulate',
-            'progress_indicators': []
-        }
-        
-        try:
-            if not self.raw_data:
-                return articulate_bookmarks
-            
-            # ENHANCED: Articulate Storyline bookmark detection
-            storyline_indicators = [
-                'articulate.bookmark',
-                'articulate.storyline.bookmark',
-                'articulate.storyline.slide',
-                'articulate.storyline.scene',
-                'articulate.storyline.state',
-                'articulate.storyline.progress'
-            ]
-            
-            for indicator in storyline_indicators:
-                if indicator in self.raw_data:
-                    articulate_bookmarks['storyline'][indicator] = self.raw_data[indicator]
-            
-            # ENHANCED: Articulate Rise bookmark detection
-            rise_indicators = [
-                'articulate.rise.bookmark',
-                'articulate.rise.lesson',
-                'articulate.rise.block',
-                'articulate.rise.progress',
-                'articulate.rise.state',
-                'articulate.rise.navigation'
-            ]
-            
-            for indicator in rise_indicators:
-                if indicator in self.raw_data:
-                    articulate_bookmarks['rise'][indicator] = self.raw_data[indicator]
-            
-            # ENHANCED: Articulate Presenter bookmark detection
-            presenter_indicators = [
-                'articulate.presenter.bookmark',
-                'articulate.presenter.slide',
-                'articulate.presenter.timeline',
-                'articulate.presenter.state',
-                'articulate.presenter.progress'
-            ]
-            
-            for indicator in presenter_indicators:
-                if indicator in self.raw_data:
-                    articulate_bookmarks['presenter'][indicator] = self.raw_data[indicator]
-            
-            # ENHANCED: Articulate Quizmaker bookmark detection
-            quizmaker_indicators = [
-                'articulate.quizmaker.bookmark',
-                'articulate.quizmaker.question',
-                'articulate.quizmaker.answer',
-                'articulate.quizmaker.state',
-                'articulate.quizmaker.progress'
-            ]
-            
-            for indicator in quizmaker_indicators:
-                if indicator in self.raw_data:
-                    articulate_bookmarks['quizmaker'][indicator] = self.raw_data[indicator]
-            
-            # ENHANCED: Generic Articulate bookmark detection
-            generic_indicators = [
-                'articulate.bookmark_data',
-                'articulate.suspend_data',
-                'articulate.lesson_location',
-                'articulate.progress',
-                'articulate.navigation',
-                'articulate.state',
-                'articulate.resume'
-            ]
-            
-            for indicator in generic_indicators:
-                if indicator in self.raw_data:
-                    articulate_bookmarks['generic'][indicator] = self.raw_data[indicator]
-            
-            # ENHANCED: Resume capability detection for Articulate packages
-            has_storyline_bookmark = bool(articulate_bookmarks['storyline'])
-            has_rise_bookmark = bool(articulate_bookmarks['rise'])
-            has_presenter_bookmark = bool(articulate_bookmarks['presenter'])
-            has_quizmaker_bookmark = bool(articulate_bookmarks['quizmaker'])
-            has_generic_bookmark = bool(articulate_bookmarks['generic'])
-            
-            # Check for standard SCORM fields that might be Articulate-specific
-            has_lesson_location = bool(self.raw_data.get('cmi.core.lesson_location', ''))
-            has_suspend_data = bool(self.raw_data.get('cmi.core.suspend_data', ''))
-            has_progress = self.completion_status not in ['not attempted', 'unknown']
-            has_time = self.total_time and self.total_time.total_seconds() > 0
-            has_score = self.score_raw is not None and self.score_raw > 0
-            
-            articulate_bookmarks['progress_indicators'] = [
-                f"Storyline Bookmark: {has_storyline_bookmark}",
-                f"Rise Bookmark: {has_rise_bookmark}",
-                f"Presenter Bookmark: {has_presenter_bookmark}",
-                f"Quizmaker Bookmark: {has_quizmaker_bookmark}",
-                f"Generic Bookmark: {has_generic_bookmark}",
-                f"Lesson Location: {has_lesson_location}",
-                f"Suspend Data: {has_suspend_data}",
-                f"Progress: {has_progress}",
-                f"Time: {has_time}",
-                f"Score: {has_score}"
-            ]
-            
-            # Determine if Articulate package can resume
-            articulate_bookmarks['can_resume'] = (
-                has_storyline_bookmark or has_rise_bookmark or 
-                has_presenter_bookmark or has_quizmaker_bookmark or
-                has_generic_bookmark or has_lesson_location or 
-                has_suspend_data or has_progress or has_time or 
-                has_score or self.location or self.suspend_data
-            )
-            
-            return articulate_bookmarks
-            
-        except Exception as e:
-            logger.error(f"SCORM: Error extracting Articulate bookmark data: {str(e)}")
-            return {
-                'storyline': {},
-                'rise': {},
-                'presenter': {},
-                'quizmaker': {},
-                'generic': {},
-                'can_resume': False,
-                'package_type': 'Articulate',
-                'progress_indicators': [f"Error: {str(e)}"]
-            }
 
     def validate_data_size(self, data, package_type):
         """
@@ -1911,8 +1430,8 @@ class ELearningTracking(models.Model):
                     logger.warning(f"SCORM 2004: Data size {data_size} exceeds limit of {max_size} bytes")
                     return False, f"Data size {data_size} bytes exceeds SCORM 2004 limit of {max_size} bytes"
                     
-            elif package_type in ['XAPI', 'CMI5']:
-                # xAPI and cmi5 have much larger limits (practically unlimited)
+            elif package_type == 'XAPI':
+                # xAPI has much larger limits (practically unlimited)
                 max_size = 1000000  # 1MB practical limit
                 if data_size > max_size:
                     logger.warning(f"{package_type}: Data size {data_size} exceeds practical limit of {max_size} bytes")
@@ -1979,152 +1498,6 @@ class ELearningTracking(models.Model):
             logger.error(f"SCORM: Error setting bookmark with validation: {str(e)}")
             return False, f"Error setting bookmark: {str(e)}"
 
-    def _find_articulate_launch_file(self):
-        """
-        Enhanced Articulate launch file detection.
-        Handles various Articulate package structures and file naming conventions.
-        """
-        try:
-            if not self.elearning_package.extracted_path:
-                return None
-            
-            from .storage import SCORMS3Storage
-            storage = SCORMS3Storage()
-            
-            # Get the extracted directory contents
-            files, dirs = storage.listdir(self.elearning_package.extracted_path)
-            
-            # Priority list of Articulate launch files
-            articulate_launch_files = [
-                # Articulate Storyline files
-                'story.html',
-                'story.html5',
-                'story_html5.html',
-                'storyline.html',
-                'storyline.html5',
-                'storyline_html5.html',
-                'storyline_story.html',
-                'storyline_story_html5.html',
-                'storyline_story_html5_story.html',
-                
-                # Articulate Rise files
-                'rise.html',
-                'rise.html5',
-                'rise_html5.html',
-                'rise_story.html',
-                'rise_story_html5.html',
-                
-                # Articulate Presenter files
-                'presenter.html',
-                'presenter.html5',
-                'presenter_html5.html',
-                'presenter_story.html',
-                'presenter_story_html5.html',
-                
-                # Articulate Quizmaker files
-                'quizmaker.html',
-                'quizmaker.html5',
-                'quizmaker_html5.html',
-                'quizmaker_story.html',
-                'quizmaker_story_html5.html',
-                
-                # Generic Articulate files
-                'articulate.html',
-                'articulate.html5',
-                'articulate_html5.html',
-                'articulate_story.html',
-                'articulate_story_html5.html',
-                
-                # Common HTML files that might be Articulate
-                'index.html',
-                'main.html',
-                'content.html',
-                'launch.html',
-                'player.html',
-                'story.html',
-                'story_html5.html',
-                'story_html5_story.html',
-                'story_html5_story_html5.html',
-                'story_html5_story_html5_story.html',
-            ]
-            
-            # Check for exact matches first
-            for launch_file in articulate_launch_files:
-                if launch_file in files:
-                    return f"{self.elearning_package.extracted_path}/{launch_file}"
-            
-            # Check for files that start with Articulate keywords
-            for file in files:
-                if file.lower().startswith(('story', 'rise', 'presenter', 'quizmaker', 'articulate')):
-                    if file.lower().endswith(('.html', '.htm')):
-                        return f"{self.elearning_package.extracted_path}/{file}"
-            
-            # Check for files that contain Articulate keywords
-            for file in files:
-                if any(keyword in file.lower() for keyword in ['story', 'rise', 'presenter', 'quizmaker', 'articulate']):
-                    if file.lower().endswith(('.html', '.htm')):
-                        return f"{self.elearning_package.extracted_path}/{file}"
-            
-            # Fallback: Check for any HTML file
-            for file in files:
-                if file.lower().endswith(('.html', '.htm')):
-                    return f"{self.elearning_package.extracted_path}/{file}"
-            
-            return None
-            
-        except Exception as e:
-            logger.error(f"SCORM: Error finding Articulate launch file: {str(e)}")
-            return None
-
-    def _is_articulate_file(self, file_path):
-        """
-        Check if a file is an Articulate package file.
-        """
-        try:
-            if not file_path:
-                return False
-            
-            file_name = file_path.lower()
-            
-            # Check for Articulate-specific file patterns
-            articulate_patterns = [
-                'story.html',
-                'rise.html',
-                'presenter.html',
-                'quizmaker.html',
-                'articulate.html',
-                'story_html5.html',
-                'rise_html5.html',
-                'presenter_html5.html',
-                'quizmaker_html5.html',
-                'articulate_html5.html',
-                'storyline.html',
-                'storyline_html5.html',
-                'storyline_story.html',
-                'storyline_story_html5.html',
-                'storyline_story_html5_story.html',
-            ]
-            
-            # Check for exact matches
-            if file_name in articulate_patterns:
-                return True
-            
-            # Check for partial matches
-            for pattern in articulate_patterns:
-                if pattern in file_name:
-                    return True
-            
-            # Check for Articulate keywords
-            articulate_keywords = ['story', 'rise', 'presenter', 'quizmaker', 'articulate', 'storyline']
-            for keyword in articulate_keywords:
-                if keyword in file_name:
-                    return True
-            
-            return False
-            
-        except Exception as e:
-            logger.error(f"SCORM: Error checking Articulate file: {str(e)}")
-            return False
 
 class SCORMReport(models.Model):
     """Model for SCORM reports and analytics"""

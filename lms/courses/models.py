@@ -37,41 +37,14 @@ else:
 
 logger = logging.getLogger(__name__)
 
-@receiver(post_save, sender='courses.Course')
-@receiver(post_save, sender='courses.Topic')
-def cleanup_temp_files(sender, instance, created, **kwargs):
-    """Clean up temporary files when course/topic is saved"""
-    try:
-        # Only process if the instance now has a primary key
-        if instance.pk:
-            # Move temporary files to proper location if needed
-            # This is handled by the file storage system automatically
-            logger.debug(f"Instance {instance.__class__.__name__} {instance.pk} saved, temp files will be handled by storage")
-    except Exception as e:
-        logger.error(f"Error in cleanup_temp_files signal: {e}")
-
 @receiver(post_delete, sender='courses.Course')
 @receiver(post_delete, sender='courses.Topic')
 def cleanup_orphaned_files(sender, instance, **kwargs):
     """Clean up files when course/topic is deleted"""
     try:
-        # Only clean up local temp files if not using S3 storage
-        from django.conf import settings
-        from django.core.files.storage import default_storage
-        
-        # Check if we're using S3 storage
-        if hasattr(default_storage, 'bucket_name'):
-            # Using S3 storage - no local cleanup needed
-            logger.debug("Using S3 storage, skipping local temp file cleanup")
-            return
-        
-        # Clean up any temporary files older than 1 hour (local storage only)
-        import os
-        import time
-        
-        # S3 storage - no local temp files to clean up
-        # All files are stored directly in S3, no local MEDIA_ROOT cleanup needed
-        logger.debug("S3 storage mode - no local temp files to clean up")
+        # S3 storage handles file cleanup automatically
+        # No local temp files to clean up with direct S3 upload
+        logger.debug(f"Instance {instance.__class__.__name__} {instance.pk} deleted, S3 cleanup handled automatically")
     except Exception as e:
         logger.error(f"Error in cleanup_orphaned_files signal: {e}")
 
@@ -128,7 +101,7 @@ def content_file_path(instance: Any, filename: str) -> str:
             if not instance.pk:
                 # Course not saved yet, use temporary location with timestamp
                 timestamp = int(time.time())
-                return f"courses/temp_uploads/{timestamp}_{unique_id}{ext.lower()}"
+                return f"courses/temp/{timestamp}_{unique_id}{ext.lower()}"
             else:
                 course_id = instance.id
         elif isinstance(instance, Topic):
@@ -136,7 +109,7 @@ def content_file_path(instance: Any, filename: str) -> str:
             if not instance.pk:
                 # No primary key yet, use a temporary location with timestamp
                 timestamp = int(time.time())
-                return f"courses/temp_uploads/{timestamp}_{unique_id}{ext.lower()}"
+                return f"courses/temp/{timestamp}_{unique_id}{ext.lower()}"
                 
             # Handle case where topic isn't linked to a course yet
             try:
@@ -147,20 +120,20 @@ def content_file_path(instance: Any, filename: str) -> str:
                     course_id = course.id
                 else:
                     # No course found, use a temporary folder with topic ID
-                    return f"courses/temp_uploads/topic_{instance.pk}/{new_filename}"
+                    return f"courses/temp/topic_{instance.pk}/{new_filename}"
             except (AttributeError, ValueError) as e:
                 # Log the error and use a fallback location
                 logger.warning(f"Course relationship error in content_file_path: {str(e)}")
-                return f"courses/temp_uploads/{unique_id}{ext.lower()}"
+                return f"courses/temp/{unique_id}{ext.lower()}"
         else:
             course_id = 'misc'
     except (AttributeError, ValueError, TypeError) as e:
         logger.error(f"Data type error in content_file_path: {str(e)}")
-        return f"courses/topic_uploads/{unique_id}{ext.lower()}"
+        return f"courses/temp/{unique_id}{ext.lower()}"
     except Exception as e:
         # Log the error and use a fallback location
         logger.error(f"Unexpected error in content_file_path: {str(e)}")
-        return f"courses/topic_uploads/{unique_id}{ext.lower()}"
+        return f"courses/temp/{unique_id}{ext.lower()}"
     
     # Create the path with course ID as the main folder - compatible with S3 storage
     full_path = f"courses/{course_id}/topics/{instance.pk if isinstance(instance, Topic) else 'misc'}/{new_filename}"

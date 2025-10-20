@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 E-Learning Ecosystem Verification Script
-Verifies SCORM, xAPI, and cmi5 tracking data and identifies issues
+Verifies SCORM and xAPI tracking data and identifies issues
 """
 
 import os
@@ -14,7 +14,7 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'LMS_Project.settings')
 django.setup()
 
 from scorm.models import ELearningTracking, ELearningPackage
-from lrs.models import Statement, CMI5AU, CMI5Registration, CMI5Session
+from lrs.models import Statement
 from django.utils import timezone
 from datetime import timedelta
 import json
@@ -70,17 +70,6 @@ def verify_elearning_ecosystem():
     )
     print("Recent Statements (7 days): {{recent_statements.count()}}")
     
-    # Check cmi5 AUs
-    aus = CMI5AU.objects.all()
-    print("\nTotal cmi5 AUs: {{aus.count()}}")
-    
-    # Check cmi5 registrations
-    registrations = CMI5Registration.objects.all()
-    print("Total cmi5 Registrations: {{registrations.count()}}")
-    
-    # Check cmi5 sessions
-    sessions = CMI5Session.objects.all()
-    print("Total cmi5 Sessions: {{sessions.count()}}")
     
     active_sessions = sessions.filter(is_active=True)
     print("Active Sessions: {{active_sessions.count()}}")
@@ -195,9 +184,6 @@ def main():
         print("E-Learning Packages: {{results['packages']}}")
         print("Tracking Records: {{results['tracking']}}")
         print("xAPI Statements: {{results['statements']}}")
-        print("cmi5 AUs: {{results['aus']}}")
-        print("cmi5 Registrations: {{results['registrations']}}")
-        print("cmi5 Sessions: {{results['sessions']}}")
         print("Recent Activity (24h): {{recent_activity}}")
         
         # Issues summary

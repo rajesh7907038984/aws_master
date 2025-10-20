@@ -164,7 +164,7 @@ body.scorm-launch-page {
     controls: true !important;
 }
 
-/* Fix for Articulate Storyline content */
+/* Fix for SCORM content */
 #scorm-iframe .slide-container,
 .scorm-iframe .slide-container {
     width: 100% !important;

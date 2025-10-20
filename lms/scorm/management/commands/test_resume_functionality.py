@@ -1,6 +1,6 @@
 """
 Django management command to test resume functionality for all package types
-Tests SCORM, xAPI, cmi5, and Articulate resume button paths and preview functionality
+Tests SCORM and xAPI resume button paths and preview functionality
 """
 
 from django.core.management.base import BaseCommand
@@ -24,7 +24,7 @@ class Command(BaseCommand):
         parser.add_argument(
             '--package-type',
             type=str,
-            choices=['SCORM_1_2', 'SCORM_2004', 'XAPI', 'CMI5', 'AICC'],
+            choices=['SCORM_1_2', 'SCORM_2004', 'XAPI'],
             help='Test specific package type',
         )
 
@@ -54,10 +54,6 @@ class Command(BaseCommand):
                 self.stdout.write("  Can Resume: {{bookmark_data.get('can_resume', False)}}")
                 self.stdout.write("  Progress Indicators: {{len(bookmark_data.get('progress_indicators', []))}}")
                 
-                # Test Articulate-specific data if applicable
-                if 'articulate' in elearning_package.package_type.lower():
-                    articulate_data = tracking.get_articulate_bookmark_data()
-                    self.stdout.write("  Articulate Can Resume: {{articulate_data.get('can_resume', False)}}")
                 
                 # Test data size validation
                 test_data = "test_data_" * 1000  # Large test data
@@ -82,8 +78,6 @@ class Command(BaseCommand):
             'SCORM_1_2': {'total': 0, 'with_tracking': 0, 'can_resume': 0},
             'SCORM_2004': {'total': 0, 'with_tracking': 0, 'can_resume': 0},
             'XAPI': {'total': 0, 'with_tracking': 0, 'can_resume': 0},
-            'CMI5': {'total': 0, 'with_tracking': 0, 'can_resume': 0},
-            'AICC': {'total': 0, 'with_tracking': 0, 'can_resume': 0},
         }
         
         for package in packages:
@@ -133,11 +127,6 @@ class Command(BaseCommand):
                 'resume': '/scorm/xapi/resume/{topic_id}/',
                 'preview': '/scorm/xapi/preview/{topic_id}/',
             },
-            'CMI5': {
-                'launch': '/scorm/cmi5/launch/{topic_id}/',
-                'resume': '/scorm/cmi5/resume/{topic_id}/',
-                'preview': '/scorm/cmi5/preview/{topic_id}/',
-            },
         }
         
         for pkg_type, urls in url_patterns.items():
@@ -153,7 +142,6 @@ class Command(BaseCommand):
             ('SCORM_1_2', 4096, '4KB limit'),
             ('SCORM_2004', 64000, '64KB limit'),
             ('XAPI', 1000000, '1MB practical limit'),
-            ('CMI5', 1000000, '1MB practical limit'),
         ]
         
         for pkg_type, max_size, description in test_cases:

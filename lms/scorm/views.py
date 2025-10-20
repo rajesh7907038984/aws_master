@@ -18,7 +18,7 @@ from .models import ELearningPackage, ELearningTracking, SCORMReport
 from courses.models import Topic, Course
 from users.models import CustomUser
 from lrs.scorm2004_sequencing import sequencing_processor
-from lrs.models import SCORM2004Sequencing, SCORM2004ActivityState
+# SCORM2004Sequencing and SCORM2004ActivityState models removed
 
 logger = logging.getLogger(__name__)
 
@@ -125,7 +125,7 @@ def can_access_scorm_content(user, topic):
 
 
 def scorm_launch(request, topic_id):
-    """Launch SCORM, xAPI, cmi5, or Articulate packages with enhanced support.
+    """Launch SCORM and xAPI packages with enhanced support.
     Anonymous users are allowed to view in preview mode (no tracking).
     """
     user = request.user if request.user.is_authenticated else None
@@ -251,146 +251,6 @@ def scorm_launch(request, topic_id):
         messages.error(request, "SCORM package launch file not found.")
         return redirect('courses:topic_view', topic_id=topic_id)
     
-    # Append required CMI5 launch parameters to the AU launch URL
-    if elearning_package.package_type == 'CMI5':
-        # Import modules at the start
-        import urllib.parse
-        import json
-        import hashlib
-        import base64
-        import uuid as uuid_lib
-        
-        try:
-            logger.info(f"CMI5 detected for topic {topic_id}, original launch_url: {launch_url}")
-
-            site_url = getattr(settings, 'SITE_URL', None) or getattr(settings, 'BASE_URL', '')
-
-            # Build actor and registration for both authenticated and preview (guest) users
-            if user:
-                actor = {
-                    'objectType': 'Agent',
-                    'account': {
-                        'homePage': site_url,
-                        'name': str(user.id)
-                    },
-                    'name': user.get_full_name() or user.username
-                }
-                registration_id = f"{user.id}-{topic_id}-{elearning_package.id}"
-            else:
-                # Guest/preview actor based on anonymous session
-                session_key = getattr(request, 'session', None) and request.session.session_key or 'guest'
-                if not session_key and hasattr(request, 'session'):
-                    # Ensure a session exists
-                    request.session.save()
-                    session_key = request.session.session_key or 'guest'
-                actor = {
-                    'objectType': 'Agent',
-                    'account': {
-                        'homePage': site_url,
-                        'name': f"guest-{session_key}"
-                    },
-                    'name': 'Guest'
-                }
-                registration_id = f"guest-{session_key}-{topic_id}-{elearning_package.id}"
-
-            # CRITICAL FIX: Create LMS.LaunchData state BEFORE launching CMI5 content
-            # This is required by CMI5 specification
-            activity_id = elearning_package.cmi5_au_id or f"{site_url}/activities/{topic_id}"
-            
-            # Generate auth token for CMI5 content
-            auth_token = base64.b64encode(f"Basic:{uuid_lib.uuid4()}".encode()).decode()
-            
-            # Create LMS.LaunchData content as per CMI5 spec
-            lms_launch_data = {
-                "contextTemplate": {
-                    "contextActivities": {
-                        "grouping": [
-                            {
-                                "objectType": "Activity",
-                                "id": f"{site_url}/courses/{topic.course.id if hasattr(topic, 'course') and topic.course else 'unknown'}"
-                            }
-                        ]
-                    },
-                    "extensions": {
-                        "https://w3id.org/xapi/cmi5/context/extensions/sessionid": str(uuid_lib.uuid4())
-                    }
-                },
-                "launchMode": "Normal",
-                "launchMethod": "AnyWindow",
-                "moveOn": "Completed",
-                "returnURL": f"{site_url}/scorm/result/{topic_id}/",
-                "entitlementKey": {
-                    "courseStructure": f"{site_url}/courses/{topic.course.id if hasattr(topic, 'course') and topic.course else 'unknown'}",
-                    "alternate": ""
-                }
-            }
-            
-            # Store LMS.LaunchData in xAPI State API
-            from lrs.models import State
-            try:
-                # CRITICAL FIX: Always generate a deterministic UUID from registration string
-                # This ensures the CMI5 content can retrieve LMS.LaunchData using the same registration
-                registration_uuid = None
-                if registration_id:
-                    try:
-                        # Try to parse as UUID first
-                        registration_uuid = uuid_lib.UUID(registration_id)
-                        logger.info(f"CMI5: Using provided UUID registration: {registration_uuid}")
-                    except (ValueError, AttributeError):
-                        # Generate a deterministic UUID from the string using SHA-256 for better distribution
-                        # This ensures consistency: same registration string = same UUID every time
-                        import hashlib
-                        hash_bytes = hashlib.sha256(str(registration_id).encode()).digest()[:16]
-                        registration_uuid = uuid_lib.UUID(bytes=hash_bytes)
-                        logger.info(f"CMI5: Generated deterministic UUID {registration_uuid} from registration '{registration_id}'")
-                else:
-                    # If no registration provided, generate a new UUID
-                    registration_uuid = uuid_lib.uuid4()
-                    logger.info(f"CMI5: Generated new UUID registration: {registration_uuid}")
-                
-                # Ensure site_url ends with trailing slash for consistency
-                normalized_site_url = site_url.rstrip('/') + '/' if site_url else 'https://staging.nexsy.io/'
-                
-                # Update actor with normalized URL
-                if 'account' in actor and 'homePage' in actor['account']:
-                    actor['account']['homePage'] = normalized_site_url
-                
-                state_etag = hashlib.md5(json.dumps(lms_launch_data, sort_keys=True).encode()).hexdigest()
-                
-                # Create or update the LMS.LaunchData state
-                state, created = State.objects.update_or_create(
-                    activity_id=activity_id,
-                    agent=actor,
-                    state_id="LMS.LaunchData",
-                    registration=registration_uuid,
-                    defaults={
-                        'content': lms_launch_data,
-                        'content_type': 'application/json',
-                        'etag': state_etag
-                    }
-                )
-                action = "Created" if created else "Updated"
-                logger.info(f"CMI5: {action} LMS.LaunchData state for activity {activity_id}, agent {json.dumps(actor)}, registration {registration_uuid}")
-            except Exception as state_error:
-                logger.error(f"CMI5: Failed to create LMS.LaunchData state: {state_error}", exc_info=True)
-                # Continue anyway - some CMI5 content might work without it
-
-            # Compact JSON to avoid spaces that could be turned into '+' by form-style encoders
-            compact_actor_json = json.dumps(actor, separators=(',', ':'), ensure_ascii=False)
-            cmi5_params = {
-                'endpoint': f"{site_url}/lrs/xapi/statements/",
-                'fetch': f"{site_url}/lrs/cmi5/fetch/",
-                'actor': compact_actor_json,
-                'registration': registration_id,
-                'activityId': activity_id
-            }
-            separator = '&' if '?' in launch_url else '?'
-            # Use quote_via=quote to encode spaces as %20 (not '+'), preserving JSON correctness
-            launch_url = f"{launch_url}{separator}{urllib.parse.urlencode(cmi5_params, quote_via=urllib.parse.quote)}"
-            logger.info(f"CMI5 Launch URL with parameters for topic {topic_id}: {launch_url}")
-            logger.info(f"CMI5 params: {cmi5_params}")
-        except Exception as e:
-            logger.error(f"CMI5 parameter injection failed for topic {topic_id}: {e}", exc_info=True)
     
     # Prepare data based on package type
     if elearning_package.package_type in ['SCORM_1_2', 'SCORM_2004']:
@@ -410,22 +270,36 @@ def scorm_launch(request, topic_id):
             'exit': tracking.raw_data.get('cmi.core.exit', ''),
         }
     elif elearning_package.package_type == 'XAPI':
-        # xAPI data
-        scorm_data = {
-            'actor': {
-                'mbox': f"mailto:{user.email}" if user else '',
-                'name': (user.get_full_name() or user.username) if user else 'Guest'
-            },
-            'endpoint': elearning_package.xapi_endpoint or '',
-            'actor_data': elearning_package.xapi_actor or {}
+        # Enhanced xAPI data with proper actor structure
+        from django.conf import settings
+        site_url = getattr(settings, 'SITE_URL', 'https://staging.nexsy.io')
+        
+        # Enhanced actor with all required fields
+        actor = {
+            'objectType': 'Agent',
+            'name': (user.get_full_name() or user.username) if user else 'Guest',
+            'account': {
+                'homePage': f"{site_url}/",
+                'name': str(user.id) if user else 'guest'
+            }
         }
-    elif elearning_package.package_type == 'CMI5':
-        # cmi5 data
+        
+        # Add email if available
+        if user and user.email:
+            actor['mbox'] = f"mailto:{user.email}"
+        
+        # Enhanced scorm_data structure
         scorm_data = {
-            'au_id': elearning_package.cmi5_au_id or '',
-            'launch_url': elearning_package.cmi5_launch_url or '',
-            'learner_id': str(user.id) if user else 'guest',
-            'learner_name': (user.get_full_name() or user.username) if user else 'Guest'
+            'actor': actor,
+            'endpoint': elearning_package.xapi_endpoint or f"{site_url}/lrs/xapi/",
+            'version': '1.0.3',
+            'actor_data': elearning_package.xapi_actor or {},
+            'lrs_config': {
+                'endpoint': elearning_package.xapi_endpoint or f"{site_url}/lrs/xapi/",
+                'auth': 'basic' if hasattr(elearning_package, 'xapi_username') and elearning_package.xapi_username else 'none',
+                'username': getattr(elearning_package, 'xapi_username', '') or '',
+                'password': getattr(elearning_package, 'xapi_password', '') or ''
+            }
         }
     else:
         # Default data
@@ -442,14 +316,8 @@ def scorm_launch(request, topic_id):
     browser_info = get_browser_info(request)
     is_mobile = browser_info['is_mobile']
     
-    # CRITICAL FIX: CMI5 packages must always use desktop mode for proper launch
-    # CMI5 requires specific xAPI communication that doesn't work in mobile mode
-    if elearning_package.package_type == 'CMI5':
-        template_name = 'scorm/launch.html'
-        is_mobile = False  # Force desktop mode for CMI5
-        logger.info(f"CMI5 Launch: Forcing desktop mode for topic {topic_id}")
     # Select appropriate template based on device and browser for other formats
-    elif is_mobile:
+    if is_mobile:
         template_name = 'scorm/mobile_launch.html'
     else:
         template_name = 'scorm/launch.html'
@@ -472,7 +340,7 @@ def scorm_launch(request, topic_id):
     return render(request, template_name, context)
 
 def scorm_content(request, topic_id, file_path):
-    """Serve SCORM, xAPI, cmi5, and Articulate content files with enhanced support"""
+    """Serve SCORM and xAPI content files with enhanced support"""
     # ENFORCE ACCESS CONTROL for content files
     user = None
     if request.user.is_authenticated:
@@ -638,7 +506,7 @@ def scorm_content(request, topic_id, file_path):
         response['Access-Control-Allow-Headers'] = 'Content-Type, X-Requested-With, X-CSRFToken, X-SCORM-User-ID, Authorization'
         response['X-Frame-Options'] = 'SAMEORIGIN'
         
-        # CRITICAL FIX: Add permissive CSP for CMI5/SCORM content (required for eval and data URIs)
+        # CRITICAL FIX: Add permissive CSP for SCORM content (required for eval and data URIs)
         if file_path.endswith('.html'):
             response['Content-Security-Policy'] = (
                 "default-src 'self' data: blob: * 'unsafe-inline' 'unsafe-eval'; "
@@ -664,8 +532,6 @@ def scorm_content(request, topic_id, file_path):
             response['X-SCORM-Version'] = '1.2' if elearning_package.package_type == 'SCORM_1_2' else '2004'
         elif elearning_package.package_type == 'XAPI':
             response['X-xAPI-Version'] = '1.0.3'
-        elif elearning_package.package_type == 'CMI5':
-            response['X-cmi5-Version'] = '1.0'
         
         return response
     except Exception as e:
@@ -680,7 +546,7 @@ def scorm_content(request, topic_id, file_path):
 
 @csrf_exempt
 def scorm_api(request, topic_id):
-    """SCORM, xAPI, cmi5 API endpoint with enhanced support for all e-learning standards"""
+    """SCORM and xAPI API endpoint with enhanced support for e-learning standards"""
     if request.method == 'OPTIONS':
         # Handle preflight requests
         response = HttpResponse()
@@ -736,7 +602,7 @@ def scorm_api(request, topic_id):
     )
     
     if request.method == 'GET':
-        # Handle GET requests (LMSGetValue, xAPI Get, cmi5 Get)
+        # Handle GET requests (LMSGetValue, xAPI Get)
         element = request.GET.get('element', '')
         if element:
             value = tracking.raw_data.get(element, '')
@@ -826,13 +692,6 @@ def scorm_api(request, topic_id):
                 elif element == 'cmi.core.exit_assessment_completed':
                     tracking.raw_data['cmi.core.exit_assessment_completed'] = value
                 
-                # cmi5 elements
-                elif element == 'cmi5.exit':
-                    tracking.raw_data['cmi5.exit'] = value
-                elif element == 'cmi5.completion_status':
-                    tracking.raw_data['cmi5.completion_status'] = value
-                elif element == 'cmi5.exit_assessment_completed':
-                    tracking.raw_data['cmi5.exit_assessment_completed'] = value
                 
                 tracking.save()
                 logger.info(f"SCORM API: Set {element} = {value} for user {user.id}")
@@ -869,30 +728,98 @@ def scorm_api(request, topic_id):
                 return JsonResponse({'result': 'true'})
         
         elif elearning_package.package_type == 'XAPI':
-            # xAPI handling
+            # Enhanced xAPI handling with comprehensive validation
             if action == 'SendStatement':
-                # Handle xAPI statement
                 statement_data = request.POST.get('statement', '{}')
+                
                 try:
                     import json
                     statement = json.loads(statement_data)
-                    tracking.raw_data['xapi_statement'] = statement
-                    tracking.save()
-                    return JsonResponse({'result': 'true'})
-                except json.JSONDecodeError:
-                    return JsonResponse({'result': 'false', 'error': 'Invalid JSON'})
+                    
+                    # Enhanced validation
+                    validation_result = _validate_xapi_statement(statement)
+                    if not validation_result['valid']:
+                        logger.error(f"xAPI Statement Validation Failed: {validation_result['errors']}")
+                        return JsonResponse({
+                            'result': 'false', 
+                            'error': 'Invalid xAPI statement',
+                            'details': validation_result['errors']
+                        }, status=400)
+                    
+                    # Enhanced statement processing
+                    from lrs.xapi_generator import xAPIStatementGenerator
+                    generator = xAPIStatementGenerator()
+                    
+                    # Store in LRS with proper error handling
+                    stored_statement = generator.store_statement(statement)
+                    
+                    if stored_statement:
+                        # Update tracking with enhanced data
+                        tracking.raw_data['xapi_statement'] = statement
+                        tracking.raw_data['xapi_statement_id'] = stored_statement.statement_id
+                        tracking.raw_data['xapi_timestamp'] = statement.get('timestamp')
+                        tracking.save()
+                        
+                        logger.info(f"xAPI Statement Stored: {stored_statement.statement_id}")
+                        return JsonResponse({'result': 'true', 'statement_id': stored_statement.statement_id})
+                    else:
+                        logger.error("xAPI Statement Storage Failed")
+                        return JsonResponse({'result': 'false', 'error': 'Failed to store statement'}, status=500)
+                        
+                except json.JSONDecodeError as e:
+                    logger.error(f"xAPI JSON Decode Error: {str(e)}")
+                    return JsonResponse({'result': 'false', 'error': 'Invalid JSON format'}, status=400)
+                except Exception as e:
+                    logger.error(f"xAPI Statement Processing Error: {str(e)}")
+                    return JsonResponse({'result': 'false', 'error': 'Statement processing failed'}, status=500)
         
-        elif elearning_package.package_type == 'CMI5':
-            # cmi5 handling
-            if action == 'SetValue' and element:
-                tracking.raw_data[element] = value
-                tracking.save()
-                return JsonResponse({'result': 'true'})
         
         else:
             return JsonResponse({'result': 'false', 'error': 'Invalid action'})
     
     return JsonResponse({'result': 'false', 'error': 'Invalid request method'})
+
+def _validate_xapi_statement(statement):
+    """Enhanced xAPI statement validation"""
+    errors = []
+    
+    # Required fields validation
+    required_fields = ['id', 'actor', 'verb', 'object', 'timestamp']
+    for field in required_fields:
+        if field not in statement:
+            errors.append(f"Missing required field: {field}")
+    
+    # Actor validation
+    if 'actor' in statement:
+        actor = statement['actor']
+        if actor.get('objectType') != 'Agent':
+            errors.append("Actor must have objectType 'Agent'")
+        
+        # Validate actor identification
+        has_identification = any(key in actor for key in ['mbox', 'mbox_sha1sum', 'openid', 'account'])
+        if not has_identification:
+            errors.append("Actor must have at least one identification method")
+    
+    # Verb validation
+    if 'verb' in statement:
+        verb = statement['verb']
+        if 'id' not in verb:
+            errors.append("Verb must have 'id' field")
+        if 'display' not in verb:
+            errors.append("Verb must have 'display' field")
+    
+    # Object validation
+    if 'object' in statement:
+        obj = statement['object']
+        if 'id' not in obj:
+            errors.append("Object must have 'id' field")
+        if obj.get('objectType') not in ['Activity', 'Agent', 'Group', 'SubStatement']:
+            errors.append("Object must have valid objectType")
+    
+    return {
+        'valid': len(errors) == 0,
+        'errors': errors
+    }
 
 @csrf_exempt
 @require_http_methods(["POST"])
@@ -977,9 +904,6 @@ def scorm_resume(request, topic_id):
             elif elearning_package.package_type == 'XAPI':
                 tracking.raw_data['xapi.resume'] = True
                 logger.info(f"xAPI Resume: Setting resume mode for user {user.username} on topic {topic_id}")
-            elif elearning_package.package_type == 'CMI5':
-                tracking.raw_data['cmi5.resume'] = True
-                logger.info(f"cmi5 Resume: Setting resume mode for user {user.username} on topic {topic_id}")
             
             tracking.save()
             
@@ -1032,50 +956,7 @@ def xapi_resume(request, topic_id):
     
     return redirect('scorm:xapi_launch', topic_id=topic_id)
 
-# cmi5 Launch and Content
-def cmi5_launch(request, topic_id):
-    """Launch cmi5 content with enhanced logging for external URLs"""
-    try:
-        topic = get_object_or_404(Topic, id=topic_id)
-        elearning_package = ELearningPackage.objects.get(topic=topic)
-        if elearning_package.package_type == 'CMI5' and elearning_package.cmi5_launch_url:
-            launch = elearning_package.cmi5_launch_url
-            if isinstance(launch, str) and (launch.startswith('http://') or launch.startswith('https://')):
-                logger.info(f"CMI5 Launch: External launch URL detected for topic {topic_id}: {launch}")
-    except Exception as e:
-        logger.warning(f"CMI5 Launch: Unable to pre-check external URL for topic {topic_id}: {e}")
-    return scorm_launch(request, topic_id)
 
-def cmi5_resume(request, topic_id):
-    """ENHANCED: Resume cmi5 content with proper AU state handling"""
-    user = request.user
-    topic = get_object_or_404(Topic, id=topic_id)
-    
-    try:
-        elearning_package = ELearningPackage.objects.get(topic=topic)
-        tracking = ELearningTracking.objects.get(user=user, elearning_package=elearning_package)
-        
-        # Get cmi5-specific bookmark data
-        bookmark_data = tracking.get_bookmark_data()
-        
-        if bookmark_data['can_resume']:
-            # Set cmi5 resume mode
-            tracking.raw_data['cmi5.resume'] = True
-            tracking.save()
-            logger.info(f"cmi5 Resume: Setting resume mode for user {user.username} on topic {topic_id}")
-            
-            # Show resume message
-            if bookmark_data['lesson_location']:
-                messages.info(request, f"Resuming cmi5 content from: {bookmark_data['lesson_location']}")
-            else:
-                messages.info(request, "Resuming cmi5 content from your last position")
-        else:
-            messages.info(request, "Starting cmi5 content from the beginning")
-        
-    except (ELearningPackage.DoesNotExist, ELearningTracking.DoesNotExist):
-        messages.error(request, "No cmi5 tracking data found for this content.")
-    
-    return redirect('scorm:cmi5_launch', topic_id=topic_id)
 
 # Preview functions for instructors/admins
 @login_required
@@ -1139,34 +1020,6 @@ def xapi_preview(request, topic_id):
     return redirect('scorm:xapi_launch', topic_id=topic_id)
 
 @login_required
-def cmi5_preview(request, topic_id):
-    """ENHANCED: Preview cmi5 content for instructors (bypasses tracking)"""
-    user = request.user
-    topic = get_object_or_404(Topic, id=topic_id)
-    
-    # Check if user has preview permissions
-    user_role = getattr(user, 'role', 'learner')
-    if not (user_role in ['instructor', 'admin', 'superadmin', 'globaladmin']):
-        messages.error(request, "You don't have permission to preview this content.")
-        return redirect('courses:topic_view', topic_id=topic_id)
-    
-    try:
-        elearning_package = ELearningPackage.objects.get(topic=topic)
-        
-        # Set preview mode in session
-        request.session['scorm_preview_mode'] = True
-        request.session['scorm_preview_topic'] = topic_id
-        request.session.save()  # Ensure session is saved
-        
-        logger.info(f"cmi5 Preview: Set preview mode for user {user.username} on topic {topic_id}")
-        messages.info(request, "You are now in preview mode. Your progress will not be saved.")
-        # Note: Preview mode banner is displayed on the launch page
-        
-    except ELearningPackage.DoesNotExist:
-        messages.error(request, "No e-learning package found for this content.")
-        return redirect('courses:topic_view', topic_id=topic_id)
-    
-    return redirect('scorm:cmi5_launch', topic_id=topic_id)
 
 # Additional SCORM functions
 @login_required

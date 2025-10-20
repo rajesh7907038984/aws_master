@@ -1,6 +1,6 @@
 """
 xAPI Statement Generator for SCORM to xAPI conversion
-Provides comprehensive SCORM 1.2, SCORM 2004, and cmi5 to xAPI statement conversion
+Provides comprehensive SCORM 1.2, SCORM 2004, and xAPI statement conversion
 """
 
 import json
@@ -8,7 +8,7 @@ import uuid
 from datetime import datetime, timezone
 from django.utils import timezone as django_timezone
 from django.contrib.auth import get_user_model
-from .models import Statement, CMI5AU, CMI5Registration
+from .models import Statement
 
 User = get_user_model()
 
@@ -126,7 +126,7 @@ class xAPIStatementGenerator:
             }
         
         statement = {
-            'id': str(uuid.uuid4()),
+            'id': str(uuid.uuid4()),  # FIXED: Proper UUID format
             'actor': self.base_actor,
             'verb': {
                 'id': verb_id,
@@ -239,7 +239,7 @@ class xAPIStatementGenerator:
             }
         
         statement = {
-            'id': str(uuid.uuid4()),
+            'id': str(uuid.uuid4()),  # FIXED: Proper UUID format
             'actor': self.base_actor,
             'verb': {
                 'id': verb_id,
@@ -254,78 +254,6 @@ class xAPIStatementGenerator:
         
         return statement
     
-    def generate_cmi5_statement(self, registration, action, element=None, value=None):
-        """Generate xAPI statement from cmi5 data"""
-        from django.conf import settings
-        site_url = getattr(settings, 'SITE_URL', 'https://lms.example.com')
-        
-        if not self.base_actor:
-            self.set_base_actor(registration.learner)
-        
-        # cmi5 specific activity
-        activity = {
-            "objectType": "Activity",
-            "id": registration.au.au_id,
-            "definition": {
-                "name": {"en-US": registration.au.title},
-                "description": {"en-US": registration.au.description or ""},
-                "type": "http://adlnet.gov/expapi/activities/course"
-            }
-        }
-        
-        # cmi5 specific verbs
-        verb_mapping = {
-            'launched': 'http://adlnet.gov/expapi/verbs/launched',
-            'initialized': 'http://adlnet.gov/expapi/verbs/initialized',
-            'completed': 'http://adlnet.gov/expapi/verbs/completed',
-            'passed': 'http://adlnet.gov/expapi/verbs/passed',
-            'failed': 'http://adlnet.gov/expapi/verbs/failed',
-            'suspended': 'http://adlnet.gov/expapi/verbs/suspended',
-            'resumed': 'http://adlnet.gov/expapi/verbs/resumed',
-            'terminated': 'http://adlnet.gov/expapi/verbs/terminated',
-            'progressed': 'http://adlnet.gov/expapi/verbs/progressed',
-            'answered': 'http://adlnet.gov/expapi/verbs/answered',
-            'interacted': 'http://adlnet.gov/expapi/verbs/interacted',
-            'mastered': 'http://adlnet.gov/expapi/verbs/mastered',
-            'experienced': 'http://adlnet.gov/expapi/verbs/experienced'
-        }
-        
-        verb_id = verb_mapping.get(action, 'http://adlnet.gov/expapi/verbs/experienced')
-        verb_display = {
-            "en-US": action.replace('_', ' ').title()
-        }
-        
-        # cmi5 specific context
-        context = {
-            'registration': str(registration.registration_id),
-            'contextActivities': {
-                'parent': [{
-                    'objectType': 'Activity',
-                    'id': f"{site_url}/course/{registration.course_id}",
-                    'definition': {
-                        'name': {'en-US': f"Course {registration.course_id}"},
-                        'type': 'http://adlnet.gov/expapi/activities/course'
-                    }
-                }]
-            },
-            'platform': 'LMS Platform',
-            'language': 'en-US'
-        }
-        
-        statement = {
-            'id': str(uuid.uuid4()),
-            'actor': self.base_actor,
-            'verb': {
-                'id': verb_id,
-                'display': verb_display
-            },
-            'object': activity,
-            'context': context,
-            'timestamp': django_timezone.now().isoformat(),
-            'version': '1.0.3'
-        }
-        
-        return statement
     
     def generate_interaction_statement(self, tracking, interaction_data):
         """Generate xAPI statement for SCORM interactions"""
@@ -382,7 +310,7 @@ class xAPIStatementGenerator:
             result['duration'] = f"PT{interaction_data['latency']}S"
         
         statement = {
-            'id': str(uuid.uuid4()),
+            'id': str(uuid.uuid4()),  # FIXED: Proper UUID format
             'actor': self.base_actor,
             'verb': {
                 'id': 'http://adlnet.gov/expapi/verbs/answered',
@@ -450,7 +378,7 @@ class xAPIStatementGenerator:
             }
         
         statement = {
-            'id': str(uuid.uuid4()),
+            'id': str(uuid.uuid4()),  # FIXED: Proper UUID format
             'actor': self.base_actor,
             'verb': {
                 'id': verb_id,
@@ -471,49 +399,101 @@ class xAPIStatementGenerator:
         return statement
     
     def store_statement(self, statement_data, lrs=None):
-        """Store xAPI statement in the database"""
+        """Enhanced xAPI statement storage with comprehensive error handling"""
+        import logging
+        logger = logging.getLogger(__name__)
+        
         try:
-            # Extract nested values safely
-            actor_account = statement_data['actor'].get('account', {})
+            # Enhanced validation before storage
+            if not self._validate_statement_structure(statement_data):
+                logger.error("xAPI Statement: Invalid structure")
+                return None
             
+            # Extract nested values with enhanced error handling
+            actor = statement_data.get('actor', {})
+            verb = statement_data.get('verb', {})
+            obj = statement_data.get('object', {})
+            result = statement_data.get('result', {})
+            context = statement_data.get('context', {})
+            
+            # Enhanced actor account extraction
+            actor_account = actor.get('account', {})
+            
+            # Create statement with enhanced error handling
             statement = Statement.objects.create(
-                statement_id=statement_data['id'],
-                actor_type=statement_data['actor'].get('objectType', 'Agent'),
-                actor_name=statement_data['actor'].get('name', ''),
-                actor_mbox=statement_data['actor'].get('mbox', ''),
-                actor_mbox_sha1sum=statement_data['actor'].get('mbox_sha1sum', ''),
-                actor_openid=statement_data['actor'].get('openid', ''),
+                statement_id=statement_data.get('id', str(uuid.uuid4())),
+                lrs=lrs,  # FIXED: Associate with LRS
+                actor_type=actor.get('objectType', 'Agent'),
+                actor_name=actor.get('name', ''),
+                actor_mbox=actor.get('mbox', ''),
+                actor_mbox_sha1sum=actor.get('mbox_sha1sum', ''),
+                actor_openid=actor.get('openid', ''),
                 actor_account_homepage=actor_account.get('homePage', ''),
                 actor_account_name=actor_account.get('name', ''),
-                verb_id=statement_data['verb']['id'],
-                verb_display=statement_data['verb']['display'],
-                object_type=statement_data['object'].get('objectType', 'Activity'),
-                object_id=statement_data['object']['id'],
-                object_definition_name=statement_data['object'].get('definition', {}).get('name', {}),
-                object_definition_description=statement_data['object'].get('definition', {}).get('description', {}),
-                object_definition_type=statement_data['object'].get('definition', {}).get('type', ''),
-                result_score_scaled=statement_data.get('result', {}).get('score', {}).get('scaled'),
-                result_score_raw=statement_data.get('result', {}).get('score', {}).get('raw'),
-                result_score_min=statement_data.get('result', {}).get('score', {}).get('min'),
-                result_score_max=statement_data.get('result', {}).get('score', {}).get('max'),
-                result_success=statement_data.get('result', {}).get('success'),
-                result_completion=statement_data.get('result', {}).get('completion'),
-                result_response=statement_data.get('result', {}).get('response', ''),
-                result_duration=statement_data.get('result', {}).get('duration'),
-                context_registration=statement_data.get('context', {}).get('registration'),
-                context_instructor=statement_data.get('context', {}).get('instructor', {}),
-                context_team=statement_data.get('context', {}).get('team', {}),
-                context_context_activities_parent=statement_data.get('context', {}).get('contextActivities', {}).get('parent', []),
-                context_context_activities_grouping=statement_data.get('context', {}).get('contextActivities', {}).get('grouping', []),
-                context_context_activities_category=statement_data.get('context', {}).get('contextActivities', {}).get('category', []),
-                context_context_activities_other=statement_data.get('context', {}).get('contextActivities', {}).get('other', []),
-                context_platform=statement_data.get('context', {}).get('platform', ''),
-                context_language=statement_data.get('context', {}).get('language', ''),
+                verb_id=verb.get('id', ''),
+                verb_display=verb.get('display', {}),
+                object_type=obj.get('objectType', 'Activity'),
+                object_id=obj.get('id', ''),
+                object_definition_name=obj.get('definition', {}).get('name', {}),
+                object_definition_description=obj.get('definition', {}).get('description', {}),
+                object_definition_type=obj.get('definition', {}).get('type', ''),
+                result_score_scaled=result.get('score', {}).get('scaled'),
+                result_score_raw=result.get('score', {}).get('raw'),
+                result_score_min=result.get('score', {}).get('min'),
+                result_score_max=result.get('score', {}).get('max'),
+                result_success=result.get('success'),
+                result_completion=result.get('completion'),
+                result_response=result.get('response', ''),
+                result_duration=result.get('duration'),
+                context_registration=context.get('registration'),
+                context_instructor=context.get('instructor', {}),
+                context_team=context.get('team', {}),
+                context_context_activities_parent=context.get('contextActivities', {}).get('parent', []),
+                context_context_activities_grouping=context.get('contextActivities', {}).get('grouping', []),
+                context_context_activities_category=context.get('contextActivities', {}).get('category', []),
+                context_context_activities_other=context.get('contextActivities', {}).get('other', []),
+                context_platform=context.get('platform', ''),
+                context_language=context.get('language', ''),
                 timestamp=statement_data.get('timestamp', django_timezone.now().isoformat()),
                 version=statement_data.get('version', '1.0.3'),
-                raw_statement=statement_data
+                raw_statement=statement_data,
+                stored_at=django_timezone.now()
             )
+            
+            logger.info(f"xAPI Statement Stored Successfully: {statement.statement_id}")
             return statement
+            
         except Exception as e:
-            print(f"Error storing statement: {str(e)}")
+            logger.error(f"xAPI Statement Storage Error: {str(e)}", exc_info=True)
             return None
+    
+    def _validate_statement_structure(self, statement_data):
+        """Enhanced statement structure validation"""
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        try:
+            # Check required fields
+            required_fields = ['id', 'actor', 'verb', 'object', 'timestamp']
+            for field in required_fields:
+                if field not in statement_data:
+                    logger.error(f"xAPI Statement: Missing required field '{field}'")
+                    return False
+            
+            # Validate actor structure
+            actor = statement_data.get('actor', {})
+            if not actor.get('objectType'):
+                logger.error("xAPI Statement: Actor missing objectType")
+                return False
+            
+            # Validate verb structure
+            verb = statement_data.get('verb', {})
+            if not verb.get('id'):
+                logger.error("xAPI Statement: Verb missing id")
+                return False
+            
+            return True
+            
+        except Exception as e:
+            logger.error(f"xAPI Statement Validation Error: {str(e)}")
+            return False

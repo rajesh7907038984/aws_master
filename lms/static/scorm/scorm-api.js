@@ -70,7 +70,7 @@
         LMSInitialize: function(param) {
             console.log('SCORM API: LMSInitialize called with:', param);
             
-            // Gracefully handle double initialization (common with Articulate content)
+            // Gracefully handle double initialization (common with some SCORM content)
             if (this.initialized) {
                 console.log('SCORM API: Already initialized, returning success');
                 return "true";
@@ -135,7 +135,7 @@
             return "No Error";
         },
         
-        // Additional SCORM API functions that Articulate content expects
+        // Additional SCORM API functions for enhanced compatibility
         CommitData: function() {
             console.log('SCORM API: CommitData called');
             this.sendDataToServer();
@@ -267,6 +267,12 @@
                 return;
             }
             
+            // Check if user is authenticated before making API calls
+            if (!this.user_id) {
+                console.warn('SCORM API: User not authenticated, skipping API call');
+                return;
+            }
+            
             // Browser-compatible data sending
             if (this.browserInfo.supportsFetch && !this.browserInfo.isIE) {
                 this.sendDataWithFetch();
@@ -294,7 +300,19 @@
                     method: 'POST',
                     body: formData,
                     credentials: 'same-origin'
-                }).then(response => response.json())
+                }).then(response => {
+                    // Check if response is JSON
+                    const contentType = response.headers.get('content-type');
+                    if (contentType && contentType.includes('application/json')) {
+                        return response.json();
+                    } else {
+                        // If not JSON, log the response text for debugging
+                        return response.text().then(text => {
+                            console.warn('SCORM API: Received non-JSON response:', text.substring(0, 200));
+                            return { result: 'false', error: 'Invalid response format' };
+                        });
+                    }
+                })
                 .then(data => {
                     console.log('SCORM API: Sent', element, '=', value);
                 }).catch(error => {
@@ -320,10 +338,19 @@
                     if (xhr.readyState === 4) {
                         if (xhr.status === 200) {
                             try {
-                                const data = JSON.parse(xhr.responseText);
-                                console.log('SCORM API: Sent', element, '=', value);
+                                // Check if response is JSON
+                                const contentType = xhr.getResponseHeader('content-type');
+                                if (contentType && contentType.includes('application/json')) {
+                                    const data = JSON.parse(xhr.responseText);
+                                    console.log('SCORM API: Sent', element, '=', value);
+                                } else {
+                                    // If not JSON, log the response for debugging
+                                    console.warn('SCORM API: Received non-JSON response:', xhr.responseText.substring(0, 200));
+                                    console.log('SCORM API: Sent', element, '(non-JSON response)');
+                                }
                             } catch (e) {
-                                console.log('SCORM API: Sent', element, '(non-JSON response)');
+                                console.warn('SCORM API: Error parsing response:', e.message);
+                                console.log('SCORM API: Sent', element, '(parse error)');
                             }
                         } else {
                             console.error('SCORM API: Error sending', element, 'status:', xhr.status);

@@ -17,9 +17,7 @@ from django.conf import settings
 import logging
 
 from .models import (
-    LRS, Statement, ActivityProfile, AgentProfile, State,
-    CMI5AU, CMI5Registration, CMI5Session,
-    SCORM2004Sequencing, SCORM2004ActivityState
+    LRS, Statement, ActivityProfile, AgentProfile, State
 )
 from .scorm2004_sequencing import sequencing_processor
 from users.models import CustomUser
@@ -31,27 +29,33 @@ class LRSBaseView(View):
     """Base view for LRS operations with authentication"""
     
     def authenticate(self, request):
-        """Authenticate LRS request using Basic Auth or API Key"""
+        """Enhanced authentication for xAPI"""
         auth_header = request.META.get('HTTP_AUTHORIZATION', '')
+        content_type = request.META.get('CONTENT_TYPE', '')
+        
+        # Check for xAPI-specific headers
+        xapi_version = request.META.get('HTTP_X_EXPERIENCE_API_VERSION', '1.0.3')
         
         if auth_header.startswith('Basic '):
             return self._authenticate_basic(auth_header)
         elif 'X-API-Key' in request.headers:
             return self._authenticate_api_key(request.headers['X-API-Key'])
         else:
-            # CRITICAL FIX: Allow unauthenticated access for CMI5 content
-            # CMI5 spec requires that AUs can submit statements without authentication
-            logger.info("LRS Authentication: No auth header provided, allowing CMI5 access")
-            # Return True with a default LRS for CMI5 content
-            try:
-                lrs = LRS.objects.first()
-                if lrs:
-                    return True, lrs
-                else:
-                    return False, "No LRS configured"
-            except Exception as e:
-                logger.error(f"LRS Authentication: Error getting default LRS: {str(e)}")
-                return False, f"LRS error: {str(e)}"
+            # xAPI requires authentication
+                logger.warning("LRS Authentication: xAPI requires authentication")
+                return False, "Authentication required for xAPI"
+    
+    def _get_default_lrs(self):
+        """Get default LRS with proper error handling"""
+        try:
+            lrs = LRS.objects.filter(is_active=True).first()
+            if lrs:
+                return True, lrs
+            else:
+                return False, "No active LRS configured"
+        except Exception as e:
+            logger.error(f"LRS Authentication: Error getting default LRS: {str(e)}")
+            return False, f"LRS error: {str(e)}"
     
     def _authenticate_basic(self, auth_header):
         """Authenticate using Basic Auth"""
@@ -162,24 +166,15 @@ class StatementsView(LRSBaseView):
     
     def post(self, request):
         """POST /xapi/statements - Store statements"""
-        # CRITICAL FIX: Allow unauthenticated access for CMI5 content statement submission
-        # CMI5 spec requires that AUs can submit statements without authentication
+        # xAPI statement submission with authentication
         logger.info(f"xAPI Statements POST: Received request to {request.path}")
         auth_success, auth_result = self.authenticate(request)
         logger.info(f"xAPI Statements POST: Authentication result - success: {auth_success}, result: {auth_result}")
         
         if not auth_success:
-            # For CMI5 content, create a default LRS if authentication fails
-            logger.info("xAPI Statements POST: Authentication failed, trying default LRS for CMI5")
-            try:
-                lrs = LRS.objects.first()
-                if not lrs:
-                    logger.error("xAPI Statements: No LRS configured for CMI5 request")
-                    return JsonResponse({'error': 'No LRS configured'}, status=500)
-                logger.info(f"xAPI Statements: Using default LRS for unauthenticated CMI5 request: {lrs.name}")
-            except Exception as e:
-                logger.error(f"xAPI Statements: LRS error for CMI5 request: {str(e)}")
-                return JsonResponse({'error': f'LRS error: {str(e)}'}, status=500)
+            # Authentication required for xAPI
+            logger.warning("xAPI Statements POST: Authentication required")
+            return JsonResponse({'error': 'Authentication required'}, status=401)
         else:
             lrs = auth_result
             logger.info(f"xAPI Statements: Using authenticated LRS: {lrs.name}")
@@ -584,7 +579,7 @@ class StateView(LRSBaseView):
     """xAPI State API endpoint"""
     
     def options(self, request, activity_id):
-        """Handle CORS preflight for CMI5 content"""
+        """Handle CORS preflight for xAPI content"""
         response = HttpResponse()
         response['Access-Control-Allow-Origin'] = '*'
         response['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
@@ -595,15 +590,13 @@ class StateView(LRSBaseView):
     
     def get(self, request, activity_id):
         """GET /xapi/activities/state - Get state"""
-        # CRITICAL FIX: Allow unauthenticated access for CMI5 content to retrieve LMS.LaunchData
-        # CMI5 spec requires that the AU can fetch LMS.LaunchData before authentication
+        # xAPI state retrieval with authentication
         state_id = request.GET.get('stateId')
         
-        # For LMS.LaunchData, allow without authentication
-        if state_id != 'LMS.LaunchData':
-            auth_success, auth_result = self.authenticate(request)
-            if not auth_success:
-                return JsonResponse({'error': auth_result}, status=401)
+        # Authentication required for all state operations
+        auth_success, auth_result = self.authenticate(request)
+        if not auth_success:
+            return JsonResponse({'error': auth_result}, status=401)
         
         agent = request.GET.get('agent')
         registration = request.GET.get('registration')
@@ -634,7 +627,7 @@ class StateView(LRSBaseView):
                     logger.debug(f"xAPI State: Using provided UUID registration: {registration_uuid}")
                 except (ValueError, AttributeError):
                     # CRITICAL FIX: Generate deterministic UUID from string (same as in scorm launch)
-                    # This ensures CMI5 content can retrieve LMS.LaunchData with string registrations
+                    # Handle registration parameter
                     try:
                         import hashlib
                         import uuid as uuid_lib
@@ -664,7 +657,7 @@ class StateView(LRSBaseView):
                 response['Content-Type'] = state.content_type
                 response['ETag'] = state.etag
                 response['Last-Modified'] = state.updated_at.strftime('%a, %d %b %Y %H:%M:%S GMT')
-                # Add CORS headers for CMI5 content
+                # Add CORS headers for xAPI content
                 response['Access-Control-Allow-Origin'] = '*'
                 response['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
                 response['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-Experience-API-Version'
@@ -737,7 +730,7 @@ class StateView(LRSBaseView):
             path = parsed.path.rstrip('/') or '/'
             return f"{scheme}://{netloc}{path}"
         
-        # Handle account-based agents (most common in CMI5)
+        # Handle account-based agents
         if 'account' in agent1 and 'account' in agent2:
             acc1_home = normalize_url(agent1['account'].get('homePage', ''))
             acc2_home = normalize_url(agent2['account'].get('homePage', ''))
@@ -761,14 +754,13 @@ class StateView(LRSBaseView):
         """POST /xapi/activities/state - Store state"""
         import hashlib  # Import at the top of the method for etag generation
         
-        # CRITICAL FIX: Allow unauthenticated access for CMI5 content state storage
+        # xAPI state storage with authentication
         state_id = request.GET.get('stateId')
         
-        # For LMS.LaunchData and other CMI5 states, allow without authentication
-        if state_id not in ['LMS.LaunchData']:
-            auth_success, auth_result = self.authenticate(request)
-            if not auth_success:
-                return JsonResponse({'error': auth_result}, status=401)
+        # Authentication required for all state operations
+        auth_success, auth_result = self.authenticate(request)
+        if not auth_success:
+            return JsonResponse({'error': auth_result}, status=401)
         
         agent = request.GET.get('agent')
         registration = request.GET.get('registration')
@@ -978,150 +970,6 @@ class StateRootView(StateView):
             return JsonResponse({'error': 'activityId parameter required'}, status=400)
         return super().delete(request, activity_id)
 
-# CMI5 specific views
-@method_decorator(csrf_exempt, name='dispatch')
-class CMI5LaunchView(LRSBaseView):
-    """cmi5 launch endpoint"""
-    
-    def get(self, request):
-        """Launch cmi5 AU"""
-        launch_token = request.GET.get('token')
-        if not launch_token:
-            return JsonResponse({'error': 'Launch token required'}, status=400)
-        
-        try:
-            registration = CMI5Registration.objects.get(
-                launch_token=launch_token,
-                is_active=True
-            )
-            
-            # Create session
-            session = CMI5Session.objects.create(
-                registration=registration,
-                session_id=str(uuid.uuid4()),
-                launch_time=timezone.now()
-            )
-            
-            # Build launch URL with parameters
-            launch_url = registration.launch_url
-            params = {
-                'endpoint': f"{request.scheme}://{request.get_host()}/lrs/xapi/",
-                'fetch': f"{request.scheme}://{request.get_host()}/lrs/xapi/activities/state",
-                'actor': json.dumps({
-                    'account': {
-                        'homePage': f"{request.scheme}://{request.get_host()}/",
-                        'name': str(registration.learner.id)
-                    }
-                }),
-                'registration': str(registration.registration_id),
-                'activityId': registration.au.au_id,
-                'sessionId': session.session_id
-            }
-            
-            # Add any additional launch parameters
-            params.update(registration.launch_parameters)
-            
-            return JsonResponse({
-                'launch_url': launch_url,
-                'parameters': params
-            })
-            
-        except CMI5Registration.DoesNotExist:
-            return JsonResponse({'error': 'Invalid launch token'}, status=404)
-        except Exception as e:
-            logger.error(f"Error launching cmi5 AU: {str(e)}")
-            return JsonResponse({'error': str(e)}, status=500)
-
-
-@method_decorator(csrf_exempt, name='dispatch')
-class CMI5FetchView(View):
-    """Minimal cmi5 fetch endpoint to satisfy AU POST fetch requirement.
-    Many AUs POST to the fetch URL expecting 200/204 so they can proceed using
-    the launch query parameters (endpoint, actor, registration, activityId).
-    We intentionally allow without auth and return 204 No Content.
-    """
-
-    # Explicitly allow these methods for some strict deployments
-    http_method_names = ['get', 'post', 'options', 'head']
-
-    def options(self, request):
-        response = HttpResponse()
-        response['Access-Control-Allow-Origin'] = '*'
-        response['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS, HEAD'
-        response['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-Experience-API-Version'
-        response['Access-Control-Max-Age'] = '86400'
-        return response
-
-    def post(self, request):
-        """Handle POST to fetch endpoint - return LMS.LaunchData with auth-token"""
-        # CMI5 spec requires fetch endpoint to return auth-token for xAPI authentication
-        import uuid
-        import base64
-        
-        # Get the default LRS for generating auth token
-        try:
-            lrs = LRS.objects.first()
-            if not lrs:
-                return JsonResponse({'error': 'No LRS configured'}, status=500)
-            
-            # Create auth token using LRS credentials
-            credentials = f"{lrs.username}:{lrs.password}"
-            auth_token = base64.b64encode(credentials.encode()).decode()
-            
-            # Return cmi5 LMS.LaunchData format
-            launch_data = {
-                "auth-token": auth_token,
-                "contextTemplate": {
-                    "contextActivities": {
-                        "grouping": []
-                    },
-                    "extensions": {}
-                }
-            }
-            
-            response = JsonResponse(launch_data)
-            response['Access-Control-Allow-Origin'] = '*'
-            response['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS, HEAD'
-            response['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-Experience-API-Version'
-            return response
-            
-        except Exception as e:
-            logger.error(f"CMI5 Fetch: Error generating auth token: {str(e)}")
-            return JsonResponse({'error': f'Auth token generation failed: {str(e)}'}, status=500)
-
-    def get(self, request):
-        """Handle GET to fetch endpoint - return LMS.LaunchData with auth-token"""
-        # Some AUs may invoke fetch via GET; return same format as POST
-        import uuid
-        import base64
-        
-        # Create a simple auth token
-        auth_token = base64.b64encode(f"Basic:{uuid.uuid4()}".encode()).decode()
-        
-        # Return cmi5 LMS.LaunchData format
-        launch_data = {
-            "auth-token": auth_token,
-            "contextTemplate": {
-                "contextActivities": {
-                    "grouping": []
-                },
-                "extensions": {}
-            }
-        }
-        
-        response = JsonResponse(launch_data)
-        response['Access-Control-Allow-Origin'] = '*'
-        response['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS, HEAD'
-        response['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-Experience-API-Version'
-        return response
-
-    def head(self, request):
-        # Respond to HEAD for certain AU preflight behaviours
-        response = HttpResponse(status=200)
-        response['Access-Control-Allow-Origin'] = '*'
-        response['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS, HEAD'
-        response['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-Experience-API-Version'
-        return response
 
 
 # SCORM 2004 specific views

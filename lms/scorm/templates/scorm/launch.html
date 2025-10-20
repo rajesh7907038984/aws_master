@@ -719,7 +719,7 @@ var API = {
     LMSInitialize: function(param) {
         console.log('SCORM API: LMSInitialize called with:', param);
         
-        // Gracefully handle double initialization (common with Articulate content)
+        // Gracefully handle double initialization (common with some SCORM content)
         if (this.initialized) {
             console.log('SCORM API: Already initialized, returning success');
             this.clearError(); // Clear any previous errors
@@ -981,7 +981,7 @@ var API = {
         return this.errorMessages[errorCode.toString()] || "Unknown Error";
     },
     
-    // Additional SCORM API functions that Articulate content expects
+    // Additional SCORM API functions for enhanced compatibility
     CommitData: function() {
         console.log('SCORM API: CommitData called');
         this.sendDataToServer();
@@ -1784,47 +1784,47 @@ API.initializeAPIDiscovery();
 // Make API available globally - ENHANCED
 window.API = API;
 
-// CRITICAL FOR CMI5: Create SCORM 2004 API_1484_11 object
-// CMI5 uses SCORM 2004 API with Initialize/Terminate instead of LMSInitialize/LMSFinish
+// SCORM 2004 API_1484_11 object for SCORM 2004 packages
+// SCORM 2004 uses Initialize/Terminate instead of LMSInitialize/LMSFinish
 window.API_1484_11 = {
     // Map SCORM 2004 methods to SCORM 1.2 methods
     Initialize: function(param) {
-        console.log('CMI5/SCORM 2004: Initialize called');
+        console.log('SCORM 2004: Initialize called');
         return API.LMSInitialize(param);
     },
     
     Terminate: function(param) {
-        console.log('CMI5/SCORM 2004: Terminate called');
+        console.log('SCORM 2004: Terminate called');
         return API.LMSFinish(param);
     },
     
     GetValue: function(element) {
-        console.log('CMI5/SCORM 2004: GetValue called for:', element);
+        console.log('SCORM 2004: GetValue called for:', element);
         return API.LMSGetValue(element);
     },
     
     SetValue: function(element, value) {
-        console.log('CMI5/SCORM 2004: SetValue called:', element, '=', value);
+        console.log('SCORM 2004: SetValue called:', element, '=', value);
         return API.LMSSetValue(element, value);
     },
     
     Commit: function(param) {
-        console.log('CMI5/SCORM 2004: Commit called');
+        console.log('SCORM 2004: Commit called');
         return API.LMSCommit(param);
     },
     
     GetLastError: function() {
-        console.log('CMI5/SCORM 2004: GetLastError called');
+        console.log('SCORM 2004: GetLastError called');
         return API.LMSGetLastError();
     },
     
     GetErrorString: function(errorCode) {
-        console.log('CMI5/SCORM 2004: GetErrorString called for:', errorCode);
+        console.log('SCORM 2004: GetErrorString called for:', errorCode);
         return API.LMSGetErrorString(errorCode);
     },
     
     GetDiagnostic: function(errorCode) {
-        console.log('CMI5/SCORM 2004: GetDiagnostic called for:', errorCode);
+        console.log('SCORM 2004: GetDiagnostic called for:', errorCode);
         return API.LMSGetDiagnostic(errorCode);
     },
     
@@ -1832,7 +1832,7 @@ window.API_1484_11 = {
     _mainAPI: API
 };
 
-console.log('CMI5/SCORM 2004: API_1484_11 initialized and available globally');
+console.log('SCORM 2004: API_1484_11 initialized and available globally');
 
 // RESPECT SCORM STANDARDS: Make ConcedeControl directly accessible on window
 window.ConcedeControl = function() {
@@ -1933,7 +1933,7 @@ console.log('SCORM API: Initialized and available globally (API + API_1484_11)')
                 iframe.contentWindow.parent = iframe.contentWindow.parent || iframe.contentWindow;
                 iframe.contentWindow.top = iframe.contentWindow.top || iframe.contentWindow;
                 
-                // Set API in all possible locations (including SCORM 2004/CMI5 API)
+                // Set API in all possible locations (including SCORM 2004 API)
                 iframe.contentWindow.parent.API = API;
                 iframe.contentWindow.parent.API_1484_11 = window.API_1484_11;
                 iframe.contentWindow.top.API = API;
@@ -1948,7 +1948,7 @@ console.log('SCORM API: Initialized and available globally (API + API_1484_11)')
                     iframe.contentWindow.top.API = API;
                 }
                 
-                // Set up additional API references for Articulate content
+                // Set up additional API references for enhanced compatibility
                 if (iframe.contentWindow.parent && iframe.contentWindow.parent.parent) {
                     iframe.contentWindow.parent.parent.API = API;
                 }
@@ -2296,7 +2296,7 @@ window.onload = function () {
                         api: API
                     }, '*');
                     
-                    // Re-inject API periodically (including SCORM 2004/CMI5 API)
+                    // Re-inject API periodically (including SCORM 2004 API)
                     iframe.contentWindow.API = API;
                     iframe.contentWindow.API_1484_11 = window.API_1484_11;
                     iframe.contentWindow.parent.API = API;
@@ -2515,7 +2515,7 @@ window.onload = function () {
         if (!iframe || !iframe.contentWindow) return;
         
         try {
-            // Inject API into iframe's contentWindow (including SCORM 2004/CMI5 API)
+            // Inject API into iframe's contentWindow (including SCORM 2004 API)
             iframe.contentWindow.API = window.API;
             iframe.contentWindow.API_1484_11 = window.API_1484_11;
             iframe.contentWindow.parent.API = window.API;
@@ -2643,7 +2643,138 @@ function updateProgress(response) {
         console.error('SCORM API: Error parsing progress response', error);
     }
 }
-
 </script>
+
+// Enhanced xAPI API implementation for xAPI packages
+{% if package_type == 'XAPI' %}
+<script>
+// Enhanced xAPI API implementation
+window.xAPI = {
+    initialized: false,
+    endpoint: '{{ scorm_data.endpoint }}',
+    actor: {{ scorm_data.actor|safe }},
+    version: '{{ scorm_data.version }}',
+    lrs_config: {{ scorm_data.lrs_config|safe }},
+    
+    initialize: function() {
+        this.initialized = true;
+        console.log('xAPI: Initialized with endpoint:', this.endpoint);
+        return true;
+    },
+    
+    sendStatement: function(statement) {
+        if (!this.initialized) {
+            console.error('xAPI: Not initialized');
+            return false;
+        }
+        
+        // Enhanced statement validation
+        if (!this._validateStatement(statement)) {
+            console.error('xAPI: Invalid statement');
+            return false;
+        }
+        
+        // Send to LRS
+        fetch(this.endpoint + 'statements/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Experience-API-Version': this.version
+            },
+            body: JSON.stringify(statement)
+        })
+        .then(response => {
+            if (response.ok) {
+                console.log('xAPI: Statement sent successfully');
+                return true;
+            } else {
+                console.error('xAPI: Statement send failed');
+                return false;
+            }
+        })
+        .catch(error => {
+            console.error('xAPI: Statement send error:', error);
+            return false;
+        });
+    },
+    
+    _validateStatement: function(statement) {
+        // Enhanced validation
+        const required = ['actor', 'verb', 'object', 'timestamp'];
+        return required.every(field => statement.hasOwnProperty(field));
+    },
+    
+    // Helper methods for common xAPI statements
+    sendLaunchedStatement: function(activityId, activityName) {
+        const statement = {
+            'id': this._generateUUID(),
+            'actor': this.actor,
+            'verb': {
+                'id': 'http://adlnet.gov/expapi/verbs/launched',
+                'display': {'en-US': 'launched'}
+            },
+            'object': {
+                'objectType': 'Activity',
+                'id': activityId,
+                'definition': {
+                    'name': {'en-US': activityName},
+                    'type': 'http://adlnet.gov/expapi/activities/course'
+                }
+            },
+            'timestamp': new Date().toISOString(),
+            'version': this.version
+        };
+        return this.sendStatement(statement);
+    },
+    
+    sendCompletedStatement: function(activityId, activityName, score) {
+        const statement = {
+            'id': this._generateUUID(),
+            'actor': this.actor,
+            'verb': {
+                'id': 'http://adlnet.gov/expapi/verbs/completed',
+                'display': {'en-US': 'completed'}
+            },
+            'object': {
+                'objectType': 'Activity',
+                'id': activityId,
+                'definition': {
+                    'name': {'en-US': activityName},
+                    'type': 'http://adlnet.gov/expapi/activities/course'
+                }
+            },
+            'result': {
+                'completion': true,
+                'success': true,
+                'score': score
+            },
+            'timestamp': new Date().toISOString(),
+            'version': this.version
+        };
+        return this.sendStatement(statement);
+    },
+    
+    _generateUUID: function() {
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+            const r = Math.random() * 16 | 0;
+            const v = c == 'x' ? r : (r & 0x3 | 0x8);
+            return v.toString(16);
+        });
+    }
+};
+
+// Initialize xAPI when content loads
+document.addEventListener('DOMContentLoaded', function() {
+    if (window.xAPI) {
+        window.xAPI.initialize();
+        console.log('xAPI: Ready for use');
+    }
+});
+
+// Make xAPI available globally
+window.API = window.xAPI; // For compatibility
+</script>
+{% endif %}
+
 </div><!-- End scorm-container -->
 {% endblock %}

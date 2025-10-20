@@ -1,6 +1,6 @@
 """
 Comprehensive tests for LRS (Learning Record Store) implementation
-Tests xAPI, cmi5, and SCORM 2004 compliance
+Tests xAPI and SCORM 2004 compliance
 """
 
 import json
@@ -13,7 +13,6 @@ from django.utils import timezone as django_timezone
 
 from .models import (
     LRS, Statement, ActivityProfile, AgentProfile, State,
-    CMI5AU, CMI5Registration, CMI5Session,
     SCORM2004Sequencing, SCORM2004ActivityState
 )
 from scorm.models import ELearningPackage, ELearningTracking
@@ -151,65 +150,6 @@ class LRSTestCase(TestCase):
         self.assertEqual(state.activity_id, 'https://lms.example.com/activity/123')
         self.assertEqual(state.state_id, 'test-state')
     
-    def test_cmi5_au_creation(self):
-        """Test cmi5 AU creation"""
-        au = CMI5AU.objects.create(
-            au_id='test-au-123',
-            title='Test AU',
-            description='Test AU Description',
-            launch_url='https://lms.example.com/launch/123',
-            move_on='Completed',
-            launch_method='AnyWindow'
-        )
-        
-        self.assertEqual(au.au_id, 'test-au-123')
-        self.assertEqual(au.title, 'Test AU')
-        self.assertEqual(au.move_on, 'Completed')
-    
-    def test_cmi5_registration_creation(self):
-        """Test cmi5 registration creation"""
-        au = CMI5AU.objects.create(
-            au_id='test-au-123',
-            title='Test AU',
-            launch_url='https://lms.example.com/launch/123'
-        )
-        
-        registration = CMI5Registration.objects.create(
-            au=au,
-            learner=self.user,
-            course_id='test-course-123',
-            launch_token='test-token-123',
-            launch_url='https://lms.example.com/launch/123'
-        )
-        
-        self.assertEqual(registration.au, au)
-        self.assertEqual(registration.learner, self.user)
-        self.assertEqual(registration.course_id, 'test-course-123')
-    
-    def test_cmi5_session_creation(self):
-        """Test cmi5 session creation"""
-        au = CMI5AU.objects.create(
-            au_id='test-au-123',
-            title='Test AU',
-            launch_url='https://lms.example.com/launch/123'
-        )
-        
-        registration = CMI5Registration.objects.create(
-            au=au,
-            learner=self.user,
-            course_id='test-course-123',
-            launch_token='test-token-123',
-            launch_url='https://lms.example.com/launch/123'
-        )
-        
-        session = CMI5Session.objects.create(
-            registration=registration,
-            session_id=str(uuid.uuid4()),
-            launch_time=django_timezone.now()
-        )
-        
-        self.assertEqual(session.registration, registration)
-        self.assertTrue(session.is_active)
     
     def test_scorm2004_sequencing_creation(self):
         """Test SCORM 2004 sequencing creation"""
@@ -340,97 +280,6 @@ class xAPITestCase(TestCase):
         self.assertEqual(response.status_code, 401)  # Requires authentication
 
 
-class CMI5TestCase(TestCase):
-    """Test case for cmi5 functionality"""
-    
-    def setUp(self):
-        """Set up test data"""
-        self.user = User.objects.create_user(
-            username='testuser',
-            email='test@example.com',
-            password='testpass123'
-        )
-        self.au = CMI5AU.objects.create(
-            au_id='test-au-123',
-            title='Test AU',
-            description='Test AU Description',
-            launch_url='https://lms.example.com/launch/123'
-        )
-        self.registration = CMI5Registration.objects.create(
-            au=self.au,
-            learner=self.user,
-            course_id='test-course-123',
-            launch_token='test-token-123',
-            launch_url='https://lms.example.com/launch/123'
-        )
-        self.client = Client()
-        self.client.force_login(self.user)
-    
-    def test_cmi5_launch_get(self):
-        """Test cmi5 launch GET endpoint"""
-        response = self.client.get('/lrs/cmi5/launch/?token=test-token-123')
-        self.assertEqual(response.status_code, 200)
-        
-        data = response.json()
-        self.assertIn('launch_url', data)
-        self.assertIn('session_id', data)
-        self.assertIn('registration_id', data)
-    
-    def test_cmi5_launch_invalid_token(self):
-        """Test cmi5 launch with invalid token"""
-        response = self.client.get('/lrs/cmi5/launch/?token=invalid-token')
-        self.assertEqual(response.status_code, 404)
-    
-    def test_cmi5_terminate(self):
-        """Test cmi5 terminate endpoint"""
-        # Create session first
-        session = CMI5Session.objects.create(
-            registration=self.registration,
-            session_id=str(uuid.uuid4()),
-            launch_time=django_timezone.now()
-        )
-        
-        data = {
-            'action': 'terminate',
-            'session_id': session.session_id,
-            'exit_value': 'normal'
-        }
-        
-        response = self.client.post(
-            '/lrs/cmi5/launch/',
-            data=json.dumps(data),
-            content_type='application/json'
-        )
-        self.assertEqual(response.status_code, 200)
-        
-        # Check session is terminated
-        session.refresh_from_db()
-        self.assertFalse(session.is_active)
-        self.assertIsNotNone(session.exit_time)
-    
-    def test_cmi5_update(self):
-        """Test cmi5 update endpoint"""
-        # Create session first
-        session = CMI5Session.objects.create(
-            registration=self.registration,
-            session_id=str(uuid.uuid4()),
-            launch_time=django_timezone.now()
-        )
-        
-        data = {
-            'action': 'update',
-            'session_id': session.session_id,
-            'session_data': {
-                'raw_data': {'test': 'value'}
-            }
-        }
-        
-        response = self.client.post(
-            '/lrs/cmi5/launch/',
-            data=json.dumps(data),
-            content_type='application/json'
-        )
-        self.assertEqual(response.status_code, 200)
 
 
 class SCORM2004TestCase(TestCase):

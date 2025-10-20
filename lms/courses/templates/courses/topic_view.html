@@ -649,10 +649,6 @@
                                             <a href="{% url 'scorm:xapi_preview' topic.id %}" class="btn btn-warning">
                                                 <i class="fas fa-eye mr-2"></i>Preview xAPI Content
                                             </a>
-                                        {% elif elearning_package.package_type == 'CMI5' %}
-                                            <a href="{% url 'scorm:cmi5_preview' topic.id %}" class="btn btn-warning">
-                                                <i class="fas fa-eye mr-2"></i>Preview cmi5 Content
-                                            </a>
                                         {% else %}
                                             <a href="{% url 'scorm:preview' topic.id %}" class="btn btn-warning">
                                                 <i class="fas fa-eye mr-2"></i>Preview SCORM Content
@@ -682,10 +678,6 @@
                                                     <a href="{% url 'scorm:xapi_resume' topic.id %}" class="btn btn-primary">
                                                         <i class="fas fa-play mr-2"></i>Resume xAPI Content
                                                     </a>
-                                                {% elif elearning_package.package_type == 'CMI5' %}
-                                                    <a href="{% url 'scorm:cmi5_resume' topic.id %}" class="btn btn-primary">
-                                                        <i class="fas fa-play mr-2"></i>Resume cmi5 Content
-                                                    </a>
                                                 {% else %}
                                                     <a href="{% url 'scorm:resume' topic.id %}" class="btn btn-primary">
                                                         <i class="fas fa-play mr-2"></i>Resume SCORM Content
@@ -700,10 +692,6 @@
                                                     <a href="{% url 'scorm:xapi_resume' topic.id %}" class="btn btn-primary">
                                                         <i class="fas fa-play mr-2"></i>Resume xAPI Content
                                                     </a>
-                                                {% elif elearning_package.package_type == 'CMI5' %}
-                                                    <a href="{% url 'scorm:cmi5_resume' topic.id %}" class="btn btn-primary">
-                                                        <i class="fas fa-play mr-2"></i>Resume cmi5 Content
-                                                    </a>
                                                 {% else %}
                                                     <a href="{% url 'scorm:resume' topic.id %}" class="btn btn-primary">
                                                         <i class="fas fa-play mr-2"></i>Resume SCORM Content
@@ -715,10 +703,6 @@
                                             {% if elearning_package.package_type == 'XAPI' %}
                                                 <a href="{% url 'scorm:xapi_launch' topic.id %}" class="btn btn-primary">
                                                     <i class="fas fa-play mr-2"></i>Launch xAPI Content
-                                                </a>
-                                            {% elif elearning_package.package_type == 'CMI5' %}
-                                                <a href="{% url 'scorm:cmi5_launch' topic.id %}" class="btn btn-primary">
-                                                    <i class="fas fa-play mr-2"></i>Launch cmi5 Content
                                                 </a>
                                             {% else %}
                                                 <a href="{% url 'scorm:launch' topic.id %}" class="btn btn-primary">

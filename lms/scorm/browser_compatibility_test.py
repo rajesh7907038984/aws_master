@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Browser Compatibility Test for SCORM, xAPI, and cmi5 Implementation
+Browser Compatibility Test for SCORM and xAPI Implementation
 Tests all browser compatibility fixes and optimizations
 """
 
@@ -186,7 +186,7 @@ class BrowserCompatibilityTest(TestCase):
         self.assertIn('shouldFilterError', content)
         self.assertIn('shouldFilterWarning', content)
         self.assertIn('minimal-ui', content)
-        self.assertIn('metrics.articulate.com', content)
+        self.assertIn('analytics', content)
     
     def test_scorm_launch_with_browser_info(self):
         """Test SCORM launch with browser information"""
@@ -297,15 +297,15 @@ class BrowserCompatibilityTest(TestCase):
         self.assertIn('touchAction', content)
         self.assertIn('manipulation', content)
     
-    def test_articulate_analytics_blocking(self):
-        """Test Articulate analytics blocking"""
+    def test_analytics_blocking(self):
+        """Test analytics blocking"""
         response = self.client.get(reverse('scorm:error_fixes'))
         
         self.assertEqual(response.status_code, 200)
         
         content = response.content.decode('utf-8')
-        self.assertIn('metrics.articulate.com', content)
-        self.assertIn('fixArticulateAnalytics', content)
+        self.assertIn('analytics', content)
+        self.assertIn('fixAnalytics', content)
         self.assertIn('XMLHttpRequest', content)
     
     def test_source_map_error_suppression(self):

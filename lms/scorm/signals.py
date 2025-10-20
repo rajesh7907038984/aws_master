@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 @receiver(post_save, sender=ELearningPackage)
 def auto_extract_package(sender, instance, created, **kwargs):
     """
-    Automatically extract SCORM/CMI5 package to S3 when uploaded.
+    Automatically extract SCORM/xAPI package to S3 when uploaded.
     This ensures packages are always ready to use immediately after upload.
     """
     try:

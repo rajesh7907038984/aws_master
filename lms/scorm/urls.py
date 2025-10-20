@@ -15,10 +15,6 @@ urlpatterns = [
     path('xapi/content/<int:topic_id>/<path:file_path>', views.scorm_content, name='xapi_content'),
     path('xapi/resume/<int:topic_id>/', views.xapi_resume, name='xapi_resume'),
     
-    # cmi5 Launch and Content
-    path('cmi5/launch/<int:topic_id>/', views.cmi5_launch, name='cmi5_launch'),
-    path('cmi5/content/<int:topic_id>/<path:file_path>', views.scorm_content, name='cmi5_content'),
-    path('cmi5/resume/<int:topic_id>/', views.cmi5_resume, name='cmi5_resume'),
     
     # SCORM API
     path('api/<int:topic_id>/', views.scorm_api, name='api'),
@@ -34,7 +30,6 @@ urlpatterns = [
     # Preview URLs for instructors/admins
     path('preview/<int:topic_id>/', views.scorm_preview, name='preview'),
     path('xapi/preview/<int:topic_id>/', views.xapi_preview, name='xapi_preview'),
-    path('cmi5/preview/<int:topic_id>/', views.cmi5_preview, name='cmi5_preview'),
     
     # Package Validation
     path('validate/<int:topic_id>/', views.validate_elearning_package_endpoint, name='validate'),
@@ -54,5 +49,5 @@ urlpatterns = [
     # Error Handlers (to fix SCORM content errors)
     path('error-fixes.js', error_handler.scorm_error_fixes, name='error_fixes'),
     path('console-cleaner.js', error_handler.scorm_console_cleaner, name='console_cleaner'),
-    path('string-table-fix.js', error_handler.articulate_string_table_fix, name='string_table_fix'),
+    path('string-table-fix.js', error_handler.string_table_fix, name='string_table_fix'),
 ]

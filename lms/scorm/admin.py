@@ -28,10 +28,6 @@ class ELearningPackageAdmin(admin.ModelAdmin):
             'fields': ('xapi_endpoint', 'xapi_actor'),
             'classes': ('collapse',)
         }),
-        ('cmi5 Settings', {
-            'fields': ('cmi5_au_id', 'cmi5_launch_url'),
-            'classes': ('collapse',)
-        }),
         ('Extraction Details', {
             'fields': (
                 'is_extracted', 'extracted_path', 'manifest_path', 

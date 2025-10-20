@@ -336,7 +336,7 @@ var API = {
     LMSInitialize: function(parameter) {
         console.log('Mobile SCORM API: LMSInitialize called');
         
-        // Gracefully handle double initialization (common with Articulate content)
+        // Gracefully handle double initialization (common with some SCORM content)
         if (this.initialized) {
             console.log('Mobile SCORM API: Already initialized, returning success');
             this.lastError = 0; // No error

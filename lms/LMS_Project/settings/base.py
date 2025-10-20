@@ -230,7 +230,7 @@ INSTALLED_APPS = [
     'branch_portal',
     'LMS_Project',
     'core',
-    'lrs',  # Learning Record Store for xAPI and cmi5
+    'lrs',  # Learning Record Store for xAPI
     'admin_dashboard',
     'tinymce_editor',
     
@@ -490,7 +490,7 @@ PRIMARY_DOMAIN = get_env('PRIMARY_DOMAIN', 'localhost:8000')
 # Auto-constructs HTTPS URL if not explicitly provided
 BASE_URL = get_env('BASE_URL', f'http{"s" if ENVIRONMENT == "production" else ""}://{PRIMARY_DOMAIN}')
 
-# Canonical site URL for external callbacks (used by cmi5/xAPI launch params)
+# Canonical site URL for external callbacks (used by xAPI launch params)
 # Defaults to BASE_URL when SITE_URL is not explicitly set
 SITE_URL = get_env('SITE_URL', BASE_URL)
 
