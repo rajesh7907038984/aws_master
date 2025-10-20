@@ -85,7 +85,7 @@ def portal_landing(request, slug):
         courses__is_active=True,
         courses__catalog_visibility='visible',
         is_active=True
-    ).distinct().annotate(course_count=Count('course'))
+    ).distinct().annotate(course_count=Count('courses'))
     
     # Get portal sections
     main_content_sections = MainContentSection.objects.filter(

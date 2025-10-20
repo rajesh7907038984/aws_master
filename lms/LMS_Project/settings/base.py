@@ -549,6 +549,9 @@ SECURE_HSTS_SECONDS = 31536000  # 1 year
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True
 SECURE_SSL_REDIRECT = get_bool_env('SECURE_SSL_REDIRECT', False)
+# Temporary fix for development - force SSL redirect to False
+# Force SSL redirect to False for local development
+SECURE_SSL_REDIRECT = False
 
 # ==============================================
 # PERFORMANCE OPTIMIZATIONS

@@ -102,31 +102,7 @@
     <script src="{% static 'core/js/disable-console-logs.js' %}"></script>
     
     <!-- Enhanced Error Display - Better handling of syntax errors -->
-    <script>
-        // Enhanced error handling to prevent popups and provide better debugging
-        window.addEventListener('error', function(event) {
-            // Log syntax errors to console instead of showing popups
-            if (event.message && (event.message.includes('Unexpected token') || 
-                                  event.message.includes('SyntaxError'))) {
-                // Syntax Error Detected - handled by error handler
-                var filename = event.filename || 'Unknown';
-                var lineno = event.lineno || 'Unknown';
-                
-                // Log detailed error information
-                console.error('JavaScript Syntax Error (popup disabled):', {
-                    message: event.message,
-                    filename: filename,
-                    line: lineno,
-                    column: event.colno || 'Unknown',
-                    stack: event.error ? event.error.stack : 'No stack trace'
-                });
-                
-                // Prevent the error popup
-                event.preventDefault();
-                return true;
-            }
-        });
-    </script>
+    <!-- Error handling is now managed by unified-error-handler.js -->
     
     <!-- CSRF Token Setup -->
     {% csrf_token %}
@@ -162,8 +138,13 @@
     <meta name="msapplication-TileColor" content="#0ea5e9">
     <meta name="theme-color" content="#0ea5e9">
     
-    <!-- jQuery -->
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <!-- jQuery with local fallback (synchronous) -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
+    <script>
+        if (!window.jQuery) {
+            document.write('<script src="{% static 'scorm/vendor/jquery-3.6.0.min.js' %}"><\\/script>');
+        }
+    </script>
     
     <!-- jQuery UI -->
     <script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
@@ -981,20 +962,7 @@
                     navigator.userAgent.match(/Windows Phone/i));
         }
         
-        // Global error handler to prevent JavaScript syntax errors from breaking the page
-        window.addEventListener('error', function(event) {
-            if (event.message && event.message.includes('Unexpected token')) {
-                // JavaScript Syntax Error caught and handled - handled by error handler
-                console.error({
-                    message: event.message,
-                    filename: event.filename,
-                    line: event.lineno,
-                    column: event.colno
-                });
-                event.preventDefault();
-                return true;
-            }
-        });
+        // Error handling is managed by unified-error-handler.js
 
         // Handle toast notifications
         function showToast(message, type = 'info') {

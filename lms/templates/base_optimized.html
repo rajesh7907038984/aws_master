@@ -54,8 +54,13 @@
         })();
     </script>
     
-    <!-- Load jQuery and essential scripts -->
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js" defer></script>
+    <!-- Load jQuery early with local fallback (no defer) -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJ+Y3GXz6ZbNw6Yk4Ck6t6Yt6Y2Z8a9kaI0s8=" crossorigin="anonymous" onerror="window._jqueryCdnFailed=true"></script>
+    <script>
+        if (!window.jQuery) {
+            document.write('<script src="{% static 'scorm/vendor/jquery-3.6.0.min.js' %}"><\\/script>');
+        }
+    </script>
     
     <!-- Load remaining scripts after page load -->
     <script>

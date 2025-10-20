@@ -380,14 +380,20 @@
             const maxDelay = 8000;
             const delay = Math.min(baseDelay * Math.pow(2, retryCount) + Math.random() * 1000, maxDelay);
             
-            return fetch(url, {
+            // Use the current protocol and host to avoid SSL redirect issues
+            const fullUrl = url.startsWith('http') ? url : window.location.origin + url;
+            
+            return fetch(fullUrl, {
                 method: 'GET',
                 headers: {
                     'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || '',
                     'Content-Type': 'application/json',
+                    'X-Silent': 'true' // prevent global error toast
                 },
                 credentials: 'same-origin',
-                signal: AbortSignal.timeout(30000)
+                signal: AbortSignal.timeout(30000),
+                // Hint unified error handler to suppress global toast for this background call
+                suppressGlobalError: true
             })
             .then(response => {
                 if (!response.ok) throw new Error('HTTP error! status: ' + response.status);

@@ -1263,14 +1263,16 @@
                         headers: {
                             'Content-Type': 'application/json',
                             'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val(),
-                            'X-Requested-With': 'XMLHttpRequest'
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'X-Silent': 'true'
                         },
                         body: JSON.stringify({
                             current_time: currentTime,
                             duration: duration,
                             progress: progress,
                             completed: progress >= 95
-                        })
+                        }),
+                        suppressGlobalError: true
                     })
                     .then(response => {
                         if (!response.ok) {
@@ -1351,13 +1353,15 @@
                         headers: {
                             'Content-Type': 'application/json',
                             'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val(),
-                            'X-Requested-With': 'XMLHttpRequest'
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'X-Silent': 'true'
                         },
                         body: JSON.stringify({
                             current_time: currentTime,
                             duration: duration,
                             completed: progress >= 95
-                        })
+                        }),
+                        suppressGlobalError: true
                     })
                     .then(response => {
                         if (!response.ok) {
@@ -1431,14 +1435,16 @@
                     headers: {
                         'Content-Type': 'application/json',
                         'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val(),
-                        'X-Requested-With': 'XMLHttpRequest'
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-Silent': 'true'
                     },
                     body: JSON.stringify({
                         current_time: 60, // Assume 60 seconds viewed for embed videos
                         duration: 60,     // Assume 60 second duration
                         progress: 100,    // Mark as 100% complete
                         completed: true
-                    })
+                    }),
+                    suppressGlobalError: true
                 })
                 .then(response => {
                     if (!response.ok) {

@@ -10,7 +10,8 @@ class UnifiedErrorHandler {
                             window.location.hostname === '127.0.0.1' ||
                             window.location.hostname.includes('localhost:') ||
                             window.location.hostname.includes('dev.') ||
-                            window.location.hostname.includes('.dev');
+                            window.location.hostname.includes('.dev') ||
+                            window.location.hostname.includes('staging.');
         
         this.errorCategories = {
             'VALIDATION': 'validation_error',
@@ -129,6 +130,8 @@ class UnifiedErrorHandler {
                     var sanitizedFilename = self.sanitizeErrorMessage(event.filename || '');
                     console.warn('JavaScript Syntax Error: ' + sanitizedMessage + ' in file: ' + sanitizedFilename + ' at line: ' + event.lineno);
                 }
+                // Prevent the error popup for syntax errors
+                event.preventDefault();
                 return;
             }
             
@@ -190,11 +193,40 @@ class UnifiedErrorHandler {
                     
                     return response;
                 })
-                .catch(function(error) {
-                    // Only handle error if it hasn't been handled already
-                    if (!error._handled) {
-                        self.handleError(error, 'Fetch Request');
-                        error._handled = true;
+                .catch(async function(error) {
+                    // Robust suppression: background GETs are silent by default unless explicitly interactive
+                    var method = (options && options.method ? String(options.method).toUpperCase() : 'GET');
+
+                    // Best-effort parse of server JSON error (non-blocking)
+                    try {
+                        if (error && error.response && typeof error.response.clone === 'function') {
+                            var cloned = error.response.clone();
+                            await cloned.json().then(function(body){
+                                if (body && body.error && !error.message) {
+                                    error.message = String(body.error);
+                                }
+                            }).catch(function(){ /* ignore parse errors */ });
+                        }
+                    } catch(e) { /* ignore */ }
+
+                    var isBackground = !options || options.interactive !== true;
+                    // Respect explicit silent flags and default-silent background GETs
+                    var suppressGlobal = (
+                        options && (
+                            options.suppressGlobalError === true ||
+                            (options.headers && (
+                                options.headers['X-Silent'] === 'true' ||
+                                options.headers['X-Suppress-Errors'] === 'true'
+                            ))
+                        )
+                    ) || (method === 'GET' && isBackground);
+
+                    if (!suppressGlobal) {
+                        // Only handle error if it hasn't been handled already
+                        if (!error._handled) {
+                            self.handleError(error, 'Fetch Request');
+                            error._handled = true;
+                        }
                     }
                     throw error;
                 });
@@ -340,7 +372,14 @@ class UnifiedErrorHandler {
         this.errorCooldown.set(errorKey, now);
         
         if (this.isDevelopment) {
-            console.error('[' + context + '] Error:', error);
+            console.error('[' + context + '] Error Details:', {
+                name: error.name || 'Unknown',
+                message: error.message || 'No message',
+                stack: error.stack || 'No stack trace',
+                filename: error.filename || 'Unknown',
+                line: error.lineno || 'Unknown',
+                column: error.colno || 'Unknown'
+            });
         }
         
         // Categorize error
@@ -349,6 +388,17 @@ class UnifiedErrorHandler {
         // Get user-friendly message
         var message = this.getUserFriendlyMessage(error, category);
         
+        // Enrich message with diagnostics on staging/dev
+        if (this.isDevelopment && error && error.response) {
+            try {
+                var urlPath = '';
+                if (error.response.url) {
+                    urlPath = String(error.response.url).replace(window.location.origin, '');
+                }
+                message = message + ' (' + (error.status || 'ERR') + ') ' + urlPath;
+            } catch (e) { /* ignore */ }
+        }
+
         // Show user notification
         this.showUserNotification(message, category);
         
