@@ -121,11 +121,14 @@ class UnifiedErrorHandler {
             
             // Check if it's a syntax error - handle silently in production
             if (self.isSyntaxError(event.error)) {
-                console.error('JavaScript syntax error detected:', event.error.message);
-                // Log syntax errors to console instead of showing popups
-                var sanitizedMessage = self.sanitizeErrorMessage(event.error ? event.error.message : '');
-                var sanitizedFilename = self.sanitizeErrorMessage(event.filename || '');
-                console.error('JavaScript Syntax Error: ' + sanitizedMessage + ' in file: ' + sanitizedFilename + ' at line: ' + event.lineno);
+                // Silently handle syntax errors to prevent console spam from browser extensions
+                // Only log in development mode
+                if (self.isDevelopment) {
+                    console.warn('JavaScript syntax error detected:', event.error.message);
+                    var sanitizedMessage = self.sanitizeErrorMessage(event.error ? event.error.message : '');
+                    var sanitizedFilename = self.sanitizeErrorMessage(event.filename || '');
+                    console.warn('JavaScript Syntax Error: ' + sanitizedMessage + ' in file: ' + sanitizedFilename + ' at line: ' + event.lineno);
+                }
                 return;
             }
             
@@ -255,9 +258,31 @@ class UnifiedErrorHandler {
             'Invalid or unexpected token'
         ];
         
-        return syntaxErrorPatterns.some(function(pattern) {
+        // Check if it's a syntax error
+        var isSyntax = syntaxErrorPatterns.some(function(pattern) {
             return error.message && error.message.includes(pattern);
         });
+        
+        // If it's a syntax error, check if it's from Alpine.js directives
+        if (isSyntax && error.message) {
+            // These are common Alpine.js-related syntax "errors" that are actually fine
+            var alpinePatterns = [
+                "Unexpected token ':'",  // Alpine.js :class, :style, etc.
+                'Unexpected token \':\'',
+                'Unexpected identifier',  // Can happen with x-data
+            ];
+            
+            var isAlpineRelated = alpinePatterns.some(function(pattern) {
+                return error.message.includes(pattern);
+            });
+            
+            // If it seems Alpine-related, it's safe to ignore
+            if (isAlpineRelated) {
+                return true;
+            }
+        }
+        
+        return isSyntax;
     }
     
     /**

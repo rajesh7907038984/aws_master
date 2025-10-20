@@ -11,6 +11,8 @@ from .views import api_calendar_activities, api_daily_activities, api_calendar_s
 from . import views
 # Import monitoring views
 from .views.monitoring_dashboard import monitoring_dashboard, api_system_metrics, api_health_check, api_user_engagement
+# Import error dashboard views
+from .views.error_dashboard import error_dashboard, error_summary_api, clear_old_errors, database_health_api
 # Import timezone API functions
 from .timezone_api import set_user_timezone, get_user_timezone, get_timezone_list
 # Import server time API
@@ -52,6 +54,13 @@ urlpatterns = [
             path('metrics/', api_system_metrics, name='api_system_metrics'),
             path('health/', api_health_check, name='api_health_check'),
             path('user-engagement/<int:user_id>/', api_user_engagement, name='api_user_engagement'),
+        ])),
+        # Error monitoring endpoints
+        path('error-monitoring/', include([
+            path('dashboard/', error_dashboard, name='error_dashboard'),
+            path('summary/', error_summary_api, name='error_summary_api'),
+            path('clear-old/', clear_old_errors, name='clear_old_errors'),
+            path('db-health/', database_health_api, name='database_health_api'),
         ])),
     ])),
     

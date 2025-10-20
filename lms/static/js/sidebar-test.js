@@ -187,8 +187,8 @@
     function testMobileMenu() {
         console.log('🔍 Testing Mobile Menu...');
         
-        const mobileMenu = document.getElementById('mobile-menu');
-        const mobileToggle = document.getElementById('mobile-menu-toggle');
+        const mobileMenu = document.getElementById('nexsy-mobile-menu');
+        const mobileToggle = document.getElementById('nexsy-mobile-menu-toggle');
         
         if (!mobileMenu || !mobileToggle) {
             console.warn('❌ Mobile menu elements not found');

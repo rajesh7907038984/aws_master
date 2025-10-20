@@ -1,34 +1,34 @@
 {% load static %}
 <!-- Main Header -->
-<header class="bg-white border-b border-gray-200 fixed top-0 left-0 right-0 w-full z-50 h-16 min-h-[4rem]">
-    <div class="flex items-center justify-between h-full px-2 sm:px-4 mx-auto max-w-[1920px]">
+<header id="nexsy-main-header" class="nexsy-header bg-white border-b border-gray-200 fixed top-0 left-0 right-0 w-full h-16 min-h-[4rem]" style="z-index: 100000 !important;">
+    <div id="nexsy-header-container" class="nexsy-header-container flex items-center justify-between h-full">
         <!-- Left Section: Logo and Sidebar Toggle -->
-        <div class="flex items-center gap-2 sm:gap-3 md:gap-4 flex-shrink-0 min-w-0">
-            <a href="{% url 'users:role_based_redirect' %}" class="flex items-center transition-transform hover:scale-105 flex-shrink-0 min-w-0">
-                <img src="{% static 'core/img/logo-light.png' %}" alt="Nexsy LMS" class="h-8 sm:h-10 md:h-12 lg:h-14 w-auto max-w-[120px] sm:max-w-[140px] md:max-w-[160px] lg:max-w-[200px] object-contain flex-shrink-0">
+        <div id="nexsy-header-left" class="nexsy-header-left flex items-center gap-2 sm:gap-3 md:gap-4 flex-shrink-0 min-w-0">
+            <a id="nexsy-logo-link" href="{% url 'users:role_based_redirect' %}" class="nexsy-logo-link flex items-center transition-transform hover:scale-105 flex-shrink-0 min-w-0">
+                <img id="nexsy-logo" src="{% static 'core/img/logo-light.png' %}" alt="Nexsy LMS" class="nexsy-logo h-8 sm:h-10 md:h-12 lg:h-14 w-auto object-contain flex-shrink-0">
             </a>
             
             <!-- Sidebar Toggle Button (works for both mobile and desktop) -->
-            <button id="mobile-menu-toggle" 
-                    class="flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 md:w-11 md:h-11 lg:w-12 lg:h-12 rounded-full hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition-all flex-shrink-0" 
+            <button id="nexsy-mobile-menu-toggle" 
+                    class="nexsy-toggle-btn flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 md:w-11 md:h-11 lg:w-12 lg:h-12 rounded-full hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition-all flex-shrink-0" 
                     type="button"
                     aria-label="Toggle navigation menu"
                     aria-expanded="false"
-                    aria-controls="mobile-menu"
+                    aria-controls="nexsy-mobile-menu"
                     data-sidebar-toggle="true">
                 <!-- Hamburger menu icon (three horizontal lines) -->
-                <svg class="w-5 h-5 sm:w-6 sm:h-6 md:w-6 md:h-6 lg:w-7 lg:h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+                <svg id="nexsy-hamburger-icon" class="nexsy-hamburger-icon w-5 h-5 sm:w-6 sm:h-6 md:w-6 md:h-6 lg:w-7 lg:h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
                 </svg>
             </button>
         </div>
 
         <!-- Center Section: Search (Desktop only) - Match Screenshot -->
-        <div class="hidden md:flex flex-1 max-w-3xl px-4 mx-auto">
-            <form class="flex w-full shadow-sm rounded-xl overflow-hidden bg-gray-50 ring-1 ring-gray-200 focus-within:ring-2 focus-within:ring-blue-500 transition-all" method="GET" action="{% url 'users:search' %}">
+        <div id="nexsy-header-center" class="nexsy-header-center flex flex-1 px-4 hidden md:flex">
+            <form id="nexsy-search-form" class="nexsy-search-form flex w-full shadow-sm rounded-xl overflow-hidden bg-gray-50 ring-1 ring-gray-200 focus-within:ring-2 focus-within:ring-blue-500 transition-all" method="GET" action="{% url 'users:search' %}">
                 <!-- Category Selector - "All" dropdown from screenshot -->
-                <div class="relative">
-                    <select name="category" class="h-10 pl-4 pr-8 text-base bg-transparent border-0 rounded-l-xl text-gray-600 focus:outline-none focus:ring-0 cursor-pointer appearance-none border-r border-gray-300 min-w-[80px]">
+                <div id="nexsy-category-selector" class="nexsy-category-selector relative">
+                    <select id="nexsy-category-dropdown" name="category" class="nexsy-category-dropdown h-10 pl-4 pr-8 text-base bg-transparent border-0 rounded-l-xl text-gray-600 focus:outline-none focus:ring-0 cursor-pointer appearance-none border-r border-gray-300 min-w-[80px]">
                         <option value="all" selected>All</option>
                         {% if user.is_authenticated and user.role in 'globaladmin,superadmin,admin,instructor' %}
                         <option value="users">Users</option>
@@ -37,74 +37,74 @@
                         <option value="{{ category.slug }}" {% if request.GET.category == category.slug %}selected{% endif %}>{{ category.name }}</option>
                         {% endfor %}
                     </select>
-                    <div class="absolute right-2 top-1/2 transform -translate-y-1/2 pointer-events-none">
-                        <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div id="nexsy-category-arrow" class="nexsy-category-arrow absolute right-2 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                        <svg id="nexsy-dropdown-icon" class="nexsy-dropdown-icon h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
                         </svg>
                     </div>
                 </div>
                 
                 <!-- Search Input - Match screenshot placeholder -->
-                <div class="relative flex-1 flex items-center">
-                    <div class="absolute left-3 z-10">
-                        <svg class="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+                <div id="nexsy-search-input-container" class="nexsy-search-input-container relative flex-1 flex items-center">
+                    <div id="nexsy-search-icon-container" class="nexsy-search-icon-container absolute left-3 z-10">
+                        <svg id="nexsy-search-icon" class="nexsy-search-icon h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
                             <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/>
                         </svg>
                     </div>
-                    <input type="text" 
+                    <input id="nexsy-search-input" type="text" 
                            name="q"
                            placeholder="Search anything..." 
-                           class="w-full h-10 pl-12 pr-4 bg-transparent border-0 text-base text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-0 rounded-r-xl">
+                           class="nexsy-search-input w-full h-10 pl-12 pr-4 bg-transparent border-0 text-base text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-0 rounded-r-xl">
                 </div>
             </form>
         </div>
 
         <!-- Right Section: Notifications and Profile -->
-        <div class="flex items-center gap-1 sm:gap-2 md:gap-3 lg:gap-4 flex-shrink-0 min-w-0">
+        <div id="nexsy-header-right" class="nexsy-header-right flex items-center gap-1 sm:gap-2 md:gap-3 lg:gap-4 flex-shrink-0 min-w-0">
             <!-- Mobile Search Link (Visible on mobile only) -->
-            <a href="{% url 'users:search' %}" 
-               class="md:hidden flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 rounded-full hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition-all flex-shrink-0"
+            <a id="nexsy-mobile-search-link" href="{% url 'users:search' %}" 
+               class="nexsy-mobile-search-link flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 rounded-full hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition-all flex-shrink-0 md:hidden"
                title="Search"
                aria-label="Search">
-                <svg class="w-4 h-4 sm:w-5 sm:h-5" viewBox="0 0 20 20" fill="currentColor">
+                <svg id="nexsy-mobile-search-icon" class="nexsy-mobile-search-icon w-4 h-4 sm:w-5 sm:h-5" viewBox="0 0 20 20" fill="currentColor">
                     <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/>
                 </svg>
             </a>
 
             <!-- Messages Button - Hidden on smallest screens -->
-            <a href="{% url 'lms_messages:messages' %}" 
-               class="header-icon discussion-icon hidden xs:flex relative items-center justify-center w-8 h-8 sm:w-10 sm:h-10 md:w-11 md:h-11 lg:w-12 lg:h-12 rounded-full hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition-all flex-shrink-0" 
+            <a id="nexsy-messages-button" href="{% url 'lms_messages:messages' %}" 
+               class="nexsy-messages-btn nexsy-header-icon flex relative items-center justify-center w-8 h-8 sm:w-10 sm:h-10 md:w-11 md:h-11 lg:w-12 lg:h-12 rounded-full hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition-all flex-shrink-0" 
                title="Messages ({{ unread_messages_count|default:0 }} unread)"
                aria-label="Messages ({{ unread_messages_count|default:0 }} unread)"
                role="button">
-                <svg class="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+                <svg id="nexsy-messages-icon" class="nexsy-messages-icon w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                 </svg>
                 {% if unread_messages_count and unread_messages_count > 0 %}
-                <span class="absolute top-1 right-1 sm:top-1 sm:right-1 md:top-2 md:right-2 w-2 h-2 bg-blue-500 rounded-full" aria-hidden="true"></span>
+                <span id="nexsy-messages-indicator" class="nexsy-messages-indicator absolute top-1 right-1 sm:top-1 sm:right-1 md:top-2 md:right-2 w-2 h-2 bg-blue-500 rounded-full" aria-hidden="true"></span>
                 {% if unread_messages_count > 9 %}
-                <span class="absolute -top-1 -right-1 bg-blue-500 text-white text-xs rounded-full px-1 min-w-[1rem] h-4 flex items-center justify-center" id="messages-count-badge" aria-label="{{ unread_messages_count }} unread messages">9+</span>
+                <span id="nexsy-messages-count-badge" class="nexsy-messages-count-badge absolute -top-1 -right-1 bg-blue-500 text-white text-xs rounded-full px-1 min-w-[1rem] h-4 flex items-center justify-center" aria-label="{{ unread_messages_count }} unread messages">9+</span>
                 {% else %}
-                <span class="absolute -top-1 -right-1 bg-blue-500 text-white text-xs rounded-full px-1 min-w-[1rem] h-4 flex items-center justify-center" id="messages-count-badge" aria-label="{{ unread_messages_count }} unread messages">{{ unread_messages_count }}</span>
+                <span id="nexsy-messages-count-badge" class="nexsy-messages-count-badge absolute -top-1 -right-1 bg-blue-500 text-white text-xs rounded-full px-1 min-w-[1rem] h-4 flex items-center justify-center" aria-label="{{ unread_messages_count }} unread messages">{{ unread_messages_count }}</span>
                 {% endif %}
                 {% endif %}
             </a>
 
             <!-- Notification Bell Button -->
-            <a href="{% url 'lms_notifications:notification_center' %}" 
-               class="header-icon notification-icon relative flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 md:w-11 md:h-11 lg:w-12 lg:h-12 rounded-full hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition-all flex-shrink-0" 
+            <a id="nexsy-notifications-button" href="{% url 'lms_notifications:notification_center' %}" 
+               class="nexsy-notifications-btn nexsy-header-icon relative flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 md:w-11 md:h-11 lg:w-12 lg:h-12 rounded-full hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition-all flex-shrink-0" 
                title="Notifications ({{ unread_notifications_count|default:0 }} unread{% if urgent_notifications_count and urgent_notifications_count > 0 %}, {{ urgent_notifications_count }} urgent{% endif %})"
                aria-label="Notifications ({{ unread_notifications_count|default:0 }} unread{% if urgent_notifications_count and urgent_notifications_count > 0 %}, {{ urgent_notifications_count }} urgent{% endif %})"
                role="button">
-                <svg class="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+                <svg id="nexsy-notifications-icon" class="nexsy-notifications-icon w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
                 </svg>
                 {% if unread_notifications_count and unread_notifications_count > 0 %}
-                <span id="notification-indicator" 
-                      class="absolute top-1 right-1 sm:top-1 sm:right-1 md:top-2 md:right-2 w-2 h-2 rounded-full {% if urgent_notifications_count and urgent_notifications_count > 0 %}bg-red-500 animate-pulse{% else %}bg-orange-500{% endif %}" 
+                <span id="nexsy-notification-indicator" 
+                      class="nexsy-notification-indicator absolute top-1 right-1 sm:top-1 sm:right-1 md:top-2 md:right-2 w-2 h-2 rounded-full {% if urgent_notifications_count and urgent_notifications_count > 0 %}bg-red-500 animate-pulse{% else %}bg-orange-500{% endif %}" 
                       aria-hidden="true"></span>
-                <span id="notification-count-badge" 
-                      class="absolute -top-1 -right-1 text-white text-xs rounded-full px-1 min-w-[1rem] h-4 flex items-center justify-center {% if urgent_notifications_count and urgent_notifications_count > 0 %}bg-red-500 animate-pulse{% else %}bg-orange-500{% endif %}"
+                <span id="nexsy-notification-count-badge" 
+                      class="nexsy-notification-count-badge absolute -top-1 -right-1 text-white text-xs rounded-full px-1 min-w-[1rem] h-4 flex items-center justify-center {% if urgent_notifications_count and urgent_notifications_count > 0 %}bg-red-500 animate-pulse{% else %}bg-orange-500{% endif %}"
                       aria-label="{% if unread_notifications_count > 9 %}9+{% else %}{{ unread_notifications_count }}{% endif %} unread notifications">
                     {% if unread_notifications_count > 9 %}9+{% else %}{{ unread_notifications_count }}{% endif %}
                 </span>
@@ -112,24 +112,24 @@
             </a>
 
             <!-- Profile Picture with Dropdown -->
-            <div class="flex items-center relative flex-shrink-0" id="profile-container">
+            <div id="nexsy-profile-container" class="nexsy-profile-container flex items-center relative flex-shrink-0">
                 <button 
-                    class="relative flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 md:w-11 md:h-11 lg:w-12 lg:h-12 rounded-full hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition-all overflow-hidden flex-shrink-0 z-60 no-tap-highlight touch-manipulation"
+                    id="nexsy-profile-button"
+                    class="nexsy-profile-button relative flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 md:w-11 md:h-11 lg:w-12 lg:h-12 rounded-full hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition-all overflow-hidden flex-shrink-0 z-60 no-tap-highlight touch-manipulation"
                     aria-label="Profile menu"
-                    id="profile-button"
                     type="button"
                 >
                     {% if user.profile_image %}
-                    <img src="{{ user.profile_image.url }}" alt="{{ user.username }}" class="w-8 h-8 sm:w-10 sm:h-10 md:w-11 md:h-11 lg:w-12 lg:h-12 rounded-full object-cover">
+                    <img id="nexsy-profile-image" src="{{ user.profile_image.url }}" alt="{{ user.username }}" class="nexsy-profile-image w-8 h-8 sm:w-10 sm:h-10 md:w-11 md:h-11 lg:w-12 lg:h-12 rounded-full object-cover">
                     {% else %}
-                    <img src="{% static 'img/default-avatar.svg' %}" alt="Profile" class="w-8 h-8 sm:w-10 sm:h-10 md:w-11 md:h-11 lg:w-12 lg:h-12 rounded-full object-cover">
+                    <img id="nexsy-default-avatar" src="{% static 'img/default-avatar.svg' %}" alt="Profile" class="nexsy-default-avatar w-8 h-8 sm:w-10 sm:h-10 md:w-11 md:h-11 lg:w-12 lg:h-12 rounded-full object-cover">
                     {% endif %}
                 </button>
 
                 <!-- Dropdown Menu -->
                 <div 
-                    id="profile-dropdown"
-                    class="absolute right-0 top-12 w-48 py-2 bg-white rounded-xl shadow-lg ring-1 ring-gray-200 hidden z-70"
+                    id="nexsy-profile-dropdown"
+                    class="nexsy-profile-dropdown absolute right-0 top-12 w-48 py-2 bg-white rounded-xl shadow-lg ring-1 ring-gray-200 hidden z-70"
                 >
                     {% if user.is_authenticated %}
                     <a href="{% url 'users:user_profile' user.id %}" class="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors">
@@ -225,23 +225,23 @@
 </header>
 
 <!-- Mobile Navigation Menu - Hidden by default -->
-<div id="mobile-menu" class="fixed inset-0 z-40 hidden">
+<div id="nexsy-mobile-menu" class="nexsy-mobile-menu fixed inset-0 z-40 hidden">
     <!-- Overlay -->
-    <div id="mobile-menu-overlay" class="absolute inset-0 bg-black bg-opacity-50"></div>
+    <div id="nexsy-mobile-menu-overlay" class="nexsy-mobile-menu-overlay absolute inset-0 bg-black bg-opacity-50"></div>
     
     <!-- Menu Content -->
-    <div class="absolute top-0 left-0 w-64 h-full bg-[#1C2260] shadow-lg transform transition-all duration-300 ease-in-out">
-        <div class="flex items-center justify-between p-4 border-b border-gray-200 bg-indigo-900">
-            <a href="{% url 'users:role_based_redirect' %}" class="flex items-center">
-                <img src="{% static 'img/logo-dark.png' %}" alt="Nexsy LMS" class="h-10 w-auto max-w-[180px] object-contain block-important visible-important opacity-100">
+    <div id="nexsy-mobile-menu-content" class="nexsy-mobile-menu-content absolute top-0 left-0 w-64 h-full bg-[#1C2260] shadow-lg transform transition-all duration-300 ease-in-out">
+        <div id="nexsy-mobile-menu-header" class="nexsy-mobile-menu-header flex items-center justify-between p-4 border-b border-gray-200 bg-indigo-900">
+            <a id="nexsy-mobile-logo-link" href="{% url 'users:role_based_redirect' %}" class="nexsy-mobile-logo-link flex items-center">
+                <img id="nexsy-mobile-logo" src="{% static 'img/logo-dark.png' %}" alt="Nexsy LMS" class="nexsy-mobile-logo h-10 w-auto max-w-[180px] object-contain block-important visible-important opacity-100">
             </a>
-            <button id="close-mobile-menu" class="flex items-center justify-center w-10 h-10 rounded-lg hover:bg-red-500 text-white transition-all min-w-10 min-h-10" aria-label="Close menu">
-                <svg class="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <button id="nexsy-close-mobile-menu" class="nexsy-close-mobile-menu flex items-center justify-center w-10 h-10 rounded-lg hover:bg-red-500 text-white transition-all min-w-10 min-h-10" aria-label="Close menu">
+                <svg id="nexsy-close-icon" class="nexsy-close-icon w-6 h-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
                 </svg>
             </button>
         </div>
-        <div class="py-4 h-full overflow-y-auto bg-[#1C2260]">
+        <div id="nexsy-mobile-menu-body" class="nexsy-mobile-menu-body py-4 h-full overflow-y-auto bg-[#1C2260]">
             <!-- Mobile menu content will be dynamically loaded from sidebar once -->
         </div>
     </div>
@@ -302,7 +302,7 @@
     #mobile-menu {
         transition: transform 0.3s ease-in-out, visibility 0.3s ease-in-out;
         transform: translateX(-100%);
-        z-index: 40;
+        z-index: 100040;
         visibility: hidden;
     }
     
@@ -316,7 +316,7 @@
         opacity: 0;
         transition: opacity 0.3s ease-in-out;
         pointer-events: none;
-        z-index: 39;
+        z-index: 100039;
     }
     
     #mobile-menu.open #mobile-menu-overlay {
@@ -332,7 +332,7 @@
         width: 100% !important;
         height: 100% !important;
         background: rgba(0, 0, 0, 0.5) !important;
-        z-index: 50 !important;
+        z-index: 100050 !important;
         display: none !important;
     }
     
@@ -347,7 +347,7 @@
         width: 16rem !important;
         height: 100% !important;
         background: #1C2260 !important;
-        z-index: 51 !important;
+        z-index: 100051 !important;
         transform: translateX(0) !important;
     }
     
@@ -722,348 +722,13 @@
         }
     }
 
-    /* Enhanced fix for header icons */
-    .header-icon,
-    .discussion-icon,
-    .notification-icon,
-    #mobile-menu-toggle,
-    #mobile-search-toggle,
-    #profile-button {
-        display: flex !important;
-        visibility: visible !important;
-        opacity: 1 !important;
-        position: relative !important;
-        z-index: 10 !important;
-        min-width: 2rem !important;
-        min-height: 2rem !important;
-        width: 2rem !important;
-        height: 2rem !important;
-        align-items: center !important;
-        justify-content: center !important;
-    }
+    /* Header icon styles moved to header-styles.css to prevent conflicts */
     
-    /* Fix header icon positioning and alignment */
-    header .flex.items-center.gap-1 {
-        display: flex;
-        align-items: center;
-        gap: 0.25rem;
-    }
-    
-    /* Mobile menu toggle button proper alignment */
-    button#mobile-menu-toggle {
-        margin-left: 0;
-        display: flex !important;
-        visibility: visible !important;
-        opacity: 1 !important;
-        cursor: pointer !important;
-        transition: all 0.2s ease !important;
-        position: relative !important;
-        z-index: 10 !important;
-    }
-    
-    button#mobile-menu-toggle:hover {
-        background-color: #f3f4f6 !important;
-        transform: scale(1.05) !important;
-    }
-    
-    button#mobile-menu-toggle:active {
-        transform: scale(0.95) !important;
-    }
-    
-    /* Ensure toggle button is always visible on all screen sizes */
-    @media (min-width: 768px) {
-        button#mobile-menu-toggle {
-            display: flex !important;
-            visibility: visible !important;
-            opacity: 1 !important;
-            cursor: pointer !important;
-            transition: all 0.2s ease !important;
-            position: relative !important;
-            z-index: 10 !important;
-        }
-    }
-    
-    /* Fix for icon SVGs */
-    .header-icon svg,
-    .discussion-icon svg,
-    .notification-icon svg {
-        display: inline;
-        visibility: visible;
-        opacity: 1;
-    }
-    
-    /* Mobile search container animations */
-    #mobile-search-container {
-        transition: all 0.3s ease-in-out;
-        transform: translateY(-10px);
-        opacity: 0;
-        display: none !important;
-        visibility: hidden;
-    }
-    
-    #mobile-search-container:not(.hidden) {
-        transform: translateY(0);
-        opacity: 1;
-        display: block !important;
-        visibility: visible;
-    }
-    
-    /* Mobile search toggle active state */
-    #mobile-search-toggle.active {
-        background-color: #3b82f6 !important;
-        color: white !important;
-    }
-    
-    #mobile-search-toggle.active:hover {
-        background-color: #2563eb !important;
-    }
-    
-    /* Fix for notification dots */
-    .header-icon span,
-    .discussion-icon span,
-    .notification-icon span {
-        display: block;
-        visibility: visible;
-        opacity: 1;
-    }
-    
-    /* Override the hidden class for the discussion icon */
-    a.discussion-icon.hidden {
-        display: flex;
-    }
-    
-    
-    /* Profile dropdown fixes - Simple approach */
-    #profile-container {
-        position: relative !important;
-        z-index: 60 !important;
-        overflow: visible !important;
-    }
-    
-    #profile-button {
-        touch-action: manipulation !important;
-        -webkit-tap-highlight-color: transparent !important;
-        cursor: pointer !important;
-        min-height: 44px !important;
-        min-width: 44px !important;
-    }
-    
-    #profile-dropdown {
-        position: absolute !important;
-        top: 3.5rem !important;
-        right: 0 !important;
-        z-index: 9999 !important;
-        min-width: 12rem !important;
-        max-width: calc(100vw - 2rem) !important;
-        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04) !important;
-        background-color: white !important;
-        border-radius: 0.75rem !important;
-        border: 1px solid #e5e7eb !important;
-        transition: all 0.2s ease-in-out !important;
-        transform: translateY(-5px) !important;
-        opacity: 0 !important;
-        visibility: hidden !important;
-        display: none !important;
-    }
-    
-    #profile-dropdown.hidden {
-        display: none !important;
-        visibility: hidden !important;
-        opacity: 0 !important;
-        transform: translateY(-5px) !important;
-    }
-    
-    #profile-dropdown:not(.hidden) {
-        display: block !important;
-        visibility: visible !important;
-        opacity: 1 !important;
-        transform: translateY(0) !important;
-    }
-    
-    /* Enhanced profile dropdown animation */
-    #profile-dropdown.show {
-        display: block !important;
-        visibility: visible !important;
-        opacity: 1 !important;
-        transform: translateY(0) !important;
-    }
-    
-    /* Mobile specific fixes */
-    @media (max-width: 768px) {
-        /* Ensure header allows overflow for dropdown */
-        header .flex.items-center {
-            overflow: visible !important;
-        }
-        
-        header .flex.items-center.justify-between {
-            overflow: visible !important;
-        }
-        
-        #profile-container {
-            overflow: visible !important;
-        }
-        
-        #profile-dropdown {
-            max-width: calc(100vw - 1rem) !important;
-            right: -0.25rem !important;
-            width: max-content !important;
-        }
-        
-        /* Ensure dropdown menu items are touch-friendly on mobile */
-        #profile-dropdown a,
-        #profile-dropdown button[type="submit"] {
-            min-height: 48px !important;
-            touch-action: manipulation !important;
-            -webkit-tap-highlight-color: transparent !important;
-            padding: 14px 16px !important;
-        }
-        
-        /* Better visual feedback for touch on menu items */
-        #profile-dropdown a:active,
-        #profile-dropdown button[type="submit"]:active {
-            background-color: #e5e7eb !important;
-            transform: scale(0.98) !important;
-        }
-        
-        /* Ensure dropdown stays within viewport on small screens */
-        #profile-dropdown {
-            max-height: calc(100vh - 5rem) !important;
-            overflow-y: auto !important;
-            -webkit-overflow-scrolling: touch !important;
-        }
-    }
-    
-    /* Extra small screens - adjust dropdown positioning */
-    @media (max-width: 480px) {
-        #profile-dropdown {
-            right: -0.25rem !important;
-            max-width: calc(100vw - 1rem) !important;
-        }
-    }
-    
-    /* Branch switcher menu styles */
-    #branch-switcher-menu {
-        position: absolute !important;
-        top: 100% !important;
-        left: 0 !important;
-        z-index: 9999 !important;
-        min-width: 16rem !important;
-        max-width: calc(100vw - 2rem) !important;
-        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04) !important;
-        background-color: white !important;
-        border-radius: 0.5rem !important;
-        border: 1px solid #e5e7eb !important;
-        transition: all 0.2s ease-in-out !important;
-    }
-    
-    #branch-switcher-menu.hidden {
-        display: none !important;
-        visibility: hidden !important;
-        opacity: 0 !important;
-    }
-    
-    #branch-switcher-menu:not(.hidden) {
-        display: block !important;
-        visibility: visible !important;
-        opacity: 1 !important;
-    }
-    
-    #branch-arrow {
-        transition: transform 0.2s ease-in-out !important;
-    }
+    /* Profile dropdown and branch switcher styles moved to header-styles.css */
 </style>
 
-<!-- Ensure all header icons are visible script -->
+<!-- Header visibility is now managed by header-styles.css -->
 <script>
-// Comprehensive header visibility fix
-function forceHeaderVisibility() {
-    const header = document.querySelector('header');
-    if (header) {
-        // Force header visibility with maximum priority
-        header.style.setProperty('display', 'block', 'important');
-        header.style.setProperty('visibility', 'visible', 'important');
-        header.style.setProperty('opacity', '1', 'important');
-        header.style.setProperty('z-index', '9999', 'important');
-        header.style.setProperty('position', 'fixed', 'important');
-        header.style.setProperty('top', '0', 'important');
-        header.style.setProperty('left', '0', 'important');
-        header.style.setProperty('right', '0', 'important');
-        header.style.setProperty('width', '100%', 'important');
-        header.style.setProperty('height', '4rem', 'important');
-        header.style.setProperty('background', 'white', 'important');
-        header.style.setProperty('border-bottom', '1px solid #e5e7eb', 'important');
-        header.style.setProperty('box-shadow', '0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1)', 'important');
-        
-        // Force header content visibility
-        const headerContent = header.querySelector('.flex.items-center');
-        if (headerContent) {
-            headerContent.style.setProperty('display', 'flex', 'important');
-            headerContent.style.setProperty('visibility', 'visible', 'important');
-            headerContent.style.setProperty('opacity', '1', 'important');
-        }
-        
-        // Force all header icons to be visible
-        const headerIcons = header.querySelectorAll('.header-icon, .discussion-icon, .notification-icon, #mobile-menu-toggle, #profile-button');
-        headerIcons.forEach(icon => {
-            icon.style.setProperty('display', 'flex', 'important');
-            icon.style.setProperty('visibility', 'visible', 'important');
-            icon.style.setProperty('opacity', '1', 'important');
-        });
-        
-        // Force SVG icons to be visible
-        const svgIcons = header.querySelectorAll('svg');
-        svgIcons.forEach(svg => {
-            svg.style.setProperty('display', 'inline-block', 'important');
-            svg.style.setProperty('visibility', 'visible', 'important');
-            svg.style.setProperty('opacity', '1', 'important');
-        });
-    }
-}
-
-// Run header fix immediately and on various events
-forceHeaderVisibility();
-document.addEventListener('DOMContentLoaded', forceHeaderVisibility);
-window.addEventListener('load', forceHeaderVisibility);
-window.addEventListener('resize', forceHeaderVisibility);
-
-// Run header fix after any DOM changes
-const headerObserver = new MutationObserver(function(mutations) {
-    let shouldFix = false;
-    mutations.forEach(function(mutation) {
-        if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
-            for (let node of mutation.addedNodes) {
-                if (node.nodeType === Node.ELEMENT_NODE) {
-                    // Check if any editor elements were added that might interfere
-                    if (node.classList && (node.classList.contains('tox-tinymce') || 
-                                         node.classList.contains('tox-toolbar') ||
-                                         node.querySelector('.tox-tinymce, .tox-toolbar'))) {
-                        shouldFix = true;
-                        break;
-                    }
-                }
-            }
-        }
-    });
-    if (shouldFix) {
-        setTimeout(forceHeaderVisibility, 100);
-    }
-});
-
-// Start observing when DOM is ready
-if (document.body) {
-    headerObserver.observe(document.body, {
-        childList: true,
-        subtree: true
-    });
-} else {
-    document.addEventListener('DOMContentLoaded', function() {
-        headerObserver.observe(document.body, {
-            childList: true,
-            subtree: true
-        });
-    });
-}
-
 // Consolidated header JavaScript
 document.addEventListener('DOMContentLoaded', function() {
     // Branch Switcher JavaScript
@@ -1248,10 +913,10 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // Simplified mobile menu toggle - prevents conflicts
-    const mobileMenuToggle = document.getElementById('mobile-menu-toggle');
-    const mobileMenu = document.getElementById('mobile-menu');
-    const mobileMenuOverlay = document.getElementById('mobile-menu-overlay');
-    const closeMobileMenu = document.getElementById('close-mobile-menu');
+    const mobileMenuToggle = document.getElementById('nexsy-mobile-menu-toggle');
+    const mobileMenu = document.getElementById('nexsy-mobile-menu');
+    const mobileMenuOverlay = document.getElementById('nexsy-mobile-menu-overlay');
+    const closeMobileMenu = document.getElementById('nexsy-close-mobile-menu');
     const sidebar = document.getElementById('sidebar');
     const mainContent = document.getElementById('main-content');
     
@@ -1263,7 +928,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (mobileMenuContentLoaded) return;
         
         const sidebarContent = document.querySelector('#sidebar nav .flex.flex-col');
-        const mobileMenuContent = document.querySelector('#mobile-menu .py-4');
+        const mobileMenuContent = document.querySelector('#nexsy-mobile-menu-body');
         
         if (sidebarContent && mobileMenuContent) {
             // Check if the menu content is already populated
@@ -1333,6 +998,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             } else {
                 // Desktop behavior - toggle sidebar
+                const sidebar = document.getElementById('sidebar');
+                const mainContent = document.getElementById('main-content');
+                
                 if (sidebar && mainContent) {
                     const wasCollapsed = sidebar.classList.contains('collapsed');
                     sidebar.classList.toggle('collapsed');
@@ -1351,6 +1019,11 @@ document.addEventListener('DOMContentLoaded', function() {
                         mainContent.style.marginLeft = '16rem';
                         mainContent.style.width = 'calc(100% - 16rem)';
                         mainContent.style.maxWidth = 'calc(100% - 16rem)';
+                    }
+                } else {
+                    // Fallback: try to call global toggleSidebar function if it exists
+                    if (typeof window.toggleSidebar === 'function') {
+                        window.toggleSidebar();
                     }
                 }
             }
@@ -1829,9 +1502,9 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Simplified profile dropdown functionality
     function initializeProfileDropdown() {
-        const profileButton = document.getElementById('profile-button');
-        const profileDropdown = document.getElementById('profile-dropdown');
-        const profileContainer = document.getElementById('profile-container');
+        const profileButton = document.getElementById('nexsy-profile-button');
+        const profileDropdown = document.getElementById('nexsy-profile-dropdown');
+        const profileContainer = document.getElementById('nexsy-profile-container');
         
         if (!profileButton || !profileDropdown || !profileContainer) {
             return false;
@@ -1926,7 +1599,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Global function for manual testing
     window.testProfileDropdown = function() {
         // Manual profile dropdown test triggered
-        const profileButton = document.getElementById('profile-button');
+        const profileButton = document.getElementById('nexsy-profile-button');
         if (profileButton) {
             profileButton.click();
         } else {
@@ -1936,9 +1609,9 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Global function to check profile dropdown status
     window.checkProfileDropdownStatus = function() {
-        const profileButton = document.getElementById('profile-button');
-        const profileDropdown = document.getElementById('profile-dropdown');
-        const profileContainer = document.getElementById('profile-container');
+        const profileButton = document.getElementById('nexsy-profile-button');
+        const profileDropdown = document.getElementById('nexsy-profile-dropdown');
+        const profileContainer = document.getElementById('nexsy-profile-container');
         
         // Profile Dropdown Status Check
         // Button exists, Dropdown exists, Container exists
@@ -2012,7 +1685,7 @@ document.addEventListener('DOMContentLoaded', function() {
         clearTimeout(resizeTimer);
         resizeTimer = setTimeout(function() {
             if (window.innerWidth <= 768) {
-                const profileButton = document.getElementById('profile-button');
+            const profileButton = document.getElementById('nexsy-profile-button');
                 if (profileButton) {
                     profileButton.style.touchAction = 'manipulation';
                 }

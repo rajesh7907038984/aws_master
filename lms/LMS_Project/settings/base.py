@@ -274,6 +274,7 @@ MIDDLEWARE = [
     'django.middleware.csrf.CsrfViewMiddleware',  # RE-ENABLED FOR PROPER CSRF PROTECTION
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'core.middleware.error_logging_middleware.ErrorLoggingMiddleware',  # Enhanced error logging - moved up
+    'core.middleware.comprehensive_error_middleware.ComprehensiveErrorMiddleware',  # Comprehensive error handling
     'core.middleware.session_auth_middleware.SessionAuthMiddleware',  # Simplified session recovery
     'scorm.middleware.SCORMAuthenticationMiddleware',  # SCORM authentication for iframe scenarios
     'core.middleware.csp_middleware.CSPMiddleware',  # Content Security Policy with unsafe-eval support

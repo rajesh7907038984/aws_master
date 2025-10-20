@@ -69,21 +69,9 @@ def cleanup_orphaned_files(sender, instance, **kwargs):
         import os
         import time
         
-        # Use MEDIA_ROOT only if it exists and is local
-        if hasattr(settings, 'MEDIA_ROOT') and settings.MEDIA_ROOT:
-            temp_dir = os.path.join(settings.MEDIA_ROOT, 'courses/temp_uploads')
-            if os.path.exists(temp_dir):
-                current_time = time.time()
-                for filename in os.listdir(temp_dir):
-                    file_path = os.path.join(temp_dir, filename)
-                    if os.path.isfile(file_path):
-                        # Check if file is older than 1 hour
-                        if current_time - os.path.getmtime(file_path) > 3600:
-                            try:
-                                os.remove(file_path)
-                                logger.debug(f"Cleaned up old temp file: {filename}")
-                            except OSError as e:
-                                logger.warning(f"Could not remove temp file {filename}: {e}")
+        # S3 storage - no local temp files to clean up
+        # All files are stored directly in S3, no local MEDIA_ROOT cleanup needed
+        logger.debug("S3 storage mode - no local temp files to clean up")
     except Exception as e:
         logger.error(f"Error in cleanup_orphaned_files signal: {e}")
 

@@ -96,6 +96,11 @@
     color: #6b7280 !important;
 }
 
+/* Sidebar specific overrides for white icons */
+#sidebar .fa-th-large {
+    color: white !important;
+}
+
 .fa-list {
     color: #6b7280 !important;
 }
@@ -110,6 +115,18 @@
 
 .fa-users {
     color: #8b5cf6 !important;
+}
+
+/* Sidebar specific overrides for white icons */
+#sidebar .fa-users,
+.sidebar .fa-users,
+.menu-item .fa-users {
+    color: white !important;
+}
+
+/* Ensure all sidebar icons are white */
+#sidebar .fas, #sidebar .far, #sidebar .fab, #sidebar .fa {
+    color: white !important;
 }
 
 .fa-tasks {

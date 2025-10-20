@@ -694,8 +694,14 @@ def admin_send_forgot_password(request, user_id):
         return JsonResponse({'success': True, 'message': f'Password reset email sent to {target_user.email}'})
         
     except Exception as e:
-        logger.error(f"Error sending password reset email: {str(e)}")
-        return JsonResponse({'success': False, 'message': 'Error sending password reset email'}, status=500)
+        logger.error(f"Error sending password reset email: {str(e)}", exc_info=True)
+        return JsonResponse({
+            'success': False,
+            'error': 'Error sending password reset email',
+            'message': 'Unable to send password reset email. Please try again or contact support.',
+            'details': str(e),
+            'error_type': 'EMAIL_SENDING_ERROR'
+        }, status=500)
 
 
 @login_required
@@ -8620,8 +8626,14 @@ def lookup_postcode_addresses(request):
             }, status=404)
         
     except Exception as e:
-        logger.error(f"Postcode address lookup error: {str(e)}")
-        return JsonResponse({'error': 'Service temporarily unavailable'}, status=500)
+        logger.error(f"Postcode address lookup error: {str(e)}", exc_info=True)
+        return JsonResponse({
+            'success': False,
+            'error': 'Service temporarily unavailable',
+            'message': 'The postcode lookup service is currently unavailable. Please try again later.',
+            'details': str(e),
+            'error_type': 'EXTERNAL_SERVICE_ERROR'
+        }, status=503)
 
 @login_required
 def add_quiz_assignment(request):
@@ -10540,13 +10552,33 @@ def validate_bulk_import(request):
         try:
             import pandas as pd
         except ImportError:
-            return JsonResponse({'error': 'Excel processing library not available'}, status=500)
+            logger.error("Excel processing library (pandas) not available")
+            return JsonResponse({
+                'success': False,
+                'error': 'Excel processing library not available',
+                'message': 'Please contact your administrator to install the required Excel processing library.',
+                'error_type': 'LIBRARY_UNAVAILABLE'
+            }, status=500)
         
-        # Read Excel file
+        # Read Excel file with enhanced error handling
         try:
             df = pd.read_excel(file)
         except Exception as e:
-            return JsonResponse({'error': f'Error reading Excel file: {str(e)}'}, status=400)
+            logger.error(f"Error reading Excel file: {str(e)}")
+            error_message = "Error reading Excel file"
+            if "password" in str(e).lower():
+                error_message = "Excel file is password protected. Please remove password protection and try again."
+            elif "format" in str(e).lower() or "invalid" in str(e).lower():
+                error_message = "Invalid Excel file format. Please ensure the file is a valid Excel file."
+            elif "permission" in str(e).lower():
+                error_message = "Permission denied reading Excel file. Please check file permissions."
+            
+            return JsonResponse({
+                'success': False,
+                'error': error_message,
+                'details': str(e),
+                'error_type': 'EXCEL_READ_ERROR'
+            }, status=400)
         
         # Expected columns
         expected_columns = ['First Name', 'Last Name', 'Email', 'Username', 'Password', 'Role', 'Branch', 'Group(s)']
@@ -10624,8 +10656,14 @@ def validate_bulk_import(request):
         })
         
     except Exception as e:
-        logger.error(f"Error in validate_bulk_import: {str(e)}")
-        return JsonResponse({'error': 'An error occurred while processing the file'}, status=500)
+        logger.error(f"Error in validate_bulk_import: {str(e)}", exc_info=True)
+        return JsonResponse({
+            'success': False,
+            'error': 'An error occurred while processing the file',
+            'message': 'Please check your Excel file format and try again.',
+            'details': str(e),
+            'error_type': 'BULK_IMPORT_ERROR'
+        }, status=500)
 
 
 @login_required
@@ -10678,8 +10716,14 @@ def validate_bulk_data(request):
         })
         
     except Exception as e:
-        logger.error(f"Error in validate_bulk_data: {str(e)}")
-        return JsonResponse({'error': 'An error occurred while validating data'}, status=500)
+        logger.error(f"Error in validate_bulk_data: {str(e)}", exc_info=True)
+        return JsonResponse({
+            'success': False,
+            'error': 'An error occurred while validating data',
+            'message': 'Please check your data format and try again.',
+            'details': str(e),
+            'error_type': 'DATA_VALIDATION_ERROR'
+        }, status=500)
 
 
 @login_required
@@ -10761,8 +10805,14 @@ def bulk_import(request):
         })
         
     except Exception as e:
-        logger.error(f"Error in bulk_import: {str(e)}")
-        return JsonResponse({'error': 'An error occurred while importing users'}, status=500)
+        logger.error(f"Error in bulk_import: {str(e)}", exc_info=True)
+        return JsonResponse({
+            'success': False,
+            'error': 'An error occurred while importing users',
+            'message': 'Please check your data and try again.',
+            'details': str(e),
+            'error_type': 'BULK_IMPORT_PROCESSING_ERROR'
+        }, status=500)
 
 # Auto-timezone detection views
 from .auto_timezone import set_user_timezone_auto, get_user_timezone_status

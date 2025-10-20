@@ -1,98 +1,126 @@
 /**
- * Header Styles - Consolidated and optimized
- * Removes duplication and conflicting rules
+ * Header Styles - Optimized and Conflict-Free
+ * Reduced !important usage to prevent style conflicts
  */
 
 /* ===== Core Header Styles ===== */
-header {
-    box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
-    height: 4rem;
-    display: block;
-    visibility: visible;
-    opacity: 1;
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    z-index: 100;
-    width: 100%;
-    background: white;
-    border-bottom: 1px solid #e5e7eb;
+#nexsy-main-header,
+.nexsy-header {
+    /* Essential header properties - keep !important for positioning */
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
+    height: 4rem !important;
+    z-index: 100000 !important;
+    
+    /* Visual styling - force with !important to prevent overrides */
+    background: white !important;
+    border-bottom: 1px solid #e5e7eb !important;
+    box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1) !important;
+    
+    /* Ensure visibility and prevent margin issues */
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    margin: 0 !important;
+    padding: 0 !important;
 }
 
-/* ===== Header Layout Alignment Fixes ===== */
-header > div {
+/* ===== Header Layout ===== */
+#nexsy-header-container,
+.nexsy-header-container {
     display: flex !important;
     align-items: center !important;
     justify-content: space-between !important;
     width: 100% !important;
+    max-width: none !important;
     height: 100% !important;
     min-height: 4rem !important;
-    padding: 0 0.5rem !important;
-    gap: 0.5rem !important;
+    padding: 0 !important;
+    gap: 1rem !important;
+    overflow: visible !important;
+    margin: 0 !important;
 }
 
 /* Left section - Logo and toggle */
-header > div > div:first-child {
+#nexsy-header-left,
+.nexsy-header-left {
     display: flex !important;
     align-items: center !important;
     flex-shrink: 0 !important;
     min-width: 0 !important;
     gap: 0.5rem !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    padding-left: 0.5rem !important;
 }
 
 /* Center section - Search */
-header > div > div:nth-child(2) {
+#nexsy-header-center,
+.nexsy-header-center {
     display: flex !important;
     align-items: center !important;
     flex: 1 !important;
     justify-content: center !important;
     min-width: 0 !important;
-    max-width: 48rem !important;
-    margin: 0 auto !important;
+    max-width: none !important;
+    margin: 0 !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+
+/* Search form styling */
+#nexsy-search-form,
+.nexsy-search-form {
+    display: flex !important;
+    width: 100% !important;
+    max-width: 600px !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    background-color: #f9fafb !important;
+    border: 1px solid #e5e7eb !important;
+    border-radius: 0.75rem !important;
+    padding: 0 !important;
+    margin: 0 !important;
+}
+
+/* Search input styling */
+#nexsy-search-input,
+.nexsy-search-input {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+
+/* Category selector styling */
+#nexsy-category-selector,
+.nexsy-category-selector {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
 }
 
 /* Right section - Icons */
-header > div > div:last-child {
+#nexsy-header-right,
+.nexsy-header-right {
     display: flex !important;
     align-items: center !important;
     flex-shrink: 0 !important;
     min-width: 0 !important;
     gap: 0.5rem !important;
-}
-
-/* High specificity to override conflicting styles */
-html body header {
-    display: block;
-    visibility: visible;
-    opacity: 1;
-    position: fixed;
-    z-index: 100;
-}
-
-header > div,
-header .flex.items-center {
-    overflow: visible;
-    display: flex;
-    align-items: center;
-    width: 100%;
-}
-
-/* High specificity for header content */
-html body header > div,
-html body header .flex.items-center {
-    overflow: visible;
-    display: flex;
-    align-items: center;
+    margin: 0 !important;
 }
 
 /* ===== Header Icons - Always Visible ===== */
-.header-icon,
-.discussion-icon,
-.notification-icon,
-#mobile-menu-toggle,
-#profile-container,
-#profile-button {
+.nexsy-header-icon,
+.nexsy-messages-btn,
+.nexsy-notifications-btn,
+#nexsy-mobile-menu-toggle,
+.nexsy-toggle-btn,
+#nexsy-profile-container,
+#nexsy-profile-button {
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
@@ -100,1331 +128,314 @@ html body header .flex.items-center {
     opacity: 1 !important;
     position: relative !important;
     z-index: 10 !important;
-}
-
-/* ===== Icon Alignment Fixes ===== */
-.header-icon,
-.discussion-icon,
-.notification-icon {
     width: 2.5rem !important;
     height: 2.5rem !important;
     min-width: 2.5rem !important;
     min-height: 2.5rem !important;
     border-radius: 50% !important;
     transition: all 0.2s ease !important;
+    cursor: pointer !important;
+    border: none !important;
+    background: transparent !important;
 }
 
-.header-icon:hover,
-.discussion-icon:hover,
-.notification-icon:hover {
+/* Icon hover effects */
+.nexsy-header-icon:hover,
+.nexsy-messages-btn:hover,
+.nexsy-notifications-btn:hover,
+#nexsy-mobile-menu-toggle:hover,
+.nexsy-toggle-btn:hover,
+#nexsy-profile-button:hover {
     background-color: #f3f4f6 !important;
     transform: scale(1.05) !important;
 }
 
-.header-icon:active,
-.discussion-icon:active,
-.notification-icon:active {
+.nexsy-header-icon:active,
+.nexsy-messages-btn:active,
+.nexsy-notifications-btn:active,
+#nexsy-mobile-menu-toggle:active,
+.nexsy-toggle-btn:active,
+#nexsy-profile-button:active {
     transform: scale(0.95) !important;
 }
 
-/* Icon SVG alignment */
-.header-icon svg,
-.discussion-icon svg,
-.notification-icon svg {
+/* Icon SVG styles - Always Visible */
+.nexsy-header-icon svg,
+.nexsy-messages-icon,
+.nexsy-notifications-icon,
+#nexsy-hamburger-icon,
+.nexsy-hamburger-icon {
     width: 1.25rem !important;
     height: 1.25rem !important;
     flex-shrink: 0 !important;
-}
-
-/* Profile button alignment */
-#profile-button {
-    width: 2.5rem !important;
-    height: 2.5rem !important;
-    min-width: 2.5rem !important;
-    min-height: 2.5rem !important;
-    border-radius: 50% !important;
-    transition: all 0.2s ease !important;
-}
-
-#profile-button:hover {
-    background-color: #f3f4f6 !important;
-    transform: scale(1.05) !important;
-}
-
-#profile-button:active {
-    transform: scale(0.95) !important;
-}
-
-/* Profile image alignment */
-#profile-button img {
-    width: 100% !important;
-    height: 100% !important;
-    object-fit: cover !important;
-    border-radius: 50% !important;
-}
-
-/* CRITICAL: Force header visibility - override any conflicting styles */
-header {
-    display: block !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-    position: fixed !important;
-    top: 0 !important;
-    left: 0 !important;
-    right: 0 !important;
-    width: 100% !important;
-    height: 4rem !important;
-    z-index: 9999 !important;
-    background: white !important;
-    border-bottom: 1px solid #e5e7eb !important;
-    box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1) !important;
-}
-
-/* CRITICAL: Override dashboard styles that might affect header */
-html body header {
-    display: block !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-    position: fixed !important;
-    z-index: 9999 !important;
-}
-
-/* CRITICAL: Override any dashboard container styles that might affect header */
-html body .dashboard-container header,
-html body .dashboard-main header,
-html body .dashboard-grid header {
-    display: block !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-    position: fixed !important;
-    top: 0 !important;
-    left: 0 !important;
-    right: 0 !important;
-    width: 100% !important;
-    height: 4rem !important;
-    z-index: 9999 !important;
-    background: white !important;
-    border-bottom: 1px solid #e5e7eb !important;
-    box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1) !important;
-}
-
-/* CRITICAL: Ensure header is not affected by dashboard overflow settings */
-html body .dashboard-container,
-html body .dashboard-main,
-html body .dashboard-grid {
-    overflow-x: visible !important;
-    overflow-y: visible !important;
-}
-
-/* CRITICAL: Override any dashboard width constraints on header */
-html body header {
-    width: 100% !important;
-    max-width: 100% !important;
-    min-width: 100% !important;
-    box-sizing: border-box !important;
-}
-
-/* CRITICAL: Fix header logo and navigation alignment */
-html body header .flex.items-center {
-    display: flex !important;
-    align-items: center !important;
-    justify-content: space-between !important;
-    width: 100% !important;
-    max-width: 100% !important;
-    min-width: 0 !important;
-    overflow: visible !important;
-    flex-wrap: nowrap !important;
-    gap: 0.5rem !important;
-}
-
-/* CRITICAL: Fix header logo container */
-html body header .flex.items-center:first-child {
-    display: flex !important;
-    align-items: center !important;
-    flex-shrink: 0 !important;
-    min-width: 0 !important;
-    max-width: 200px !important;
-    overflow: visible !important;
-}
-
-/* CRITICAL: Fix header logo image */
-html body header img {
-    display: block !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-    max-width: 200px !important;
-    height: auto !important;
-    object-fit: contain !important;
-    flex-shrink: 0 !important;
-}
-
-/* CRITICAL: Fix header right section */
-html body header .flex.items-center:last-child {
-    display: flex !important;
-    align-items: center !important;
-    flex-shrink: 0 !important;
-    min-width: 0 !important;
-    gap: 0.5rem !important;
-    overflow: visible !important;
-}
-
-/* CRITICAL: Fix header icons visibility */
-html body header .header-icon,
-html body header .discussion-icon,
-html body header .notification-icon,
-html body header #mobile-menu-toggle,
-html body header #profile-button,
-html body header #profile-container {
-    display: flex !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-    align-items: center !important;
-    justify-content: center !important;
-    position: relative !important;
-    z-index: 10 !important;
-    min-width: 2.5rem !important;
-    min-height: 2.5rem !important;
-    overflow: visible !important;
-}
-
-/* CRITICAL: Fix header icon SVGs */
-html body header .header-icon svg,
-html body header .discussion-icon svg,
-html body header .notification-icon svg,
-html body header #mobile-menu-toggle svg {
     display: inline-block !important;
     visibility: visible !important;
     opacity: 1 !important;
-    width: 1.5rem !important;
-    height: 1.5rem !important;
-    flex-shrink: 0 !important;
 }
 
-/* CRITICAL: Fix header icon spans (notification badges) */
-html body header .header-icon span,
-html body header .discussion-icon span,
-html body header .notification-icon span {
-    display: block !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-    position: absolute !important;
-    z-index: 11 !important;
+/* Profile button styles */
+#nexsy-profile-button img,
+.nexsy-profile-image,
+.nexsy-default-avatar {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
 }
 
-/* CRITICAL: Responsive fixes for different screen sizes */
-@media (max-width: 1024px) {
-    html body header img {
-        max-width: 180px !important;
-    }
-    
-    html body header .flex.items-center:first-child {
-        max-width: 200px !important;
-    }
-}
-
-@media (max-width: 768px) {
-    html body header img {
-        max-width: 160px !important;
-    }
-    
-    html body header .flex.items-center:first-child {
-        max-width: 180px !important;
-    }
-    
-    html body header .flex.items-center {
-        gap: 0.5rem !important;
-    }
-}
-
-@media (max-width: 480px) {
-    html body header img {
-        max-width: 140px !important;
-    }
-    
-    html body header .flex.items-center:first-child {
-        max-width: 160px !important;
-    }
-    
-    html body header .flex.items-center {
-        gap: 0.25rem !important;
-    }
-    
-    /* Hide messages icon on very small screens if needed */
-    html body header .discussion-icon.hidden.xs\:flex {
-        display: none !important;
-    }
-}
-
-/* Specific overrides for header content */
-header .flex.items-center {
-    display: flex !important;
-}
-
-header .header-icon,
-header .discussion-icon,
-header .notification-icon,
-header #mobile-menu-toggle,
-header #profile-button {
-    display: flex !important;
-}
-
-/* CRITICAL: Header icons that must NEVER be hidden by JavaScript */
-.header-icon-permanent,
-.header-icon-permanent *,
-button.header-icon-permanent,
-a.header-icon-permanent,
-div.header-icon-permanent {
-    display: flex !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-}
-
-/* Override ANY JavaScript attempts to hide permanent icons */  
-.header-icon-permanent[style*="display: none"],
-.header-icon-permanent[style*="visibility: hidden"],
-.header-icon-permanent[style*="opacity: 0"] {
-    display: flex !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-}
-
-.header-icon svg,
-.discussion-icon svg,
-.notification-icon svg,
-#mobile-menu-toggle svg {
-    display: inline-block;
-    visibility: visible;
-    opacity: 1;
-}
-
-/* ===== Dropdown Styling ===== */
-select option {
-    background: white;
-    color: #111827;
-    padding: 0.5rem 1rem;
-}
-
-select::-webkit-scrollbar {
-    width: 8px;
-}
-
-select::-webkit-scrollbar-track {
-    background: #f3f4f6;
-}
-
-select::-webkit-scrollbar-thumb {
-    background: #d1d5db;
-    border-radius: 9999px;
-}
-
-.shadow-lg {
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-}
-
-/* ===== Mobile Menu Styles ===== */
-#mobile-menu {
+/* ===== Mobile Menu - Clean Implementation ===== */
+#nexsy-mobile-menu,
+.nexsy-mobile-menu {
     position: fixed !important;
     top: 0 !important;
     left: 0 !important;
     width: 100% !important;
     height: 100% !important;
     background: rgba(0, 0, 0, 0.5);
-    z-index: 50;
+    z-index: 100050 !important;
     display: none;
     visibility: hidden;
     opacity: 0;
     transition: all 0.3s ease-in-out;
 }
 
-#mobile-menu.open {
+#nexsy-mobile-menu.open,
+.nexsy-mobile-menu.open {
     display: block;
     visibility: visible;
     opacity: 1;
 }
 
-#mobile-menu .absolute.top-0.left-0 {
+#nexsy-mobile-menu-content,
+.nexsy-mobile-menu-content {
     position: absolute;
     top: 0;
     left: 0;
-    width: var(--sidebar-width, 16rem);
+    width: 16rem;
     height: 100%;
-    background: var(--brand-primary, #050c50);
-    z-index: var(--z-mobile-menu, 51);
+    background: #1C2260;
+    z-index: 100051;
     transform: translateX(0);
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    will-change: transform;
 }
 
-#mobile-menu:not(.open) .absolute.top-0.left-0 {
+#nexsy-mobile-menu:not(.open) #nexsy-mobile-menu-content,
+.nexsy-mobile-menu:not(.open) .nexsy-mobile-menu-content {
     transform: translateX(-100%);
 }
 
-#mobile-menu-overlay {
+/* Mobile menu overlay */
+#nexsy-mobile-menu-overlay,
+.nexsy-mobile-menu-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 100039;
     opacity: 0;
-    transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: opacity 0.3s ease-in-out;
     pointer-events: none;
-    z-index: var(--z-mobile-overlay, 39);
 }
 
-#mobile-menu.open #mobile-menu-overlay {
+#nexsy-mobile-menu.open #nexsy-mobile-menu-overlay,
+.nexsy-mobile-menu.open .nexsy-mobile-menu-overlay {
     opacity: 0.5;
     pointer-events: auto;
 }
 
-/* ===== Mobile Menu Items ===== */
-#mobile-menu .menu-item {
-    position: relative;
-    width: 100%;
-    cursor: pointer;
-    color: white;
-    padding: 12px 24px;
-    min-height: 48px;
-    text-decoration: none;
-    display: flex;
-    align-items: center;
-    transition: all 0.3s ease;
-    background-color: transparent;
-    border: none;
-    text-align: left;
-    font-size: 0.875rem;
-}
-
-#mobile-menu .menu-item:hover,
-#mobile-menu .menu-item.active {
-    background-color: var(--brand-primary-hover);
-    border-left: 3px solid #02f711;
-}
-
-#mobile-menu .icon-container {
-    min-width: 16px;
-    width: 16px;
-}
-
-#mobile-menu .icon-container svg {
-    width: 16px;
-    height: 16px;
-    stroke-width: 2;
-    fill: none;
-    color: white;
-    stroke: white;
-}
-
-#mobile-menu .menu-text {
-    color: white;
-    font-size: 0.875rem;
-    line-height: 1.25rem;
-    margin-left: 0.5rem;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-/* ===== Mobile Submenus ===== */
-#mobile-menu .submenu {
-    background-color: rgba(0, 0, 0, 0.1);
-    max-height: 0;
-    overflow: hidden;
-    transition: max-height 0.3s ease, opacity 0.3s ease;
-    opacity: 0;
-    visibility: hidden;
-}
-
-#mobile-menu .submenu:not(.hidden) {
-    max-height: 1200px;
-    opacity: 1;
-    visibility: visible;
+/* ===== Profile Dropdown - Clean Implementation ===== */
+#nexsy-profile-container,
+.nexsy-profile-container {
+    position: relative !important;
+    z-index: 100060 !important;
     overflow: visible;
 }
 
-#mobile-menu .submenu .menu-item {
-    padding: 12px 24px 12px 52px;
-    font-size: 0.9375rem;
-    opacity: 0.9;
-}
-
-#mobile-menu .submenu .menu-item:hover {
-    background-color: var(--brand-primary-hover);
-    opacity: 1;
-    border-left: 3px solid #02f711;
-}
-
-#mobile-menu .menu-item.has-submenu .arrow-icon {
-    position: absolute;
-    right: 1rem;
-    transition: transform 0.3s ease;
-    width: 12px;
-    height: 12px;
-    color: white;
-    stroke: white;
-    fill: none;
-}
-
-#mobile-menu .menu-item.has-submenu.expanded .arrow-icon {
-    transform: rotate(180deg);
-}
-
-/* ===== Mobile Search ===== */
-#mobile-search-container {
-    transition: all 0.3s ease-in-out;
-    transform: translateY(-10px);
-    opacity: 0;
-    display: none !important;
-    visibility: hidden;
-    height: 0;
-    overflow: hidden;
-    width: 100%;
-    position: relative;
-    z-index: 45;
-}
-
-#mobile-search-container:not(.hidden) {
-    transform: translateY(0);
-    opacity: 1;
-    display: block !important;
-    visibility: visible;
-    height: auto;
-    padding: 0.75rem 1rem;
-}
-
-/* Prevent duplicate mobile search containers */
-#mobile-search-container ~ #mobile-search-container {
-    display: none !important;
-    visibility: hidden !important;
-}
-
-/* Mobile search toggle - hidden on desktop, shown on mobile */
-#mobile-search-toggle {
-    position: relative;
-    z-index: 10;
-}
-
-#mobile-search-toggle.active {
-    background-color: #3b82f6;
-    color: white;
-}
-
-#mobile-search-toggle.active:hover {
-    background-color: #2563eb;
-}
-
-/* ===== Header Layout Adjustments ===== */
-/* Spacer for mobile layout - hidden on desktop */
-header .flex-1.md\:hidden {
-    display: none !important;
-}
-
-@media (max-width: 767px) {
-    header .flex-1.md\:hidden {
-        display: block !important;
-    }
-}
-
-/* ===== Profile Dropdown ===== */
-#profile-container {
-    position: relative !important;
-    z-index: 60 !important;
-    overflow: visible !important;
-}
-
-/* Profile Icon Round Shape Enhancement */
-#profile-button img,
-#profile-button div {
-    border-radius: 50% !important;
-    overflow: hidden !important;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
-    transition: all 0.2s ease-in-out !important;
-}
-
-#profile-button:hover img,
-#profile-button:hover div {
-    transform: scale(1.05) !important;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15) !important;
-}
-
-#profile-button:active img,
-#profile-button:active div {
-    transform: scale(0.95) !important;
-}
-
-#profile-dropdown {
+#nexsy-profile-dropdown,
+.nexsy-profile-dropdown {
     position: absolute !important;
-    top: 3.5rem !important;
-    right: 0 !important;
-    z-index: 9999 !important;
-    min-width: 12rem !important;
-    max-width: calc(100vw - 2rem) !important;
+    top: 3.5rem;
+    right: 0;
+    z-index: 100100 !important;
+    min-width: 12rem;
+    max-width: calc(100vw - 2rem);
     box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
     background-color: white;
     border-radius: 0.75rem;
     border: 1px solid #e5e7eb;
+    transition: all 0.2s ease-in-out;
     max-height: calc(100vh - 5rem);
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
-    transition: all 0.2s ease-in-out;
 }
 
 /* Hidden state - controlled by JavaScript */
-#profile-dropdown.hidden {
-    display: none !important;
-    visibility: hidden !important;
-    opacity: 0 !important;
+#nexsy-profile-dropdown.hidden,
+.nexsy-profile-dropdown.hidden {
+    display: none;
+    visibility: hidden;
+    opacity: 0;
+    transform: translateY(-5px);
 }
 
 /* Visible state - controlled by JavaScript */
-#profile-dropdown:not(.hidden) {
-    display: block !important;
-    visibility: visible !important;
-    opacity: 1 !important;
+#nexsy-profile-dropdown:not(.hidden),
+.nexsy-profile-dropdown:not(.hidden) {
+    display: block;
+    visibility: visible;
+    opacity: 1;
+    transform: translateY(0);
 }
 
-#profile-dropdown a,
-#profile-dropdown button[type="submit"] {
+/* Profile dropdown items */
+#nexsy-profile-dropdown a,
+#nexsy-profile-dropdown button[type="submit"],
+.nexsy-profile-dropdown a,
+.nexsy-profile-dropdown button[type="submit"] {
     min-height: 44px;
     touch-action: manipulation;
     -webkit-tap-highlight-color: transparent;
     padding: 12px 16px;
     transition: background-color 0.15s ease;
+    display: flex;
+    align-items: center;
+    width: 100%;
+    text-decoration: none;
+    color: #374151;
+    border: none;
+    background: transparent;
+    cursor: pointer;
 }
 
-#profile-dropdown a:hover,
-#profile-dropdown button[type="submit"]:hover {
+#nexsy-profile-dropdown a:hover,
+#nexsy-profile-dropdown button[type="submit"]:hover,
+.nexsy-profile-dropdown a:hover,
+.nexsy-profile-dropdown button[type="submit"]:hover {
     background-color: #f3f4f6;
 }
 
-#profile-dropdown a:active,
-#profile-dropdown button[type="submit"]:active {
+#nexsy-profile-dropdown a:active,
+#nexsy-profile-dropdown button[type="submit"]:active,
+.nexsy-profile-dropdown a:active,
+.nexsy-profile-dropdown button[type="submit"]:active {
     background-color: #e5e7eb;
     transform: scale(0.98);
 }
 
-/* ===== Responsive Breakpoints ===== */
-
-/* Ensure header is always visible on all screen sizes */
-@media (max-width: 1920px) {
-    header {
-        display: block !important;
-        visibility: visible !important;
-        opacity: 1 !important;
-        z-index: 9999 !important;
-        position: fixed !important;
-        top: 0 !important;
-        left: 0 !important;
-        right: 0 !important;
-        width: 100% !important;
-        height: 4rem !important;
-        background: white !important;
-        border-bottom: 1px solid #e5e7eb !important;
-        box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1) !important;
+/* Mobile profile dropdown fixes */
+@media (max-width: 768px) {
+    #nexsy-profile-dropdown,
+    .nexsy-profile-dropdown {
+        right: -0.25rem;
+        max-width: calc(100vw - 1rem);
+        width: max-content;
+    }
+    
+    #nexsy-profile-dropdown a,
+    #nexsy-profile-dropdown button[type="submit"],
+    .nexsy-profile-dropdown a,
+    .nexsy-profile-dropdown button[type="submit"] {
+        padding: 14px 16px;
+        min-height: 48px;
     }
 }
 
-/* ===== Enhanced Responsive Header Layout ===== */
+/* ===== Responsive Design ===== */
 
-/* Large screens (1024px+) - Full layout */
+/* Large screens (1024px+) */
 @media (min-width: 1024px) {
     header > div {
-        padding: 0 1.5rem !important;
-        gap: 1.5rem !important;
+        padding: 0 1.5rem;
+        gap: 1.5rem;
     }
     
     header img {
-        max-width: 200px !important;
-        height: auto !important;
-    }
-    
-    header .flex.items-center:first-child {
-        max-width: 250px !important;
-        gap: 1rem !important;
-    }
-    
-    header .flex.items-center:last-child {
-        gap: 1rem !important;
-    }
-}
-
-/* Medium screens (768px - 1023px) - Balanced layout */
-@media (max-width: 1023px) and (min-width: 768px) {
-    header > div {
-        padding: 0 1rem !important;
-        gap: 1rem !important;
-    }
-    
-    header img {
-        max-width: 160px !important;
-        height: auto !important;
-    }
-    
-    header .flex.items-center:first-child {
-        max-width: 200px !important;
-        gap: 0.75rem !important;
-    }
-    
-    header .flex.items-center:last-child {
-        gap: 0.75rem !important;
-    }
-    
-    /* Ensure search bar is properly centered */
-    header .hidden.md\:flex {
-        max-width: 40rem !important;
-        padding: 0 1rem !important;
-    }
-}
-
-/* Small screens (480px - 767px) - Compact layout */
-@media (max-width: 767px) and (min-width: 480px) {
-    header > div {
-        padding: 0 0.75rem !important;
-        gap: 0.75rem !important;
-    }
-    
-    header img {
-        max-width: 140px !important;
-        height: auto !important;
-    }
-    
-    header .flex.items-center:first-child {
-        max-width: 160px !important;
-        gap: 0.5rem !important;
-    }
-    
-    header .flex.items-center:last-child {
-        gap: 0.5rem !important;
-    }
-    
-    /* Hide desktop search, show mobile search */
-    header .hidden.md\:flex {
-        display: none !important;
-    }
-    
-    header .md\:hidden {
-        display: flex !important;
-    }
-}
-
-/* Extra small screens (320px - 479px) - Minimal layout */
-@media (max-width: 479px) {
-    header > div {
-        padding: 0 0.5rem !important;
-        gap: 0.5rem !important;
-    }
-    
-    header img {
-        max-width: 120px !important;
-        height: auto !important;
-    }
-    
-    header .flex.items-center:first-child {
-        max-width: 140px !important;
-        gap: 0.25rem !important;
-    }
-    
-    header .flex.items-center:last-child {
-        gap: 0.25rem !important;
-    }
-    
-    /* Further reduce icon sizes */
-    header .header-icon,
-    header .discussion-icon,
-    header .notification-icon,
-    header #mobile-menu-toggle,
-    header #profile-button {
-        width: 2rem !important;
-        height: 2rem !important;
-        min-width: 2rem !important;
-        min-height: 2rem !important;
-    }
-    
-    /* Hide messages icon on very small screens */
-    header .discussion-icon.hidden.xs\:flex {
-        display: none !important;
-    }
-}
-
-/* ===== Responsive Header Alignment ===== */
-
-/* Large screens - Full alignment */
-@media (min-width: 1024px) {
-    header > div {
-        padding: 0 1rem !important;
-        gap: 1rem !important;
-    }
-    
-    header > div > div:first-child {
-        gap: 1rem !important;
-    }
-    
-    header > div > div:last-child {
-        gap: 1rem !important;
-    }
-}
-
-/* Medium screens - Balanced alignment */
-@media (max-width: 1023px) and (min-width: 768px) {
-    header > div {
-        padding: 0 0.75rem !important;
-        gap: 0.75rem !important;
-    }
-    
-    header > div > div:first-child {
-        gap: 0.75rem !important;
-    }
-    
-    header > div > div:last-child {
-        gap: 0.75rem !important;
-    }
-    
-    /* Ensure search bar is properly centered */
-    header > div > div:nth-child(2) {
-        max-width: 40rem !important;
-        padding: 0 1rem !important;
-    }
-}
-
-/* Small screens - Compact alignment */
-@media (max-width: 767px) {
-    header > div {
-        padding: 0 0.5rem !important;
-        gap: 0.5rem !important;
-    }
-    
-    header > div > div:first-child {
-        gap: 0.5rem !important;
-    }
-    
-    header > div > div:last-child {
-        gap: 0.5rem !important;
-    }
-    
-    /* Hide search on mobile, show mobile search icon */
-    header > div > div:nth-child(2) {
-        display: none !important;
-    }
-}
-
-/* Extra small screens - Minimal alignment */
-@media (max-width: 480px) {
-    header > div {
-        padding: 0 0.25rem !important;
-        gap: 0.25rem !important;
-    }
-    
-    header > div > div:first-child {
-        gap: 0.25rem !important;
-    }
-    
-    header > div > div:last-child {
-        gap: 0.25rem !important;
-    }
-}
-
-/* CRITICAL: Fix logo clipping and sidebar overlap issues */
-@media (max-width: 1024px) {
-    /* Ensure logo doesn't get clipped by sidebar */
-    header .flex.items-center:first-child {
-        z-index: 10;
-        position: relative;
-        min-width: 0;
-        flex-shrink: 0;
         max-width: 200px;
     }
-    
-    /* Prevent sidebar from overlapping header content */
-    header {
-        z-index: 9999 !important;
-    }
-    
-    /* Ensure logo has proper spacing and doesn't get cut off */
-    header img {
-        margin-right: 0.5rem;
-        max-width: 160px;
-        height: auto;
-        object-fit: contain;
-        flex-shrink: 0;
-    }
-    
-    /* Ensure proper spacing between logo and other elements */
-    header .flex.items-center:first-child + * {
-        margin-left: 0.5rem;
-    }
-    
-    /* Fix header layout to prevent text overlap */
-    header .flex.items-center {
-        gap: 0.75rem;
-        overflow: visible !important;
-        flex-wrap: nowrap;
-    }
 }
 
-/* Fix text overlap with logo on medium screens */
-@media (max-width: 768px) {
-    /* Ensure proper spacing between logo and other elements */
-    header .flex.items-center:first-child {
-        margin-right: 0.75rem;
-        flex-shrink: 0;
-        min-width: 0;
-        max-width: 150px;
-    }
-    
-    /* Prevent text from overlapping logo */
-    header .flex.items-center:first-child + * {
-        margin-left: 0.75rem;
-    }
-    
-    /* Ensure logo doesn't get cut off */
-    header img {
-        max-width: 140px;
-        height: auto;
-        object-fit: contain;
-        flex-shrink: 0;
-    }
-    
-    /* Ensure header layout doesn't break */
-    header .flex.items-center {
-        gap: 0.75rem;
-        overflow: visible !important;
-        flex-wrap: nowrap;
-    }
-    
-    /* Hide desktop search on mobile */
-    header .hidden.md\:flex {
-        display: none !important;
-    }
-    
-    /* Show mobile search icon */
-    header .md\:hidden {
-        display: flex !important;
-    }
-}
-
-/* Large screens - full logo visibility */
-@media (min-width: 1025px) {
-    header img {
-        max-width: 160px;
-        height: auto;
-        object-fit: contain;
-    }
-}
-
-/* CRITICAL: Prevent text overlap with logo */
-@media (max-width: 1024px) {
-    /* Ensure proper spacing between logo and search bar */
-    header .hidden.md\:flex {
-        margin-left: 1rem;
-        min-width: 0;
-    }
-    
-    /* Prevent search bar from pushing logo off screen */
-    header .flex.items-center.justify-between {
+/* Medium screens (768px - 1023px) */
+@media (max-width: 1023px) and (min-width: 768px) {
+    header > div {
+        padding: 0 1rem;
         gap: 1rem;
     }
     
-    /* Ensure logo container has proper flex properties */
-    header .flex.items-center:first-child {
-        flex-shrink: 0;
-        min-width: 0;
-        max-width: 200px;
+    header img {
+        max-width: 160px;
     }
 }
 
-/* Additional fixes for text overlap */
-@media (max-width: 768px) {
-    /* Ensure proper spacing between all header elements */
-    header .flex.items-center {
+/* Small screens (480px - 767px) */
+@media (max-width: 767px) {
+    header > div {
+        padding: 0 0.75rem;
         gap: 0.75rem;
     }
     
-    /* Prevent any text from overlapping logo */
-    header .flex.items-center:first-child {
-        margin-right: 0.75rem;
-        flex-shrink: 0;
-        min-width: 0;
-        max-width: 150px;
-    }
-    
-    /* Ensure search toggle doesn't overlap */
-    header .flex.items-center:last-child {
-        margin-left: 0.5rem;
-        flex-shrink: 0;
-    }
-}
-
-/* Extra small screens - prioritize logo visibility */
-@media (max-width: 480px) {
-    /* Ensure logo is always visible and not clipped */
     header img {
-        max-width: 120px;
-        height: auto;
-        object-fit: contain;
-        flex-shrink: 0;
-    }
-    
-    /* Reduce gaps but maintain logo visibility */
-    header .flex.items-center {
-        gap: 0.5rem;
-        overflow: visible !important;
-    }
-    
-    /* Ensure logo container doesn't get compressed */
-    header .flex.items-center:first-child {
-        flex-shrink: 0;
-        min-width: 0;
         max-width: 140px;
-        margin-right: 0.5rem;
     }
     
-    /* Hide messages icon on very small screens if needed */
-    header .discussion-icon.hidden.xs\:flex {
-        display: none !important;
-    }
-    
-    /* Ensure header icons are properly sized */
-    header .header-icon,
-    header .discussion-icon,
-    header .notification-icon,
-    header #mobile-menu-toggle,
-    header #profile-button {
-        width: 2.25rem !important;
-        height: 2.25rem !important;
-        min-width: 2.25rem !important;
-        min-height: 2.25rem !important;
-    }
-}
-
-/* Mobile devices */
-@media (max-width: 767px) {
-    /* FORCE HIDE desktop search completely */
-    header .hidden.md\:flex,
-    header > div > .hidden.md\:flex,
-    .md\:flex.flex-1.max-w-3xl,
-    header > div > div.hidden.md\:flex.flex-1.max-w-3xl.px-6 {
-        display: none !important;
-        visibility: hidden !important;
-        opacity: 0 !important;
-        width: 0 !important;
-        height: 0 !important;
-        overflow: hidden !important;
-        position: absolute !important;
-        left: -9999px !important;
-        pointer-events: none !important;
-    }
-    
-    /* Fix header layout for mobile */
-    header {
-        min-height: 4rem;
-        height: auto;
-        overflow: visible !important;
-    }
-    
-    header .flex.items-center {
-        gap: 0.5rem;
-        overflow: visible !important;
-        flex-wrap: nowrap;
-    }
-    
-    /* Ensure mobile search toggle is visible */
-    #mobile-search-toggle {
-        display: flex !important;
-        visibility: visible !important;
-        opacity: 1 !important;
-    }
-    
-    /* Hide mobile search container by default */
-    #mobile-search-container {
-        display: none !important;
-        visibility: hidden !important;
-    }
-    
-    /* Header layout fixes for mobile */
-    header {
-        min-height: 4rem;
-        height: auto;
-        overflow: visible !important;
-    }
-    
-    header > div {
-        overflow: visible !important;
-    }
-    
-    header .flex.items-center.justify-between {
-        gap: 0.5rem;
-        overflow: visible !important;
-        flex-wrap: nowrap;
-        width: 100%;
-        position: relative;
-    }
-    
-    header .flex.items-center.gap-1 {
-        gap: 0.25rem;
-        flex-shrink: 0;
-        overflow: visible !important;
-    }
-    
-    /* Left section - logo and menu toggle */
-    header .flex.items-center.gap-1.sm\:gap-2.md\:gap-4.flex-shrink-0:first-child {
-        flex-shrink: 0;
-        min-width: auto;
-        overflow: visible !important;
-    }
-    
-    /* Right section - notifications and profile */
-    header .flex.items-center.gap-1.sm\:gap-2.md\:gap-3.flex-shrink-0:last-child {
-        flex-shrink: 0;
-        min-width: auto;
-        margin-left: auto;
-        overflow: visible !important;
-    }
-    
-    /* Profile dropdown mobile fixes */
-    #profile-container {
-        position: relative !important;
-        overflow: visible !important;
-        z-index: 60 !important;
-    }
-    
-    #profile-button {
-        min-width: 44px !important;
-        min-height: 44px !important;
-        touch-action: manipulation !important;
-        -webkit-tap-highlight-color: transparent !important;
-    }
-    
-    #profile-dropdown {
-        position: absolute !important;
-        top: 3.5rem !important;
-        right: 0 !important;
-        left: auto !important;
-        max-width: calc(100vw - 1rem) !important;
-        width: max-content !important;
-        min-width: 12rem !important;
-        z-index: 9999 !important;
-        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04) !important;
-    }
-    
-    /* Ensure profile dropdown is properly positioned on mobile */
-    #profile-dropdown.hidden {
-        display: none !important;
-        visibility: hidden !important;
-        opacity: 0 !important;
-    }
-    
-    #profile-dropdown:not(.hidden) {
-        display: block !important;
-        visibility: visible !important;
-        opacity: 1 !important;
-    }
-    
-    #profile-dropdown a,
-    #profile-dropdown button[type="submit"] {
-        padding: 14px 16px !important;
-        min-height: 48px !important;
-        touch-action: manipulation !important;
-        -webkit-tap-highlight-color: transparent !important;
-    }
-    
-    /* Mobile submenu improvements */
-    #mobile-menu .submenu {
-        max-width: 100%;
-        overflow-x: hidden;
-    }
-    
-    #mobile-menu .submenu .menu-item {
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-    
-    /* Fix for header overflow on small screens */
-    @media (max-width: 640px) {
-        header .flex.items-center.gap-1 {
-            gap: 0.125rem;
-        }
-        
-        header img {
-            max-height: 1.5rem;
-        }
-        
-        /* Ensure header elements don't overflow */
-        header .flex.items-center {
-            overflow: visible !important;
-        }
-    }
-    
-    /* Extra small screens - hide messages icon if needed */
-    @media (max-width: 480px) {
-        .discussion-icon.hidden.xs\:flex {
+    /* Hide desktop search on mobile */
+    @media (max-width: 767px) {
+        #nexsy-header-center {
             display: none !important;
         }
         
-        /* Further reduce gaps but allow dropdown overflow */
-        header .flex.items-center.gap-1 {
-            gap: 0.125rem;
-            overflow: visible !important;
+        /* Show mobile search on mobile */
+        #nexsy-mobile-search-link {
+            display: flex !important;
+        }
+    }
+    
+    @media (min-width: 768px) {
+        #nexsy-header-center {
+            display: flex !important;
         }
         
-        /* Ensure profile container allows overflow */
-        #profile-container {
-            overflow: visible !important;
+        /* Hide mobile search on desktop */
+        #nexsy-mobile-search-link {
+            display: none !important;
         }
     }
 }
 
-/* Desktop */
-@media (min-width: 768px) {
-    /* FORCE HIDE mobile search elements completely */
-    #mobile-search-toggle,
-    #mobile-search-container,
-    #mobile-search-container:not(.hidden) {
-        display: none !important;
-        visibility: hidden !important;
-        opacity: 0 !important;
-        width: 0 !important;
-        height: 0 !important;
-        overflow: hidden !important;
-        position: absolute !important;
-        left: -9999px !important;
-    }
-    
-    /* Ensure desktop search is visible */
-    header .hidden.md\:flex {
-        display: flex !important;
-        visibility: visible !important;
-        opacity: 1 !important;
-    }
-    
-    /* Show desktop search */
-    header .hidden.md\:flex,
-    header > div > .hidden.md\:flex {
-        display: flex !important;
-        visibility: visible !important;
-        opacity: 1 !important;
-        width: auto !important;
-        height: auto !important;
-        position: relative !important;
-        left: auto !important;
-    }
-    
-    /* Ensure mobile menu is hidden */
-    #mobile-menu:not(.open) {
-        display: none;
-    }
-}
-
-/* Extra small screens */
-@media (max-width: 480px) {
-    #mobile-menu .submenu .menu-item {
-        padding: 10px 16px 10px 40px;
-        font-size: 0.875rem;
-        height: 44px;
-        min-height: 44px;
-    }
-    
-    #mobile-menu .submenu .icon-container {
-        min-width: 12px;
-        width: 12px;
-        height: 12px;
-    }
-}
-
-/* ===== Enhanced Mobile Responsive Fixes ===== */
-
-/* Fix for very small screens (320px and below) */
-@media (max-width: 320px) {
-    header {
-        min-height: 3rem !important;
-        height: 3rem !important;
-    }
-    
+/* Extra small screens (320px - 479px) */
+@media (max-width: 479px) {
     header > div {
-        padding: 0 0.25rem !important;
-        gap: 0.25rem !important;
+        padding: 0 0.5rem;
+        gap: 0.5rem;
     }
     
     header img {
-        max-width: 100px !important;
-        height: auto !important;
+        max-width: 120px;
     }
     
-    header .flex.items-center:first-child {
-        max-width: 120px !important;
-        gap: 0.125rem !important;
-    }
-    
-    header .flex.items-center:last-child {
-        gap: 0.125rem !important;
-    }
-    
-    /* Hide messages icon on very small screens */
-    header .discussion-icon {
-        display: none !important;
-    }
-    
-    /* Further reduce icon sizes */
-    header .header-icon,
-    header .notification-icon,
-    header #mobile-menu-toggle,
-    header #profile-button {
-        width: 1.75rem !important;
-        height: 1.75rem !important;
-        min-width: 1.75rem !important;
-        min-height: 1.75rem !important;
-    }
-}
-
-/* Fix for landscape mobile orientation */
-@media (max-height: 500px) and (orientation: landscape) {
-    header {
-        min-height: 3rem !important;
-        height: 3rem !important;
-    }
-    
-    header img {
-        max-width: 120px !important;
-        height: auto !important;
-    }
-    
-    header .flex.items-center:first-child {
-        max-width: 140px !important;
-    }
-    
-    /* Reduce icon sizes in landscape */
-    header .header-icon,
-    header .discussion-icon,
-    header .notification-icon,
-    header #mobile-menu-toggle,
-    header #profile-button {
-        width: 2rem !important;
-        height: 2rem !important;
-        min-width: 2rem !important;
-        min-height: 2rem !important;
-    }
-}
-
-/* Fix for high DPI screens */
-@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
-    header img {
-        image-rendering: -webkit-optimize-contrast;
-        image-rendering: crisp-edges;
-    }
-}
-
-/* Fix for iOS Safari viewport issues */
-@supports (-webkit-touch-callout: none) {
-    header {
-        position: -webkit-sticky !important;
-        position: sticky !important;
+    /* Reduce icon sizes */
+    .header-icon,
+    .discussion-icon,
+    .notification-icon,
+    #nexsy-mobile-menu-toggle,
+    #profile-button {
+        width: 2rem;
+        height: 2rem;
+        min-width: 2rem;
+        min-height: 2rem;
     }
 }
 
 /* ===== Accessibility ===== */
 @media (prefers-reduced-motion: reduce) {
     .transition-all,
-    #mobile-menu,
-    #mobile-menu-overlay,
-    #mobile-search-container,
+    #nexsy-mobile-menu,
+    #profile-dropdown,
     * {
-        animation-duration: 0.01ms;
-        animation-iteration-count: 1;
-        transition-duration: 0.01ms;
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
     }
 }
 
@@ -1435,15 +446,207 @@ header .flex-1.md\:hidden {
         outline: 3px solid #3b82f6;
         outline-offset: 2px;
     }
+}
+
+/* ===== Branch Switcher Menu ===== */
+#branch-switcher-menu {
+    position: absolute !important;
+    top: 100%;
+    left: 0;
+    z-index: 100100 !important;
+    min-width: 16rem;
+    max-width: calc(100vw - 2rem);
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    background-color: white;
+    border-radius: 0.5rem;
+    border: 1px solid #e5e7eb;
+    transition: all 0.2s ease-in-out;
+}
+
+#branch-switcher-menu.hidden {
+    display: none;
+    visibility: hidden;
+    opacity: 0;
+}
+
+#branch-switcher-menu:not(.hidden) {
+    display: block;
+    visibility: visible;
+    opacity: 1;
+}
+
+#branch-arrow {
+    transition: transform 0.2s ease-in-out;
+}
+
+/* ===== Profile Button Touch Improvements ===== */
+#nexsy-profile-button {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    cursor: pointer;
+    min-height: 44px;
+    min-width: 44px;
+}
+
+/* ===== Override External CSS Conflicts ===== */
+/* Prevent any external CSS from adding margins to header */
+#nexsy-main-header *,
+.nexsy-header * {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+}
+
+/* ===== Force All Header Elements to be Visible ===== */
+#nexsy-main-header,
+.nexsy-header {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+
+#nexsy-header-container,
+.nexsy-header-container {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+
+#nexsy-header-left,
+.nexsy-header-left {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+
+#nexsy-header-center,
+.nexsy-header-center {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+
+#nexsy-header-right,
+.nexsy-header-right {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+
+/* Force all header icons to be visible */
+.nexsy-header-icon,
+.nexsy-messages-btn,
+.nexsy-notifications-btn,
+.nexsy-profile-button,
+#nexsy-mobile-menu-toggle,
+.nexsy-toggle-btn {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+
+/* ===== Sidebar Toggle Button Specific Styles ===== */
+#nexsy-mobile-menu-toggle,
+.nexsy-toggle-btn {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    position: relative !important;
+    z-index: 100 !important;
+    width: 2.5rem !important;
+    height: 2.5rem !important;
+    min-width: 2.5rem !important;
+    min-height: 2.5rem !important;
+    border-radius: 50% !important;
+    transition: all 0.2s ease !important;
+    cursor: pointer !important;
+    border: none !important;
+    background: transparent !important;
+    touch-action: manipulation !important;
+    -webkit-tap-highlight-color: transparent !important;
+}
+
+#nexsy-mobile-menu-toggle:hover,
+.nexsy-toggle-btn:hover {
+    background-color: #f3f4f6 !important;
+    transform: scale(1.05) !important;
+}
+
+#nexsy-mobile-menu-toggle:active,
+.nexsy-toggle-btn:active {
+    transform: scale(0.95) !important;
+}
+
+#nexsy-mobile-menu-toggle:focus,
+.nexsy-toggle-btn:focus {
+    outline: 2px solid #3b82f6 !important;
+    outline-offset: 2px !important;
+}
+
+/* Force header to stick to top-left corner */
+#nexsy-main-header,
+.nexsy-header {
+    margin: 0 !important;
+    padding: 0 !important;
+    left: 0 !important;
+    top: 0 !important;
+}
+
+/* Override any body or html margins that might affect header */
+body {
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+html {
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+/* Force header to start at absolute left edge */
+#nexsy-main-header {
+    left: 0 !important;
+    margin-left: 0 !important;
+    padding-left: 0 !important;
+}
+
+#nexsy-header-container {
+    margin-left: 0 !important;
+    padding-left: 0 !important;
+}
+
+#nexsy-header-left {
+    margin-left: 0 !important;
+    padding-left: 0.5rem !important;
+}
+
+/* ===== Responsive Width Fixes ===== */
+/* Ensure header uses full width on all screen sizes */
+@media (max-width: 768px) {
+    #nexsy-main-header,
+    .nexsy-header {
+        width: 100% !important;
+        max-width: none !important;
+    }
     
-    /* Ensure touch targets are large enough */
-    header .header-icon,
-    header .discussion-icon,
-    header .notification-icon,
-    header #mobile-menu-toggle,
-    header #profile-button {
-        min-width: 44px !important;
-        min-height: 44px !important;
+    #nexsy-header-container,
+    .nexsy-header-container {
+        width: 100% !important;
+        max-width: none !important;
     }
 }
 
+@media (min-width: 769px) {
+    #nexsy-main-header,
+    .nexsy-header {
+        width: 100% !important;
+        max-width: none !important;
+    }
+    
+    #nexsy-header-container,
+    .nexsy-header-container {
+        width: 100% !important;
+        max-width: none !important;
+    }
+}

@@ -103,7 +103,7 @@
     function setupBasicFunctionality() {
         console.log('Setting up basic sidebar functionality...');
         
-        var toggleButton = document.getElementById('mobile-menu-toggle');
+        var toggleButton = document.getElementById('nexsy-mobile-menu-toggle');
         var sidebar = document.getElementById('sidebar');
         var mainContent = document.getElementById('main-content');
         
@@ -120,7 +120,7 @@
                 
                 if (window.innerWidth < CONFIG.breakpoints.mobile) {
                     // Mobile behavior - toggle mobile menu
-                    var mobileMenu = document.getElementById('mobile-menu');
+                    var mobileMenu = document.getElementById('nexsy-mobile-menu');
                     if (mobileMenu) {
                         mobileMenu.classList.toggle('open');
                         document.body.classList.toggle('overflow-hidden');
@@ -147,10 +147,10 @@
         elements = {
             sidebar: document.getElementById('sidebar'),
             mainContent: document.getElementById('main-content'),
-            mobileMenuToggle: document.getElementById('mobile-menu-toggle'),
-            mobileMenu: document.getElementById('mobile-menu'),
-            mobileMenuOverlay: document.getElementById('mobile-menu-overlay'),
-            closeMobileMenu: document.getElementById('close-mobile-menu')
+            mobileMenuToggle: document.getElementById('nexsy-mobile-menu-toggle'),
+            mobileMenu: document.getElementById('nexsy-mobile-menu'),
+            mobileMenuOverlay: document.getElementById('nexsy-mobile-menu-overlay'),
+            closeMobileMenu: document.getElementById('nexsy-close-mobile-menu')
         };
     }
 
@@ -605,7 +605,7 @@
         if (!elements.mobileMenu) return;
         
         var sidebarContent = document.querySelector('#sidebar nav .flex.flex-col');
-        var mobileMenuContent = document.querySelector('#mobile-menu .py-4');
+        var mobileMenuContent = document.querySelector('#nexsy-mobile-menu .py-4');
         
         if (sidebarContent && mobileMenuContent) {
             try {

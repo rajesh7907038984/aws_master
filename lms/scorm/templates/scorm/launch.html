@@ -1743,6 +1743,56 @@ API.initializeAPIDiscovery();
 // Make API available globally - ENHANCED
 window.API = API;
 
+// CRITICAL FOR CMI5: Create SCORM 2004 API_1484_11 object
+// CMI5 uses SCORM 2004 API with Initialize/Terminate instead of LMSInitialize/LMSFinish
+window.API_1484_11 = {
+    // Map SCORM 2004 methods to SCORM 1.2 methods
+    Initialize: function(param) {
+        console.log('CMI5/SCORM 2004: Initialize called');
+        return API.LMSInitialize(param);
+    },
+    
+    Terminate: function(param) {
+        console.log('CMI5/SCORM 2004: Terminate called');
+        return API.LMSFinish(param);
+    },
+    
+    GetValue: function(element) {
+        console.log('CMI5/SCORM 2004: GetValue called for:', element);
+        return API.LMSGetValue(element);
+    },
+    
+    SetValue: function(element, value) {
+        console.log('CMI5/SCORM 2004: SetValue called:', element, '=', value);
+        return API.LMSSetValue(element, value);
+    },
+    
+    Commit: function(param) {
+        console.log('CMI5/SCORM 2004: Commit called');
+        return API.LMSCommit(param);
+    },
+    
+    GetLastError: function() {
+        console.log('CMI5/SCORM 2004: GetLastError called');
+        return API.LMSGetLastError();
+    },
+    
+    GetErrorString: function(errorCode) {
+        console.log('CMI5/SCORM 2004: GetErrorString called for:', errorCode);
+        return API.LMSGetErrorString(errorCode);
+    },
+    
+    GetDiagnostic: function(errorCode) {
+        console.log('CMI5/SCORM 2004: GetDiagnostic called for:', errorCode);
+        return API.LMSGetDiagnostic(errorCode);
+    },
+    
+    // Direct reference to main API for additional methods
+    _mainAPI: API
+};
+
+console.log('CMI5/SCORM 2004: API_1484_11 initialized and available globally');
+
 // RESPECT SCORM STANDARDS: Make ConcedeControl directly accessible on window
 window.ConcedeControl = function() {
     console.log('SCORM API: Global ConcedeControl called');
@@ -1803,6 +1853,7 @@ window.ConcedeControl = function() {
 try {
     if (window.parent && window.parent !== window) {
         window.parent.API = API;
+        window.parent.API_1484_11 = window.API_1484_11;
     }
 } catch (e) {
     console.log('SCORM API: Could not set API in parent (cross-origin)');
@@ -1811,12 +1862,13 @@ try {
 try {
     if (window.top && window.top !== window) {
         window.top.API = API;
+        window.top.API_1484_11 = window.API_1484_11;
     }
 } catch (e) {
     console.log('SCORM API: Could not set API in top window (cross-origin)');
 }
 
-console.log('SCORM API: Initialized and available globally');
+console.log('SCORM API: Initialized and available globally (API + API_1484_11)');
 
     // CRITICAL FIX: Enhanced iframe API injection with postMessage communication
     function injectAPIIntoIframe() {
@@ -1826,19 +1878,23 @@ console.log('SCORM API: Initialized and available globally');
                 // CRITICAL: Send API via postMessage for better cross-origin support
                 iframe.contentWindow.postMessage({
                     type: 'SCORM_API_READY',
-                    api: API
+                    api: API,
+                    api_1484_11: window.API_1484_11
                 }, '*');
                 
                 // Inject the API into the iframe - MULTIPLE METHODS
                 iframe.contentWindow.API = API;
+                iframe.contentWindow.API_1484_11 = window.API_1484_11;
                 
                 // Set up parent references for SCORM content discovery
                 iframe.contentWindow.parent = iframe.contentWindow.parent || iframe.contentWindow;
                 iframe.contentWindow.top = iframe.contentWindow.top || iframe.contentWindow;
                 
-                // Set API in all possible locations
+                // Set API in all possible locations (including SCORM 2004/CMI5 API)
                 iframe.contentWindow.parent.API = API;
+                iframe.contentWindow.parent.API_1484_11 = window.API_1484_11;
                 iframe.contentWindow.top.API = API;
+                iframe.contentWindow.top.API_1484_11 = window.API_1484_11;
                 
                 // Additional API references for complex SCORM content
                 if (iframe.contentWindow.parent && iframe.contentWindow.parent !== iframe.contentWindow) {
@@ -2192,10 +2248,13 @@ window.onload = function () {
                         api: API
                     }, '*');
                     
-                    // Re-inject API periodically
+                    // Re-inject API periodically (including SCORM 2004/CMI5 API)
                     iframe.contentWindow.API = API;
+                    iframe.contentWindow.API_1484_11 = window.API_1484_11;
                     iframe.contentWindow.parent.API = API;
+                    iframe.contentWindow.parent.API_1484_11 = window.API_1484_11;
                     iframe.contentWindow.top.API = API;
+                    iframe.contentWindow.top.API_1484_11 = window.API_1484_11;
                     iframe.contentWindow.SD = API;
                     iframe.contentWindow.parent.SD = API;
                     iframe.contentWindow.ConcedeControl = function() {
@@ -2408,10 +2467,13 @@ window.onload = function () {
         if (!iframe || !iframe.contentWindow) return;
         
         try {
-            // Inject API into iframe's contentWindow
+            // Inject API into iframe's contentWindow (including SCORM 2004/CMI5 API)
             iframe.contentWindow.API = window.API;
+            iframe.contentWindow.API_1484_11 = window.API_1484_11;
             iframe.contentWindow.parent.API = window.API;
+            iframe.contentWindow.parent.API_1484_11 = window.API_1484_11;
             iframe.contentWindow.top.API = window.API;
+            iframe.contentWindow.top.API_1484_11 = window.API_1484_11;
             
             // Use postMessage for cross-origin communication
             // Enhanced cross-origin communication with fallbacks
@@ -2419,6 +2481,7 @@ window.onload = function () {
                 iframe.contentWindow.postMessage({
                     type: 'SCORM_API_READY',
                     api: window.API,
+                    api_1484_11: window.API_1484_11,
                     origin: window.location.origin,
                     timestamp: Date.now()
                 }, '*');
@@ -2427,6 +2490,7 @@ window.onload = function () {
                 iframe.contentWindow.postMessage({
                     type: 'SCORM_API_READY',
                     api: window.API,
+                    api_1484_11: window.API_1484_11,
                     origin: window.location.origin,
                     timestamp: Date.now()
                 }, window.location.origin);

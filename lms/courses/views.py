@@ -2780,8 +2780,14 @@ def update_audio_progress(request, topic_id):
             'completed': progress.completed
         })
     except Exception as e:
-        logger.error(f"Error updating audio progress: {str(e)}")
-        return JsonResponse({'error': str(e)}, status=500)
+        logger.error(f"Error updating audio progress: {str(e)}", exc_info=True)
+        return JsonResponse({
+            'success': False,
+            'error': 'Failed to update audio progress',
+            'message': 'Unable to save your progress. Please try again.',
+            'details': str(e),
+            'error_type': 'AUDIO_PROGRESS_ERROR'
+        }, status=500)
 
 def update_video_progress(request, topic_id):
     """Update progress for video content"""
@@ -2877,9 +2883,14 @@ def update_video_progress(request, topic_id):
         logger.error(f"Invalid JSON in request body: {str(e)}")
         return JsonResponse({'error': 'Invalid JSON format'}, status=400)
     except Exception as e:
-        logger.error(f"Error updating video progress: {str(e)}")
-        traceback.print_exc()
-        return JsonResponse({'error': str(e)}, status=500)
+        logger.error(f"Error updating video progress: {str(e)}", exc_info=True)
+        return JsonResponse({
+            'success': False,
+            'error': 'Failed to update video progress',
+            'message': 'Unable to save your video progress. Please try again.',
+            'details': str(e),
+            'error_type': 'VIDEO_PROGRESS_ERROR'
+        }, status=500)
 
 @login_required
 def like_item(request, topic_id, item_type, item_id):
@@ -5471,8 +5482,14 @@ def get_course_progress(request, course_id):
         if not check_course_permission(request.user, course):
             return JsonResponse({'success': False, 'error': 'Permission denied'}, status=403)
     except Exception as e:
-        logger.error(f"Error checking permissions for course {course_id}: {str(e)}")
-        return JsonResponse({'success': False, 'error': 'Permission check failed'}, status=500)
+        logger.error(f"Error checking permissions for course {course_id}: {str(e)}", exc_info=True)
+        return JsonResponse({
+            'success': False,
+            'error': 'Permission check failed',
+            'message': 'Unable to verify permissions. Please try again.',
+            'details': str(e),
+            'error_type': 'PERMISSION_CHECK_ERROR'
+        }, status=500)
     
             
         # Get or create enrollment for this user

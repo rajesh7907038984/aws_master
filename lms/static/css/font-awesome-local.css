@@ -96,6 +96,31 @@
 .fa-exclamation-triangle::before { content: "\f071"; }
 .fa-info-circle::before { content: "\f05a"; }
 
+/* Missing Breadcrumb Icons - Dashboard and Navigation */
+.fa-tachometer-alt::before { content: "\f3fd"; }
+.fa-globe::before { content: "\f0ac"; }
+.fa-dashboard::before { content: "\f3fd"; }
+
+/* User Management Icons */
+.fa-user::before { content: "\f007"; }
+.fa-user-edit::before { content: "\f4ff"; }
+.fa-user-plus::before { content: "\f234"; }
+.fa-users-cog::before { content: "\f509"; }
+.fa-key::before { content: "\f084"; }
+
+/* Course and Learning Icons */
+.fa-code-branch::before { content: "\f126"; }
+.fa-lightbulb::before { content: "\f0eb"; }
+
+/* Report and Analytics Icons */
+.fa-chart-line::before { content: "\f201"; }
+.fa-table::before { content: "\f0ce"; }
+.fa-file-alt::before { content: "\f15c"; }
+
+/* Assessment and Certificate Icons */
+.fa-clipboard-check::before { content: "\f46c"; }
+.fa-certificate::before { content: "\f0a3"; }
+
 /* Spinner animation */
 .fa-spinner {
   animation: fa-spin 1s infinite linear;

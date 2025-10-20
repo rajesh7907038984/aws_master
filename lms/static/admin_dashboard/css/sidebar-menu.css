@@ -1,52 +1,54 @@
-/* Default state - white text and icons */
+/* Sidebar menu colors aligned with unified variables */
 #sidebar a.menu-item {
-    color: white !important;
+    color: var(--sidebar-text, white) !important;
     text-decoration: none;
 }
 
 #sidebar a.menu-item svg,
 #sidebar a.menu-item .icon-container svg {
-    color: white !important;
-    stroke: white !important;
+    color: var(--sidebar-text, white) !important;
+    stroke: var(--sidebar-text, white) !important;
 }
 
 #sidebar a.menu-item span.menu-text {
-    color: white !important;
+    color: var(--sidebar-text, white) !important;
 }
 
-/* Active state - consistent with unified styling */
+/* Active state - dark hover bg with green accent */
 #sidebar a.menu-item.active {
-    background-color: var(--brand-primary) !important;
-    color: white !important;
+    background-color: var(--sidebar-bg-hover, #02071e) !important;
+    color: var(--sidebar-text, white) !important;
     font-weight: 600 !important;
+    border-left: 4px solid var(--sidebar-accent, #02f711) !important;
 }
 
 #sidebar a.menu-item.active svg,
 #sidebar a.menu-item.active .icon-container svg {
-    color: white !important;
-    stroke: white !important;
+    color: var(--sidebar-text, white) !important;
+    stroke: var(--sidebar-text, white) !important;
     fill: none !important;
 }
 
 #sidebar a.menu-item.active span.menu-text {
-    color: white !important;
+    color: var(--sidebar-text, white) !important;
     font-weight: 600 !important;
 }
 
-/* Hover state - slightly lighter background but keep white text */
+/* Hover state */
 #sidebar a.menu-item:hover:not(.active) {
-    background-color: rgba(255, 255, 255, 0.1) !important;
+    background-color: var(--sidebar-bg-hover, rgba(255, 255, 255, 0.1)) !important;
+    border-left: 4px solid var(--sidebar-accent, #02f711) !important;
 }
 
 #sidebar a.menu-item:hover:not(.active) svg,
 #sidebar a.menu-item:hover:not(.active) .icon-container svg {
-    color: white !important;
-    stroke: white !important;
+    color: var(--sidebar-text, white) !important;
+    stroke: var(--sidebar-text, white) !important;
     fill: none !important;
 }
 
 #sidebar a.menu-item:hover:not(.active) span.menu-text {
-    color: white !important;
+    color: var(--sidebar-text, white) !important;
 }
 
 /* Remove any other overriding styles */
@@ -54,6 +56,6 @@ html body #sidebar a.menu-item:not(.active):not(:hover),
 html body #sidebar a.menu-item:not(.active):not(:hover) svg,
 html body #sidebar a.menu-item:not(.active):not(:hover) .icon-container svg,
 html body #sidebar a.menu-item:not(.active):not(:hover) span.menu-text {
-    color: white !important;
-    stroke: white !important;
-} 
+    color: var(--sidebar-text, white) !important;
+    stroke: var(--sidebar-text, white) !important;
+}

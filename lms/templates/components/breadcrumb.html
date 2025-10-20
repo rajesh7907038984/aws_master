@@ -87,12 +87,47 @@
     }
     
     .breadcrumb-icon-text {
-        color: var(--brand-accent);
-        font-size: 1rem;
+        color: #2F80ED !important;
+        font-size: 1rem !important;
+        font-family: "Font Awesome 6 Free", "FontAwesome", sans-serif !important;
+        font-weight: 900 !important;
+        font-style: normal !important;
+        font-variant: normal !important;
+        text-rendering: auto !important;
+        -webkit-font-smoothing: antialiased !important;
+        -moz-osx-font-smoothing: grayscale !important;
+        display: inline-block !important;
+        line-height: 1 !important;
     }
     
     .breadcrumb-link:hover .breadcrumb-icon {
         background-color: #dbeafe;
+    }
+    
+    /* Ensure breadcrumb icons are always visible */
+    .breadcrumb-icon .fas, 
+    .breadcrumb-icon .far, 
+    .breadcrumb-icon .fab, 
+    .breadcrumb-icon .fa {
+        font-family: "Font Awesome 6 Free", "FontAwesome", sans-serif !important;
+        font-weight: 900 !important;
+        font-style: normal !important;
+        font-variant: normal !important;
+        text-rendering: auto !important;
+        -webkit-font-smoothing: antialiased !important;
+        -moz-osx-font-smoothing: grayscale !important;
+        display: inline-block !important;
+        line-height: 1 !important;
+        color: #2F80ED !important;
+        font-size: 1rem !important;
+    }
+    
+    /* Hover states for breadcrumb icons */
+    .breadcrumb-link:hover .breadcrumb-icon .fas,
+    .breadcrumb-link:hover .breadcrumb-icon .far,
+    .breadcrumb-link:hover .breadcrumb-icon .fab,
+    .breadcrumb-link:hover .breadcrumb-icon .fa {
+        color: #1d4ed8 !important;
     }
     
     .breadcrumb-separator {

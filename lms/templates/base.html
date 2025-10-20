@@ -219,6 +219,30 @@
             // Check Font Awesome loading after a short delay
             setTimeout(checkFontAwesome, 500);
             
+            // Enhanced breadcrumb icon debugging
+            function debugBreadcrumbIcons() {
+                const breadcrumbIcons = document.querySelectorAll('.breadcrumb-icon .fas');
+                console.log('Found breadcrumb icons:', breadcrumbIcons.length);
+                
+                breadcrumbIcons.forEach((icon, index) => {
+                    const computedStyle = window.getComputedStyle(icon);
+                    const fontFamily = computedStyle.getPropertyValue('font-family');
+                    const content = computedStyle.getPropertyValue('content');
+                    const color = computedStyle.getPropertyValue('color');
+                    
+                    console.log(`Breadcrumb icon ${index + 1}:`, {
+                        className: icon.className,
+                        fontFamily: fontFamily,
+                        content: content,
+                        color: color,
+                        visible: content !== 'none' && content !== '""'
+                    });
+                });
+            }
+            
+            // Debug breadcrumb icons after Font Awesome check
+            setTimeout(debugBreadcrumbIcons, 1000);
+            
             // Add fallback styles for missing icons
             var style = document.createElement('style');
             style.textContent = 
@@ -247,6 +271,30 @@
                 '.fa-user-graduate::before { content: "🎓"; }' +
                 '.fa-clock::before { content: "🕐"; }' +
                 '.fa-book-open::before { content: "📖"; }' +
+                '.fa-home::before { content: "🏠"; }' +
+                '.fa-book::before { content: "📚"; }' +
+                '.fa-users::before { content: "👥"; }' +
+                '.fa-chart-bar::before { content: "📊"; }' +
+                '.fa-tachometer-alt::before { content: "📈"; }' +
+                '.fa-globe::before { content: "🌍"; }' +
+                '.fa-user::before { content: "👤"; }' +
+                '.fa-cog::before { content: "⚙️"; }' +
+                '.fa-clock::before { content: "🕐"; }' +
+                '.fa-tasks::before { content: "✅"; }' +
+                '.fa-file-alt::before { content: "📄"; }' +
+                '.fa-edit::before { content: "✏️"; }' +
+                '.fa-trash::before { content: "🗑️"; }' +
+                '.fa-plus::before { content: "➕"; }' +
+                '.fa-user-edit::before { content: "👤✏️"; }' +
+                '.fa-user-plus::before { content: "👤➕"; }' +
+                '.fa-users-cog::before { content: "👥⚙️"; }' +
+                '.fa-key::before { content: "🔑"; }' +
+                '.fa-chart-line::before { content: "📈"; }' +
+                '.fa-table::before { content: "📋"; }' +
+                '.fa-clipboard-check::before { content: "📋✅"; }' +
+                '.fa-certificate::before { content: "🏆"; }' +
+                '.fa-code-branch::before { content: "🌿"; }' +
+                '.fa-lightbulb::before { content: "💡"; }' +
                 '.fa-envelope::before { content: "✉"; }' +
                 '.fa-arrow-left::before { content: "←"; }' +
                 '.fa-save::before { content: "💾"; }' +
@@ -320,22 +368,7 @@
                 padding: 1rem;
             }
             
-            /* Mobile menu overlay */
-            #mobile-menu {
-                position: fixed;
-                top: 4rem;
-                left: 0;
-                width: 100%;
-                height: calc(100vh - 4rem);
-                background-color: var(--brand-primary);
-                z-index: 40;
-                transform: translateX(-100%);
-                transition: transform 0.3s ease;
-            }
-            
-            #mobile-menu.open {
-                transform: translateX(0);
-            }
+            /* Mobile menu styles moved to header.html to avoid conflicts */
         }
 
         /* 2. Enhanced Course Grid Responsiveness */
@@ -714,203 +747,9 @@
             }
         }
 
-        /* Global header protection against CSS conflicts */
-        header {
-            display: block !important;
-            visibility: visible !important;
-            opacity: 1 !important;
-            z-index: 1000;
-            position: fixed;
-            top: 0 !important;
-            left: 0 !important;
-            right: 0 !important;
-            width: 100% !important;
-            height: 4rem !important;
-            background: white !important;
-            border-bottom: 1px solid #e5e7eb !important;
-            box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1) !important;
-        }
+        /* Header conflicts resolved - styles moved to header-styles.css */
         
-        /* CRITICAL: Fix logo clipping and sidebar overlap */
-        @media (max-width: 1024px) {
-            /* Ensure logo doesn't get clipped by sidebar */
-            header .flex.items-center:first-child {
-                z-index: 10;
-                position: relative;
-                min-width: 0;
-                flex-shrink: 0;
-            }
-            
-            /* Prevent sidebar from overlapping header content */
-            header {
-                z-index: 9999 !important;
-            }
-            
-            /* Ensure logo has proper spacing and doesn't get cut off */
-            header img {
-                margin-right: 0.5rem;
-                max-width: 140px;
-                height: auto;
-                object-fit: contain;
-            }
-            
-            /* Ensure proper spacing between logo and other elements */
-            header .flex.items-center:first-child + * {
-                margin-left: 0.5rem;
-            }
-        }
-        
-        /* Fix text overlap with logo on medium screens */
-        @media (max-width: 768px) {
-            /* Ensure proper spacing between logo and other elements */
-            header .flex.items-center:first-child {
-                margin-right: 0.5rem;
-                flex-shrink: 0;
-                min-width: 0;
-            }
-            
-            /* Prevent text from overlapping logo */
-            header .flex.items-center:first-child + * {
-                margin-left: 0.5rem;
-            }
-            
-            /* Ensure logo doesn't get cut off */
-            header img {
-                max-width: 120px;
-                height: auto;
-                object-fit: contain;
-            }
-            
-            /* Ensure header layout doesn't break */
-            header .flex.items-center {
-                gap: 0.5rem;
-                overflow: visible !important;
-                flex-wrap: nowrap;
-            }
-        }
-        
-        /* Force header content visibility */
-        header .flex.items-center {
-            display: flex !important;
-            visibility: visible !important;
-            opacity: 1 !important;
-        }
-        
-        /* Force header icons visibility */
-        header .header-icon,
-        header .discussion-icon,
-        header .notification-icon,
-        header #mobile-menu-toggle,
-        header #profile-button {
-            display: flex !important;
-            visibility: visible !important;
-            opacity: 1 !important;
-        }
-        
-        /* Mobile header improvements */
-        @media (max-width: 768px) {
-            header {
-                min-height: 4rem;
-                height: auto;
-            }
-            
-            /* Ensure header content doesn't overflow but allow dropdowns */
-            header .flex.items-center {
-                flex-wrap: nowrap;
-                overflow: visible;
-            }
-            
-            /* Profile container must allow overflow for dropdown */
-            #profile-container {
-                position: relative !important;
-                overflow: visible !important;
-            }
-            
-            /* Profile dropdown positioning fix for mobile */
-            #profile-dropdown {
-                position: absolute !important;
-                top: 3rem !important;
-                right: 0 !important;
-                z-index: 9999 !important;
-            }
-            
-            /* Make sure all header elements are properly sized */
-            header .flex-shrink-0 {
-                flex-shrink: 0;
-            }
-            
-            /* Improve mobile search toggle visibility */
-            #mobile-search-toggle {
-                display: flex !important;
-                visibility: visible !important;
-                opacity: 1 !important;
-            }
-            
-            /* Ensure main content has proper top spacing on mobile */
-            #main-content {
-                padding-top: 4rem !important;
-            }
-            
-            /* Adjust body padding for mobile */
-            body {
-                padding-top: 0 !important;
-            }
-        }
-        
-        /* Extra small mobile screens */
-        @media (max-width: 480px) {
-            header {
-                min-height: 3.5rem;
-            }
-            
-            #main-content {
-                padding-top: 3.5rem !important;
-            }
-        }
-        
-        /* Very small screens */
-        @media (max-width: 320px) {
-            header {
-                min-height: 3rem;
-            }
-            
-            #main-content {
-                padding-top: 3rem !important;
-            }
-        }
-
-        /* Desktop search responsive behavior - managed in header.html */
-
-        /* Mobile search toggle responsive behavior - managed in header.html */
-
-        /* Ensure header icons are always visible */
-        .header-icon,
-        .discussion-icon,
-        .notification-icon {
-            display: flex !important;
-            visibility: visible !important;
-            opacity: 1 !important;
-        }
-
-        /* Fix for header icons SVG */
-        .header-icon svg,
-        .discussion-icon svg,
-        .notification-icon svg {
-            display: inline !important;
-            visibility: visible !important;
-            opacity: 1 !important;
-        }
-
-        /* Fix for notification dots */
-        .header-icon span,
-        .discussion-icon span,
-        .notification-icon span {
-            display: block !important;
-            visibility: visible !important;
-            opacity: 1 !important;
-        }
-
-        /* Prevent TinyMCE from interfering with header */
+        /* TinyMCE z-index fix */
         .tox-tinymce,
         .tox-toolbar {
             z-index: 10 !important;
@@ -1208,129 +1047,7 @@
         // Make toast function globally available
         window.showToast = showToast;
 
-        // Comprehensive header fix to prevent display issues
-        function ensureHeaderVisibility() {
-            var header = document.querySelector('header');
-            if (header) {
-                // Force header visibility with maximum priority
-                header.style.setProperty('display', 'block', 'important');
-                header.style.setProperty('visibility', 'visible', 'important');
-                header.style.setProperty('opacity', '1', 'important');
-                header.style.setProperty('z-index', '9999', 'important');
-                header.style.setProperty('position', 'fixed', 'important');
-                header.style.setProperty('top', '0', 'important');
-                header.style.setProperty('left', '0', 'important');
-                header.style.setProperty('right', '0', 'important');
-                header.style.setProperty('width', '100%', 'important');
-                header.style.setProperty('height', '4rem', 'important');
-                header.style.setProperty('background', 'white', 'important');
-                header.style.setProperty('border-bottom', '1px solid #e5e7eb', 'important');
-                header.style.setProperty('box-shadow', '0 1px 3px 0 rgb(0 0 0 / 0.1)', 'important');
-                
-                // Force header content visibility
-                var headerContent = header.querySelector('.flex.items-center');
-                if (headerContent) {
-                    headerContent.style.setProperty('display', 'flex', 'important');
-                    headerContent.style.setProperty('visibility', 'visible', 'important');
-                    headerContent.style.setProperty('opacity', '1', 'important');
-                }
-            }
-            
-            // Ensure all header icons are visible
-            var headerIcons = document.querySelectorAll('.header-icon, .discussion-icon, .notification-icon, #mobile-menu-toggle, #profile-button');
-            for (var i = 0; i < headerIcons.length; i++) {
-                var icon = headerIcons[i];
-                icon.style.setProperty('display', 'flex', 'important');
-                icon.style.setProperty('visibility', 'visible', 'important');
-                icon.style.setProperty('opacity', '1', 'important');
-            }
-            
-            // Force SVG icons to be visible
-            var svgIcons = document.querySelectorAll('header svg');
-            for (var i = 0; i < svgIcons.length; i++) {
-                var svg = svgIcons[i];
-                svg.style.setProperty('display', 'inline-block', 'important');
-                svg.style.setProperty('visibility', 'visible', 'important');
-                svg.style.setProperty('opacity', '1', 'important');
-            }
-        }
-
-            // Mobile search toggle responsive behavior is handled in header.html
-
-            // Fix header icons
-            var headerIcons = document.querySelectorAll('.header-icon, .discussion-icon, .notification-icon');
-            for (var i = 0; i < headerIcons.length; i++) {
-                var icon = headerIcons[i];
-                icon.style.display = 'flex';
-                icon.style.visibility = 'visible';
-                icon.style.opacity = '1';
-                
-                // Fix SVG icons
-                var svg = icon.querySelector('svg');
-                if (svg) {
-                    svg.style.display = 'inline';
-                    svg.style.visibility = 'visible';
-                    svg.style.opacity = '1';
-                }
-                
-                // Fix notification dots
-                var span = icon.querySelector('span');
-                if (span) {
-                    span.style.display = 'block';
-                    span.style.visibility = 'visible';
-                    span.style.opacity = '1';
-                }
-            }
-        }
-
-        // Run header fix immediately and on various events
-        ensureHeaderVisibility();
-        document.addEventListener('DOMContentLoaded', ensureHeaderVisibility);
-        window.addEventListener('load', ensureHeaderVisibility);
-        window.addEventListener('resize', ensureHeaderVisibility);
-        
-        // Run header fix after any dynamic content changes
-            var observer = new MutationObserver(function(mutations) {
-            var shouldFix = false;
-            for (var i = 0; i < mutations.length; i++) {
-                var mutation = mutations[i];
-                if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
-                    for (var j = 0; j < mutation.addedNodes.length; j++) {
-                        var node = mutation.addedNodes[j];
-                        if (node.nodeType === Node.ELEMENT_NODE) {
-                            // Check if any TinyMCE or other editor elements were added
-                            if (node.classList && (node.classList.contains('tox-tinymce') || 
-                                                 node.classList.contains('tox-toolbar') ||
-                                                 node.querySelector('.tox-tinymce, .tox-toolbar'))) {
-                                shouldFix = true;
-                                break;
-                            }
-                        }
-                    }
-                }
-            }
-            if (shouldFix) {
-                setTimeout(ensureHeaderVisibility, 100);
-            }
-        });
-        
-        // Start observing when DOM is ready
-        if (document.body) {
-            observer.observe(document.body, {
-                childList: true,
-                subtree: true
-            });
-        } else {
-            document.addEventListener('DOMContentLoaded', function() {
-                observer.observe(document.body, {
-                    childList: true,
-                    subtree: true
-                });
-            });
-        }
-        
-        // Additional header protection - run every 2 seconds to catch any issues
-        setInterval(ensureHeaderVisibility, 2000);
+        // Header visibility is now handled by header-styles.css and header.html
     </script>
     
     {% block extra_js %}

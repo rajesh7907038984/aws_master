@@ -376,28 +376,110 @@ class ELearningPackage(models.Model):
                 self.title = title_elem.text or ""
     
     def _parse_cmi5_manifest(self, manifest_path):
-        """Parse cmi5 manifest to extract metadata"""
-        if manifest_path.endswith('.json'):
-            with open(manifest_path, 'r', encoding='utf-8') as f:
-                data = json.load(f)
+        """ENHANCED: Parse cmi5 manifest to extract metadata with comprehensive support"""
+        try:
+            if manifest_path.endswith('.json'):
+                with open(manifest_path, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    
+                # Enhanced title extraction with multiple language support
+                self.title = (
+                    data.get('name', {}).get('en-US', '') or 
+                    data.get('name', {}).get('en', '') or 
+                    data.get('name', '') or 
+                    data.get('title', '') or
+                    'CMI5 Package'
+                )
                 
-            self.title = data.get('name', {}).get('en-US', '') or data.get('name', '')
-            self.description = data.get('description', {}).get('en-US', '') or data.get('description', '')
-            
-            # Extract cmi5 specific data
-            if 'id' in data:
-                self.cmi5_au_id = data['id']
-            if 'launch' in data:
-                self.cmi5_launch_url = data['launch']
-        else:
-            # Parse XML format
-            tree = ET.parse(manifest_path)
-            root = tree.getroot()
-            
-            # Basic parsing for XML cmi5 manifests
-            title_elem = root.find('.//title')
-            if title_elem is not None:
-                self.title = title_elem.text or ""
+                # Enhanced description extraction
+                self.description = (
+                    data.get('description', {}).get('en-US', '') or 
+                    data.get('description', {}).get('en', '') or 
+                    data.get('description', '') or
+                    ''
+                )
+                
+                # Enhanced cmi5 specific data extraction
+                if 'id' in data:
+                    self.cmi5_au_id = data['id']
+                elif 'au_id' in data:
+                    self.cmi5_au_id = data['au_id']
+                elif 'identifier' in data:
+                    self.cmi5_au_id = data['identifier']
+                
+                if 'launch' in data:
+                    self.cmi5_launch_url = data['launch']
+                elif 'launch_url' in data:
+                    self.cmi5_launch_url = data['launch_url']
+                elif 'url' in data:
+                    self.cmi5_launch_url = data['url']
+                
+                # Extract additional cmi5 metadata
+                if 'version' in data:
+                    self.version = data['version']
+                if 'organization' in data:
+                    self.organization = data['organization']
+                elif 'publisher' in data:
+                    self.organization = data['publisher']
+                
+                logger.info(f"CMI5: Parsed JSON manifest - Title: {self.title}, AU ID: {self.cmi5_au_id}")
+                
+            else:
+                # Parse XML format with enhanced support
+                tree = ET.parse(manifest_path)
+                root = tree.getroot()
+                
+                # Enhanced XML parsing with multiple namespace support
+                namespaces = {
+                    'cmi5': 'http://www.adlnet.org/xapi/cmi5',
+                    'xapi': 'http://adlnet.gov/expapi/activities/',
+                    'ims': 'http://www.imsglobal.org/xsd/imscp_rootv1p1p0',
+                    'adlcp': 'http://www.adlnet.org/xsd/adlcp_rootv1p2'
+                }
+                
+                # Try multiple namespace paths for title
+                title_elem = None
+                for ns_prefix, ns_uri in namespaces.items():
+                    title_elem = root.find(f'.//{{{ns_uri}}}title') or root.find(f'.//{{{ns_uri}}}name')
+                    if title_elem is not None:
+                        break
+                
+                if title_elem is not None:
+                    self.title = title_elem.text or ""
+                else:
+                    # Fallback to any title element
+                    title_elem = root.find('.//title') or root.find('.//name')
+                    if title_elem is not None:
+                        self.title = title_elem.text or ""
+                
+                # Try multiple namespace paths for description
+                desc_elem = None
+                for ns_prefix, ns_uri in namespaces.items():
+                    desc_elem = root.find(f'.//{{{ns_uri}}}description')
+                    if desc_elem is not None:
+                        break
+                
+                if desc_elem is not None:
+                    self.description = desc_elem.text or ""
+                
+                # Extract cmi5 specific data from XML
+                au_id_elem = root.find('.//{http://www.adlnet.org/xapi/cmi5}id')
+                if au_id_elem is not None:
+                    self.cmi5_au_id = au_id_elem.text or ""
+                
+                launch_elem = root.find('.//{http://www.adlnet.org/xapi/cmi5}launch')
+                if launch_elem is not None:
+                    self.cmi5_launch_url = launch_elem.text or ""
+                
+                logger.info(f"CMI5: Parsed XML manifest - Title: {self.title}, AU ID: {self.cmi5_au_id}")
+                
+        except Exception as e:
+            logger.error(f"CMI5: Error parsing manifest {manifest_path}: {str(e)}")
+            # Set fallback values
+            if not self.title:
+                self.title = "CMI5 Package"
+            if not self.cmi5_au_id:
+                self.cmi5_au_id = f"au_{self.topic.id}"
     
     def _parse_aicc_manifest(self, manifest_path):
         """Parse AICC manifest to extract metadata"""
@@ -480,6 +562,19 @@ class ELearningPackage(models.Model):
                 'start.html',           # Alternative start file
                 'main.html',            # Main content file
                 
+                # Enhanced CMI5 files for Anti-Bribery and similar packages
+                'analytics-frame.html', # Analytics frame (common in CMI5)
+                'frame.html',           # Frame-based content
+                'content.html',         # Content wrapper
+                'lesson.html',          # Lesson content
+                'module.html',          # Module content
+                'course.html',          # Course content
+                'training.html',        # Training content
+                'compliance.html',      # Compliance content
+                'anti-bribery.html',    # Specific to Anti-Bribery packages
+                'level3.html',          # Level-specific content
+                'bribery.html',         # Bribery-specific content
+                
                 # cmi5 subdirectory patterns
                 'cmi5/index.html',
                 'cmi5/launch.html',
@@ -487,7 +582,17 @@ class ELearningPackage(models.Model):
                 'au/launch.html',
                 'content/index.html',
                 'data/index.html',
-                'player/index.html'
+                'player/index.html',
+                
+                # Enhanced subdirectory patterns for compliance packages
+                'compliance/index.html',
+                'compliance/launch.html',
+                'training/index.html',
+                'training/launch.html',
+                'anti-bribery/index.html',
+                'anti-bribery/launch.html',
+                'level3/index.html',
+                'level3/launch.html'
             ]
         elif self.package_type == 'AICC':
             launch_files = [
@@ -594,7 +699,7 @@ class ELearningPackage(models.Model):
             raise
     
     def detect_package_type(self):
-        """Detect the package type based on manifest files - S3 compatible"""
+        """ENHANCED: Detect the package type based on manifest files - S3 compatible with priority-based detection"""
         if not self.package_file:
             return None
         
@@ -626,57 +731,93 @@ class ELearningPackage(models.Model):
             with zipfile.ZipFile(zip_path, 'r') as zip_ref:
                 file_list = zip_ref.namelist()
                 
-                # Check for SCORM manifests
-                if any('imsmanifest.xml' in f.lower() for f in file_list):
+                # PRIORITY 1: Check for CMI5 manifests (highest priority for modern standards)
+                has_cmi5 = any('cmi5.xml' in f.lower() or 'cmi5.json' in f.lower() for f in file_list)
+                if has_cmi5:
+                    logger.info("Package detection: CMI5 manifest found")
+                    return 'CMI5'
+                
+                # PRIORITY 2: Check for xAPI/Tin Can manifests
+                has_xapi = any('tincan.xml' in f.lower() or 'tincan.json' in f.lower() for f in file_list)
+                if has_xapi:
+                    logger.info("Package detection: xAPI/Tin Can manifest found")
+                    return 'XAPI'
+                
+                # PRIORITY 3: Check for SCORM manifests (most common)
+                has_scorm = any('imsmanifest.xml' in f.lower() for f in file_list)
+                if has_scorm:
                     # Check SCORM version by examining the manifest content
                     try:
-                        manifest_content = zip_ref.read('imsmanifest.xml').decode('utf-8')
-                        if 'scorm_2004' in manifest_content.lower() or 'adlcp:scormtype' in manifest_content.lower():
-                            return 'SCORM_2004'
-                        else:
-                            return 'SCORM_1_2'
+                        # Find the actual manifest file (case-insensitive)
+                        manifest_file = next((f for f in file_list if 'imsmanifest.xml' in f.lower()), None)
+                        if manifest_file:
+                            manifest_content = zip_ref.read(manifest_file).decode('utf-8', errors='ignore')
+                            
+                            # Detect if it's from Articulate (for enhanced handling)
+                            is_articulate = any(indicator in file_list for indicator in [
+                                'story_content', 'story.html', 'story_html5.html',
+                                'meta.xml', 'lms/index_lms.html'
+                            ])
+                            
+                            # Determine SCORM version
+                            if 'scorm_2004' in manifest_content.lower() or 'adlcp:scormtype' in manifest_content.lower() or '2004' in manifest_content:
+                                package_type = 'SCORM_2004'
+                                logger.info(f"Package detection: SCORM 2004 found{' (Articulate)' if is_articulate else ''}")
+                            else:
+                                package_type = 'SCORM_1_2'
+                                logger.info(f"Package detection: SCORM 1.2 found{' (Articulate)' if is_articulate else ''}")
+                            
+                            return package_type
                     except Exception as e:
                         logger.warning(f"Error determining SCORM version: {e}")
                         # Default to SCORM 1.2 if we can't determine version
                         return 'SCORM_1_2'
                 
-                # Check for xAPI manifests
-                elif any('tincan.xml' in f.lower() or 'tincan.json' in f.lower() for f in file_list):
-                    return 'XAPI'
-                
-                # Check for cmi5 manifests
-                elif any('cmi5.xml' in f.lower() or 'cmi5.json' in f.lower() for f in file_list):
-                    return 'CMI5'
-                
-                # Check for AICC manifests
-                elif any('coursestruct.cst' in f.lower() or 'au.txt' in f.lower() for f in file_list):
+                # PRIORITY 4: Check for AICC manifests
+                has_aicc = any('coursestruct.cst' in f.lower() or 'au.txt' in f.lower() for f in file_list)
+                if has_aicc:
+                    logger.info("Package detection: AICC manifest found")
                     return 'AICC'
                 
-                # ENHANCED: Check for Articulate content
-                elif any('story_content' in f.lower() or 'story_html5' in f.lower() for f in file_list):
-                    return 'ARTICULATE'
+                # PRIORITY 5: Check for authoring tool-specific patterns (as fallback)
+                # These tools typically export SCORM, so this is a fallback for non-standard packages
                 
-                # Check for Rise content
-                elif any('rise_content' in f.lower() or 'rise_html5' in f.lower() for f in file_list):
-                    return 'ARTICULATE'
+                # Check for Articulate content (Storyline/Rise without standard manifest)
+                is_articulate_storyline = any('story_content' in f.lower() or 'story_html5' in f.lower() for f in file_list)
+                is_articulate_rise = any('rise_content' in f.lower() or 'rise_html5' in f.lower() or 'scormcontent/index.html' in f.lower() for f in file_list)
+                
+                if is_articulate_storyline or is_articulate_rise:
+                    logger.warning("Package detection: Articulate content found without standard manifest - defaulting to SCORM 1.2")
+                    return 'SCORM_1_2'  # Treat as SCORM since Articulate exports SCORM
                 
                 # Check for Captivate content
-                elif any('captivate' in f.lower() or 'cp_' in f.lower() for f in file_list):
-                    return 'CAPTIVATE'
+                if any('captivate' in f.lower() or 'cp_' in f.lower() or 'captivate.css' in f.lower() for f in file_list):
+                    logger.warning("Package detection: Captivate content found without standard manifest - defaulting to SCORM 1.2")
+                    return 'SCORM_1_2'
                 
                 # Check for Lectora content
-                elif any('lectora' in f.lower() or 'trivantis' in f.lower() for f in file_list):
-                    return 'LECTORA'
+                if any('lectora' in f.lower() or 'trivantis' in f.lower() for f in file_list):
+                    logger.warning("Package detection: Lectora content found without standard manifest - defaulting to SCORM 1.2")
+                    return 'SCORM_1_2'
                 
                 # Check for iSpring content
-                elif any('ispring' in f.lower() or 'ispring_content' in f.lower() for f in file_list):
-                    return 'ISPRING'
+                if any('ispring' in f.lower() or 'ispring_content' in f.lower() or 'data/meta.xml' in f.lower() for f in file_list):
+                    logger.warning("Package detection: iSpring content found without standard manifest - defaulting to SCORM 1.2")
+                    return 'SCORM_1_2'
                 
                 # Check for Adobe Presenter content
-                elif any('presenter' in f.lower() or 'adobe_presenter' in f.lower() for f in file_list):
-                    return 'ADOBE_PRESENTER'
+                if any('presenter' in f.lower() or 'adobe_presenter' in f.lower() for f in file_list):
+                    logger.warning("Package detection: Adobe Presenter content found without standard manifest - defaulting to SCORM 1.2")
+                    return 'SCORM_1_2'
+                
+                # Check for generic HTML5 content
+                html_files = [f for f in file_list if f.lower().endswith(('.html', '.htm'))]
+                if html_files:
+                    logger.warning(f"Package detection: HTML content found without standard manifest ({len(html_files)} HTML files) - defaulting to SCORM 1.2")
+                    return 'SCORM_1_2'
             
             # Return None as default (no recognized package type)
+            logger.warning("Package detection: No recognized package type found")
             return None
                 
         except Exception as e:

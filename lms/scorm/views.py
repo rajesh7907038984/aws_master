@@ -433,7 +433,13 @@ def scorm_content(request, topic_id, file_path):
         return response
     except Exception as e:
         logger.error(f"SCORM Content: Error serving file {file_path} (S3 path: {s3_file_path}): {str(e)}", exc_info=True)
-        return HttpResponse(f"Error serving file: {str(e)}", status=500)
+        return JsonResponse({
+            'success': False,
+            'error': 'Failed to serve SCORM content',
+            'message': 'Unable to load the learning content. Please try again or contact support.',
+            'details': str(e),
+            'error_type': 'SCORM_CONTENT_ERROR'
+        }, status=500)
 
 @csrf_exempt
 def scorm_api(request, topic_id):

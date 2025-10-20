@@ -13,8 +13,8 @@
         selectors: {
             sidebar: '#sidebar',
             mainContent: '#main-content',
-            mobileMenu: '#mobile-menu',
-            mobileToggle: '#mobile-menu-toggle',
+            mobileMenu: '#nexsy-mobile-menu',
+            mobileToggle: '#nexsy-mobile-menu-toggle',
             submenuButtons: '.menu-item.has-submenu, [data-submenu]',
             arrowIcons: '.arrow-icon'
         },

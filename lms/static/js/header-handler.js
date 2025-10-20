@@ -1,13 +1,14 @@
 /**
- * Header Handler - Manages all header functionality
- * Consolidated from inline scripts to improve maintainability
+ * Header Handler - Clean and Conflict-Free
+ * Manages all header functionality without conflicts
  */
 
 (function() {
     'use strict';
     
-    // Mobile menu content loaded flag
+    // State management
     let mobileMenuContentLoaded = false;
+    let isInitialized = false;
     
     /**
      * Load sidebar content to mobile menu (runs once)
@@ -121,25 +122,23 @@
     }
     
     /**
-     * Initialize mobile menu toggle
+     * Initialize mobile menu toggle - Clean version
      */
     function initializeMobileMenu() {
-        const mobileMenuToggle = document.getElementById('mobile-menu-toggle');
-        const mobileMenu = document.getElementById('mobile-menu');
-        const closeMobileMenu = document.getElementById('close-mobile-menu');
-        const mobileMenuOverlay = document.getElementById('mobile-menu-overlay');
+        const mobileMenuToggle = document.getElementById('nexsy-mobile-menu-toggle');
+        const mobileMenu = document.getElementById('nexsy-mobile-menu');
+        const closeMobileMenu = document.getElementById('nexsy-close-mobile-menu');
+        const mobileMenuOverlay = document.getElementById('nexsy-mobile-menu-overlay');
         
         if (!mobileMenuToggle || !mobileMenu) return;
         
-        // Remove any existing event listeners to prevent conflicts
-        const newToggle = mobileMenuToggle.cloneNode(true);
-        mobileMenuToggle.parentNode.replaceChild(newToggle, mobileMenuToggle);
-        
-        newToggle.addEventListener('click', function(e) {
+        // Clean event listener setup
+        function handleMenuToggle(e) {
             e.preventDefault();
             e.stopPropagation();
             
             if (window.innerWidth < 768) {
+                // Mobile behavior
                 const wasOpen = mobileMenu.classList.contains('open');
                 mobileMenu.classList.toggle('open');
                 
@@ -150,77 +149,116 @@
                     document.body.classList.remove('overflow-hidden');
                 }
             } else {
-                // Desktop: toggle sidebar
-                if (typeof window.toggleSidebar === 'function') {
-                    window.toggleSidebar();
+                // Desktop behavior - toggle sidebar
+                const sidebar = document.getElementById('sidebar');
+                const mainContent = document.getElementById('main-content');
+                
+                if (sidebar && mainContent) {
+                    const wasCollapsed = sidebar.classList.contains('collapsed');
+                    sidebar.classList.toggle('collapsed');
+                    mainContent.classList.toggle('sidebar-collapsed');
+                    
+                    // Store state in localStorage
+                    const isNowCollapsed = sidebar.classList.contains('collapsed');
+                    localStorage.setItem('sidebar_collapsed', isNowCollapsed);
+                    
+                    // Update layout immediately
+                    if (isNowCollapsed) {
+                        mainContent.style.marginLeft = '3.5rem';
+                        mainContent.style.width = 'calc(100% - 3.5rem)';
+                        mainContent.style.maxWidth = 'calc(100% - 3.5rem)';
+                    } else {
+                        mainContent.style.marginLeft = '16rem';
+                        mainContent.style.width = 'calc(100% - 16rem)';
+                        mainContent.style.maxWidth = 'calc(100% - 16rem)';
+                    }
+                } else {
+                    // Fallback: try to call global toggleSidebar function if it exists
+                    if (typeof window.toggleSidebar === 'function') {
+                        window.toggleSidebar();
+                    }
                 }
             }
-        });
+        }
+        
+        // Remove existing listeners and add new one
+        mobileMenuToggle.removeEventListener('click', handleMenuToggle);
+        mobileMenuToggle.addEventListener('click', handleMenuToggle);
         
         // Close menu handlers
-        const closeMenu = () => {
+        function closeMenu() {
             mobileMenu.classList.remove('open');
             document.body.classList.remove('overflow-hidden');
-        };
+        }
         
         if (closeMobileMenu) {
+            closeMobileMenu.removeEventListener('click', closeMenu);
             closeMobileMenu.addEventListener('click', closeMenu);
         }
         if (mobileMenuOverlay) {
+            mobileMenuOverlay.removeEventListener('click', closeMenu);
             mobileMenuOverlay.addEventListener('click', closeMenu);
         }
     }
     
     /**
-     * Initialize mobile search toggle
+     * Initialize mobile search toggle - Clean version
      */
     function initializeMobileSearch() {
         const searchToggle = document.getElementById('mobile-search-toggle');
         const searchContainer = document.getElementById('mobile-search-container');
         
-        if (searchToggle && searchContainer) {
-            searchToggle.addEventListener('click', function(e) {
-                e.preventDefault();
-                e.stopPropagation();
-                
-                searchContainer.classList.toggle('hidden');
-                this.classList.toggle('active');
-                
-                if (!searchContainer.classList.contains('hidden')) {
-                    const searchInput = searchContainer.querySelector('input[name="q"]');
-                    if (searchInput) {
-                        setTimeout(() => searchInput.focus(), 100);
-                    }
-                }
-            });
+        if (!searchToggle || !searchContainer) return;
+        
+        function handleSearchToggle(e) {
+            e.preventDefault();
+            e.stopPropagation();
             
-            // Close on outside click
-            document.addEventListener('click', function(e) {
-                if (!searchContainer.classList.contains('hidden') && 
-                    !searchContainer.contains(e.target) && 
-                    !searchToggle.contains(e.target)) {
-                    searchContainer.classList.add('hidden');
-                    searchToggle.classList.remove('active');
-                }
-            });
+            searchContainer.classList.toggle('hidden');
+            searchToggle.classList.toggle('active');
             
-            // Close on escape
-            document.addEventListener('keydown', function(e) {
-                if (e.key === 'Escape' && !searchContainer.classList.contains('hidden')) {
-                    searchContainer.classList.add('hidden');
-                    searchToggle.classList.remove('active');
+            if (!searchContainer.classList.contains('hidden')) {
+                const searchInput = searchContainer.querySelector('input[name="q"]');
+                if (searchInput) {
+                    setTimeout(() => searchInput.focus(), 100);
                 }
-            });
+            }
         }
+        
+        function handleOutsideClick(e) {
+            if (!searchContainer.classList.contains('hidden') && 
+                !searchContainer.contains(e.target) && 
+                !searchToggle.contains(e.target)) {
+                searchContainer.classList.add('hidden');
+                searchToggle.classList.remove('active');
+            }
+        }
+        
+        function handleEscapeKey(e) {
+            if (e.key === 'Escape' && !searchContainer.classList.contains('hidden')) {
+                searchContainer.classList.add('hidden');
+                searchToggle.classList.remove('active');
+            }
+        }
+        
+        // Clean event listener setup
+        searchToggle.removeEventListener('click', handleSearchToggle);
+        searchToggle.addEventListener('click', handleSearchToggle);
+        
+        document.removeEventListener('click', handleOutsideClick);
+        document.addEventListener('click', handleOutsideClick);
+        
+        document.removeEventListener('keydown', handleEscapeKey);
+        document.addEventListener('keydown', handleEscapeKey);
     }
     
     /**
      * Handle window resize
      */
     function handleResize() {
-        const mobileMenu = document.getElementById('mobile-menu');
-        const mobileSearchContainer = document.getElementById('mobile-search-container');
-        const searchToggle = document.getElementById('mobile-search-toggle');
+        const mobileMenu = document.getElementById('nexsy-mobile-menu');
+        const mobileSearchContainer = document.getElementById('nexsy-mobile-search-container');
+        const searchToggle = document.getElementById('nexsy-mobile-search-toggle');
         
         if (window.innerWidth >= 768) {
             if (mobileMenu && mobileMenu.classList.contains('open')) {
@@ -444,89 +482,50 @@
     }
     
     /**
-     * Initialize header
+     * Initialize header - Clean version
      */
     function initializeHeader() {
+        if (isInitialized) return;
+        isInitialized = true;
+        
+        // Initialize components
         initializeMobileMenu();
         initializeMobileSearch();
         
-        // Apply responsive fixes on initialization
+        // Apply responsive fixes
         handleResponsiveBreakpoints();
         
-        // Setup resize handler with enhanced responsive behavior
+        // Setup resize handler
         let resizeTimeout;
-        window.addEventListener('resize', function() {
+        function handleWindowResize() {
             clearTimeout(resizeTimeout);
             resizeTimeout = setTimeout(() => {
                 handleResize();
                 handleResponsiveBreakpoints();
             }, 250);
-        });
+        }
         
-        // Update counts every 5 minutes
+        window.removeEventListener('resize', handleWindowResize);
+        window.addEventListener('resize', handleWindowResize);
+        
+        // Update counts
         updateHeaderCounts();
         setInterval(updateHeaderCounts, 300000);
         
-        // Test responsiveness in development
-        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-            console.log('Header responsive system initialized. Use HeaderHandler.testResponsiveness() to test.');
+        console.log('Header system initialized successfully');
+    }
+    
+    // Clean initialization
+    function safeInitialize() {
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initializeHeader);
+        } else {
+            initializeHeader();
         }
     }
     
-    // Initialize on DOM ready
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initializeHeader);
-    } else {
-        initializeHeader();
-    }
+    safeInitialize();
     
-    /**
-     * Test header responsiveness across different screen sizes
-     */
-    function testHeaderResponsiveness() {
-        const testSizes = [
-            { width: 320, name: 'Extra Small (320px)' },
-            { width: 480, name: 'Small (480px)' },
-            { width: 768, name: 'Medium (768px)' },
-            { width: 1024, name: 'Large (1024px)' },
-            { width: 1440, name: 'Extra Large (1440px)' }
-        ];
-        
-        console.log('Testing header responsiveness...');
-        
-        testSizes.forEach(size => {
-            // Simulate different screen sizes
-            Object.defineProperty(window, 'innerWidth', {
-                writable: true,
-                configurable: true,
-                value: size.width
-            });
-            
-            // Trigger responsive fixes
-            fixHeaderResponsiveIssues();
-            
-            // Check if header elements are properly sized
-            const header = document.querySelector('header');
-            const logo = header?.querySelector('img');
-            const icons = header?.querySelectorAll('.header-icon, .discussion-icon, .notification-icon, #mobile-menu-toggle, #profile-button');
-            
-            console.log(`${size.name}:`, {
-                logoWidth: logo?.style.maxWidth || 'default',
-                iconCount: icons?.length || 0,
-                headerVisible: header?.style.display !== 'none'
-            });
-        });
-        
-        // Restore original width
-        Object.defineProperty(window, 'innerWidth', {
-            writable: true,
-            configurable: true,
-            value: window.screen.width
-        });
-        
-        // Reapply fixes for current screen size
-        fixHeaderResponsiveIssues();
-    }
     
     /**
      * Enhanced responsive behavior with better breakpoint handling
@@ -560,14 +559,17 @@
         fixHeaderResponsiveIssues();
     }
     
-    // Expose functions globally if needed
+    // Expose essential functions globally
     window.HeaderHandler = {
         updateCounts: updateHeaderCounts,
         loadMobileMenu: loadSidebarContentToMobileMenu,
         initializeMobileSubmenus: initializeMobileSubmenus,
-        testResponsiveness: testHeaderResponsiveness,
         fixResponsiveIssues: fixHeaderResponsiveIssues,
-        handleBreakpoints: handleResponsiveBreakpoints
+        handleBreakpoints: handleResponsiveBreakpoints,
+        reinitialize: function() {
+            isInitialized = false;
+            initializeHeader();
+        }
     };
 })();
 
