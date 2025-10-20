@@ -1,15 +1,17 @@
 <!-- User Management -->
 <div class="menu-section w-full">
-    <button class="menu-item has-submenu flex items-center justify-between px-4 py-1 w-full" data-submenu="userManagementSubmenu">
+    <button class="menu-item has-submenu flex items-center justify-between px-4 py-1 w-full" data-submenu="instructorUserManagementSubmenu">
         <div class="flex items-center">
             <div class="icon-container min-w-[20px] flex justify-center">
                 <i class="fas fa-users w-4 h-4"></i>
             </div>
             <span class="menu-text ml-3 text-sm font-medium">User Management</span>
         </div>
-        <i class="fas fa-chevron-down w-4 h-4"></i>
+        <svg class="w-4 h-4 transition-transform arrow-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+        </svg>
     </button>
-    <div id="userManagementSubmenu" class="submenu hidden">
+    <div id="instructorUserManagementSubmenu" class="submenu hidden">
         <a href="{% url 'groups:group_list' %}" class="menu-item flex items-center px-4 py-1 w-full">
             <div class="icon-container min-w-[20px] flex justify-center">
                 <i class="fas fa-user-friends w-4 h-4"></i>
@@ -27,7 +29,7 @@
 
 <!-- Courses -->
 <div class="menu-section w-full">
-    <button class="menu-item has-submenu flex items-center justify-between px-4 py-1 w-full" data-submenu="coursesSubmenu">
+    <button class="menu-item has-submenu flex items-center justify-between px-4 py-1 w-full" data-submenu="instructorCoursesSubmenu">
         <div class="flex items-center">
             <div class="icon-container min-w-[20px] flex justify-center">
                 <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -36,10 +38,12 @@
             </div>
             <span class="menu-text ml-3 text-sm font-medium">Courses</span>
         </div>
-        <i class="fas fa-chevron-down w-4 h-4"></i>
+        <svg class="w-4 h-4 transition-transform arrow-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+        </svg>
     </button>
 
-    <div id="coursesSubmenu" class="submenu hidden">
+    <div id="instructorCoursesSubmenu" class="submenu hidden">
         <a href="{% url 'courses:course_list' %}" class="menu-item flex items-center px-4 py-1 w-full">
             <div class="icon-container min-w-[20px] flex justify-center">
                 <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -113,7 +117,7 @@
 
 <!-- Communication -->
 <div class="menu-section w-full">
-    <button class="menu-item has-submenu flex items-center justify-between px-4 py-1 w-full" data-submenu="communicationSubmenu">
+    <button class="menu-item has-submenu flex items-center justify-between px-4 py-1 w-full" data-submenu="instructorCommunicationSubmenu">
         <div class="flex items-center">
             <div class="icon-container min-w-[20px] flex justify-center">
                 <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -122,9 +126,11 @@
             </div>
             <span class="menu-text ml-3 text-sm font-medium">Communication</span>
         </div>
-        <i class="fas fa-chevron-down w-4 h-4"></i>
+        <svg class="w-4 h-4 transition-transform arrow-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+        </svg>
     </button>
-    <div id="communicationSubmenu" class="submenu hidden">
+    <div id="instructorCommunicationSubmenu" class="submenu hidden">
         <a href="{% url 'lms_messages:messages' %}" class="menu-item flex items-center px-4 py-1 w-full">
             <div class="icon-container min-w-[20px] flex justify-center">
                 <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -177,7 +183,7 @@
 
 <!-- Reports -->
 <div class="menu-section w-full">
-    <button class="menu-item has-submenu flex items-center justify-between px-4 py-1 w-full" data-submenu="reportsSubmenu">
+    <button class="menu-item has-submenu flex items-center justify-between px-4 py-1 w-full" data-submenu="instructorReportsSubmenu">
         <div class="flex items-center">
             <div class="icon-container min-w-[20px] flex justify-center">
                 <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -186,9 +192,11 @@
             </div>
             <span class="menu-text ml-3 text-sm font-medium">Reports</span>
         </div>
-        <i class="fas fa-chevron-down w-4 h-4"></i>
+        <svg class="w-4 h-4 transition-transform arrow-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+        </svg>
     </button>
-    <div id="reportsSubmenu" class="submenu hidden">
+    <div id="instructorReportsSubmenu" class="submenu hidden">
         <a href="{% url 'reports:overview' %}" class="menu-item flex items-center px-4 py-1 w-full">
             <div class="icon-container min-w-[20px] flex justify-center">
                 <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">

@@ -153,7 +153,7 @@ class EnhancedFormErrorHandlingMixin:
         fallback_urls = [
             'users:role_based_redirect',
             'users:dashboard',
-            'users:login'
+            'login'
         ]
         
         for url_name in fallback_urls:

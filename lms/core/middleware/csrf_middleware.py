@@ -57,6 +57,6 @@ class CsrfErrorMiddleware(MiddlewareMixin):
             else:
                 # Redirect to login page for non-AJAX requests
                 from django.shortcuts import redirect
-                return redirect('users:login')
+                return redirect('login')
         
         return None

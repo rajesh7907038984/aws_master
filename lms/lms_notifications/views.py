@@ -70,7 +70,7 @@ def notification_center(request):
     if not current_user.is_authenticated or not current_user.id:
         from django.contrib.auth import logout
         logout(request)
-        return redirect('users:login')
+        return redirect('login')
     
     # Get notifications with explicit user ID filtering for maximum safety
     notifications = Notification.objects.filter(
@@ -144,7 +144,7 @@ def unread_notifications(request):
     """View for unread notifications only"""
     # Ensure user authentication
     if not request.user.is_authenticated or not request.user.id:
-        return redirect('users:login')
+        return redirect('login')
         
     notifications = Notification.objects.filter(
         recipient_id=request.user.id,  # Use explicit ID filtering
@@ -171,7 +171,7 @@ def all_notifications(request):
     """View for all notifications"""
     # Ensure user authentication
     if not request.user.is_authenticated or not request.user.id:
-        return redirect('users:login')
+        return redirect('login')
         
     notifications = Notification.objects.filter(
         recipient_id=request.user.id  # Use explicit ID filtering
@@ -198,7 +198,7 @@ def mark_notification_read(request, notification_id):
     """Mark a single notification as read"""
     # Ensure user authentication
     if not request.user.is_authenticated or not request.user.id:
-        return redirect('users:login')
+        return redirect('login')
         
     notification = get_object_or_404(
         Notification, 
@@ -228,7 +228,7 @@ def delete_notification(request, notification_id):
     """Delete a single notification"""
     # Ensure user authentication
     if not request.user.is_authenticated or not request.user.id:
-        return redirect('users:login')
+        return redirect('login')
         
     notification = get_object_or_404(
         Notification, 
@@ -258,7 +258,7 @@ def mark_all_read(request):
     """Mark all notifications as read"""
     # Ensure user authentication
     if not request.user.is_authenticated or not request.user.id:
-        return redirect('users:login')
+        return redirect('login')
         
     count = Notification.objects.filter(
         recipient_id=request.user.id,  # Use explicit ID filtering
@@ -275,7 +275,7 @@ def delete_all_read(request):
     """Delete all read notifications"""
     # Ensure user authentication
     if not request.user.is_authenticated or not request.user.id:
-        return redirect('users:login')
+        return redirect('login')
         
     count = Notification.objects.filter(
         recipient_id=request.user.id,  # Use explicit ID filtering

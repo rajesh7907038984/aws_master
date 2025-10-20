@@ -21,9 +21,9 @@ if workers_env == 'auto':
     # For 2 CPUs with limited RAM, use conservative worker count
     cpu_count = multiprocessing.cpu_count()
     if cpu_count <= 2:
-        workers = 1  # Reduced to 1 worker to prevent memory issues
+        workers = 2  # Optimized for 2 CPU cores
     else:
-        workers = max(1, cpu_count - 1)  # Conservative approach
+        workers = max(2, cpu_count)  # Use all available cores
 else:
     workers = int(workers_env)
 
@@ -38,8 +38,8 @@ keepalive = 2  # Reduced for better memory management
 
 # Restart workers after this many requests, to prevent memory leaks
 # SESSION-AWARE: Optimized worker recycling to preserve user sessions
-max_requests = 500  # Reduced to prevent memory buildup
-max_requests_jitter = 50  # Reduced jitter for better memory management
+max_requests = 1000  # Increased for better performance
+max_requests_jitter = 100  # Increased jitter for better load distribution
 
 # Logging - use environment variable for log directory
 accesslog = "{}/gunicorn_access.log".format(LOGS_DIR)
@@ -66,7 +66,7 @@ limit_request_fields = 200
 limit_request_field_size = 16380
 
 # Performance and memory optimization
-preload_app = False  # Disabled to reduce memory usage at startup
+preload_app = True  # Enable for better performance
 worker_tmp_dir = "/dev/shm"
 
 # Memory management

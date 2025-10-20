@@ -208,7 +208,7 @@
     }
 
     /**
-     * Handle responsive behavior
+     * Handle responsive behavior - Fixed mobile responsiveness
      */
     function handleResponsiveBehavior() {
         var wasMobile = state.isMobile;

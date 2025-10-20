@@ -31,8 +31,9 @@ urlpatterns = [
     path('preview/<int:topic_id>/', views.scorm_preview, name='preview'),
     path('xapi/preview/<int:topic_id>/', views.xapi_preview, name='xapi_preview'),
     
-    # Package Validation
+    # Package Validation and Progress
     path('validate/<int:topic_id>/', views.validate_elearning_package_endpoint, name='validate'),
+    path('extraction-progress/<int:topic_id>/', views.extraction_progress, name='extraction_progress'),
     
     # Reports
     path('reports/<int:course_id>/', views.scorm_reports, name='reports'),

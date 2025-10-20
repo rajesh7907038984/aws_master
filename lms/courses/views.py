@@ -987,7 +987,7 @@ def course_details(request, course_id):
 
     # Check basic access
     if not request.user.is_authenticated:
-        return redirect('users:login')
+        return redirect('login')
         
     if not request.user.is_superuser:
         if request.user.role == 'admin' and course.branch != request.user.branch:

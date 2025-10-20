@@ -212,7 +212,7 @@ logger.info("✅ Using WhiteNoise for static file serving (optimized for Django)
 # SSL Configuration - ALB handles SSL termination
 # Enable SSL redirect since ALB terminates SSL and forwards to HTTP backend
 # Enabled for security - ALB handles SSL termination properly
-SECURE_SSL_REDIRECT = False  # Temporarily disabled for development
+SECURE_SSL_REDIRECT = True  # Enable SSL redirect for production security
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 SECURE_HSTS_SECONDS = 31536000
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
