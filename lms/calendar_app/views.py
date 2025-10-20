@@ -164,7 +164,7 @@ def get_activities(request):
                 'date': event.start_date.strftime('%Y-%m-%d'),
                 'type': 'calendar_event',
                 'priority': 'medium',
-                'url': "/calendar/events/{{event.id}}/",
+                'url': f"/calendar/events/{event.id}/",
                 'color': event.color
             })
         
@@ -175,7 +175,7 @@ def get_activities(request):
     except Exception as e:
         return JsonResponse({
             'success': False,
-            'error': "Error fetching activities: {{str(e)}}"
+            'error': f"Error fetching activities: {str(e)}"
         }, status=500)
 
 @login_required
@@ -208,7 +208,7 @@ def get_daily_activities(request, date):
                 'date': event.start_date.strftime('%Y-%m-%d'),
                 'type': 'calendar_event',
                 'priority': 'medium',
-                'url': "/calendar/events/{{event.id}}/",
+                'url': f"/calendar/events/{event.id}/",
                 'color': event.color
             })
         
@@ -219,5 +219,5 @@ def get_daily_activities(request, date):
     except Exception as e:
         return JsonResponse({
             'success': False,
-            'error': "Error fetching daily activities: {{str(e)}}"
+            'error': f"Error fetching daily activities: {str(e)}"
         }, status=500) 

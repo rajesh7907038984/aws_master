@@ -127,11 +127,11 @@ def update_topic_progress(sender, instance, **kwargs):
             notification = send_notification(
                 recipient=instance.user,
                 notification_type_name='assignment_graded',
-                title="Assignment Graded: {{instance.assignment.title}}",
+                title=f"Assignment Graded: {instance.assignment.title}",
                 message=grading_message,
-                short_message="Your assignment '{{instance.assignment.title}}' has been graded. Score: {{instance.grade}}/{{instance.assignment.max_score}}",
+                short_message=f"Your assignment '{instance.assignment.title}' has been graded. Score: {instance.grade}/{instance.assignment.max_score}",
                 priority='normal',
-                action_url="/assignments/{{instance.assignment.id}}/submission/{{instance.id}}/",
+                action_url=f"/assignments/{instance.assignment.id}/submission/{instance.id}/",
                 action_text="View Grade",
                 related_assignment=instance.assignment,
                 send_email=True

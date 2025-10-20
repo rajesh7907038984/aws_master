@@ -6009,6 +6009,9 @@ def instructor_dashboard(request):
         'completions': json.dumps(activity_data['completions'])
     }
     
+    # Store assigned course IDs for efficient and safe reuse in filters and membership checks
+    assigned_course_ids = list(assigned_courses.values_list('id', flat=True))
+    
     # Get in-progress courses with progress tracking for instructor
     # Include both assigned courses (teaching) and enrolled courses (learning)
     in_progress_courses = []
@@ -6048,7 +6051,7 @@ def instructor_dashboard(request):
     for enrollment in instructor_enrollments:
         course = enrollment.course
         # Skip if this course is already shown in assigned courses
-        if course in assigned_courses:
+        if course.id in assigned_course_ids:
             continue
             
         # Calculate instructor's personal progress
@@ -6070,7 +6073,7 @@ def instructor_dashboard(request):
     
     # 1. Assignments pending grading (high priority)
     pending_submissions = AssignmentSubmission.objects.filter(
-        assignment__course__in=assigned_courses,
+        assignment__course_id__in=assigned_course_ids,
         status='submitted'
     ).select_related('assignment', 'user').order_by('submitted_at')[:5]
     

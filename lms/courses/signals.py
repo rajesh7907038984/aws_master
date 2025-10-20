@@ -200,11 +200,11 @@ def send_enrollment_notification(sender, instance, created, **kwargs):
             notification = send_notification(
                 recipient=instance.user,
                 notification_type_name='course_enrollment',
-                title="Enrolled in: {{instance.course.title}}",
+                title=f"Enrolled in: {instance.course.title}",
                 message=enrollment_message,
-                short_message="You have been enrolled in {{instance.course.title}}",
+                short_message=f"You have been enrolled in {instance.course.title}",
                 priority='normal',
-                action_url="/courses/{{instance.course.id}}/",
+                action_url=f"/courses/{instance.course.id}/",
                 action_text="View Course",
                 related_course=instance.course,
                 send_email=True

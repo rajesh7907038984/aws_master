@@ -58,6 +58,7 @@
             // Delay submenu setup to ensure DOM is fully rendered
             setTimeout(() => {
                 setupSubmenuToggles();
+                ensureTooltips();
                 fixLayout();
             }, 100);
             
@@ -391,9 +392,10 @@
             
             console.log('Setting up submenu button for:', submenuId);
             
-            // Ensure arrow icon is visible and properly styled
-            const arrow = button.querySelector('.arrow-icon');
+            // Ensure arrow icon is visible and properly styled (fallback if class missing)
+            const arrow = button.querySelector('.arrow-icon') || button.querySelector('.fa-chevron-down');
             if (arrow) {
+                arrow.classList.add('arrow-icon');
                 arrow.style.display = 'inline-block';
                 arrow.style.visibility = 'visible';
                 arrow.style.opacity = '1';
@@ -457,6 +459,27 @@
         // Check for active items in submenus and expand them
         checkActiveSubmenus();
         console.log('Submenu toggles setup completed');
+    }
+
+    /**
+     * Ensure all sidebar items have data-tooltips for collapsed state
+     */
+    function ensureTooltips() {
+        try {
+            var items = document.querySelectorAll('#sidebar .menu-item');
+            items.forEach(function(item) {
+                if (!item.getAttribute('data-tooltip')) {
+                    // Prefer the text inside .menu-text; fallback to trimmed textContent
+                    var labelEl = item.querySelector('.menu-text');
+                    var label = labelEl ? labelEl.textContent : item.textContent;
+                    if (label) {
+                        item.setAttribute('data-tooltip', label.trim());
+                    }
+                }
+            });
+        } catch (error) {
+            console.error('Error ensuring tooltips:', error);
+        }
     }
 
     /**

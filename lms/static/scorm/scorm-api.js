@@ -6,6 +6,24 @@
 (function() {
     'use strict';
     
+    // Minimal polyfills for IE11 compatibility
+    if (!Object.keys) {
+        Object.keys = function(obj) {
+            var keys = [];
+            for (var k in obj) {
+                if (Object.prototype.hasOwnProperty.call(obj, k)) keys.push(k);
+            }
+            return keys;
+        };
+    }
+    if (!Object.entries) {
+        Object.entries = function(obj) {
+            var ownProps = Object.keys(obj), i = ownProps.length, resArray = new Array(i);
+            while (i--) resArray[i] = [ownProps[i], obj[ownProps[i]]];
+            return resArray;
+        };
+    }
+    
     // Enhanced SCORM API Configuration with Browser Compatibility
     var SCORM_API = {
         initialized: false,
@@ -238,61 +256,68 @@
         
         // Modern fetch implementation
         sendDataWithFetch: function() {
-            const formData = new FormData();
-            formData.append('action', 'SetValue');
-            
-            // Send all data
-            for (const [key, value] of Object.entries(this.data)) {
-                formData.append('element', key);
+            // Send all data elements as separate key-value pairs
+            var entries = Object.entries(this.data);
+            for (var i = 0; i < entries.length; i++) {
+                var pair = entries[i];
+                var element = pair[0];
+                var value = pair[1];
+                
+                // Send each element individually
+                const formData = new FormData();
+                formData.append('action', 'SetValue');
+                formData.append('element', element);
                 formData.append('value', value);
+                
+                fetch(this.commit_url, {
+                    method: 'POST',
+                    body: formData,
+                    credentials: 'same-origin'
+                }).then(response => response.json())
+                .then(data => {
+                    console.log('SCORM API: Sent', element, '=', value);
+                }).catch(error => {
+                    console.error('SCORM API: Error sending', element, ':', error);
+                });
             }
-            
-            fetch(this.commit_url, {
-                method: 'POST',
-                body: formData,
-                credentials: 'same-origin'
-            }).then(response => response.json())
-            .then(data => {
-                console.log('SCORM API: Data sent to server:', data);
-            }).catch(error => {
-                console.error('SCORM API: Error sending data:', error);
-                // Fallback to XHR if fetch fails
-                this.sendDataWithXHR();
-            });
         },
         
         // XMLHttpRequest fallback for older browsers
         sendDataWithXHR: function() {
-            const xhr = new XMLHttpRequest();
-            xhr.open('POST', this.commit_url, true);
-            xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-            
-            xhr.onreadystatechange = function() {
-                if (xhr.readyState === 4) {
-                    if (xhr.status === 200) {
-                        try {
-                            const data = JSON.parse(xhr.responseText);
-                            console.log('SCORM API: Data sent to server:', data);
-                        } catch (e) {
-                            console.log('SCORM API: Data sent to server (non-JSON response)');
+            // Send all data elements as separate requests
+            var entries2 = Object.entries(this.data);
+            for (var j = 0; j < entries2.length; j++) {
+                var p = entries2[j];
+                var element = p[0];
+                var value = p[1];
+                
+                const xhr = new XMLHttpRequest();
+                xhr.open('POST', this.commit_url, true);
+                xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+                
+                xhr.onreadystatechange = function() {
+                    if (xhr.readyState === 4) {
+                        if (xhr.status === 200) {
+                            try {
+                                const data = JSON.parse(xhr.responseText);
+                                console.log('SCORM API: Sent', element, '=', value);
+                            } catch (e) {
+                                console.log('SCORM API: Sent', element, '(non-JSON response)');
+                            }
+                        } else {
+                            console.error('SCORM API: Error sending', element, 'status:', xhr.status);
                         }
-                    } else {
-                        console.error('SCORM API: Error sending data, status:', xhr.status);
                     }
-                }
-            };
-            
-            // Build form data
-            const formData = new URLSearchParams();
-            formData.append('action', 'SetValue');
-            
-            // Send all data
-            for (const [key, value] of Object.entries(this.data)) {
-                formData.append('element', key);
+                };
+                
+                // Build form data for this element
+                const formData = new URLSearchParams();
+                formData.append('action', 'SetValue');
+                formData.append('element', element);
                 formData.append('value', value);
+                
+                xhr.send(formData);
             }
-            
-            xhr.send(formData);
         }
     };
     

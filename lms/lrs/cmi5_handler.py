@@ -52,13 +52,13 @@ class CMI5LaunchHandler:
             )
             return True
         except Exception as e:
-            logger.error("Error initializing cmi5 launch handler: {{str(e)}}")
+            logger.error(f"Error initializing cmi5 launch handler: {str(e)}")
             return False
     
     def _generate_launch_token(self):
         """Generate secure launch token"""
         timestamp = str(int(time.time()))
-        data = "{{self.au_id}}:{{self.learner.id}}:{{self.course_id}}:{{timestamp}}"
+        data = f"{self.au_id}:{self.learner.id}:{self.course_id}:{timestamp}"
         token = hashlib.sha256(data.encode()).hexdigest()
         return token
     
@@ -83,12 +83,14 @@ class CMI5LaunchHandler:
             launch_params = launch_parameters or self.au.launch_parameters.copy()
             
             # Add cmi5 required parameters
+            lrs_endpoint = getattr(settings, 'LRS_ENDPOINT', f"{settings.SITE_URL}/lrs")
+            lms_base_url = getattr(settings, 'LMS_BASE_URL', settings.SITE_URL)
             launch_params.update({
-                'endpoint': "{{settings.LRS_ENDPOINT}}/xapi/statements/",
-                'fetch': "{{settings.LRS_ENDPOINT}}/xapi/activities/state",
+                'endpoint': f"{lrs_endpoint}/xapi/statements/",
+                'fetch': f"{lrs_endpoint}/xapi/activities/state",
                 'actor': json.dumps({
                     'account': {
-                        'homePage': "{{settings.LMS_BASE_URL}}/",
+                        'homePage': f"{lms_base_url}/",
                         'name': str(self.learner.id)
                     }
                 }),
@@ -103,12 +105,12 @@ class CMI5LaunchHandler:
                     'resume': 'true',
                     'resumeState': json.dumps(resume_state.get('state', {}))
                 })
-                logger.info("cmi5: Launching with resume state for AU {{self.au.au_id}}")
+                logger.info(f"cmi5: Launching with resume state for AU {self.au.au_id}")
             else:
                 launch_params.update({
                     'resume': 'false'
                 })
-                logger.info("cmi5: Launching fresh for AU {{self.au.au_id}}")
+                logger.info(f"cmi5: Launching fresh for AU {self.au.au_id}")
             
             # Generate launch URL with parameters
             launch_url_with_params = self._build_launch_url(launch_url, launch_params)
@@ -125,7 +127,7 @@ class CMI5LaunchHandler:
             }, None
             
         except Exception as e:
-            logger.error("Error launching cmi5 AU: {{str(e)}}")
+            logger.error(f"Error launching cmi5 AU: {str(e)}")
             return None, str(e)
     
     def _build_launch_url(self, base_url, parameters):
@@ -139,7 +141,7 @@ class CMI5LaunchHandler:
             separator = '?'
         
         param_string = urllib.parse.urlencode(parameters)
-        return "{{base_url}}{{separator}}{{param_string}}"
+        return f"{base_url}{separator}{param_string}"
     
     def _generate_launched_statement(self):
         """Generate cmi5 launched statement"""
@@ -168,9 +170,9 @@ class CMI5LaunchHandler:
                 'contextActivities': {
                     'parent': [{
                         'objectType': 'Activity',
-                        'id': "https://lms.example.com/course/{{self.course_id}}",
+                        'id': f"{getattr(settings, 'SITE_URL', 'https://lms.example.com')}/course/{self.course_id}",
                         'definition': {
-                            'name': {'en-US': "Course {{self.course_id}}"},
+                            'name': {'en-US': f"Course {self.course_id}"},
                             'type': 'http://adlnet.gov/expapi/activities/course'
                         }
                     }]
@@ -205,7 +207,7 @@ class CMI5LaunchHandler:
                 return True, "Session terminated"
                 
         except Exception as e:
-            logger.error("Error terminating cmi5 session: {{str(e)}}")
+            logger.error(f"Error terminating cmi5 session: {str(e)}")
             return False, str(e)
     
     def _generate_terminated_statement(self, exit_value):
@@ -240,9 +242,9 @@ class CMI5LaunchHandler:
                 'contextActivities': {
                     'parent': [{
                         'objectType': 'Activity',
-                        'id': "https://lms.example.com/course/{{self.course_id}}",
+                        'id': f"{getattr(settings, 'SITE_URL', 'https://lms.example.com')}/course/{self.course_id}",
                         'definition': {
-                            'name': {'en-US': "Course {{self.course_id}}"},
+                            'name': {'en-US': f"Course {self.course_id}"},
                             'type': 'http://adlnet.gov/expapi/activities/course'
                         }
                     }]
@@ -283,7 +285,7 @@ class CMI5LaunchHandler:
             return {'resume': False}
             
         except Exception as e:
-            logger.error("Error checking cmi5 resume state: {{str(e)}}")
+            logger.error(f"Error checking cmi5 resume state: {str(e)}")
             return {'resume': False}
 
     def _check_cmi5_progress(self, session):
@@ -308,15 +310,16 @@ class CMI5LaunchHandler:
             client = Client()
             
             # Build agent data for xAPI query
+            lms_base_url = getattr(settings, 'LMS_BASE_URL', settings.SITE_URL)
             agent_data = {
                 'account': {
-                    'homePage': "{{settings.LMS_BASE_URL}}/",
+                    'homePage': f"{lms_base_url}/",
                     'name': str(self.learner.id)
                 }
             }
             
             # Query state API
-            state_url = "/lrs/xapi/activities/{{self.au.au_id}}/state/"
+            state_url = f"/lrs/xapi/activities/{self.au.au_id}/state/"
             response = client.get(state_url, {
                 'agent': json.dumps(agent_data)
             })
@@ -324,11 +327,11 @@ class CMI5LaunchHandler:
             if response.status_code == 200:
                 return response.json()
             else:
-                logger.warning("Failed to get cmi5 activity state: {{response.status_code}}")
+                logger.warning(f"Failed to get cmi5 activity state: {response.status_code}")
                 return None
                 
         except Exception as e:
-            logger.error("Error getting cmi5 activity state: {{str(e)}}")
+            logger.error(f"Error getting cmi5 activity state: {str(e)}")
             return None
     
     def _store_statement(self, statement_data):
@@ -336,7 +339,7 @@ class CMI5LaunchHandler:
         try:
             self.xapi_generator.store_statement(statement_data)
         except Exception as e:
-            logger.error("Error storing statement: {{str(e)}}")
+            logger.error(f"Error storing statement: {str(e)}")
     
     def get_session_state(self):
         """Get current session state"""
@@ -373,7 +376,7 @@ class CMI5LaunchHandler:
                 return True, "Session updated"
                 
         except Exception as e:
-            logger.error("Error updating session: {{str(e)}}")
+            logger.error(f"Error updating session: {str(e)}")
             return False, str(e)
 
 
@@ -414,7 +417,7 @@ def _handle_cmi5_launch_get(request):
     except CMI5Registration.DoesNotExist:
         return JsonResponse({'error': 'Invalid launch token'}, status=404)
     except Exception as e:
-        logger.error("Error in cmi5 launch: {{str(e)}}")
+        logger.error(f"Error in cmi5 launch: {str(e)}")
         return JsonResponse({'error': str(e)}, status=500)
 
 
@@ -434,7 +437,7 @@ def _handle_cmi5_launch_post(request):
     except json.JSONDecodeError:
         return JsonResponse({'error': 'Invalid JSON'}, status=400)
     except Exception as e:
-        logger.error("Error in cmi5 launch POST: {{str(e)}}")
+        logger.error(f"Error in cmi5 launch POST: {str(e)}")
         return JsonResponse({'error': str(e)}, status=500)
 
 
@@ -468,7 +471,7 @@ def _handle_cmi5_terminate(request, data):
     except CMI5Session.DoesNotExist:
         return JsonResponse({'error': 'Session not found'}, status=404)
     except Exception as e:
-        logger.error("Error terminating cmi5 session: {{str(e)}}")
+        logger.error(f"Error terminating cmi5 session: {str(e)}")
         return JsonResponse({'error': str(e)}, status=500)
 
 
@@ -502,5 +505,5 @@ def _handle_cmi5_update(request, data):
     except CMI5Session.DoesNotExist:
         return JsonResponse({'error': 'Session not found'}, status=404)
     except Exception as e:
-        logger.error("Error updating cmi5 session: {{str(e)}}")
+        logger.error(f"Error updating cmi5 session: {str(e)}")
         return JsonResponse({'error': str(e)}, status=500)

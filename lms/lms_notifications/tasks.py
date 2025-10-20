@@ -275,11 +275,11 @@ def send_feedback_reminders():
                     notification = send_notification(
                         recipient=submission.user,
                         notification_type_name='feedback_available',
-                        title="Feedback Available: {{submission.assignment.title}}",
+                        title=f"Feedback Available: {submission.assignment.title}",
                         message=message,
-                        short_message="Your assignment '{{submission.assignment.title}}' has been graded with feedback",
+                        short_message=f"Your assignment '{submission.assignment.title}' has been graded with feedback",
                         priority='normal',
-                        action_url="/assignments/{{submission.assignment.id}}/submission/{{submission.id}}/",
+                        action_url=f"/assignments/{submission.assignment.id}/submission/{submission.id}/",
                         action_text="View Feedback",
                         related_assignment=submission.assignment,
                         send_email=True

@@ -24,7 +24,7 @@
                     position: fixed;
                     top: 20px;
                     right: 20px;
-                    z-index: 9999;
+                    z-index: 100200;
                     max-width: 400px;
                 `;
                 document.body.appendChild(container);

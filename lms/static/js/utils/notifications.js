@@ -31,7 +31,8 @@ function showToast(message, type = 'success', duration = 3000) {
             return;
         }
         
-        toast.className = `toast-notification fixed z-50 top-4 right-4 p-4 rounded-lg shadow-lg text-white transition-opacity duration-300 ease-in-out`;
+        toast.className = `toast-notification fixed top-4 right-4 p-4 rounded-lg shadow-lg text-white transition-opacity duration-300 ease-in-out`;
+        toast.style.zIndex = '100200';
         
         // Set background color based on type
         switch (type) {

@@ -121,11 +121,11 @@ def send_conference_notifications(sender, instance, created, **kwargs):
                     notification = send_notification(
                         recipient=enrollment.user,
                         notification_type_name='conference_reminder',
-                        title="Conference Scheduled: {{instance.title}}",
+                        title=f"Conference Scheduled: {instance.title}",
                         message=conference_message,
-                        short_message="A new conference '{{instance.title}}' has been scheduled for {{instance.date.strftime('%B %d, %Y')}}",
+                        short_message=f"A new conference '{instance.title}' has been scheduled for {instance.date.strftime('%B %d, %Y')}",
                         priority='normal',
-                        action_url="/conferences/{{instance.id}}/",
+                        action_url=f"/conferences/{instance.id}/",
                         action_text="View Conference Details",
                         send_email=True
                     )
@@ -216,11 +216,11 @@ def send_conference_update_email(sender, instance, created, **kwargs):
                     notification = send_notification(
                         recipient=enrollment.user,
                         notification_type_name='conference_reminder',
-                        title="Conference Updated: {{instance.title}}",
+                        title=f"Conference Updated: {instance.title}",
                         message=update_message,
-                        short_message="Conference '{{instance.title}}' has been updated. Please check new details.",
+                        short_message=f"Conference '{instance.title}' has been updated. Please check new details.",
                         priority='high',
-                        action_url="/conferences/{{instance.id}}/",
+                        action_url=f"/conferences/{instance.id}/",
                         action_text="View Updated Details",
                         send_email=True
                     )

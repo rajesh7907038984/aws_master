@@ -257,3 +257,57 @@
         display: none;
     }
 }
+
+/* Tooltip for collapsed sidebar */
+#sidebar.collapsed .menu-item {
+    position: relative !important;
+}
+
+#sidebar.collapsed .menu-item:hover::after {
+    content: attr(data-tooltip) !important;
+    position: absolute !important;
+    left: calc(100% + 0.5rem) !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    background-color: #1e293b !important;
+    color: white !important;
+    padding: 0.5rem 1rem !important;
+    border-radius: 0.375rem !important;
+    white-space: nowrap !important;
+    z-index: 100 !important;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
+    pointer-events: none !important;
+    opacity: 0 !important;
+    animation: tooltipFadeIn 0.2s ease-in-out forwards !important;
+}
+
+@keyframes tooltipFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-50%) translateX(-5px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(-50%) translateX(0);
+    }
+}
+
+/* Hide submenu chevron when collapsed */
+#sidebar.collapsed .menu-item.has-submenu .arrow-icon {
+    display: none !important;
+}
+
+/* Optional: subtle indicator on hover for submenu items when collapsed */
+#sidebar.collapsed .menu-item.has-submenu:hover::before {
+    content: '' !important;
+    position: absolute !important;
+    right: 0.5rem !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    width: 0 !important;
+    height: 0 !important;
+    border-left: 4px solid transparent !important;
+    border-right: 4px solid transparent !important;
+    border-top: 4px solid white !important;
+    opacity: 0.6 !important;
+}

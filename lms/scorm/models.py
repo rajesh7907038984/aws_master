@@ -12,6 +12,7 @@ from users.models import CustomUser
 import uuid
 import xml.etree.ElementTree as ET
 from .storage import SCORMS3Storage
+from datetime import timedelta
 
 logger = logging.getLogger(__name__)
 
@@ -159,116 +160,152 @@ class ELearningPackage(models.Model):
                     logger.warning(f"Storage directory check failed: {e}")
                     # Continue anyway as S3 creates directories implicitly
             
-            # S3 storage - use temp directory for extraction
-            import tempfile
-            import shutil
-            full_topic_dir = os.path.join(tempfile.gettempdir(), 'elearning', topic_dir)
-            zip_path = None
+            # DIRECT-TO-S3 EXTRACTION (no temp directory on disk)
+            import io
+            from django.core.files.base import ContentFile
             
+            logger.info(f"SCORM: Starting DIRECT S3 extraction for {self.package_type} (topic {self.topic.id})")
+            
+            # Read ZIP file into memory
+            zip_buffer = io.BytesIO()
             try:
-                # Ensure the temp extraction directory exists
-                os.makedirs(full_topic_dir, exist_ok=True)
-                
-                # Extract the ZIP file
-                # For S3 storage, we need to download the file to a temporary location first
-                import io
-                
-                # Create a temporary file for the ZIP
-                with tempfile.NamedTemporaryFile(suffix='.zip', delete=False) as temp_file:
-                    try:
-                        # Download from S3 to temp file
-                        with self.package_file.open('rb') as source:
-                            content = source.read()
-                            temp_file.write(content)
-                    except Exception as e:
-                        error_msg = f"Could not read package file from S3: {str(e)}"
-                        logger.error(error_msg)
-                        self.extraction_error = error_msg
-                        self.is_extracted = False
-                        self.save()
-                        return False
-                    zip_path = temp_file.name
-                
-                # Validate ZIP file before extraction
-                try:
-                    with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-                        # Test if ZIP is valid
-                        zip_ref.testzip()
-                except zipfile.BadZipFile:
-                    error_msg = "Invalid ZIP file format"
-                    logger.error(error_msg)
-                    self.extraction_error = error_msg
-                    self.is_extracted = False
-                    self.save()
-                    return False
-                except Exception as e:
-                    error_msg = f"Error validating ZIP file: {str(e)}"
-                    logger.error(error_msg)
-                    self.extraction_error = error_msg
-                    self.is_extracted = False
-                    self.save()
-                    return False
-                
-                # Extract the ZIP file
-                try:
-                    with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-                        zip_ref.extractall(full_topic_dir)
-                except Exception as e:
-                    error_msg = f"Error extracting ZIP file: {str(e)}"
-                    logger.error(error_msg)
-                    self.extraction_error = error_msg
-                    self.is_extracted = False
-                    self.save()
-                    return False
-                
-            finally:
-                # Clean up temp file
-                if zip_path and os.path.exists(zip_path):
-                    try:
-                        os.unlink(zip_path)
-                    except Exception as e:
-                        logger.warning(f"Failed to clean up temp file {zip_path}: {e}")
-            
-            # Find and parse the manifest based on package type
-            manifest_path = self._find_manifest(full_topic_dir)
-            if manifest_path:
-                # Store relative path for storage compatibility
-                self.manifest_path = os.path.relpath(manifest_path, full_topic_dir)
-                self._parse_manifest(manifest_path)
-            
-            # Find the launch file
-            self.launch_file = self._find_launch_file(full_topic_dir)
-            if self.launch_file:
-                logger.info(f"SCORM: Launch file detected: {self.launch_file} for package type {self.package_type}")
-            else:
-                logger.warning(f"SCORM: No launch file found for package type {self.package_type}")
-                # Don't fail here, some packages might work without a specific launch file
-            
-            # Upload extracted content to S3
-            try:
-                self._upload_extracted_content_to_s3(full_topic_dir, topic_dir)
+                with self.package_file.open('rb') as source:
+                    zip_buffer.write(source.read())
+                zip_buffer.seek(0)
             except Exception as e:
-                error_msg = f"Error uploading extracted content to S3: {str(e)}"
+                error_msg = f"Could not read package file from S3: {str(e)}"
                 logger.error(error_msg)
                 self.extraction_error = error_msg
                 self.is_extracted = False
                 self.save()
                 return False
-            finally:
-                # Clean up temporary extraction directory
-                if os.path.exists(full_topic_dir):
-                    try:
-                        shutil.rmtree(full_topic_dir)
-                        logger.debug(f"Cleaned up temporary extraction directory: {full_topic_dir}")
-                    except Exception as e:
-                        logger.warning(f"Failed to clean up extraction directory {full_topic_dir}: {e}")
             
-            self.extracted_path = topic_dir  # Store without elearning prefix to avoid double prefixing
+            # Validate ZIP
+            try:
+                with zipfile.ZipFile(zip_buffer, 'r') as zip_ref:
+                    zip_ref.testzip()
+                zip_buffer.seek(0)
+            except zipfile.BadZipFile:
+                error_msg = "Invalid ZIP file format"
+                logger.error(error_msg)
+                self.extraction_error = error_msg
+                self.is_extracted = False
+                self.save()
+                return False
+            except Exception as e:
+                error_msg = f"Error validating ZIP file: {str(e)}"
+                logger.error(error_msg)
+                self.extraction_error = error_msg
+                self.is_extracted = False
+                self.save()
+                return False
+            
+            # Extract each file directly to S3 and capture manifest + file list
+            manifest_rel_path = None
+            manifest_bytes = None
+            file_list = []
+            try:
+                with zipfile.ZipFile(zip_buffer, 'r') as zip_ref:
+                    file_list = zip_ref.namelist()
+                    for member in file_list:
+                        if member.endswith('/'):
+                            continue  # skip directory entries
+                        content = zip_ref.read(member)
+                        s3_path = f"{topic_dir}/{member}"
+                        try:
+                            self.package_file.storage.save(s3_path, ContentFile(content))
+                            logger.debug(f"SCORM: Uploaded {member} -> {s3_path}")
+                        except Exception as e:
+                            logger.error(f"SCORM: Error uploading {member} to S3: {str(e)}")
+                            raise
+                        # capture manifest for parsing
+                        if self._is_manifest_file_for_package_type(member):
+                            manifest_rel_path = member
+                            manifest_bytes = content
+            except Exception as e:
+                error_msg = f"Error during direct S3 extraction: {str(e)}"
+                logger.error(error_msg)
+                self.extraction_error = error_msg
+                self.is_extracted = False
+                self.save()
+                return False
+            
+            # Parse manifest using existing parsers (write to a tiny temp file only for parsing API)
+            if manifest_rel_path and manifest_bytes:
+                try:
+                    import tempfile
+                    fd, tmp_manifest = tempfile.mkstemp(suffix=os.path.splitext(manifest_rel_path)[1])
+                    try:
+                        os.write(fd, manifest_bytes)
+                    finally:
+                        os.close(fd)
+                    # store relative path and parse
+                    self.manifest_path = manifest_rel_path
+                    self._parse_manifest(tmp_manifest)
+                    try:
+                        os.unlink(tmp_manifest)
+                    except Exception:
+                        pass
+                except Exception as e:
+                    logger.warning(f"SCORM: Manifest parse failed: {str(e)}")
+            
+            # Determine launch file from uploaded file list using enhanced priority rules
+            # PRIORITY 1 (CMI5): Use launch URL from cmi5 manifest when available
+            if self.package_type == 'CMI5' and self.cmi5_launch_url:
+                normalized_launch = self._normalize_manifest_launch_path(self.cmi5_launch_url)
+                # Absolute URLs should be used as-is (handled in get_content_url)
+                if normalized_launch.startswith('http://') or normalized_launch.startswith('https://'):
+                    self.launch_file = normalized_launch
+                else:
+                    # For relative launch paths, ensure it exists within extracted file list
+                    lower_files = [p.lower().rstrip('/') for p in file_list]
+                    if normalized_launch.lower() in lower_files:
+                        # Preserve original casing from file_list
+                        original = file_list[lower_files.index(normalized_launch.lower())]
+                        self.launch_file = original
+                    else:
+                        # Try without leading slashes or dots and common prefixes
+                        candidates = [
+                            normalized_launch.lstrip('./'),
+                            normalized_launch.lstrip('/'),
+                            f"cmi5/{normalized_launch.lstrip('./').lstrip('/')}",
+                            f"au/{normalized_launch.lstrip('./').lstrip('/')}",
+                            f"content/{normalized_launch.lstrip('./').lstrip('/')}",
+                            f"lms/{normalized_launch.lstrip('./').lstrip('/')}",
+                            f"src/{normalized_launch.lstrip('./').lstrip('/')}",
+                            f"dist/{normalized_launch.lstrip('./').lstrip('/')}",
+                            f"build/{normalized_launch.lstrip('./').lstrip('/')}",
+                        ]
+                        matched = None
+                        for candidate in candidates:
+                            if candidate.lower() in lower_files:
+                                matched = file_list[lower_files.index(candidate.lower())]
+                                break
+                            # Partial match: end-with or contains
+                            for idx, lf in enumerate(lower_files):
+                                if lf.endswith(candidate.lower()) or candidate.lower() in lf:
+                                    matched = file_list[idx]
+                                    break
+                            if matched:
+                                break
+                        if matched:
+                            self.launch_file = matched
+                        else:
+                            # Fall back to heuristic search for cmi5 launch files
+                            self.launch_file = self._find_launch_file_from_list(file_list)
+            else:
+                self.launch_file = self._find_launch_file_from_list(file_list)
+            if self.launch_file:
+                logger.info(f"SCORM: Launch file detected: {self.launch_file} for package type {self.package_type}")
+            else:
+                logger.warning(f"SCORM: No launch file found for package type {self.package_type}")
+            
+            # Mark extracted
+            self.extracted_path = topic_dir
             self.is_extracted = True
             self.extraction_error = ""
             self.save()
-            
-            logger.info("Successfully extracted {} package for topic {}".format(self.package_type, self.topic.id))
+            logger.info("Successfully extracted {} package for topic {} (DIRECT S3)".format(self.package_type, self.topic.id))
             return True
             
         except Exception as e:
@@ -278,14 +315,9 @@ class ELearningPackage(models.Model):
             self.is_extracted = False
             self.save()
             
-            # Clean up any temporary files/directories in case of exception
-            try:
-                if 'zip_path' in locals() and zip_path and os.path.exists(zip_path):
-                    os.unlink(zip_path)
-                if 'full_topic_dir' in locals() and full_topic_dir and os.path.exists(full_topic_dir):
-                    shutil.rmtree(full_topic_dir)
-            except Exception as cleanup_error:
-                logger.warning(f"Failed to clean up after exception: {cleanup_error}")
+            # Clean up any temporary files (only those that might exist in direct-to-S3 extraction)
+            # Note: direct-to-S3 extraction doesn't use local temp files except for manifest parsing
+            # No cleanup needed as tempfiles are automatically cleaned up
             
             return False
     
@@ -553,36 +585,51 @@ class ELearningPackage(models.Model):
             ]
         elif self.package_type == 'CMI5':
             launch_files = [
-                # cmi5 specific files (priority order)
-                'cmi5.html',            # cmi5 launch file
-                'au.html',              # Assignable Unit launch
-                'launch.html',          # cmi5 launch file
-                'player.html',          # cmi5 player
-                'index.html',           # Standard HTML entry point
-                'start.html',           # Alternative start file
-                'main.html',            # Main content file
+                # Articulate in cmi5 mode (highest priority when present)
+                'index_lms.html',
+                'story.html',
+                'analytics-frame.html',
+                'lms/index_lms.html',
+                'lms/goodbye.html',
+                'lms/blank.html',
+                'lms/AICCComm.html',
                 
-                # Enhanced CMI5 files for Anti-Bribery and similar packages
-                'analytics-frame.html', # Analytics frame (common in CMI5)
-                'frame.html',           # Frame-based content
-                'content.html',         # Content wrapper
-                'lesson.html',          # Lesson content
-                'module.html',          # Module content
-                'course.html',          # Course content
-                'training.html',        # Training content
-                'compliance.html',      # Compliance content
-                'anti-bribery.html',    # Specific to Anti-Bribery packages
-                'level3.html',          # Level-specific content
-                'bribery.html',         # Bribery-specific content
+                # cmi5 specific files (priority order)
+                'cmi5.html',
+                'au.html',
+                'launch.html',
+                'player.html',
+                'index.html',
+                'start.html',
+                'main.html',
+                
+                # Common content directory patterns
+                'content/index.html',
+                'content/launch.html',
+                'content/index_lms.html',
+                'content/lesson1/index.html',
+                'content/lesson1/launch.html',
+                
+                # Build/distribution patterns
+                'src/index.html',
+                'src/launch.html',
+                'dist/index.html',
+                'dist/launch.html',
+                'build/index.html',
+                'build/launch.html',
                 
                 # cmi5 subdirectory patterns
                 'cmi5/index.html',
                 'cmi5/launch.html',
                 'au/index.html',
                 'au/launch.html',
-                'content/index.html',
-                'data/index.html',
                 'player/index.html',
+                'data/index.html',
+                
+                # Additional group folders
+                'assets/index.html',
+                'lessons/index.html',
+                'modules/index.html',
                 
                 # Enhanced subdirectory patterns for compliance packages
                 'compliance/index.html',
@@ -697,6 +744,127 @@ class ELearningPackage(models.Model):
         except Exception as e:
             logger.error(f"SCORM: Error uploading extracted content to S3: {e}")
             raise
+
+    def _get_content_type_for_file(self, filename):
+        """Determine content type for file name."""
+        import mimetypes
+        content_type, _ = mimetypes.guess_type(filename)
+        if not content_type:
+            if filename.endswith('.html') or filename.endswith('.htm'):
+                content_type = 'text/html; charset=utf-8'
+            elif filename.endswith('.css'):
+                content_type = 'text/css; charset=utf-8'
+            elif filename.endswith('.js'):
+                content_type = 'application/javascript; charset=utf-8'
+            elif filename.endswith('.json'):
+                content_type = 'application/json; charset=utf-8'
+            elif filename.endswith('.xml'):
+                content_type = 'application/xml; charset=utf-8'
+            else:
+                content_type = 'application/octet-stream'
+        return content_type
+
+    def _normalize_manifest_launch_path(self, path_str):
+        """Normalize manifest-provided launch paths (remove leading ./ or /)."""
+        try:
+            if not path_str:
+                return ''
+            # Keep absolute URLs intact
+            if path_str.startswith('http://') or path_str.startswith('https://'):
+                return path_str
+            # Normalize filesystem-like paths
+            normalized = path_str.replace('\\', '/')
+            while normalized.startswith('./'):
+                normalized = normalized[2:]
+            while normalized.startswith('/'):
+                normalized = normalized[1:]
+            return normalized
+        except Exception:
+            return path_str or ''
+
+    def _is_manifest_file_for_package_type(self, filename):
+        """Check if a filename is a manifest for current package type."""
+        name = filename.lower()
+        if self.package_type in ['SCORM_1_2', 'SCORM_2004', 'ARTICULATE']:
+            return 'imsmanifest.xml' in name or 'manifest.xml' in name
+        if self.package_type == 'XAPI':
+            return 'tincan.xml' in name or 'tincan.json' in name
+        if self.package_type == 'CMI5':
+            return 'cmi5.xml' in name or 'cmi5.json' in name
+        if self.package_type == 'AICC':
+            return 'coursestruct.cst' in name or 'au.txt' in name
+        return any(m in name for m in [
+            'imsmanifest.xml','manifest.xml','tincan.xml','tincan.json','cmi5.xml','cmi5.json','coursestruct.cst','au.txt'
+        ])
+
+    def _is_cmi5_file(self, file_path):
+        """Heuristic check for cmi5-related HTML files (vendor variations)."""
+        try:
+            if not file_path:
+                return False
+            name = file_path.lower()
+            if not name.endswith(('.html', '.htm')):
+                return False
+            cmi5_keywords = [
+                'cmi5', 'au', 'assignable', 'unit', 'launch', 'player',
+                'analytics-frame', 'frame', 'content', 'lesson', 'module',
+                'course', 'training', 'compliance', 'anti-bribery', 'bribery',
+                'level3'
+            ]
+            return any(k in name for k in cmi5_keywords)
+        except Exception:
+            return False
+
+    def _find_launch_file_from_list(self, file_list):
+        """Find launch file from a flat list of file paths using existing priorities."""
+        launch_files = []
+        if self.package_type in ['SCORM_1_2', 'SCORM_2004']:
+            launch_files = [
+                'index_lms.html','story.html','analytics-frame.html','lms/goodbye.html',
+                'index.html','launch.html','start.html','main.html',
+                'scormcontent/index.html','scormcontent/launch.html','scormcontent/start.html',
+                'content/index.html','data/index.html',
+                'lms/blank.html','lms/AICCComm.html'
+            ]
+        elif self.package_type == 'XAPI':
+            launch_files = [
+                'tincan.html','launch.html','player.html','index.html','start.html','main.html',
+                'tincan/index.html','tincan/launch.html','xapi/index.html','xapi/launch.html',
+                'content/index.html','data/index.html','player/index.html'
+            ]
+        elif self.package_type == 'CMI5':
+            launch_files = [
+                'index_lms.html','story.html','analytics-frame.html','lms/index_lms.html','lms/goodbye.html','lms/blank.html','lms/AICCComm.html',
+                'cmi5.html','au.html','launch.html','player.html','index.html','start.html','main.html',
+                'content/index.html','content/launch.html','content/index_lms.html','content/lesson1/index.html','content/lesson1/launch.html',
+                'src/index.html','src/launch.html','dist/index.html','dist/launch.html','build/index.html','build/launch.html',
+                'cmi5/index.html','cmi5/launch.html','au/index.html','au/launch.html','player/index.html','data/index.html',
+                'assets/index.html','lessons/index.html','modules/index.html',
+                'compliance/index.html','compliance/launch.html','training/index.html','training/launch.html','anti-bribery/index.html','anti-bribery/launch.html',
+                'level3/index.html','level3/launch.html'
+            ]
+        elif self.package_type == 'AICC':
+            launch_files = [
+                'au.html','launch.html','player.html','index.html','start.html','main.html',
+                'aicc/index.html','aicc/launch.html','au/index.html','au/launch.html','content/index.html',
+                'data/index.html','player/index.html'
+            ]
+        else:
+            launch_files = ['index.html','launch.html','start.html','main.html']
+
+        # exact priority match
+        lower_list = [p.lower() for p in file_list if not p.endswith('/')]
+        for preferred in launch_files:
+            if preferred.lower() in lower_list:
+                # return original-cased match
+                idx = lower_list.index(preferred.lower())
+                return [p for p in file_list if not p.endswith('/')][idx]
+
+        # fallback: any html
+        for p in file_list:
+            if not p.endswith('/') and p.lower().endswith(('.html','.htm')):
+                return p
+        return None
     
     def detect_package_type(self):
         """ENHANCED: Detect the package type based on manifest files - S3 compatible with priority-based detection"""
@@ -842,7 +1010,10 @@ class ELearningPackage(models.Model):
         """Get the URL to access the e-learning content"""
         if not self.is_extracted or not self.launch_file:
             return None
-        
+        # If CMI5 launch is an absolute URL, return it directly
+        if self.package_type == 'CMI5' and self.cmi5_launch_url:
+            if self.launch_file.startswith('http://') or self.launch_file.startswith('https://'):
+                return self.launch_file
         return "/scorm/content/{}/{}".format(self.topic.id, self.launch_file)
     
     def validate_s3_path(self):
@@ -1083,10 +1254,12 @@ class ELearningTracking(models.Model):
         if not time_str or time_str == 'PT0S' or time_str.strip() == '':
             return None
         
+        # Store original for error messages
+        original_time_str = str(time_str)
+        
         try:
             # Clean the time string
             time_str = time_str.strip()
-            original_time_str = time_str
             
             # Handle different time formats
             if time_str.startswith('PT'):
@@ -1114,7 +1287,7 @@ class ELearningTracking(models.Model):
                         hours = float(h_part)
                     time_str = time_str.split('H')[1] if 'H' in time_str else time_str
                 except (ValueError, IndexError):
-                    logger.warning("SCORM: Error parsing hours from: {{original_time_str}}")
+                    logger.warning(f"SCORM: Error parsing hours from: {original_time_str}")
             
             # ENHANCED: Parse minutes with better error handling
             if 'M' in time_str:
@@ -1135,7 +1308,6 @@ class ELearningTracking(models.Model):
                 except (ValueError, IndexError):
                     logger.warning(f"SCORM: Error parsing seconds from: {original_time_str}")
             
-            from datetime import timedelta
             result = timedelta(hours=hours, minutes=minutes, seconds=seconds)
             
             # ENHANCED: Log successful parsing with more details
@@ -1143,7 +1315,7 @@ class ELearningTracking(models.Model):
             return result
             
         except Exception as e:
-            logger.error("SCORM: Error parsing time '{}': {}".format(original_time_str if 'original_time_str' in locals() else time_str, str(e)))
+            logger.error(f"SCORM: Error parsing time '{original_time_str}': {str(e)}")
             return None
     
     def _parse_colon_time(self, time_str):
@@ -1951,7 +2123,7 @@ class ELearningTracking(models.Model):
             return False
             
         except Exception as e:
-            logger.error("SCORM: Error checking Articulate file: {{str(e)}}")
+            logger.error(f"SCORM: Error checking Articulate file: {str(e)}")
             return False
 
 class SCORMReport(models.Model):

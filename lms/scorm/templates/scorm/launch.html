@@ -7,6 +7,7 @@
 <!-- Enhanced SCORM Error Fixes for All Browsers -->
 <script src="{% url 'scorm:error_fixes' %}"></script>
 <script src="{% url 'scorm:console_cleaner' %}"></script>
+<script src="{% url 'scorm:string_table_fix' %}"></script>
 
 <!-- Browser Compatibility Meta Tags -->
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -1882,6 +1883,8 @@ console.log('SCORM API: Initialized and available globally (API + API_1484_11)')
                     api_1484_11: window.API_1484_11
                 }, '*');
                 
+                
+                
                 // Inject the API into the iframe - MULTIPLE METHODS
                 iframe.contentWindow.API = API;
                 iframe.contentWindow.API_1484_11 = window.API_1484_11;
@@ -2520,6 +2523,8 @@ window.onload = function () {
                 api: window.API
             }, '*');
         }
+        
+        
     }
     
     // Set up API discovery and injection

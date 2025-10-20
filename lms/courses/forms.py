@@ -868,6 +868,49 @@ class DisabledOptionWidget(forms.Select):
         return option
 
 class TopicForm(BaseModelFormWithTinyMCE):
+    # SCORM-specific optional configuration fields
+    scorm_package_type = forms.ChoiceField(
+        choices=[
+            ('', 'Auto-detect package type'),
+            ('SCORM_1_2', 'SCORM 1.2'),
+            ('SCORM_2004', 'SCORM 2004'),
+            ('XAPI', 'xAPI (Tin Can)'),
+            ('CMI5', 'cmi5'),
+            ('AICC', 'AICC'),
+            ('ARTICULATE', 'Articulate (Storyline/Rise)'),
+            ('CAPTIVATE', 'Adobe Captivate'),
+            ('LECTORA', 'Lectora'),
+            ('ISPRING', 'iSpring'),
+        ],
+        required=False,
+        widget=forms.Select(attrs={
+            'class': 'w-full px-4 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500'
+        }),
+        help_text="Leave blank to auto-detect package type from manifest"
+    )
+
+    scorm_mastery_score = forms.FloatField(
+        required=False,
+        initial=70.0,
+        widget=forms.NumberInput(attrs={
+            'class': 'w-full px-4 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500',
+            'min': '0',
+            'max': '100',
+            'step': '0.1',
+            'placeholder': '70.0'
+        }),
+        help_text="Minimum score percentage (0-100) required to pass this SCORM content"
+    )
+
+    scorm_package_title = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'w-full px-4 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500',
+            'placeholder': 'Optional: Override package title'
+        }),
+        help_text="Leave blank to use title from package manifest"
+    )
+
     quiz = forms.ModelChoiceField(
         queryset=Quiz.objects.all(),
         required=False,
@@ -1420,6 +1463,12 @@ class TopicForm(BaseModelFormWithTinyMCE):
             if 'content_file' in self.files:
                 instance.content_file = self.files['content_file']
                 logger.info(f"Saving SCORM topic with file: {instance.content_file.name}")
+            # Stash SCORM configuration for downstream processing (e.g., signals/views)
+            instance._scorm_config = {
+                'package_type': self.cleaned_data.get('scorm_package_type') or '',
+                'mastery_score': self.cleaned_data.get('scorm_mastery_score', 70.0),
+                'package_title': self.cleaned_data.get('scorm_package_title') or ''
+            }
         elif content_type_lower == 'text':
             text_content = self.cleaned_data.get('text_content')
             # Check if the content is in JSON format

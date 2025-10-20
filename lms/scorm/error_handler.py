@@ -210,6 +210,149 @@ def scorm_error_fixes(request):
             document.head.appendChild(style);
         }
         
+        // Fix Articulate string table issues (CRITICAL FIX for "could not find PREV/NEXT/SUBMIT")
+        function fixArticulateStringTable() {
+            // Intercept string table lookups and provide fallback values
+            const stringTableFallbacks = {
+                'PREV': 'Previous',
+                'NEXT': 'Next',
+                'SUBMIT': 'Submit',
+                'CONTINUE': 'Continue',
+                'BACK': 'Back',
+                'FINISH': 'Finish',
+                'EXIT': 'Exit',
+                'CLOSE': 'Close',
+                'OK': 'OK',
+                'CANCEL': 'Cancel',
+                'YES': 'Yes',
+                'NO': 'No',
+                'RETRY': 'Retry',
+                'REVIEW': 'Review',
+                'SKIP': 'Skip',
+                'START': 'Start',
+                'PAUSE': 'Pause',
+                'PLAY': 'Play',
+                'MUTE': 'Mute',
+                'UNMUTE': 'Unmute',
+                'CC': 'CC',
+                'MENU': 'Menu',
+                'RESOURCES': 'Resources',
+                'GLOSSARY': 'Glossary',
+                'HELP': 'Help',
+                'NOTES': 'Notes',
+                'SEARCH': 'Search',
+                'AUDIO': 'Audio',
+                'VIDEO': 'Video',
+                'TRANSCRIPT': 'Transcript',
+                'SETTINGS': 'Settings',
+                'FEEDBACK': 'Feedback',
+                'INCORRECT': 'Incorrect',
+                'CORRECT': 'Correct',
+                'PARTIAL': 'Partial',
+                'SCORE': 'Score',
+                'POINTS': 'Points',
+                'TIME': 'Time',
+                'ATTEMPTS': 'Attempts',
+                'QUESTION': 'Question',
+                'OF': 'of',
+                'SLIDE': 'Slide',
+                'PAGE': 'Page',
+                'LOADING': 'Loading...',
+                'PLEASE_WAIT': 'Please wait...',
+                'ERROR': 'Error',
+                'WARNING': 'Warning',
+                'INFO': 'Information',
+                'SUCCESS': 'Success'
+            };
+            
+            // Create global string table if it doesn't exist
+            if (typeof window.GetString === 'undefined') {
+                window.GetString = function(key) {
+                    return stringTableFallbacks[key] || key;
+                };
+            }
+            
+            // Patch Articulate's getValue function if it exists
+            if (typeof window.getValue === 'undefined') {
+                window.getValue = function(key) {
+                    return stringTableFallbacks[key] || key;
+                };
+            }
+            
+            // Intercept string table initialization and provide fallback
+            const originalDefineProperty = Object.defineProperty;
+            try {
+                Object.defineProperty = function(obj, prop, descriptor) {
+                    if (prop === 'value' && descriptor && typeof descriptor.get === 'function') {
+                        const originalGet = descriptor.get;
+                        descriptor.get = function() {
+                            try {
+                                return originalGet.call(this);
+                            } catch (e) {
+                                // If string lookup fails, check for key in error message
+                                const errorMsg = e.message || e.toString();
+                                const match = errorMsg.match(/could not find (\\w+) in string table/i);
+                                if (match && match[1]) {
+                                    const key = match[1];
+                                    if (stringTableFallbacks[key]) {
+                                        console.log('SCORM Fix: Providing fallback for missing string:', key);
+                                        return stringTableFallbacks[key];
+                                    }
+                                }
+                                // Return empty string instead of throwing error
+                                return '';
+                            }
+                        };
+                    }
+                    return originalDefineProperty.call(this, obj, prop, descriptor);
+                };
+            } catch (e) {
+                console.log('SCORM Fix: Could not patch Object.defineProperty');
+            }
+            
+            // Add iframe-specific string table fix
+            function injectStringTableIntoIframe(iframe) {
+                try {
+                    if (iframe.contentWindow) {
+                        iframe.contentWindow.stringTableFallbacks = stringTableFallbacks;
+                        iframe.contentWindow.GetString = function(key) {
+                            return stringTableFallbacks[key] || key;
+                        };
+                        iframe.contentWindow.getValue = function(key) {
+                            return stringTableFallbacks[key] || key;
+                        };
+                        console.log('SCORM Fix: Injected string table into iframe');
+                    }
+                } catch (e) {
+                    console.log('SCORM Fix: Could not inject string table into iframe (cross-origin)');
+                }
+            }
+            
+            // Inject into existing iframes
+            const iframes = document.querySelectorAll('iframe');
+            iframes.forEach(injectStringTableIntoIframe);
+            
+            // Watch for new iframes
+            const observer = new MutationObserver(function(mutations) {
+                mutations.forEach(function(mutation) {
+                    mutation.addedNodes.forEach(function(node) {
+                        if (node.tagName === 'IFRAME') {
+                            node.addEventListener('load', function() {
+                                injectStringTableIntoIframe(node);
+                            });
+                        }
+                    });
+                });
+            });
+            
+            observer.observe(document.body, {
+                childList: true,
+                subtree: true
+            });
+            
+            console.log('SCORM Fix: String table fallbacks initialized');
+        }
+        
         // Initialize all fixes
         function initializeFixes() {
             fixViewportWarnings();
@@ -219,6 +362,7 @@ def scorm_error_fixes(request):
             fixMobileTouchEvents();
             fixIframeCrossOrigin();
             fixVideoControls();
+            fixArticulateStringTable();
             
             console.log('SCORM Error Fixes: Applied successfully for', 
                 browserInfo.isIE ? 'Internet Explorer' :
@@ -238,6 +382,197 @@ def scorm_error_fixes(request):
     """
     
     response = HttpResponse(fixes_js, content_type='application/javascript')
+    return response
+
+
+@csrf_exempt
+@require_http_methods(["GET"])
+def articulate_string_table_fix(request):
+    """
+    Provide string table fix for Articulate Storyline content
+    This script is injected directly into the SCORM iframe to intercept and fix string table lookups
+    """
+    fix_js = """
+    // Articulate String Table Fix - Inject into SCORM iframe
+    (function() {
+        'use strict';
+        
+        // String table fallbacks for common UI strings
+        const stringTableFallbacks = {
+            'PREV': 'Previous',
+            'NEXT': 'Next',
+            'SUBMIT': 'Submit',
+            'CONTINUE': 'Continue',
+            'BACK': 'Back',
+            'FINISH': 'Finish',
+            'EXIT': 'Exit',
+            'CLOSE': 'Close',
+            'OK': 'OK',
+            'CANCEL': 'Cancel',
+            'YES': 'Yes',
+            'NO': 'No',
+            'RETRY': 'Retry',
+            'REVIEW': 'Review',
+            'SKIP': 'Skip',
+            'START': 'Start',
+            'PAUSE': 'Pause',
+            'PLAY': 'Play',
+            'MUTE': 'Mute',
+            'UNMUTE': 'Unmute',
+            'CC': 'CC',
+            'MENU': 'Menu',
+            'RESOURCES': 'Resources',
+            'GLOSSARY': 'Glossary',
+            'HELP': 'Help',
+            'NOTES': 'Notes',
+            'SEARCH': 'Search',
+            'AUDIO': 'Audio',
+            'VIDEO': 'Video',
+            'TRANSCRIPT': 'Transcript',
+            'SETTINGS': 'Settings',
+            'FEEDBACK': 'Feedback',
+            'INCORRECT': 'Incorrect',
+            'CORRECT': 'Correct',
+            'PARTIAL': 'Partial',
+            'SCORE': 'Score',
+            'POINTS': 'Points',
+            'TIME': 'Time',
+            'ATTEMPTS': 'Attempts',
+            'QUESTION': 'Question',
+            'OF': 'of',
+            'SLIDE': 'Slide',
+            'PAGE': 'Page',
+            'LOADING': 'Loading...',
+            'PLEASE_WAIT': 'Please wait...',
+            'ERROR': 'Error',
+            'WARNING': 'Warning',
+            'INFO': 'Information',
+            'SUCCESS': 'Success'
+        };
+        
+        // Store the original error function to avoid infinite loops
+        const originalError = console.error;
+        
+        // Suppress string table errors and provide fallback values
+        console.error = function(...args) {
+            const message = args.join(' ');
+            if (message.includes('could not find') && message.includes('in string table')) {
+                // Extract the key from the error message
+                const match = message.match(/could not find (\\w+) in string table/i);
+                if (match && match[1]) {
+                    const key = match[1];
+                    if (stringTableFallbacks[key]) {
+                        console.log('String Table Fix: Providing fallback for', key, '=', stringTableFallbacks[key]);
+                        return; // Suppress the error
+                    }
+                }
+            }
+            originalError.apply(console, args);
+        };
+        
+        // Create a global string getter function
+        window.GetString = window.GetString || function(key) {
+            return stringTableFallbacks[key] || key;
+        };
+        
+        // Patch the 'value' accessor to return fallback strings
+        // This intercepts Articulate's string table lookup mechanism
+        if (typeof Object.defineProperty !== 'undefined') {
+            const originalDefineProperty = Object.defineProperty;
+            Object.defineProperty = function(obj, prop, descriptor) {
+                if (prop === 'value' && descriptor && typeof descriptor.get === 'function') {
+                    const originalGet = descriptor.get;
+                    descriptor.get = function() {
+                        try {
+                            return originalGet.call(this);
+                        } catch (e) {
+                            const errorMsg = e.message || e.toString();
+                            const match = errorMsg.match(/could not find (\\w+) in string table/i);
+                            if (match && match[1]) {
+                                const key = match[1];
+                                if (stringTableFallbacks[key]) {
+                                    console.log('String Table Fix: Intercepted and provided fallback for', key);
+                                    return stringTableFallbacks[key];
+                                }
+                            }
+                            return '';
+                        }
+                    };
+                }
+                return originalDefineProperty.call(this, obj, prop, descriptor);
+            };
+        }
+        
+        // Patch window.onerror to catch string table errors globally
+        const originalOnError = window.onerror;
+        window.onerror = function(message, source, lineno, colno, error) {
+            if (typeof message === 'string' && message.includes('could not find') && message.includes('in string table')) {
+                console.log('String Table Fix: Suppressed global string table error');
+                return true; // Prevent default error handling
+            }
+            if (originalOnError) {
+                return originalOnError.apply(this, arguments);
+            }
+            return false;
+        };
+        
+        // Try to patch Articulate's string table directly if it exists
+        function patchArticulateStringTable() {
+            // Look for Articulate's string table object
+            const possiblePaths = [
+                'window.ds',
+                'window.DS',
+                'window.articulate',
+                'window.Articulate',
+                'window.storyline',
+                'window.Storyline'
+            ];
+            
+            for (const path of possiblePaths) {
+                try {
+                    const parts = path.split('.');
+                    let obj = window;
+                    for (let i = 1; i < parts.length; i++) {
+                        obj = obj[parts[i]];
+                        if (!obj) break;
+                    }
+                    
+                    if (obj && typeof obj === 'object') {
+                        // Try to patch the getValue method if it exists
+                        if (typeof obj.getValue === 'function') {
+                            const originalGetValue = obj.getValue;
+                            obj.getValue = function(key) {
+                                try {
+                                    return originalGetValue.call(this, key);
+                                } catch (e) {
+                                    return stringTableFallbacks[key] || key;
+                                }
+                            };
+                            console.log('String Table Fix: Patched', path, '.getValue()');
+                        }
+                    }
+                } catch (e) {
+                    // Continue to next path
+                }
+            }
+        }
+        
+        // Try patching immediately and on DOM ready
+        patchArticulateStringTable();
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', patchArticulateStringTable);
+        }
+        
+        // Also try after a short delay to ensure Articulate code has loaded
+        setTimeout(patchArticulateStringTable, 100);
+        setTimeout(patchArticulateStringTable, 500);
+        setTimeout(patchArticulateStringTable, 1000);
+        
+        console.log('Articulate String Table Fix: Initialized');
+    })();
+    """
+    
+    response = HttpResponse(fix_js, content_type='application/javascript')
     return response
 
 
@@ -274,7 +609,8 @@ def scorm_console_cleaner(request):
                 'webkit', 'vendor prefix', 'deprecated',
                 'autoplay', 'muted', 'playsinline',
                 'x-frame-options', 'content-security-policy',
-                '301', 'Already initialized', 'already initialized'
+                '301', 'Already initialized', 'already initialized',
+                'could not find', 'string table', 'npnxnanbnsnfns'
             ];
             
             return filteredErrors.some(filter => 

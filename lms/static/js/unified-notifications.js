@@ -42,7 +42,7 @@ class UnifiedNotificationSystem {
                 position: fixed;
                 top: 20px;
                 right: 20px;
-                z-index: 10000;
+                z-index: 100200;
                 max-width: 400px;
                 pointer-events: none;
             `;

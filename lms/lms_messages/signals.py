@@ -51,12 +51,12 @@ def send_message_notification(sender, instance, action, pk_set, **kwargs):
                     notification = send_notification(
                         recipient=recipient,
                         notification_type_name='message_received',
-                        title="New Message: {{instance.subject}}",
+                        title=f"New Message: {instance.subject}",
                         message=message_content,
-                        short_message="You have a new message from {{instance.sender.get_full_name() or instance.sender.username}}",
+                        short_message=f"You have a new message from {instance.sender.get_full_name() or instance.sender.username}",
                         sender=instance.sender,
                         priority='normal',
-                        action_url="/messages/{{instance.id}}/",
+                        action_url=f"/messages/{instance.id}/",
                         action_text="Read Message",
                         send_email=True
                     )

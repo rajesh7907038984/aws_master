@@ -301,13 +301,13 @@ class CalendarService:
                     # For instructors/admins, show assignment due dates
                     activities.append({
                         'type': activity_type,
-                        'title': "Assignment Due: {{assignment.title}}",
-                        'description': "Course: {{assignment.course.title}}",
+                        'title': f"Assignment Due: {assignment.title}",
+                        'description': f"Course: {assignment.course.title}",
                         'date': assignment.due_date.date(),
                         'time': assignment.due_date.time(),
                         'priority': priority,
                         'status': 'due',
-                        'url': "/assignments/{{assignment.id}}/",
+                        'url': f"/assignments/{assignment.id}/",
                         'course': assignment.course.title,
                         'icon': 'assignment'
                     })
@@ -383,13 +383,13 @@ class CalendarService:
                 
                 activities.append({
                     'type': 'conference',
-                    'title': "Conference: {{conference.title}}",
-                    'description': "Course: {{conference.course.title if conference.course else 'General'}}",
+                    'title': f"Conference: {conference.title}",
+                    'description': f"Course: {conference.course.title if conference.course else 'General'}",
                     'date': conference.date,
                     'time': conference.start_time,
                     'priority': priority,
                     'status': 'scheduled',
-                    'url': "/conferences/{{conference.id}}/",
+                    'url': f"/conferences/{conference.id}/",
                     'course': conference.course.title if conference.course else 'General',
                     'icon': 'video'
                 })
@@ -420,13 +420,13 @@ class CalendarService:
                 
                 activities.append({
                     'type': 'course_deadline',
-                    'title': "Course Ends: {{course.title}}",
+                    'title': f"Course Ends: {course.title}",
                     'description': "Course access expires",
                     'date': course.end_date.date(),
                     'time': course.end_date.time(),
                     'priority': 'high',
                     'status': 'deadline',
-                    'url': "/courses/{{course.id}}/",
+                    'url': f"/courses/{course.id}/",
                     'course': course.title,
                     'icon': 'clock'
                 })
@@ -470,13 +470,13 @@ class CalendarService:
                 
                 activities.append({
                     'type': 'topic_deadline',
-                    'title': "Topic Ends: {{topic.title}}",
+                    'title': f"Topic Ends: {topic.title}",
                     'description': "Topic access expires",
                     'date': topic.end_date,
                     'time': datetime.min.time(),
                     'priority': 'medium',
                     'status': 'deadline',
-                    'url': "/courses/topic/{{topic.id}}/",
+                    'url': f"/courses/topic/{topic.id}/",
                     'course': ', '.join([course.title for course in topic.courses.all()[:2]]),
                     'icon': 'bookmark'
                 })
@@ -518,13 +518,13 @@ class CalendarService:
                 
                 activities.append({
                     'type': 'quiz',
-                    'title': "Quiz: {{quiz.title}}",
-                    'description': "Course: {{quiz.course.title}}",
+                    'title': f"Quiz: {quiz.title}",
+                    'description': f"Course: {quiz.course.title}",
                     'date': quiz.expires_at.date(),
                     'time': quiz.expires_at.time(),
                     'priority': 'medium',
                     'status': 'available',
-                    'url': "/quiz/{{quiz.id}}/",
+                    'url': f"/quiz/{quiz.id}/",
                     'course': quiz.course.title,
                     'icon': 'question-circle'
                 })
@@ -559,13 +559,13 @@ class CalendarService:
                 if assignment.due_date and assignment.due_date.date() <= end_datetime.date():
                     activities.append({
                         'type': 'grading',
-                        'title': "Grade: {{assignment.title}}",
-                        'description': "{{assignment.ungraded_count}} submission(s) to grade",
+                        'title': f"Grade: {assignment.title}",
+                        'description': f"{assignment.ungraded_count} submission(s) to grade",
                         'date': assignment.due_date.date() if assignment.due_date else timezone.now().date(),
                         'time': assignment.due_date.time() if assignment.due_date else datetime.min.time(),
                         'priority': 'high' if assignment.is_overdue else 'medium',
                         'status': 'needs_grading',
-                        'url': "/assignments/{{assignment.id}}/submissions/",
+                        'url': f"/assignments/{assignment.id}/submissions/",
                         'course': assignment.course.title,
                         'icon': 'edit'
                     })
@@ -615,7 +615,7 @@ class CalendarService:
                     'time': event.start_date.time(),
                     'priority': 'low',
                     'status': 'scheduled',
-                    'url': "/calendar/events/{{event.id}}/",
+                    'url': f"/calendar/events/{event.id}/",
                     'course': 'Personal',
                     'icon': 'calendar'
                 })

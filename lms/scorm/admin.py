@@ -54,15 +54,8 @@ class ELearningPackageAdmin(admin.ModelAdmin):
     
     def save_model(self, request, obj, form, change):
         super().save_model(request, obj, form, change)
-        if obj.package_file and not obj.is_extracted:
-            # Auto-detect package type if not set
-            if not obj.package_type:
-                detected_type = obj.detect_package_type()
-                if detected_type:
-                    obj.package_type = detected_type
-                    obj.save()
-            # Auto-extract the package
-            obj.extract_package()
+        # Note: Automatic extraction happens via post_save signal in scorm/signals.py
+        # This ensures consistent behavior across all upload methods (admin, API, form)
 
 # SCORMPackage is now an alias for ELearningPackage, so we don't need a separate admin
 
@@ -133,7 +126,6 @@ class ELearningTrackingAdmin(admin.ModelAdmin):
             return f'<span class="{grade_class}">{grade}</span>'
         return "-"
     grade_display.short_description = "Grade"
-    grade_display.allow_tags = True
     
     def raw_data_display(self, obj):
         if obj.raw_data:
@@ -148,7 +140,6 @@ class ELearningTrackingAdmin(admin.ModelAdmin):
             return format_html('<span style="color: green;">✓ Resume from: {}</span>', location)
         return format_html('<span style="color: gray;">No bookmark</span>')
     bookmark_display.short_description = "Bookmark"
-    bookmark_display.allow_tags = True
 
 @admin.register(SCORMReport)
 class SCORMReportAdmin(admin.ModelAdmin):

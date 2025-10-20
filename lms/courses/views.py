@@ -3538,6 +3538,7 @@ def topic_edit(request, topic_id, section_id=None):
         ('Document', 'Document'),
         ('Quiz', 'Quiz'),
         ('Assignment', 'Assignment'),
+        ('SCORM', 'SCORM Package'),
         ('Conference', 'Conference'),
         ('Discussion', 'Discussion'),
     ]
@@ -6900,25 +6901,55 @@ def topic_create(request, course_id):
                 if new_topic.content_type == 'SCORM' and 'content_file' in request.FILES:
                     from scorm.models import ELearningPackage
                     
-                    # Create the e-learning package
+                    logger.info(f"Creating e-learning package for topic {new_topic.id}")
+                    
+                    # Get package type from form if provided
+                    package_type = request.POST.get('scorm_package_type', '').strip()
+                    
+                    # If no package type specified, use default (will auto-detect later)
+                    if not package_type:
+                        package_type = 'SCORM_1_2'  # Default, will be auto-detected
+                        logger.info(f"   No package type specified, using default: {package_type}")
+                    
+                    # Create the e-learning package with package_type set
+                    # Note: Automatic extraction happens via post_save signal in scorm/signals.py
                     elearning_package = ELearningPackage.objects.create(
                         topic=new_topic,
-                        package_file=request.FILES['content_file']
+                        package_file=request.FILES['content_file'],
+                        package_type=package_type
                     )
                     
-                    # Auto-detect package type
-                    detected_type = elearning_package.detect_package_type()
-                    if detected_type:
-                        elearning_package.package_type = detected_type
-                        elearning_package.save()
+                    logger.info(f"✅ E-learning package {elearning_package.id} created for topic {new_topic.id}")
+                    logger.info(f"   Package file: {elearning_package.package_file.name}")
+                    logger.info(f"   Package type: {elearning_package.package_type}")
                     
-                    # Extract the package
-                    if elearning_package.extract_package():
+                    # Auto-detect package type if we used the default
+                    if package_type == 'SCORM_1_2':
+                        logger.info(f"   Attempting auto-detection...")
+                        detected_type = elearning_package.detect_package_type()
+                        if detected_type and detected_type != 'SCORM_1_2':
+                            elearning_package.package_type = detected_type
+                            elearning_package.save()
+                            logger.info(f"   ✅ Auto-detected package type: {detected_type}")
+                        else:
+                            logger.info(f"   Using default package type: SCORM_1_2")
+                    
+                    logger.info(f"   Automatic extraction will happen via signal")
+                    
+                    # Note: Package extraction happens automatically via signal
+                    # Check extraction status
+                    if elearning_package.is_extracted:
                         package_type_display = elearning_package.get_package_type_display()
-                        messages.success(request, f"{package_type_display} package uploaded and extracted successfully!")
+                        messages.success(request, f"{package_type_display} package uploaded and extracted successfully to S3!")
                     else:
-                        error_msg = elearning_package.extraction_error or "Unknown extraction error"
-                        messages.error(request, f"E-learning package uploaded but extraction failed: {error_msg}")
+                        # Extraction is happening in background via signal
+                        package_type_display = elearning_package.get_package_type_display()
+                        messages.info(request, f"{package_type_display} package uploaded. Extraction to S3 in progress...")
+                        
+                        # Check for extraction errors
+                        if elearning_package.extraction_error:
+                            error_msg = elearning_package.extraction_error
+                            messages.warning(request, f"Extraction issue: {error_msg}")
                 
             except Exception as e:
                 logger.error(f"Error creating topic: {str(e)}")

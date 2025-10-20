@@ -105,25 +105,20 @@ def can_preview_scorm_content(user, topic):
 def can_access_scorm_content(user, topic):
     """
     Check if user can access SCORM content (full access, progress saved)
-    Uses the LMS role management system for proper access control
+    Only learners need enrollment - other roles can access without enrollment
     """
     if not user.is_authenticated:
         return False
     
-    # Import role management utilities
-    try:
-        from role_management.utils import PermissionManager
-    except ImportError:
-        # Fallback to basic Django attributes if role management not available
-        if user.is_staff or user.is_superuser:
-            return True
-        return False
+    # Check user role - only learners need enrollment
+    user_role = getattr(user, 'role', 'learner')
     
-    # Check if user has topic management capabilities using role management system
-    if PermissionManager.user_has_any_capability(user, ['view_topics', 'manage_topics']):
+    # Non-learner roles can access without enrollment
+    if user_role in ['instructor', 'admin', 'superadmin', 'globaladmin']:
+        logger.info(f"SCORM Access: {user_role} {user.username} granted access without enrollment")
         return True
     
-    # Check if user is enrolled in the course
+    # For learners, check enrollment
     if hasattr(topic, 'course') and topic.course:
         course = topic.course
         
@@ -138,38 +133,54 @@ def can_access_scorm_content(user, topic):
     return False
 
 
-@login_required
 def scorm_launch(request, topic_id):
-    """Launch SCORM, xAPI, cmi5, or Articulate packages with enhanced support"""
-    user = request.user
-    logger.info(f"E-Learning Launch: User authenticated: {user.username}")
+    """Launch SCORM, xAPI, cmi5, or Articulate packages with enhanced support.
+    Anonymous users are allowed to view in preview mode (no tracking).
+    """
+    user = request.user if request.user.is_authenticated else None
+    logger.info(
+        f"E-Learning Launch: User authenticated: {getattr(user, 'username', 'anonymous')}"
+    )
     
     topic = get_object_or_404(Topic, id=topic_id)
     
     # Check if user has access to this topic
+    # CRITICAL FIX: Only require enrollment for learner role users
     try:
         course = topic.course
         if course and not course.user_has_access(user):
-            logger.warning(f"E-Learning Launch: User {user.username} does not have access to topic {topic_id}")
-            messages.error(request, "You don't have access to this content.")
-            return redirect('courses:course_list')
+            # Check user role - only learners need enrollment
+            user_role = getattr(user, 'role', 'learner') if user else 'learner'
+            
+            if user_role == 'learner':
+                # Learners must be enrolled to access content
+                username = getattr(user, 'username', 'anonymous')
+                logger.warning(f"E-Learning Launch: Learner {username} not enrolled in course for topic {topic_id}")
+                messages.error(request, "You need to be enrolled in this course to access the content.")
+                return redirect('courses:course_list')
+            else:
+                # Non-learner roles (instructor, admin, etc.) can access without enrollment
+                username = getattr(user, 'username', 'anonymous')
+                logger.info(f"E-Learning Launch: {user_role} {username} granted access to topic {topic_id} (bypassing enrollment requirement)")
     except AttributeError:
         logger.info(f"E-Learning Launch: Topic {topic_id} has no course relationship, allowing access")
         pass
     
     # ENHANCED: Role-based access control for all e-learning content
-    can_access = can_access_scorm_content(user, topic)
-    can_preview = can_preview_scorm_content(user, topic)
+    can_access = can_access_scorm_content(user, topic) if user else False
+    can_preview = can_preview_scorm_content(user, topic) if user else True
     
     # Allow preview for all authenticated users
-    if not can_access and not can_preview:
+    if (not can_access) and (not can_preview):
         can_preview = True
-        logger.info(f"E-Learning Launch: User {user.username} granted preview access for topic {topic_id}")
+        username = getattr(user, 'username', 'anonymous')
+        logger.info(f"E-Learning Launch: User {username} granted preview access for topic {topic_id}")
     
     # Set preview mode if user can only preview
     preview_mode = not can_access and can_preview
     if preview_mode:
-        logger.info(f"E-Learning Launch: User {user.username} accessing e-learning content in preview mode for topic {topic_id}")
+        username = getattr(user, 'username', 'anonymous')
+        logger.info(f"E-Learning Launch: User {username} accessing e-learning content in preview mode for topic {topic_id}")
         messages.info(request, "You are viewing this content in preview mode. Your progress will not be saved.")
     
     try:
@@ -223,12 +234,153 @@ def scorm_launch(request, topic_id):
         messages.error(request, "SCORM package launch file not found.")
         return redirect('courses:topic_view', topic_id=topic_id)
     
+    # Append required CMI5 launch parameters to the AU launch URL
+    if elearning_package.package_type == 'CMI5':
+        # Import modules at the start
+        import urllib.parse
+        import json
+        import hashlib
+        import base64
+        import uuid as uuid_lib
+        
+        try:
+            logger.info(f"CMI5 detected for topic {topic_id}, original launch_url: {launch_url}")
+
+            site_url = getattr(settings, 'SITE_URL', None) or getattr(settings, 'BASE_URL', '')
+
+            # Build actor and registration for both authenticated and preview (guest) users
+            if user:
+                actor = {
+                    'objectType': 'Agent',
+                    'account': {
+                        'homePage': site_url,
+                        'name': str(user.id)
+                    },
+                    'name': user.get_full_name() or user.username
+                }
+                registration_id = f"{user.id}-{topic_id}-{elearning_package.id}"
+            else:
+                # Guest/preview actor based on anonymous session
+                session_key = getattr(request, 'session', None) and request.session.session_key or 'guest'
+                if not session_key and hasattr(request, 'session'):
+                    # Ensure a session exists
+                    request.session.save()
+                    session_key = request.session.session_key or 'guest'
+                actor = {
+                    'objectType': 'Agent',
+                    'account': {
+                        'homePage': site_url,
+                        'name': f"guest-{session_key}"
+                    },
+                    'name': 'Guest'
+                }
+                registration_id = f"guest-{session_key}-{topic_id}-{elearning_package.id}"
+
+            # CRITICAL FIX: Create LMS.LaunchData state BEFORE launching CMI5 content
+            # This is required by CMI5 specification
+            activity_id = elearning_package.cmi5_au_id or f"{site_url}/activities/{topic_id}"
+            
+            # Generate auth token for CMI5 content
+            auth_token = base64.b64encode(f"Basic:{uuid_lib.uuid4()}".encode()).decode()
+            
+            # Create LMS.LaunchData content as per CMI5 spec
+            lms_launch_data = {
+                "contextTemplate": {
+                    "contextActivities": {
+                        "grouping": [
+                            {
+                                "objectType": "Activity",
+                                "id": f"{site_url}/courses/{topic.course.id if hasattr(topic, 'course') and topic.course else 'unknown'}"
+                            }
+                        ]
+                    },
+                    "extensions": {
+                        "https://w3id.org/xapi/cmi5/context/extensions/sessionid": str(uuid_lib.uuid4())
+                    }
+                },
+                "launchMode": "Normal",
+                "launchMethod": "AnyWindow",
+                "moveOn": "Completed",
+                "returnURL": f"{site_url}/scorm/result/{topic_id}/",
+                "entitlementKey": {
+                    "courseStructure": f"{site_url}/courses/{topic.course.id if hasattr(topic, 'course') and topic.course else 'unknown'}",
+                    "alternate": ""
+                }
+            }
+            
+            # Store LMS.LaunchData in xAPI State API
+            from lrs.models import State
+            try:
+                # CRITICAL FIX: Always generate a deterministic UUID from registration string
+                # This ensures the CMI5 content can retrieve LMS.LaunchData using the same registration
+                registration_uuid = None
+                if registration_id:
+                    try:
+                        # Try to parse as UUID first
+                        registration_uuid = uuid_lib.UUID(registration_id)
+                        logger.info(f"CMI5: Using provided UUID registration: {registration_uuid}")
+                    except (ValueError, AttributeError):
+                        # Generate a deterministic UUID from the string using SHA-256 for better distribution
+                        # This ensures consistency: same registration string = same UUID every time
+                        import hashlib
+                        hash_bytes = hashlib.sha256(str(registration_id).encode()).digest()[:16]
+                        registration_uuid = uuid_lib.UUID(bytes=hash_bytes)
+                        logger.info(f"CMI5: Generated deterministic UUID {registration_uuid} from registration '{registration_id}'")
+                else:
+                    # If no registration provided, generate a new UUID
+                    registration_uuid = uuid_lib.uuid4()
+                    logger.info(f"CMI5: Generated new UUID registration: {registration_uuid}")
+                
+                # Ensure site_url ends with trailing slash for consistency
+                normalized_site_url = site_url.rstrip('/') + '/' if site_url else 'https://staging.nexsy.io/'
+                
+                # Update actor with normalized URL
+                if 'account' in actor and 'homePage' in actor['account']:
+                    actor['account']['homePage'] = normalized_site_url
+                
+                state_etag = hashlib.md5(json.dumps(lms_launch_data, sort_keys=True).encode()).hexdigest()
+                
+                # Create or update the LMS.LaunchData state
+                state, created = State.objects.update_or_create(
+                    activity_id=activity_id,
+                    agent=actor,
+                    state_id="LMS.LaunchData",
+                    registration=registration_uuid,
+                    defaults={
+                        'content': lms_launch_data,
+                        'content_type': 'application/json',
+                        'etag': state_etag
+                    }
+                )
+                action = "Created" if created else "Updated"
+                logger.info(f"CMI5: {action} LMS.LaunchData state for activity {activity_id}, agent {json.dumps(actor)}, registration {registration_uuid}")
+            except Exception as state_error:
+                logger.error(f"CMI5: Failed to create LMS.LaunchData state: {state_error}", exc_info=True)
+                # Continue anyway - some CMI5 content might work without it
+
+            # Compact JSON to avoid spaces that could be turned into '+' by form-style encoders
+            compact_actor_json = json.dumps(actor, separators=(',', ':'), ensure_ascii=False)
+            cmi5_params = {
+                'endpoint': f"{site_url}/lrs/xapi/statements/",
+                'fetch': f"{site_url}/lrs/cmi5/fetch/",
+                'actor': compact_actor_json,
+                'registration': registration_id,
+                'activityId': activity_id
+            }
+            separator = '&' if '?' in launch_url else '?'
+            # Use quote_via=quote to encode spaces as %20 (not '+'), preserving JSON correctness
+            launch_url = f"{launch_url}{separator}{urllib.parse.urlencode(cmi5_params, quote_via=urllib.parse.quote)}"
+            logger.info(f"CMI5 Launch URL with parameters for topic {topic_id}: {launch_url}")
+            logger.info(f"CMI5 params: {cmi5_params}")
+        except Exception as e:
+            logger.error(f"CMI5 parameter injection failed for topic {topic_id}: {e}", exc_info=True)
+    
     # Prepare data based on package type
     if elearning_package.package_type in ['SCORM_1_2', 'SCORM_2004']:
         # SCORM data
         scorm_data = {
-            'student_name': user.get_full_name() or user.username,
-            'student_id': str(user.id),
+            'student_name': (user.get_full_name() or user.username) if user else 'Guest',
+            'student_id': str(user.id) if user else 'guest',
             'suspend_data': tracking.raw_data.get('cmi.core.suspend_data', ''),
             'total_time': str(tracking.total_time) if tracking.total_time else 'PT0S',
             'lesson_location': tracking.raw_data.get('cmi.core.lesson_location', ''),
@@ -244,8 +396,8 @@ def scorm_launch(request, topic_id):
         # xAPI data
         scorm_data = {
             'actor': {
-                'mbox': f"mailto:{user.email}",
-                'name': user.get_full_name() or user.username
+                'mbox': f"mailto:{user.email}" if user else '',
+                'name': (user.get_full_name() or user.username) if user else 'Guest'
             },
             'endpoint': elearning_package.xapi_endpoint or '',
             'actor_data': elearning_package.xapi_actor or {}
@@ -255,14 +407,14 @@ def scorm_launch(request, topic_id):
         scorm_data = {
             'au_id': elearning_package.cmi5_au_id or '',
             'launch_url': elearning_package.cmi5_launch_url or '',
-            'learner_id': str(user.id),
-            'learner_name': user.get_full_name() or user.username
+            'learner_id': str(user.id) if user else 'guest',
+            'learner_name': (user.get_full_name() or user.username) if user else 'Guest'
         }
     else:
         # Default data
         scorm_data = {
-            'student_name': user.get_full_name() or user.username,
-            'student_id': str(user.id),
+            'student_name': (user.get_full_name() or user.username) if user else 'Guest',
+            'student_id': str(user.id) if user else 'guest',
         }
     
     # Convert to JSON for safe JavaScript usage
@@ -273,8 +425,14 @@ def scorm_launch(request, topic_id):
     browser_info = get_browser_info(request)
     is_mobile = browser_info['is_mobile']
     
-    # Select appropriate template based on device and browser
-    if is_mobile:
+    # CRITICAL FIX: CMI5 packages must always use desktop mode for proper launch
+    # CMI5 requires specific xAPI communication that doesn't work in mobile mode
+    if elearning_package.package_type == 'CMI5':
+        template_name = 'scorm/launch.html'
+        is_mobile = False  # Force desktop mode for CMI5
+        logger.info(f"CMI5 Launch: Forcing desktop mode for topic {topic_id}")
+    # Select appropriate template based on device and browser for other formats
+    elif is_mobile:
         template_name = 'scorm/mobile_launch.html'
     else:
         template_name = 'scorm/launch.html'
@@ -284,7 +442,7 @@ def scorm_launch(request, topic_id):
         'elearning_package': elearning_package,
         'launch_url': launch_url,
         'tracking': tracking,
-        'user_id': user.id,
+        'user_id': user.id if user else None,
         'scorm_api_url': f"/scorm/api/{topic_id}/",
         'scorm_data': scorm_data,
         'scorm_data_json': scorm_data_json,
@@ -368,6 +526,28 @@ def scorm_content(request, topic_id, file_path):
             file_path,
             f"elearning/{file_path}"
         ]
+
+        # Locale fallback: if path references locales/i18n, try en-US and en variants
+        try:
+            import re as _re
+            locale_fallbacks = []
+            if '/locales/' in s3_file_path or '/i18n/' in s3_file_path:
+                for loc in ['en-US', 'en']:
+                    # Replace segment immediately after /locales/ or /i18n/
+                    alt1 = _re.sub(r"(/locales/)([^/]+)(/)", r"\\1" + loc + r"\\3", s3_file_path)
+                    alt2 = _re.sub(r"(/i18n/)([^/]+)(/)", r"\\1" + loc + r"\\3", s3_file_path)
+                    for alt in [alt1, alt2]:
+                        if alt and alt != s3_file_path and alt not in alternative_paths:
+                            locale_fallbacks.append(alt)
+            # Append locale fallbacks with and without base prefixes
+            for p in list(locale_fallbacks):
+                for prefix in ["", f"packages/{topic_id}/", "elearning/", f"elearning/packages/{topic_id}/"]:
+                    combined = f"{prefix}{p}" if prefix and not p.startswith(prefix) else p
+                    if combined not in alternative_paths:
+                        alternative_paths.append(combined)
+        except Exception as _e:
+            # Safe to ignore locale fallback computation errors
+            pass
         
         file_content = None
         used_path = None
@@ -421,6 +601,27 @@ def scorm_content(request, topic_id, file_path):
         response['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
         response['Access-Control-Allow-Headers'] = 'Content-Type, X-Requested-With, X-CSRFToken, X-SCORM-User-ID, Authorization'
         response['X-Frame-Options'] = 'SAMEORIGIN'
+        
+        # CRITICAL FIX: Add permissive CSP for CMI5/SCORM content (required for eval and data URIs)
+        if file_path.endswith('.html'):
+            response['Content-Security-Policy'] = (
+                "default-src 'self' data: blob: * 'unsafe-inline' 'unsafe-eval'; "
+                "script-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: *; "
+                "style-src 'self' 'unsafe-inline' data: blob: *; "
+                "img-src 'self' data: blob: *; "
+                "font-src 'self' data: blob: * *.amazonaws.com fonts.gstatic.com fonts.googleapis.com; "
+                "connect-src 'self' data: blob: *; "
+                "frame-src 'self' data: blob: *; "
+                "worker-src 'self' data: blob:; "
+                "object-src 'self' data: blob:;"
+            )
+        # Also add CSP for CSS files that might reference fonts
+        elif file_path.endswith('.css'):
+            response['Content-Security-Policy'] = (
+                "default-src 'self' data: blob: *; "
+                "font-src 'self' data: blob: * *.amazonaws.com fonts.gstatic.com fonts.googleapis.com; "
+                "style-src 'self' 'unsafe-inline' data: blob: *;"
+            )
         
         # ENHANCED: Add specific headers for different package types
         if elearning_package.package_type in ['SCORM_1_2', 'SCORM_2004']:
@@ -792,7 +993,16 @@ def xapi_resume(request, topic_id):
 
 # cmi5 Launch and Content
 def cmi5_launch(request, topic_id):
-    """Launch cmi5 content"""
+    """Launch cmi5 content with enhanced logging for external URLs"""
+    try:
+        topic = get_object_or_404(Topic, id=topic_id)
+        elearning_package = ELearningPackage.objects.get(topic=topic)
+        if elearning_package.package_type == 'CMI5' and elearning_package.cmi5_launch_url:
+            launch = elearning_package.cmi5_launch_url
+            if isinstance(launch, str) and (launch.startswith('http://') or launch.startswith('https://')):
+                logger.info(f"CMI5 Launch: External launch URL detected for topic {topic_id}: {launch}")
+    except Exception as e:
+        logger.warning(f"CMI5 Launch: Unable to pre-check external URL for topic {topic_id}: {e}")
     return scorm_launch(request, topic_id)
 
 def cmi5_resume(request, topic_id):

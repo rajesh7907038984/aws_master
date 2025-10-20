@@ -54,4 +54,5 @@ urlpatterns = [
     # Error Handlers (to fix SCORM content errors)
     path('error-fixes.js', error_handler.scorm_error_fixes, name='error_fixes'),
     path('console-cleaner.js', error_handler.scorm_console_cleaner, name='console_cleaner'),
+    path('string-table-fix.js', error_handler.articulate_string_table_fix, name='string_table_fix'),
 ]

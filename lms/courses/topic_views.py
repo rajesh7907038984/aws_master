@@ -237,8 +237,8 @@ def topic_view(request, topic_id):
             'next_topic': next_topic,
             'first_topic': all_topics_list[0] if all_topics_list else None,
             'breadcrumbs': [
-                {'label': 'Courses', 'url': '/courses/', 'icon': 'fa-book'},
-                {'label': course.title, 'url': "/courses/{{course.id}}/details/", 'icon': 'fa-graduation-cap'},
+                {'label': 'Courses', 'url': reverse('courses:course_list'), 'icon': 'fa-book'},
+                {'label': course.title, 'url': reverse('courses:course_details', kwargs={'course_id': course.id}), 'icon': 'fa-graduation-cap'},
                 {'label': topic.title}
             ],
             'topics_without_section': topics_without_section,
