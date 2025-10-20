@@ -1,8 +1,9 @@
 /**
  * Fixed Section Delete Handler
  * Comprehensive solution for section deletion issues
- * Version: 2025-10-19 - Fixed for course edit page
+ * Version: 2025-01-26
  */
+
 
 // Global state management
 window.sectionDeleteState = {
@@ -14,6 +15,7 @@ window.sectionDeleteState = {
  * Robust CSRF token retrieval
  */
 function getCSRFToken() {
+    
     // Method 1: Form input
     const csrfInput = document.querySelector('[name=csrfmiddlewaretoken]');
     if (csrfInput && csrfInput.value) {
@@ -31,7 +33,7 @@ function getCSRFToken() {
     for (let cookie of cookies) {
         const [name, value] = cookie.trim().split('=');
         if (name === 'csrftoken' || name === 'lms_csrftoken') {
-            return decodeURIComponent(value);
+            return value;
         }
     }
     
@@ -40,7 +42,6 @@ function getCSRFToken() {
         return window.CSRF_TOKEN;
     }
     
-    console.error('CSRF token not found');
     return null;
 }
 
@@ -87,8 +88,8 @@ function showNotification(message, type = 'info', duration = 3000) {
 /**
  * Enhanced section delete function
  */
+// Make deleteSection available globally
 window.deleteSection = async function deleteSection(sectionId) {
-    console.log('deleteSection called with ID:', sectionId);
     
     // Prevent multiple simultaneous deletions
     if (window.sectionDeleteState.inProgress) {
@@ -106,11 +107,8 @@ window.deleteSection = async function deleteSection(sectionId) {
     window.sectionDeleteState.lastDeleted = sectionId;
     
     try {
-        // Find section element - it's wrapped in a container
-        const sectionElement = document.querySelector(`[data-section-id="${sectionId}"]`)?.closest('.section-container') || 
-                              document.querySelector(`#section-${sectionId}`) ||
-                              document.querySelector(`[data-section-id="${sectionId}"]`);
-        
+        // Find section element
+        const sectionElement = document.querySelector(`[data-section-id="${sectionId}"]`);
         if (!sectionElement) {
             throw new Error('Section element not found in DOM');
         }
@@ -125,10 +123,9 @@ window.deleteSection = async function deleteSection(sectionId) {
             throw new Error('Security token not found. Please refresh the page and try again.');
         }
         
-        console.log('Sending DELETE request to:', `/courses/api/sections/${sectionId}/delete/`);
         
-        // Make the delete request - use the main delete endpoint
-        const response = await fetch(`/courses/api/sections/${sectionId}/delete/`, {
+        // Make the delete request
+        const response = await fetch(`/courses/api/sections/${sectionId}/simple-delete/`, {
             method: 'DELETE',
             headers: {
                 'X-CSRFToken': csrfToken,
@@ -137,22 +134,16 @@ window.deleteSection = async function deleteSection(sectionId) {
             }
         });
         
-        console.log('Response status:', response.status);
         
         if (!response.ok) {
-            let errorText = '';
-            try {
-                errorText = await response.text();
-            } catch (e) {
-                errorText = 'Unable to read error response';
-            }
+            const errorText = await response.text();
             throw new Error(`Server error (${response.status}): ${errorText}`);
         }
         
         const data = await response.json();
-        console.log('Response data:', data);
         
         if (data.success) {
+            
             // Animate section removal
             sectionElement.style.transition = 'all 0.3s ease';
             sectionElement.style.opacity = '0';
@@ -180,11 +171,6 @@ window.deleteSection = async function deleteSection(sectionId) {
                 }
                 
                 showNotification(data.message || 'Section deleted successfully', 'success');
-                
-                // Reload the page after a short delay to refresh the section list
-                setTimeout(() => {
-                    window.location.reload();
-                }, 1500);
             }, 300);
             
         } else {
@@ -192,18 +178,15 @@ window.deleteSection = async function deleteSection(sectionId) {
         }
         
     } catch (error) {
-        console.error('Error deleting section:', error);
         
         // Restore section element state
-        const sectionElement = document.querySelector(`[data-section-id="${sectionId}"]`)?.closest('.section-container') || 
-                              document.querySelector(`#section-${sectionId}`) ||
-                              document.querySelector(`[data-section-id="${sectionId}"]`);
+        const sectionElement = document.querySelector(`[data-section-id="${sectionId}"]`);
         if (sectionElement) {
             sectionElement.style.opacity = '1';
             sectionElement.style.pointerEvents = 'auto';
         }
         
-        showNotification(`Error: ${error.message}`, 'error', 5000);
+        showNotification(`Error: ${error.message}`, 'error');
         
     } finally {
         // Always clean up loading state

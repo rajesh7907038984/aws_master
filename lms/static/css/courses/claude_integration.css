@@ -120,11 +120,7 @@
     color: #374151;
 }
 
-.ai-modal-footer button.btn-primary {
-    background-color: #5436DA;
-    border: none;
-    color: white;
-}
+/* Button styles moved to unified-button-system.css */
 
 .ai-modal-footer button.btn-primary:disabled {
     background-color: #a8a4be;

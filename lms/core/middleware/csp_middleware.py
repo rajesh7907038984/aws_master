@@ -40,10 +40,10 @@ class CSPMiddleware:
         csp_policy = (
             "default-src 'self' data: blob:; "
             "frame-src 'self' *.amazonaws.com *.s3.amazonaws.com https://lms-staging-nexsy-io.s3.eu-west-2.amazonaws.com; "
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval' *.amazonaws.com *.s3.amazonaws.com *.articulate.com *.adobe.com *.captivate.com *.googleapis.com *.gstatic.com; "
-            "style-src 'self' 'unsafe-inline' data: blob: *.amazonaws.com *.s3.amazonaws.com fonts.googleapis.com *.gstatic.com cdnjs.cloudflare.com code.jquery.com; "
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval' *.amazonaws.com *.s3.amazonaws.com *.articulate.com *.adobe.com *.captivate.com *.googleapis.com *.gstatic.com cdn.jsdelivr.net cdnjs.cloudflare.com cdn.tailwindcss.com unpkg.com; "
+            "style-src 'self' 'unsafe-inline' data: blob: *.amazonaws.com *.s3.amazonaws.com fonts.googleapis.com *.gstatic.com cdnjs.cloudflare.com code.jquery.com cdn.jsdelivr.net cdn.tailwindcss.com unpkg.com; "
             "img-src 'self' data: blob: *.amazonaws.com *.s3.amazonaws.com *.articulate.com *.adobe.com *.captivate.com; "
-            "font-src 'self' data: blob: *.amazonaws.com *.s3.amazonaws.com *.articulate.com *.adobe.com *.captivate.com fonts.gstatic.com fonts.googleapis.com; "
+            "font-src 'self' data: blob: *.amazonaws.com *.s3.amazonaws.com *.articulate.com *.adobe.com *.captivate.com fonts.gstatic.com fonts.googleapis.com cdnjs.cloudflare.com cdn.jsdelivr.net; "
             "connect-src 'self' *.amazonaws.com *.s3.amazonaws.com metrics.articulate.com *.articulate.com *.adobe.com *.captivate.com https://metrics.articulate.com *.googleapis.com; "
             "worker-src 'self' blob:; "
             "object-src 'self' data: blob:; "

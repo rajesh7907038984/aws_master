@@ -7,25 +7,83 @@
 header {
     box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
     height: 4rem;
-    display: block !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-    position: fixed !important;
-    top: 0 !important;
-    left: 0 !important;
-    right: 0 !important;
-    z-index: 9999 !important;
+    display: block;
+    visibility: visible;
+    opacity: 1;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 100;
+    width: 100%;
+    background: white;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+/* ===== Header Layout Alignment Fixes ===== */
+header > div {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
     width: 100% !important;
-    background: white !important;
-    border-bottom: 1px solid #e5e7eb !important;
+    height: 100% !important;
+    min-height: 4rem !important;
+    padding: 0 0.5rem !important;
+    gap: 0.5rem !important;
+}
+
+/* Left section - Logo and toggle */
+header > div > div:first-child {
+    display: flex !important;
+    align-items: center !important;
+    flex-shrink: 0 !important;
+    min-width: 0 !important;
+    gap: 0.5rem !important;
+}
+
+/* Center section - Search */
+header > div > div:nth-child(2) {
+    display: flex !important;
+    align-items: center !important;
+    flex: 1 !important;
+    justify-content: center !important;
+    min-width: 0 !important;
+    max-width: 48rem !important;
+    margin: 0 auto !important;
+}
+
+/* Right section - Icons */
+header > div > div:last-child {
+    display: flex !important;
+    align-items: center !important;
+    flex-shrink: 0 !important;
+    min-width: 0 !important;
+    gap: 0.5rem !important;
+}
+
+/* High specificity to override conflicting styles */
+html body header {
+    display: block;
+    visibility: visible;
+    opacity: 1;
+    position: fixed;
+    z-index: 100;
 }
 
 header > div,
 header .flex.items-center {
-    overflow: visible !important;
-    display: flex !important;
-    align-items: center !important;
-    width: 100% !important;
+    overflow: visible;
+    display: flex;
+    align-items: center;
+    width: 100%;
+}
+
+/* High specificity for header content */
+html body header > div,
+html body header .flex.items-center {
+    overflow: visible;
+    display: flex;
+    align-items: center;
 }
 
 /* ===== Header Icons - Always Visible ===== */
@@ -44,15 +102,257 @@ header .flex.items-center {
     z-index: 10 !important;
 }
 
+/* ===== Icon Alignment Fixes ===== */
+.header-icon,
+.discussion-icon,
+.notification-icon {
+    width: 2.5rem !important;
+    height: 2.5rem !important;
+    min-width: 2.5rem !important;
+    min-height: 2.5rem !important;
+    border-radius: 50% !important;
+    transition: all 0.2s ease !important;
+}
+
+.header-icon:hover,
+.discussion-icon:hover,
+.notification-icon:hover {
+    background-color: #f3f4f6 !important;
+    transform: scale(1.05) !important;
+}
+
+.header-icon:active,
+.discussion-icon:active,
+.notification-icon:active {
+    transform: scale(0.95) !important;
+}
+
+/* Icon SVG alignment */
+.header-icon svg,
+.discussion-icon svg,
+.notification-icon svg {
+    width: 1.25rem !important;
+    height: 1.25rem !important;
+    flex-shrink: 0 !important;
+}
+
+/* Profile button alignment */
+#profile-button {
+    width: 2.5rem !important;
+    height: 2.5rem !important;
+    min-width: 2.5rem !important;
+    min-height: 2.5rem !important;
+    border-radius: 50% !important;
+    transition: all 0.2s ease !important;
+}
+
+#profile-button:hover {
+    background-color: #f3f4f6 !important;
+    transform: scale(1.05) !important;
+}
+
+#profile-button:active {
+    transform: scale(0.95) !important;
+}
+
+/* Profile image alignment */
+#profile-button img {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+    border-radius: 50% !important;
+}
+
 /* CRITICAL: Force header visibility - override any conflicting styles */
-header,
-header *,
-header > div,
-header .flex.items-center,
-header .flex.items-center > * {
+header {
     display: block !important;
     visibility: visible !important;
     opacity: 1 !important;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
+    height: 4rem !important;
+    z-index: 9999 !important;
+    background: white !important;
+    border-bottom: 1px solid #e5e7eb !important;
+    box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1) !important;
+}
+
+/* CRITICAL: Override dashboard styles that might affect header */
+html body header {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    position: fixed !important;
+    z-index: 9999 !important;
+}
+
+/* CRITICAL: Override any dashboard container styles that might affect header */
+html body .dashboard-container header,
+html body .dashboard-main header,
+html body .dashboard-grid header {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
+    height: 4rem !important;
+    z-index: 9999 !important;
+    background: white !important;
+    border-bottom: 1px solid #e5e7eb !important;
+    box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1) !important;
+}
+
+/* CRITICAL: Ensure header is not affected by dashboard overflow settings */
+html body .dashboard-container,
+html body .dashboard-main,
+html body .dashboard-grid {
+    overflow-x: visible !important;
+    overflow-y: visible !important;
+}
+
+/* CRITICAL: Override any dashboard width constraints on header */
+html body header {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 100% !important;
+    box-sizing: border-box !important;
+}
+
+/* CRITICAL: Fix header logo and navigation alignment */
+html body header .flex.items-center {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    overflow: visible !important;
+    flex-wrap: nowrap !important;
+    gap: 0.5rem !important;
+}
+
+/* CRITICAL: Fix header logo container */
+html body header .flex.items-center:first-child {
+    display: flex !important;
+    align-items: center !important;
+    flex-shrink: 0 !important;
+    min-width: 0 !important;
+    max-width: 200px !important;
+    overflow: visible !important;
+}
+
+/* CRITICAL: Fix header logo image */
+html body header img {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    max-width: 200px !important;
+    height: auto !important;
+    object-fit: contain !important;
+    flex-shrink: 0 !important;
+}
+
+/* CRITICAL: Fix header right section */
+html body header .flex.items-center:last-child {
+    display: flex !important;
+    align-items: center !important;
+    flex-shrink: 0 !important;
+    min-width: 0 !important;
+    gap: 0.5rem !important;
+    overflow: visible !important;
+}
+
+/* CRITICAL: Fix header icons visibility */
+html body header .header-icon,
+html body header .discussion-icon,
+html body header .notification-icon,
+html body header #mobile-menu-toggle,
+html body header #profile-button,
+html body header #profile-container {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    align-items: center !important;
+    justify-content: center !important;
+    position: relative !important;
+    z-index: 10 !important;
+    min-width: 2.5rem !important;
+    min-height: 2.5rem !important;
+    overflow: visible !important;
+}
+
+/* CRITICAL: Fix header icon SVGs */
+html body header .header-icon svg,
+html body header .discussion-icon svg,
+html body header .notification-icon svg,
+html body header #mobile-menu-toggle svg {
+    display: inline-block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    width: 1.5rem !important;
+    height: 1.5rem !important;
+    flex-shrink: 0 !important;
+}
+
+/* CRITICAL: Fix header icon spans (notification badges) */
+html body header .header-icon span,
+html body header .discussion-icon span,
+html body header .notification-icon span {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    position: absolute !important;
+    z-index: 11 !important;
+}
+
+/* CRITICAL: Responsive fixes for different screen sizes */
+@media (max-width: 1024px) {
+    html body header img {
+        max-width: 180px !important;
+    }
+    
+    html body header .flex.items-center:first-child {
+        max-width: 200px !important;
+    }
+}
+
+@media (max-width: 768px) {
+    html body header img {
+        max-width: 160px !important;
+    }
+    
+    html body header .flex.items-center:first-child {
+        max-width: 180px !important;
+    }
+    
+    html body header .flex.items-center {
+        gap: 0.5rem !important;
+    }
+}
+
+@media (max-width: 480px) {
+    html body header img {
+        max-width: 140px !important;
+    }
+    
+    html body header .flex.items-center:first-child {
+        max-width: 160px !important;
+    }
+    
+    html body header .flex.items-center {
+        gap: 0.25rem !important;
+    }
+    
+    /* Hide messages icon on very small screens if needed */
+    html body header .discussion-icon.hidden.xs\:flex {
+        display: none !important;
+    }
 }
 
 /* Specific overrides for header content */
@@ -129,29 +429,30 @@ select::-webkit-scrollbar-thumb {
     width: 100% !important;
     height: 100% !important;
     background: rgba(0, 0, 0, 0.5);
-    z-index: 50 !important;
-    display: none !important;
-    visibility: hidden !important;
-    opacity: 0 !important;
-    transition: all 0.3s ease-in-out !important;
+    z-index: 50;
+    display: none;
+    visibility: hidden;
+    opacity: 0;
+    transition: all 0.3s ease-in-out;
 }
 
 #mobile-menu.open {
-    display: block !important;
-    visibility: visible !important;
-    opacity: 1 !important;
+    display: block;
+    visibility: visible;
+    opacity: 1;
 }
 
 #mobile-menu .absolute.top-0.left-0 {
     position: absolute;
     top: 0;
     left: 0;
-    width: 16rem;
+    width: var(--sidebar-width, 16rem);
     height: 100%;
     background: var(--brand-primary, #050c50);
-    z-index: 51;
+    z-index: var(--z-mobile-menu, 51);
     transform: translateX(0);
-    transition: transform 0.3s ease-in-out;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    will-change: transform;
 }
 
 #mobile-menu:not(.open) .absolute.top-0.left-0 {
@@ -160,9 +461,9 @@ select::-webkit-scrollbar-thumb {
 
 #mobile-menu-overlay {
     opacity: 0;
-    transition: opacity 0.3s ease-in-out;
+    transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     pointer-events: none;
-    z-index: 39;
+    z-index: var(--z-mobile-overlay, 39);
 }
 
 #mobile-menu.open #mobile-menu-overlay {
@@ -417,6 +718,378 @@ header .flex-1.md\:hidden {
     }
 }
 
+/* ===== Enhanced Responsive Header Layout ===== */
+
+/* Large screens (1024px+) - Full layout */
+@media (min-width: 1024px) {
+    header > div {
+        padding: 0 1.5rem !important;
+        gap: 1.5rem !important;
+    }
+    
+    header img {
+        max-width: 200px !important;
+        height: auto !important;
+    }
+    
+    header .flex.items-center:first-child {
+        max-width: 250px !important;
+        gap: 1rem !important;
+    }
+    
+    header .flex.items-center:last-child {
+        gap: 1rem !important;
+    }
+}
+
+/* Medium screens (768px - 1023px) - Balanced layout */
+@media (max-width: 1023px) and (min-width: 768px) {
+    header > div {
+        padding: 0 1rem !important;
+        gap: 1rem !important;
+    }
+    
+    header img {
+        max-width: 160px !important;
+        height: auto !important;
+    }
+    
+    header .flex.items-center:first-child {
+        max-width: 200px !important;
+        gap: 0.75rem !important;
+    }
+    
+    header .flex.items-center:last-child {
+        gap: 0.75rem !important;
+    }
+    
+    /* Ensure search bar is properly centered */
+    header .hidden.md\:flex {
+        max-width: 40rem !important;
+        padding: 0 1rem !important;
+    }
+}
+
+/* Small screens (480px - 767px) - Compact layout */
+@media (max-width: 767px) and (min-width: 480px) {
+    header > div {
+        padding: 0 0.75rem !important;
+        gap: 0.75rem !important;
+    }
+    
+    header img {
+        max-width: 140px !important;
+        height: auto !important;
+    }
+    
+    header .flex.items-center:first-child {
+        max-width: 160px !important;
+        gap: 0.5rem !important;
+    }
+    
+    header .flex.items-center:last-child {
+        gap: 0.5rem !important;
+    }
+    
+    /* Hide desktop search, show mobile search */
+    header .hidden.md\:flex {
+        display: none !important;
+    }
+    
+    header .md\:hidden {
+        display: flex !important;
+    }
+}
+
+/* Extra small screens (320px - 479px) - Minimal layout */
+@media (max-width: 479px) {
+    header > div {
+        padding: 0 0.5rem !important;
+        gap: 0.5rem !important;
+    }
+    
+    header img {
+        max-width: 120px !important;
+        height: auto !important;
+    }
+    
+    header .flex.items-center:first-child {
+        max-width: 140px !important;
+        gap: 0.25rem !important;
+    }
+    
+    header .flex.items-center:last-child {
+        gap: 0.25rem !important;
+    }
+    
+    /* Further reduce icon sizes */
+    header .header-icon,
+    header .discussion-icon,
+    header .notification-icon,
+    header #mobile-menu-toggle,
+    header #profile-button {
+        width: 2rem !important;
+        height: 2rem !important;
+        min-width: 2rem !important;
+        min-height: 2rem !important;
+    }
+    
+    /* Hide messages icon on very small screens */
+    header .discussion-icon.hidden.xs\:flex {
+        display: none !important;
+    }
+}
+
+/* ===== Responsive Header Alignment ===== */
+
+/* Large screens - Full alignment */
+@media (min-width: 1024px) {
+    header > div {
+        padding: 0 1rem !important;
+        gap: 1rem !important;
+    }
+    
+    header > div > div:first-child {
+        gap: 1rem !important;
+    }
+    
+    header > div > div:last-child {
+        gap: 1rem !important;
+    }
+}
+
+/* Medium screens - Balanced alignment */
+@media (max-width: 1023px) and (min-width: 768px) {
+    header > div {
+        padding: 0 0.75rem !important;
+        gap: 0.75rem !important;
+    }
+    
+    header > div > div:first-child {
+        gap: 0.75rem !important;
+    }
+    
+    header > div > div:last-child {
+        gap: 0.75rem !important;
+    }
+    
+    /* Ensure search bar is properly centered */
+    header > div > div:nth-child(2) {
+        max-width: 40rem !important;
+        padding: 0 1rem !important;
+    }
+}
+
+/* Small screens - Compact alignment */
+@media (max-width: 767px) {
+    header > div {
+        padding: 0 0.5rem !important;
+        gap: 0.5rem !important;
+    }
+    
+    header > div > div:first-child {
+        gap: 0.5rem !important;
+    }
+    
+    header > div > div:last-child {
+        gap: 0.5rem !important;
+    }
+    
+    /* Hide search on mobile, show mobile search icon */
+    header > div > div:nth-child(2) {
+        display: none !important;
+    }
+}
+
+/* Extra small screens - Minimal alignment */
+@media (max-width: 480px) {
+    header > div {
+        padding: 0 0.25rem !important;
+        gap: 0.25rem !important;
+    }
+    
+    header > div > div:first-child {
+        gap: 0.25rem !important;
+    }
+    
+    header > div > div:last-child {
+        gap: 0.25rem !important;
+    }
+}
+
+/* CRITICAL: Fix logo clipping and sidebar overlap issues */
+@media (max-width: 1024px) {
+    /* Ensure logo doesn't get clipped by sidebar */
+    header .flex.items-center:first-child {
+        z-index: 10;
+        position: relative;
+        min-width: 0;
+        flex-shrink: 0;
+        max-width: 200px;
+    }
+    
+    /* Prevent sidebar from overlapping header content */
+    header {
+        z-index: 9999 !important;
+    }
+    
+    /* Ensure logo has proper spacing and doesn't get cut off */
+    header img {
+        margin-right: 0.5rem;
+        max-width: 160px;
+        height: auto;
+        object-fit: contain;
+        flex-shrink: 0;
+    }
+    
+    /* Ensure proper spacing between logo and other elements */
+    header .flex.items-center:first-child + * {
+        margin-left: 0.5rem;
+    }
+    
+    /* Fix header layout to prevent text overlap */
+    header .flex.items-center {
+        gap: 0.75rem;
+        overflow: visible !important;
+        flex-wrap: nowrap;
+    }
+}
+
+/* Fix text overlap with logo on medium screens */
+@media (max-width: 768px) {
+    /* Ensure proper spacing between logo and other elements */
+    header .flex.items-center:first-child {
+        margin-right: 0.75rem;
+        flex-shrink: 0;
+        min-width: 0;
+        max-width: 150px;
+    }
+    
+    /* Prevent text from overlapping logo */
+    header .flex.items-center:first-child + * {
+        margin-left: 0.75rem;
+    }
+    
+    /* Ensure logo doesn't get cut off */
+    header img {
+        max-width: 140px;
+        height: auto;
+        object-fit: contain;
+        flex-shrink: 0;
+    }
+    
+    /* Ensure header layout doesn't break */
+    header .flex.items-center {
+        gap: 0.75rem;
+        overflow: visible !important;
+        flex-wrap: nowrap;
+    }
+    
+    /* Hide desktop search on mobile */
+    header .hidden.md\:flex {
+        display: none !important;
+    }
+    
+    /* Show mobile search icon */
+    header .md\:hidden {
+        display: flex !important;
+    }
+}
+
+/* Large screens - full logo visibility */
+@media (min-width: 1025px) {
+    header img {
+        max-width: 160px;
+        height: auto;
+        object-fit: contain;
+    }
+}
+
+/* CRITICAL: Prevent text overlap with logo */
+@media (max-width: 1024px) {
+    /* Ensure proper spacing between logo and search bar */
+    header .hidden.md\:flex {
+        margin-left: 1rem;
+        min-width: 0;
+    }
+    
+    /* Prevent search bar from pushing logo off screen */
+    header .flex.items-center.justify-between {
+        gap: 1rem;
+    }
+    
+    /* Ensure logo container has proper flex properties */
+    header .flex.items-center:first-child {
+        flex-shrink: 0;
+        min-width: 0;
+        max-width: 200px;
+    }
+}
+
+/* Additional fixes for text overlap */
+@media (max-width: 768px) {
+    /* Ensure proper spacing between all header elements */
+    header .flex.items-center {
+        gap: 0.75rem;
+    }
+    
+    /* Prevent any text from overlapping logo */
+    header .flex.items-center:first-child {
+        margin-right: 0.75rem;
+        flex-shrink: 0;
+        min-width: 0;
+        max-width: 150px;
+    }
+    
+    /* Ensure search toggle doesn't overlap */
+    header .flex.items-center:last-child {
+        margin-left: 0.5rem;
+        flex-shrink: 0;
+    }
+}
+
+/* Extra small screens - prioritize logo visibility */
+@media (max-width: 480px) {
+    /* Ensure logo is always visible and not clipped */
+    header img {
+        max-width: 120px;
+        height: auto;
+        object-fit: contain;
+        flex-shrink: 0;
+    }
+    
+    /* Reduce gaps but maintain logo visibility */
+    header .flex.items-center {
+        gap: 0.5rem;
+        overflow: visible !important;
+    }
+    
+    /* Ensure logo container doesn't get compressed */
+    header .flex.items-center:first-child {
+        flex-shrink: 0;
+        min-width: 0;
+        max-width: 140px;
+        margin-right: 0.5rem;
+    }
+    
+    /* Hide messages icon on very small screens if needed */
+    header .discussion-icon.hidden.xs\:flex {
+        display: none !important;
+    }
+    
+    /* Ensure header icons are properly sized */
+    header .header-icon,
+    header .discussion-icon,
+    header .notification-icon,
+    header #mobile-menu-toggle,
+    header #profile-button {
+        width: 2.25rem !important;
+        height: 2.25rem !important;
+        min-width: 2.25rem !important;
+        min-height: 2.25rem !important;
+    }
+}
+
 /* Mobile devices */
 @media (max-width: 767px) {
     /* FORCE HIDE desktop search completely */
@@ -652,6 +1325,96 @@ header .flex-1.md\:hidden {
     }
 }
 
+/* ===== Enhanced Mobile Responsive Fixes ===== */
+
+/* Fix for very small screens (320px and below) */
+@media (max-width: 320px) {
+    header {
+        min-height: 3rem !important;
+        height: 3rem !important;
+    }
+    
+    header > div {
+        padding: 0 0.25rem !important;
+        gap: 0.25rem !important;
+    }
+    
+    header img {
+        max-width: 100px !important;
+        height: auto !important;
+    }
+    
+    header .flex.items-center:first-child {
+        max-width: 120px !important;
+        gap: 0.125rem !important;
+    }
+    
+    header .flex.items-center:last-child {
+        gap: 0.125rem !important;
+    }
+    
+    /* Hide messages icon on very small screens */
+    header .discussion-icon {
+        display: none !important;
+    }
+    
+    /* Further reduce icon sizes */
+    header .header-icon,
+    header .notification-icon,
+    header #mobile-menu-toggle,
+    header #profile-button {
+        width: 1.75rem !important;
+        height: 1.75rem !important;
+        min-width: 1.75rem !important;
+        min-height: 1.75rem !important;
+    }
+}
+
+/* Fix for landscape mobile orientation */
+@media (max-height: 500px) and (orientation: landscape) {
+    header {
+        min-height: 3rem !important;
+        height: 3rem !important;
+    }
+    
+    header img {
+        max-width: 120px !important;
+        height: auto !important;
+    }
+    
+    header .flex.items-center:first-child {
+        max-width: 140px !important;
+    }
+    
+    /* Reduce icon sizes in landscape */
+    header .header-icon,
+    header .discussion-icon,
+    header .notification-icon,
+    header #mobile-menu-toggle,
+    header #profile-button {
+        width: 2rem !important;
+        height: 2rem !important;
+        min-width: 2rem !important;
+        min-height: 2rem !important;
+    }
+}
+
+/* Fix for high DPI screens */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+    header img {
+        image-rendering: -webkit-optimize-contrast;
+        image-rendering: crisp-edges;
+    }
+}
+
+/* Fix for iOS Safari viewport issues */
+@supports (-webkit-touch-callout: none) {
+    header {
+        position: -webkit-sticky !important;
+        position: sticky !important;
+    }
+}
+
 /* ===== Accessibility ===== */
 @media (prefers-reduced-motion: reduce) {
     .transition-all,
@@ -671,6 +1434,16 @@ header .flex-1.md\:hidden {
     a:focus {
         outline: 3px solid #3b82f6;
         outline-offset: 2px;
+    }
+    
+    /* Ensure touch targets are large enough */
+    header .header-icon,
+    header .discussion-icon,
+    header .notification-icon,
+    header #mobile-menu-toggle,
+    header #profile-button {
+        min-width: 44px !important;
+        min-height: 44px !important;
     }
 }
 

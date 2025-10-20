@@ -2526,7 +2526,7 @@ def get_backups(request):
     if request.user.role != 'globaladmin':
         return JsonResponse({'success': False, 'error': 'Permission denied - Global Admin access required'})
     
-    backups = DataBackup.objects.all()[:20]  # Last 20 backups
+    backups = DataBackup.objects.select_related('created_by').order_by('-created_at')[:20]  # Last 20 backups with optimization
     
     backups_data = []
     for backup in backups:

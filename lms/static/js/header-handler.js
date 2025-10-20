@@ -33,6 +33,7 @@
                 // Reinitialize submenu toggles
                 initializeMobileSubmenus(mobileMenuContent);
             } catch (error) {
+                console.warn('Failed to clone sidebar content to mobile menu:', error);
             }
         }
     }
@@ -57,7 +58,7 @@
             }
             
             if (submenuId) {
-                console.log(`Setting up mobile submenu ${index + 1}:`, submenuId);
+                console.log('Setting up mobile submenu ' + (index + 1) + ':', submenuId);
                 
                 // Ensure arrow icon is visible
                 const arrow = button.querySelector('.arrow-icon');
@@ -99,7 +100,7 @@
                         container.querySelectorAll('.submenu').forEach(menu => {
                             if (menu.id !== submenuId && !menu.classList.contains('hidden')) {
                                 menu.classList.add('hidden');
-                                const menuButton = container.querySelector(`[data-submenu="${menu.id}"]`);
+                                const menuButton = container.querySelector('[data-submenu="' + menu.id + '"]');
                                 if (menuButton) {
                                     menuButton.classList.remove('active', 'expanded');
                                     const menuArrow = menuButton.querySelector('.arrow-icon');
@@ -128,37 +129,45 @@
         const closeMobileMenu = document.getElementById('close-mobile-menu');
         const mobileMenuOverlay = document.getElementById('mobile-menu-overlay');
         
-        if (mobileMenuToggle && mobileMenu) {
-            mobileMenuToggle.addEventListener('click', function(e) {
-                e.preventDefault();
-                e.stopPropagation();
+        if (!mobileMenuToggle || !mobileMenu) return;
+        
+        // Remove any existing event listeners to prevent conflicts
+        const newToggle = mobileMenuToggle.cloneNode(true);
+        mobileMenuToggle.parentNode.replaceChild(newToggle, mobileMenuToggle);
+        
+        newToggle.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            if (window.innerWidth < 768) {
+                const wasOpen = mobileMenu.classList.contains('open');
+                mobileMenu.classList.toggle('open');
                 
-                if (window.innerWidth < 768) {
-                    const wasOpen = mobileMenu.classList.contains('open');
-                    mobileMenu.classList.toggle('open');
-                    
-                    if (!wasOpen) {
-                        document.body.classList.add('overflow-hidden');
-                        loadSidebarContentToMobileMenu();
-                    } else {
-                        document.body.classList.remove('overflow-hidden');
-                    }
+                if (!wasOpen) {
+                    document.body.classList.add('overflow-hidden');
+                    loadSidebarContentToMobileMenu();
                 } else {
-                    // Desktop: toggle sidebar
-                    if (typeof window.toggleSidebar === 'function') {
-                        window.toggleSidebar();
-                    }
+                    document.body.classList.remove('overflow-hidden');
                 }
-            });
-            
-            // Close menu handlers
-            const closeMenu = () => {
-                mobileMenu.classList.remove('open');
-                document.body.classList.remove('overflow-hidden');
-            };
-            
-            if (closeMobileMenu) closeMobileMenu.addEventListener('click', closeMenu);
-            if (mobileMenuOverlay) mobileMenuOverlay.addEventListener('click', closeMenu);
+            } else {
+                // Desktop: toggle sidebar
+                if (typeof window.toggleSidebar === 'function') {
+                    window.toggleSidebar();
+                }
+            }
+        });
+        
+        // Close menu handlers
+        const closeMenu = () => {
+            mobileMenu.classList.remove('open');
+            document.body.classList.remove('overflow-hidden');
+        };
+        
+        if (closeMobileMenu) {
+            closeMobileMenu.addEventListener('click', closeMenu);
+        }
+        if (mobileMenuOverlay) {
+            mobileMenuOverlay.addEventListener('click', closeMenu);
         }
     }
     
@@ -224,6 +233,93 @@
                 if (searchToggle) searchToggle.classList.remove('active');
             }
         }
+        
+        // Fix header responsive issues
+        fixHeaderResponsiveIssues();
+    }
+    
+    /**
+     * Fix header responsive issues dynamically
+     */
+    function fixHeaderResponsiveIssues() {
+        const header = document.querySelector('header');
+        const logo = header?.querySelector('img');
+        const logoContainer = header?.querySelector('.flex.items-center:first-child');
+        const headerContainer = header?.querySelector('.flex.items-center');
+        
+        if (!header || !logo || !logoContainer || !headerContainer) return;
+        
+        const screenWidth = window.innerWidth;
+        
+        // Apply responsive fixes based on screen size
+        if (screenWidth <= 479) {
+            // Extra small screens (320px - 479px)
+            logo.style.maxWidth = '120px';
+            logoContainer.style.maxWidth = '140px';
+            logoContainer.style.flexShrink = '0';
+            logoContainer.style.marginRight = '0.5rem';
+            headerContainer.style.gap = '0.5rem';
+        } else if (screenWidth <= 767) {
+            // Small screens (480px - 767px)
+            logo.style.maxWidth = '140px';
+            logoContainer.style.maxWidth = '160px';
+            logoContainer.style.flexShrink = '0';
+            logoContainer.style.marginRight = '0.75rem';
+            headerContainer.style.gap = '0.75rem';
+        } else if (screenWidth <= 1023) {
+            // Medium screens (768px - 1023px)
+            logo.style.maxWidth = '160px';
+            logoContainer.style.maxWidth = '200px';
+            logoContainer.style.flexShrink = '0';
+            logoContainer.style.marginRight = '0.75rem';
+            headerContainer.style.gap = '1rem';
+        } else {
+            // Large screens (1024px+)
+            logo.style.maxWidth = '200px';
+            logoContainer.style.maxWidth = '250px';
+            logoContainer.style.flexShrink = '0';
+            logoContainer.style.marginRight = '1rem';
+            headerContainer.style.gap = '1.5rem';
+        }
+        
+        // Ensure logo is always visible
+        logo.style.objectFit = 'contain';
+        logo.style.height = 'auto';
+        logo.style.flexShrink = '0';
+        
+        // Prevent sidebar overlap
+        logoContainer.style.zIndex = '10';
+        logoContainer.style.position = 'relative';
+        
+        // Ensure header layout doesn't break
+        headerContainer.style.overflow = 'visible';
+        headerContainer.style.flexWrap = 'nowrap';
+        
+        // Fix icon sizing for different screen sizes
+        const icons = header.querySelectorAll('.header-icon, .discussion-icon, .notification-icon, #mobile-menu-toggle, #profile-button');
+        icons.forEach(icon => {
+            if (screenWidth <= 479) {
+                icon.style.width = '2rem';
+                icon.style.height = '2rem';
+                icon.style.minWidth = '2rem';
+                icon.style.minHeight = '2rem';
+            } else if (screenWidth <= 767) {
+                icon.style.width = '2.25rem';
+                icon.style.height = '2.25rem';
+                icon.style.minWidth = '2.25rem';
+                icon.style.minHeight = '2.25rem';
+            } else if (screenWidth <= 1023) {
+                icon.style.width = '2.75rem';
+                icon.style.height = '2.75rem';
+                icon.style.minWidth = '2.75rem';
+                icon.style.minHeight = '2.75rem';
+            } else {
+                icon.style.width = '3rem';
+                icon.style.height = '3rem';
+                icon.style.minWidth = '3rem';
+                icon.style.minHeight = '3rem';
+            }
+        });
     }
     
     /**
@@ -256,7 +352,7 @@
                 signal: AbortSignal.timeout(30000)
             })
             .then(response => {
-                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                if (!response.ok) throw new Error('HTTP error! status: ' + response.status);
                 return response.json();
             })
             .catch(error => {
@@ -280,7 +376,7 @@
                     const indicator = icon?.querySelector('span:first-of-type');
                     
                     if (icon) {
-                        icon.title = `Messages (${data.unread_count || 0} unread)`;
+                        icon.title = 'Messages (' + (data.unread_count || 0) + ' unread)';
                         
                         if (indicator) {
                             indicator.style.display = data.unread_count > 0 ? 'block' : 'none';
@@ -310,8 +406,8 @@
                     const indicator = document.getElementById('notification-indicator');
                     
                     if (icon) {
-                        const urgentText = data.urgent_count > 0 ? `, ${data.urgent_count} urgent` : '';
-                        icon.title = `Notifications (${data.unread_count || 0} unread${urgentText})`;
+                        const urgentText = data.urgent_count > 0 ? ', ' + data.urgent_count + ' urgent' : '';
+                        icon.title = 'Notifications (' + (data.unread_count || 0) + ' unread' + urgentText + ')';
                         
                         if (indicator) {
                             if (data.unread_count > 0) {
@@ -354,16 +450,27 @@
         initializeMobileMenu();
         initializeMobileSearch();
         
-        // Setup resize handler
+        // Apply responsive fixes on initialization
+        handleResponsiveBreakpoints();
+        
+        // Setup resize handler with enhanced responsive behavior
         let resizeTimeout;
         window.addEventListener('resize', function() {
             clearTimeout(resizeTimeout);
-            resizeTimeout = setTimeout(handleResize, 250);
+            resizeTimeout = setTimeout(() => {
+                handleResize();
+                handleResponsiveBreakpoints();
+            }, 250);
         });
         
         // Update counts every 5 minutes
         updateHeaderCounts();
         setInterval(updateHeaderCounts, 300000);
+        
+        // Test responsiveness in development
+        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+            console.log('Header responsive system initialized. Use HeaderHandler.testResponsiveness() to test.');
+        }
     }
     
     // Initialize on DOM ready
@@ -373,11 +480,94 @@
         initializeHeader();
     }
     
+    /**
+     * Test header responsiveness across different screen sizes
+     */
+    function testHeaderResponsiveness() {
+        const testSizes = [
+            { width: 320, name: 'Extra Small (320px)' },
+            { width: 480, name: 'Small (480px)' },
+            { width: 768, name: 'Medium (768px)' },
+            { width: 1024, name: 'Large (1024px)' },
+            { width: 1440, name: 'Extra Large (1440px)' }
+        ];
+        
+        console.log('Testing header responsiveness...');
+        
+        testSizes.forEach(size => {
+            // Simulate different screen sizes
+            Object.defineProperty(window, 'innerWidth', {
+                writable: true,
+                configurable: true,
+                value: size.width
+            });
+            
+            // Trigger responsive fixes
+            fixHeaderResponsiveIssues();
+            
+            // Check if header elements are properly sized
+            const header = document.querySelector('header');
+            const logo = header?.querySelector('img');
+            const icons = header?.querySelectorAll('.header-icon, .discussion-icon, .notification-icon, #mobile-menu-toggle, #profile-button');
+            
+            console.log(`${size.name}:`, {
+                logoWidth: logo?.style.maxWidth || 'default',
+                iconCount: icons?.length || 0,
+                headerVisible: header?.style.display !== 'none'
+            });
+        });
+        
+        // Restore original width
+        Object.defineProperty(window, 'innerWidth', {
+            writable: true,
+            configurable: true,
+            value: window.screen.width
+        });
+        
+        // Reapply fixes for current screen size
+        fixHeaderResponsiveIssues();
+    }
+    
+    /**
+     * Enhanced responsive behavior with better breakpoint handling
+     */
+    function handleResponsiveBreakpoints() {
+        const screenWidth = window.innerWidth;
+        const header = document.querySelector('header');
+        
+        if (!header) return;
+        
+        // Apply specific fixes for different breakpoints
+        if (screenWidth <= 320) {
+            // Very small screens - minimal layout
+            header.classList.add('header-extra-small');
+            header.classList.remove('header-small', 'header-medium', 'header-large');
+        } else if (screenWidth <= 480) {
+            // Small screens - compact layout
+            header.classList.add('header-small');
+            header.classList.remove('header-extra-small', 'header-medium', 'header-large');
+        } else if (screenWidth <= 768) {
+            // Medium screens - balanced layout
+            header.classList.add('header-medium');
+            header.classList.remove('header-extra-small', 'header-small', 'header-large');
+        } else {
+            // Large screens - full layout
+            header.classList.add('header-large');
+            header.classList.remove('header-extra-small', 'header-small', 'header-medium');
+        }
+        
+        // Apply responsive fixes
+        fixHeaderResponsiveIssues();
+    }
+    
     // Expose functions globally if needed
     window.HeaderHandler = {
         updateCounts: updateHeaderCounts,
         loadMobileMenu: loadSidebarContentToMobileMenu,
-        initializeMobileSubmenus: initializeMobileSubmenus
+        initializeMobileSubmenus: initializeMobileSubmenus,
+        testResponsiveness: testHeaderResponsiveness,
+        fixResponsiveIssues: fixHeaderResponsiveIssues,
+        handleBreakpoints: handleResponsiveBreakpoints
     };
 })();
 

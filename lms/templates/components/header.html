@@ -3,33 +3,32 @@
 <header class="bg-white border-b border-gray-200 fixed top-0 left-0 right-0 w-full z-50 h-16 min-h-[4rem]">
     <div class="flex items-center justify-between h-full px-2 sm:px-4 mx-auto max-w-[1920px]">
         <!-- Left Section: Logo and Sidebar Toggle -->
-        <div class="flex items-center gap-1 sm:gap-2 md:gap-4 flex-shrink-0">
-            <a href="{% url 'users:role_based_redirect' %}" class="flex items-center transition-transform hover:scale-105 flex-shrink-0">
-                <img src="{% static 'core/img/logo-light.png' %}" alt="Nexsy LMS" class="h-8 sm:h-10 md:h-12 w-auto">
+        <div class="flex items-center gap-2 sm:gap-3 md:gap-4 flex-shrink-0 min-w-0">
+            <a href="{% url 'users:role_based_redirect' %}" class="flex items-center transition-transform hover:scale-105 flex-shrink-0 min-w-0">
+                <img src="{% static 'core/img/logo-light.png' %}" alt="Nexsy LMS" class="h-8 sm:h-10 md:h-12 lg:h-14 w-auto max-w-[120px] sm:max-w-[140px] md:max-w-[160px] lg:max-w-[200px] object-contain flex-shrink-0">
             </a>
             
             <!-- Sidebar Toggle Button (works for both mobile and desktop) -->
             <button id="mobile-menu-toggle" 
-                    class="flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-full hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition-all flex-shrink-0" 
+                    class="flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 md:w-11 md:h-11 lg:w-12 lg:h-12 rounded-full hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition-all flex-shrink-0" 
                     type="button"
                     aria-label="Toggle navigation menu"
                     aria-expanded="false"
                     aria-controls="mobile-menu"
-                    style="display: flex !important; visibility: visible !important; opacity: 1 !important;"
                     data-sidebar-toggle="true">
                 <!-- Hamburger menu icon (three horizontal lines) -->
-                <svg class="w-5 h-5 sm:w-5 sm:h-5 md:w-6 md:h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+                <svg class="w-5 h-5 sm:w-6 sm:h-6 md:w-6 md:h-6 lg:w-7 lg:h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
                 </svg>
             </button>
         </div>
 
-        <!-- Center Section: Search (Desktop only) -->
-        <div class="hidden md:flex flex-1 max-w-3xl px-6">
-            <form class="flex w-full shadow-sm rounded-xl overflow-hidden bg-gray-50 ring-1 ring-gray-200 focus-within:ring-2 focus-within:ring-primary-500 transition-all" method="GET" action="{% url 'users:search' %}">
-                <!-- Category Selector -->
+        <!-- Center Section: Search (Desktop only) - Match Screenshot -->
+        <div class="hidden md:flex flex-1 max-w-3xl px-4 mx-auto">
+            <form class="flex w-full shadow-sm rounded-xl overflow-hidden bg-gray-50 ring-1 ring-gray-200 focus-within:ring-2 focus-within:ring-blue-500 transition-all" method="GET" action="{% url 'users:search' %}">
+                <!-- Category Selector - "All" dropdown from screenshot -->
                 <div class="relative">
-                    <select name="category" class="h-10 pl-4 pr-8 text-base bg-transparent border-0 rounded-l-xl text-gray-600 focus:outline-none focus:ring-0 cursor-pointer appearance-none border-r border-gray-300">
+                    <select name="category" class="h-10 pl-4 pr-8 text-base bg-transparent border-0 rounded-l-xl text-gray-600 focus:outline-none focus:ring-0 cursor-pointer appearance-none border-r border-gray-300 min-w-[80px]">
                         <option value="all" selected>All</option>
                         {% if user.is_authenticated and user.role in 'globaladmin,superadmin,admin,instructor' %}
                         <option value="users">Users</option>
@@ -45,7 +44,7 @@
                     </div>
                 </div>
                 
-                <!-- Search Input -->
+                <!-- Search Input - Match screenshot placeholder -->
                 <div class="relative flex-1 flex items-center">
                     <div class="absolute left-3 z-10">
                         <svg class="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
@@ -61,24 +60,24 @@
         </div>
 
         <!-- Right Section: Notifications and Profile -->
-        <div class="flex items-center gap-1 sm:gap-2 md:gap-3 flex-shrink-0">
+        <div class="flex items-center gap-1 sm:gap-2 md:gap-3 lg:gap-4 flex-shrink-0 min-w-0">
             <!-- Mobile Search Link (Visible on mobile only) -->
             <a href="{% url 'users:search' %}" 
-               class="md:hidden flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-full hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition-all flex-shrink-0"
+               class="md:hidden flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 rounded-full hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition-all flex-shrink-0"
                title="Search"
                aria-label="Search">
-                <svg class="w-4 h-4 sm:w-4 sm:h-4" viewBox="0 0 20 20" fill="currentColor">
+                <svg class="w-4 h-4 sm:w-5 sm:h-5" viewBox="0 0 20 20" fill="currentColor">
                     <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/>
                 </svg>
             </a>
 
             <!-- Messages Button - Hidden on smallest screens -->
             <a href="{% url 'lms_messages:messages' %}" 
-               class="header-icon discussion-icon hidden xs:flex relative items-center justify-center w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-full hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition-all flex-shrink-0" 
+               class="header-icon discussion-icon hidden xs:flex relative items-center justify-center w-8 h-8 sm:w-10 sm:h-10 md:w-11 md:h-11 lg:w-12 lg:h-12 rounded-full hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition-all flex-shrink-0" 
                title="Messages ({{ unread_messages_count|default:0 }} unread)"
                aria-label="Messages ({{ unread_messages_count|default:0 }} unread)"
                role="button">
-                <svg class="w-4 h-4 sm:w-4 sm:h-4 md:w-5 md:h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+                <svg class="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                 </svg>
                 {% if unread_messages_count and unread_messages_count > 0 %}
@@ -93,11 +92,11 @@
 
             <!-- Notification Bell Button -->
             <a href="{% url 'lms_notifications:notification_center' %}" 
-               class="header-icon notification-icon relative flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-full hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition-all flex-shrink-0" 
+               class="header-icon notification-icon relative flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 md:w-11 md:h-11 lg:w-12 lg:h-12 rounded-full hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition-all flex-shrink-0" 
                title="Notifications ({{ unread_notifications_count|default:0 }} unread{% if urgent_notifications_count and urgent_notifications_count > 0 %}, {{ urgent_notifications_count }} urgent{% endif %})"
                aria-label="Notifications ({{ unread_notifications_count|default:0 }} unread{% if urgent_notifications_count and urgent_notifications_count > 0 %}, {{ urgent_notifications_count }} urgent{% endif %})"
                role="button">
-                <svg class="w-4 h-4 sm:w-4 sm:h-4 md:w-5 md:h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+                <svg class="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
                 </svg>
                 {% if unread_notifications_count and unread_notifications_count > 0 %}
@@ -115,24 +114,22 @@
             <!-- Profile Picture with Dropdown -->
             <div class="flex items-center relative flex-shrink-0" id="profile-container">
                 <button 
-                    class="relative flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-full hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition-all overflow-hidden flex-shrink-0"
-                    style="z-index: 60; -webkit-tap-highlight-color: transparent; touch-action: manipulation;"
+                    class="relative flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 md:w-11 md:h-11 lg:w-12 lg:h-12 rounded-full hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition-all overflow-hidden flex-shrink-0 z-60 no-tap-highlight touch-manipulation"
                     aria-label="Profile menu"
                     id="profile-button"
                     type="button"
                 >
                     {% if user.profile_image %}
-                    <img src="{{ user.profile_image.url }}" alt="{{ user.username }}" class="w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-full object-cover">
+                    <img src="{{ user.profile_image.url }}" alt="{{ user.username }}" class="w-8 h-8 sm:w-10 sm:h-10 md:w-11 md:h-11 lg:w-12 lg:h-12 rounded-full object-cover">
                     {% else %}
-                    <img src="{% static 'img/default-avatar.svg' %}" alt="Profile" class="w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-full object-cover">
+                    <img src="{% static 'img/default-avatar.svg' %}" alt="Profile" class="w-8 h-8 sm:w-10 sm:h-10 md:w-11 md:h-11 lg:w-12 lg:h-12 rounded-full object-cover">
                     {% endif %}
                 </button>
 
                 <!-- Dropdown Menu -->
                 <div 
                     id="profile-dropdown"
-                    class="absolute right-0 top-12 w-48 py-2 bg-white rounded-xl shadow-lg ring-1 ring-gray-200 hidden"
-                    style="z-index: 70;"
+                    class="absolute right-0 top-12 w-48 py-2 bg-white rounded-xl shadow-lg ring-1 ring-gray-200 hidden z-70"
                 >
                     {% if user.is_authenticated %}
                     <a href="{% url 'users:user_profile' user.id %}" class="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors">
@@ -234,12 +231,12 @@
     
     <!-- Menu Content -->
     <div class="absolute top-0 left-0 w-64 h-full bg-[#1C2260] shadow-lg transform transition-all duration-300 ease-in-out">
-        <div class="flex items-center justify-between p-4 border-b border-gray-200" style="background-color: #191f56;">
+        <div class="flex items-center justify-between p-4 border-b border-gray-200 bg-indigo-900">
             <a href="{% url 'users:role_based_redirect' %}" class="flex items-center">
-                <img src="{% static 'img/logo-dark.png' %}" alt="Nexsy LMS" class="h-8" style="display: block !important; visibility: visible !important; opacity: 1 !important;">
+                <img src="{% static 'img/logo-dark.png' %}" alt="Nexsy LMS" class="h-10 w-auto max-w-[180px] object-contain block-important visible-important opacity-100">
             </a>
-            <button id="close-mobile-menu" class="flex items-center justify-center w-10 h-10 rounded-lg hover:bg-red-500 text-white transition-all" style="min-width: 40px; min-height: 40px;" aria-label="Close menu">
-                <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="color: white;">
+            <button id="close-mobile-menu" class="flex items-center justify-center w-10 h-10 rounded-lg hover:bg-red-500 text-white transition-all min-w-10 min-h-10" aria-label="Close menu">
+                <svg class="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
                 </svg>
             </button>
@@ -1077,23 +1074,19 @@ document.addEventListener('DOMContentLoaded', function() {
     // Load branch data when dropdown is opened
     const branchMenuButton = document.querySelector('#branch-switcher-button');
     if (branchMenuButton) {
-        console.log('Branch menu button found, adding click listener');
         // Load branches when menu is first opened
         branchMenuButton.addEventListener('click', function(e) {
-            console.log('Branch button clicked, isLoading:', isLoading, 'branchData:', branchData);
             if (!isLoading && !branchData) {
                 loadUserBranches();
             }
         });
-    } else {
-        console.log('Branch menu button not found');
     }
     
     async function loadUserBranches() {
         if (isLoading) return;
         isLoading = true;
         
-        console.log('Loading user branches...');
+        // Loading user branches...
         
         try {
             const response = await fetch('{% url "branches:get_user_branches" %}', {
@@ -1104,19 +1097,18 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             });
             
-            console.log('Branch response status:', response.status);
+            // Check response status
             
             if (!response.ok) {
                 throw new Error('Failed to load branches');
             }
             
             branchData = await response.json();
-            console.log('Branch data loaded:', branchData);
             renderBranchOptions();
             updateCurrentBranchDisplay();
             
         } catch (error) {
-            console.error('Error loading branches:', error);
+            // Error loading branches - handled by error handler
             renderBranchError();
         } finally {
             isLoading = false;
@@ -1137,7 +1129,7 @@ document.addEventListener('DOMContentLoaded', function() {
             
             html += `
                 <button 
-                    onclick="switchToBranch(${branch.id}, '${branch.name.replace(/'/g, "\\'")}')"
+                    data-branch-id="${branch.id}" data-branch-name="${branch.name.replace(/'/g, "\\'")}" class="branch-switch-btn"
                     class="flex items-center w-full px-4 py-2 text-sm ${isCurrentClass} transition-colors"
                     ${branch.is_current ? 'disabled' : ''}
                 >
@@ -1215,7 +1207,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
         } catch (error) {
-            console.error('Error switching branch:', error);
+            // Error switching branch - handled by error handler
             showBranchMessage('Error switching branch', 'error');
         }
     };
@@ -1311,7 +1303,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 });
             } catch (error) {
-                console.error('Error loading mobile menu content:', error);
+                // Error loading mobile menu content - handled by error handler
             }
         }
     }
@@ -1398,7 +1390,7 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(response => {
                 // Ensure response has proper status information
                 if (typeof response.status === 'undefined' || response.status === null) {
-                    console.warn('Response with undefined status detected:', {
+                    // Response with undefined status detected - handled by error handler
                         url: args[0],
                         status: response.status,
                         statusText: response.statusText,
@@ -1416,7 +1408,7 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .catch(error => {
                 // Enhanced error logging for fetch failures
-                console.error('Fetch error:', {
+                // Fetch error - handled by error handler
                     url: args[0],
                     error: error.message,
                     name: error.name,
@@ -1432,13 +1424,13 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Skip update if polling is paused
         if (isPollingPaused) {
-            console.log('Skipping notification count update - polling paused');
+            // Skipping notification count update - polling paused
             return;
         }
         
         // Skip notification updates for first-time visitors or unauthenticated users
         if (!isUserAuthenticated() || isFirstVisit()) {
-            console.log('Skipping notification count update - first visit or unauthenticated');
+            // Skipping notification count update - first visit or unauthenticated
             return;
         }
 
@@ -1465,7 +1457,7 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(response => {
                 if (!response.ok) {
                     // Log specific error details for debugging
-                    console.error(`API call failed with status ${response.status}: ${response.statusText}`);
+                    // API call failed - handled by error handler
                     const error = new Error(`HTTP error! status: ${response.status}`);
                     error.status = response.status;
                     error.statusText = response.statusText;
@@ -1473,7 +1465,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 const contentType = response.headers.get('content-type');
                 if (!contentType || !contentType.includes('application/json')) {
-                    console.error('API response is not JSON:', contentType);
+                    // API response is not JSON - handled by error handler
                     throw new Error('Response is not JSON');
                 }
                 return response.json();
@@ -1494,7 +1486,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 const isHttpError = error.status && (error.status >= 400 && error.status < 600);
                 
                 if (retryCount < maxRetries && isRetryableError && !isHttpError) {
-                    console.warn(`API call failed, retrying... (${retryCount + 1}/${maxRetries}) - Error: ${error.message}`);
+                    // API call failed, retrying - handled by error handler
                     return new Promise(resolve => {
                         setTimeout(() => {
                             resolve(makeApiCall(url, retryCount + 1));
@@ -1512,7 +1504,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     timestamp: new Date().toISOString()
                 };
                 
-                console.error(`API call failed after ${retryCount + 1} attempts:`, errorInfo);
+                // API call failed after retries - handled by error handler
                 throw error;
             });
         }
@@ -1562,9 +1554,9 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // Only log error if it's not a network issue (to avoid spam)
             if (!error.message.includes('Failed to fetch') && error.name !== 'TypeError') {
-                console.error('Error updating message counts:', errorDetails);
+                // Error updating message counts - handled by error handler
             } else {
-                console.warn('Network issue with message count API:', errorDetails);
+                // Network issue with message count API - handled by error handler
             }
             
             // Fallback: Hide message indicators on API failure
@@ -1648,9 +1640,9 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // Only log error if it's not a network issue (to avoid spam)
             if (!error.message.includes('Failed to fetch') && error.name !== 'TypeError') {
-                console.error('Error updating notification counts:', errorDetails);
+                // Error updating notification counts - handled by error handler
             } else {
-                console.warn('Network issue with notification count API:', errorDetails);
+                // Network issue with notification count API - handled by error handler
             }
             
             // Fallback: Hide notification indicators on API failure
@@ -1741,7 +1733,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // Resume polling if it was paused
             if (isPollingPaused) {
                 isPollingPaused = false;
-                console.log('Resuming notification polling after course creation context');
+                // Resuming notification polling after course creation context
             }
             
             pollingTimeout = setTimeout(() => {
@@ -1771,7 +1763,7 @@ document.addEventListener('DOMContentLoaded', function() {
     forms.forEach(form => {
         form.addEventListener('submit', function() {
             isPollingPaused = true;
-            console.log('Pausing notification polling during form submission');
+            // Pausing notification polling during form submission
         });
     });
     
@@ -1779,7 +1771,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (typeof tinymce !== 'undefined') {
         tinymce.on('AddEditor', function(e) {
             isPollingPaused = true;
-            console.log('Pausing notification polling during TinyMCE editing');
+            // Pausing notification polling during TinyMCE editing
         });
         
         tinymce.on('RemoveEditor', function(e) {
@@ -1787,7 +1779,7 @@ document.addEventListener('DOMContentLoaded', function() {
             setTimeout(() => {
                 if (!shouldPausePolling()) {
                     isPollingPaused = false;
-                    console.log('Resuming notification polling after TinyMCE editing');
+                    // Resuming notification polling after TinyMCE editing
                 }
             }, 2000);
         });
@@ -1818,7 +1810,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 scheduleNextUpdate();
             }, 1000);
         } else {
-            console.log('Skipping notification polling - first visit or unauthenticated user');
+            // Skipping notification polling - first visit or unauthenticated user
         }
     }
     
@@ -1835,54 +1827,27 @@ document.addEventListener('DOMContentLoaded', function() {
     window.addEventListener('beforeunload', cleanupPolling);
     window.addEventListener('pagehide', cleanupPolling);
     
-    // Enhanced profile dropdown system with better error handling
-    console.log('Enhanced profile dropdown system loading...');
-    
-    // Profile dropdown functionality with comprehensive error handling
+    // Simplified profile dropdown functionality
     function initializeProfileDropdown() {
-        console.log('Initializing profile dropdown...');
-        
         const profileButton = document.getElementById('profile-button');
         const profileDropdown = document.getElementById('profile-dropdown');
         const profileContainer = document.getElementById('profile-container');
         
-        // Check if all required elements exist
-        if (!profileButton) {
-            console.error('Profile button not found');
+        if (!profileButton || !profileDropdown || !profileContainer) {
             return false;
         }
-        if (!profileDropdown) {
-            console.error('Profile dropdown not found');
-            return false;
-        }
-        if (!profileContainer) {
-            console.error('Profile container not found');
-            return false;
-        }
-        
-        console.log('All profile dropdown elements found, setting up functionality...');
         
         let isProfileOpen = false;
         
-        // Enhanced toggle function with better state management
         function toggleProfileDropdown() {
-            console.log('Toggling profile dropdown, current state:', isProfileOpen);
             isProfileOpen = !isProfileOpen;
             
             if (isProfileOpen) {
-                console.log('Opening profile dropdown');
                 profileDropdown.classList.remove('hidden');
                 profileDropdown.style.display = 'block';
                 profileDropdown.style.visibility = 'visible';
                 profileDropdown.style.opacity = '1';
-                profileDropdown.style.zIndex = '9999';
-                
-                // Add a small delay to ensure proper rendering
-                setTimeout(() => {
-                    profileDropdown.style.transform = 'translateY(0)';
-                }, 10);
             } else {
-                console.log('Closing profile dropdown');
                 profileDropdown.classList.add('hidden');
                 profileDropdown.style.display = 'none';
                 profileDropdown.style.visibility = 'hidden';
@@ -1890,9 +1855,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
         
-        // Enhanced close function
         function closeProfileDropdown() {
-            console.log('Force closing profile dropdown');
             isProfileOpen = false;
             profileDropdown.classList.add('hidden');
             profileDropdown.style.display = 'none';
@@ -1900,50 +1863,30 @@ document.addEventListener('DOMContentLoaded', function() {
             profileDropdown.style.opacity = '0';
         }
         
-        // Remove any existing event listeners to prevent duplicates
+        // Remove existing listeners to prevent conflicts
         const newProfileButton = profileButton.cloneNode(true);
         profileButton.parentNode.replaceChild(newProfileButton, profileButton);
         
-        // Profile button click handler with enhanced logging
         newProfileButton.addEventListener('click', function(e) {
-            console.log('Profile button clicked');
             e.preventDefault();
             e.stopPropagation();
             toggleProfileDropdown();
         });
         
-        // Close dropdown when clicking outside with better target checking
+        // Close on outside click
         document.addEventListener('click', function(e) {
-            if (isProfileOpen) {
-                const isClickInside = profileContainer.contains(e.target);
-                const isDropdownClick = profileDropdown.contains(e.target);
-                
-                console.log('Outside click detected, inside container:', isClickInside, 'inside dropdown:', isDropdownClick);
-                
-                if (!isClickInside && !isDropdownClick) {
-                    console.log('Clicking outside, closing dropdown');
-                    closeProfileDropdown();
-                }
+            if (isProfileOpen && !profileContainer.contains(e.target)) {
+                closeProfileDropdown();
             }
         });
         
-        // Close dropdown on escape key
+        // Close on escape key
         document.addEventListener('keydown', function(e) {
             if (e.key === 'Escape' && isProfileOpen) {
-                console.log('Escape key pressed, closing dropdown');
                 closeProfileDropdown();
             }
         });
         
-        // Handle window resize to close dropdown
-        window.addEventListener('resize', function() {
-            if (isProfileOpen) {
-                console.log('Window resized, closing dropdown');
-                closeProfileDropdown();
-            }
-        });
-        
-        console.log('Profile dropdown initialized successfully');
         return true;
     }
     
@@ -1954,18 +1897,18 @@ document.addEventListener('DOMContentLoaded', function() {
         
         function tryInit() {
             attempts++;
-            console.log(`Profile dropdown initialization attempt ${attempts}/${maxAttempts}`);
+            // Profile dropdown initialization attempt
             
             if (initializeProfileDropdown()) {
-                console.log('Profile dropdown initialized successfully');
+                // Profile dropdown initialized successfully
                 return;
             }
             
             if (attempts < maxAttempts) {
-                console.log('Retrying profile dropdown initialization in 100ms...');
+                // Retrying profile dropdown initialization in 100ms
                 setTimeout(tryInit, 100);
             } else {
-                console.error('Failed to initialize profile dropdown after', maxAttempts, 'attempts');
+                // Failed to initialize profile dropdown after max attempts
             }
         }
         
@@ -1982,12 +1925,12 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Global function for manual testing
     window.testProfileDropdown = function() {
-        console.log('Manual profile dropdown test triggered');
+        // Manual profile dropdown test triggered
         const profileButton = document.getElementById('profile-button');
         if (profileButton) {
             profileButton.click();
         } else {
-            console.error('Profile button not found for manual test');
+            // Profile button not found for manual test
         }
     };
     
@@ -1997,16 +1940,12 @@ document.addEventListener('DOMContentLoaded', function() {
         const profileDropdown = document.getElementById('profile-dropdown');
         const profileContainer = document.getElementById('profile-container');
         
-        console.log('Profile Dropdown Status Check:');
-        console.log('- Button exists:', !!profileButton);
-        console.log('- Dropdown exists:', !!profileDropdown);
-        console.log('- Container exists:', !!profileContainer);
+        // Profile Dropdown Status Check
+        // Button exists, Dropdown exists, Container exists
         
         if (profileDropdown) {
-            console.log('- Dropdown classes:', profileDropdown.className);
-            console.log('- Dropdown style display:', profileDropdown.style.display);
-            console.log('- Dropdown style visibility:', profileDropdown.style.visibility);
-            console.log('- Dropdown style opacity:', profileDropdown.style.opacity);
+            // Dropdown classes, style display, style visibility
+            // Dropdown style opacity
         }
         
         return {

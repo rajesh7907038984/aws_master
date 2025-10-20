@@ -14,7 +14,7 @@ function editTopic(topicId) {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
     
-    const requestUrl = `/courses/topic/${topicId}/edit/`;
+    const requestUrl = '/courses/topic/' + topicId + '/edit/';
     
     fetch(requestUrl, {
         method: 'GET',
@@ -27,7 +27,7 @@ function editTopic(topicId) {
     .then(response => {
         clearTimeout(timeoutId); // Clear timeout on successful response
         if (!response.ok) {
-            throw new Error(`Network response was not ok: ${response.status} ${response.statusText}`);
+            throw new Error('Network response was not ok: ' + response.status + ' ' + response.statusText);
         }
         return response.json();
     })
@@ -35,8 +35,8 @@ function editTopic(topicId) {
         if (data.success) {
             
             // First navigate to the edit page if not already there
-            if (!window.location.href.includes(`/topic/${topicId}/edit/`)) {
-                window.location.href = `/courses/topic/${topicId}/edit/`;
+            if (!window.location.href.includes('/topic/' + topicId + '/edit/')) {
+                window.location.href = '/courses/topic/' + topicId + '/edit/';
                 return;
             }
             
@@ -65,7 +65,7 @@ function editTopic(topicId) {
             }
             
             // Select the proper content type radio button
-            const contentTypeRadio = document.querySelector(`input[name="content_type"][value="${data.topic.content_type}"]`);
+            const contentTypeRadio = document.querySelector('input[name="content_type"][value="' + data.topic.content_type + '"]');
             if (contentTypeRadio) {
                 contentTypeRadio.checked = true;
                 
@@ -135,11 +135,11 @@ function editTopic(topicId) {
                     case 'Video':
                     case 'Document':
                         if (data.topic.content_file) {
-                            const fileContainer = document.querySelector(`#${data.topic.content_type.toLowerCase()}-content .file-upload-container`);
+                            const fileContainer = document.querySelector('#' + data.topic.content_type.toLowerCase() + '-content .file-upload-container');
                             if (fileContainer) {
                                 const filenameEl = fileContainer.querySelector('.selected-filename');
                                 if (filenameEl) {
-                                    filenameEl.textContent = `Current file: ${getFilenameFromUrl(data.topic.content_file)}`;
+                                    filenameEl.textContent = 'Current file: ' + getFilenameFromUrl(data.topic.content_file);
                                     filenameEl.classList.remove('hidden');
                                 }
                             }
@@ -172,14 +172,14 @@ function editTopic(topicId) {
         } else {
             // Show more detailed error message
             const errorMessage = error.message || 'Error loading topic data';
-            showNotification(`Topic edit failed: ${errorMessage}`, 'error');
+            showNotification('Topic edit failed: ' + errorMessage, 'error');
         }
         
         // Fallback: redirect to course edit page
         setTimeout(() => {
             const courseId = window.location.pathname.match(/\/courses\/(\d+)\/edit\//);
             if (courseId) {
-                window.location.href = `/courses/${courseId[1]}/edit/`;
+                window.location.href = '/courses/' + courseId[1] + '/edit/';
             }
         }, 3000);
     });
@@ -196,7 +196,7 @@ function setFieldValue(fieldId, value) {
     
     // If not found, try looking by name attribute
     if (!field) {
-        field = document.querySelector(`[name="${fieldId}"]`);
+        field = document.querySelector('[name="' + fieldId + '"]');
         if (field) {
         }
     }
@@ -204,7 +204,7 @@ function setFieldValue(fieldId, value) {
     // If still not found, try alternate IDs (for example, without 'topic_' prefix)
     if (!field && fieldId.startsWith('topic_')) {
         const altId = fieldId.replace('topic_', '');
-        field = document.getElementById(altId) || document.querySelector(`[name="${altId}"]`);
+        field = document.getElementById(altId) || document.querySelector('[name="' + altId + '"]');
         if (field) {
         }
     }
@@ -237,10 +237,10 @@ function setFieldValue(fieldId, value) {
 // Helper function to set select field value
 function setSelectFieldValue(fieldName, valueId) {
     if (!valueId) return;
-    const select = document.querySelector(`select[name="${fieldName}"]`);
+    const select = document.querySelector('select[name="' + fieldName + '"]');
     if (select) {
         // First try to find the option by value
-        let option = select.querySelector(`option[value="${valueId}"]`);
+        let option = select.querySelector('option[value="' + valueId + '"]');
         
         if (option) {
             option.selected = true;
@@ -251,7 +251,7 @@ function setSelectFieldValue(fieldName, valueId) {
             
             // In case options are loaded dynamically, try again after a short delay
             setTimeout(() => {
-                const retryOption = select.querySelector(`option[value="${valueId}"]`);
+                const retryOption = select.querySelector('option[value="' + valueId + '"]');
                 if (retryOption) {
                     retryOption.selected = true;
                     // Trigger a change event
@@ -410,7 +410,7 @@ function deleteTopic(topicId) {
     const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
     
     // Make a POST request to delete the topic
-    fetch(`/courses/topic/${topicId}/delete/`, {
+    fetch('/courses/topic/' + topicId + '/delete/', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -435,7 +435,7 @@ function deleteTopic(topicId) {
     .then(data => {
         if (data.success) {
             // Remove the topic element from the DOM
-            const topicElement = document.querySelector(`[data-topic-id="${topicId}"]`);
+            const topicElement = document.querySelector('[data-topic-id="' + topicId + '"]');
             if (topicElement) {
                 topicElement.remove();
                 
@@ -494,7 +494,7 @@ function deleteTopic(topicId) {
 // Function to view a topic
 function viewTopic(topicId) {
     // Redirect to the topic view page
-    window.location.href = `/courses/topic/${topicId}/view/?manual=True`;
+    window.location.href = '/courses/topic/' + topicId + '/view/?manual=True';
 }
 
 // Function to move a topic up or down
@@ -517,7 +517,7 @@ function moveTopic(topicId, direction) {
     })
     .then(response => {
         if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+            throw new Error('HTTP error! status: ' + response.status);
         }
         return response.json();
     })
@@ -797,7 +797,7 @@ function performAutoComplete(topicId, completeForm) {
     })
     .then(response => {
         if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+            throw new Error('HTTP error! status: ' + response.status);
         }
         return response.json();
     })

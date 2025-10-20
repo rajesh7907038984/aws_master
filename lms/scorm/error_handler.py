@@ -274,17 +274,7 @@ def scorm_console_cleaner(request):
                 'webkit', 'vendor prefix', 'deprecated',
                 'autoplay', 'muted', 'playsinline',
                 'x-frame-options', 'content-security-policy',
-                '301', 'Already initialized', 'already initialized',
-                'SCORM', 'API_1484_11', 'API_1484_11_Extended',
-                'LMSInitialize', 'LMSFinish', 'LMSGetValue',
-                'LMSSetValue', 'LMSCommit', 'LMSGetLastError',
-                'LMSGetErrorString', 'LMSGetDiagnostic',
-                'API', 'FindAPI', 'GetAPI', 'SCORM_API',
-                'articulate', 'storyline', 'rise',
-                'player', 'content', 'launch',
-                'blob:', 'data:', 'javascript:',
-                'mixed content', 'insecure content',
-                'blocked', 'refused', 'denied'
+                '301', 'Already initialized', 'already initialized'
             ];
             
             return filteredErrors.some(filter => 

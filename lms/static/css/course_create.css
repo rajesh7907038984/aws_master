@@ -189,15 +189,7 @@
     cursor: pointer;
 }
 
-.btn-primary {
-    background-color: var(--brand-primary);
-    color: white;
-    border: none;
-}
-
-.btn-primary:hover {
-    background-color: #2563eb;
-}
+/* Button styles moved to unified-button-system.css */
 
 .btn-secondary {
     background-color: #f3f4f6;

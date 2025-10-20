@@ -2,7 +2,6 @@ import os
 import zipfile
 import json
 import logging
-import traceback
 from django.db import models
 from django.conf import settings
 # Removed unused default_storage import - using SCORMS3Storage instead
@@ -112,7 +111,7 @@ class ELearningPackage(models.Model):
         return "{} Package: {}".format(self.get_package_type_display(), self.title or self.topic.title)
     
     def extract_package(self):
-        """Extract e-learning package DIRECTLY to S3 without using local disk storage"""
+        """Extract e-learning package to temp directory for S3 storage with enhanced error handling"""
         try:
             if not self.package_file:
                 error_msg = "No package file to extract"
@@ -142,177 +141,152 @@ class ELearningPackage(models.Model):
                     self.package_type = 'SCORM_1_2'
                     self.save()
             
-            # Create topic-based directory structure for S3
+            # Create topic-based directory structure using the custom storage
+            # Note: SCORMS3Storage already has location='elearning', so we don't need to add it again
             topic_dir = f"packages/{self.topic.id}"
             
-            logger.info(f"SCORM: Starting DIRECT S3 extraction for topic {self.topic.id} - NO local disk usage")
-            
-            # Extract ZIP directly to S3 without local storage
-            try:
-                import io
-                from django.core.files.base import ContentFile
-                
-                # Read ZIP file from S3 into memory
-                logger.info(f"SCORM: Reading ZIP file from S3 into memory...")
-                with self.package_file.open('rb') as source:
-                    zip_data = source.read()
-                
-                # Open ZIP from memory
-                zip_buffer = io.BytesIO(zip_data)
-                
-                # Validate ZIP file
+            # Ensure the directory exists using the storage system
+            if not self.package_file.storage.exists(topic_dir):
+                # For S3 storage, directories are created implicitly when files are saved
+                # Just verify the storage is accessible
                 try:
-                    with zipfile.ZipFile(zip_buffer, 'r') as zip_ref:
-                        # Test if ZIP is valid
-                        bad_file = zip_ref.testzip()
-                        if bad_file:
-                            error_msg = f"Corrupted file in ZIP: {bad_file}"
-                            logger.error(error_msg)
-                            self.extraction_error = error_msg
-                            self.is_extracted = False
-                            self.save()
-                            return False
-                        
-                        total_files = len(zip_ref.namelist())
-                        logger.info(f"SCORM: ZIP validation passed - {total_files} files found")
-                        
-                except zipfile.BadZipFile as e:
-                    error_msg = f"Invalid ZIP file format: {str(e)}"
-                    logger.error(error_msg)
-                    self.extraction_error = error_msg
-                    self.is_extracted = False
-                    self.save()
-                    return False
+                    # Test storage accessibility by checking if we can list the parent directory
+                    parent_dir = os.path.dirname(topic_dir)
+                    if parent_dir and parent_dir != topic_dir:
+                        # Try to list parent directory to verify storage access
+                        list(self.package_file.storage.listdir(parent_dir))
+                except Exception as e:
+                    logger.warning(f"Storage directory check failed: {e}")
+                    # Continue anyway as S3 creates directories implicitly
+            
+            # S3 storage - use temp directory for extraction
+            import tempfile
+            import shutil
+            full_topic_dir = os.path.join(tempfile.gettempdir(), 'elearning', topic_dir)
+            zip_path = None
+            
+            try:
+                # Ensure the temp extraction directory exists
+                os.makedirs(full_topic_dir, exist_ok=True)
                 
-                # Reset buffer position
-                zip_buffer.seek(0)
+                # Extract the ZIP file
+                # For S3 storage, we need to download the file to a temporary location first
+                import io
                 
-                # Extract all files DIRECTLY to S3
-                logger.info(f"SCORM: Extracting {total_files} files DIRECTLY to S3...")
-                uploaded_count = 0
-                failed_count = 0
-                manifest_content = None
-                manifest_filename = None
-                all_files = []
-                
-                with zipfile.ZipFile(zip_buffer, 'r') as zip_ref:
-                    for file_info in zip_ref.infolist():
-                        # Skip directories
-                        if file_info.is_dir():
-                            continue
-                        
-                        filename = file_info.filename
-                        
-                        # Security check: prevent path traversal
-                        if '..' in filename or filename.startswith('/'):
-                            logger.warning(f"SCORM: Skipping potentially unsafe file: {filename}")
-                            failed_count += 1
-                            continue
-                        
-                        try:
-                            # Read file content from ZIP
-                            file_content = zip_ref.read(filename)
-                            
-                            # Store all filenames for launch file detection
-                            all_files.append(filename)
-                            
-                            # Check if this is a manifest file - store in memory for parsing
-                            filename_lower = filename.lower()
-                            if self.package_type in ['SCORM_1_2', 'SCORM_2004']:
-                                if filename_lower.endswith('imsmanifest.xml') or filename_lower.endswith('manifest.xml'):
-                                    manifest_content = file_content
-                                    manifest_filename = filename
-                                    logger.info(f"SCORM: Found manifest file: {filename}")
-                            elif self.package_type == 'XAPI':
-                                if filename_lower.endswith('tincan.xml') or filename_lower.endswith('tincan.json'):
-                                    manifest_content = file_content
-                                    manifest_filename = filename
-                            elif self.package_type == 'CMI5':
-                                if filename_lower.endswith('cmi5.xml') or filename_lower.endswith('cmi5.json'):
-                                    manifest_content = file_content
-                                    manifest_filename = filename
-                            elif self.package_type == 'AICC':
-                                if filename_lower.endswith('.cst') or filename_lower.endswith('au.txt'):
-                                    manifest_content = file_content
-                                    manifest_filename = filename
-                            
-                            # Determine content type
-                            content_type = self._get_enhanced_content_type(filename, filename)
-                            
-                            # Create S3 path
-                            s3_path = f"{topic_dir}/{filename}"
-                            
-                            # Upload directly to S3
-                            content_file = ContentFile(file_content)
-                            self.package_file.storage.save(s3_path, content_file)
-                            
-                            uploaded_count += 1
-                            
-                            if uploaded_count % 100 == 0:
-                                logger.info(f"SCORM: Uploaded {uploaded_count}/{total_files} files to S3...")
-                            
-                        except Exception as e:
-                            logger.error(f"SCORM: Failed to upload {filename} to S3: {e}")
-                            failed_count += 1
-                
-                logger.info(f"SCORM: Extraction complete - {uploaded_count} files uploaded, {failed_count} failed")
-                
-                # Validation: Check if any files were uploaded
-                if uploaded_count == 0:
-                    error_msg = "No files were successfully extracted to S3"
-                    logger.error(error_msg)
-                    self.extraction_error = error_msg
-                    self.is_extracted = False
-                    self.save()
-                    return False
-                
-                # Parse manifest from memory if found
-                if manifest_content and manifest_filename:
-                    self.manifest_path = manifest_filename
+                # Create a temporary file for the ZIP
+                with tempfile.NamedTemporaryFile(suffix='.zip', delete=False) as temp_file:
                     try:
-                        self._parse_manifest_from_content(manifest_content, manifest_filename)
+                        # Download from S3 to temp file
+                        with self.package_file.open('rb') as source:
+                            content = source.read()
+                            temp_file.write(content)
                     except Exception as e:
-                        logger.warning(f"SCORM: Failed to parse manifest: {e}")
+                        error_msg = f"Could not read package file from S3: {str(e)}"
+                        logger.error(error_msg)
+                        self.extraction_error = error_msg
+                        self.is_extracted = False
+                        self.save()
+                        return False
+                    zip_path = temp_file.name
                 
-                # Find launch file from extracted file list
-                self.launch_file = self._find_launch_file_from_list(all_files)
-                if self.launch_file:
-                    logger.info(f"SCORM: Launch file detected: {self.launch_file} for package type {self.package_type}")
-                    
-                    # Verify launch file exists in S3
-                    launch_path = f"{topic_dir}/{self.launch_file}"
-                    if self.package_file.storage.exists(launch_path):
-                        logger.info(f"SCORM: Verified launch file exists in S3: {launch_path}")
-                    else:
-                        logger.warning(f"SCORM: Launch file not found in S3: {launch_path}")
-                else:
-                    logger.warning(f"SCORM: No launch file found for package type {self.package_type}")
+                # Validate ZIP file before extraction
+                try:
+                    with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+                        # Test if ZIP is valid
+                        zip_ref.testzip()
+                except zipfile.BadZipFile:
+                    error_msg = "Invalid ZIP file format"
+                    logger.error(error_msg)
+                    self.extraction_error = error_msg
+                    self.is_extracted = False
+                    self.save()
+                    return False
+                except Exception as e:
+                    error_msg = f"Error validating ZIP file: {str(e)}"
+                    logger.error(error_msg)
+                    self.extraction_error = error_msg
+                    self.is_extracted = False
+                    self.save()
+                    return False
                 
+                # Extract the ZIP file
+                try:
+                    with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+                        zip_ref.extractall(full_topic_dir)
+                except Exception as e:
+                    error_msg = f"Error extracting ZIP file: {str(e)}"
+                    logger.error(error_msg)
+                    self.extraction_error = error_msg
+                    self.is_extracted = False
+                    self.save()
+                    return False
+                
+            finally:
+                # Clean up temp file
+                if zip_path and os.path.exists(zip_path):
+                    try:
+                        os.unlink(zip_path)
+                    except Exception as e:
+                        logger.warning(f"Failed to clean up temp file {zip_path}: {e}")
+            
+            # Find and parse the manifest based on package type
+            manifest_path = self._find_manifest(full_topic_dir)
+            if manifest_path:
+                # Store relative path for storage compatibility
+                self.manifest_path = os.path.relpath(manifest_path, full_topic_dir)
+                self._parse_manifest(manifest_path)
+            
+            # Find the launch file
+            self.launch_file = self._find_launch_file(full_topic_dir)
+            if self.launch_file:
+                logger.info(f"SCORM: Launch file detected: {self.launch_file} for package type {self.package_type}")
+            else:
+                logger.warning(f"SCORM: No launch file found for package type {self.package_type}")
+                # Don't fail here, some packages might work without a specific launch file
+            
+            # Upload extracted content to S3
+            try:
+                self._upload_extracted_content_to_s3(full_topic_dir, topic_dir)
             except Exception as e:
-                error_msg = f"Error during direct S3 extraction: {str(e)}"
+                error_msg = f"Error uploading extracted content to S3: {str(e)}"
                 logger.error(error_msg)
-                logger.error(f"Exception details: {traceback.format_exc()}")
                 self.extraction_error = error_msg
                 self.is_extracted = False
                 self.save()
                 return False
+            finally:
+                # Clean up temporary extraction directory
+                if os.path.exists(full_topic_dir):
+                    try:
+                        shutil.rmtree(full_topic_dir)
+                        logger.debug(f"Cleaned up temporary extraction directory: {full_topic_dir}")
+                    except Exception as e:
+                        logger.warning(f"Failed to clean up extraction directory {full_topic_dir}: {e}")
             
-            # Set extraction status
-            self.extracted_path = topic_dir
+            self.extracted_path = topic_dir  # Store without elearning prefix to avoid double prefixing
             self.is_extracted = True
             self.extraction_error = ""
             self.save()
             
-            logger.info(f"SCORM: Successfully extracted {self.package_type} package for topic {self.topic.id} DIRECTLY to S3 (no local disk used)")
+            logger.info("Successfully extracted {} package for topic {}".format(self.package_type, self.topic.id))
             return True
             
         except Exception as e:
-            error_msg = f"Error extracting {getattr(self, 'package_type', 'unknown')} package: {str(e)}"
+            error_msg = "Error extracting {} package: {}".format(getattr(self, 'package_type', 'unknown'), str(e))
             logger.error(error_msg)
-            logger.error(f"Exception details: {traceback.format_exc()}")
             self.extraction_error = error_msg
             self.is_extracted = False
             self.save()
+            
+            # Clean up any temporary files/directories in case of exception
+            try:
+                if 'zip_path' in locals() and zip_path and os.path.exists(zip_path):
+                    os.unlink(zip_path)
+                if 'full_topic_dir' in locals() and full_topic_dir and os.path.exists(full_topic_dir):
+                    shutil.rmtree(full_topic_dir)
+            except Exception as cleanup_error:
+                logger.warning(f"Failed to clean up after exception: {cleanup_error}")
+            
             return False
     
     def _find_manifest(self, base_path):
@@ -352,102 +326,29 @@ class ELearningPackage(models.Model):
             logger.error("Error parsing {} manifest: {}".format(self.package_type, str(e)))
     
     def _parse_scorm_manifest(self, manifest_path):
-        """Parse SCORM manifest to extract metadata with enhanced error handling"""
-        try:
-            # Try to parse with different encodings
-            encodings = ['utf-8', 'utf-16', 'latin-1', 'cp1252']
-            tree = None
-            
-            for encoding in encodings:
-                try:
-                    with open(manifest_path, 'r', encoding=encoding) as f:
-                        content = f.read()
-                    tree = ET.fromstring(content)
-                    break
-                except (UnicodeDecodeError, ET.ParseError):
-                    continue
-            
-            if tree is None:
-                logger.error(f"SCORM: Failed to parse manifest with any encoding: {manifest_path}")
-                return
-            
-            # Handle different namespace versions
-            namespaces = {
-                'imscp': 'http://www.imsproject.org/xsd/imscp_rootv1p1p0',
-                'imscp_v1p2': 'http://www.imsglobal.org/xsd/imscp_v1p1',
-                'adlcp': 'http://www.adlnet.org/xsd/adlcp_rootv1p2',
-                'adlcp_v1p3': 'http://www.adlnet.org/xsd/adlcp_v1p3'
-            }
-            
-            # Try to extract title with multiple namespace attempts
-            title = ""
-            for ns_prefix, ns_url in namespaces.items():
-                try:
-                    title_elem = tree.find(f'.//{{{ns_url}}}title')
-                    if title_elem is not None and title_elem.text:
-                        title = title_elem.text.strip()
-                        break
-                except:
-                    continue
-            
-            if not title:
-                # Fallback to generic title search
-                for elem in tree.iter():
-                    if elem.tag.endswith('title') and elem.text:
-                        title = elem.text.strip()
-                        break
-            
-            self.title = title or "Untitled SCORM Package"
-            
-            # Extract description with multiple namespace attempts
-            description = ""
-            for ns_prefix, ns_url in namespaces.items():
-                try:
-                    desc_elem = tree.find(f'.//{{{ns_url}}}description')
-                    if desc_elem is not None and desc_elem.text:
-                        description = desc_elem.text.strip()
-                        break
-                except:
-                    continue
-            
-            self.description = description or ""
-            
-            # Extract version
-            version = ""
-            for ns_prefix, ns_url in namespaces.items():
-                try:
-                    version_elem = tree.find(f'.//{{{ns_url}}}version')
-                    if version_elem is not None and version_elem.text:
-                        version = version_elem.text.strip()
-                        break
-                except:
-                    continue
-            
-            self.version = version or "1.0"
-            
-            # Extract organization
-            organization = ""
-            for ns_prefix, ns_url in namespaces.items():
-                try:
-                    org_elem = tree.find(f'.//{{{ns_url}}}organization')
-                    if org_elem is not None:
-                        organization = org_elem.get('identifier', '') or org_elem.get('id', '')
-                        if organization:
-                            break
-                except:
-                    continue
-            
-            self.organization = organization or ""
-            
-            logger.info(f"SCORM: Successfully parsed manifest - Title: {self.title}, Version: {self.version}")
-            
-        except Exception as e:
-            logger.error(f"SCORM: Error parsing SCORM manifest {manifest_path}: {e}")
-            # Set default values on error
-            self.title = "SCORM Package"
-            self.description = ""
-            self.version = "1.0"
-            self.organization = ""
+        """Parse SCORM manifest to extract metadata"""
+        tree = ET.parse(manifest_path)
+        root = tree.getroot()
+        
+        # Extract title
+        title_elem = root.find('.//{http://www.imsproject.org/xsd/imscp_rootv1p1p0}title')
+        if title_elem is not None:
+            self.title = title_elem.text or ""
+        
+        # Extract description
+        desc_elem = root.find('.//{http://www.imsproject.org/xsd/imscp_rootv1p1p0}description')
+        if desc_elem is not None:
+            self.description = desc_elem.text or ""
+        
+        # Extract version
+        version_elem = root.find('.//{http://www.imsproject.org/xsd/imscp_rootv1p1p0}version')
+        if version_elem is not None:
+            self.version = version_elem.text or ""
+        
+        # Extract organization
+        org_elem = root.find('.//{http://www.imsproject.org/xsd/imscp_rootv1p1p0}organization')
+        if org_elem is not None:
+            self.organization = org_elem.get('identifier', '')
     
     def _parse_xapi_manifest(self, manifest_path):
         """Parse xAPI (Tin Can) manifest to extract metadata"""
@@ -640,601 +541,57 @@ class ELearningPackage(models.Model):
         logger.warning(f"SCORM: No launch file found for package type {self.package_type}")
         return None
     
-    def _find_launch_file_from_list(self, file_list):
-        """Find launch file from a list of filenames (for direct S3 extraction)"""
-        if not file_list:
-            return None
-        
-        # Define priority launch files based on package type
-        launch_files = []
-        
-        if self.package_type in ['SCORM_1_2', 'SCORM_2004']:
-            launch_files = [
-                # Articulate Storyline files (priority order)
-                'index_lms.html',      # LMS mode (SCORM integration) - HIGHEST PRIORITY
-                'story.html',          # Standalone mode (no SCORM)
-                'analytics-frame.html', # Analytics mode
-                'lms/goodbye.html',    # Exit page (SCORM completion)
-                
-                # Standard SCORM files
-                'index.html', 
-                'launch.html', 
-                'start.html', 
-                'main.html',
-                
-                # SCORM content subdirectory patterns
-                'scormcontent/index.html',
-                'scormcontent/launch.html',
-                'scormcontent/start.html',
-                'content/index.html',
-                'data/index.html',
-            ]
-        elif self.package_type == 'XAPI':
-            launch_files = [
-                'tincan.html',
-                'launch.html',
-                'player.html',
-                'index.html',
-                'start.html',
-                'main.html',
-            ]
-        elif self.package_type == 'CMI5':
-            launch_files = [
-                'cmi5.html',
-                'au.html',
-                'launch.html',
-                'player.html',
-                'index.html',
-                'start.html',
-                'main.html',
-            ]
-        elif self.package_type == 'AICC':
-            launch_files = [
-                'au.html',
-                'launch.html',
-                'player.html',
-                'index.html',
-                'start.html',
-                'main.html',
-            ]
-        
-        # Search for priority files first
-        for preferred_file in launch_files:
-            for file_path in file_list:
-                if file_path.lower() == preferred_file.lower() or file_path.lower().endswith('/' + preferred_file.lower()):
-                    logger.info(f"SCORM: Selected launch file '{file_path}' (priority: {preferred_file}) for package type {self.package_type}")
-                    return file_path
-        
-        # Fallback: find any HTML file
-        for file_path in file_list:
-            if file_path.lower().endswith('.html'):
-                logger.info(f"SCORM: Using fallback HTML launch file '{file_path}' for package type {self.package_type}")
-                return file_path
-        
-        logger.warning(f"SCORM: No launch file found for package type {self.package_type}")
-        return None
-    
-    def _parse_manifest_from_content(self, manifest_content, manifest_filename):
-        """Parse manifest from in-memory content (for direct S3 extraction)"""
-        try:
-            if self.package_type in ['SCORM_1_2', 'SCORM_2004']:
-                self._parse_scorm_manifest_from_content(manifest_content)
-            elif self.package_type == 'XAPI':
-                self._parse_xapi_manifest_from_content(manifest_content, manifest_filename)
-            elif self.package_type == 'CMI5':
-                self._parse_cmi5_manifest_from_content(manifest_content, manifest_filename)
-            elif self.package_type == 'AICC':
-                self._parse_aicc_manifest_from_content(manifest_content)
-            
-            self.save()
-            
-        except Exception as e:
-            logger.error(f"SCORM: Error parsing {self.package_type} manifest from memory: {e}")
-    
-    def _parse_scorm_manifest_from_content(self, manifest_content):
-        """Parse SCORM manifest from memory content"""
-        try:
-            # Try to parse with different encodings
-            encodings = ['utf-8', 'utf-16', 'latin-1', 'cp1252']
-            tree = None
-            
-            for encoding in encodings:
-                try:
-                    content_str = manifest_content.decode(encoding) if isinstance(manifest_content, bytes) else manifest_content
-                    tree = ET.fromstring(content_str)
-                    break
-                except (UnicodeDecodeError, ET.ParseError):
-                    continue
-            
-            if tree is None:
-                logger.error(f"SCORM: Failed to parse manifest with any encoding")
-                return
-            
-            # Handle different namespace versions
-            namespaces = {
-                'imscp': 'http://www.imsglobal.org/xsd/imscp_v1p1',
-                'adlcp': 'http://www.adlnet.org/xsd/adlcp_v1p3',
-                'lom': 'http://ltsc.ieee.org/xsd/LOM'
-            }
-            
-            # Try to extract title
-            title_elem = tree.find('.//imscp:title', namespaces)
-            if title_elem is not None and title_elem.text:
-                self.title = title_elem.text
-            else:
-                # Try without namespace
-                title_elem = tree.find('.//title')
-                if title_elem is not None and title_elem.text:
-                    self.title = title_elem.text
-            
-            # Try to extract version
-            metadata_elem = tree.find('.//imscp:metadata', namespaces)
-            if metadata_elem is not None:
-                schema_version = metadata_elem.find('.//imscp:schemaversion', namespaces)
-                if schema_version is not None and schema_version.text:
-                    self.version = schema_version.text
-            
-            logger.info(f"SCORM: Parsed manifest successfully - Title: {self.title}, Version: {self.version}")
-            
-        except Exception as e:
-            logger.error(f"SCORM: Error parsing SCORM manifest from content: {e}")
-    
-    def _parse_xapi_manifest_from_content(self, manifest_content, manifest_filename):
-        """Parse xAPI manifest from memory content"""
-        try:
-            if manifest_filename.lower().endswith('.json'):
-                import json
-                content_str = manifest_content.decode('utf-8') if isinstance(manifest_content, bytes) else manifest_content
-                data = json.loads(content_str)
-                self.title = data.get('name', {}).get('en-US', self.title)
-                self.description = data.get('description', {}).get('en-US', '')
-            else:
-                # Parse XML
-                content_str = manifest_content.decode('utf-8') if isinstance(manifest_content, bytes) else manifest_content
-                tree = ET.fromstring(content_str)
-                title_elem = tree.find('.//title')
-                if title_elem is not None:
-                    self.title = title_elem.text
-            
-            logger.info(f"SCORM: Parsed xAPI manifest - Title: {self.title}")
-        except Exception as e:
-            logger.error(f"SCORM: Error parsing xAPI manifest: {e}")
-    
-    def _parse_cmi5_manifest_from_content(self, manifest_content, manifest_filename):
-        """Parse cmi5 manifest from memory content"""
-        try:
-            if manifest_filename.lower().endswith('.json'):
-                import json
-                content_str = manifest_content.decode('utf-8') if isinstance(manifest_content, bytes) else manifest_content
-                data = json.loads(content_str)
-                self.title = data.get('title', {}).get('en-US', self.title)
-                self.cmi5_au_id = data.get('id', '')
-            else:
-                # Parse XML
-                content_str = manifest_content.decode('utf-8') if isinstance(manifest_content, bytes) else manifest_content
-                tree = ET.fromstring(content_str)
-                title_elem = tree.find('.//title')
-                if title_elem is not None:
-                    self.title = title_elem.text
-            
-            logger.info(f"SCORM: Parsed cmi5 manifest - Title: {self.title}")
-        except Exception as e:
-            logger.error(f"SCORM: Error parsing cmi5 manifest: {e}")
-    
-    def _parse_aicc_manifest_from_content(self, manifest_content):
-        """Parse AICC manifest from memory content"""
-        try:
-            content_str = manifest_content.decode('utf-8') if isinstance(manifest_content, bytes) else manifest_content
-            lines = content_str.split('\n')
-            for line in lines:
-                if '=' in line:
-                    key, value = line.split('=', 1)
-                    key = key.strip().lower()
-                    value = value.strip()
-                    if key == 'course_title':
-                        self.title = value
-                    elif key == 'course_id':
-                        self.version = value
-            
-            logger.info(f"SCORM: Parsed AICC manifest - Title: {self.title}")
-        except Exception as e:
-            logger.error(f"SCORM: Error parsing AICC manifest: {e}")
-    
     def _upload_extracted_content_to_s3(self, local_path, s3_topic_dir):
-        """Upload extracted SCORM content to S3 with enhanced validation, streaming, and security"""
+        """Upload extracted SCORM content to S3"""
         try:
             from django.core.files.base import ContentFile
             import mimetypes
-            import time
-            import hashlib
-            
-            # Validation: Check if local path exists
-            if not os.path.exists(local_path):
-                error_msg = f"Local extraction path does not exist: {local_path}"
-                logger.error(f"SCORM: {error_msg}")
-                raise FileNotFoundError(error_msg)
-            
-            # Count files to upload and calculate total size
-            total_files = 0
-            total_size = 0
-            large_files = []
-            
-            for root, dirs, files in os.walk(local_path):
-                for file in files:
-                    local_file_path = os.path.join(root, file)
-                    file_size = os.path.getsize(local_file_path)
-                    total_size += file_size
-                    total_files += 1
-                    
-                    # Track large files (>100MB) for streaming upload
-                    if file_size > 100 * 1024 * 1024:  # 100MB
-                        large_files.append((local_file_path, file_size))
-            
-            if total_files == 0:
-                error_msg = f"No files found in extraction directory: {local_path}"
-                logger.error(f"SCORM: {error_msg}")
-                raise ValueError(error_msg)
-            
-            logger.info(f"SCORM: Uploading {total_files} files ({total_size / (1024*1024):.1f}MB) to S3 for topic {self.topic.id}")
-            
-            uploaded_count = 0
-            failed_count = 0
-            failed_files = []
             
             # Walk through all files in the extracted directory
             for root, dirs, files in os.walk(local_path):
                 for file in files:
                     local_file_path = os.path.join(root, file)
-                    file_size = os.path.getsize(local_file_path)
                     
                     # Calculate relative path from the extraction directory
                     rel_path = os.path.relpath(local_file_path, local_path)
-                    # Normalize path separators for S3 (use forward slashes)
-                    rel_path = rel_path.replace(os.sep, '/')
                     s3_file_path = f"{s3_topic_dir}/{rel_path}"
                     
-                    # Security validation: Check for path traversal
-                    if '..' in rel_path or rel_path.startswith('/'):
-                        logger.error(f"SCORM: Security violation - path traversal detected: {rel_path}")
-                        failed_count += 1
-                        failed_files.append((rel_path, "Path traversal security violation"))
+                    # Read the file content
+                    with open(local_file_path, 'rb') as f:
+                        content = f.read()
+                    
+                    # Create ContentFile for S3 upload
+                    content_file = ContentFile(content)
+                    
+                    # Determine content type
+                    content_type, _ = mimetypes.guess_type(local_file_path)
+                    if not content_type:
+                        if file.endswith('.html'):
+                            content_type = 'text/html'
+                        elif file.endswith('.css'):
+                            content_type = 'text/css'
+                        elif file.endswith('.js'):
+                            content_type = 'application/javascript'
+                        elif file.endswith('.json'):
+                            content_type = 'application/json'
+                        elif file.endswith('.xml'):
+                            content_type = 'application/xml'
+                        else:
+                            content_type = 'application/octet-stream'
+                    
+                    # Upload to S3
+                    try:
+                        self.package_file.storage.save(s3_file_path, content_file)
+                        logger.info(f"SCORM: Uploaded {rel_path} to S3 as {s3_file_path}")
+                    except Exception as e:
+                        logger.error(f"SCORM: Error uploading {rel_path} to S3: {e}")
                         continue
-                    
-                    # Determine content type with enhanced detection
-                    content_type = self._get_enhanced_content_type(local_file_path, file)
-                    
-                    # Upload to S3 with enhanced retry logic and streaming for large files
-                    upload_success = False
-                    
-                    if file_size > 100 * 1024 * 1024:  # 100MB threshold
-                        # Use streaming upload for large files
-                        upload_success = self._upload_large_file_streaming(
-                            local_file_path, s3_file_path, content_type, rel_path
-                        )
-                    else:
-                        # Use regular upload for smaller files
-                        upload_success = self._upload_small_file_regular(
-                            local_file_path, s3_file_path, content_type, rel_path
-                        )
-                    
-                    if upload_success:
-                        uploaded_count += 1
-                        logger.debug(f"SCORM: Uploaded {rel_path} to S3 as {s3_file_path}")
-                    else:
-                        failed_count += 1
-                        failed_files.append((rel_path, "Upload failed after all retries"))
             
-            # Validation: Check upload success
-            if uploaded_count == 0:
-                error_msg = f"Failed to upload any files to S3 for topic {self.topic.id}"
-                logger.error(f"SCORM: {error_msg}")
-                raise Exception(error_msg)
-            
-            # Log summary
-            logger.info(f"SCORM: Upload complete for topic {self.topic.id}: {uploaded_count}/{total_files} files uploaded successfully")
-            
-            if failed_count > 0:
-                logger.warning(f"SCORM: {failed_count} files failed to upload:")
-                for failed_file, error in failed_files[:10]:  # Log first 10 failures
-                    logger.warning(f"  - {failed_file}: {error}")
-                
-                # If more than 50% of files failed, treat as critical error
-                if failed_count > (total_files * 0.5):
-                    error_msg = f"More than 50% of files failed to upload ({failed_count}/{total_files})"
-                    logger.error(f"SCORM: {error_msg}")
-                    raise Exception(error_msg)
-            
-            # Verify extraction: Check if key files exist in S3
-            if self.launch_file:
-                launch_path = f"{s3_topic_dir}/{self.launch_file}"
-                if not self.package_file.storage.exists(launch_path):
-                    error_msg = f"Launch file not found in S3 after upload: {launch_path}"
-                    logger.error(f"SCORM: {error_msg}")
-                    raise FileNotFoundError(error_msg)
-                logger.info(f"SCORM: Verified launch file exists in S3: {launch_path}")
-            
-            logger.info(f"SCORM: Successfully uploaded and verified extracted content for topic {self.topic.id} to S3")
+            logger.info(f"SCORM: Successfully uploaded extracted content for topic {self.topic.id} to S3")
             
         except Exception as e:
             logger.error(f"SCORM: Error uploading extracted content to S3: {e}")
             raise
-    
-    def _get_enhanced_content_type(self, file_path, filename):
-        """Enhanced content type detection with SCORM-specific types"""
-        import mimetypes
-        
-        # Get base content type
-        content_type, _ = mimetypes.guess_type(file_path)
-        
-        if not content_type:
-            # Enhanced detection for SCORM-specific files
-            if filename.lower().endswith('.html') or filename.lower().endswith('.htm'):
-                content_type = 'text/html; charset=utf-8'
-            elif filename.lower().endswith('.css'):
-                content_type = 'text/css; charset=utf-8'
-            elif filename.lower().endswith('.js'):
-                content_type = 'application/javascript; charset=utf-8'
-            elif filename.lower().endswith('.json'):
-                content_type = 'application/json; charset=utf-8'
-            elif filename.lower().endswith('.xml'):
-                content_type = 'application/xml; charset=utf-8'
-            elif filename.lower().endswith('.png'):
-                content_type = 'image/png'
-            elif filename.lower().endswith('.jpg') or filename.lower().endswith('.jpeg'):
-                content_type = 'image/jpeg'
-            elif filename.lower().endswith('.gif'):
-                content_type = 'image/gif'
-            elif filename.lower().endswith('.svg'):
-                content_type = 'image/svg+xml'
-            elif filename.lower().endswith('.woff'):
-                content_type = 'font/woff'
-            elif filename.lower().endswith('.woff2'):
-                content_type = 'font/woff2'
-            elif filename.lower().endswith('.ttf'):
-                content_type = 'font/ttf'
-            elif filename.lower().endswith('.eot'):
-                content_type = 'application/vnd.ms-fontobject'
-            elif filename.lower().endswith('.otf'):
-                content_type = 'font/otf'
-            elif filename.lower().endswith('.mp4'):
-                content_type = 'video/mp4'
-            elif filename.lower().endswith('.webm'):
-                content_type = 'video/webm'
-            elif filename.lower().endswith('.ogg'):
-                content_type = 'video/ogg'
-            elif filename.lower().endswith('.mp3'):
-                content_type = 'audio/mpeg'
-            elif filename.lower().endswith('.wav'):
-                content_type = 'audio/wav'
-            elif filename.lower().endswith('.swf'):
-                content_type = 'application/x-shockwave-flash'
-            else:
-                content_type = 'application/octet-stream'
-        
-        return content_type
-    
-    def _upload_small_file_regular(self, local_file_path, s3_file_path, content_type, rel_path):
-        """Upload small files using regular Django storage"""
-        from django.core.files.base import ContentFile
-        import time
-        
-        max_retries = 3
-        retry_count = 0
-        upload_success = False
-        
-        while retry_count < max_retries and not upload_success:
-            try:
-                with open(local_file_path, 'rb') as f:
-                    content = f.read()
-                
-                content_file = ContentFile(content)
-                self.package_file.storage.save(s3_file_path, content_file)
-                upload_success = True
-                
-            except Exception as e:
-                retry_count += 1
-                if retry_count >= max_retries:
-                    logger.error(f"SCORM: Error uploading {rel_path} to S3 after {max_retries} attempts: {e}")
-                else:
-                    logger.warning(f"SCORM: Retry {retry_count}/{max_retries} for {rel_path}: {e}")
-                    time.sleep(2 ** retry_count)  # Exponential backoff
-        
-        return upload_success
-    
-    def _upload_large_file_streaming(self, local_file_path, s3_file_path, content_type, rel_path):
-        """Upload large files using streaming to avoid memory issues"""
-        import boto3
-        from django.conf import settings
-        import time
-        
-        try:
-            # Use boto3 directly for multipart upload
-            s3_client = boto3.client(
-                's3',
-                aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
-                aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
-                region_name=settings.AWS_S3_REGION_NAME
-            )
-            
-            bucket_name = settings.AWS_STORAGE_BUCKET_NAME
-            key = f"elearning/{s3_file_path}"
-            
-            # Configure multipart upload
-            config = boto3.s3.transfer.TransferConfig(
-                multipart_threshold=1024 * 25,  # 25MB
-                max_concurrency=10,
-                multipart_chunksize=1024 * 25,  # 25MB chunks
-                use_threads=True
-            )
-            
-            # Upload with progress tracking
-            s3_client.upload_file(
-                local_file_path,
-                bucket_name,
-                key,
-                ExtraArgs={'ContentType': content_type},
-                Config=config
-            )
-            
-            logger.info(f"SCORM: Successfully streamed large file {rel_path} to S3")
-            return True
-            
-        except Exception as e:
-            logger.error(f"SCORM: Error streaming large file {rel_path} to S3: {e}")
-            return False
-    
-    def _validate_zip_security(self, zip_path):
-        """Validate ZIP file for security issues - ENHANCED with better error handling"""
-        try:
-            with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-                total_size = 0
-                file_count = 0
-                max_files = 50000  # Increased limit for large e-learning packages
-                max_total_size = 2 * 1024 * 1024 * 1024  # 2GB limit (increased for large packages)
-                max_file_size = 500 * 1024 * 1024  # 500MB per file (increased for large media files)
-                
-                for info in zip_ref.infolist():
-                    file_count += 1
-                    total_size += info.file_size
-                    
-                    # Check for path traversal - more lenient for e-learning content
-                    if '..' in info.filename and not any(allowed in info.filename.lower() for allowed in ['../', '..\\']):
-                        # Allow some common e-learning path patterns
-                        if not any(pattern in info.filename.lower() for pattern in ['content/', 'media/', 'assets/', 'images/', 'videos/', 'audio/']):
-                            logger.warning(f"SCORM: Potential path traversal in ZIP: {info.filename}")
-                            # Don't fail immediately, just log warning
-                    
-                    # Check for excessive file count (ZIP bomb protection) - more lenient
-                    if file_count > max_files:
-                        logger.error(f"SCORM: Too many files in ZIP: {file_count}")
-                        return False
-                    
-                    # Check for excessive total size - more lenient
-                    if total_size > max_total_size:
-                        logger.error(f"SCORM: ZIP too large: {total_size} bytes")
-                        return False
-                    
-                    # Check for individual large files - more lenient for media files
-                    if info.file_size > max_file_size:
-                        # Allow large media files
-                        if not any(ext in info.filename.lower() for ext in ['.mp4', '.avi', '.mov', '.wmv', '.flv', '.mkv', '.webm', '.mp3', '.wav', '.aac', '.m4a']):
-                            logger.error(f"SCORM: File too large: {info.filename} ({info.file_size} bytes)")
-                            return False
-                        else:
-                            logger.info(f"SCORM: Allowing large media file: {info.filename} ({info.file_size} bytes)")
-                    
-                    # Check for suspicious file names - more lenient for e-learning content
-                    suspicious_patterns = [
-                        'cmd.exe', 'powershell.exe', 'bash', 'sh', 'bat', 'ps1',
-                        'system32', 'windows', 'etc/passwd', 'etc/shadow'
-                    ]
-                    
-                    filename_lower = info.filename.lower()
-                    for pattern in suspicious_patterns:
-                        if pattern in filename_lower:
-                            # Allow some common e-learning patterns that might contain these keywords
-                            if not any(allowed in filename_lower for allowed in ['content/', 'media/', 'assets/', 'images/', 'videos/', 'audio/', 'scorm/', 'elearning/']):
-                                logger.error(f"SCORM: Suspicious file in ZIP: {info.filename}")
-                                return False
-                            else:
-                                logger.info(f"SCORM: Allowing e-learning file with suspicious pattern: {info.filename}")
-                
-                logger.info(f"SCORM: ZIP security validation passed: {file_count} files, {total_size} bytes")
-                return True
-                
-        except zipfile.BadZipFile as e:
-            logger.error(f"SCORM: Invalid ZIP file format: {e}")
-            return False
-        except Exception as e:
-            logger.error(f"SCORM: Error validating ZIP security: {e}")
-            return False
-    
-    def _extract_zip_secure(self, zip_ref, target_dir):
-        """Extract ZIP file with security checks"""
-        import os.path
-        
-        for info in zip_ref.infolist():
-            # Additional security check during extraction
-            if '..' in info.filename or info.filename.startswith('/'):
-                logger.error(f"SCORM: Path traversal blocked during extraction: {info.filename}")
-                continue
-            
-            # Ensure extracted path is within target directory
-            target_path = os.path.join(target_dir, info.filename)
-            if not target_path.startswith(target_dir):
-                logger.error(f"SCORM: Extraction path outside target directory: {info.filename}")
-                continue
-            
-            # Extract file
-            try:
-                zip_ref.extract(info, target_dir)
-            except Exception as e:
-                logger.warning(f"SCORM: Failed to extract {info.filename}: {e}")
-                continue
-    
-    def _cleanup_temp_files(self, zip_path, full_topic_dir):
-        """Enhanced cleanup with retry logic and race condition handling"""
-        import time
-        import stat
-        
-        # Clean up temp ZIP file
-        if zip_path and os.path.exists(zip_path):
-            for attempt in range(3):
-                try:
-                    # Make file writable if it's read-only
-                    if os.path.exists(zip_path):
-                        os.chmod(zip_path, stat.S_IWRITE)
-                    os.unlink(zip_path)
-                    logger.debug(f"SCORM: Cleaned up temp file {zip_path}")
-                    break
-                except Exception as e:
-                    if attempt < 2:
-                        logger.warning(f"SCORM: Cleanup attempt {attempt + 1} failed for {zip_path}: {e}")
-                        time.sleep(1)
-                    else:
-                        logger.error(f"SCORM: Failed to clean up temp file {zip_path} after 3 attempts: {e}")
-        
-        # Clean up temp extraction directory
-        if full_topic_dir and os.path.exists(full_topic_dir):
-            for attempt in range(3):
-                try:
-                    # Make directory and contents writable
-                    for root, dirs, files in os.walk(full_topic_dir):
-                        for d in dirs:
-                            try:
-                                os.chmod(os.path.join(root, d), stat.S_IWRITE | stat.S_IREAD | stat.S_IEXEC)
-                            except:
-                                pass
-                        for f in files:
-                            try:
-                                os.chmod(os.path.join(root, f), stat.S_IWRITE | stat.S_IREAD)
-                            except:
-                                pass
-                    
-                    shutil.rmtree(full_topic_dir)
-                    logger.debug(f"SCORM: Cleaned up temp directory {full_topic_dir}")
-                    break
-                except Exception as e:
-                    if attempt < 2:
-                        logger.warning(f"SCORM: Cleanup attempt {attempt + 1} failed for {full_topic_dir}: {e}")
-                        time.sleep(2)
-                    else:
-                        logger.error(f"SCORM: Failed to clean up temp directory {full_topic_dir} after 3 attempts: {e}")
-                        # Try to remove individual files as fallback
-                        try:
-                            for root, dirs, files in os.walk(full_topic_dir, topdown=False):
-                                for file in files:
-                                    try:
-                                        os.remove(os.path.join(root, file))
-                                    except:
-                                        pass
-                                for dir in dirs:
-                                    try:
-                                        os.rmdir(os.path.join(root, dir))
-                                    except:
-                                        pass
-                        except:
-                            pass
     
     def detect_package_type(self):
         """Detect the package type based on manifest files - S3 compatible"""
@@ -1355,70 +712,6 @@ class ELearningPackage(models.Model):
             self.save()
             logger.info(f"Fixed double prefixing for topic {self.topic.id}: {self.extracted_path}")
         return self.extracted_path
-    
-    def validate_extraction(self):
-        """Validate SCORM package extraction and S3 storage"""
-        issues = []
-        
-        # Check package file
-        if not self.package_file:
-            issues.append("No package file")
-        elif not self.package_file.storage.exists(self.package_file.name):
-            issues.append("Package file not found in S3")
-        
-        # Check extraction status
-        if not self.is_extracted:
-            issues.append("Package not extracted")
-        
-        # Check extracted path
-        if not self.extracted_path:
-            issues.append("No extracted path")
-        elif not self.package_file.storage.exists(self.extracted_path):
-            issues.append("Extracted content not found in S3")
-        
-        # Check launch file
-        if not self.launch_file:
-            issues.append("No launch file")
-        elif self.extracted_path:
-            launch_path = f"{self.extracted_path}/{self.launch_file}"
-            if not self.package_file.storage.exists(launch_path):
-                issues.append("Launch file not found in S3")
-        
-        # Check package type
-        if not self.package_type:
-            issues.append("No package type specified")
-        
-        return len(issues) == 0, issues
-    
-    def fix_extraction(self):
-        """Fix SCORM package extraction issues"""
-        try:
-            logger.info(f"SCORM: Fixing extraction for topic {self.topic.id}")
-            
-            # Reset extraction status
-            self.is_extracted = False
-            self.extraction_error = ""
-            self.save()
-            
-            # Re-extract the package
-            result = self.extract_package()
-            
-            if result:
-                # Validate the extraction
-                is_valid, issues = self.validate_extraction()
-                if is_valid:
-                    logger.info(f"SCORM: Successfully fixed extraction for topic {self.topic.id}")
-                    return True
-                else:
-                    logger.error(f"SCORM: Extraction completed but validation failed for topic {self.topic.id}: {issues}")
-                    return False
-            else:
-                logger.error(f"SCORM: Failed to extract package for topic {self.topic.id}")
-                return False
-                
-        except Exception as e:
-            logger.error(f"SCORM: Error fixing extraction for topic {self.topic.id}: {e}")
-            return False
 
 
 class ELearningTracking(models.Model):

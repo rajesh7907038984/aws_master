@@ -1213,7 +1213,7 @@ class TopicForm(BaseModelFormWithTinyMCE):
             'content_file': forms.FileInput(attrs={
                 'class': 'w-full px-4 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500',
                 'data-validate': 'general',
-                'data-max-size': str(600 * 1024 * 1024),  # 600MB - increased for large ZIP files
+                'data-max-size': str(100 * 1024 * 1024),  # 100MB
                 'data-categories': 'document,video,audio,archive'
             }),
             'web_url': forms.URLInput(attrs={

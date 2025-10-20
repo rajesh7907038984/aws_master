@@ -52,6 +52,12 @@
     <!-- Responsive Tables CSS -->
     <link rel="stylesheet" href="{% static 'css/responsive-tables.css' %}">
     
+    <!-- Template Fixes CSS -->
+    <link rel="stylesheet" href="{% static 'css/template-fixes.css' %}">
+    
+    <!-- Template Fixes JavaScript -->
+    <script src="{% static 'js/template-fixes.js' %}" defer></script>
+    
     <!-- Responsive Tables JavaScript -->
     <script src="{% static 'core/js/responsive-tables.js' %}" defer></script>
     
@@ -70,6 +76,11 @@
     </script>
     
     <!-- Enhanced responsive behavior handled by sidebar-comprehensive-fix.js -->
+    
+    <!-- Sidebar Test Suite (Development Only) -->
+    {% if debug %}
+    <script src="{% static 'js/sidebar-test.js' %}?v={{ timestamp|default:'20251019' }}"></script>
+    {% endif %}
     
     <!-- Modern event handling - no deprecated events -->
     <script>
@@ -97,12 +108,12 @@
             // Log syntax errors to console instead of showing popups
             if (event.message && (event.message.includes('Unexpected token') || 
                                   event.message.includes('SyntaxError'))) {
-                console.error('Syntax Error Detected:', event.message);
+                // Syntax Error Detected - handled by error handler
                 var filename = event.filename || 'Unknown';
                 var lineno = event.lineno || 'Unknown';
                 
                 // Log detailed error information
-                console.warn('JavaScript Syntax Error (popup disabled):', {
+                console.error('JavaScript Syntax Error (popup disabled):', {
                     message: event.message,
                     filename: filename,
                     line: lineno,
@@ -128,10 +139,10 @@
         try {
             window.userAuthenticated = {% if user.is_authenticated %}true{% else %}false{% endif %};
             window.userName = "{{ user.username|escapejs|default:'' }}";
-            window.userRole = "{{ user.role|escapejs|default:'anonymous' }}";
-            window.userBranch = "{{ user.branch.name|escapejs|default:'none' }}";
+            window.userRole = "{% if user.role %}{{ user.role|escapejs|default:'anonymous' }}{% else %}anonymous{% endif %}";
+            window.userBranch = "{% if user.branch %}{{ user.branch.name|escapejs|default:'none' }}{% else %}none{% endif %}";
         } catch (e) {
-            console.error('Error setting user variables:', e);
+            // Error setting user variables - handled by error handler
             window.userAuthenticated = false;
             window.userName = '';
             window.userRole = 'anonymous';
@@ -175,17 +186,8 @@
     
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     
-    <!-- Font Awesome - Local fonts for better reliability -->
-    <link rel="stylesheet" href="{% static 'core/css/font-awesome-local.css' %}" type="text/css">
-    
-    <!-- CDN fallback for additional icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" crossorigin="anonymous" referrerpolicy="no-referrer" type="text/css">
-    
-    <!-- Icon fallbacks for missing FontAwesome icons -->
-    <link rel="stylesheet" href="{% static 'core/css/icon-fallbacks.css' %}" type="text/css">
-    
-    <!-- Icon size consistency system -->
-    <link rel="stylesheet" href="{% static 'core/css/icon-consistency.css' %}" type="text/css">
+    <!-- Font Awesome - Local files to avoid CSP issues -->
+    <link rel="stylesheet" href="{% static 'css/font-awesome-local.css' %}?v={{ timestamp|default:'20251019' }}" type="text/css">
     
     <!-- Font Awesome loading verification script -->
     <script>
@@ -206,33 +208,29 @@
                 
                 // Check if Font Awesome font is loaded
                 if (fontFamily.includes('Font Awesome') || fontFamily.includes('FontAwesome')) {
-                    console.log('✅ Font Awesome loaded successfully');
+                    // Font Awesome loaded successfully
                     return true;
                 } else {
-                    console.warn('⚠️ Font Awesome not loaded, using fallback');
+                    // Font Awesome not loaded, using fallback
                     return false;
                 }
             }
             
             // Check Font Awesome loading after a short delay
-            setTimeout(checkFontAwesome, 1000);
+            setTimeout(checkFontAwesome, 500);
             
             // Add fallback styles for missing icons
             var style = document.createElement('style');
             style.textContent = 
                 '/* Fallback for missing Font Awesome icons */' +
                 '.fas, .far, .fab, .fa {' +
-                    'font-family: "Font Awesome 6 Free", "Font Awesome 6 Pro", "FontAwesome", sans-serif !important;' +
-                '}' +
-                '' +
-                '/* Ensure icons are visible */' +
-                '.fas, .far, .fab, .fa {' +
-                    'display: inline-block !important;' +
-                    'font-style: normal !important;' +
-                    'font-variant: normal !important;' +
-                    'text-rendering: auto !important;' +
-                    '-webkit-font-smoothing: antialiased !important;' +
-                    '-moz-osx-font-smoothing: grayscale !important;' +
+                    'font-family: "Font Awesome 6 Free", "Font Awesome 6 Pro", "FontAwesome", sans-serif;' +
+                    'display: inline-block;' +
+                    'font-style: normal;' +
+                    'font-variant: normal;' +
+                    'text-rendering: auto;' +
+                    '-webkit-font-smoothing: antialiased;' +
+                    '-moz-osx-font-smoothing: grayscale;' +
                 '}' +
                 '' +
                 '/* Specific icon fallbacks */' +
@@ -287,12 +285,14 @@
     <link href="{% static 'core/css/table-standards.css' %}?v={{ timestamp|default:'20251019' }}" rel="stylesheet" type="text/css">
     <link href="{% static 'core/css/chart-styles-unified.css' %}?v={{ timestamp|default:'20251019' }}" rel="stylesheet" type="text/css">
     
-    <!-- Tailwind CSS (Load After Base Styles) -->
-    <link href="{% static 'css/tailwind.css' %}?v={{ timestamp|default:'20251019' }}" rel="stylesheet">
+    <!-- Tailwind CSS (Load After Base Styles) - Local Production Build -->
+    <link href="{% static 'css/tailwind.css' %}?v={{ timestamp|default:'20251019' }}" rel="stylesheet" type="text/css">
     
-    <!-- Component-Specific CSS (Load After Tailwind) -->
-    <link href="{% static 'css/unified-button-system.css' %}?v={{ timestamp|default:'20251019' }}" rel="stylesheet" type="text/css">
-    <link href="{% static 'css/sidebar-unified.css' %}?v={{ timestamp|default:'20251019' }}" rel="stylesheet" type="text/css">
+        <!-- Component-Specific CSS (Load After Tailwind) -->
+        <link href="{% static 'css/sidebar-variables.css' %}?v={{ timestamp|default:'20251020' }}" rel="stylesheet" type="text/css">
+        <link href="{% static 'css/unified-button-system.css' %}?v={{ timestamp|default:'20251020' }}" rel="stylesheet" type="text/css">
+        <link href="{% static 'css/header-styles.css' %}?v={{ timestamp|default:'20251020' }}" rel="stylesheet" type="text/css">
+        <link href="{% static 'css/sidebar-unified.css' %}?v={{ timestamp|default:'20251020' }}" rel="stylesheet" type="text/css">
     <link href="{% static 'css/dashboard-shared.css' %}?v={{ timestamp|default:'20251019' }}" rel="stylesheet" type="text/css">
     <link href="{% static 'css/styles.css' %}?v={{ timestamp|default:'20251019' }}" rel="stylesheet" type="text/css">
     <link href="{% static 'courses/css/course_create.css' %}?v={{ timestamp|default:'20251019' }}" rel="stylesheet" type="text/css">
@@ -307,17 +307,17 @@
         /* 1. Improved Sidebar Responsive Behavior */
         @media (max-width: 768px) {
             #sidebar {
-                display: none !important;
-                transform: translateX(-100%) !important;
-                width: 0 !important;
-                visibility: hidden !important;
-                opacity: 0 !important;
+                display: none;
+                transform: translateX(-100%);
+                width: 0;
+                visibility: hidden;
+                opacity: 0;
             }
             
             #main-content {
-                margin-left: 0 !important;
-                width: 100% !important;
-                padding: 1rem !important;
+                margin-left: 0;
+                width: 100%;
+                padding: 1rem;
             }
             
             /* Mobile menu overlay */
@@ -719,8 +719,8 @@
             display: block !important;
             visibility: visible !important;
             opacity: 1 !important;
-            z-index: 9999 !important;
-            position: fixed !important;
+            z-index: 1000;
+            position: fixed;
             top: 0 !important;
             left: 0 !important;
             right: 0 !important;
@@ -729,6 +729,64 @@
             background: white !important;
             border-bottom: 1px solid #e5e7eb !important;
             box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1) !important;
+        }
+        
+        /* CRITICAL: Fix logo clipping and sidebar overlap */
+        @media (max-width: 1024px) {
+            /* Ensure logo doesn't get clipped by sidebar */
+            header .flex.items-center:first-child {
+                z-index: 10;
+                position: relative;
+                min-width: 0;
+                flex-shrink: 0;
+            }
+            
+            /* Prevent sidebar from overlapping header content */
+            header {
+                z-index: 9999 !important;
+            }
+            
+            /* Ensure logo has proper spacing and doesn't get cut off */
+            header img {
+                margin-right: 0.5rem;
+                max-width: 140px;
+                height: auto;
+                object-fit: contain;
+            }
+            
+            /* Ensure proper spacing between logo and other elements */
+            header .flex.items-center:first-child + * {
+                margin-left: 0.5rem;
+            }
+        }
+        
+        /* Fix text overlap with logo on medium screens */
+        @media (max-width: 768px) {
+            /* Ensure proper spacing between logo and other elements */
+            header .flex.items-center:first-child {
+                margin-right: 0.5rem;
+                flex-shrink: 0;
+                min-width: 0;
+            }
+            
+            /* Prevent text from overlapping logo */
+            header .flex.items-center:first-child + * {
+                margin-left: 0.5rem;
+            }
+            
+            /* Ensure logo doesn't get cut off */
+            header img {
+                max-width: 120px;
+                height: auto;
+                object-fit: contain;
+            }
+            
+            /* Ensure header layout doesn't break */
+            header .flex.items-center {
+                gap: 0.5rem;
+                overflow: visible !important;
+                flex-wrap: nowrap;
+            }
         }
         
         /* Force header content visibility */
@@ -882,21 +940,27 @@
                 compatibilityIssues.push('Set not supported');
             }
             
-            // Check for ES6 features that might cause syntax errors
+            // Check for ES6 features that might cause syntax errors (CSP-safe)
             try {
-                eval('() => {}');
+                // CSP-safe arrow function test without eval
+                if (typeof (() => {}) !== 'function') {
+                    compatibilityIssues.push('Arrow functions not supported');
+                }
             } catch (e) {
                 compatibilityIssues.push('Arrow functions not supported');
             }
             
             try {
-                eval('`template ${"literal"}`');
+                // CSP-safe template literal test without eval
+                if (typeof `template ${"literal"}` !== 'string') {
+                    compatibilityIssues.push('Template literals not supported');
+                }
             } catch (e) {
                 compatibilityIssues.push('Template literals not supported');
             }
             
             if (compatibilityIssues.length > 0) {
-                console.warn('Browser compatibility issues detected:', compatibilityIssues);
+                // Browser compatibility issues detected - handled by error handler
                 // Add a class to body for CSS-based fallbacks
                 document.body.classList.add('browser-compatibility-issues');
             }
@@ -933,8 +997,8 @@
             {% include 'components/sidebar.html' %}
             {% endblock %}
 
-            <!-- Main Content - Responsive adjustments handled by JavaScript and CSS -->
-            <main id="main-content" class="flex-1 transition-all duration-300 ml-0 md:ml-[16rem] mr-0 lg:mr-0 w-full md:w-calc-16rem lg:w-calc-16rem overflow-x-hidden bg-white text-gray-900 p-6" style="transition: margin-left 0.3s ease, margin-right 0.3s ease, width 0.3s ease; padding-top: 4rem;">
+            <!-- Main Content - Match Screenshot Layout -->
+            <main id="main-content" class="flex-1 transition-all duration-300 ml-0 md:ml-64 w-full md:w-calc-64 overflow-x-hidden bg-white text-gray-900 p-6 pt-16">
                 {% if messages %}
                 <div class="fixed top-20 right-4 z-[100] space-y-4 pointer-events-none">
                     {% for message in messages %}
@@ -951,13 +1015,16 @@
                             {% endif %}
                             <span class="text-sm font-medium">{{ message }}</span>
                         </div>
-                        <button class="ml-4 text-gray-500 hover:text-gray-700 focus:outline-none" onclick="this.parentElement.classList.add('toast-leave'); setTimeout(function() { this.parentElement.remove(); }.bind(this), 300)">
+                        <button class="ml-4 text-gray-500 hover:text-gray-700 focus:outline-none toast-close-btn" data-toast-close="true">
                             <i class="fas fa-times"></i>
                         </button>
                     </div>
                     {% endfor %}
                 </div>
                 {% endif %}
+
+                <!-- Global Breadcrumbs -->
+                {% block global_breadcrumbs %}{% endblock %}
 
                 <!-- Content Container -->
                 <div class="w-full">
@@ -1078,7 +1145,8 @@
         // Global error handler to prevent JavaScript syntax errors from breaking the page
         window.addEventListener('error', function(event) {
             if (event.message && event.message.includes('Unexpected token')) {
-                console.error('JavaScript Syntax Error caught and handled:', {
+                // JavaScript Syntax Error caught and handled - handled by error handler
+                console.error({
                     message: event.message,
                     filename: event.filename,
                     line: event.lineno,
@@ -1299,6 +1367,9 @@
     
     <!-- Comprehensive Sidebar Fix - Handles all sidebar functionality -->
     <script src="{% static 'js/sidebar-comprehensive-fix.js' %}"></script>
+    
+    <!-- Sidebar Bug Fixes - Addresses common sidebar issues -->
+    <script src="{% static 'js/sidebar-bug-fixes.js' %}"></script>
 </body>
 </html>
 

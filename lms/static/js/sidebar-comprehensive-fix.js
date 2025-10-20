@@ -27,26 +27,42 @@
         isCollapsed: false,
         isMobile: false,
         isTabvar: false,
-        currentSubmenu: null
+        currentSubmenu: null,
+        debouncedResizeHandler: null,
+        resizeTimeout: null
     };
 
     // DOM elements cache
     var elements = {};
 
     /**
-     * Initialize the comprehensive sidebar fix
+     * Initialize the comprehensive sidebar fix - Enhanced with better error handling
      */
     function init() {
         if (state.isInitialized) return;
         
         try {
             console.log('Initializing comprehensive sidebar fix...');
+            
+            // Wait for DOM to be fully ready
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', init);
+                return;
+            }
+            
             cacheElements();
             setupEventListeners();
             handleResponsiveBehavior();
             restoreSidebarState();
-            setupSubmenuToggles();
-            fixLayout();
+            
+            // Delay submenu setup to ensure DOM is fully rendered
+            setTimeout(() => {
+                setupSubmenuToggles();
+                fixLayout();
+            }, 100);
+            
+            // Add cleanup on page unload
+            window.addEventListener('beforeunload', cleanup);
             
             state.isInitialized = true;
             console.log('Sidebar fix initialized successfully');
@@ -54,6 +70,30 @@
             console.error('Error initializing sidebar fix:', error);
             // Try to set up basic functionality even if full initialization fails
             setupBasicFunctionality();
+        }
+    }
+    
+    /**
+     * Cleanup function to prevent memory leaks
+     */
+    function cleanup() {
+        try {
+            // Remove event listeners
+            window.removeEventListener('resize', handleResize);
+            if (state.debouncedResizeHandler) {
+                window.removeEventListener('resize', state.debouncedResizeHandler);
+            }
+            document.removeEventListener('keydown', handleKeyboardNavigation);
+            
+            // Clear any intervals or timeouts
+            if (state.resizeTimeout) {
+                clearTimeout(state.resizeTimeout);
+                state.resizeTimeout = null;
+            }
+            
+            console.log('Sidebar cleanup completed');
+        } catch (error) {
+            console.error('Error during sidebar cleanup:', error);
         }
     }
 
@@ -131,7 +171,13 @@
         
         // Window resize handler
         window.removeEventListener('resize', handleResize);
-        window.addEventListener('resize', debounce(handleResize, 150));
+        if (state.debouncedResizeHandler) {
+            window.removeEventListener('resize', state.debouncedResizeHandler);
+        }
+        
+        // Create debounced handler and store reference for cleanup
+        state.debouncedResizeHandler = debounce(handleResize, 150);
+        window.addEventListener('resize', state.debouncedResizeHandler);
         
         // Mobile menu close handlers
         if (elements.closeMobileMenu && elements.mobileMenuOverlay) {
@@ -319,7 +365,7 @@
     }
 
     /**
-     * Setup submenu toggle functionality - Simplified to prevent conflicts
+     * Setup submenu toggle functionality - Enhanced with better error handling
      */
     function setupSubmenuToggles() {
         if (!elements.sidebar) return;
@@ -328,16 +374,14 @@
         
         // Remove ALL existing event listeners to prevent conflicts
         document.querySelectorAll('.menu-item.has-submenu, [data-submenu]').forEach(button => {
-            button.removeAttribute('onclick');
-            
-            // Clone the button to remove all event listeners
+            // Remove all event listeners by cloning the element
             const newButton = button.cloneNode(true);
             if (button.parentNode) {
                 button.parentNode.replaceChild(newButton, button);
             }
         });
         
-        // Reinitialize all submenu buttons with simplified logic
+        // Reinitialize all submenu buttons with enhanced logic
         document.querySelectorAll('.menu-item.has-submenu, [data-submenu]').forEach(button => {
             const submenuId = button.getAttribute('data-submenu');
             if (!submenuId) {
@@ -364,45 +408,49 @@
                 arrow.style.transition = 'transform 0.3s ease';
             }
             
-            // Add simplified event listener
+            // Add enhanced event listener with better error handling
             button.addEventListener('click', function(e) {
-                e.preventDefault();
-                e.stopPropagation();
-                
-                console.log('Submenu button clicked:', submenuId);
-                
-                // Don't allow submenu toggling when sidebar is collapsed
-                if (state.isCollapsed) {
-                    console.log('Sidebar is collapsed, ignoring submenu toggle');
-                    return;
+                try {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    console.log('Submenu button clicked:', submenuId);
+                    
+                    // Don't allow submenu toggling when sidebar is collapsed
+                    if (state.isCollapsed) {
+                        console.log('Sidebar is collapsed, ignoring submenu toggle');
+                        return;
+                    }
+                    
+                    const submenu = document.getElementById(submenuId);
+                    if (!submenu) {
+                        console.error('Submenu not found:', submenuId);
+                        return;
+                    }
+                    
+                    const wasHidden = submenu.classList.contains('hidden');
+                    submenu.classList.toggle('hidden');
+                    this.classList.toggle('active');
+                    this.classList.toggle('expanded');
+                    
+                    // Rotate arrow with smooth animation
+                    if (arrow) {
+                        const isNowHidden = submenu.classList.contains('hidden');
+                        arrow.style.transform = isNowHidden ? '' : 'rotate(180deg)';
+                    }
+                    
+                    // Close other submenus if opening this one
+                    if (!submenu.classList.contains('hidden')) {
+                        closeOtherSubmenus(submenuId);
+                        state.currentSubmenu = submenuId;
+                    } else {
+                        state.currentSubmenu = null;
+                    }
+                    
+                    console.log('Submenu toggle completed for:', submenuId);
+                } catch (error) {
+                    console.error('Error in submenu toggle:', error);
                 }
-                
-                const submenu = document.getElementById(submenuId);
-                if (!submenu) {
-                    console.error('Submenu not found:', submenuId);
-                    return;
-                }
-                
-                const wasHidden = submenu.classList.contains('hidden');
-                submenu.classList.toggle('hidden');
-                this.classList.toggle('active');
-                this.classList.toggle('expanded');
-                
-                // Rotate arrow
-                if (arrow) {
-                    const isNowHidden = submenu.classList.contains('hidden');
-                    arrow.style.transform = isNowHidden ? '' : 'rotate(180deg)';
-                }
-                
-                // Close other submenus if opening this one
-                if (!submenu.classList.contains('hidden')) {
-                    closeOtherSubmenus(submenuId);
-                    state.currentSubmenu = submenuId;
-                } else {
-                    state.currentSubmenu = null;
-                }
-                
-                console.log('Submenu toggle completed for:', submenuId);
             });
         });
         
@@ -551,7 +599,7 @@
     }
 
     /**
-     * Load sidebar content to mobile menu
+     * Load sidebar content to mobile menu - Enhanced with better synchronization
      */
     function loadSidebarContentToMobileMenu() {
         if (!elements.mobileMenu) return;
@@ -560,13 +608,23 @@
         var mobileMenuContent = document.querySelector('#mobile-menu .py-4');
         
         if (sidebarContent && mobileMenuContent) {
-            // Always update content to ensure it's current
-            var clone = sidebarContent.cloneNode(true);
-            mobileMenuContent.innerHTML = '';
-            mobileMenuContent.appendChild(clone);
-            
-            // Reinitialize submenu toggles in mobile menu
-            setupMobileMenuSubmenus(mobileMenuContent);
+            try {
+                // Always update content to ensure it's current
+                var clone = sidebarContent.cloneNode(true);
+                mobileMenuContent.innerHTML = '';
+                mobileMenuContent.appendChild(clone);
+                
+                // Reinitialize submenu toggles in mobile menu
+                setupMobileMenuSubmenus(mobileMenuContent);
+                
+                // Ensure mobile menu has proper styling
+                mobileMenuContent.style.overflowY = 'auto';
+                mobileMenuContent.style.maxHeight = 'calc(100vh - 4rem)';
+                
+                console.log('Mobile menu content synchronized successfully');
+            } catch (error) {
+                console.error('Error synchronizing mobile menu content:', error);
+            }
         }
     }
 
@@ -640,20 +698,22 @@
             elements.mainContent.style.marginLeft = '0';
             elements.mainContent.style.width = '100%';
             elements.mainContent.style.maxWidth = '100%';
-        } else {
-            // Desktop layout
-            if (isCollapsed) {
-                elements.mainContent.style.marginLeft = '3.5rem';
-                elements.mainContent.style.width = 'calc(100% - 3.5rem)';
-                elements.mainContent.style.maxWidth = 'calc(100% - 3.5rem)';
-                elements.mainContent.classList.add('sidebar-collapsed');
             } else {
-                elements.mainContent.style.marginLeft = '16rem';
-                elements.mainContent.style.width = 'calc(100% - 16rem)';
-                elements.mainContent.style.maxWidth = 'calc(100% - 16rem)';
-                elements.mainContent.classList.remove('sidebar-collapsed');
+                // Desktop layout
+                if (isCollapsed) {
+                    const collapsedWidth = getComputedStyle(document.documentElement).getPropertyValue('--sidebar-collapsed-width') || '3.5rem';
+                    elements.mainContent.style.marginLeft = collapsedWidth;
+                    elements.mainContent.style.width = `calc(100% - ${collapsedWidth})`;
+                    elements.mainContent.style.maxWidth = `calc(100% - ${collapsedWidth})`;
+                    elements.mainContent.classList.add('sidebar-collapsed');
+                } else {
+                    const sidebarWidth = getComputedStyle(document.documentElement).getPropertyValue('--sidebar-width') || '16rem';
+                    elements.mainContent.style.marginLeft = sidebarWidth;
+                    elements.mainContent.style.width = `calc(100% - ${sidebarWidth})`;
+                    elements.mainContent.style.maxWidth = `calc(100% - ${sidebarWidth})`;
+                    elements.mainContent.classList.remove('sidebar-collapsed');
+                }
             }
-        }
     }
 
     /**

@@ -35,9 +35,33 @@
             'querySelector': typeof document.querySelector !== 'undefined',
             'classList': typeof document.createElement('div').classList !== 'undefined',
             'dataset': typeof document.createElement('div').dataset !== 'undefined',
-            'arrowFunctions': (function() { try { eval('() => {}'); return true; } catch(e) { return false; } })(),
-            'templateLiterals': (function() { try { eval('`test`'); return true; } catch(e) { return false; } })(),
-            'constLet': (function() { try { eval('const test = 1; let test2 = 2;'); return true; } catch(e) { return false; } })()
+            'arrowFunctions': (function() { 
+                try { 
+                    // CSP-safe arrow function test without eval
+                    return typeof (() => {}) === 'function';
+                } catch(e) { 
+                    console.warn('Arrow function test failed:', e);
+                    return false; 
+                } 
+            })(),
+            'templateLiterals': (function() { 
+                try { 
+                    // CSP-safe template literal test without eval
+                    return typeof `test` === 'string';
+                } catch(e) { 
+                    console.warn('Template literal test failed:', e);
+                    return false; 
+                } 
+            })(),
+            'constLet': (function() { 
+                try { 
+                    // CSP-safe const/let test without eval
+                    return typeof (function() { const test = 1; let test2 = 2; return test + test2; })() === 'number';
+                } catch(e) { 
+                    console.warn('Const/let test failed:', e);
+                    return false; 
+                } 
+            })()
         };
         
         return features[feature] || false;
@@ -198,7 +222,7 @@
         if (!Array.prototype.includes) {
             compatibilityIssues.push('Array.includes not supported - using polyfill');
             Array.prototype.includes = function(searchElement, fromIndex) {
-                if (this == null) {
+                if (this === null || this === undefined) {
                     throw new TypeError('Array.prototype.includes called on null or undefined');
                 }
                 var O = Object(this);

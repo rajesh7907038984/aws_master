@@ -6,7 +6,7 @@
 {% block content %}
 <div class="container">
     <div class="row justify-content-center">
-        <div class="col-md-6">
+        <div class="w-full md:w-1/2">
             <div class="card">
                 <div class="card-body text-center">
                     <div class="logo-container mb-4">
@@ -19,8 +19,8 @@
                     <p class="text-muted">You have been successfully logged out of the Nexsy LMS system.</p>
                     
                     <div class="mt-4">
-                        <a href="{% url 'login' %}" class="btn btn-primary">Sign In Again</a>
-                        <a href="{% url 'home' %}" class="btn btn-outline-secondary">Go to Home</a>
+                        <a href="{% url 'login' %}" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">Sign In Again</a>
+                        <a href="{% url 'home' %}" class="px-4 py-2 border border-gray-600 text-gray-600 rounded-lg hover:bg-gray-600 hover:text-white transition-colors">Go to Home</a>
                     </div>
                     
                     <div class="mt-3">

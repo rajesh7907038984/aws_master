@@ -15,15 +15,15 @@ SERVER_GROUP = os.environ.get('SERVER_GROUP', 'ec2-user')
 GUNICORN_BIND = os.environ.get('GUNICORN_BIND', '0.0.0.0:8000')
 GUNICORN_TIMEOUT = int(os.environ.get('GUNICORN_TIMEOUT', '3600'))  # 1 hour for large SCORM uploads (600MB) and extraction
 
-# Calculate workers - optimized for 2 CPU cores (3.8GB RAM)
+# Calculate workers - optimized for 2 CPU cores with memory constraints
 workers_env = os.environ.get('GUNICORN_WORKERS', 'auto')
 if workers_env == 'auto':
-    # For 2 CPUs with limited RAM, use fewer workers
+    # For 2 CPUs with limited RAM, use conservative worker count
     cpu_count = multiprocessing.cpu_count()
     if cpu_count <= 2:
-        workers = 2  # Increased from 1 to 2 for better performance
+        workers = 1  # Reduced to 1 worker to prevent memory issues
     else:
-        workers = cpu_count  # More conservative
+        workers = max(1, cpu_count - 1)  # Conservative approach
 else:
     workers = int(workers_env)
 
@@ -38,8 +38,8 @@ keepalive = 2  # Reduced for better memory management
 
 # Restart workers after this many requests, to prevent memory leaks
 # SESSION-AWARE: Optimized worker recycling to preserve user sessions
-max_requests = 1000  # Increased for better performance while preventing memory leaks
-max_requests_jitter = 100  # Reasonable jitter for better memory management
+max_requests = 500  # Reduced to prevent memory buildup
+max_requests_jitter = 50  # Reduced jitter for better memory management
 
 # Logging - use environment variable for log directory
 accesslog = "{}/gunicorn_access.log".format(LOGS_DIR)
@@ -68,6 +68,9 @@ limit_request_field_size = 16380
 # Performance and memory optimization
 preload_app = False  # Disabled to reduce memory usage at startup
 worker_tmp_dir = "/dev/shm"
+
+# Memory management
+worker_memory_limit = 200 * 1024 * 1024  # 200MB per worker
 
 # Graceful timeout for worker restart
 graceful_timeout = 600  # Extended for large file uploads (600MB SCORM) - 10 minutes

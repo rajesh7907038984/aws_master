@@ -1,0 +1,228 @@
+/* Template Style Fixes - Custom CSS Classes */
+
+/* Important display utilities */
+.flex-important {
+    display: flex !important;
+}
+
+.visible-important {
+    visibility: visible !important;
+}
+
+.opacity-100 {
+    opacity: 1 !important;
+}
+
+.block-important {
+    display: block !important;
+}
+
+/* Z-index utilities - Organized hierarchy */
+:root {
+    --z-header-icons: 10;
+    --z-dropdowns: 20;
+    --z-sidebar: 30;
+    --z-mobile-overlay: 40;
+    --z-mobile-menu: 50;
+    --z-profile-dropdown: 60;
+    --z-toast: 70;
+    --z-modal-overlay: 80;
+    --z-modal: 90;
+    --z-tooltip: 100;
+}
+
+.z-10 { z-index: var(--z-header-icons); }   /* Header icons */
+.z-20 { z-index: var(--z-dropdowns); }   /* Dropdowns */
+.z-30 { z-index: var(--z-sidebar); }   /* Sidebar */
+.z-40 { z-index: var(--z-mobile-overlay); }   /* Mobile menu overlay */
+.z-50 { z-index: var(--z-mobile-menu); }   /* Mobile menu */
+.z-60 { z-index: var(--z-profile-dropdown); }   /* Profile dropdown */
+.z-70 { z-index: var(--z-toast); }   /* Toast notifications */
+.z-80 { z-index: var(--z-modal-overlay); }   /* Modal overlays */
+.z-90 { z-index: var(--z-modal); }   /* Modals */
+.z-100 { z-index: var(--z-tooltip); } /* Tooltips */
+
+/* Touch and interaction utilities */
+.no-tap-highlight {
+    -webkit-tap-highlight-color: transparent;
+}
+
+.touch-manipulation {
+    touch-action: manipulation;
+}
+
+/* Transition utilities */
+.transition-margin {
+    transition: margin-left 0.3s ease, margin-right 0.3s ease;
+}
+
+.transition-width {
+    transition: width 0.3s ease;
+}
+
+/* Size utilities */
+.min-w-10 {
+    min-width: 40px;
+}
+
+.min-h-10 {
+    min-height: 40px;
+}
+
+.max-h-15 {
+    max-height: 60px;
+}
+
+/* Background color utilities */
+.bg-indigo-900 {
+    background-color: #1c2260;
+}
+
+.bg-indigo-800 {
+    background-color: #181f56;
+}
+
+/* Hover states for buttons */
+.hover\:bg-indigo-800:hover {
+    background-color: #181f56;
+}
+
+.hover\:bg-gray-700:hover {
+    background-color: #4b5563;
+}
+
+/* Production-safe console logging */
+.console-log {
+    display: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    .console-log {
+        display: none;
+    }
+}
+
+/* Debug mode styles */
+.debug-mode .console-log {
+    display: block;
+}
+
+/* Remove alert styles */
+.alert-replacement {
+    display: none;
+}
+
+/* Toast notification styles */
+.toast-notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 1000;
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 16px;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    max-width: 400px;
+    animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+/* Button hover effects without inline handlers */
+.button-hover-effect {
+    transition: background-color 0.2s ease;
+}
+
+.button-hover-effect:hover {
+    background-color: var(--hover-color, #181f56);
+}
+
+/* Responsive utilities */
+@media (max-width: 768px) {
+    .mobile-hidden {
+        display: none;
+    }
+}
+
+@media (min-width: 769px) {
+    .desktop-hidden {
+        display: none;
+    }
+}
+
+/* Additional utility classes for template fixes */
+.min-h-75 {
+    min-height: 300px;
+}
+
+.tinymce-field {
+    min-height: 300px;
+}
+
+/* Toast notification styles */
+.toast-notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 1000;
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 16px;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    max-width: 400px;
+    animation: slideIn 0.3s ease-out;
+}
+
+.toast-leave {
+    animation: slideOut 0.3s ease-in;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes slideOut {
+    from {
+        transform: translateX(0);
+        opacity: 1;
+    }
+    to {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+}
+
+/* Button hover effects */
+.toast-close-btn:hover {
+    background-color: #f3f4f6;
+}
+
+.history-back-btn:hover {
+    background-color: #4b5563;
+}
+
+.reload-page-btn:hover {
+    background-color: #4b5563;
+}
+
+.search-toast-trigger:hover {
+    text-decoration: underline;
+}

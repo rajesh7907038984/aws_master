@@ -68,31 +68,30 @@ class UnifiedNotificationSystem {
         // Create notification element
         const notification = document.createElement('div');
         notification.id = notificationId;
-        notification.className = `unified-notification unified-notification-${type}`;
+        notification.className = 'unified-notification unified-notification-' + type;
         
         // Set styles based on type
         const styles = this.getTypeStyles(type);
-        notification.style.cssText = `
-            background: ${styles.background};
-            color: ${styles.color};
-            border: 1px solid ${styles.border};
-            border-radius: 8px;
-            padding: 12px 16px;
-            margin-bottom: 8px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-            font-size: 14px;
-            font-weight: 500;
-            line-height: 1.4;
-            opacity: 0;
-            transform: translateX(100%);
-            transition: all 0.3s ease;
-            pointer-events: auto;
-            display: flex;
-            align-items: flex-start;
-            gap: 8px;
-            max-width: 100%;
-            word-wrap: break-word;
-        `;
+        notification.style.cssText = 
+            'background: ' + styles.background + ';' +
+            'color: ' + styles.color + ';' +
+            'border: 1px solid ' + styles.border + ';' +
+            'border-radius: 8px;' +
+            'padding: 12px 16px;' +
+            'margin-bottom: 8px;' +
+            'box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);' +
+            'font-size: 14px;' +
+            'font-weight: 500;' +
+            'line-height: 1.4;' +
+            'opacity: 0;' +
+            'transform: translateX(100%);' +
+            'transition: all 0.3s ease;' +
+            'pointer-events: auto;' +
+            'display: flex;' +
+            'align-items: flex-start;' +
+            'gap: 8px;' +
+            'max-width: 100%;' +
+            'word-wrap: break-word;';
 
         // Create icon
         const icon = this.createIcon(type);

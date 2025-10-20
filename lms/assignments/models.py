@@ -103,7 +103,7 @@ class Assignment(models.Model):
         help_text="Comma-separated list of allowed file extensions"
     )
     max_file_size = models.IntegerField(
-        default=629145600,  # 600MB
+        default=104857600,  # 100MB
         help_text="Maximum file size in bytes"
     )
     rubric = models.ForeignKey(

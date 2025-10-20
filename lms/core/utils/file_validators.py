@@ -29,9 +29,9 @@ class FileUploadValidator:
         'image': 10 * 1024 * 1024,      # 10MB for images
         'document': 50 * 1024 * 1024,   # 50MB for documents
         'video': 500 * 1024 * 1024,     # 500MB for videos (consistent with frontend)
-        'audio': 600 * 1024 * 1024,     # 600MB for audio
-        'archive': 600 * 1024 * 1024,   # 600MB for archives (increased for large ZIP files)
-        'general': 600 * 1024 * 1024    # 600MB for general files (increased for large ZIP files)
+        'audio': 100 * 1024 * 1024,     # 100MB for audio
+        'archive': 200 * 1024 * 1024,   # 200MB for archives
+        'general': 100 * 1024 * 1024    # 100MB for general files (corrected to match specification)
     }
     
     # File type categories
@@ -176,9 +176,10 @@ class FileUploadValidator:
                 import zipfile
                 uploaded_file.seek(0)
                 with zipfile.ZipFile(uploaded_file, 'r') as zip_file:
-                    # Just check if it's a valid ZIP - no manifest requirement
                     file_list = zip_file.namelist()
-                    logger.info(f"ZIP validation: Found {len(file_list)} files in ZIP")
+                    has_manifest = any('imsmanifest.xml' in f.lower() for f in file_list)
+                    if not has_manifest:
+                        errors.append(_('ZIP file does not contain required manifest'))
             except zipfile.BadZipFile:
                 errors.append(_('File is not a valid ZIP archive'))
             except Exception as e:

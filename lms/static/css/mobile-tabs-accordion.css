@@ -15,7 +15,7 @@
 }
 
 /* Desktop tab styles (768px and above) */
-@media (min-width: 769px) {
+@media (min-width: 768px) {
     .tab-accordion-container {
         display: none !important;
     }
@@ -131,8 +131,8 @@
     }
 }
 
-/* Mobile accordion styles (768px and below) */
-@media (max-width: 768px) {
+/* Mobile accordion styles (767px and below) */
+@media (max-width: 767px) {
     /* Hide desktop tab headers on mobile */
     .tab-responsive-container .tab-headers-desktop,
     .tab-responsive-container .tab-buttons {

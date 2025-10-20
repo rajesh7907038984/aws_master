@@ -67,6 +67,8 @@ ALB_DOMAIN = get_env('ALB_DOMAIN', '')
 # Build ALLOWED_HOSTS list dynamically
 ALLOWED_HOSTS = [
     PRIMARY_DOMAIN,  # Primary production domain from environment
+    '3.8.4.75',      # Add IP that was causing errors
+    'testserver',    # Add testserver for testing
 ]
 
 # Add ALB domain if configured
@@ -191,7 +193,9 @@ STATICFILES_STORAGE = 'whitenoise.storage.StaticFilesStorage'
 WHITENOISE_USE_FINDERS = True
 WHITENOISE_AUTOREFRESH = True
 WHITENOISE_INDEX_FILE = True
-WHITENOISE_ADD_HEADERS_FUNCTION = 'core.utils.whitenoise_headers.whitenoise_headers'
+# Import the function properly instead of using string path
+from core.utils.whitenoise_headers import whitenoise_headers
+WHITENOISE_ADD_HEADERS_FUNCTION = whitenoise_headers
 
 # Static files compression and caching
 WHITENOISE_MAX_AGE = 31536000  # 1 year

@@ -1095,8 +1095,17 @@ def bulk_delete_users(request):
                 deleted_users.append(user_name)
                 deleted_count += 1
                 logger.info("Successfully deleted user: {} (ID: {}) by {}".format(user_name, user.id, request.user.username))
+            except ValidationError as e:
+                logger.warning("Validation error deleting user {} (ID: {}): {}".format(user.username, user.id, str(e)))
+                continue
+            except PermissionDenied as e:
+                logger.warning("Permission denied deleting user {} (ID: {}): {}".format(user.username, user.id, str(e)))
+                continue
+            except DatabaseError as e:
+                logger.error("Database error deleting user {} (ID: {}): {}".format(user.username, user.id, str(e)))
+                continue
             except Exception as e:
-                logger.error("Error deleting user {} (ID: {}): {}".format(user.username, user.id, str(e)))
+                logger.error("Unexpected error deleting user {} (ID: {}): {}".format(user.username, user.id, str(e)), exc_info=True)
                 continue
         
         if deleted_count == 0:
@@ -6053,12 +6062,9 @@ def instructor_dashboard(request):
     from django.utils import timezone
     from datetime import timedelta
     
-    # Get list of assigned course IDs for filtering
-    assigned_course_ids = list(assigned_courses.values_list('id', flat=True))
-    
     # 1. Assignments pending grading (high priority)
     pending_submissions = AssignmentSubmission.objects.filter(
-        assignment__courses__id__in=assigned_course_ids,
+        assignment__course__in=assigned_courses,
         status='submitted'
     ).select_related('assignment', 'user').order_by('submitted_at')[:5]
     

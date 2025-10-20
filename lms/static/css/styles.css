@@ -1,12 +1,23 @@
 /* Main Styles for LMS Public Pages */
 :root {
-    --primary-color: #050c50;
-    --secondary-color: #4262FF;
-    --accent-color: #2F80ED;
+    /* Brand Colors - Unified */
+    --brand-primary: #1c2260;
+    --brand-primary-hover: #141a4a;
+    --brand-secondary: #4262FF;
+    --brand-accent: #2F80ED;
+    
+    /* Legacy support */
+    --primary-color: var(--brand-primary);
+    --secondary-color: var(--brand-secondary);
+    --accent-color: var(--brand-accent);
+    
+    /* Status Colors */
     --success-color: #10b981;
     --warning-color: #f59e0b;
     --error-color: #ef4444;
     --info-color: #3b82f6;
+    
+    /* Neutral Colors */
     --text-color: #1f2937;
     --text-muted: #6b7280;
     --border-color: #e5e7eb;
@@ -51,14 +62,16 @@ h6 { font-size: 1.125rem; }
 }
 
 .btn-primary {
-    background-color: var(--primary-color);
+    background-color: var(--brand-primary);
     color: white;
-    border-color: var(--primary-color);
+    border-color: var(--brand-primary);
 }
 
 .btn-primary:hover {
-    background-color: var(--primary-color, #050c50);
-    border-color: var(--primary-color, #050c50);
+    background-color: var(--brand-primary-hover);
+    border-color: var(--brand-primary-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(28, 34, 96, 0.25);
 }
 
 .btn-secondary {

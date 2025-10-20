@@ -42,34 +42,54 @@
 
 /* ========== Global Reset & Base Styles ========== */
 .dashboard-container {
-    max-width: 100% !important;
-    background-color: #ffffff !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    width: 100% !important;
-    box-sizing: border-box !important;
+    max-width: 100%;
+    background-color: #ffffff;
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* High specificity for dashboard container */
+html body .dashboard-container {
+    max-width: 100%;
+    background-color: #ffffff;
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    box-sizing: border-box;
     overflow-x: hidden;
     overflow-y: visible;
 }
 
 .dashboard-main {
-    background-color: #ffffff !important;
-    padding: var(--dashboard-spacing-xl) !important;
-    margin: 0 !important;
-    width: 100% !important;
-    max-width: 100% !important;
-    box-sizing: border-box !important;
+    background-color: #ffffff;
+    padding: var(--dashboard-spacing-xl);
+    margin: 0;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
     overflow-x: hidden;
     overflow-y: visible;
 }
 
+/* High specificity for dashboard main */
+html body .dashboard-main {
+    background-color: #ffffff;
+    padding: var(--dashboard-spacing-xl);
+    margin: 0;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+}
+
 /* ========== Typography System ========== */
 .dashboard-heading-primary {
-    font-size: 1.125rem !important;
-    font-weight: 600 !important;
-    color: var(--dashboard-text-primary) !important;
-    margin-bottom: var(--dashboard-spacing-md) !important;
-    text-align: left !important;
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--dashboard-text-primary);
+    margin-bottom: var(--dashboard-spacing-md);
+    text-align: left;
 }
 
 .dashboard-heading-secondary {
@@ -1396,7 +1416,7 @@
     overflow-y: visible;
 }
 
-/* Ensure text content doesn't overflow */
+/* Text overflow handling - consolidated */
 .dashboard-activity-title,
 .dashboard-activity-description,
 .dashboard-text-small,

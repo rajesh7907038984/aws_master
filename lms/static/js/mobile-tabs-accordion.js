@@ -179,7 +179,7 @@ class MobileTabsAccordion {
         const toggle = document.createElement('button');
         toggle.className = 'mobile-table-toggle';
         toggle.innerHTML = `
-            <span>${title}</span>
+            <span>' + title + '</span>
             <svg class="mobile-table-toggle-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
             </svg>
@@ -762,21 +762,20 @@ class MobileTabsAccordion {
             const accordionHeader = document.createElement('button');
             accordionHeader.type = 'button';
             accordionHeader.className = 'tab-accordion-header';
-            accordionHeader.setAttribute('data-accordion-target', `${tabTarget}-accordion`);
+            accordionHeader.setAttribute('data-accordion-target', tabTarget + '-accordion');
             accordionHeader.setAttribute('aria-expanded', 'false');
-            accordionHeader.setAttribute('aria-controls', `${tabTarget}-accordion`.substring(1));
+            accordionHeader.setAttribute('aria-controls', (tabTarget + '-accordion').substring(1));
             
             // Add text and icon
-            accordionHeader.innerHTML = `
-                <span>${tabText}</span>
-                <svg class="tab-accordion-icon w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                </svg>
-            `;
+            accordionHeader.innerHTML = 
+                '<span>' + tabText + '</span>' +
+                '<svg class="tab-accordion-icon w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">' +
+                    '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>' +
+                '</svg>';
             
             // Create accordion content
             const accordionContent = document.createElement('div');
-            accordionContent.id = `${tabTarget}-accordion`.substring(1);
+            accordionContent.id = (tabTarget + '-accordion').substring(1);
             accordionContent.className = 'tab-accordion-content';
             accordionContent.setAttribute('aria-hidden', 'true');
             

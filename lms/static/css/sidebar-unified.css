@@ -1,7 +1,9 @@
 /* Unified Sidebar Styles for LMS */
 /* High specificity to override Tailwind and other CSS */
+/* Variables are now defined in sidebar-variables.css */
+
 #sidebar {
-    background-color: var(--brand-primary, #050c50) !important;
+    background-color: #1C2260 !important; /* Dark blue from screenshot */
     color: white !important;
     position: fixed !important;
     top: 4rem !important;
@@ -12,30 +14,32 @@
     transition: all 0.3s ease !important;
     overflow-y: auto !important;
     overflow-x: hidden !important;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1) !important;
 }
 
 .sidebar {
     position: fixed;
     top: 4rem;
     left: 0;
-    width: 16rem;
-    height: calc(100vh - 4rem);
-    background-color: var(--brand-primary, #050c50);
-    color: white;
-    z-index: 30;
-    transition: all 0.3s ease;
+    width: var(--sidebar-width);
+    height: var(--sidebar-height);
+    background-color: var(--sidebar-bg);
+    color: var(--sidebar-text);
+    z-index: var(--z-sidebar);
+    transition: var(--sidebar-transition);
     overflow-y: auto;
     overflow-x: hidden;
+    box-shadow: var(--sidebar-shadow);
 }
 
 .sidebar.collapsed {
-    width: 3.5rem !important;
-    transition: width 0.3s ease !important;
+    width: var(--sidebar-collapsed-width) !important;
+    transition: var(--sidebar-transition) !important;
 }
 
 #sidebar.collapsed {
-    width: 3.5rem !important;
-    transition: width 0.3s ease !important;
+    width: var(--sidebar-collapsed-width) !important;
+    transition: var(--sidebar-transition) !important;
 }
 
 #sidebar.collapsed .menu-text {
@@ -48,19 +52,19 @@
 
 /* Fix main content adjustment */
 #main-content.sidebar-collapsed {
-    margin-left: 3.5rem !important;
-    width: calc(100% - 3.5rem) !important;
-    transition: margin-left 0.3s ease, width 0.3s ease !important;
+    margin-left: var(--sidebar-collapsed-width) !important;
+    width: calc(100% - var(--sidebar-collapsed-width)) !important;
+    transition: var(--sidebar-transition) !important;
 }
 
 /* High specificity for menu items */
 #sidebar .menu-item {
     display: flex !important;
     align-items: center !important;
-    padding: 0.75rem 1rem !important;
-    color: white !important;
+    padding: var(--sidebar-item-padding) !important;
+    color: var(--sidebar-text) !important;
     text-decoration: none !important;
-    transition: all 0.3s ease !important;
+    transition: var(--sidebar-transition) !important;
     border-left: 4px solid transparent !important;
     width: 100% !important;
     box-sizing: border-box !important;
@@ -68,6 +72,7 @@
     overflow: hidden !important;
     text-overflow: ellipsis !important;
     background-color: transparent !important;
+    border-radius: var(--sidebar-item-radius) !important;
 }
 
 .sidebar .menu-item {
@@ -87,15 +92,17 @@
 
 /* High specificity for hover and active states */
 #sidebar .menu-item:hover {
-    background-color: var(--brand-primary-hover, #02071e) !important;
-    border-left-color: #02f711 !important;
-    color: white !important;
+    background-color: var(--sidebar-bg-hover) !important;
+    border-left-color: var(--sidebar-accent) !important;
+    color: var(--sidebar-text) !important;
+    transform: translateX(2px) !important;
 }
 
 #sidebar .menu-item.active {
-    background-color: var(--brand-primary-hover, #02071e) !important;
-    border-left-color: #02f711 !important;
-    color: white !important;
+    background-color: var(--sidebar-bg-hover) !important;
+    border-left-color: var(--sidebar-accent) !important;
+    color: var(--sidebar-text) !important;
+    font-weight: 600 !important;
 }
 
 .sidebar .menu-item:hover {
@@ -165,6 +172,14 @@
     text-overflow: ellipsis;
 }
 
+/* CRITICAL: Fix main content positioning with CSS variables */
+#main-content {
+    margin-left: var(--sidebar-width, 16rem) !important;
+    width: calc(100% - var(--sidebar-width, 16rem)) !important;
+    transition: var(--sidebar-transition, all 0.3s ease) !important;
+    padding-top: 4rem !important;
+}
+
 /* High specificity for mobile responsiveness */
 @media (max-width: 768px) {
     #sidebar {
@@ -172,6 +187,11 @@
         visibility: hidden !important;
         opacity: 0 !important;
         transform: translateX(-100%) !important;
+    }
+    
+    #main-content {
+        margin-left: 0 !important;
+        width: 100% !important;
     }
 }
 
@@ -221,13 +241,14 @@
 }
 
 #sidebar .submenu .menu-item {
-    padding-left: 3rem !important;
+    padding: var(--sidebar-submenu-padding) !important;
     font-size: 0.8rem !important;
     width: 100% !important;
     box-sizing: border-box !important;
     white-space: nowrap !important;
     overflow: hidden !important;
     text-overflow: ellipsis !important;
+    border-radius: var(--sidebar-item-radius) !important;
 }
 
 /* Mobile responsiveness */

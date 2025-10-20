@@ -134,7 +134,7 @@ class ConferenceFileUploadForm(forms.Form):
     """
     file = forms.FileField(
         label='Select file to share',
-        help_text='Max file size: 600MB. Allowed formats: PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX, TXT, JPG, PNG, ZIP',
+        help_text='Max file size: 100MB. Allowed formats: PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX, TXT, JPG, PNG, ZIP',
         widget=forms.FileInput(attrs={
             'class': 'form-control',
             'accept': '.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.jpg,.jpeg,.png,.zip'
@@ -153,9 +153,9 @@ class ConferenceFileUploadForm(forms.Form):
     def clean_file(self):
         file = self.cleaned_data.get('file')
         if file:
-            # Check file size (600MB limit)
-            if file.size > 600 * 1024 * 1024:
-                raise forms.ValidationError('File size cannot exceed 600MB.')
+            # Check file size (100MB limit)
+            if file.size > 100 * 1024 * 1024:
+                raise forms.ValidationError('File size cannot exceed 100MB.')
             
             # Check file extension
             allowed_extensions = [

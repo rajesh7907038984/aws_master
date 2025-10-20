@@ -36,7 +36,7 @@ class Command(BaseCommand):
                 )
                 return
         else:
-            assignments = Assignment.objects.all()[:5]  # Limit to first 5 assignments
+            assignments = Assignment.objects.select_related('course', 'created_by').all()[:5]  # Limit to first 5 assignments with optimization
             self.stdout.write("Populating data for {{len(assignments)}} assignments")
 
         if dry_run:

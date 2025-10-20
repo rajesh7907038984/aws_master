@@ -6,12 +6,7 @@
             <!-- Dashboard -->
             <a href="{% if request.user.role == 'globaladmin' %}{% url 'dashboard_globaladmin' %}{% elif request.user.role == 'superadmin' %}{% url 'dashboard_superadmin' %}{% elif request.user.role == 'admin' %}{% url 'dashboard_admin' %}{% elif request.user.role == 'instructor' %}{% url 'dashboard_instructor' %}{% else %}{% url 'dashboard_learner' %}{% endif %}" class="menu-item flex items-center px-4 py-1 w-full {% if 'dashboard' in request.path %}active{% endif %}">
                 <div class="icon-container min-w-[20px] flex justify-center">
-                    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                        <rect x="3" y="3" width="7" height="7" stroke="currentColor" stroke-width="2"/>
-                        <rect x="14" y="3" width="7" height="7" stroke="currentColor" stroke-width="2"/>
-                        <rect x="3" y="14" width="7" height="7" stroke="currentColor" stroke-width="2"/>
-                        <rect x="14" y="14" width="7" height="7" stroke="currentColor" stroke-width="2"/>
-                    </svg>
+                    <i class="fas fa-th-large w-4 h-4"></i>
                 </div>
                 <span class="menu-text ml-3 text-sm font-medium">Dashboard</span>
             </a>

@@ -129,7 +129,7 @@ window.LMSEventListeners = window.LMSEventListeners || {
             return;
         }
         
-        const key = `${element}_${event}_${Date.now()}`;
+        const key = element + '_' + event + '_' + Date.now();
         if (this.listeners.has(key)) {
             this.remove(key);
         }
@@ -202,7 +202,7 @@ document.addEventListener('DOMContentLoaded', function() {
     try {
         const collapsedSections = JSON.parse(localStorage.getItem('collapsedSections') || '[]');
         collapsedSections.forEach(sectionId => {
-            const sectionItem = document.querySelector(`.section-item[data-id="${sectionId}"]`);
+            const sectionItem = document.querySelector('.section-item[data-id="' + sectionId + '"]');
             if (sectionItem) {
                 const topicsContainer = sectionItem.querySelector('.section-topics');
                 const toggle = sectionItem.querySelector('.section-toggle');

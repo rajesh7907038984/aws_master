@@ -22,7 +22,7 @@ Parameters:
     <!-- TinyMCE Editor -->
     <textarea id="id_{{ field_name }}" name="{{ field_name }}" 
               class="tinymce-editor border border-gray-300 rounded-md w-full"
-              style="min-height: {{ field_height|default:'300px' }};"
+              class="tinymce-field min-h-75"
               {% if field_required %}required{% endif %}>{{ field_value|safe }}</textarea>
     
     {% if field_help %}

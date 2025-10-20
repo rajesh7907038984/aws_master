@@ -19,7 +19,7 @@
                     <h5 class="text-md font-medium text-blue-800">Manage Induction Items</h5>
                     <p class="text-sm text-blue-600">Add induction checklist items for the learner to review and confirm</p>
                 </div>
-                <button type="button" id="add-induction-item-btn" class="text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-200" style="background-color: #1c2260;" onmouseover="this.style.backgroundColor='#181f56'" onmouseout="this.style.backgroundColor='#1c2260'">
+                <button type="button" id="add-induction-item-btn" class="text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-200 bg-indigo-900 hover:bg-indigo-800">
                     <i class="fas fa-plus mr-2"></i>Add Item
                 </button>
             </div>
@@ -250,7 +250,7 @@
                             </div>
 
                             <!-- Show instructor reply if exists -->
-                            {% if question.instructor_reply and question.instructor_reply != 'None' %}
+                            {% if question.instructor_reply and question.instructor_reply != 'None' and question.instructor_reply %}
                             <div class="mt-4 p-4 bg-green-50 border border-green-200 rounded-md">
                                 <p class="text-sm text-green-600 mb-1">
                                     <i class="fas fa-reply mr-1"></i>

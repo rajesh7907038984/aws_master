@@ -164,7 +164,7 @@ a .fas, a .far, a .fab, a .fa {
 
 /* Fix for breadcrumb icons */
 .breadcrumb-icon .fas, .breadcrumb-icon .far, .breadcrumb-icon .fab, .breadcrumb-icon .fa {
-    font-size: 0.875rem !important;
+    font-size: 1rem !important;
     color: var(--brand-accent) !important;
     display: inline-block !important;
     line-height: 1 !important;
@@ -189,6 +189,11 @@ table .fas, table .far, table .fab, table .fa {
 @media (max-width: 768px) {
     .fas, .far, .fab, .fa {
         font-size: 1rem !important;
+    }
+    
+    /* Breadcrumb icons on mobile */
+    .breadcrumb-icon .fas, .breadcrumb-icon .far, .breadcrumb-icon .fab, .breadcrumb-icon .fa {
+        font-size: 0.875rem !important;
     }
     
     .fa-2x {

@@ -13,7 +13,7 @@
     <link href="{% static 'css/tailwind.css' %}" rel="stylesheet">
     
     <!-- FontAwesome for icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" crossorigin="anonymous" referrerpolicy="no-referrer">
+    <!-- Font Awesome loaded via base.html -->
     
     <!-- Custom CSS for animations -->
     <style>
@@ -101,7 +101,7 @@
                     Return to Dashboard
                 </a>
                 
-                <button onclick="history.back()" 
+                <button class="history-back-btn" data-action="history-back" 
                         class="inline-flex items-center px-6 py-3 bg-blue-600 text-white font-semibold rounded-xl shadow-md hover:bg-blue-700 hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1">
                     <i class="fas fa-arrow-left mr-2"></i>
                     Go Back

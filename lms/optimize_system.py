@@ -20,7 +20,11 @@ def run_command(command, description):
     """Run a command and log the result"""
     logger.info(f"Running: {description}")
     try:
-        result = subprocess.run(command, shell=True, capture_output=True, text=True, cwd='/home/ec2-user/lms')
+        # Security fix: Use shell=False and proper argument parsing
+        import shlex
+        if isinstance(command, str):
+            command = shlex.split(command)
+        result = subprocess.run(command, shell=False, capture_output=True, text=True, cwd='/home/ec2-user/lms')
         if result.returncode == 0:
             logger.info(f"✅ {description} - Success")
             if result.stdout:

@@ -163,16 +163,7 @@
     border-color: #9ca3af;
 }
 
-.mobile-card-actions .btn-primary {
-    background: #3b82f6;
-    color: white;
-    border-color: #3b82f6;
-}
-
-.mobile-card-actions .btn-primary:hover {
-    background: #2563eb;
-    border-color: #2563eb;
-}
+/* Button styles moved to unified-button-system.css */
 
 .mobile-card-actions .btn-secondary {
     background: #6b7280;
@@ -483,16 +474,16 @@
 @media (min-width: 768px) {
     /* Ensure main content doesn't overlap with sidebar */
     #main-content {
-        margin-left: 16rem !important;
-        width: calc(100% - 16rem) !important;
-        max-width: calc(100% - 16rem) !important;
+        margin-left: var(--sidebar-width, 16rem) !important;
+        width: calc(100% - var(--sidebar-width, 16rem)) !important;
+        max-width: calc(100% - var(--sidebar-width, 16rem)) !important;
     }
     
     /* When sidebar is collapsed */
     #main-content.sidebar-collapsed {
-        margin-left: 3.5rem !important;
-        width: calc(100% - 3.5rem) !important;
-        max-width: calc(100% - 3.5rem) !important;
+        margin-left: var(--sidebar-collapsed-width, 3.5rem) !important;
+        width: calc(100% - var(--sidebar-collapsed-width, 3.5rem)) !important;
+        max-width: calc(100% - var(--sidebar-collapsed-width, 3.5rem)) !important;
     }
     
     /* Ensure tables don't extend beyond content area */

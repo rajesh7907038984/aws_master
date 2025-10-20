@@ -165,9 +165,9 @@
         {% endblock %}
         {% block form_buttons %}
             <div class="form-buttons">
-                <button type="submit" class="btn btn-primary">{{ submit_text|default:'Submit' }}</button>
+                <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">{{ submit_text|default:'Submit' }}</button>
                 {% if show_cancel %}
-                    <a href="{{ cancel_url }}" class="btn btn-secondary">Cancel</a>
+                    <a href="{{ cancel_url }}" class="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors">Cancel</a>
                 {% endif %}
             </div>
         {% endblock %}

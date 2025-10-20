@@ -74,31 +74,60 @@ class Command(BaseCommand):
         self.stdout.write("📈 Success rate: {{(valid_count/total_packages)*100:.1f}}%")
 
     def validate_package(self, package, fix_issues=False):
-        """Validate a single SCORM package with enhanced checks"""
-        self.stdout.write(f"\n🔍 Validating package for topic {package.topic.id}: {package.topic.title}")
+        """Validate a single SCORM package"""
+        self.stdout.write("\n🔍 Validating package for topic {{package.topic.id}}: {{package.topic.title}}")
         
-        # Use the new validation method
-        is_valid, issues = package.validate_extraction()
+        issues = []
         
-        if is_valid:
-            self.stdout.write(self.style.SUCCESS("✅ Package is valid"))
-            return True
+        # Check 1: Package file exists
+        if not package.package_file:
+            issues.append("❌ No package file uploaded")
+        elif not package.package_file.storage.exists(package.package_file.name):
+            issues.append("❌ Package file not found in storage")
+        
+        # Check 2: Package is extracted
+        if not package.is_extracted:
+            issues.append("❌ Package not extracted")
+            if fix_issues:
+                self.stdout.write("🔧 Attempting to extract package...")
+                try:
+                    if package.extract_package():
+                        self.stdout.write("✅ Package extraction successful")
+                    else:
+                        issues.append("❌ Package extraction failed")
+                except Exception as e:
+                    issues.append("❌ Package extraction error: {{str(e)}}")
+        
+        # Check 3: Launch file exists
+        if package.launch_file:
+            launch_url = package.get_content_url()
+            if not launch_url:
+                issues.append("❌ Launch file URL not accessible")
         else:
+            issues.append("❌ No launch file specified")
+        
+        # Check 4: Extracted path exists
+        if package.extracted_path:
+            # Check if files exist in S3
+            try:
+                storage = package.package_file.storage
+                if hasattr(storage, 'bucket_name'):
+                    # Check if extracted path exists in S3
+                    if not storage.exists(package.extracted_path):
+                        issues.append("❌ Extracted path not found in S3")
+            except Exception as e:
+                issues.append("❌ Error checking extracted path: {{str(e)}}")
+        
+        # Check 5: Package type is set
+        if not package.package_type:
+            issues.append("❌ Package type not specified")
+        
+        # Report results
+        if issues:
             self.stdout.write(self.style.ERROR("❌ Issues found:"))
             for issue in issues:
-                self.stdout.write(f"  ❌ {issue}")
-            
-            if fix_issues:
-                self.stdout.write("🔧 Attempting to fix package...")
-                try:
-                    if package.fix_extraction():
-                        self.stdout.write("✅ Package fixed successfully")
-                        return True
-                    else:
-                        self.stdout.write("❌ Package fix failed")
-                        return False
-                except Exception as e:
-                    self.stdout.write(f"❌ Package fix error: {str(e)}")
-                    return False
-            
+                self.stdout.write("  {{issue}}")
             return False
+        else:
+            self.stdout.write(self.style.SUCCESS("✅ Package is valid"))
+            return True

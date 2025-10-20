@@ -146,13 +146,13 @@
     {% endif %}
     
     <div class="action-buttons">
-        <a href="javascript:history.back()" class="btn btn-secondary">
+        <a href="javascript:history.back()" class="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors">
             <i class="fas fa-arrow-left button-icon"></i> Go Back
         </a>
-        <a href="{% url 'users:role_based_redirect' %}" class="btn btn-primary">
+        <a href="{% url 'users:role_based_redirect' %}" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
             <i class="fas fa-home button-icon"></i> Go to Dashboard
         </a>
-        <button onclick="location.reload()" class="btn btn-secondary">
+        <button class="reload-page-btn px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors" data-action="reload">
             <i class="fas fa-refresh button-icon"></i> Refresh Page
         </button>
     </div>

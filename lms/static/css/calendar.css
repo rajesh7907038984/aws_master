@@ -260,14 +260,7 @@
     border: none;
 }
 
-.btn-primary {
-    background: #3b82f6;
-    color: white;
-}
-
-.btn-primary:hover {
-    background: #2563eb;
-}
+/* Button styles moved to unified-button-system.css */
 
 .btn-secondary {
     background: #f3f4f6;

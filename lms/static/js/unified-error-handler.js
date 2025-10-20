@@ -73,6 +73,14 @@ class UnifiedErrorHandler {
                 console.error('Error in cleanup interval:', error);
             }
         }, 30000); // Run every 30 seconds
+        
+        // Add cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            if (this.cleanupInterval) {
+                clearInterval(this.cleanupInterval);
+                this.cleanupInterval = null;
+            }
+        });
     }
     
     /**
@@ -117,11 +125,7 @@ class UnifiedErrorHandler {
                 // Log syntax errors to console instead of showing popups
                 var sanitizedMessage = self.sanitizeErrorMessage(event.error ? event.error.message : '');
                 var sanitizedFilename = self.sanitizeErrorMessage(event.filename || '');
-                console.error('JavaScript Syntax Error:', {
-                    message: sanitizedMessage,
-                    file: sanitizedFilename,
-                    line: event.lineno
-                });
+                console.error('JavaScript Syntax Error: ' + sanitizedMessage + ' in file: ' + sanitizedFilename + ' at line: ' + event.lineno);
                 return;
             }
             

@@ -9,9 +9,7 @@
             </div>
             <span class="menu-text ml-3 text-sm font-medium">Courses</span>
         </div>
-        <svg class="w-4 h-4 transition-transform arrow-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-        </svg>
+        <i class="fas fa-chevron-down w-4 h-4"></i>
     </button>
     <div id="coursesSubmenu" class="submenu hidden">
         <a href="{% url 'courses:course_list' %}" class="menu-item flex items-center px-4 py-1 w-full">
@@ -24,9 +22,7 @@
         </a>
         <a href="{% url 'groups:group_list' %}?tab=course-groups" class="menu-item flex items-center px-4 py-1 w-full">
             <div class="icon-container min-w-[20px] flex justify-center">
-                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 7a4 4 0 100 8 4 4 0 000-8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" stroke-width="2"/>
-                </svg>
+                <i class="fas fa-user-friends w-4 h-4"></i>
             </div>
             <span class="menu-text ml-3 text-sm font-medium">Course Group</span>
         </a>
@@ -76,9 +72,7 @@
             </div>
             <span class="menu-text ml-3 text-sm font-medium">Communication</span>
         </div>
-        <svg class="w-4 h-4 transition-transform arrow-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-        </svg>
+        <i class="fas fa-chevron-down w-4 h-4"></i>
     </button>
     <div id="communicationSubmenu" class="submenu hidden">
         <a href="{% url 'lms_messages:messages' %}" class="menu-item flex items-center px-4 py-1 w-full">

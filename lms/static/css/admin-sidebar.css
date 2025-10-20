@@ -5,8 +5,8 @@
     left: 0;
     height: calc(100vh - var(--header-height));
     width: var(--sidebar-width);
-    z-index: var(--z-index-sidebar);
-    transition: all 0.3s ease;
+    z-index: var(--sidebar-z-index, 30);
+    transition: var(--sidebar-transition, all 0.3s cubic-bezier(0.4, 0, 0.2, 1));
     overflow-y: auto;
 }
 
@@ -18,7 +18,7 @@
 /* Collapsed sidebar styles */
 .sidebar.sidebar-collapsed, 
 .sidebar.collapsed {
-    width: 4.5rem !important;
+    width: var(--sidebar-collapsed-width) !important;
 }
 
 .sidebar.sidebar-collapsed .sidebar-text,
@@ -53,8 +53,8 @@
 .main-content-expanded,
 .sidebar.collapsed ~ .main-content,
 .sidebar.collapsed ~ main .main-content {
-    margin-left: 64px;
-    width: calc(100% - 64px);
+    margin-left: var(--sidebar-collapsed-width);
+    width: calc(100% - var(--sidebar-collapsed-width));
 }
 
 /* Basic sidebar menu item styles */

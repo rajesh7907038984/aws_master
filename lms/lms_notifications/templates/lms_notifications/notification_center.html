@@ -355,7 +355,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 button.remove();
                 
                 // Update unread count if present
-                const unreadCountElements = document.querySelectorAll('.text-2xl.md\\:text-3xl');
+                const unreadCountElements = document.querySelectorAll('.text-2xl');
                 if (unreadCountElements.length > 0) {
                     let count = parseInt(unreadCountElements[0].textContent);
                     unreadCountElements[0].textContent = Math.max(0, count - 1);

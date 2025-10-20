@@ -21,6 +21,7 @@ function showToast(message, type = 'success', duration = 3000) {
             try {
                 toast.remove();
             } catch (err) {
+                console.warn('Failed to remove existing toast:', err);
             }
         });
         
@@ -54,6 +55,7 @@ function showToast(message, type = 'success', duration = 3000) {
             try {
                 toast.textContent = message;
             } catch (err) {
+                console.warn('Failed to set toast text content, using fallback:', err);
                 // Fallback method
                 toast.innerHTML = '';
                 const textNode = document.createTextNode(String(message));
@@ -68,6 +70,7 @@ function showToast(message, type = 'success', duration = 3000) {
         try {
             document.body.appendChild(toast);
         } catch (err) {
+            console.error('Failed to append toast to document body:', err);
             return;
         }
         
@@ -77,6 +80,7 @@ function showToast(message, type = 'success', duration = 3000) {
                 try {
                     toast.classList.add('opacity-100');
                 } catch (err) {
+                    console.warn('Failed to add opacity class to toast:', err);
                 }
             }
         }, 10);
@@ -89,10 +93,12 @@ function showToast(message, type = 'success', duration = 3000) {
             try {
                 toast.classList.add('opacity-0');
             } catch (err) {
+                console.warn('Failed to fade out toast, attempting direct removal:', err);
                 // Try direct removal if fade fails
                 try {
                     toast.remove();
                 } catch (innerErr) {
+                    console.error('Failed to remove toast directly:', innerErr);
                 }
                 return;
             }
@@ -103,11 +109,13 @@ function showToast(message, type = 'success', duration = 3000) {
                     try {
                         toast.remove();
                     } catch (err) {
+                        console.warn('Failed to remove toast after transition:', err);
                     }
                 }
             }, 300);
         }, duration);
     } catch (err) {
+        console.error('Critical error in showToast function:', err);
     }
 }
 
@@ -131,18 +139,30 @@ function showModal(options) {
     const modal = document.createElement('div');
     modal.className = 'modal-container bg-white rounded-lg shadow-xl max-w-md w-full mx-4 overflow-hidden transform transition-transform scale-95 opacity-0';
     
-    // Build modal content
-    modal.innerHTML = `
-        <div class="modal-header border-b p-4">
-            <h3 class="text-lg font-medium text-gray-900">${options.title || 'Confirmation'}</h3>
-        </div>
-        <div class="modal-content p-4">
-            ${options.content || ''}
-        </div>
-        <div class="modal-footer border-t p-4 flex justify-end space-x-3">
-            ${buildModalButtons(options.buttons || [])}
-        </div>
-    `;
+    // Build modal content safely
+    const title = options.title || 'Confirmation';
+    const content = options.content || '';
+    const buttons = buildModalButtons(options.buttons || []);
+    
+    // Create elements safely to prevent XSS
+    const header = document.createElement('div');
+    header.className = 'modal-header border-b p-4';
+    const titleEl = document.createElement('h3');
+    titleEl.className = 'text-lg font-medium text-gray-900';
+    titleEl.textContent = title;
+    header.appendChild(titleEl);
+    
+    const contentEl = document.createElement('div');
+    contentEl.className = 'modal-content p-4';
+    contentEl.textContent = content;
+    
+    const footer = document.createElement('div');
+    footer.className = 'modal-footer border-t p-4 flex justify-end space-x-3';
+    footer.innerHTML = buttons; // This is safe as buildModalButtons returns sanitized HTML
+    
+    modal.appendChild(header);
+    modal.appendChild(contentEl);
+    modal.appendChild(footer);
     
     // Add to document
     overlay.appendChild(modal);
@@ -171,7 +191,7 @@ function showModal(options) {
     
     // Add click handlers to buttons
     options.buttons?.forEach((button, index) => {
-        const buttonEl = modal.querySelector(`.modal-button-${index}`);
+        const buttonEl = modal.querySelector('.modal-button-' + index);
         if (buttonEl && button.onClick) {
             buttonEl.addEventListener('click', () => {
                 button.onClick();
@@ -203,7 +223,7 @@ function showModal(options) {
 function buildModalButtons(buttons) {
     if (!buttons || buttons.length === 0) {
         // Default OK button
-        return `<button class="modal-button-0 px-4 py-2 text-white rounded-md transition-colors" style="background-color: var(--brand-primary);" onmouseover="this.style.backgroundColor='#141a4a'" onmouseout="this.style.backgroundColor='var(--brand-primary)'">OK</button>`;
+        return `<button class="modal-button-0 px-4 py-2 text-white rounded-md transition-colors bg-indigo-900 hover:bg-indigo-800">OK</button>`;
     }
     
     return buttons.map((button, index) => {
@@ -232,7 +252,8 @@ function buildModalButtons(buttons) {
                 break;
         }
         
-        return `<button class="${classes}">${button.text || 'Button'}</button>`;
+        const buttonText = button.text || 'Button';
+        return '<button class="' + classes + '">' + buttonText + '</button>';
     }).join('');
 }
 

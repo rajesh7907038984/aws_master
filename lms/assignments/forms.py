@@ -31,17 +31,17 @@ class AssignmentForm(forms.ModelForm):
         required=False,
         min_num=0,
         max_num=10,
-        max_file_size=629145600,  # 600 MB - increased for large ZIP files
+        max_file_size=104857600,  # 100 MB
         help_text='You can upload multiple supporting documents for the assignment (Optional for instructors)'
     )
     
     # Add a default value for max_file_size to prevent validation errors
     max_file_size = forms.IntegerField(
         required=False,  # Make it optional
-        initial=629145600,  # Default 600MB - increased for large ZIP files
+        initial=104857600,  # Default 100MB
         widget=forms.NumberInput(attrs={
             'class': 'block w-full rounded-lg border border-gray-300 bg-white text-gray-900 px-4 py-2.5 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 transition-colors duration-200',
-            'placeholder': '629145600',
+            'placeholder': '104857600',
         })
     )
     
@@ -217,7 +217,7 @@ class AssignmentForm(forms.ModelForm):
         
         # Set a default value if max_file_size is None
         if max_file_size is None:
-            max_file_size = 629145600  # Default 600MB - increased for large ZIP files
+            max_file_size = 104857600  # Default 100MB
         
         # Handle required fields - but more lenient for instructor assignment creation
         # Only validate if fields are completely empty (Django will handle basic required validation)
@@ -606,9 +606,9 @@ class AssignmentGradingForm(forms.Form):
     def clean_video_feedback(self):
         video_file = self.cleaned_data.get('video_feedback')
         if video_file:
-            # Check file size (600MB limit)
-            if video_file.size > 600 * 1024 * 1024:
-                raise forms.ValidationError("Video file size cannot exceed 600MB")
+            # Check file size (100MB limit)
+            if video_file.size > 100 * 1024 * 1024:
+                raise forms.ValidationError("Video file size cannot exceed 100MB")
             
             # Check file type
             if not any(video_file.content_type.startswith(t) for t in ['video/']):

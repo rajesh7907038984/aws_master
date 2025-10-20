@@ -89,7 +89,7 @@ def validate_security_settings():
     
     # Check file upload security
     max_file_size = getattr(settings, 'FILE_UPLOAD_MAX_MEMORY_SIZE', 0)
-    if max_file_size > 600 * 1024 * 1024:  # 600MB
+    if max_file_size > 100 * 1024 * 1024:  # 100MB
         issues.append("File upload size limit is too high")
         recommendations.append("Consider reducing FILE_UPLOAD_MAX_MEMORY_SIZE")
     

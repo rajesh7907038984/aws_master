@@ -1,0 +1,74 @@
+/* Sidebar CSS Variables - Centralized Configuration */
+/* This file provides consistent sidebar variables across the entire LMS */
+
+:root {
+    /* Sidebar Dimensions */
+    --sidebar-width: 16rem;
+    --sidebar-collapsed-width: 3.5rem;
+    --sidebar-height: calc(100vh - 4rem);
+    
+    /* Z-Index Hierarchy */
+    --z-sidebar: 30;
+    --z-mobile-overlay: 40;
+    --z-mobile-menu: 50;
+    --z-profile-dropdown: 60;
+    --z-toast: 70;
+    --z-modal-overlay: 80;
+    --z-modal: 90;
+    --z-tooltip: 100;
+    
+    /* Transitions */
+    --sidebar-transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    --sidebar-transition-fast: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    --sidebar-transition-slow: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    
+    /* Colors - Match Screenshot Exactly */
+    --sidebar-bg: #1C2260; /* Dark blue from screenshot */
+    --sidebar-bg-hover: #02071e;
+    --sidebar-accent: #02f711;
+    --sidebar-text: white;
+    
+    /* Spacing */
+    --sidebar-padding: 1rem;
+    --sidebar-item-padding: 0.75rem 1rem;
+    --sidebar-submenu-padding: 0.75rem 1rem 0.75rem 3rem;
+    
+    /* Border Radius */
+    --sidebar-radius: 0.5rem;
+    --sidebar-item-radius: 0.375rem;
+    
+    /* Shadows */
+    --sidebar-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    --sidebar-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+/* Responsive Breakpoints */
+@media (max-width: 768px) {
+    :root {
+        --sidebar-width: 0;
+        --sidebar-collapsed-width: 0;
+    }
+}
+
+/* Performance Optimizations */
+.sidebar,
+#sidebar,
+.mobile-menu {
+    contain: layout style paint;
+    will-change: transform;
+}
+
+/* Reduced Motion Support */
+@media (prefers-reduced-motion: reduce) {
+    :root {
+        --sidebar-transition: none;
+        --sidebar-transition-fast: none;
+        --sidebar-transition-slow: none;
+    }
+    
+    .sidebar,
+    #sidebar,
+    .mobile-menu {
+        will-change: auto;
+    }
+}
