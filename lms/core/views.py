@@ -291,16 +291,8 @@ def ai_content_demo(request):
 # ERROR HANDLING VIEWS
 # ============================================================================
 
-def csrf_failure(request, reason=""):
-    """CSRF failure handling"""
-    try:
-        return render(request, 'core/csrf_failure.html', {
-            'reason': reason
-        }, status=403)
-    except Exception as e:
-        logger.error(f"CSRF failure template error: {e}")
-        from django.http import HttpResponse
-        return HttpResponse("CSRF verification failed. Please try again.", status=403)
+# CSRF failure handling moved to core/views/csrf_failure.py
+# This function is now handled by the dedicated CSRF failure module
 
 
 @csrf_protect

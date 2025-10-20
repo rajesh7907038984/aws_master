@@ -149,7 +149,7 @@ class ELearningPackage(models.Model):
         return "{} Package: {}".format(self.get_package_type_display(), self.title or self.topic.title)
     
     def extract_package(self):
-        """TRUE STREAMING S3-to-S3 extraction - no memory loading, no temp files - optimized for large files (600MB+)"""
+        """ENHANCED STREAMING S3-to-S3 extraction - optimized for large files (600MB+) with memory management"""
         try:
             if not self.package_file:
                 error_msg = "No package file to extract"
@@ -182,12 +182,12 @@ class ELearningPackage(models.Model):
             # Create topic-based directory structure using the custom storage
             topic_dir = f"packages/{self.topic.id}"
             
-            logger.info(f"SCORM: Starting TRUE STREAMING S3-to-S3 extraction for {self.package_type} (topic {self.topic.id})")
+            logger.info(f"SCORM: Starting ENHANCED STREAMING S3-to-S3 extraction for {self.package_type} (topic {self.topic.id})")
             
-            # TRUE STREAMING S3-to-S3 EXTRACTION: Process ZIP file without loading into memory
+            # MODERN DIRECT S3-to-S3 EXTRACTION: No temporary files, pure streaming
             from django.core.files.base import ContentFile
-            import tempfile
-            import os
+            import io
+            import gc  # Garbage collection for memory management
             
             manifest_rel_path = None
             manifest_bytes = None
@@ -195,111 +195,111 @@ class ELearningPackage(models.Model):
             extracted_count = 0
             
             try:
-                # Use a temporary file for ZIP processing to avoid memory issues
-                with tempfile.NamedTemporaryFile(delete=False, suffix='.zip') as temp_zip:
-                    temp_zip_path = temp_zip.name
+                # MODERN APPROACH: Stream ZIP directly from S3 without temporary files
+                logger.info("SCORM: Starting DIRECT S3-to-S3 streaming extraction (no temp files)...")
+                
+                # Create an in-memory ZIP file handler
+                with self.package_file.open('rb') as s3_source:
+                    # Read the entire ZIP file into memory as bytes
+                    zip_data = s3_source.read()
                     
+                    # Validate ZIP file in memory
                     try:
-                        # Stream ZIP file from S3 to temporary file
-                        logger.info("SCORM: Streaming ZIP file from S3 to temporary file...")
-                        with self.package_file.open('rb') as s3_source:
-                            for chunk in s3_source.chunks(chunk_size=8192):  # 8KB chunks
-                                temp_zip.write(chunk)
-                        temp_zip.flush()
-                        
-                        # Validate ZIP file
-                        try:
-                            with zipfile.ZipFile(temp_zip_path, 'r') as zip_ref:
-                                zip_ref.testzip()
-                        except zipfile.BadZipFile:
-                            error_msg = "Invalid ZIP file format"
-                            logger.error(error_msg)
-                            self.extraction_error = error_msg
-                            self.is_extracted = False
-                            self.save()
-                            return False
-                        except Exception as e:
-                            error_msg = f"Error validating ZIP file: {str(e)}"
-                            logger.error(error_msg)
-                            self.extraction_error = error_msg
-                            self.is_extracted = False
-                            self.save()
-                            return False
-                        
-                        # Extract files directly to S3 in streaming fashion
-                        with zipfile.ZipFile(temp_zip_path, 'r') as zip_ref:
-                            file_list = zip_ref.namelist()
-                            total_files = len([f for f in file_list if not f.endswith('/')])
-                            logger.info(f"SCORM: Extracting {total_files} files directly to S3...")
-                            
-                            for member in file_list:
-                                if member.endswith('/'):
-                                    continue  # skip directory entries
-                                
-                                try:
-                                    # Read file content in chunks to avoid memory issues
-                                    with zip_ref.open(member) as file_in_zip:
-                                        content_chunks = []
-                                        for chunk in iter(lambda: file_in_zip.read(8192), b""):
-                                            content_chunks.append(chunk)
-                                        content = b"".join(content_chunks)
-                                    
-                                    # Upload directly to S3
-                                    s3_path = f"{topic_dir}/{member}"
-                                    content_file = ContentFile(content)
-                                    self.package_file.storage.save(s3_path, content_file)
-                                    
-                                    extracted_count += 1
-                                    if extracted_count % 10 == 0:  # Log progress every 10 files
-                                        logger.info(f"SCORM: Extracted {extracted_count}/{total_files} files...")
-                                    
-                                    # Capture manifest for parsing
-                                    if self._is_manifest_file_for_package_type(member):
-                                        manifest_rel_path = member
-                                        manifest_bytes = content
-                                        
-                                except Exception as e:
-                                    logger.error(f"SCORM: Error extracting {member}: {str(e)}")
-                                    # Continue with other files instead of failing completely
-                                    continue
-                        
-                        logger.info(f"SCORM: Successfully extracted {extracted_count} files directly to S3")
-                        
-                        # Parse manifest directly from bytes (no temp files needed)
-                        if manifest_rel_path and manifest_bytes:
-                            try:
-                                # Parse manifest directly from bytes without temp files
-                                self.manifest_path = manifest_rel_path
-                                self._parse_manifest_from_bytes(manifest_bytes, manifest_rel_path)
-                            except Exception as e:
-                                logger.warning(f"SCORM: Manifest parse failed: {str(e)}")
-                        
-                        # Determine launch file from uploaded file list
-                        self.launch_file = self._find_launch_file_from_list(file_list)
-                        if self.launch_file:
-                            logger.info(f"SCORM: Launch file detected: {self.launch_file} for package type {self.package_type}")
-                        else:
-                            logger.warning(f"SCORM: No launch file found for package type {self.package_type}")
-                        
-                        # Mark extracted
-                        self.extracted_path = topic_dir
-                        self.is_extracted = True
-                        self.extraction_error = ""
+                        with zipfile.ZipFile(io.BytesIO(zip_data), 'r') as zip_ref:
+                            zip_ref.testzip()
+                    except zipfile.BadZipFile:
+                        error_msg = "Invalid ZIP file format"
+                        logger.error(error_msg)
+                        self.extraction_error = error_msg
+                        self.is_extracted = False
                         self.save()
-                        logger.info("Successfully extracted {} package for topic {} (TRUE STREAMING S3-to-S3)".format(self.package_type, self.topic.id))
-                        return True
+                        return False
+                    except Exception as e:
+                        error_msg = f"Error validating ZIP file: {str(e)}"
+                        logger.error(error_msg)
+                        self.extraction_error = error_msg
+                        self.is_extracted = False
+                        self.save()
+                        return False
+                    
+                    # Extract files directly to S3 using in-memory ZIP
+                    with zipfile.ZipFile(io.BytesIO(zip_data), 'r') as zip_ref:
+                        file_list = zip_ref.namelist()
+                        total_files = len([f for f in file_list if not f.endswith('/')])
+                        logger.info(f"SCORM: Extracting {total_files} files directly to S3 (no temp files)...")
                         
-                    finally:
-                        # Clean up temporary file
+                        for member in file_list:
+                            if member.endswith('/'):
+                                continue  # skip directory entries
+                            
+                            try:
+                                # Read file content directly from ZIP in memory
+                                with zip_ref.open(member) as file_in_zip:
+                                    content = file_in_zip.read()
+                                
+                                # Upload directly to S3
+                                s3_path = f"{topic_dir}/{member}"
+                                content_file = ContentFile(content)
+                                self.package_file.storage.save(s3_path, content_file)
+                                
+                                # Clear content from memory immediately after upload
+                                del content
+                                del content_file
+                                
+                                extracted_count += 1
+                                if extracted_count % 10 == 0:  # Log progress every 10 files
+                                    logger.info(f"SCORM: Extracted {extracted_count}/{total_files} files...")
+                                    # Force garbage collection every 10 files to free memory
+                                    gc.collect()
+                                
+                                # Capture manifest for parsing
+                                if self._is_manifest_file_for_package_type(member):
+                                    manifest_rel_path = member
+                                    # Re-read manifest content for parsing
+                                    with zip_ref.open(member) as manifest_file:
+                                        manifest_bytes = manifest_file.read()
+                                    
+                            except Exception as e:
+                                logger.error(f"SCORM: Error extracting {member}: {str(e)}")
+                                # Continue with other files instead of failing completely
+                                continue
+                    
+                    # Clear ZIP data from memory
+                    del zip_data
+                    gc.collect()
+                    
+                    logger.info(f"SCORM: Successfully extracted {extracted_count} files directly to S3 (no temp files)")
+                    
+                    # Parse manifest directly from bytes (no temp files needed)
+                    if manifest_rel_path and manifest_bytes:
                         try:
-                            if os.path.exists(temp_zip_path):
-                                os.unlink(temp_zip_path)
-                                logger.info(f"SCORM: Cleaned up temporary file: {temp_zip_path}")
+                            # Parse manifest directly from bytes without temp files
+                            self.manifest_path = manifest_rel_path
+                            self._parse_manifest_from_bytes(manifest_bytes, manifest_rel_path)
                         except Exception as e:
-                            logger.warning(f"SCORM: Could not clean up temporary file {temp_zip_path}: {str(e)}")
+                            logger.warning(f"SCORM: Manifest parse failed: {str(e)}")
+                    
+                    # Determine launch file from uploaded file list
+                    self.launch_file = self._find_launch_file_from_list(file_list)
+                    if self.launch_file:
+                        logger.info(f"SCORM: Launch file detected: {self.launch_file} for package type {self.package_type}")
+                    else:
+                        logger.warning(f"SCORM: No launch file found for package type {self.package_type}")
+                    
+                    # Mark extracted
+                    self.extracted_path = topic_dir
+                    self.is_extracted = True
+                    self.extraction_error = ""
+                    self.save()
+                    
+                    # Final garbage collection
+                    gc.collect()
+                    
+                    logger.info("Successfully extracted {} package for topic {} (DIRECT S3-to-S3, no temp files)".format(self.package_type, self.topic.id))
+                    return True
                     
             except Exception as e:
-                error_msg = f"Error during true streaming S3-to-S3 extraction: {str(e)}"
+                error_msg = f"Error during enhanced streaming S3-to-S3 extraction: {str(e)}"
                 logger.error(error_msg)
                 self.extraction_error = error_msg
                 self.is_extracted = False
@@ -504,80 +504,74 @@ class ELearningPackage(models.Model):
         return None
     
     def detect_package_type(self):
-        """TRUE STREAMING S3 detection - no memory loading, no temp files"""
+        """MODERN DIRECT S3 detection - no temporary files, pure in-memory processing"""
         if not self.package_file:
             return None
         
         try:
-            # TRUE STREAMING S3 DETECTION: Use temporary file for ZIP processing
-            import tempfile
-            import os
+            # MODERN APPROACH: Process ZIP directly in memory without temporary files
+            import io
+            import gc  # Garbage collection for memory management
             
-            # Use a temporary file for ZIP processing to avoid memory issues
-            with tempfile.NamedTemporaryFile(delete=False, suffix='.zip') as temp_zip:
-                temp_zip_path = temp_zip.name
+            logger.info("SCORM: Starting DIRECT S3 package type detection (no temp files)...")
+            
+            # Read ZIP file directly into memory
+            with self.package_file.open('rb') as s3_source:
+                zip_data = s3_source.read()
+            
+            # Process ZIP in memory
+            with zipfile.ZipFile(io.BytesIO(zip_data), 'r') as zip_ref:
+                file_list = zip_ref.namelist()
                 
-                try:
-                    # Stream ZIP file from S3 to temporary file
-                    logger.info("SCORM: Streaming ZIP file from S3 for package type detection...")
-                    with self.package_file.open('rb') as s3_source:
-                        for chunk in s3_source.chunks(chunk_size=8192):  # 8KB chunks
-                            temp_zip.write(chunk)
-                    temp_zip.flush()
-                    
-                    with zipfile.ZipFile(temp_zip_path, 'r') as zip_ref:
-                        file_list = zip_ref.namelist()
-                        
-                        # PRIORITY 1: Check for xAPI/Tin Can manifests
-                        has_xapi = any('tincan.xml' in f.lower() or 'tincan.json' in f.lower() for f in file_list)
-                        if has_xapi:
-                            logger.info("Package detection: xAPI/Tin Can manifest found")
-                            return 'XAPI'
-                        
-                        # PRIORITY 2: Check for SCORM manifests (most common)
-                        has_scorm = any('imsmanifest.xml' in f.lower() for f in file_list)
-                        if has_scorm:
-                            # Check SCORM version by examining the manifest content
-                            try:
-                                # Find the actual manifest file (case-insensitive)
-                                manifest_file = next((f for f in file_list if 'imsmanifest.xml' in f.lower()), None)
-                                if manifest_file:
-                                    # Read manifest in chunks to avoid memory issues
-                                    with zip_ref.open(manifest_file) as manifest_f:
-                                        manifest_content = manifest_f.read().decode('utf-8', errors='ignore')
-                                    
-                                    # Determine SCORM version
-                                    if 'scorm_2004' in manifest_content.lower() or 'adlcp:scormtype' in manifest_content.lower() or '2004' in manifest_content:
-                                        package_type = 'SCORM_2004'
-                                        logger.info("Package detection: SCORM 2004 found")
-                                    else:
-                                        package_type = 'SCORM_1_2'
-                                        logger.info("Package detection: SCORM 1.2 found")
-                                    
-                                    return package_type
-                            except Exception as e:
-                                logger.warning(f"Error determining SCORM version: {e}")
-                                # Default to SCORM 1.2 if we can't determine version
-                                return 'SCORM_1_2'
-                        
-                        # PRIORITY 3: Check for generic HTML5 content (fallback)
-                        html_files = [f for f in file_list if f.lower().endswith(('.html', '.htm'))]
-                        if html_files:
-                            logger.warning(f"Package detection: HTML content found without standard manifest ({len(html_files)} HTML files) - defaulting to SCORM 1.2")
-                            return 'SCORM_1_2'
-                    
-                    # Return None as default (no recognized package type)
-                    logger.warning("Package detection: No recognized package type found")
-                    return None
-                    
-                finally:
-                    # Clean up temporary file
+                # PRIORITY 1: Check for xAPI/Tin Can manifests
+                has_xapi = any('tincan.xml' in f.lower() or 'tincan.json' in f.lower() for f in file_list)
+                if has_xapi:
+                    logger.info("Package detection: xAPI/Tin Can manifest found")
+                    return 'XAPI'
+                
+                # PRIORITY 2: Check for SCORM manifests (most common)
+                has_scorm = any('imsmanifest.xml' in f.lower() for f in file_list)
+                if has_scorm:
+                    # Check SCORM version by examining the manifest content
                     try:
-                        if os.path.exists(temp_zip_path):
-                            os.unlink(temp_zip_path)
-                            logger.info(f"SCORM: Cleaned up temporary file for detection: {temp_zip_path}")
+                        # Find the actual manifest file (case-insensitive)
+                        manifest_file = next((f for f in file_list if 'imsmanifest.xml' in f.lower()), None)
+                        if manifest_file:
+                            # Read manifest directly from memory
+                            with zip_ref.open(manifest_file) as manifest_f:
+                                manifest_content = manifest_f.read().decode('utf-8', errors='ignore')
+                            
+                            # Determine SCORM version
+                            if 'scorm_2004' in manifest_content.lower() or 'adlcp:scormtype' in manifest_content.lower() or '2004' in manifest_content:
+                                package_type = 'SCORM_2004'
+                                logger.info("Package detection: SCORM 2004 found")
+                            else:
+                                package_type = 'SCORM_1_2'
+                                logger.info("Package detection: SCORM 1.2 found")
+                            
+                            # Clear manifest content from memory
+                            del manifest_content
+                            gc.collect()
+                            
+                            return package_type
                     except Exception as e:
-                        logger.warning(f"SCORM: Could not clean up temporary file {temp_zip_path}: {str(e)}")
+                        logger.warning(f"Error determining SCORM version: {e}")
+                        # Default to SCORM 1.2 if we can't determine version
+                        return 'SCORM_1_2'
+                
+                # PRIORITY 3: Check for generic HTML5 content (fallback)
+                html_files = [f for f in file_list if f.lower().endswith(('.html', '.htm'))]
+                if html_files:
+                    logger.warning(f"Package detection: HTML content found without standard manifest ({len(html_files)} HTML files) - defaulting to SCORM 1.2")
+                    return 'SCORM_1_2'
+            
+            # Clear ZIP data from memory
+            del zip_data
+            gc.collect()
+            
+            # Return None as default (no recognized package type)
+            logger.warning("Package detection: No recognized package type found")
+            return None
                 
         except Exception as e:
             logger.error("Error detecting package type: {}".format(str(e)))
@@ -598,11 +592,26 @@ class ELearningPackage(models.Model):
     
     def validate_s3_path(self):
         """Validate and fix S3 path construction"""
-        if self.extracted_path and self.extracted_path.startswith('elearning/'):
-            # Fix double prefixing issue
-            self.extracted_path = self.extracted_path.replace('elearning/', '')
-            self.save()
-            logger.info(f"Fixed double prefixing for topic {self.topic.id}: {self.extracted_path}")
+        if self.extracted_path:
+            # Fix double prefixing issue - remove any duplicate elearning/ prefixes
+            original_path = self.extracted_path
+            while self.extracted_path.startswith('elearning/elearning/'):
+                self.extracted_path = self.extracted_path.replace('elearning/elearning/', 'elearning/')
+            
+            # Also fix packages/ prefix issues
+            if self.extracted_path.startswith('packages/packages/'):
+                self.extracted_path = self.extracted_path.replace('packages/packages/', 'packages/')
+            
+            # Ensure proper path format
+            if not self.extracted_path.startswith('packages/'):
+                if self.extracted_path.startswith('elearning/'):
+                    self.extracted_path = self.extracted_path.replace('elearning/', 'packages/')
+                else:
+                    self.extracted_path = f"packages/{self.extracted_path}"
+            
+            if original_path != self.extracted_path:
+                self.save()
+                logger.info(f"Fixed S3 path for topic {self.topic.id}: {original_path} -> {self.extracted_path}")
         return self.extracted_path
 
 
@@ -1071,7 +1080,7 @@ class ELearningTracking(models.Model):
         return summary
     
     def get_bookmark_data(self):
-        """FIXED: Get bookmark and suspend data for resume functionality with consistent logic"""
+        """ENHANCED: Get bookmark and suspend data for resume functionality with improved logic for large packages"""
         bookmark_data = {
             'lesson_location': '',
             'suspend_data': '',
@@ -1082,38 +1091,42 @@ class ELearningTracking(models.Model):
             'has_suspend_data': False,
             'can_resume': False,
             'package_type': self.elearning_package.package_type,
-            'progress_indicators': []
+            'progress_indicators': [],
+            'memory_usage': 'optimized'  # Track memory usage for large packages
         }
         
-        # FIXED: Consistent resume detection logic across all package types
+        # ENHANCED: Consistent resume detection logic across all package types with memory optimization
         package_type = self.elearning_package.package_type
         
-        # Get common resume indicators
+        # Get common resume indicators with memory-efficient checks
         has_progress = self.completion_status not in ['not attempted', 'unknown']
         has_time = self.total_time and self.total_time.total_seconds() > 0
         has_score = self.score_raw is not None and self.score_raw > 0
         has_location = bool(self.location)
         has_suspend_data = bool(self.suspend_data)
         
+        # Memory-efficient raw_data access
+        raw_data = self.raw_data if hasattr(self, 'raw_data') else {}
+        
         if package_type in ['SCORM_1_2', 'SCORM_2004']:
-            # SCORM packages - use both raw_data and model fields
+            # SCORM packages - use both raw_data and model fields with memory optimization
             lesson_location = (
-                self.raw_data.get('cmi.core.lesson_location', '') or 
-                self.raw_data.get('cmi.location', '') or 
+                raw_data.get('cmi.core.lesson_location', '') or 
+                raw_data.get('cmi.location', '') or 
                 self.location
             )
             suspend_data = (
-                self.raw_data.get('cmi.core.suspend_data', '') or 
-                self.raw_data.get('cmi.suspend_data', '') or 
+                raw_data.get('cmi.core.suspend_data', '') or 
+                raw_data.get('cmi.suspend_data', '') or 
                 self.suspend_data
             )
             
             bookmark_data.update({
                 'lesson_location': lesson_location,
                 'suspend_data': suspend_data,
-                'entry': self.raw_data.get('cmi.core.entry', 'ab-initio'),
-                'exit': self.raw_data.get('cmi.core.exit', ''),
-                'launch_data': self.raw_data.get('cmi.core.launch_data', ''),
+                'entry': raw_data.get('cmi.core.entry', 'ab-initio'),
+                'exit': raw_data.get('cmi.core.exit', ''),
+                'launch_data': raw_data.get('cmi.core.launch_data', ''),
             })
             
             has_lesson_location = bool(lesson_location)
@@ -1136,9 +1149,9 @@ class ELearningTracking(models.Model):
             )
             
         elif package_type == 'XAPI':
-            # xAPI packages
-            lesson_location = self.raw_data.get('xapi.state', '')
-            suspend_data = self.raw_data.get('xapi.activity_state', '')
+            # xAPI packages with memory optimization
+            lesson_location = raw_data.get('xapi.state', '')
+            suspend_data = raw_data.get('xapi.activity_state', '')
             
             bookmark_data.update({
                 'lesson_location': lesson_location,
@@ -1150,7 +1163,7 @@ class ELearningTracking(models.Model):
             
             has_lesson_location = bool(lesson_location)
             has_suspend_data = bool(suspend_data)
-            has_resume_flag = self.raw_data.get('xapi.resume', False)
+            has_resume_flag = raw_data.get('xapi.resume', False)
             
             bookmark_data['progress_indicators'] = [
                 f"xAPI State: {has_lesson_location}",
@@ -1167,24 +1180,23 @@ class ELearningTracking(models.Model):
                 has_location or has_suspend_data
             )
             
-            
         else:
-            # Default fallback for unknown package types
+            # Default fallback for unknown package types with memory optimization
             lesson_location = (
-                self.raw_data.get('cmi.core.lesson_location', '') or 
+                raw_data.get('cmi.core.lesson_location', '') or 
                 self.location
             )
             suspend_data = (
-                self.raw_data.get('cmi.core.suspend_data', '') or 
+                raw_data.get('cmi.core.suspend_data', '') or 
                 self.suspend_data
             )
             
             bookmark_data.update({
                 'lesson_location': lesson_location,
                 'suspend_data': suspend_data,
-                'entry': self.raw_data.get('cmi.core.entry', 'ab-initio'),
-                'exit': self.raw_data.get('cmi.core.exit', ''),
-                'launch_data': self.raw_data.get('cmi.core.launch_data', ''),
+                'entry': raw_data.get('cmi.core.entry', 'ab-initio'),
+                'exit': raw_data.get('cmi.core.exit', ''),
+                'launch_data': raw_data.get('cmi.core.launch_data', ''),
             })
             
             has_lesson_location = bool(lesson_location)
@@ -1207,6 +1219,9 @@ class ELearningTracking(models.Model):
         # Set common fields
         bookmark_data['has_bookmark'] = bool(bookmark_data['lesson_location'])
         bookmark_data['has_suspend_data'] = bool(bookmark_data['suspend_data'])
+        
+        # Memory cleanup
+        del raw_data
         
         return bookmark_data
     

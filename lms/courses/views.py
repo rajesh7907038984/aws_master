@@ -7191,7 +7191,7 @@ def get_user_filtered_content(user, course=None, request=None):
 
 @login_required
 def scorm_upload_status(request, topic_id):
-    """Check SCORM package upload and extraction status"""
+    """Check SCORM package upload and extraction status with enhanced error handling for large files"""
     try:
         topic = get_object_or_404(Topic, id=topic_id)
         
@@ -7210,41 +7210,86 @@ def scorm_upload_status(request, topic_id):
                 'message': 'SCORM package not found'
             })
         
+        # Check if package file exists in storage
+        if not package.package_file or not package.package_file.storage.exists(package.package_file.name):
+            return JsonResponse({
+                'status': 'error',
+                'message': 'SCORM package file not found in storage'
+            })
+        
         # Check extraction status
         if not package.is_extracted:
-            # Try to extract the package
+            # Try to extract the package with progress tracking
             logger.info(f"SCORM Upload Status: Attempting to extract package for topic {topic_id}")
-            if package.extract_package():
+            
+            # Check if extraction is already in progress (prevent multiple simultaneous extractions)
+            if hasattr(package, '_extraction_in_progress') and package._extraction_in_progress:
                 return JsonResponse({
-                    'status': 'completed',
-                    'message': 'SCORM package extracted successfully',
-                    'topic_title': topic.title,
-                    'package_title': package.title or 'SCORM Package'
+                    'status': 'extracting',
+                    'message': 'Package extraction in progress...',
+                    'progress': 'Please wait while the package is being processed.'
                 })
-            else:
+            
+            # Mark extraction as in progress
+            package._extraction_in_progress = True
+            
+            try:
+                if package.extract_package():
+                    return JsonResponse({
+                        'status': 'completed',
+                        'message': 'SCORM package extracted successfully',
+                        'topic_title': topic.title,
+                        'package_title': package.title or 'SCORM Package',
+                        'package_type': package.get_package_type_display(),
+                        'extracted_files': package.extracted_path
+                    })
+                else:
+                    error_msg = package.extraction_error or 'Unknown extraction error'
+                    logger.error(f"SCORM extraction failed for topic {topic_id}: {error_msg}")
+                    return JsonResponse({
+                        'status': 'error',
+                        'message': f'Package extraction failed: {error_msg}',
+                        'error_details': error_msg
+                    })
+            except Exception as e:
+                error_msg = f'Extraction error: {str(e)}'
+                logger.error(f"SCORM extraction exception for topic {topic_id}: {error_msg}")
                 return JsonResponse({
                     'status': 'error',
-                    'message': f'Package extraction failed: {package.extraction_error}'
+                    'message': error_msg,
+                    'error_details': str(e)
                 })
+            finally:
+                # Clear extraction in progress flag
+                package._extraction_in_progress = False
         
         # Package is extracted, check if content is accessible
         if package.launch_file:
+            # Validate S3 path to ensure files are accessible
+            package.validate_s3_path()
+            
             return JsonResponse({
                 'status': 'completed',
                 'message': 'SCORM package ready',
                 'topic_title': topic.title,
-                'package_title': package.title or 'SCORM Package'
+                'package_title': package.title or 'SCORM Package',
+                'package_type': package.get_package_type_display(),
+                'launch_file': package.launch_file,
+                'extracted_path': package.extracted_path
             })
         else:
             return JsonResponse({
                 'status': 'error',
-                'message': 'Launch file not found in extracted package'
+                'message': 'Launch file not found in extracted package',
+                'extracted_path': package.extracted_path,
+                'package_type': package.get_package_type_display()
             })
             
     except Exception as e:
         logger.error(f"SCORM Upload Status Error: {str(e)}")
         return JsonResponse({
             'status': 'error',
-            'message': f'Error checking upload status: {str(e)}'
+            'message': f'Error checking upload status: {str(e)}',
+            'error_details': str(e)
         })
 

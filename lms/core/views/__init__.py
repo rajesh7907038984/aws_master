@@ -305,10 +305,8 @@ def api_user_engagement(request, user_id):
         }
     })
 
-def csrf_failure(request, reason=""):
-    """CSRF failure view - will be overridden by parent views.py"""
-    from django.http import HttpResponse
-    return HttpResponse('CSRF Failure', status=403)
+# CSRF failure handling moved to core/views/csrf_failure.py
+# This function is now handled by the dedicated CSRF failure module
 
 def test_sidebar(request):
     """Test view for sidebar expand button functionality"""

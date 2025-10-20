@@ -408,7 +408,7 @@ CSRF_COOKIE_HTTPONLY = False  # Allow JavaScript access for AJAX requests
 CSRF_COOKIE_SAMESITE = 'Lax'
 CSRF_COOKIE_SECURE = get_bool_env('CSRF_COOKIE_SECURE', True)  # Default to True for security
 CSRF_TRUSTED_ORIGINS = []  # Will be populated in production settings
-CSRF_FAILURE_VIEW = 'core.views.csrf_failure'  # Use our custom CSRF failure view
+CSRF_FAILURE_VIEW = 'core.views.csrf_failure.csrf_failure'  # Use our custom CSRF failure view
 
 # ==============================================
 # CORS CONFIGURATION - STANDARDIZED ACROSS ALL ENVIRONMENTS

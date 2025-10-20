@@ -1,68 +1,109 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}CSRF Verification Failed{% endblock %}
+{% block title %}Security Verification Failed - {{ block.super }}{% endblock %}
 
 {% block content %}
-<div class="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-    <div class="max-w-md w-full space-y-8">
-        <div>
-            <div class="mx-auto h-12 w-12 flex items-center justify-center rounded-full bg-red-100">
-                <svg class="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.268 19.5c-.77.833.192 2.5 1.732 2.5z" />
-                </svg>
-            </div>
-            <h2 class="mt-6 text-center text-3xl font-extrabold text-gray-900">
-                CSRF Verification Failed
-            </h2>
-            <p class="mt-2 text-center text-sm text-gray-600">
-                {{ reason|default:"Your request could not be processed due to a security verification failure." }}
-            </p>
-        </div>
-        
-        <div class="bg-red-50 border border-red-200 rounded-md p-4">
-            <div class="flex">
-                <div class="flex-shrink-0">
-                    <svg class="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
-                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+<div class="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+    <div class="sm:mx-auto sm:w-full sm:max-w-md">
+        <div class="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
+            <!-- Error Icon -->
+            <div class="flex justify-center mb-6">
+                <div class="flex items-center justify-center w-16 h-16 bg-red-100 rounded-full">
+                    <svg class="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.268 19.5c-.77.833.192 2.5 1.732 2.5z"></path>
                     </svg>
                 </div>
-                <div class="ml-3">
-                    <h3 class="text-sm font-medium text-red-800">
-                        Security Verification Failed
-                    </h3>
-                    <div class="mt-2 text-sm text-red-700">
-                        <p>This error occurs when:</p>
-                        <ul class="list-disc list-inside mt-2">
-                            <li>Your session has expired</li>
-                            <li>You have multiple tabs open with the same form</li>
-                            <li>Your browser's security settings are blocking the request</li>
-                        </ul>
+            </div>
+            
+            <!-- Error Title -->
+            <div class="text-center">
+                <h2 class="text-2xl font-bold text-gray-900 mb-2">Security Verification Failed</h2>
+                <p class="text-sm text-gray-600 mb-6">
+                    {{ reason|default:"Your request could not be processed due to a security verification failure." }}
+                </p>
+            </div>
+            
+            <!-- Error Details -->
+            <div class="bg-red-50 border border-red-200 rounded-md p-4 mb-6">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <svg class="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path>
+                        </svg>
+                    </div>
+                    <div class="ml-3">
+                        <h3 class="text-sm font-medium text-red-800">What happened?</h3>
+                        <div class="mt-2 text-sm text-red-700">
+                            <p>This error occurs when:</p>
+                            <ul class="list-disc list-inside mt-2 space-y-1">
+                                <li>Your session has expired</li>
+                                <li>You have multiple tabs open with the same form</li>
+                                <li>Your browser's security settings are blocking the request</li>
+                                <li>You've been inactive for too long</li>
+                            </ul>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
-
-        <div class="space-y-4">
-            <div>
-                <h3 class="text-lg font-medium text-gray-900">What you can do:</h3>
-                <ul class="mt-2 space-y-2 text-sm text-gray-600">
-                    <li>• Refresh the page and try again</li>
-                    <li>• Close other tabs with the same form</li>
-                    <li>• Clear your browser cache and cookies</li>
-                    <li>• Make sure JavaScript is enabled</li>
-                </ul>
+            
+            <!-- Action Buttons -->
+            <div class="space-y-3">
+                <button onclick="window.location.reload()" class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-150 ease-in-out">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                    </svg>
+                    Refresh Page
+                </button>
+                
+                <a href="{% url 'login' %}" class="w-full flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-150 ease-in-out">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"></path>
+                    </svg>
+                    Go to Login
+                </a>
+                
+                <button onclick="history.back()" class="w-full flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-150 ease-in-out">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                    </svg>
+                    Go Back
+                </button>
             </div>
             
-            <div class="flex space-x-4">
-                <a href="javascript:history.back()" class="flex-1 bg-gray-600 text-white text-center py-2 px-4 rounded-md hover:bg-gray-700 transition duration-150 ease-in-out">
-                    Go Back
-                </a>
-                <a href="{% url 'login' %}" class="flex-1 bg-blue-600 text-white text-center py-2 px-4 rounded-md hover:bg-blue-700 transition duration-150 ease-in-out">
-                    Login Again
-                </a>
+            <!-- Help Text -->
+            <div class="mt-6 text-center">
+                <p class="text-xs text-gray-500">
+                    <svg class="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    If this problem persists, please contact support.
+                </p>
             </div>
         </div>
     </div>
 </div>
+
+<script>
+// Auto-refresh after 30 seconds if user doesn't take action
+setTimeout(function() {
+    if (confirm('Would you like to refresh the page automatically?')) {
+        window.location.reload();
+    }
+}, 30000);
+
+// Add click handlers for better UX
+document.addEventListener('DOMContentLoaded', function() {
+    // Add loading states to buttons
+    const buttons = document.querySelectorAll('button, a');
+    buttons.forEach(button => {
+        button.addEventListener('click', function() {
+            if (this.onclick && this.onclick.toString().includes('window.location.reload')) {
+                this.innerHTML = '<svg class="w-4 h-4 mr-2 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>Refreshing...';
+                this.disabled = true;
+            }
+        });
+    });
+});
+</script>
 {% endblock %}

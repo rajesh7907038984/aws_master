@@ -65,7 +65,30 @@ def csrf_failure(request, reason=""):
         'can_retry': True
     }
     
-    return render(request, 'core/error_pages/csrf_error.html', context, status=403)
+    # Try to render the error page template, fallback to basic template if needed
+    try:
+        return render(request, 'core/error_pages/csrf_error.html', context, status=403)
+    except Exception as template_error:
+        logger.error(f"CSRF error template failed: {template_error}")
+        # Fallback to basic CSRF error template
+        try:
+            return render(request, 'core/csrf_failure.html', context, status=403)
+        except Exception as fallback_error:
+            logger.error(f"CSRF fallback template failed: {fallback_error}")
+            # Final fallback - return basic HTML
+            from django.http import HttpResponse
+            return HttpResponse("""
+            <!DOCTYPE html>
+            <html>
+            <head><title>Security Error</title></head>
+            <body>
+                <h1>Security Verification Failed</h1>
+                <p>Your session has expired. Please refresh the page and try again.</p>
+                <button onclick="window.location.reload()">Refresh Page</button>
+                <button onclick="history.back()">Go Back</button>
+            </body>
+            </html>
+            """, status=403)
 
 @csrf_exempt
 @require_http_methods(["GET"])

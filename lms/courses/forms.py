@@ -1360,11 +1360,32 @@ class TopicForm(BaseModelFormWithTinyMCE):
                     logger.error("SCORM validation failed - no file uploaded")
                     self.add_error('content_file', 'SCORM package upload is required.')
                 else:
-                    # File upload - validate ZIP
+                    # File upload - validate ZIP with enhanced error handling
                     content_file = self.files.get('content_file')
                     logger.info(f"SCORM validation - file provided: {content_file.name if content_file else 'None'}")
-                    if content_file and not content_file.name.lower().endswith('.zip'):
-                        self.add_error('content_file', 'SCORM package must be a ZIP file.')
+                    
+                    if content_file:
+                        # Check file extension
+                        if not content_file.name.lower().endswith('.zip'):
+                            self.add_error('content_file', 'SCORM package must be a ZIP file.')
+                        
+                        # Check file size (allow up to 600MB for large SCORM packages)
+                        max_size = 600 * 1024 * 1024  # 600MB
+                        if content_file.size > max_size:
+                            self.add_error('content_file', f'SCORM package is too large. Maximum allowed size is 600MB. Your file is {content_file.size / (1024*1024):.1f}MB.')
+                        
+                        # Basic ZIP validation without loading entire file into memory
+                        try:
+                            # Read only the first few bytes to check ZIP signature
+                            content_file.seek(0)
+                            zip_signature = content_file.read(4)
+                            content_file.seek(0)  # Reset file pointer
+                            
+                            if zip_signature != b'PK\x03\x04' and zip_signature != b'PK\x05\x06' and zip_signature != b'PK\x07\x08':
+                                self.add_error('content_file', 'Invalid ZIP file format. Please ensure the file is a valid ZIP archive.')
+                        except Exception as e:
+                            logger.warning(f"SCORM: Could not validate ZIP signature: {str(e)}")
+                            # Don't fail validation for this, just log the warning
             elif 'content_file' not in self.files:
                 file_type = content_type_lower
                 self.add_error('content_file', f'File upload is required for {file_type} topics.')

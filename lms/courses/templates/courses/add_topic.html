@@ -4277,8 +4277,9 @@ if (typeof formHasUnsavedChanges === 'undefined') {
             
             function monitorSCORMUpload(topicId, statusUrl, redirectUrl) {
                 let pollCount = 0;
-                const maxPolls = 900; // 30 minutes at 2-second intervals
+                const maxPolls = 1200; // 40 minutes at 2-second intervals for large files (600MB+)
                 let progressValue = 10;
+                let lastStatus = '';
                 
                 function updateProgress(percentage, message) {
                     const progressBar = document.getElementById('scormProgressBar');
@@ -4301,59 +4302,106 @@ if (typeof formHasUnsavedChanges === 'undefined') {
                             
                             if (data.status === 'completed') {
                                 // Upload successful
-                                updateProgress(100, '<i class="fas fa-check-circle text-green-600 mr-2"></i>Upload completed successfully!');
+                                updateProgress(100, '<i class="fas fa-check-circle text-green-600 mr-2"></i>SCORM Package Ready!');
                                 
                                 // Add success parameters to redirect URL
                                 const redirectUrlObj = new URL(redirectUrl);
                                 redirectUrlObj.searchParams.set('scorm_success', 'true');
                                 redirectUrlObj.searchParams.set('topic_title', data.topic_title || 'SCORM Topic');
                                 redirectUrlObj.searchParams.set('package_title', data.package_title || 'SCORM Package');
+                                redirectUrlObj.searchParams.set('package_type', data.package_type || 'SCORM');
                                 
                                 setTimeout(() => {
                                     window.location.href = redirectUrlObj.toString();
                                 }, 2000);
                                 
-                            } else if (data.status === 'error') {
-                                // Upload failed
-                                showUploadError(data.message || 'SCORM upload failed');
-                                resetForm();
+                            } else if (data.status === 'extracting') {
+                                // Extraction in progress - show detailed progress for large files
+                                progressValue = Math.min(95, 30 + (pollCount * 0.3)); // More gradual progress
+                                let message = data.message || 'Extracting SCORM package...';
                                 
-                            } else if (data.status === 'processing') {
-                                // Still processing
-                                progressValue = Math.min(90, 10 + (pollCount * 0.5)); // Gradually increase to 90%
-                                let message = data.message || 'Processing SCORM package...';
+                                // Add time estimation for large files
+                                if (pollCount > 20) {
+                                    const estimatedMinutes = Math.ceil(pollCount / 30);
+                                    message += ` (${estimatedMinutes} min elapsed)`;
+                                }
                                 
-                                if (data.file_size_mb) {
-                                    const estimatedMinutes = Math.ceil(data.file_size_mb / 10);
-                                    message += ` (Est. ${estimatedMinutes} min)`;
+                                if (pollCount > 50) {
+                                    message += ' - Large files may take several minutes';
                                 }
                                 
                                 updateProgress(progressValue, `<span class="inline-block animate-spin mr-2"></span>${message}`);
                                 
-                                // Continue polling
+                                // Continue polling with shorter interval for extraction
                                 if (pollCount < maxPolls) {
-                                    setTimeout(checkStatus, 2000);
+                                    setTimeout(checkStatus, 3000); // Check every 3 seconds during extraction
                                 } else {
-                                    showUploadError('Upload timeout. Large files may take up to 30 minutes.');
+                                    showUploadError('Extraction timeout. Large files may need more time.');
+                                }
+                                
+                            } else if (data.status === 'error') {
+                                // Upload failed with detailed error
+                                let errorMessage = data.message || 'SCORM upload failed';
+                                if (data.error_details) {
+                                    errorMessage += ` - ${data.error_details}`;
+                                }
+                                showUploadError(errorMessage);
+                                resetForm();
+                                
+                            } else if (data.status === 'processing') {
+                                // Still processing with enhanced feedback
+                                progressValue = Math.min(90, 10 + (pollCount * 0.4)); // More gradual progress
+                                let message = data.message || 'Processing SCORM package...';
+                                
+                                // Enhanced progress messages for large files
+                                if (pollCount > 10 && pollCount <= 30) {
+                                    message = 'Validating SCORM package...';
+                                } else if (pollCount > 30 && pollCount <= 60) {
+                                    message = 'Extracting package contents...';
+                                } else if (pollCount > 60 && pollCount <= 120) {
+                                    message = 'Processing large files...';
+                                } else if (pollCount > 120) {
+                                    message = 'Finalizing package extraction...';
+                                }
+                                
+                                if (data.file_size_mb) {
+                                    const estimatedMinutes = Math.ceil(data.file_size_mb / 8); // More accurate estimation
+                                    message += ` (Est. ${estimatedMinutes} min for ${data.file_size_mb}MB)`;
+                                }
+                                
+                                updateProgress(progressValue, `<span class="inline-block animate-spin mr-2"></span>${message}`);
+                                
+                                // Continue polling with adaptive interval
+                                const interval = pollCount < 50 ? 2000 : 5000; // Slower checks for large files
+                                if (pollCount < maxPolls) {
+                                    setTimeout(checkStatus, interval);
+                                } else {
+                                    showUploadError('Processing timeout. Large files (600MB+) may take up to 40 minutes.');
                                 }
                             } else {
-                                // Unknown status, continue polling
-                                setTimeout(checkStatus, 2000);
+                                // Unknown status, continue polling with exponential backoff
+                                const interval = Math.min(10000, 2000 * Math.pow(1.2, pollCount - 1));
+                                setTimeout(checkStatus, interval);
                             }
+                            
+                            lastStatus = data.status;
                         })
                         .catch(error => {
                             console.error('Status check error:', error);
-                            updateProgress(progressValue, '<i class="fas fa-exclamation-triangle text-yellow-600 mr-2"></i>Connection error, retrying...');
                             
-                            // Retry after delay
+                            // Enhanced error handling with retry logic
                             if (pollCount < maxPolls) {
-                                setTimeout(checkStatus, 5000);
+                                const retryDelay = Math.min(30000, 5000 * Math.pow(1.5, Math.floor(pollCount / 10)));
+                                updateProgress(progressValue, `<i class="fas fa-exclamation-triangle text-yellow-600 mr-2"></i>Connection error, retrying in ${Math.ceil(retryDelay/1000)}s...`);
+                                setTimeout(checkStatus, retryDelay);
+                            } else {
+                                showUploadError('Connection failed after multiple attempts. Please refresh and try again.');
                             }
                         });
                 }
                 
-                // Start status checking
-                updateProgress(10, '<span class="inline-block animate-spin mr-2"></span>Starting upload...');
+                // Start status checking with initial message
+                updateProgress(10, '<span class="inline-block animate-spin mr-2"></span>Starting SCORM package processing...');
                 setTimeout(checkStatus, 2000);
             }
             

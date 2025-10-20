@@ -8,6 +8,7 @@ from django.middleware.csrf import CsrfViewMiddleware
 from django.http import JsonResponse
 from django.conf import settings
 from django.utils.deprecation import MiddlewareMixin
+from django.core.exceptions import ImproperlyConfigured
 
 logger = logging.getLogger(__name__)
 
@@ -30,12 +31,18 @@ class EnhancedCsrfMiddleware(CsrfViewMiddleware):
         if request.path in ['/health/', '/status/']:
             return None
             
+        # Skip CSRF for static files
+        if request.path.startswith('/static/') or request.path.startswith('/media/'):
+            return None
+            
         return super().process_view(request, callback, callback_args, callback_kwargs)
     
     def process_response(self, request, response):
         # Add CSRF token to response headers for AJAX requests
         if request.method == 'GET' and request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            response['X-CSRFToken'] = request.META.get('CSRF_COOKIE', '')
+            csrf_token = getattr(request, 'csrf_token', None)
+            if csrf_token:
+                response['X-CSRFToken'] = str(csrf_token)
         
         return response
 
@@ -49,14 +56,25 @@ class CsrfErrorMiddleware(MiddlewareMixin):
         if isinstance(exception, Exception) and 'CSRF' in str(exception):
             logger.warning(f"CSRF error for {request.path}: {exception}")
             
-            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            # Check if this is an AJAX/API request
+            is_ajax = (
+                request.headers.get('X-Requested-With') == 'XMLHttpRequest' or
+                request.content_type == 'application/json' or
+                'application/json' in request.headers.get('Accept', '') or
+                request.path.startswith('/api/')
+            )
+            
+            if is_ajax:
                 return JsonResponse({
-                    'error': 'CSRF token missing or incorrect',
-                    'detail': 'Please refresh the page and try again'
+                    'success': False,
+                    'error': 'Session expired. Please refresh the page and try again.',
+                    'error_type': 'csrf_error',
+                    'action_required': 'refresh',
+                    'csrf_token_required': True
                 }, status=403)
             else:
-                # Redirect to login page for non-AJAX requests
-                from django.shortcuts import redirect
-                return redirect('login')
+                # Use the configured CSRF failure view
+                from core.views.csrf_failure import csrf_failure
+                return csrf_failure(request, str(exception))
         
         return None
