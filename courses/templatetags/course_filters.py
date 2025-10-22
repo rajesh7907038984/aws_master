@@ -431,7 +431,46 @@ def get_topic_progress(topic, user):
             progress.save()
             logger.info(f"Auto-fixed SCORM completion status for topic {topic.id}, user {user.username}")
             
-        # Also try to sync with native SCORM attempts if available
+        # Enhanced SCORM sync with latest attempt
+        from scorm.models import ScormAttempt
+        latest_attempt = ScormAttempt.objects.filter(
+            user=user,
+            scorm_package__topic=topic
+        ).order_by('-id').first()
+        
+        if latest_attempt:
+            # Sync completion status from latest attempt
+            if latest_attempt.lesson_status in ['completed', 'passed']:
+                if not progress.completed:
+                    progress.completed = True
+                    progress.completion_method = 'scorm'
+                    progress.last_score = latest_attempt.score_raw
+                    if not progress.completed_at:
+                        progress.completed_at = timezone.now()
+                    progress.save()
+                    logger.info(f"🔄 TEMPLATE SYNC: Fixed SCORM completion for topic {topic.id}, user {user.username}")
+            
+            # Update progress_data with latest SCORM data
+            if not isinstance(progress.progress_data, dict):
+                progress.progress_data = {}
+            
+            progress.progress_data.update({
+                'scorm_attempt_id': latest_attempt.id,
+                'lesson_status': latest_attempt.lesson_status,
+                'completion_status': latest_attempt.completion_status,
+                'success_status': latest_attempt.success_status,
+                'score_raw': float(latest_attempt.score_raw) if latest_attempt.score_raw else None,
+                'last_updated': timezone.now().isoformat(),
+                'scorm_sync': True,
+            })
+            
+            # Update scores
+            if latest_attempt.score_raw is not None:
+                progress.last_score = latest_attempt.score_raw
+                if progress.best_score is None or latest_attempt.score_raw > progress.best_score:
+                    progress.best_score = latest_attempt.score_raw
+            
+            progress.save()
         elif not progress.completed:
             try:
                 from scorm.models import ScormAttempt, ScormPackage

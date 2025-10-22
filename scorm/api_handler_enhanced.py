@@ -564,6 +564,9 @@ class ScormAPIHandlerEnhanced:
                     # Mark that SCORM content explicitly set the status
                     self.attempt._explicit_status_set = True
                     self._update_completion_from_status(value)
+                    # CRITICAL FIX: Update progress immediately when lesson_status changes
+                    self._update_topic_progress()
+                    logger.info("SCORM 1.2: Updated lesson_status to '%s' and triggered progress update", value)
                 elif element == 'cmi.core.score.raw':
                     try:
                         # CRITICAL FIX: Store score in both model field AND cmi_data for consistency
@@ -630,6 +633,9 @@ class ScormAPIHandlerEnhanced:
                         self.attempt.last_accessed = timezone.now()
                         self.attempt.save(update_fields=['lesson_location', 'cmi_data', 'last_accessed'])
                         logger.info("🔖 BOOKMARK SAVED: Immediately saved lesson_location and CMI data")
+                        # CRITICAL FIX: Update progress when location changes (indicates progress)
+                        self._update_topic_progress()
+                        logger.info("🔖 PROGRESS UPDATE: Triggered progress update due to lesson_location change")
                     except Exception as save_error:
                         logger.error("❌ BOOKMARK SAVE ERROR: %s", str(save_error))
                         
@@ -647,6 +653,9 @@ class ScormAPIHandlerEnhanced:
                         self.attempt.last_accessed = timezone.now()
                         self.attempt.save(update_fields=['suspend_data', 'cmi_data', 'last_accessed'])
                         logger.info("🔖 SUSPEND DATA SAVED: Immediately saved suspend_data and CMI data")
+                        # CRITICAL FIX: Update progress when suspend_data changes (indicates progress)
+                        self._update_topic_progress()
+                        logger.info("🔖 PROGRESS UPDATE: Triggered progress update due to suspend_data change")
                     except Exception as save_error:
                         logger.error("❌ SUSPEND DATA SAVE ERROR: %s", str(save_error))
                 elif element == 'cmi.core.session_time':
@@ -1125,6 +1134,34 @@ class ScormAPIHandlerEnhanced:
         elif status == 'failed':
             self.attempt.success_status = 'failed'
     
+    def _calculate_scorm_1_2_progress(self):
+        """Calculate progress percentage for SCORM 1.2 based on lesson_status and other factors"""
+        try:
+            lesson_status = self.attempt.lesson_status
+            
+            # SCORM 1.2 progress calculation based on lesson_status
+            if lesson_status == 'completed':
+                return 100.0
+            elif lesson_status == 'passed':
+                return 100.0
+            elif lesson_status == 'failed':
+                return 100.0  # Failed but completed
+            elif lesson_status == 'incomplete':
+                # Check if there's location data to estimate progress
+                if self.attempt.lesson_location:
+                    # If there's a lesson location, assume some progress
+                    return 50.0
+                else:
+                    return 25.0  # Started but not much progress
+            elif lesson_status == 'browsed':
+                return 25.0  # Browsed but not completed
+            else:  # not_attempted
+                return 0.0
+                
+        except Exception as e:
+            logger.error(f"Error calculating SCORM 1.2 progress: {str(e)}")
+            return 0.0
+    
     def _update_total_time(self, session_time):
         """Update total time by adding session time"""
         try:
@@ -1550,6 +1587,9 @@ class ScormAPIHandlerEnhanced:
                 # Parse time spent from SCORM format to seconds
                 time_seconds = self._parse_scorm_time_to_seconds(self.attempt.total_time)
                 
+                # Calculate progress percentage for SCORM 1.2
+                progress_percentage = self._calculate_scorm_1_2_progress()
+                
                 # Update progress data with comprehensive tracking and sync metadata
                 progress.progress_data = {
                     'scorm_attempt_id': self.attempt.id,
@@ -1566,6 +1606,8 @@ class ScormAPIHandlerEnhanced:
                     'suspend_data': self.attempt.suspend_data,
                     'entry': self.attempt.entry,
                     'exit_mode': self.attempt.exit_mode,
+                    'progress_percentage': progress_percentage,  # SCORM 1.2 calculated progress
+                    'completion_percent': progress_percentage,  # For compatibility
                     'last_updated': timezone.now().isoformat(),
                     'sync_method': 'enhanced_api_handler',
                     'sync_timestamp': timezone.now().isoformat(),

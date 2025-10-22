@@ -11,10 +11,14 @@ Purpose: Prevent ALL migration conflicts permanently (current + future)
 
 import logging
 import re
+import json
+from pathlib import Path
+from datetime import datetime
 from django.db import connection, transaction
 from django.core.management.color import no_style
 from django.db.migrations.recorder import MigrationRecorder
 from django.apps import apps
+from django.conf import settings
 from typing import Dict, List, Tuple, Optional, Any, Set
 from django.core.management import CommandError
 
@@ -417,6 +421,156 @@ def safe_migrate(app_name: str = None, migration_name: str = None) -> bool:
                 return False
         
         return False
+
+    def check_schema_consistency(self, baseline_schema_path: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Check if current database schema matches expected baseline schema
+        """
+        logger.info("🔍 Checking schema consistency...")
+        
+        # Load baseline schema if provided
+        if baseline_schema_path:
+            baseline_schema = self._load_baseline_schema(baseline_schema_path)
+        else:
+            # Try to find default baseline schema
+            default_baseline = Path('database_schema/baseline_schema.json')
+            if default_baseline.exists():
+                baseline_schema = self._load_baseline_schema(str(default_baseline))
+            else:
+                logger.warning("No baseline schema found - skipping schema consistency check")
+                return {'consistent': True, 'message': 'No baseline schema available'}
+        
+        # Get current schema
+        current_schema = self._dump_current_schema()
+        
+        # Compare schemas
+        differences = self._compare_schemas(baseline_schema, current_schema)
+        
+        if differences['has_differences']:
+            logger.warning(f"Schema inconsistencies detected: {differences['summary']['total_differences']} differences")
+            return {
+                'consistent': False,
+                'differences': differences,
+                'message': f"Schema has {differences['summary']['total_differences']} differences from baseline"
+            }
+        else:
+            logger.info("✅ Schema is consistent with baseline")
+            return {
+                'consistent': True,
+                'message': 'Schema matches baseline'
+            }
+
+    def _load_baseline_schema(self, schema_path: str) -> Dict[str, Any]:
+        """Load baseline schema from file"""
+        try:
+            with open(schema_path, 'r') as f:
+                return json.load(f)
+        except Exception as e:
+            logger.error(f"Could not load baseline schema from {schema_path}: {e}")
+            return {}
+
+    def _dump_current_schema(self) -> Dict[str, Any]:
+        """Dump current database schema"""
+        from core.management.commands.dump_schema import Command as DumpSchemaCommand
+        
+        # Create temporary schema dump
+        temp_file = Path('temp_current_schema.json')
+        
+        try:
+            # Use the dump_schema command to get current schema
+            dump_command = DumpSchemaCommand()
+            dump_command.handle(
+                output=str(temp_file),
+                include_django_tables=False
+            )
+            
+            # Load the dumped schema
+            with open(temp_file, 'r') as f:
+                current_schema = json.load(f)
+            
+            return current_schema
+        finally:
+            # Clean up temp file
+            if temp_file.exists():
+                temp_file.unlink()
+
+    def _compare_schemas(self, baseline: Dict[str, Any], current: Dict[str, Any]) -> Dict[str, Any]:
+        """Compare two schemas and return differences"""
+        from core.management.commands.compare_schema import Command as CompareSchemaCommand
+        
+        # Use the compare_schema command logic
+        compare_command = CompareSchemaCommand()
+        return compare_command._compare_schemas(baseline, current, {})
+
+    def validate_schema_before_migration(self, migration_file_path: str, baseline_schema_path: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Validate schema consistency before applying a migration
+        """
+        logger.info(f"🔍 Validating schema before migration: {migration_file_path}")
+        
+        # Check current schema consistency
+        schema_check = self.check_schema_consistency(baseline_schema_path)
+        
+        if not schema_check['consistent']:
+            logger.warning("Schema inconsistencies detected before migration")
+            return {
+                'valid': False,
+                'reason': 'schema_inconsistent',
+                'message': 'Database schema is not consistent with baseline',
+                'details': schema_check
+            }
+        
+        # Check migration safety
+        migration_conflicts = self.analyze_migration_conflicts_from_file(migration_file_path)
+        
+        if migration_conflicts:
+            logger.warning(f"Migration conflicts detected: {len(migration_conflicts)} issues")
+            return {
+                'valid': False,
+                'reason': 'migration_conflicts',
+                'message': f'Migration has {len(migration_conflicts)} potential conflicts',
+                'details': migration_conflicts
+            }
+        
+        logger.info("✅ Schema validation passed")
+        return {
+            'valid': True,
+            'message': 'Schema and migration validation passed'
+        }
+
+    def analyze_migration_conflicts_from_file(self, migration_file_path: str) -> List[Dict[str, Any]]:
+        """Analyze migration file for conflicts"""
+        try:
+            with open(migration_file_path, 'r') as f:
+                content = f.read()
+            return self.analyze_migration_conflicts(content)
+        except Exception as e:
+            logger.error(f"Could not analyze migration file {migration_file_path}: {e}")
+            return []
+
+    def create_schema_snapshot(self, output_path: str = None) -> str:
+        """
+        Create a schema snapshot for version control
+        """
+        from core.management.commands.dump_schema import Command as DumpSchemaCommand
+        
+        if not output_path:
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            output_path = f'database_schema/schema_snapshot_{timestamp}.json'
+        
+        # Create schema directory
+        schema_dir = Path('database_schema')
+        schema_dir.mkdir(exist_ok=True)
+        
+        # Use dump_schema command
+        dump_command = DumpSchemaCommand()
+        dump_command.handle(
+            output=output_path,
+            include_django_tables=False
+        )
+        
+        logger.info(f"Schema snapshot created: {output_path}")
+        return output_path
 
 
 def check_migration_safety(migration_file_path: str) -> List[Dict[str, Any]]:

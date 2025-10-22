@@ -577,9 +577,10 @@ class ScormAPIHandler:
             logger.info("Preview attempt - skipping database save")
     
     def _update_topic_progress(self):
-        """Update related TopicProgress based on SCORM data"""
+        """Update related TopicProgress based on SCORM data with enhanced sync"""
         try:
             from courses.models import TopicProgress
+            from django.utils import timezone
             
             topic = self.attempt.scorm_package.topic
             
@@ -589,8 +590,12 @@ class ScormAPIHandler:
                 topic=topic
             )
             
+            # Initialize progress_data if not exists
+            if not isinstance(progress.progress_data, dict):
+                progress.progress_data = {}
+            
             # Update progress data with comprehensive SCORM tracking
-            progress.progress_data = {
+            progress.progress_data.update({
                 'scorm_attempt_id': self.attempt.id,
                 'lesson_status': self.attempt.lesson_status,
                 'completion_status': self.attempt.completion_status,
@@ -606,20 +611,34 @@ class ScormAPIHandler:
                 'entry': self.attempt.entry,
                 'exit_mode': self.attempt.exit_mode,
                 'last_updated': timezone.now().isoformat(),
-            }
+                'scorm_sync': True,  # Mark as synced
+            })
             
-            # Update completion
+            # CRITICAL: Enhanced completion status sync
             if self.version == '1.2':
                 is_completed = self.attempt.lesson_status in ['completed', 'passed']
             else:
                 is_completed = self.attempt.completion_status == 'completed'
             
-            if is_completed and not progress.completed:
-                progress.completed = True
-                progress.completion_method = 'scorm'
-                progress.completed_at = timezone.now()
+            # Update completion status
+            if is_completed:
+                if not progress.completed:
+                    progress.completed = True
+                    progress.completion_method = 'scorm'
+                    if not progress.completed_at:
+                        progress.completed_at = timezone.now()
+                    logger.info(f"✅ SCORM SYNC: Marked topic {topic.id} as completed for user {self.attempt.user.username}")
+                else:
+                    logger.info(f"📊 SCORM SYNC: Topic {topic.id} already completed for user {self.attempt.user.username}")
+            else:
+                # If not completed, ensure we don't mark as completed
+                if progress.completed and progress.completion_method == 'scorm':
+                    # Only unmark if it was auto-completed by SCORM, not manually
+                    progress.completed = False
+                    progress.completion_method = 'auto'
+                    logger.info(f"🔄 SCORM SYNC: Unmarked completion for topic {topic.id} - status: {self.attempt.lesson_status}")
             
-            # SIMPLIFIED: Trust SCORM's native scoring logic
+            # Enhanced score tracking
             if self.attempt.score_raw is not None:
                 score_value = float(self.attempt.score_raw)
                 progress.last_score = score_value

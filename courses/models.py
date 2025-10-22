@@ -2139,11 +2139,39 @@ class TopicProgress(models.Model):
         return 0.0
     
     def get_progress_percentage(self):
-        """Calculate progress percentage for this topic"""
+        """Calculate progress percentage for this topic with enhanced SCORM sync"""
         from core.utils.type_guards import normalize_mixed_type_field, safe_get_float
+        from django.utils import timezone
         
         if self.completed:
             return 100
+        
+        # For SCORM content, check latest attempt and sync if needed
+        if self.topic.content_type == 'SCORM':
+            from scorm.models import ScormAttempt
+            
+            # Get latest SCORM attempt
+            latest_attempt = ScormAttempt.objects.filter(
+                user=self.user,
+                scorm_package__topic=self.topic
+            ).order_by('-id').first()
+            
+            if latest_attempt:
+                # Sync completion status from latest attempt
+                if latest_attempt.lesson_status in ['completed', 'passed']:
+                    if not self.completed:
+                        self.completed = True
+                        self.completion_method = 'scorm'
+                        self.last_score = latest_attempt.score_raw
+                        if not self.completed_at:
+                            self.completed_at = timezone.now()
+                        self.save()
+                        logger.info(f"🔄 AUTO-SYNC: Fixed SCORM completion for topic {self.topic.id}")
+                    return 100
+                elif latest_attempt.lesson_status in ['incomplete', 'browsed']:
+                    return 50
+                elif latest_attempt.lesson_status == 'not attempted':
+                    return 0
         
         # Use type-safe progress data handling
         normalized_data = normalize_mixed_type_field(self.progress_data)

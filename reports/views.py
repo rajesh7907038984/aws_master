@@ -270,6 +270,61 @@ def calculate_progress_percentage(completed_count, total_count):
     percentage = min((completed_count / total_count) * 100, 100.0)
     return round(percentage, 1)
 
+def _sync_scorm_progress_for_reports(topic_progress_queryset):
+    """Sync SCORM progress data for report display"""
+    from scorm.models import ScormAttempt
+    from django.utils import timezone
+    import logging
+    
+    logger = logging.getLogger(__name__)
+    
+    try:
+        for progress in topic_progress_queryset:
+            if progress.topic.content_type == 'SCORM':
+                # Get latest SCORM attempt
+                latest_attempt = ScormAttempt.objects.filter(
+                    user=progress.user,
+                    scorm_package__topic=progress.topic
+                ).order_by('-id').first()
+                
+                if latest_attempt:
+                    # Sync completion status from latest attempt
+                    if latest_attempt.lesson_status in ['completed', 'passed']:
+                        if not progress.completed:
+                            progress.completed = True
+                            progress.completion_method = 'scorm'
+                            progress.last_score = latest_attempt.score_raw
+                            if not progress.completed_at:
+                                progress.completed_at = timezone.now()
+                            progress.save()
+                            logger.info(f"🔄 REPORT SYNC: Fixed SCORM completion for topic {progress.topic.id}, user {progress.user.username}")
+                    
+                    # Update progress_data with latest SCORM data
+                    if not isinstance(progress.progress_data, dict):
+                        progress.progress_data = {}
+                    
+                    progress.progress_data.update({
+                        'scorm_attempt_id': latest_attempt.id,
+                        'lesson_status': latest_attempt.lesson_status,
+                        'completion_status': latest_attempt.completion_status,
+                        'success_status': latest_attempt.success_status,
+                        'score_raw': float(latest_attempt.score_raw) if latest_attempt.score_raw else None,
+                        'last_updated': timezone.now().isoformat(),
+                        'scorm_sync': True,
+                    })
+                    
+                    # Update scores
+                    if latest_attempt.score_raw is not None:
+                        progress.last_score = latest_attempt.score_raw
+                        if progress.best_score is None or latest_attempt.score_raw > progress.best_score:
+                            progress.best_score = latest_attempt.score_raw
+                    
+                    progress.save()
+                    
+    except Exception as e:
+        logger.error(f"Error syncing SCORM progress for reports: {str(e)}")
+
+
 def get_enrollment_status(enrollment):
     """
     Get consistent enrollment status based on enrollment data.
@@ -3692,6 +3747,9 @@ def user_detail_report(request, user_id):
             ).values('course__title')[:1]
         )
     ).distinct().order_by('-last_accessed')
+    
+    # CRITICAL FIX: Sync SCORM progress data for reports
+    _sync_scorm_progress_for_reports(topic_progress)
     
     # Calculate learning activities statistics with improved logic
     total_activities = topic_progress.count()
