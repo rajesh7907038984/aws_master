@@ -1162,5 +1162,78 @@
         // Make function globally available as fallback
         window.handleSidebarToggle = handleSidebarToggle;
     </script>
+
+    <!-- Simple Sidebar Toggle Fix -->
+    <script>
+    // Simple sidebar toggle fix - overrides all other scripts
+    document.addEventListener('DOMContentLoaded', function() {
+        const toggleButton = document.getElementById('mobile-menu-toggle');
+        const sidebar = document.getElementById('sidebar');
+        const mainContent = document.getElementById('main-content');
+        
+        if (toggleButton && sidebar && mainContent) {
+            // Remove any existing event listeners by cloning the button
+            const newButton = toggleButton.cloneNode(true);
+            if (toggleButton.parentNode) {
+                toggleButton.parentNode.replaceChild(newButton, toggleButton);
+            }
+            
+            newButton.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                if (window.innerWidth >= 768) {
+                    // Desktop: toggle sidebar
+                    const wasCollapsed = sidebar.classList.contains('collapsed');
+                    sidebar.classList.toggle('collapsed');
+                    mainContent.classList.toggle('sidebar-collapsed');
+                    
+                    // Force the sidebar width with inline styles to override any CSS conflicts
+                    if (!wasCollapsed) {
+                        // Collapsing
+                        sidebar.style.width = '4.5rem';
+                        sidebar.style.minWidth = '4.5rem';
+                        sidebar.style.maxWidth = '4.5rem';
+                        mainContent.style.marginLeft = '4.5rem';
+                        mainContent.style.width = 'calc(100% - 4.5rem)';
+                    } else {
+                        // Expanding
+                        sidebar.style.width = '16rem';
+                        sidebar.style.minWidth = '16rem';
+                        sidebar.style.maxWidth = '16rem';
+                        mainContent.style.marginLeft = '16rem';
+                        mainContent.style.width = 'calc(100% - 16rem)';
+                    }
+                    
+                    // Save state
+                    localStorage.setItem('sidebar_collapsed', !wasCollapsed);
+                    console.log('Sidebar toggled:', !wasCollapsed ? 'collapsed' : 'expanded');
+                } else {
+                    // Mobile: toggle mobile menu
+                    const mobileMenu = document.getElementById('mobile-menu');
+                    if (mobileMenu) {
+                        mobileMenu.classList.toggle('open');
+                        document.body.classList.toggle('overflow-hidden');
+                    }
+                }
+            });
+            
+            console.log('Simple sidebar toggle initialized');
+        }
+        
+        // Restore sidebar state on page load
+        const savedState = localStorage.getItem('sidebar_collapsed');
+        if (savedState === 'true' && window.innerWidth >= 768) {
+            sidebar.classList.add('collapsed');
+            mainContent.classList.add('sidebar-collapsed');
+            sidebar.style.width = '4.5rem';
+            sidebar.style.minWidth = '4.5rem';
+            sidebar.style.maxWidth = '4.5rem';
+            mainContent.style.marginLeft = '4.5rem';
+            mainContent.style.width = 'calc(100% - 4.5rem)';
+            console.log('Sidebar state restored: collapsed');
+        }
+    });
+    </script>
 </body>
 </html>

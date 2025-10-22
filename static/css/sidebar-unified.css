@@ -57,6 +57,15 @@
 /* ===== COLLAPSED STATE ===== */
 #sidebar.collapsed {
     width: 4.5rem !important;
+    min-width: 4.5rem !important;
+    max-width: 4.5rem !important;
+}
+
+/* Override any conflicting styles with maximum specificity */
+html body #sidebar.collapsed {
+    width: 4.5rem !important;
+    min-width: 4.5rem !important;
+    max-width: 4.5rem !important;
 }
 
 #sidebar.collapsed .menu-text {

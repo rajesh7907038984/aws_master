@@ -1,12 +1,13 @@
 {% load static %}
-<!-- Sidebar CSS is loaded in base.html to avoid conflicts -->
+<!-- Include custom sidebar CSS -->
+<link rel="stylesheet" href="{% static 'css/sidebar-custom.css' %}?v=1.2">
 
 <!-- Sticky Sidebar - Hidden on mobile -->
 <aside id="sidebar" class="fixed top-16 left-0 h-[calc(100vh-4rem)] w-64 z-30 transition-all duration-300 hidden md:block">
     <nav class="h-full py-1">
         <div class="flex flex-col h-full space-y-0 items-start overflow-y-auto max-h-[calc(100vh-5rem)]">
             <!-- Dashboard -->
-            <a href="{% if request.user.role == 'globaladmin' %}{% url 'dashboard_globaladmin' %}{% elif request.user.role == 'superadmin' %}{% url 'dashboard_superadmin' %}{% elif request.user.role == 'admin' %}{% url 'dashboard_admin' %}{% elif request.user.role == 'instructor' %}{% url 'dashboard_instructor' %}{% else %}{% url 'dashboard_learner' %}{% endif %}" class="menu-item flex items-center px-4 py-1 w-full {% if 'dashboard' in request.path %}active{% endif %}">
+            <a href="{% if request.user.role == 'globaladmin' %}{% url 'dashboard_globaladmin' %}{% elif request.user.role == 'superadmin' %}{% url 'dashboard_superadmin' %}{% elif request.user.role == 'admin' %}{% url 'dashboard_admin' %}{% elif request.user.role == 'instructor' %}{% url 'dashboard_instructor' %}{% else %}{% url 'dashboard_learner' %}{% endif %}" class="menu-item flex items-center px-4 py-1 w-full {% if 'dashboard' in request.path %}active border-l-4 border-[#02f711]{% endif %}">
                 <div class="icon-container min-w-[20px] flex justify-center">
                     <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                         <rect x="3" y="3" width="7" height="7" stroke="currentColor" stroke-width="2"/>
@@ -38,67 +39,1200 @@
     </nav>
 </aside>
 
-<!-- Inline styles removed - now using unified CSS file -->
-<!-- Unified JavaScript - now using sidebar-unified.js -->
-<script src="{% static 'js/sidebar-unified.js' %}"></script>
+<style>
+    /* Base styles that should load immediately - Updated: 2024-12-19 */
+    #sidebar {
+        background-color: #1C2260 !important;
+        width: 16rem !important; /* 256px */
+    }
 
-<!-- Debug script for development -->
-{% if settings.DEBUG %}
-<script src="{% static 'js/sidebar-debug.js' %}"></script>
-{% endif %}
+    @media (max-width: 767px) {
+        #sidebar {
+            display: none !important;
+        }
+    }
 
-<!-- Enhanced initialization script -->
+    @media (min-width: 768px) {
+        #sidebar {
+            display: block !important;
+        }
+    }
+
+    /* Add text-white class with high specificity */
+    #sidebar .text-white,
+    #sidebar * {
+        color: #ffffff !important;
+    }
+
+    #sidebar nav {
+        background-color: #1C2260 !important;
+    }
+
+    #sidebar.collapsed {
+        width: 3.5rem !important; /* 56px */
+    }
+
+    /* Adjust main content margin */
+    #main-content {
+        transition: margin-left 0.3s ease, width 0.3s ease;
+    }
+
+    @media (min-width: 768px) {
+        #main-content {
+            margin-left: 16rem;
+            width: calc(100% - 16rem);
+        }
+
+        #main-content.sidebar-collapsed {
+            margin-left: 3.5rem;
+            width: calc(100% - 3.5rem);
+        }
+    }
+
+    @media (max-width: 767px) {
+        #main-content {
+            margin-left: 0 !important;
+            width: 100% !important;
+        }
+    }
+
+    /* Menu item styles */
+    #sidebar .menu-item {
+        position: relative;
+        width: 100%;
+        cursor: pointer; /* Ensure cursor is pointer for all menu items */
+    }
+
+    /* Default menu item styles - ensure text and icons are white */
+    #sidebar a, #sidebar button {
+        color: white !important;
+        width: 100%;
+        border: none;
+        background: transparent;
+        text-align: left;
+        outline: none;
+    }
+
+    #sidebar a svg,
+    #sidebar a .icon-container svg,
+    #sidebar button svg,
+    #sidebar button .icon-container svg {
+        color: white !important;
+        stroke: white !important;
+        fill: none !important;
+    }
+
+    /* Active menu item styles */
+    #sidebar a.active,
+    #sidebar a[class*="bg-[#232a75]"],
+    #sidebar button.active,
+    #sidebar button[class*="bg-[#232a75]"] {
+        color: white !important;
+        background-color: rgba(255, 255, 255, 0.1);
+    }
+
+    /* Simple hover styles */
+    #sidebar .menu-item:hover {
+        background-color: rgba(255, 255, 255, 0.95);
+    }
+
+    #sidebar .menu-item:hover svg {
+        color: #1C2260 !important;
+        stroke: #1C2260 !important;
+        fill: none !important;
+    }
+
+    #sidebar .menu-item:hover .menu-text {
+        color: #1C2260 !important;
+    }
+
+    /* Basic menu item structure */
+    #sidebar .menu-item {
+        padding: 0.4rem 0.5rem;
+        min-height: 24px;
+        width: 100%;
+    }
+
+    #sidebar .icon-container {
+        min-width: 16px;
+        width: 16px;
+    }
+
+    #sidebar .icon-container svg {
+        width: 16px;
+        height: 16px;
+        stroke-width: 2;
+        fill: none !important;
+    }
+
+    #sidebar a span.menu-text,
+    #sidebar button span.menu-text {
+        color: white !important;
+        font-size: 0.75rem;
+        line-height: 1.1rem;
+        margin-left: 0.5rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    #sidebar button span.menu-text {
+        font-size: 0.75rem;
+        line-height: 1.1rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    #sidebar.collapsed .menu-text {
+        display: none;
+    }
+
+    #sidebar.collapsed .menu-item {
+        padding: 0.4rem;
+        justify-content: center;
+        min-height: 28px;
+    }
+
+    #sidebar.collapsed .icon-container {
+        margin: 0;
+        min-width: auto;
+    }
+
+    /* Space between menu sections */
+    #sidebar .menu-section {
+        margin-top: 0.25rem;
+        width: 100%;
+    }
+
+    /* Submenu styles */
+    .submenu {
+        max-height: 0;
+        overflow-y: hidden !important;
+        transition: max-height 0.3s ease, opacity 0.3s ease !important;
+        opacity: 0;
+        display: block; /* Always use display:block and control visibility with hidden class */
+    }
+
+    .submenu.hidden {
+        display: none !important; /* Explicitly hide with !important */
+    }
+
+    .submenu:not(.hidden) {
+        max-height: 1200px;
+        opacity: 1;
+        overflow-y: visible !important;
+        display: block !important; /* Ensure display with !important */
+    }
+
+    /* Submenu item styles */
+    .submenu .menu-item {
+        padding-left: 2.2rem;
+    }
+
+    /* Arrow rotation animation */
+    .menu-item .arrow-icon {
+        transition: transform 0.3s ease;
+        width: 12px !important;
+        height: 12px !important;
+    }
+
+    .menu-item.expanded .arrow-icon {
+        transform: rotate(180deg);
+    }
+
+    /* Active submenu styles */
+    .menu-item.active {
+        background-color: rgba(255, 255, 255, 0.1);
+    }
+
+    /* Submenu icon sizes */
+    .submenu .icon-container svg {
+        width: 14px;
+        height: 14px;
+    }
+
+    /* Toggle button icon size */
+    #sidebarToggle svg {
+        width: 12px;
+        height: 12px;
+    }
+
+    /* Enhanced collapsed sidebar hover tooltip styles */
+    .sidebar-hover-tooltip {
+        position: fixed;
+        left: 3.5rem;
+        background-color: #1C2260;
+        border: 1px solid #2d3e8f;
+        border-radius: 8px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+        z-index: 1000;
+        min-width: 220px;
+        max-width: 320px;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.2s ease, transform 0.2s ease;
+        transform: translateX(-15px) translateY(-5px);
+        display: none;
+        backdrop-filter: blur(10px);
+        font-family: 'Inter', sans-serif;
+    }
+
+    .sidebar-hover-tooltip.show {
+        opacity: 1;
+        transform: translateX(0) translateY(0);
+        display: block;
+        pointer-events: auto;
+    }
+
+    .sidebar-hover-tooltip .tooltip-header {
+        padding: 16px 20px;
+        border-bottom: 1px solid #2d3e8f;
+        color: white;
+        font-weight: 600;
+        font-size: 15px;
+        display: flex;
+        align-items: center;
+        background-color: rgba(255, 255, 255, 0.05);
+        border-radius: 8px 8px 0 0;
+    }
+
+    .sidebar-hover-tooltip .tooltip-header svg {
+        margin-right: 12px;
+        width: 20px;
+        height: 20px;
+        stroke: white;
+        stroke-width: 2;
+        flex-shrink: 0;
+    }
+
+    .sidebar-hover-tooltip .tooltip-submenu {
+        padding: 8px 0;
+        max-height: 300px;
+        overflow-y: auto;
+        border-radius: 0 0 8px 8px;
+    }
+
+    .sidebar-hover-tooltip .tooltip-submenu-item {
+        padding: 12px 20px;
+        color: #e2e8f0;
+        font-size: 14px;
+        text-decoration: none;
+        display: block;
+        transition: all 0.2s ease;
+        border-left: 3px solid transparent;
+        position: relative;
+        line-height: 1.4;
+    }
+
+    .sidebar-hover-tooltip .tooltip-submenu-item:hover {
+        background-color: #050c50;
+        color: white;
+        border-left-color: #02f711;
+        transform: translateX(2px);
+        text-decoration: none;
+    }
+
+    .sidebar-hover-tooltip .tooltip-submenu-item:active {
+        background-color: #191f56;
+    }
+
+    .sidebar-hover-tooltip .tooltip-submenu-item:focus {
+        outline: 2px solid #02f711;
+        outline-offset: -2px;
+    }
+
+    /* Custom scrollbar for tooltip submenu */
+    .sidebar-hover-tooltip .tooltip-submenu::-webkit-scrollbar {
+        width: 4px;
+    }
+
+    .sidebar-hover-tooltip .tooltip-submenu::-webkit-scrollbar-track {
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 2px;
+    }
+
+    .sidebar-hover-tooltip .tooltip-submenu::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.3);
+        border-radius: 2px;
+    }
+
+    .sidebar-hover-tooltip .tooltip-submenu::-webkit-scrollbar-thumb:hover {
+        background: rgba(255, 255, 255, 0.5);
+    }
+
+    /* Hide tooltip when sidebar is not collapsed */
+    #sidebar:not(.collapsed):not(.sidebar-collapsed) .sidebar-hover-tooltip {
+        display: none !important;
+    }
+
+    /* Tooltip arrow pointing to sidebar */
+    .sidebar-hover-tooltip::before {
+        content: '';
+        position: absolute;
+        left: -8px;
+        top: 20px;
+        width: 0;
+        height: 0;
+        border-top: 8px solid transparent;
+        border-bottom: 8px solid transparent;
+        border-right: 8px solid #1C2260;
+        z-index: 1001;
+    }
+
+    .sidebar-hover-tooltip::after {
+        content: '';
+        position: absolute;
+        left: -9px;
+        top: 19px;
+        width: 0;
+        height: 0;
+        border-top: 9px solid transparent;
+        border-bottom: 9px solid transparent;
+        border-right: 9px solid #2d3e8f;
+        z-index: 1000;
+    }
+</style>
+
 <script>
+// Initialize sidebar
 document.addEventListener('DOMContentLoaded', function() {
-    // Ensure sidebar is properly initialized
-    if (window.SidebarManager) {
-        window.SidebarManager.init();
+    // Force sidebar visibility on desktop and hide on mobile
+    const sidebar = document.getElementById('sidebar');
+    if (sidebar) {
+        if (window.innerWidth >= 768) {
+            sidebar.classList.remove('hidden');
+            sidebar.classList.add('md:block');
+        } else {
+            sidebar.classList.add('hidden');
+            sidebar.classList.remove('md:block');
+        }
+    }
+    
+    // Set active menu items based on current URL
+    setActiveMenuItems();
+    
+    // Ensure submenus are correctly setup
+    setupSubmenuToggles();
+});
+
+// Make toggleSubmenu function globally accessible
+window.toggleSubmenu = function(submenuId, event) {
+    // Prevent the event from propagating up to parent elements
+    if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+    }
+    
+    
+    const submenu = document.getElementById(submenuId);
+    if (!submenu) {
+        console.error(`Submenu with ID ${submenuId} not found`);
+        return;
+    }
+    
+    // Find the button that triggered this submenu
+    // First try to find it via the event target
+    let button;
+    if (event && event.currentTarget) {
+        button = event.currentTarget;
     } else {
-        // Fallback initialization if SidebarManager is not available
-        console.warn('SidebarManager not found, using fallback initialization');
-        
-        // Basic sidebar toggle functionality
-        const toggleButton = document.getElementById('mobile-menu-toggle');
+        // Fallback to finding it via query selector
+        button = document.querySelector(`[data-submenu="${submenuId}"]`);
+        if (!button) {
+            // Try previous sibling as last resort
+            button = submenu.previousElementSibling;
+        }
+    }
+    
+    if (!button) {
+        console.error('Could not find button for submenu:', submenuId);
+        return;
+    }
+    
+    const arrow = button.querySelector('.arrow-icon');
+    
+    // Toggle submenu visibility
+    const wasHidden = submenu.classList.contains('hidden');
+    submenu.classList.toggle('hidden');
+    
+    // Toggle button active state and arrow rotation
+    button.classList.toggle('active');
+    button.classList.toggle('expanded');
+    
+    // Rotate arrow if present
+    if (arrow) {
+        arrow.style.transform = submenu.classList.contains('hidden') ? '' : 'rotate(180deg)';
+    }
+    
+    // Ensure submenu is visible - scroll parent if needed
+    if (!submenu.classList.contains('hidden')) {
         const sidebar = document.getElementById('sidebar');
-        const mainContent = document.getElementById('main-content');
-        
-        if (toggleButton && sidebar) {
-            // Remove existing event listeners to prevent duplicates
-            const newToggleButton = toggleButton.cloneNode(true);
-            if (toggleButton.parentNode) {
-                toggleButton.parentNode.replaceChild(newToggleButton, toggleButton);
-            }
+        if (sidebar) {
+            const submenuRect = submenu.getBoundingClientRect();
+            const sidebarRect = sidebar.getBoundingClientRect();
             
-            newToggleButton.addEventListener('click', function(e) {
-                e.preventDefault();
-                
-                if (window.innerWidth < 768) {
-                    // Mobile behavior - toggle mobile menu
-                    const mobileMenu = document.getElementById('mobile-menu');
-                    if (mobileMenu) {
-                        mobileMenu.classList.toggle('open');
-                        document.body.classList.toggle('overflow-hidden');
+            // If submenu extends beyond sidebar bottom, scroll it into view
+            if (submenuRect.bottom > sidebarRect.bottom) {
+                const flexContainer = sidebar.querySelector('.flex.flex-col');
+                if (flexContainer) {
+                    flexContainer.scrollTo({
+                        top: flexContainer.scrollTop + (submenuRect.bottom - sidebarRect.bottom),
+                        behavior: 'smooth'
+                    });
+                }
+            }
+        }
+    }
+    
+    // Optional: Close other submenus when opening a new one
+    // Only close other submenus if this one is being opened, not closed
+    if (!submenu.classList.contains('hidden')) {
+        const allSubmenus = document.querySelectorAll('.submenu');
+        allSubmenus.forEach(menu => {
+            if (menu.id !== submenuId && !menu.classList.contains('hidden')) {
+                // Check if this menu contains an active item, if it does, don't close it
+                const hasActiveItem = menu.querySelector('.menu-item.active');
+                if (!hasActiveItem) {
+                    menu.classList.add('hidden');
+                    
+                    // Find and update the button state
+                    const menuButton = document.querySelector(`[data-submenu="${menu.id}"]`);
+                    if (menuButton) {
+                        menuButton.classList.remove('active', 'expanded');
+                        
+                        // Reset arrow rotation
+                        const menuArrow = menuButton.querySelector('.arrow-icon');
+                        if (menuArrow) {
+                            menuArrow.style.transform = '';
+                        }
                     }
+                }
+            }
+        });
+    }
+}
+
+// Function to set active menu items based on current URL
+function setActiveMenuItems() {
+    const currentPath = window.location.pathname;
+    const currentUrl = window.location.href;
+    
+    // Remove active class from all menu items
+    document.querySelectorAll('#sidebar .menu-item').forEach(item => {
+        if (!item.classList.contains('has-submenu')) {
+            item.classList.remove('active');
+        }
+    });
+    
+    // Find and mark active menu items
+    document.querySelectorAll('#sidebar a.menu-item').forEach(item => {
+        const href = item.getAttribute('href');
+        if (!href) return;
+        
+        // Check if this href contains query params
+        const hasParams = href.includes('?');
+        
+        // For links with query params, we need an exact match against the full URL
+        if (hasParams) {
+            // Get the base path and params from the menu href
+            const hrefPath = href.split('?')[0];
+            const hrefParams = href.split('?')[1];
+            
+            // Check if the current path matches and if the current URL contains the query params
+            if (currentPath.includes(hrefPath) && currentUrl.includes(hrefParams)) {
+                // Add active class
+                item.classList.add('active');
+                
+                // If this item is in a submenu, expand the submenu
+                const parentSubmenu = item.closest('.submenu');
+                if (parentSubmenu) {
+                    parentSubmenu.classList.remove('hidden');
+                    
+                    // Also mark the parent menu item as expanded
+                    const menuButton = document.querySelector(`[data-submenu="${parentSubmenu.id}"]`);
+                    if (menuButton) {
+                        menuButton.classList.add('active', 'expanded');
+                        
+                        // Rotate arrow
+                        const arrow = menuButton.querySelector('.arrow-icon');
+                        if (arrow) {
+                            arrow.style.transform = 'rotate(180deg)';
+                        }
+                    }
+                }
+            }
+        } 
+        // For links without query params, use the original logic
+        else if (currentPath.includes(href) && href !== '/') {
+            // Only mark as active if there are no params in the current URL
+            // or this is the base URL without params
+            if (!currentUrl.includes('?') || currentPath === href) {
+                // Add active class
+                item.classList.add('active');
+                
+                // If this item is in a submenu, expand the submenu
+                const parentSubmenu = item.closest('.submenu');
+                if (parentSubmenu) {
+                    parentSubmenu.classList.remove('hidden');
+                    
+                    // Also mark the parent menu item as expanded
+                    const menuButton = document.querySelector(`[data-submenu="${parentSubmenu.id}"]`);
+                    if (menuButton) {
+                        menuButton.classList.add('active', 'expanded');
+                        
+                        // Rotate arrow
+                        const arrow = menuButton.querySelector('.arrow-icon');
+                        if (arrow) {
+                            arrow.style.transform = 'rotate(180deg)';
+                        }
+                    }
+                }
+            }
+        }
+    });
+    
+    // Special case for dashboard - only mark active if exact match or empty path
+    const dashboardLinks = document.querySelectorAll('#sidebar a.menu-item[href*="dashboard"]');
+    dashboardLinks.forEach(link => {
+        const href = link.getAttribute('href');
+        if (href && (currentPath === href || (currentPath === '/' && href.includes('dashboard')))) {
+            link.classList.add('active');
+        }
+    });
+}
+
+// Add a function to handle window load and resize events
+window.addEventListener('load', function() {
+    // Check if there are any active menu items in hidden submenus
+    document.querySelectorAll('#sidebar .submenu.hidden').forEach(submenu => {
+        const currentUrl = window.location.href;
+        let hasActiveItem = false;
+        
+        // Check each menu item in the submenu
+        submenu.querySelectorAll('a.menu-item').forEach(item => {
+            const href = item.getAttribute('href');
+            if (!href) return;
+            
+            // For links with query params
+            if (href.includes('?')) {
+                const hrefPath = href.split('?')[0];
+                const hrefParams = href.split('?')[1];
+                
+                if (window.location.pathname.includes(hrefPath) && currentUrl.includes(hrefParams)) {
+                    // This item should be active
+                    item.classList.add('active');
+                    hasActiveItem = true;
+                }
+            }
+            // For links without query params
+            else if (window.location.pathname.includes(href) && href !== '/') {
+                if (!currentUrl.includes('?') || window.location.pathname === href) {
+                    item.classList.add('active');
+                    hasActiveItem = true;
+                }
+            }
+        });
+        
+        if (hasActiveItem) {
+            // Expand this submenu
+            submenu.classList.remove('hidden');
+            
+            // Update parent menu item
+            const menuButton = document.querySelector(`[data-submenu="${submenu.id}"]`);
+            if (menuButton) {
+                menuButton.classList.add('active', 'expanded');
+                
+                // Rotate arrow
+                const arrow = menuButton.querySelector('.arrow-icon');
+                if (arrow) {
+                    arrow.style.transform = 'rotate(180deg)';
+                }
+            }
+        }
+    });
+});
+
+// Re-check active menu items when URL changes
+window.addEventListener('popstate', setActiveMenuItems);
+
+// Enhanced hover tooltip functionality for collapsed sidebar
+function setupSidebarHoverTooltips() {
+    let hoverTooltip = null;
+    let hoverTimeout = null;
+    let currentMenuItem = null;
+    let isTooltipVisible = false;
+    
+    function createTooltip() {
+        if (hoverTooltip) return hoverTooltip;
+        
+        hoverTooltip = document.createElement('div');
+        hoverTooltip.className = 'sidebar-hover-tooltip';
+        hoverTooltip.setAttribute('role', 'tooltip');
+        hoverTooltip.setAttribute('aria-live', 'polite');
+        document.body.appendChild(hoverTooltip);
+        
+        // Set up event handlers for the new tooltip
+        setupTooltipEvents(hoverTooltip);
+        
+        return hoverTooltip;
+    }
+    
+    function showTooltip(menuItem, event) {
+        const sidebar = document.getElementById('sidebar');
+        if (!sidebar || (!sidebar.classList.contains('collapsed') && !sidebar.classList.contains('sidebar-collapsed'))) return;
+        
+        // Clear any existing timeout
+        clearTimeout(hoverTimeout);
+        
+        // Store reference to current menu item
+        currentMenuItem = menuItem;
+        
+        const tooltip = createTooltip();
+        const menuText = menuItem.querySelector('.menu-text');
+        const menuIcon = menuItem.querySelector('.icon-container svg');
+        const hasSubmenu = menuItem.classList.contains('has-submenu');
+        
+        if (!menuText) return;
+        
+        // Get submenu if it exists
+        let submenu = null;
+        if (hasSubmenu) {
+            const submenuId = menuItem.getAttribute('data-submenu');
+            if (submenuId) {
+                submenu = document.getElementById(submenuId);
+            }
+        }
+        
+        // Build tooltip content with improved structure
+        let tooltipContent = `
+            <div class="tooltip-header">
+                ${menuIcon ? menuIcon.outerHTML : ''}
+                <span>${menuText.textContent.trim()}</span>
+            </div>
+        `;
+        
+        if (submenu && submenu.children.length > 0) {
+            tooltipContent += '<div class="tooltip-submenu">';
+            const submenuItems = submenu.querySelectorAll('a.menu-item');
+            submenuItems.forEach(item => {
+                const itemText = item.querySelector('.menu-text');
+                const itemHref = item.getAttribute('href') || '#';
+                if (itemText) {
+                    tooltipContent += `
+                        <a href="${itemHref}" class="tooltip-submenu-item">
+                            ${itemText.textContent.trim()}
+                        </a>
+                    `;
+                }
+            });
+            tooltipContent += '</div>';
+        }
+        
+        tooltip.innerHTML = tooltipContent;
+        
+        // Position tooltip with improved positioning
+        const rect = menuItem.getBoundingClientRect();
+        const sidebarRect = sidebar.getBoundingClientRect();
+        
+        // Calculate optimal position
+        let topPosition = rect.top;
+        let leftPosition = sidebarRect.right + 12; // 12px gap from sidebar
+        
+        // Ensure tooltip doesn't go off screen
+        const tooltipHeight = 200; // Estimated height
+        const tooltipWidth = 280; // Estimated width
+        
+        if (topPosition + tooltipHeight > window.innerHeight) {
+            topPosition = window.innerHeight - tooltipHeight - 20;
+        }
+        
+        if (leftPosition + tooltipWidth > window.innerWidth) {
+            leftPosition = sidebarRect.left - tooltipWidth - 12;
+        }
+        
+        tooltip.style.top = `${Math.max(20, topPosition)}px`;
+        tooltip.style.left = `${leftPosition}px`;
+        
+        // Show tooltip with improved timing
+        requestAnimationFrame(() => {
+            tooltip.classList.add('show');
+            isTooltipVisible = true;
+        });
+    }
+    
+    function hideTooltip() {
+        if (hoverTooltip && isTooltipVisible) {
+            hoverTooltip.classList.remove('show');
+            isTooltipVisible = false;
+            hoverTimeout = setTimeout(() => {
+                if (hoverTooltip && hoverTooltip.parentNode) {
+                    hoverTooltip.parentNode.removeChild(hoverTooltip);
+                    hoverTooltip = null;
+                    currentMenuItem = null;
+                }
+            }, 200);
+        }
+    }
+    
+    // Make hideTooltip available globally
+    window.hideTooltip = hideTooltip;
+    
+    // Enhanced tooltip-specific event handling
+    function setupTooltipEvents(tooltip) {
+        // Clear timeout when entering tooltip
+        tooltip.addEventListener('mouseenter', function() {
+            clearTimeout(hoverTimeout);
+        });
+        
+        // Hide tooltip when leaving tooltip area
+        tooltip.addEventListener('mouseleave', function(e) {
+            // Check if mouse is going back to sidebar or current menu item
+            const sidebar = document.getElementById('sidebar');
+            const isGoingToSidebar = e.relatedTarget?.closest('#sidebar');
+            const isGoingToMenuItem = e.relatedTarget?.closest('.menu-item') === currentMenuItem;
+            
+            if (!isGoingToSidebar && !isGoingToMenuItem) {
+                hideTooltip();
+            }
+        });
+        
+        // Handle clicks on submenu items
+        tooltip.addEventListener('click', function(e) {
+            const submenuItem = e.target.closest('.tooltip-submenu-item');
+            if (submenuItem) {
+                // Let the link work normally
+                return;
+            }
+        });
+        
+        // Handle keyboard navigation
+        tooltip.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                hideTooltip();
+            }
+        });
+        
+        // Handle focus events for accessibility
+        tooltip.addEventListener('focusin', function() {
+            clearTimeout(hoverTimeout);
+        });
+        
+        tooltip.addEventListener('focusout', function(e) {
+            // Check if focus is moving to sidebar
+            const sidebar = document.getElementById('sidebar');
+            const isGoingToSidebar = e.relatedTarget?.closest('#sidebar');
+            
+            if (!isGoingToSidebar) {
+                hideTooltip();
+            }
+        });
+    }
+    
+    // Add event listeners to menu items
+    function initializeTooltipEvents() {
+        const sidebar = document.getElementById('sidebar');
+        if (!sidebar) return;
+        
+        // Remove existing listeners to avoid duplicates
+        const existingHandler = sidebar._tooltipHandler;
+        if (existingHandler) {
+            sidebar.removeEventListener('mouseenter', existingHandler, true);
+            sidebar.removeEventListener('mouseleave', existingHandler);
+        }
+        
+        // Enhanced mouse enter handler for individual menu items
+        const mouseEnterHandler = function(e) {
+            const menuItem = e.target.closest('.menu-item');
+            if (menuItem && (sidebar.classList.contains('collapsed') || sidebar.classList.contains('sidebar-collapsed'))) {
+                // Clear any existing timeout
+                clearTimeout(hoverTimeout);
+                
+                // Delay to prevent flashing when quickly moving over items
+                hoverTimeout = setTimeout(() => {
+                    if (menuItem.matches(':hover') && (sidebar.classList.contains('collapsed') || sidebar.classList.contains('sidebar-collapsed'))) {
+                        showTooltip(menuItem, e);
+                    }
+                }, 100); // Reduced delay for better responsiveness
+            }
+        };
+        
+        // Enhanced mouse leave handler for sidebar
+        const mouseLeaveHandler = function(e) {
+            if (sidebar.classList.contains('collapsed') || sidebar.classList.contains('sidebar-collapsed')) {
+                // Check if we're leaving to go to the tooltip
+                const tooltip = document.querySelector('.sidebar-hover-tooltip.show');
+                const isGoingToTooltip = e.relatedTarget?.closest('.sidebar-hover-tooltip');
+                
+                if (!isGoingToTooltip) {
+                    // Delay hiding to allow user to move to tooltip
+                    hoverTimeout = setTimeout(() => {
+                        const currentTooltip = document.querySelector('.sidebar-hover-tooltip.show');
+                        if (!currentTooltip || !currentTooltip.matches(':hover')) {
+                            hideTooltip();
+                        }
+                    }, 150); // Reduced delay for better responsiveness
+                }
+            }
+        };
+        
+        sidebar.addEventListener('mouseenter', mouseEnterHandler, true);
+        sidebar.addEventListener('mouseleave', mouseLeaveHandler);
+        
+        // Store reference for cleanup
+        sidebar._tooltipHandler = mouseEnterHandler;
+        
+        // Set up events for any existing tooltip
+        const existingTooltip = document.querySelector('.sidebar-hover-tooltip');
+        if (existingTooltip) {
+            setupTooltipEvents(existingTooltip);
+        }
+    }
+    
+    // Initialize when DOM is ready
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initializeTooltipEvents);
+    } else {
+        initializeTooltipEvents();
+    }
+    
+    // Also initialize on window load to ensure everything is ready
+    window.addEventListener('load', function() {
+        // Small delay to ensure all other scripts have loaded
+        setTimeout(initializeTooltipEvents, 100);
+    });
+    
+    // Handle window resize for better tooltip positioning
+    window.addEventListener('resize', function() {
+        if (isTooltipVisible && hoverTooltip) {
+            // Reposition tooltip on window resize
+            const sidebar = document.getElementById('sidebar');
+            if (sidebar && (sidebar.classList.contains('collapsed') || sidebar.classList.contains('sidebar-collapsed')) && currentMenuItem) {
+                const rect = currentMenuItem.getBoundingClientRect();
+                const sidebarRect = sidebar.getBoundingClientRect();
+                
+                let topPosition = rect.top;
+                let leftPosition = sidebarRect.right + 12;
+                
+                const tooltipHeight = 200;
+                const tooltipWidth = 280;
+                
+                if (topPosition + tooltipHeight > window.innerHeight) {
+                    topPosition = window.innerHeight - tooltipHeight - 20;
+                }
+                
+                if (leftPosition + tooltipWidth > window.innerWidth) {
+                    leftPosition = sidebarRect.left - tooltipWidth - 12;
+                }
+                
+                hoverTooltip.style.top = `${Math.max(20, topPosition)}px`;
+                hoverTooltip.style.left = `${leftPosition}px`;
+            }
+        }
+    });
+}
+
+// Initialize hover tooltips
+setupSidebarHoverTooltips();
+
+// Monitor for sidebar state changes and reinitialize tooltips
+function monitorSidebarStateChanges() {
+    const sidebar = document.getElementById('sidebar');
+    if (!sidebar) return;
+    
+    // Create a MutationObserver to watch for class changes
+    const observer = new MutationObserver(function(mutations) {
+        mutations.forEach(function(mutation) {
+            if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
+                const target = mutation.target;
+                const isCollapsed = target.classList.contains('collapsed') || target.classList.contains('sidebar-collapsed');
+                
+                if (isCollapsed) {
+                    // Sidebar is now collapsed, ensure tooltips are ready
+                    setTimeout(() => {
+                        if (typeof setupSidebarHoverTooltips === 'function') {
+                            setupSidebarHoverTooltips();
+                        }
+                    }, 100);
                 } else {
-                    // Desktop behavior - toggle sidebar collapse
+                    // Sidebar is expanded, hide any visible tooltips
+                    if (window.hideTooltip) {
+                        window.hideTooltip();
+                    }
+                }
+            }
+        });
+    });
+    
+    observer.observe(sidebar, {
+        attributes: true,
+        attributeFilter: ['class']
+    });
+}
+
+// Start monitoring sidebar state changes
+document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(monitorSidebarStateChanges, 500);
+});
+
+// Cleanup tooltips on page navigation
+window.addEventListener('beforeunload', function() {
+    if (window.hideTooltip) {
+        window.hideTooltip();
+    }
+});
+
+// Cleanup tooltips on page hide (for SPA-like behavior)
+window.addEventListener('pagehide', function() {
+    if (window.hideTooltip) {
+        window.hideTooltip();
+    }
+});
+
+// Enhanced debug function for testing sidebar hover tooltips
+window.debugSidebarTooltips = function() {
+    const sidebar = document.getElementById('sidebar');
+    if (!sidebar) {
+        console.log('Sidebar not found');
+        return;
+    }
+    
+    console.log('Sidebar collapsed (collapsed):', sidebar.classList.contains('collapsed'));
+    console.log('Sidebar collapsed (sidebar-collapsed):', sidebar.classList.contains('sidebar-collapsed'));
+    console.log('Menu items with submenus:', document.querySelectorAll('.menu-item.has-submenu').length);
+    console.log('Submenus found:', document.querySelectorAll('.submenu').length);
+    console.log('Tooltip visible:', document.querySelector('.sidebar-hover-tooltip.show') !== null);
+    
+    // Test tooltip creation
+    const testMenuItem = document.querySelector('.menu-item.has-submenu');
+    if (testMenuItem) {
+        console.log('Test menu item found:', testMenuItem.querySelector('.menu-text')?.textContent);
+        const submenuId = testMenuItem.getAttribute('data-submenu');
+        const submenu = document.getElementById(submenuId);
+        if (submenu) {
+            console.log('Submenu items:', submenu.querySelectorAll('a.menu-item').length);
+        }
+    }
+    
+    // Test tooltip functionality
+    if (sidebar.classList.contains('collapsed') || sidebar.classList.contains('sidebar-collapsed')) {
+        console.log('Testing tooltip functionality...');
+        const firstMenuItem = document.querySelector('.menu-item');
+        if (firstMenuItem) {
+            console.log('Triggering tooltip for:', firstMenuItem.querySelector('.menu-text')?.textContent);
+            // Simulate hover event
+            const event = new MouseEvent('mouseenter', {
+                bubbles: true,
+                cancelable: true,
+                view: window
+            });
+            firstMenuItem.dispatchEvent(event);
+        }
+    }
+};
+
+// Function to set up submenu toggle functionality
+function setupSubmenuToggles() {
+    
+    // First, remove any existing event listeners by cloning and replacing nodes
+    document.querySelectorAll('.menu-item.has-submenu, [data-submenu]').forEach(button => {
+        const submenuId = button.getAttribute('data-submenu');
+        if (!submenuId) return;
+        
+        // Clone and replace to remove existing listeners
+        const newButton = button.cloneNode(true);
+        if (button.parentNode) {
+            button.parentNode.replaceChild(newButton, button);
+            
+            // Add the new event listener
+            newButton.addEventListener('click', function(event) {
+                event.preventDefault();
+                event.stopPropagation();
+                toggleSubmenu(submenuId, event);
+            });
+            
+        }
+    });
+    
+    // Also check for submenus with active items and make sure they're expanded
+    const currentUrl = window.location.href;
+    document.querySelectorAll('#sidebar .submenu').forEach(submenu => {
+        let hasActiveItem = false;
+        
+        // Check each menu item in the submenu
+        submenu.querySelectorAll('a.menu-item').forEach(item => {
+            const href = item.getAttribute('href');
+            if (!href) return;
+            
+            // For links with query params
+            if (href.includes('?')) {
+                const hrefPath = href.split('?')[0];
+                const hrefParams = href.split('?')[1];
+                
+                if (window.location.pathname.includes(hrefPath) && currentUrl.includes(hrefParams)) {
+                    // This item should be active
+                    item.classList.add('active');
+                    hasActiveItem = true;
+                }
+            }
+            // For links without query params
+            else if (window.location.pathname.includes(href) && href !== '/') {
+                if (!currentUrl.includes('?') || window.location.pathname === href) {
+                    item.classList.add('active');
+                    hasActiveItem = true;
+                }
+            }
+        });
+        
+        if (hasActiveItem) {
+            // Make sure this submenu is visible
+            submenu.classList.remove('hidden');
+            
+            // Update the button state
+            const menuButton = document.querySelector(`[data-submenu="${submenu.id}"]`);
+            if (menuButton) {
+                menuButton.classList.add('active', 'expanded');
+                
+                // Rotate arrow
+                const arrow = menuButton.querySelector('.arrow-icon');
+                if (arrow) {
+                    arrow.style.transform = 'rotate(180deg)';
+                }
+            }
+        }
+    });
+}
+
+// Global function to handle toggling sidebar from any script
+window.toggleSidebar = function() {
+    const sidebar = document.getElementById('sidebar');
+    const mainContent = document.getElementById('main-content');
+    
+    if (sidebar) {
+        // Only toggle sidebar on desktop sizes
+        if (window.innerWidth < 768) {
+            return;
+        }
+        
+        const wasCollapsed = sidebar.classList.contains('collapsed');
+        
                     sidebar.classList.toggle('collapsed');
+        
                     if (mainContent) {
                         mainContent.classList.toggle('sidebar-collapsed');
                     }
                     
-                    // Store state
-                    const isCollapsed = sidebar.classList.contains('collapsed');
-                    localStorage.setItem('sidebar_collapsed', isCollapsed);
+        // Store state in localStorage
+        const isNowCollapsed = sidebar.classList.contains('collapsed');
+        localStorage.setItem('sidebar_collapsed', isNowCollapsed);
+        
+        // Hide tooltip when expanding sidebar or when collapsing
+        if (window.hideTooltip) {
+            window.hideTooltip();
+        }
+        
+        // Reinitialize hover tooltips when sidebar state changes
+        if (isNowCollapsed) {
+            // Sidebar is now collapsed, ensure hover tooltips are ready
+            setTimeout(() => {
+                if (typeof setupSidebarHoverTooltips === 'function') {
+                    setupSidebarHoverTooltips();
                 }
+            }, 100);
+        }
+    } else {
+        console.error('Sidebar element not found!');
+    }
+};
+
+// Initialize sidebar state
+document.addEventListener('DOMContentLoaded', function() {
+    const sidebar = document.getElementById('sidebar');
+    const mainContent = document.getElementById('main-content');
+    
+    
+    // Call setup function just once
+    setupSubmenuToggles();
+    
+    // Add click event listeners to all submenu toggle buttons with onclick attribute
+    document.querySelectorAll('[onclick*="toggleSubmenu"]').forEach(button => {
+        const submenuId = button.getAttribute('onclick').match(/toggleSubmenu\('([^']+)'/)?.[1];
+        if (submenuId) {
+            // Remove the inline onclick handler
+            button.removeAttribute('onclick');
+            
+            // Add event listener
+            button.addEventListener('click', function(event) {
+                toggleSubmenu(submenuId, event);
             });
+        }
+    });
+    
+    // Check initial state on page load
+    if (sidebar) {
+        // Handle responsive display
+        if (window.innerWidth < 768) {
+            sidebar.classList.add('hidden');
+            sidebar.classList.remove('md:block');
+            
+            // Reset sidebar collapse state on mobile
+            sidebar.classList.remove('collapsed');
+            if (mainContent) {
+                mainContent.classList.remove('sidebar-collapsed');
+            }
+        } else {
+            sidebar.classList.remove('hidden');
+            sidebar.classList.add('md:block');
+            
+            // Check if sidebar should be collapsed on desktop
+            if (sidebar.classList.contains('collapsed')) {
+                if (mainContent) {
+                    mainContent.classList.add('sidebar-collapsed');
+                }
+            }
+        }
+    }
+    
+    // Handle window resize for responsive behavior
+    window.addEventListener('resize', function() {
+        if (sidebar) {
+            if (window.innerWidth < 768) {
+                // Hide sidebar on mobile
+                sidebar.classList.add('hidden');
+                sidebar.classList.remove('md:block');
+            } else {
+                // Show sidebar on desktop
+                sidebar.classList.remove('hidden');
+                sidebar.classList.add('md:block');
+            }
+        }
+        
+        // Update header toggle button display
+        const headerToggleButton = document.getElementById('mobile-menu-toggle');
+        if (headerToggleButton) {
+            if (window.innerWidth >= 768) {
+                headerToggleButton.classList.remove('md:hidden');
+                headerToggleButton.classList.add('md:flex');
+            } else {
+                headerToggleButton.classList.add('md:hidden');
+                headerToggleButton.classList.remove('md:flex');
         }
     }
 });
 
-// Additional fallback for window load
-window.addEventListener('load', function() {
-    if (window.SidebarManager && !window.SidebarManager.isInitialized) {
-        window.SidebarManager.init();
+    // Ensure we're synced with local storage if available (only on desktop)
+    if (window.innerWidth >= 768) {
+        const savedState = localStorage.getItem('sidebar_collapsed');
+        console.log('Saved sidebar state from localStorage:', savedState);
+        
+        if (savedState === 'true' && sidebar && !sidebar.classList.contains('collapsed')) {
+            console.log('Applying collapsed state from localStorage');
+            sidebar.classList.add('collapsed');
+            if (mainContent) {
+                mainContent.classList.add('sidebar-collapsed');
+            }
+        }
+    }
     }
 });
 </script> 
