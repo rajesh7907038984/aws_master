@@ -934,12 +934,12 @@ class LearningActivitiesView(LoginRequiredMixin, TemplateView):
             if is_scorm:
                 # For SCORM content, use proper status checking
                 # Get SCORM registrations for more accurate status
-                scorm_progress = topic_progress.exclude(scorm_registration__isnull=True)
+                scorm_progress = topic_progress.exclude(scorm_registration_id__isnull=True)
                 
                 # Count progress based on SCORM completion status
                 in_progress = scorm_progress.filter(
                     completed=False,
-                    scorm_registration__isnull=False
+                    scorm_registration_id__isnull=False
                 ).count()
                 
                 # For SCORM, "not_passed" means attempted but failed or incomplete with attempts

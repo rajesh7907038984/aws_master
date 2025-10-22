@@ -31,16 +31,27 @@ AWS_DEPLOYMENT = True
 # ==============================================
 
 # Production-specific session overrides (inherits base.py session config)
-SESSION_ENGINE = 'django.contrib.sessions.backends.db'  # Use database for production
+SESSION_ENGINE = 'core.session_backends.robust.RobustSessionStore'  # Use robust session backend
 SESSION_COOKIE_SECURE = True  # Enable secure cookies for HTTPS
 SESSION_SAVE_EVERY_REQUEST = False  # Optimize for production performance
 
 # CSRF configuration - production overrides only
 CSRF_COOKIE_SECURE = True  # Enable secure CSRF cookies for production HTTPS
+CSRF_TRUSTED_ORIGINS = [
+    'https://staging.nexsy.io',
+    'https://*.nexsy.io',
+]
 
 # Disable session corruption warnings
 import logging
 logging.getLogger('django.contrib.sessions').setLevel(logging.ERROR)
+
+# Fix X-Frame-Options middleware issue
+X_FRAME_OPTIONS = 'SAMEORIGIN'
+
+# Enable SSL redirect for production
+SECURE_SSL_REDIRECT = True
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 # Production allowed hosts - Use environment variable with fallback
 # Get PRIMARY_DOMAIN and ALB_DOMAIN from environment
@@ -109,21 +120,40 @@ if not AWS_DB_PASSWORD:
         print("   Please set AWS_DB_PASSWORD in .env file")
         raise ValueError("Database password is required for production deployment")
 
+# Validate required database environment variables
+AWS_DB_HOST = get_env('AWS_DB_HOST')
+if not AWS_DB_HOST:
+    print(" CRITICAL: Database host not found in environment variables")
+    print("   Please set AWS_DB_HOST in .env file")
+    raise ValueError("Database host is required for production deployment")
+
+AWS_DB_NAME = get_env('AWS_DB_NAME')
+if not AWS_DB_NAME:
+    print(" CRITICAL: Database name not found in environment variables")
+    print("   Please set AWS_DB_NAME in .env file")
+    raise ValueError("Database name is required for production deployment")
+
+AWS_DB_USER = get_env('AWS_DB_USER')
+if not AWS_DB_USER:
+    print(" CRITICAL: Database user not found in environment variables")
+    print("   Please set AWS_DB_USER in .env file")
+    raise ValueError("Database user is required for production deployment")
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': get_env('AWS_DB_NAME', 'postgres'),
-        'USER': get_env('AWS_DB_USER', 'lms_admin'),
+        'NAME': AWS_DB_NAME,
+        'USER': AWS_DB_USER,
         'PASSWORD': AWS_DB_PASSWORD,
-        'HOST': get_env('AWS_DB_HOST', 'lms-ec2-database.c1wwcwuwq2pa.eu-west-2.rds.amazonaws.com'),
+        'HOST': AWS_DB_HOST,
         'PORT': get_env('AWS_DB_PORT', '5432'),
         'OPTIONS': {
-            'connect_timeout': 30,
-            'sslmode': 'require',
+            'connect_timeout': 60,
+            'sslmode': 'prefer',
             'application_name': 'LMS_Production',
         },
-        'CONN_MAX_AGE': 300,
-        'CONN_HEALTH_CHECKS': True,
+        'CONN_MAX_AGE': 600,
+        'CONN_HEALTH_CHECKS': False,
     }
 }
 print("🗄️  Using database configuration: {}".format(DATABASES['default']['HOST']))
@@ -167,10 +197,22 @@ SECURE_REDIRECT_EXEMPT = [r'^scorm/content/']
 
 # AWS S3 Configuration for Production
 AWS_ACCESS_KEY_ID = get_env('AWS_ACCESS_KEY_ID')
+if not AWS_ACCESS_KEY_ID:
+    print(" WARNING: AWS_ACCESS_KEY_ID not found in environment variables")
+    print("   S3 functionality may not work properly")
+
 AWS_SECRET_ACCESS_KEY = get_env('AWS_SECRET_ACCESS_KEY')
+if not AWS_SECRET_ACCESS_KEY:
+    print(" WARNING: AWS_SECRET_ACCESS_KEY not found in environment variables")
+    print("   S3 functionality may not work properly")
+
 # Force the correct bucket name
-AWS_STORAGE_BUCKET_NAME = 'lms-staging-nexsy-io'
-AWS_S3_REGION_NAME = 'eu-west-2'
+AWS_STORAGE_BUCKET_NAME = get_env('AWS_STORAGE_BUCKET_NAME')
+if not AWS_STORAGE_BUCKET_NAME:
+    print(" WARNING: AWS_STORAGE_BUCKET_NAME not found in environment variables")
+    print("   S3 functionality may not work properly")
+
+AWS_S3_REGION_NAME = get_env('AWS_S3_REGION_NAME', 'eu-west-2')
 
 # Disable Transfer Acceleration to avoid signature mismatch errors with large uploads
 # Using standard S3 endpoint for reliable uploads

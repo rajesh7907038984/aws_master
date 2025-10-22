@@ -17,8 +17,8 @@ def sidebar_context(request):
     # Return empty context for unauthenticated users or AJAX requests
     if (not hasattr(request, 'user') or 
         not request.user.is_authenticated or 
-        request.headers.get('X-Requested-With') == 'XMLHttpRequest' or
-        request.path.startswith('/api/')):
+        (hasattr(request, 'headers') and request.headers.get('X-Requested-With') == 'XMLHttpRequest') or
+        (hasattr(request, 'path') and request.path.startswith('/api/'))):
         return {
             'sidebar_todo_all': [],
             'sidebar_todo_courses': [],

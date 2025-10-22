@@ -1309,63 +1309,8 @@ document.addEventListener('DOMContentLoaded', function() {
         // Mark as having listener to prevent duplicates
         mobileMenuToggle.setAttribute('data-listener-added', 'true');
         
-        // Toggle menu or sidebar
-        mobileMenuToggle.addEventListener('click', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            
-            console.log('Mobile menu toggle clicked, screen width:', window.innerWidth);
-            
-            // On mobile, open the menu 
-            if (window.innerWidth < 768) {
-                const wasOpen = mobileMenu.classList.contains('open');
-                console.log('Mobile menu was open:', wasOpen);
-                
-                mobileMenu.classList.toggle('open');
-                
-                if (!wasOpen) {
-                    document.body.classList.add('overflow-hidden');
-                    // Load sidebar content if it hasn't been loaded yet
-                    loadSidebarContentToMobileMenu();
-                    console.log('Mobile menu opened');
-                } else {
-                    document.body.classList.remove('overflow-hidden');
-                    console.log('Mobile menu closed');
-                }
-            } else {
-                // On desktop, toggle sidebar collapse/expand
-                console.log('Desktop sidebar toggle clicked');
-                
-                if (typeof window.SidebarManager !== 'undefined' && window.SidebarManager.toggle) {
-                    // Use SidebarManager if available
-                    window.SidebarManager.toggle();
-                    console.log('Desktop sidebar toggled via SidebarManager');
-                } else if (typeof window.toggleSidebar === 'function') {
-                    // Use global toggleSidebar function
-                    window.toggleSidebar();
-                    console.log('Desktop sidebar toggled via global function');
-                } else {
-                    // Fallback if the functions aren't available yet
-                    if (sidebar && mainContent) {
-                        const wasCollapsed = sidebar.classList.contains('collapsed');
-                        sidebar.classList.toggle('collapsed');
-                        mainContent.classList.toggle('sidebar-collapsed');
-                        
-                        // Store state in localStorage
-                        const isNowCollapsed = sidebar.classList.contains('collapsed');
-                        localStorage.setItem('sidebar_collapsed', isNowCollapsed);
-                        
-                        // Hide tooltip when expanding sidebar
-                        if (window.hideTooltip) {
-                            window.hideTooltip();
-                        }
-                        console.log('Desktop sidebar toggled via fallback, collapsed:', isNowCollapsed);
-                    } else {
-                        console.error('Sidebar or main content elements not found');
-                    }
-                }
-            }
-        });
+        // Toggle functionality is now handled by sidebar-unified.js to avoid conflicts
+        // The unified sidebar system manages both mobile and desktop toggle behavior
         
         // Close mobile menu
         if (closeMobileMenu && mobileMenuOverlay) {

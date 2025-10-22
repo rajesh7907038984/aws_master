@@ -15,7 +15,7 @@ YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
 # Get bucket name from environment or use default
-BUCKET_NAME="${AWS_STORAGE_BUCKET_NAME:-elasticbeanstalk-eu-west-2-006619321740}"
+BUCKET_NAME="${AWS_STORAGE_BUCKET_NAME}"
 REGION="${AWS_S3_REGION_NAME:-eu-west-2}"
 
 echo "Bucket: $BUCKET_NAME"

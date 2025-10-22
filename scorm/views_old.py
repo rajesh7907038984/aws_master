@@ -494,7 +494,7 @@ def scorm_content(request, attempt_id, path):
             from django.conf import settings
             
             s3_client = boto3.client('s3', region_name=getattr(settings, 'AWS_S3_REGION_NAME', 'eu-west-2'))
-            bucket_name = getattr(settings, 'AWS_STORAGE_BUCKET_NAME', 'lms-staging-nexsy-io')
+            bucket_name = getattr(settings, 'AWS_STORAGE_BUCKET_NAME')
             
             # The file is stored with 'media/' prefix in S3
             s3_key = "media/{}".format(file_path) if not file_path.startswith('media/') else file_path
@@ -1270,7 +1270,7 @@ def scorm_player_direct(request, topic_id):
     
     # Generate direct S3 URLs - bypass Django proxy entirely
     from django.conf import settings
-    bucket_name = getattr(settings, 'AWS_STORAGE_BUCKET_NAME', 'lms-staging-nexsy-io')
+    bucket_name = getattr(settings, 'AWS_STORAGE_BUCKET_NAME')
     region = getattr(settings, 'AWS_S3_REGION_NAME', 'eu-west-2')
     
     base_s3_url = "https://{}.s3.{}.amazonaws.com/media/{}".format(bucket_name, region, scorm_package.extracted_path)

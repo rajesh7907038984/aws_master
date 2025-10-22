@@ -193,9 +193,9 @@ class ScormAttempt(models.Model):
         default=0.00,
         help_text="Progress percentage (0-100)"
     )
-    completed_slides = models.JSONField(
-        default=list,
-        help_text="List of completed slide identifiers"
+    completed_slides = models.IntegerField(
+        default=0,
+        help_text="Number of completed slides"
     )
     total_slides = models.IntegerField(
         default=0,

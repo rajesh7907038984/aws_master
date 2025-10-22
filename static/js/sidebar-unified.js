@@ -66,30 +66,72 @@
         const mainContent = document.getElementById('main-content');
         
         if (toggleButton && sidebar) {
-            toggleButton.addEventListener('click', function(e) {
+            // Remove any existing event listeners by cloning the button
+            const newButton = toggleButton.cloneNode(true);
+            if (toggleButton.parentNode) {
+                toggleButton.parentNode.replaceChild(newButton, toggleButton);
+            }
+            
+            newButton.addEventListener('click', function(e) {
                 e.preventDefault();
+                e.stopPropagation();
+                
+                console.log('Toggle button clicked, window width:', window.innerWidth);
                 
                 if (window.innerWidth < 768) {
                     // Mobile behavior
                     const mobileMenu = document.getElementById('mobile-menu');
                     if (mobileMenu) {
+                        const wasOpen = mobileMenu.classList.contains('open');
                         mobileMenu.classList.toggle('open');
-                        document.body.classList.toggle('overflow-hidden');
+                        
+                        if (!wasOpen) {
+                            document.body.classList.add('overflow-hidden');
+                            // Load sidebar content to mobile menu if not already loaded
+                            loadSidebarContentToMobileMenu();
+                        } else {
+                            document.body.classList.remove('overflow-hidden');
+                        }
+                        console.log('Mobile menu toggled, now open:', !wasOpen);
                     }
                 } else {
-                    // Desktop behavior
+                    // Desktop behavior - toggle sidebar
+                    const wasCollapsed = sidebar.classList.contains('collapsed');
                     sidebar.classList.toggle('collapsed');
+                    
                     if (mainContent) {
                         mainContent.classList.toggle('sidebar-collapsed');
                     }
                     
                     // Store state
-                    const isCollapsed = sidebar.classList.contains('collapsed');
-                    localStorage.setItem('sidebar_collapsed', isCollapsed);
+                    const isNowCollapsed = sidebar.classList.contains('collapsed');
+                    localStorage.setItem('sidebar_collapsed', isNowCollapsed);
+                    
+                    console.log('Desktop sidebar toggled, now collapsed:', isNowCollapsed);
                 }
             });
             
             console.log('Basic sidebar toggle functionality initialized');
+        }
+    }
+
+    /**
+     * Load sidebar content to mobile menu
+     */
+    function loadSidebarContentToMobileMenu() {
+        const sidebarContent = document.querySelector('#sidebar nav .flex.flex-col');
+        const mobileMenuContent = document.querySelector('#mobile-menu .py-4');
+        
+        if (sidebarContent && mobileMenuContent && mobileMenuContent.children.length === 0) {
+            try {
+                // Clone the content to avoid duplicate IDs
+                const clone = sidebarContent.cloneNode(true);
+                mobileMenuContent.innerHTML = '';
+                mobileMenuContent.appendChild(clone);
+                console.log('Sidebar content loaded to mobile menu');
+            } catch (error) {
+                console.error('Error loading mobile menu content:', error);
+            }
         }
     }
 

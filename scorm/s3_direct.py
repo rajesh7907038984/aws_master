@@ -17,7 +17,7 @@ class ScormS3DirectAccess:
     """
     
     def __init__(self):
-        self.bucket_name = get_env('AWS_STORAGE_BUCKET_NAME', 'lms-staging-nexsy-io')
+        self.bucket_name = get_env('AWS_STORAGE_BUCKET_NAME')
         self.region = get_env('AWS_S3_REGION_NAME', 'eu-west-2')
         self.media_location = get_env('AWS_MEDIA_LOCATION', 'media')
         

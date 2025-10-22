@@ -198,7 +198,6 @@ INSTALLED_APPS = [
     'lms_rubrics',
     'individual_learning_plan',
     'lms_notifications',
-    'lms_media',
     'course_reviews',
     
     # Management & Integration
@@ -313,7 +312,7 @@ AUTH_PASSWORD_VALIDATORS = [
 # ==============================================
 
 # Use Redis for session storage for better persistence across deployments
-SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
+SESSION_ENGINE = 'core.session_backends.robust.RobustSessionStore'
 SESSION_CACHE_ALIAS = 'sessions'  # Use the sessions cache alias defined below
 
 # Extended session duration to prevent auto-logout
@@ -465,8 +464,23 @@ OUTLOOK_CLIENT_SECRET = get_env('OUTLOOK_CLIENT_SECRET')
 OUTLOOK_TENANT_ID = get_env('OUTLOOK_TENANT_ID')
 OUTLOOK_FROM_EMAIL = get_env('OUTLOOK_FROM_EMAIL', 'noreply@nexsy.io')
 
+# Anthropic API Configuration
+ANTHROPIC_API_KEY = get_env('ANTHROPIC_API_KEY')
+
 # Email Backend - Use OAuth2 if configured, otherwise use Global Admin Settings
-if all([OUTLOOK_CLIENT_ID, OUTLOOK_CLIENT_SECRET, OUTLOOK_TENANT_ID]):
+# Check for valid OAuth2 credentials (not placeholder values)
+valid_oauth_credentials = all([
+    OUTLOOK_CLIENT_ID and OUTLOOK_CLIENT_ID != 'your_outlook_client_id',
+    OUTLOOK_CLIENT_SECRET and OUTLOOK_CLIENT_SECRET != 'your_outlook_client_secret', 
+    OUTLOOK_TENANT_ID and OUTLOOK_TENANT_ID != 'your_outlook_tenant_id'
+])
+
+# Check for valid Anthropic API key (not placeholder values)
+valid_anthropic_key = (ANTHROPIC_API_KEY and 
+                      ANTHROPIC_API_KEY != 'sk-ant-api03-your_anthropic_api_key_here' and
+                      ANTHROPIC_API_KEY != 'your_anthropic_api_key_here')
+
+if valid_oauth_credentials:
     EMAIL_BACKEND = 'lms_notifications.backends.OutlookOAuth2Backend'
     print("✅ Using OAuth2 email backend")
 else:

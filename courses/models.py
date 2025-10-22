@@ -599,6 +599,13 @@ class Course(models.Model):
         default=70,
         help_text="Minimum score required to pass the course (percentage)"
     )
+    scorm_mastery_score = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Mastery score for SCORM content (0-100)"
+    )
     certificate_enabled = models.BooleanField(
         default=False,
         help_text="Issue certificates upon course completion"
@@ -2034,8 +2041,7 @@ class TopicProgress(models.Model):
     )
     
     # SCORM tracking
-    scorm_registration = models.CharField(
-        max_length=255,
+    scorm_registration_id = models.BigIntegerField(
         null=True,
         blank=True,
         help_text="SCORM Cloud registration ID"

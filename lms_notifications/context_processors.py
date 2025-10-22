@@ -26,8 +26,8 @@ def notifications_context(request):
         return default_response
     
     # Skip for AJAX requests and API calls to improve performance
-    if (request.headers.get('X-Requested-With') == 'XMLHttpRequest' or 
-        request.path.startswith('/api/')):
+    if (hasattr(request, 'headers') and request.headers.get('X-Requested-With') == 'XMLHttpRequest') or \
+       (hasattr(request, 'path') and request.path.startswith('/api/')):
         return default_response
     
     try:

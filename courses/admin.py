@@ -368,7 +368,7 @@ class TopicProgressAdmin(admin.ModelAdmin):
                 # Get SCORM progress records with registration IDs
                 scorm_progress = filtered_qs.filter(
                     topic__content_type='SCORM',
-                    scorm_registration__isnull=False
+                    scorm_registration_id__isnull=False
                 ).select_related('topic').order_by('-last_accessed')[:5]  # Limit to 5 most recent for performance
                 
                 for progress in scorm_progress:
@@ -389,7 +389,7 @@ class TopicProgressAdmin(admin.ModelAdmin):
                                         pass  # If we can't parse the date, proceed with sync
                             
                             # Get the latest data from SCORM Cloud
-                            result = scorm_cloud.get_registration_status(progress.scorm_registration)
+                            result = scorm_cloud.get_registration_status(progress.scorm_registration_id)
                             
                             if result:
                                 # Initialize progress_data if needed
@@ -870,7 +870,7 @@ class TopicProgressAdmin(admin.ModelAdmin):
     def change_view(self, request, object_id, form_url='', extra_context=None):
         """Override to sync SCORM Cloud data when viewing a record"""
         obj = self.get_object(request, object_id)
-        if obj and obj.topic.content_type == 'SCORM' and obj.scorm_registration:
+        if obj and obj.topic.content_type == 'SCORM' and obj.scorm_registration_id:
             # Define logger at the beginning of the method to ensure it's available in all scopes
             logger = logging.getLogger(__name__)
             try:
@@ -881,7 +881,7 @@ class TopicProgressAdmin(admin.ModelAdmin):
                     
                     try:
                         # Get the latest data from SCORM Cloud
-                        result = scorm_cloud.get_registration_status(obj.scorm_registration)
+                        result = scorm_cloud.get_registration_status(obj.scorm_registration_id)
                         
                         if result:
                             # Initialize progress_data if needed
@@ -1007,7 +1007,7 @@ class TopicProgressAdmin(admin.ModelAdmin):
                     with transaction.atomic():
                         try:
                             # Get the latest data from SCORM Cloud
-                            result = scorm_cloud.get_registration_status(progress.scorm_registration)
+                            result = scorm_cloud.get_registration_status(progress.scorm_registration_id)
                             
                             if result:
                                 # Initialize progress_data if needed
