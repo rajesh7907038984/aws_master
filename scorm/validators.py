@@ -47,8 +47,8 @@ class ScormPackageValidator:
         '.msi', '.msp', '.mst', '.reg', '.hta'
     ]
     
-    # Maximum file size (500MB)
-    MAX_PACKAGE_SIZE = 500 * 1024 * 1024
+    # Maximum file size (600MB)
+    MAX_PACKAGE_SIZE = 600 * 1024 * 1024  # 600MB (was 500MB)
     
     # Maximum number of files
     MAX_FILES = 10000

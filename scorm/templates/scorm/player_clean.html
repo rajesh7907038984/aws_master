@@ -227,8 +227,8 @@
             id="scormFrame"
             class="scorm-iframe" 
             src="{{ content_url }}"
-            allow="fullscreen; autoplay; encrypted-media; microphone; camera"
-            sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox"
+            allow="fullscreen; autoplay; encrypted-media; microphone; camera; picture-in-picture"
+            sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox allow-downloads"
             onload="handleFrameLoad()"
             onerror="handleFrameError()">
         </iframe>

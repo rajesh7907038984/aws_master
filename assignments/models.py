@@ -40,7 +40,7 @@ def assignment_file_path(instance, filename):
 
 class Assignment(models.Model):
     """Model for assignments"""
-    title = models.CharField(max_length=255)
+    title = models.CharField(max_length=800)
     description = TinyMCEField(help_text="Description of the assignment")
     points = models.IntegerField(default=10000)  # Default 100.00 * 100
     instructions = TinyMCEField(
@@ -63,7 +63,7 @@ class Assignment(models.Model):
         help_text="Supporting documents for the assignment (Use AssignmentAttachment for new documents)"
     )
     content_type = models.CharField(
-        max_length=100,
+        max_length=800,
         null=True,
         blank=True,
         help_text="MIME type of the attachment"
@@ -83,12 +83,12 @@ class Assignment(models.Model):
         default='file'
     )
     allowed_file_types = models.CharField(
-        max_length=255,
+        max_length=800,
         default='.pdf,.doc,.docx,.txt,.ppt,.pptx,.mp4,.mov,.avi,.wmv',
         help_text="Comma-separated list of allowed file extensions"
     )
     max_file_size = models.IntegerField(
-        default=104857600,  # 100MB
+        default=629145600,  # 600MB
         help_text="Maximum file size in bytes"
     )
     rubric = models.ForeignKey(
@@ -584,11 +584,11 @@ class TextSubmissionField(models.Model):
         related_name='text_fields'
     )
     label = models.CharField(
-        max_length=255,
+        max_length=800,
         help_text="Label for the text field"
     )
     placeholder = models.CharField(
-        max_length=255,
+        max_length=800,
         blank=True,
         help_text="Placeholder text for the field"
     )
@@ -745,7 +745,7 @@ class FileSubmissionIteration(models.Model):
         help_text="The uploaded file for this iteration"
     )
     file_name = models.CharField(
-        max_length=255,
+        max_length=800,
         blank=True,
         null=True,
         help_text="Original filename"
@@ -756,7 +756,7 @@ class FileSubmissionIteration(models.Model):
         help_text="File size in bytes"
     )
     content_type = models.CharField(
-        max_length=100,
+        max_length=500,
         blank=True,
         null=True,
         help_text="MIME type of the file"
@@ -889,11 +889,11 @@ class AssignmentAttachment(models.Model):
         help_text="Supporting document for the assignment"
     )
     file_name = models.CharField(
-        max_length=255, 
+        max_length=800, 
         blank=True
     )
     content_type = models.CharField(
-        max_length=100,
+        max_length=800,
         null=True,
         blank=True,
         help_text="MIME type of the attachment"
@@ -1170,7 +1170,7 @@ class AdminApprovalHistory(models.Model):
     
     # Track what triggered this approval (optional)
     trigger_reason = models.CharField(
-        max_length=100,
+        max_length=800,
         null=True,
         blank=True,
         help_text="What triggered this approval review (e.g., 'new_feedback', 'file_resubmission', 'text_revision')"

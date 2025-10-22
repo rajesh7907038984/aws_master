@@ -31,24 +31,24 @@ class ScormPackage(models.Model):
     
     # Package metadata
     version = models.CharField(max_length=10, choices=SCORM_VERSION_CHOICES, default='1.2')
-    identifier = models.CharField(max_length=255, help_text="Package identifier from manifest")
-    title = models.CharField(max_length=500, blank=True)
+    identifier = models.CharField(max_length=800, help_text="Package identifier from manifest")
+    title = models.CharField(max_length=800, blank=True)
     description = models.TextField(blank=True)
     
     # Package file storage
     package_file = models.FileField(
         upload_to='scorm_packages/%Y/%m/',
-        max_length=500,
+        max_length=800,
         help_text="Original SCORM ZIP package"
     )
     extracted_path = models.CharField(
-        max_length=500,
+        max_length=800,
         help_text="Path to extracted SCORM content"
     )
     
     # Launch information
     launch_url = models.CharField(
-        max_length=500,
+        max_length=800,
         help_text="Relative path to launch file (index.html, story.html, etc.)"
     )
     
@@ -183,7 +183,7 @@ class ScormAttempt(models.Model):
     )
     # Additional progress tracking fields
     last_visited_slide = models.CharField(
-        max_length=255,
+        max_length=800,
         blank=True,
         help_text="Last visited slide/page identifier"
     )
@@ -290,7 +290,7 @@ class ScormInteraction(models.Model):
     
     # Interaction identification
     interaction_id = models.CharField(
-        max_length=255,
+        max_length=800,
         help_text="Unique identifier for the interaction"
     )
     interaction_type = models.CharField(
@@ -458,7 +458,7 @@ class ScormObjective(models.Model):
     
     # Objective identification
     objective_id = models.CharField(
-        max_length=255,
+        max_length=800,
         help_text="Unique identifier for the objective"
     )
     description = models.TextField(
@@ -567,7 +567,7 @@ class ScormComment(models.Model):
         help_text="Comment content"
     )
     location = models.CharField(
-        max_length=500,
+        max_length=800,
         blank=True,
         help_text="Location where comment was made"
     )

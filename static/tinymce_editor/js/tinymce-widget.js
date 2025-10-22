@@ -494,13 +494,13 @@
                         maxSize = 600 * 1024 * 1024;
                         sizeDescription = '600MB';
                     } else if (videoExtensions.includes(fileExtension)) {
-                        // Video files - 100MB limit (for feedback videos)
-                        maxSize = 100 * 1024 * 1024;
-                        sizeDescription = '100MB';
+                        // Video files - 600MB limit
+                        maxSize = 600 * 1024 * 1024;
+                        sizeDescription = '600MB';
                     } else {
-                        // Regular media files - 20MB limit
-                        maxSize = 20 * 1024 * 1024;
-                        sizeDescription = '20MB';
+                        // Regular media files - 600MB limit
+                        maxSize = 600 * 1024 * 1024;
+                        sizeDescription = '600MB';
                     }
                     
                     if (file.size > maxSize) {
@@ -625,10 +625,10 @@
                                     maxSize = 600 * 1024 * 1024; // 600MB for SCORM packages/archives
                                     fileType = 'archive';
                                 } else if (videoExtensions.includes(fileExtension)) {
-                                    maxSize = 100 * 1024 * 1024; // 100MB for video files (feedback videos)
+                                    maxSize = 600 * 1024 * 1024; // 600MB for video files
                                     fileType = 'video';
                                 } else {
-                                    maxSize = 20 * 1024 * 1024; // 20MB for media/other files
+                                    maxSize = 600 * 1024 * 1024; // 600MB for media/other files
                                     fileType = 'media file';
                                 }
                             }

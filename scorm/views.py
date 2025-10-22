@@ -306,7 +306,7 @@ def scorm_view(request, topic_id):
     
     response = render(request, 'scorm/player_clean.html', context)
     
-    # Set permissive CSP headers for SCORM content
+    # Set permissive CSP headers for SCORM content with enhanced video support
     response['Content-Security-Policy'] = (
         "default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: https://*.s3.*.amazonaws.com https://*.amazonaws.com *; "
         "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.s3.*.amazonaws.com https://*.amazonaws.com *; "
@@ -581,11 +581,40 @@ def scorm_content(request, topic_id=None, path=None, attempt_id=None):
             logger.error(f"Error generating S3 URL: {str(e)}")
             return HttpResponse('Error generating content URL', status=500)
         
-        # OPTIMIZATION: For ALL files, redirect directly to S3 for maximum performance
-        # The SCORM API is injected in the player template, not in individual content files
+        # OPTIMIZATION: For video files, proxy through Django to add proper CORS headers
+        # For other files, redirect directly to S3 for maximum performance
         if not path.endswith(('.html', '.htm')):
-            from django.http import HttpResponseRedirect
-            return HttpResponseRedirect(s3_url)
+            # For video files, proxy through Django to add proper headers
+            if path and any(path.lower().endswith(ext) for ext in ['.mp4', '.webm', '.ogg', '.avi', '.mov', '.m4v', '.flv', '.wmv', '.mkv']):
+                try:
+                    import requests
+                    response = requests.get(s3_url, timeout=10)
+                    response.raise_for_status()
+                    
+                    # Create Django response with proper headers for video streaming
+                    django_response = HttpResponse(response.content, content_type=response.headers.get('content-type', 'video/mp4'))
+                    django_response['Access-Control-Allow-Origin'] = '*'
+                    django_response['Access-Control-Allow-Methods'] = 'GET, HEAD, OPTIONS'
+                    django_response['Access-Control-Allow-Headers'] = 'Range, Content-Range, Content-Length'
+                    django_response['Accept-Ranges'] = 'bytes'
+                    django_response['Cache-Control'] = 'public, max-age=3600'
+                    django_response['X-Frame-Options'] = 'SAMEORIGIN'
+                    
+                    # Copy important headers from S3 response
+                    if 'Content-Length' in response.headers:
+                        django_response['Content-Length'] = response.headers['Content-Length']
+                    if 'ETag' in response.headers:
+                        django_response['ETag'] = response.headers['ETag']
+                    
+                    logger.info(f"Proxying video file {path} with proper CORS headers")
+                    return django_response
+                except Exception as e:
+                    logger.error(f"Error proxying video file {path}: {str(e)}")
+                    return HttpResponse('Error loading video', status=500)
+            else:
+                # For other non-HTML files, redirect directly to S3
+                from django.http import HttpResponseRedirect
+                return HttpResponseRedirect(s3_url)
         
         # For HTML files, inject minimal SCORM API reference
         try:

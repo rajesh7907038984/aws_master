@@ -13,7 +13,7 @@ LOGS_DIR = os.environ.get('LOGS_DIR', '/home/ec2-user/lmslogs')
 SERVER_USER = os.environ.get('SERVER_USER', 'ec2-user')
 SERVER_GROUP = os.environ.get('SERVER_GROUP', 'ec2-user')
 GUNICORN_BIND = os.environ.get('GUNICORN_BIND', '0.0.0.0:8000')
-GUNICORN_TIMEOUT = int(os.environ.get('GUNICORN_TIMEOUT', '30'))
+GUNICORN_TIMEOUT = int(os.environ.get('GUNICORN_TIMEOUT', '1800'))
 
 # Calculate workers - optimized for 2 CPU cores (3.8GB RAM)
 workers_env = os.environ.get('GUNICORN_WORKERS', 'auto')
@@ -34,7 +34,7 @@ backlog = 2048
 # Worker processes - optimized for performance
 worker_class = "sync"
 worker_connections = 1000
-timeout = max(GUNICORN_TIMEOUT, 600)  # Minimum 600 seconds (10 minutes) for large SCORM uploads
+timeout = max(GUNICORN_TIMEOUT, 1800)  # Minimum 1800 seconds (30 minutes) for large file uploads
 keepalive = 5  # Increased for better connection reuse
 
 # Restart workers after this many requests, to prevent memory leaks

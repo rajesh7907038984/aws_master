@@ -84,9 +84,9 @@ class PayPalIntegration(IntegrationCredential):
 
 class SCORMIntegration(IntegrationCredential):
     """Model for storing branch-specific SCORM Cloud API credentials"""
-    app_id = models.CharField(max_length=255, help_text="SCORM Cloud Application ID")
-    secret_key = models.CharField(max_length=255, help_text="SCORM Cloud Secret Key")
-    pens_key = models.CharField(max_length=255, blank=True, null=True, help_text="SCORM Cloud PENS (Package Exchange Notification Services) Key for notifications")
+    app_id = models.CharField(max_length=800, blank=True, null=True, help_text="SCORM Cloud Application ID")
+    secret_key = models.CharField(max_length=800, blank=True, null=True, help_text="SCORM Cloud Secret Key")
+    pens_key = models.CharField(max_length=800, blank=True, null=True, help_text="SCORM Cloud PENS (Package Exchange Notification Services) Key for notifications")
     base_url = models.URLField(
         default='https://cloud.scorm.com/api/v2', 
         help_text="SCORM Cloud API Base URL"

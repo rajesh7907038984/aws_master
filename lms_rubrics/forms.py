@@ -110,9 +110,9 @@ class RubricOverallFeedbackForm(forms.ModelForm):
     def clean_audio_feedback(self):
         audio_file = self.cleaned_data.get('audio_feedback')
         if audio_file:
-            # Check file size (50MB limit)
-            if audio_file.size > 50 * 1024 * 1024:
-                raise ValidationError("Audio file size cannot exceed 50MB")
+            # Check file size (600MB limit)
+            if audio_file.size > 600 * 1024 * 1024:
+                raise ValidationError("Audio file size cannot exceed 600MB")
             
             # Check file type
             if not audio_file.content_type.startswith('audio/'):
@@ -122,9 +122,9 @@ class RubricOverallFeedbackForm(forms.ModelForm):
     def clean_video_feedback(self):
         video_file = self.cleaned_data.get('video_feedback')
         if video_file:
-            # Check file size (100MB limit)
-            if video_file.size > 100 * 1024 * 1024:
-                raise ValidationError("Video file size cannot exceed 100MB")
+            # Check file size (600MB limit)
+            if video_file.size > 600 * 1024 * 1024:
+                raise ValidationError("Video file size cannot exceed 600MB")
             
             # Check file type
             if not video_file.content_type.startswith('video/'):

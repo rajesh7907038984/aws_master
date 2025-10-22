@@ -252,14 +252,14 @@ class CustomUser(AbstractUser):
     )
     
     family_name = models.CharField(
-        max_length=255,
+        max_length=800,
         null=True,
         blank=True,
         help_text="Family name/surname"
     )
     
     given_names = models.CharField(
-        max_length=255,
+        max_length=800,
         null=True,
         blank=True,
         help_text="Given name(s)/first name(s)"
@@ -331,14 +331,14 @@ class CustomUser(AbstractUser):
     
     # Address fields
     address_line1 = models.CharField(
-        max_length=255,
+        max_length=800,
         null=True,
         blank=True,
         help_text="Street address/house number"
     )
     
     address_line2 = models.CharField(
-        max_length=255,
+        max_length=800,
         null=True,
         blank=True,
         help_text="Apartment/Suite/Unit/Building"
@@ -447,7 +447,7 @@ class CustomUser(AbstractUser):
     
     # Employment History Tab
     job_role = models.CharField(
-        max_length=255,
+        max_length=800,
         null=True,
         blank=True,
         help_text="Current or most recent job role"
@@ -1841,7 +1841,7 @@ class UserQuizAssignment(models.Model):
         help_text="Type of assignment (Initial Assessment or VAK Test)"
     )
     item_name = models.CharField(
-        max_length=255,
+        max_length=800,
         help_text="Display name for the quiz assignment (defaults to quiz title)"
     )
     assigned_by = models.ForeignKey(
@@ -2045,7 +2045,7 @@ class ManualAssessmentEntry(models.Model):
         help_text="User for whom manual assessment data is entered"
     )
     subject = models.CharField(
-        max_length=255,
+        max_length=800,
         help_text="Subject or assessment name"
     )
     score = models.DecimalField(

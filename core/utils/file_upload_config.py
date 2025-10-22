@@ -17,12 +17,12 @@ class FileUploadConfig:
     # Default size limits (in MB)
     DEFAULT_LIMITS = {
         'image': 10,
-        'video': 500, 
-        'document': 50,
-        'audio': 100,
-        'archive': 200,
+        'video': 600, 
+        'document': 600,
+        'audio': 600,
+        'archive': 600,
         'scorm': 600,
-        'general': 100
+        'general': 600
     }
     
     # Application-specific overrides

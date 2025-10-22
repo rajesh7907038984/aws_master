@@ -219,13 +219,13 @@ def upload_media_file(request):
         max_size = 600 * 1024 * 1024  # 600MB in bytes
         size_description = "600MB"
     elif file_ext in video_extensions:
-        # Video files - 100MB limit (for feedback videos)
-        max_size = 100 * 1024 * 1024  # 100MB in bytes
-        size_description = "100MB"
+        # Video files - 600MB limit
+        max_size = 600 * 1024 * 1024  # 600MB in bytes
+        size_description = "600MB"
     else:
-        # Regular media files - 20MB limit
-        max_size = 20 * 1024 * 1024  # 20MB in bytes
-        size_description = "20MB"
+        # Regular media files - 600MB limit
+        max_size = 600 * 1024 * 1024  # 600MB in bytes
+        size_description = "600MB"
     
     if uploaded_file.size > max_size:
         return JsonResponse({

@@ -312,7 +312,7 @@ AUTH_PASSWORD_VALIDATORS = [
 # ==============================================
 
 # Use Redis for session storage for better persistence across deployments
-SESSION_ENGINE = 'core.session_backends.robust.RobustSessionStore'
+SESSION_ENGINE = 'django.contrib.sessions.backends.db'
 SESSION_CACHE_ALIAS = 'sessions'  # Use the sessions cache alias defined below
 
 # Extended session duration to prevent auto-logout

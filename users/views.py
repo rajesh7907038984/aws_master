@@ -5903,6 +5903,9 @@ def learner_dashboard(request):
     if request.user.role != 'learner':
         return HttpResponseForbidden("You don't have permission to access this dashboard")
     
+    # Import CourseEnrollment locally to avoid circular import issues
+    from courses.models import CourseEnrollment
+    
     # Define breadcrumbs
     breadcrumbs = [
         {'url': '/', 'label': 'Home', 'icon': 'fa-home'},

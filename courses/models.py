@@ -447,14 +447,14 @@ class Course(models.Model):
         upload_to=course_image_path,
         null=True,
         blank=True,
-        max_length=500,
+        max_length=800,
         help_text="Course thumbnail image"
     )
     course_video = models.FileField(
         upload_to=course_video_path,
         null=True,
         blank=True,
-        max_length=500,
+        max_length=800,
         help_text="Course introduction video"
     )
     is_active = models.BooleanField(default=True)
@@ -1448,7 +1448,7 @@ class Course(models.Model):
 
 class Section(models.Model):
     """Model for course sections to organize topics"""
-    name = models.CharField(max_length=255, blank=True)
+    name = models.CharField(max_length=800, blank=True)
     description = models.TextField(blank=True)
     course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name='sections')
     order = models.PositiveIntegerField(default=0)
@@ -1492,7 +1492,7 @@ class Topic(models.Model):
         ('right', 'Right'),
     ]
 
-    title = models.CharField(max_length=255)
+    title = models.CharField(max_length=800)
     description = models.TextField(blank=True)
     instructions = models.TextField(blank=True, help_text="Instructions for completing this topic")
     content_type = models.CharField(max_length=20, choices=TOPIC_TYPE_CHOICES)
@@ -1500,7 +1500,7 @@ class Topic(models.Model):
     start_date = models.DateField(null=True, blank=True)
     end_date = models.DateField(null=True, blank=True)
     endless_access = models.BooleanField(default=False)
-    web_url = models.URLField(max_length=500, blank=True, null=True, help_text="URL for Web Content type topics")
+    web_url = models.URLField(max_length=800, blank=True, null=True, help_text="URL for Web Content type topics")
     section = models.ForeignKey(
         'Section',
         on_delete=models.SET_NULL,
@@ -1514,7 +1514,7 @@ class Topic(models.Model):
         storage=None,  # Use default storage (S3 in production)
         null=True,
         blank=True,
-        max_length=255,
+        max_length=800,
         help_text="Upload file for Video, Audio, Document content"
     )
     text_content = TinyMCEField(blank=True, default="", null=True, help_text="Rich text content for Text type topics")

@@ -64,7 +64,7 @@ class SurveyField(models.Model):
         related_name='fields',
         help_text="Survey this field belongs to"
     )
-    label = models.CharField(max_length=255, help_text="Field label/question")
+    label = models.CharField(max_length=800, help_text="Field label/question")
     field_type = models.CharField(
         max_length=20,
         choices=FIELD_TYPES,
@@ -73,7 +73,7 @@ class SurveyField(models.Model):
     )
     is_required = models.BooleanField(default=True, help_text="Is this field required?")
     order = models.PositiveIntegerField(default=0, help_text="Display order of field")
-    placeholder = models.CharField(max_length=255, blank=True, help_text="Placeholder text for input")
+    placeholder = models.CharField(max_length=800, blank=True, help_text="Placeholder text for input")
     help_text = models.TextField(blank=True, help_text="Help text for the field")
     
     # For rating fields

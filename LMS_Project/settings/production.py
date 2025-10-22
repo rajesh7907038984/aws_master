@@ -31,7 +31,7 @@ AWS_DEPLOYMENT = True
 # ==============================================
 
 # Production-specific session overrides (inherits base.py session config)
-SESSION_ENGINE = 'core.session_backends.robust.RobustSessionStore'  # Use robust session backend
+SESSION_ENGINE = 'django.contrib.sessions.backends.db'  # Use standard session backend
 SESSION_COOKIE_SECURE = True  # Enable secure cookies for HTTPS
 SESSION_SAVE_EVERY_REQUEST = False  # Optimize for production performance
 
