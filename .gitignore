@@ -1,3 +1,8 @@
+# Virtual Environment
+venv/
+env/
+ENV/
+
 # Python
 __pycache__/
 *.py[cod]
@@ -26,58 +31,79 @@ MANIFEST
 local_settings.py
 db.sqlite3
 db.sqlite3-journal
-media/
-staticfiles/
 
-# Virtual Environment
-venv/
-env/
-ENV/
-lms/venv/
-**/venv/
+# Static files
+staticfiles/
+static_root/
+
+# Media files
+media/
+
+# Environment variables
+.env
+.env.local
+.env.production
+.env.staging
 
 # IDE
 .vscode/
 .idea/
 *.swp
 *.swo
+*~
 
 # OS
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
 Thumbs.db
 
 # Logs
+logs/
 *.log
-lmslogs/
 
-# Static files
-lmsstaticfiles/
+# Coverage reports
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
 
-# Media files
-lms_media/
-media_local/
-scorm_uploads/
-scorm_temp/
+# Jupyter Notebook
+.ipynb_checkpoints
 
-# Environment files
-.env
-.env.local
-.env.production
-.env.backup
-lms/.env.backup
+# pyenv
+.python-version
 
-# Cache
-.cache/
+# pipenv
+Pipfile.lock
 
-# Cursor editor
-.cursor/
-.cursor-server/
+# PEP 582
+__pypackages__/
 
-# SSH and personal files
-.ssh/
-.bash_history
-.gitconfig
+# Celery
+celerybeat-schedule
+celerybeat.pid
 
-# Documentation (if you don't want to commit)
-*.md
-lms/production.env
+# SageMath parsed files
+*.sage.py
+
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# Rope project settings
+.ropeproject
+
+# mkdocs documentation
+/site
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
