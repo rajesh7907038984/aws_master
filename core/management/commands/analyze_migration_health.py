@@ -64,10 +64,10 @@ class Command(BaseCommand):
             
             if all_issues:
                 self.stdout.write(
-                    self.style.WARNING("  Found {{len(all_issues)}} potential issues:")
+                    self.style.WARNING(f"  Found {len(all_issues)} potential issues:")
                 )
                 for issue in all_issues:
-                    self.stdout.write("   - {{issue}}")
+                    self.stdout.write(f"   - {issue}")
                 
                 if fix_issues and not dry_run:
                     self.stdout.write(
@@ -85,7 +85,7 @@ class Command(BaseCommand):
             
         except Exception as e:
             self.stdout.write(
-                self.style.ERROR(" Error during migration health check: {{e}}")
+                self.style.ERROR(f" Error during migration health check: {e}")
             )
             raise
 
@@ -108,11 +108,11 @@ class Command(BaseCommand):
                         deps_content = deps_match.group(1)
                         dep_matches = re.findall(r'[\"\'](.*?)[\"\']\s*,\s*[\"\'](.*?)[\"\']', deps_content)
                         for app, migration in dep_matches:
-                            dep_key = "{{app}}.{{migration}}"
+                            dep_key = f"{app}.{migration}"
                             migration_deps[migration_key].append(dep_key)
             except Exception as e:
                 if verbose:
-                    self.stdout.write(" Error parsing {{filepath}}: {{e}}")
+                    self.stdout.write(f" Error parsing {filepath}: {e}")
         
         # Check for circular dependencies
         if self.has_circular_dependency(migration_deps):
@@ -125,7 +125,7 @@ class Command(BaseCommand):
                     not dep.startswith('auth.') and 
                     not dep.startswith('contenttypes.') and
                     'swappable_dependency' not in dep):
-                    issues.append("Missing dependency: {{migration}} → {{dep}}")
+                    issues.append(f"Missing dependency: {migration} → {dep}")
         
         return issues
 
@@ -147,7 +147,7 @@ class Command(BaseCommand):
         # Flag apps with excessive merge migrations
         for app, count in app_merge_counts.items():
             if count > 3:
-                issues.append("Complex merge history in {{app}}: {{count}} merge migrations")
+                issues.append(f"Complex merge history in {app}: {count} merge migrations")
         
         return issues
 
@@ -167,7 +167,7 @@ class Command(BaseCommand):
         for prob_dep in problematic_deps:
             dependents = self.find_dependents(prob_dep)
             if len(dependents) > 2:
-                issues.append("High dependency pattern: {{len(dependents)}} migrations depend on {{prob_dep}}")
+                issues.append(f"High dependency pattern: {len(dependents)} migrations depend on {prob_dep}")
         
         return issues
 
@@ -184,7 +184,7 @@ class Command(BaseCommand):
         # Look for migrations that might be isolated
         for app_name in apps.get_app_configs():
             app_label = app_name.label
-            app_migrations = [k for k in migration_files.keys() if k.startswith("{{app_label}}.")]
+            app_migrations = [k for k in migration_files.keys() if k.startswith(f"{app_label}.")]
             
             if len(app_migrations) > 20:  # Apps with many migrations might have issues
                 issues.append("App {{app_label}} has {{len(app_migrations)}} migrations - consider consolidation")

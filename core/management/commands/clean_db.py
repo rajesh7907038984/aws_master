@@ -19,18 +19,18 @@ class Command(BaseCommand):
                 table_name = table[0]
                 # Validate table name format (alphanumeric, underscore only) - strict validation for Session
                 if not table_name.replace('_', '').replace('$', '').isalnum():
-                    self.stdout.write(self.style.ERROR("Skipping invalid table name: {{table_name}}"))
+                    self.stdout.write(self.style.ERROR(f"Skipping invalid table name: {table_name}"))
                     continue
                 
                 # Additional Session check - ensure table name doesn't contain dangerous characters
                 if any(char in table_name for char in [';', '--', '/*', '*/', 'DROP', 'CREATE', 'ALTER']):
-                    self.stdout.write(self.style.ERROR("Skipping potentially dangerous table name: {{table_name}}"))
+                    self.stdout.write(self.style.ERROR(f"Skipping potentially dangerous table name: {table_name}"))
                     continue
                     
-                self.stdout.write("Dropping table: {{table_name}}")
+                self.stdout.write(f"Dropping table: {table_name}")
                 # Use proper identifier quoting and construct safe SQL
                 quoted_table_name = connection.ops.quote_name(table_name)
-                sql = "DROP TABLE IF EXISTS {{quoted_table_name}} CASCADE"
+                sql = f"DROP TABLE IF EXISTS {quoted_table_name} CASCADE"
                 cursor.execute(sql)
             
         self.stdout.write(self.style.SUCCESS('Successfully cleared database')) 

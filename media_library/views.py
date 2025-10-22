@@ -272,7 +272,7 @@ def sync_media_files(request):
             return JsonResponse({'success': True, 'message': 'Media files synced successfully'})
             
         except Exception as e:
-            return JsonResponse({'success': False, 'message': "Error syncing files: {{str(e)}}"})
+            return JsonResponse({'success': False, 'message': f"Error syncing files: {str(e)}"})
     
     return JsonResponse({'success': False, 'message': 'Invalid request method'})
 
@@ -336,7 +336,7 @@ def bulk_delete_files(request):
             })
             
         except Exception as e:
-            return JsonResponse({'success': False, 'message': "Error deleting files: {{str(e)}}"})
+            return JsonResponse({'success': False, 'message': f"Error deleting files: {str(e)}"})
     
     return JsonResponse({'success': False, 'message': 'Invalid request method'})
 

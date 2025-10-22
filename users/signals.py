@@ -55,10 +55,10 @@ def send_welcome_email(sender, instance, created, **kwargs):
             )
             
             if notification:
-                logger.info("Welcome email sent to new user: {{instance.username}}")
+                logger.info(f"Welcome email sent to new user: {instance.username}")
             else:
-                logger.warning("Welcome notification created but email may not have been sent for user: {{instance.username}}")
+                logger.warning(f"Welcome notification created but email may not have been sent for user: {instance.username}")
                 
         except Exception as e:
-            logger.error("Error sending welcome email to {{instance.username}}: {{str(e)}}")
+            logger.error(f"Error sending welcome email to {instance.username}: {str(e)}")
 

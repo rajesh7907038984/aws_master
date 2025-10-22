@@ -77,9 +77,9 @@ def topic_view(request, topic_id):
                 
                 # Log creation for debugging
                 if created:
-                    logger.info("Created TopicProgress for user {{request.user.username}} on topic {{topic.id}} - {{topic.title}}")
+                    logger.info(f"Created TopicProgress for user {request.user.username} on topic {topic.id} - {topic.title}")
             except Exception as e:
-                logger.error("Error creating/getting TopicProgress: {{str(e)}}")
+                logger.error(f"Error creating/getting TopicProgress: {str(e)}")
                 topic_progress = None
                 is_completed = False
         
@@ -113,17 +113,17 @@ def topic_view(request, topic_id):
                         can_resume_scorm = (has_bookmark or has_suspend_data or has_progress or has_time or has_score)
                         scorm_action_text = "Resume Content" if can_resume_scorm else "Launch Content"
                         
-                        logger.info("SCORM Resume Check for user {{request.user.username}} on topic {{topic.id}}:")
-                        logger.info("  - Has bookmark: {{has_bookmark}}")
-                        logger.info("  - Has suspend data: {{has_suspend_data}}")
-                        logger.info("  - Has progress: {{has_progress}}")
-                        logger.info("  - Has time: {{has_time}}")
-                        logger.info("  - Has score: {{has_score}}")
-                        logger.info("  - Can resume: {{can_resume_scorm}}")
-                        logger.info("  - Action text: {{scorm_action_text}}")
+                        logger.info(f"SCORM Resume Check for user {request.user.username} on topic {topic.id}:")
+                        logger.info(f"  - Has bookmark: {has_bookmark}")
+                        logger.info(f"  - Has suspend data: {has_suspend_data}")
+                        logger.info(f"  - Has progress: {has_progress}")
+                        logger.info(f"  - Has time: {has_time}")
+                        logger.info(f"  - Has score: {has_score}")
+                        logger.info(f"  - Can resume: {can_resume_scorm}")
+                        logger.info(f"  - Action text: {scorm_action_text}")
                         
                 except Exception as e:
-                    logger.error("Error checking SCORM tracking: {{str(e)}}")
+                    logger.error(f"Error checking SCORM tracking: {str(e)}")
         
         # removed functionality removed
         
@@ -256,8 +256,8 @@ def topic_view(request, topic_id):
         return render(request, 'courses/topic_view.html', context)
     
     except Exception as e:
-        logger.error("Error viewing topic: {{str(e)}}")
-        messages.error(request, "Error loading topic: {{str(e)}}")
+        logger.error(f"Error viewing topic: {str(e)}")
+        messages.error(request, f"Error loading topic: {str(e)}")
         return redirect('courses:course_list')
 
 @login_required
@@ -293,6 +293,6 @@ def topic_url_embed(request, topic_id):
         return render(request, 'courses/topic_embed.html', context)
     
     except Exception as e:
-        logger.error("Error embedding topic URL: {{str(e)}}")
-        messages.error(request, "Error loading embedded content: {{str(e)}}")
+        logger.error(f"Error embedding topic URL: {str(e)}")
+        messages.error(request, f"Error loading embedded content: {str(e)}")
         return redirect('courses:course_list')

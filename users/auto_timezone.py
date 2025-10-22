@@ -79,7 +79,7 @@ def set_user_timezone_auto(request):
             'error': 'Invalid JSON data'
         }, status=400)
     except Exception as e:
-        logger.error("Error setting auto timezone for user {{request.user.username}}: {{str(e)}}")
+        logger.error(f"Error setting auto timezone for user {request.user.username}: {str(e)}")
         return JsonResponse({
             'success': False,
             'error': 'Failed to set timezone'
@@ -115,7 +115,7 @@ def get_user_timezone_status(request):
         })
         
     except Exception as e:
-        logger.error("Error getting timezone status for user {{request.user.username}}: {{str(e)}}")
+        logger.error(f"Error getting timezone status for user {request.user.username}: {str(e)}")
         return JsonResponse({
             'success': False,
             'error': 'Failed to get timezone status'

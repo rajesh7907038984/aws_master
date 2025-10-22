@@ -307,7 +307,7 @@ class Quiz(models.Model):
                 return True
                 
         except Exception as e:
-            logger.error("Error checking if user {{user.id}} can start new attempt for quiz {{self.id}}: {{str(e)}}", exc_info=True)
+            logger.error(f"Error checking if user {user.id} can start new attempt for quiz {self.id}: {str(e)}", exc_info=True)
             return False
         
     def clean_stale_attempts(self, user):
@@ -343,7 +343,7 @@ class Quiz(models.Model):
                 return count
                 
         except Exception as e:
-            logger.error("Error cleaning stale attempts for user {{user.id}}: {{str(e)}}", exc_info=True)
+            logger.error(f"Error cleaning stale attempts for user {user.id}: {str(e)}", exc_info=True)
             return 0
     
     def clean_expired_attempts(self, user=None):
@@ -783,7 +783,7 @@ class QuizAttempt(models.Model):
                 return percentage
                 
         except Exception as e:
-            logger.error("Error calculating score for attempt {{self.id}}: {{str(e)}}", exc_info=True)
+            logger.error(f"Error calculating score for attempt {self.id}: {str(e)}", exc_info=True)
             # Return 0 on error to prevent data corruption
             try:
                 with transaction.atomic():
@@ -1198,7 +1198,7 @@ class UserAnswer(models.Model):
                         user_answer.is_correct = user_answer.question.check_answer(blank_answers)
                     except (json.JSONDecodeError, ValueError) as e:
                         # If parsing fails, mark as incorrect
-                        logger.error("Error parsing multi_blank answer: {{user_answer.text_answer}} - {{str(e)}}")
+                        logger.error(f"Error parsing multi_blank answer: {user_answer.text_answer} - {str(e)}")
                         user_answer.is_correct = False
                         
                 elif user_answer.question.question_type == 'multiple_choice':
@@ -1274,7 +1274,7 @@ class UserAnswer(models.Model):
                 return user_answer.is_correct
                 
         except Exception as e:
-            logger.error("Error checking answer for UserAnswer {{self.id}}: {{str(e)}}", exc_info=True)
+            logger.error(f"Error checking answer for UserAnswer {self.id}: {str(e)}", exc_info=True)
             # Try to save error state
             try:
                 with transaction.atomic():
@@ -1343,7 +1343,7 @@ class UserAnswer(models.Model):
         except Exception as e:
             import logging
             logger = logging.getLogger(__name__)
-            logger.error("Error getting selected options for UserAnswer {{self.id}}: {{str(e)}}", exc_info=True)
+            logger.error(f"Error getting selected options for UserAnswer {self.id}: {str(e)}", exc_info=True)
             return []
 
 class QuizTag(models.Model):

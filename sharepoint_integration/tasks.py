@@ -151,7 +151,7 @@ def sync_user_data_to_sharepoint(integration_id, user_id=None):
         return results
         
     except Exception as e:
-        logger.error("User sync task failed: {{str(e)}}")
+        logger.error(f"User sync task failed: {str(e)}")
         return {'success': False, 'message': str(e)}
 
 
@@ -179,7 +179,7 @@ def sync_enrollment_data_to_sharepoint(integration_id, course_id=None):
         return results
         
     except Exception as e:
-        logger.error("Enrollment sync task failed: {{str(e)}}")
+        logger.error(f"Enrollment sync task failed: {str(e)}")
         return {'success': False, 'message': str(e)}
 
 
@@ -206,7 +206,7 @@ def sync_progress_data_to_sharepoint(integration_id):
         return results
         
     except Exception as e:
-        logger.error("Progress sync task failed: {{str(e)}}")
+        logger.error(f"Progress sync task failed: {str(e)}")
         return {'success': False, 'message': str(e)}
 
 
@@ -233,7 +233,7 @@ def sync_certificates_to_sharepoint(integration_id):
         return results
         
     except Exception as e:
-        logger.error("Certificate sync task failed: {{str(e)}}")
+        logger.error(f"Certificate sync task failed: {str(e)}")
         return {'success': False, 'message': str(e)}
 
 
@@ -260,7 +260,7 @@ def sync_reports_to_powerbi(integration_id):
         return results
         
     except Exception as e:
-        logger.error("Reports sync task failed: {{str(e)}}")
+        logger.error(f"Reports sync task failed: {str(e)}")
         return {'success': False, 'message': str(e)}
 
 
@@ -324,13 +324,13 @@ def scheduled_sharepoint_sync():
                     'status': 'failed'
                 })
                 
-                logger.error("Failed to start scheduled sync for integration {{integration.name}}: {{str(e)}}")
+                logger.error(f"Failed to start scheduled sync for integration {integration.name}: {str(e)}")
         
         logger.info("Scheduled SharePoint sync completed: {{results}}")
         return results
         
     except Exception as e:
-        logger.error("Scheduled SharePoint sync failed: {{str(e)}}")
+        logger.error(f"Scheduled SharePoint sync failed: {str(e)}")
         return {'success': False, 'message': str(e)}
 
 
@@ -423,8 +423,8 @@ def batch_sync_users(self, integration_id, user_ids, batch_size=50):
                         
                 except Exception as e:
                     results['failed'] += 1
-                    results['errors'].append("Error syncing user {{user.email}}: {{str(e)}}")
-                    logger.error("Error syncing user {{user.email}}: {{str(e)}}")
+                    results['errors'].append(f"Error syncing user {user.email}: {str(e)}")
+                    logger.error(f"Error syncing user {user.email}: {str(e)}")
             
             # Small delay between batches to avoid overwhelming SharePoint
             if i + batch_size < len(user_ids):
@@ -535,7 +535,7 @@ def sync_single_record(integration_id, record_type, record_id, direction='to_sha
         return result
         
     except Exception as e:
-        logger.error("Single record sync failed: {{str(e)}}")
+        logger.error(f"Single record sync failed: {str(e)}")
         return {'success': False, 'message': str(e)}
 
 
@@ -583,11 +583,11 @@ def health_check_sharepoint_integrations():
                     'last_sync': integration.last_sync_datetime.isoformat() if integration.last_sync_datetime else None
                 })
         
-        logger.info("SharePoint health check completed: {{results}}")
+        logger.info(f"SharePoint health check completed: {results}")
         return results
         
     except Exception as e:
-        logger.error("SharePoint health check failed: {{str(e)}}")
+        logger.error(f"SharePoint health check failed: {str(e)}")
         return {'success': False, 'message': str(e)}
 
 
