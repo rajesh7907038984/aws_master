@@ -376,8 +376,11 @@ def pre_calculate_student_scores(students, activities, grades, quiz_attempts, sc
                                             user=student
                                         ).first() if topic else None
                                         
-                                        # Check if SCORM is completed
-                                        is_completed = attempt.lesson_status in ['completed', 'passed', 'failed']
+                                        # Check if SCORM is completed - consider both ScormAttempt and TopicProgress
+                                        is_completed = (
+                                            attempt.lesson_status in ['completed', 'passed', 'failed'] or
+                                            (topic_progress and topic_progress.completed)
+                                        )
                                         
                                         # FIXED: Always show the most recent score from the most authoritative source
                                         score_value = None
@@ -415,6 +418,13 @@ def pre_calculate_student_scores(students, activities, grades, quiz_attempts, sc
                                             elif attempt.lesson_status in ['completed', 'passed']:
                                                 completion_status = 'completed'
                                                 success_status = 'passed'
+                                            elif topic_progress and topic_progress.completed:
+                                                # TopicProgress shows completed but no score - treat as passed
+                                                completion_status = 'completed'
+                                                success_status = 'passed'
+                                                # Award full points for completed activities without scores
+                                                if score_value is None:
+                                                    score_value = 100.0
                                             else:
                                                 completion_status = attempt.lesson_status
                                                 success_status = attempt.success_status
@@ -489,6 +499,8 @@ def pre_calculate_student_scores(students, activities, grades, quiz_attempts, sc
                                                         success_status = 'failed'
                                                 elif topic_progress.completed:
                                                     success_status = 'passed'
+                                                    # Award full points for completed activities without scores
+                                                    score_value = 100.0
                                                 
                                                 student_scores[activity_id] = {
                                                     'score': score_value,
@@ -1641,7 +1653,7 @@ def course_gradebook_detail(request, course_id):
             'object': scorm_package,
             'type': 'scorm',
             'created_at': scorm_package.upload_date if hasattr(scorm_package, 'upload_date') else timezone.now(),
-            'title': scorm_package.title if hasattr(scorm_package, 'title') else 'SCORM Content',
+            'title': scorm_package.topic.title if hasattr(scorm_package, 'topic') and scorm_package.topic else (scorm_package.title if hasattr(scorm_package, 'title') else 'SCORM Content'),
             'max_score': 100,  # SCORM scores are typically on a 0-100 scale
             'activity_number': scorm_counter,
             'activity_name': f"SCORM {scorm_counter}"
@@ -2570,8 +2582,9 @@ def ajax_save_grade(request):
                                 criterion_id=criterion_id,
                                 defaults=defaults
                             )
-                except json.JSONDecodeError:
-                    pass
+                except json.JSONDecodeError as e:
+                    logger.error(f"JSON decode error in assignment rubric data: {e}")
+                    return JsonResponse({'success': False, 'error': 'Invalid rubric data format'})
         
         elif activity_type == 'quiz' or activity_type == 'initial_assessment':
             quiz = get_object_or_404(Quiz, id=activity_id)
@@ -2623,8 +2636,9 @@ def ajax_save_grade(request):
                                     criterion_id=criterion_id,
                                     defaults=defaults
                                 )
-                    except json.JSONDecodeError:
-                        pass
+                    except json.JSONDecodeError as e:
+                        logger.error(f"JSON decode error in quiz rubric data: {e}")
+                        return JsonResponse({'success': False, 'error': 'Invalid rubric data format'})
                 
                 # Handle overall feedback for quiz
                 feedback_type = request.POST.get('feedback_type')
@@ -2698,8 +2712,9 @@ def ajax_save_grade(request):
                                 student=student,
                                 defaults=defaults
                             )
-                except json.JSONDecodeError:
-                    pass
+                except json.JSONDecodeError as e:
+                    logger.error(f"JSON decode error in discussion rubric data: {e}")
+                    return JsonResponse({'success': False, 'error': 'Invalid rubric data format'})
             
             # Handle overall feedback for discussion
             overall_feedback = request.POST.get('feedback', '').strip()
@@ -2781,8 +2796,9 @@ def ajax_save_grade(request):
                                 criterion_id=criterion_id,
                                 defaults=defaults
                             )
-                except json.JSONDecodeError:
-                    pass
+                except json.JSONDecodeError as e:
+                    logger.error(f"JSON decode error in conference rubric data: {e}")
+                    return JsonResponse({'success': False, 'error': 'Invalid rubric data format'})
             
             # Handle overall feedback for conference
             overall_feedback = request.POST.get('feedback', '').strip()

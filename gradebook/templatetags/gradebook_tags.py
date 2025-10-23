@@ -1185,9 +1185,9 @@ def calculate_student_total_optimized(student_scores, student_id, activities):
                         # Award full points for completed activities without scores
                         total_earned += Decimal(str(score_data.get('max_score', 0)))
         
-        # Calculate percentage
+        # Calculate percentage with proper decimal precision
         if total_possible > 0:
-            percentage = round((total_earned / total_possible) * 100)
+            percentage = round((total_earned / total_possible) * 100, 1)
         else:
             percentage = 0
         
