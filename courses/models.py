@@ -2390,51 +2390,75 @@ class TopicProgress(models.Model):
                 logger.info(f"SCORM_SYNC: No SCORM attempts found for user {self.user.username}, topic {self.topic.id}")
                 return False
             
-            # Sync score if available
-            if latest_attempt.score_raw is not None:
-                score_value = float(latest_attempt.score_raw)
-                old_last_score = self.last_score
-                old_best_score = self.best_score
+            # STORYLINE FIX: Check for Storyline completion patterns in suspend_data
+            storyline_completed = False
+            if latest_attempt.suspend_data:
+                storyline_patterns = [
+                    'qd"true', 'qd":true', 'quiz_done":true', 
+                    'assessment_done":true', 'lesson_done":true',
+                    'complete":true', 'finished":true'
+                ]
+                storyline_completed = any(pattern in latest_attempt.suspend_data for pattern in storyline_patterns)
+            
+            # Sync score if available OR if Storyline is completed
+            if latest_attempt.score_raw is not None or storyline_completed:
+                score_value = None
+                if latest_attempt.score_raw is not None:
+                    score_value = float(latest_attempt.score_raw)
+                elif storyline_completed:
+                    # STORYLINE FIX: If Storyline is completed but no score, assume 100%
+                    score_value = 100.0
+                    logger.info(f"SCORM_SYNC: Storyline completed but no score - assuming 100% for topic {self.topic.id}")
                 
-                # Update last score
-                self.last_score = score_value
-                
-                # Update best score if this is better
-                if self.best_score is None or score_value > self.best_score:
-                    self.best_score = score_value
-                
-                # Update progress_data with score information
-                if not self.progress_data:
-                    self.progress_data = {}
-                self.progress_data['score_raw'] = score_value
-                self.progress_data['scorm_attempt_id'] = latest_attempt.id
-                self.progress_data['lesson_status'] = latest_attempt.lesson_status
-                
-                # Update attempts count if not already set
-                # Count all SCORM attempts for this user/package
-                total_attempts = ScormAttempt.objects.filter(
-                    user=self.user,
-                    scorm_package=self.topic.scorm_package
-                ).count()
-                if total_attempts > self.attempts:
-                    self.attempts = total_attempts
-                
-                # Check if should be marked as completed based on lesson_status
-                lesson_status_lower = latest_attempt.lesson_status.lower() if latest_attempt.lesson_status else ''
-                if not self.completed and lesson_status_lower in ['completed', 'passed', 'failed']:
-                    # Mark as completed if lesson_status indicates the activity was finished
-                    # (even if failed - the learner completed the activity)
-                    self.completed = True
-                    if not self.completed_at:
-                        self.completed_at = latest_attempt.last_accessed or timezone.now()
-                    self.completion_method = 'scorm'
-                    logger.info(f"SCORM_SYNC: Marked topic {self.topic.id} as completed for user {self.user.username} (lesson_status: {latest_attempt.lesson_status})")
-                
-                logger.info(f"SCORM_SYNC: Updated scores for topic {self.topic.id}, user {self.user.username} - last_score: {old_last_score} -> {self.last_score}, best_score: {old_best_score} -> {self.best_score}, attempts: {self.attempts}")
-                return True
-            else:
-                logger.info(f"SCORM_SYNC: Latest attempt {latest_attempt.id} has no score_raw for user {self.user.username}, topic {self.topic.id}")
-                return False
+                if score_value is not None:
+                    old_last_score = self.last_score
+                    old_best_score = self.best_score
+                    
+                    # Update last score
+                    self.last_score = score_value
+                    
+                    # Update best score if this is better
+                    if self.best_score is None or score_value > self.best_score:
+                        self.best_score = score_value
+                    
+                    # Update progress_data with score information
+                    if not self.progress_data:
+                        self.progress_data = {}
+                    self.progress_data['score_raw'] = score_value
+                    self.progress_data['scorm_attempt_id'] = latest_attempt.id
+                    self.progress_data['lesson_status'] = latest_attempt.lesson_status
+                    self.progress_data['storyline_completed'] = storyline_completed
+                    
+                    # Update attempts count if not already set
+                    # Count all SCORM attempts for this user/package
+                    total_attempts = ScormAttempt.objects.filter(
+                        user=self.user,
+                        scorm_package=self.topic.scorm_package
+                    ).count()
+                    if total_attempts > self.attempts:
+                        self.attempts = total_attempts
+                    
+                    # Check if should be marked as completed based on lesson_status OR Storyline completion
+                    lesson_status_lower = latest_attempt.lesson_status.lower() if latest_attempt.lesson_status else ''
+                    should_complete = (
+                        lesson_status_lower in ['completed', 'passed', 'failed'] or 
+                        storyline_completed
+                    )
+                    
+                    if not self.completed and should_complete:
+                        # Mark as completed if lesson_status indicates the activity was finished
+                        # OR if Storyline completion patterns are detected
+                        self.completed = True
+                        if not self.completed_at:
+                            self.completed_at = latest_attempt.last_accessed or timezone.now()
+                        self.completion_method = 'scorm'
+                        logger.info(f"SCORM_SYNC: Marked topic {self.topic.id} as completed for user {self.user.username} (lesson_status: {latest_attempt.lesson_status}, storyline_completed: {storyline_completed})")
+                    
+                    logger.info(f"SCORM_SYNC: Updated scores for topic {self.topic.id}, user {self.user.username} - last_score: {old_last_score} -> {self.last_score}, best_score: {old_best_score} -> {self.best_score}, attempts: {self.attempts}")
+                    return True
+            
+            logger.info(f"SCORM_SYNC: Latest attempt {latest_attempt.id} has no score_raw and no Storyline completion for user {self.user.username}, topic {self.topic.id}")
+            return False
                 
         except Exception as e:
             logger.error(f"SCORM_SYNC ERROR: Failed to sync SCORM score for topic {self.topic.id}, user {self.user.username}: {str(e)}")

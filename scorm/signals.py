@@ -106,7 +106,13 @@ def _extract_score_from_data(decoded_data):
             'qd"true' in decoded_data or   # Quiz done = true (format 3)
             'quiz_complete' in decoded_data.lower() or
             'assessment_complete' in decoded_data.lower() or
-            'lesson_complete' in decoded_data.lower()
+            'lesson_complete' in decoded_data.lower() or
+            # STORYLINE FIX: Add more Storyline completion patterns
+            'qd"true' in decoded_data or
+            'qd":true' in decoded_data or
+            'quiz_done":true' in decoded_data or
+            'assessment_done":true' in decoded_data or
+            'lesson_done":true' in decoded_data
         )
         
         if not has_completion_evidence:
@@ -137,17 +143,25 @@ def _extract_score_from_data(decoded_data):
                 r'(?<!p)scor["\s]*(\d+)',      # scor"88 but not pscor
                 r'actual_score["\s:]*(\d+)',   # actual_score patterns
                 r'earned_score["\s:]*(\d+)',   # earned_score patterns
+                # STORYLINE FIX: Add more comprehensive Storyline score patterns
+                r'scors(\d+)',                 # Direct scors pattern
+                r'scor["\s]*(\d+)',            # Direct scor pattern
+                r'quiz_score["\s:]*(\d+)',     # quiz_score patterns
+                r'final_score["\s:]*(\d+)',    # final_score patterns
+                r'user_score["\s:]*(\d+)',     # user_score patterns
+                r'earned["\s:]*(\d+)',         # earned patterns
+                r'result["\s:]*(\d+)',        # result patterns
             ]
             
             for pattern in scor_patterns:
                 scor_match = re.search(pattern, decoded_data)
                 if scor_match:
                     score = float(scor_match.group(1))
-                    # Additional validation: avoid common config values
-                    if score not in [6, 60, 70, 75, 80, 85, 90, 95] or score == 100:  # 100 is likely a real perfect score
-                        if 0 <= score <= 100:
-                            logger.info(f"Found Storyline quiz score (pattern: {pattern}): {score}")
-                            return score
+                    # STORYLINE FIX: More lenient validation for Storyline scores
+                    # Accept any valid score between 0-100, including common values
+                    if 0 <= score <= 100:
+                        logger.info(f"Found Storyline quiz score (pattern: {pattern}): {score}")
+                        return score
             
             # Pattern 2b: Look for actual user score patterns in completed quiz
             storyline_pattern = re.search(r'(?:user_score|earned|result)"\s*:\s*(\d+)', decoded_data, re.IGNORECASE)
@@ -166,6 +180,12 @@ def _extract_score_from_data(decoded_data):
                 if 0 <= score <= 100:
                     logger.info(f"Found progress-based completion score: {score}")
                     return score
+        
+        # STORYLINE FIX: Handle case where quiz is complete but score field is empty
+        # This happens when score is 100% in some SCORM packages (especially Articulate Storyline)
+        if has_completion_evidence and _is_score_field_empty(decoded_data):
+            logger.info("Storyline quiz complete with empty score field - assuming 100% score")
+            return 100.0
         
         # REMOVED: The problematic patterns that were extracting configuration values
         # - No longer extract standalone "s80" values (these are often thresholds)
@@ -222,4 +242,41 @@ def _update_topic_progress(attempt, score_value):
         
     except Exception as e:
         logger.error(f"Error updating TopicProgress: {e}")
+
+
+def _is_score_field_empty(decoded_data):
+    """
+    Check if the score field exists but is empty
+    This is a specific issue with some SCORM packages when score is 100%
+    """
+    try:
+        # Check for empty score patterns
+        empty_patterns = [
+            r'scors"[\s]*[,}]',      # scors" followed by comma or closing brace
+            r'scor"[\s]*[,}]',       # scor" followed by comma or closing brace
+            r'"score"[\s]*:[\s]*""',  # "score": ""
+            r'"score"[\s]*:[\s]*[,}]', # "score": followed by comma or closing brace
+            r'quiz_score"[\s]*:[\s]*""', # "quiz_score": ""
+            r'user_score"[\s]*:[\s]*""', # "user_score": ""
+        ]
+        
+        for pattern in empty_patterns:
+            if re.search(pattern, decoded_data, re.IGNORECASE):
+                logger.info(f"Found empty score field with pattern: {pattern}")
+                return True
+        
+        # Additional check for Storyline specific format
+        # Look for 'scor"' at the end of the string or followed by }
+        if 'scor"' in decoded_data:
+            pos = decoded_data.find('scor"')
+            # Check what comes after 'scor"'
+            next_chars = decoded_data[pos+5:pos+6] if pos+5 < len(decoded_data) else ''
+            if not next_chars or next_chars in ['}', ',', ']', ' ']:
+                logger.info(f"Found empty score field (scor\" with no value)")
+                return True
+        
+        return False
+    except Exception as e:
+        logger.error(f"Error checking for empty score field: {str(e)}")
+        return False
 

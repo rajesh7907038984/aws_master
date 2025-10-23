@@ -28,6 +28,14 @@ class DynamicScormScoreProcessor:
             r'quiz_score["\s:]*(\d+)',       # quiz_score:88
             r'final_score["\s:]*(\d+)',      # final_score:88
             r'user_score["\s:]*(\d+)',       # user_score:88
+            # STORYLINE FIX: Add more comprehensive score patterns
+            r'(?<!p)scors(\d+)',             # scors88 but not pscors88
+            r'(?<!p)scor["\s]*(\d+)',        # scor"88 but not pscor
+            r'actual_score["\s:]*(\d+)',     # actual_score patterns
+            r'earned_score["\s:]*(\d+)',     # earned_score patterns
+            r'earned["\s:]*(\d+)',           # earned patterns
+            r'result["\s:]*(\d+)',           # result patterns
+            r'score["\s:]*(\d+)',             # generic score patterns
         ],
         'adobe_captivate': [
             r'"score"\s*:\s*(\d+\.?\d*)',    # Captivate JSON format
@@ -55,6 +63,14 @@ class DynamicScormScoreProcessor:
             r'quiz_done["\s:]*true',         # quiz_done: true
             r'assessment_complete["\s:]*true', # assessment_complete: true
             r'lesson_complete["\s:]*true',   # lesson_complete: true
+            # STORYLINE FIX: Add more comprehensive completion patterns
+            r'qd":true',                     # qd":true format
+            r'qd"true',                      # qd"true format
+            r'quiz_done":true',              # quiz_done":true format
+            r'assessment_done":true',        # assessment_done":true format
+            r'lesson_done":true',            # lesson_done":true format
+            r'complete":true',               # complete":true format
+            r'finished":true',              # finished":true format
         ],
         'adobe_captivate': [
             r'lesson_status["\s:]*"completed"',  # lesson_status: "completed"
