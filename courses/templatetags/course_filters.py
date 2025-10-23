@@ -957,7 +957,21 @@ def has_scorm_resume(topic, user):
             ).order_by('-attempt_number').first()
             
             if latest_attempt and latest_attempt.lesson_status in ['incomplete', 'not_attempted']:
-                return True
+                # ENHANCED: Only show resume if there's actual progress or legitimate resume scenario
+                # This prevents showing "Resume" for attempts that never actually started
+                has_progress = (
+                    latest_attempt.lesson_location or 
+                    latest_attempt.suspend_data or 
+                    latest_attempt.lesson_status == 'incomplete' or
+                    latest_attempt.entry == 'resume'
+                )
+                
+                if has_progress:
+                    return True
+                else:
+                    # No actual progress - this is likely a failed start, show "Start" instead
+                    logger.info(f"SCORM Resume Check: No progress found for user {user.username}, topic {topic.id}")
+                    return False
         
         return False
     except Exception as e:

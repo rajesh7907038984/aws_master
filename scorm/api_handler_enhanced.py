@@ -1163,7 +1163,28 @@ class ScormAPIHandlerEnhanced:
             return 0.0
     
     def _update_total_time(self, session_time):
-        """Update total time by adding session time"""
+        """Update total time by adding session time with enhanced reliability"""
+        try:
+            from .enhanced_time_tracking import EnhancedScormTimeTracker
+            
+            # Use enhanced time tracking for better reliability
+            tracker = EnhancedScormTimeTracker(self.attempt)
+            success = tracker.save_time_with_reliability(session_time)
+            
+            if not success:
+                logger.error(f"❌ Enhanced time tracking failed for {self.attempt.scorm_package.version}")
+                # Fallback to original method
+                self._update_total_time_original(session_time)
+            else:
+                logger.info(f"✅ Enhanced time tracking successful for {self.attempt.scorm_package.version}")
+                
+        except Exception as e:
+            logger.error(f"❌ Enhanced time tracking error: {str(e)}")
+            # Fallback to original method
+            self._update_total_time_original(session_time)
+    
+    def _update_total_time_original(self, session_time):
+        """Original time tracking method as fallback"""
         try:
             # Parse session time
             if session_time.startswith('PT'):

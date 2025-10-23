@@ -148,12 +148,17 @@ DATABASES = {
         'HOST': AWS_DB_HOST,
         'PORT': get_env('AWS_DB_PORT', '5432'),
         'OPTIONS': {
-            'connect_timeout': 60,
+            'connect_timeout': 120,  # Increased from 60 to 120 seconds for SCORM time tracking
             'sslmode': 'prefer',
             'application_name': 'LMS_Production',
         },
-        'CONN_MAX_AGE': 600,
-        'CONN_HEALTH_CHECKS': False,
+        'CONN_MAX_AGE': 300,  # Reduced from 600 to 300 seconds (5 minutes) for better reliability
+        'CONN_HEALTH_CHECKS': True,  # Enable connection health checks
+        # Connection pool settings for SCORM time tracking
+        'CONN_POOL_SIZE': 20,  # Maximum connections in pool
+        'CONN_POOL_OVERFLOW': 10,  # Additional connections when pool is full
+        'CONN_POOL_TIMEOUT': 30,  # Timeout for getting connection from pool
+        'CONN_POOL_RECYCLE': 3600,  # Recycle connections after 1 hour
     }
 }
 print("🗄️  Using database configuration: {}".format(DATABASES['default']['HOST']))

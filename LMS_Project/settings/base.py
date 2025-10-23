@@ -214,7 +214,8 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'django.middleware.gzip.GZipMiddleware',  # Enable GZIP compression for large SCORM files
     'django.middleware.security.SecurityMiddleware',
-    'scorm.middleware.ScormSSLExemptMiddleware',  # SCORM SSL bypass (must be after SecurityMiddleware)
+    'scorm.middleware.ScormTimeTrackingMiddleware',  # Process cached SCORM time data
+    'scorm.middleware.ScormTimeTrackingHealthMiddleware',  # Monitor SCORM time tracking health
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',

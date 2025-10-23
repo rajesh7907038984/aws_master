@@ -225,11 +225,7 @@ def scorm_view(request, topic_id):
                 attempt = ScormAttempt.objects.create(
                     user=request.user,
                     scorm_package=scorm_package,
-                    attempt_number=attempt_number,
-                    # CRITICAL FIX: Initialize required fields to prevent validation errors
-                    navigation_history=[],
-                    detailed_tracking={},
-                    session_data={}
+                    attempt_number=attempt_number
                 )
                 logger.info(f"Created new attempt {attempt.id} (previous status: {last_attempt.lesson_status}, completed: {last_attempt.completed_at is not None})")
                 
@@ -237,20 +233,8 @@ def scorm_view(request, topic_id):
                 from .score_sync_service import ScormScoreSyncService
                 ScormScoreSyncService.sync_score(attempt)
             elif last_attempt:
-                # Continue existing incomplete attempt - use enhanced resume handler
+                # Continue existing incomplete attempt - ensure resume data is loaded
                 attempt = last_attempt
-                
-                # Try enhanced resume handler first
-                try:
-                    from .enhanced_resume_handler import handle_scorm_resume
-                    if handle_scorm_resume(attempt):
-                        logger.info(f"RESUME: Enhanced handler successfully processed attempt {attempt.id}")
-                    else:
-                        logger.warning(f"RESUME: Enhanced handler failed for attempt {attempt.id}, using fallback")
-                        # Fallback logic will be handled below
-                except Exception as e:
-                    logger.error(f"RESUME: Enhanced handler error for attempt {attempt.id}: {str(e)}")
-                    # Continue with fallback logic
                 
                 # CRITICAL FIX: Always initialize CMI data for resume functionality
                 if not attempt.cmi_data:
@@ -325,19 +309,13 @@ def scorm_view(request, topic_id):
                 
                 # Save the updated attempt
                 attempt.save()
-                location_str = attempt.lesson_location or 'None'
-                suspend_str = attempt.suspend_data[:50] if attempt.suspend_data else 'None'
-                logger.info(f"RESUME: Updated attempt {attempt.id}: entry='{attempt.entry}', location='{location_str}', suspend_data='{suspend_str}...'")
+                logger.info(f"RESUME: Updated attempt {attempt.id}: entry='{attempt.entry}', location='{attempt.lesson_location or 'None'}', suspend_data='{attempt.suspend_data[:50] if attempt.suspend_data else 'None'}...'}")
             else:
-                # Create first attempt with properly initialized fields
+                # Create first attempt
                 attempt = ScormAttempt.objects.create(
                     user=request.user,
                     scorm_package=scorm_package,
-                    attempt_number=1,
-                    # CRITICAL FIX: Initialize required fields to prevent validation errors
-                    navigation_history=[],
-                    detailed_tracking={},
-                    session_data={}
+                    attempt_number=1
                 )
                 logger.info(f"Created first attempt {attempt.id} for user {request.user.username}")
             
