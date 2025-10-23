@@ -948,12 +948,15 @@ def scorm_debug(request, attempt_id):
 @require_http_methods(["POST"])
 def scorm_emergency_save(request):
     """
-    Emergency save endpoint for SCORM data
+    Enhanced emergency save endpoint for SCORM data with Storyline 1.2 support
     Used when browser is closing or user navigates away
     """
     try:
         data = json.loads(request.body)
         attempt_id = data.get('attempt_id')
+        package_type = data.get('package_type', 'generic')
+        version = data.get('version', '1.2')
+        action = data.get('action', 'emergency_save')
         
         if not attempt_id:
             return JsonResponse({'error': 'No attempt_id provided'}, status=400)
@@ -964,17 +967,64 @@ def scorm_emergency_save(request):
         if request.user.is_authenticated and attempt.user != request.user:
             return JsonResponse({'error': 'Unauthorized'}, status=403)
         
-        # Force score sync
-        from .score_sync_service import ScormScoreSyncService
-        sync_result = ScormScoreSyncService.sync_score(attempt, force=True)
+        # STORYLINE 1.2 FIX: Enhanced emergency save for Storyline packages
+        if package_type == 'storyline':
+            logger.info(f"🎯 STORYLINE EMERGENCY SAVE: attempt={attempt_id}, action={action}")
+            
+            # Force commit any pending data using enhanced handler
+            from .api_handler_enhanced import ScormAPIHandlerEnhanced
+            handler = ScormAPIHandlerEnhanced(attempt)
+            commit_result = handler.commit()
+            
+            # Force sync with TopicProgress using enhanced sync
+            from .score_sync_service import ScormScoreSyncService
+            sync_result = ScormScoreSyncService.sync_score(attempt, force=True)
+            
+            # STORYLINE FIX: Handle Storyline-specific suspend data patterns
+            if attempt.suspend_data and ('qd"true' in attempt.suspend_data or 'scors' in attempt.suspend_data):
+                logger.info(f"🎯 STORYLINE: Found Storyline-specific suspend data patterns")
+                
+                # Extract Storyline-specific data using dynamic processor
+                from .dynamic_score_processor import DynamicScormScoreProcessor
+                processor = DynamicScormScoreProcessor(attempt)
+                processor.process_and_sync_score()
+                
+                # Force update TopicProgress with Storyline data
+                from courses.models import TopicProgress
+                try:
+                    progress = TopicProgress.objects.get(
+                        user=attempt.user,
+                        topic=attempt.scorm_package.topic
+                    )
+                    progress.sync_scorm_score()
+                    logger.info(f"🎯 STORYLINE: TopicProgress synced successfully")
+                except TopicProgress.DoesNotExist:
+                    logger.warning(f"🎯 STORYLINE: TopicProgress not found for user {attempt.user.id}")
+            
+            logger.info(f"🎯 STORYLINE: Emergency save completed - commit={commit_result}, sync={sync_result}")
+            
+            return JsonResponse({
+                'success': True,
+                'committed': commit_result,
+                'synced': sync_result,
+                'package_type': 'storyline',
+                'version': version,
+                'message': 'Storyline emergency save completed successfully'
+            })
         
-        logger.info(f"Emergency save for attempt {attempt_id}: sync_result={sync_result}")
-        
-        return JsonResponse({
-            'success': True,
-            'synced': sync_result,
-            'message': 'Emergency save completed'
-        })
+        else:
+            # Standard emergency save for other package types
+            from .score_sync_service import ScormScoreSyncService
+            sync_result = ScormScoreSyncService.sync_score(attempt, force=True)
+            
+            logger.info(f"Emergency save for attempt {attempt_id}: sync_result={sync_result}")
+            
+            return JsonResponse({
+                'success': True,
+                'synced': sync_result,
+                'package_type': package_type,
+                'message': 'Emergency save completed'
+            })
         
     except Exception as e:
         logger.error(f"Emergency save error: {str(e)}")
