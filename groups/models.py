@@ -125,6 +125,7 @@ class GroupMembership(models.Model):
         'users.CustomUser',
         on_delete=models.SET_NULL,
         null=True,
+        blank=True,
         related_name='group_invites_sent'
     )
 

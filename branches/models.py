@@ -28,6 +28,12 @@ class Branch(models.Model):
         help_text="Enable SharePoint integration for this branch. Global admin can control this setting."
     )
     
+    # Teams Integration Control
+    teams_integration_enabled = models.BooleanField(
+        default=False,
+        help_text="Enable Microsoft Teams integration for this branch. Global admin can control this setting."
+    )
+    
     # Order Management Features Control
     order_management_enabled = models.BooleanField(
         default=False,

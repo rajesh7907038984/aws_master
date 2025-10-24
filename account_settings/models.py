@@ -418,6 +418,12 @@ class GlobalAdminSettings(models.Model):
     sharepoint_sync_users = models.BooleanField(default=True, help_text="Enable user data synchronization with SharePoint")
     sharepoint_sync_enrollments = models.BooleanField(default=True, help_text="Enable course enrollment synchronization with SharePoint")
     sharepoint_sync_progress = models.BooleanField(default=True, help_text="Enable progress tracking synchronization to SharePoint")
+    
+    # Teams Integration Global Settings
+    teams_integration_enabled = models.BooleanField(default=False, help_text="Enable Microsoft Teams integration system-wide")
+    teams_sync_entra_groups = models.BooleanField(default=True, help_text="Enable Entra ID group synchronization with Teams")
+    teams_sync_meetings = models.BooleanField(default=True, help_text="Enable Teams meeting synchronization")
+    teams_sync_attendance = models.BooleanField(default=True, help_text="Enable Teams meeting attendance tracking")
     sharepoint_sync_certificates = models.BooleanField(default=True, help_text="Enable completion certificates sync to SharePoint libraries")
     sharepoint_sync_reports = models.BooleanField(default=True, help_text="Enable LMS analytics sync to Power BI via SharePoint")
     sharepoint_sync_assessments = models.BooleanField(default=True, help_text="Enable assessment results sync to SharePoint & documents")

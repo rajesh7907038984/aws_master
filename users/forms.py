@@ -35,10 +35,25 @@ class CustomUserCreationForm(UserCreationForm):
         widget=forms.SelectMultiple(attrs={'class': 'form-select', 'size': '5'}),
         help_text="Select courses to enroll the user in (optional)"
     )
+    
+    # Group selection fields
+    user_groups = forms.ModelMultipleChoiceField(
+        queryset=None,  # Will be set in __init__
+        required=False,
+        widget=forms.SelectMultiple(attrs={'class': 'form-select', 'size': '5', 'id': 'user-groups'}),
+        help_text="Select user groups to assign the user to (optional)"
+    )
+    
+    course_groups = forms.ModelMultipleChoiceField(
+        queryset=None,  # Will be set in __init__
+        required=False,
+        widget=forms.SelectMultiple(attrs={'class': 'form-select', 'size': '5', 'id': 'course-groups'}),
+        help_text="Select course groups to assign the user to (optional)"
+    )
 
     class Meta:
         model = CustomUser
-        fields = ['username', 'email', 'first_name', 'last_name', 'role', 'branch', 'timezone', 'password1', 'password2', 'courses']
+        fields = ['username', 'email', 'first_name', 'last_name', 'role', 'branch', 'timezone', 'password1', 'password2', 'courses', 'user_groups', 'course_groups']
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         self.request: Optional['HttpRequest'] = kwargs.pop('request', None)
@@ -50,15 +65,48 @@ class CustomUserCreationForm(UserCreationForm):
         self.fields['role'].initial = 'learner'
         self.fields['timezone'].help_text = "Select your preferred timezone"
         
-        # Filter courses by branch if a request is provided and branch is selected
+        # Import here to avoid circular imports
+        from groups.models import BranchGroup
+        
+        # Set up group querysets based on branch selection
         if self.request and hasattr(self.request, 'user') and hasattr(self.request.user, 'branch') and self.request.user.branch:
-            self.fields['courses'].queryset = Course.objects.filter(branch=self.request.user.branch)
+            # Filter groups by user's branch
+            user_branch = self.request.user.branch
+            self.fields['user_groups'].queryset = BranchGroup.objects.filter(
+                branch=user_branch, 
+                group_type='user',
+                is_active=True
+            ).order_by('name')
+            self.fields['course_groups'].queryset = BranchGroup.objects.filter(
+                branch=user_branch, 
+                group_type='course',
+                is_active=True
+            ).order_by('name')
+            self.fields['courses'].queryset = Course.objects.filter(branch=user_branch)
         elif self.data.get('branch'):
             try:
                 branch_id = int(self.data.get('branch'))
-                self.fields['courses'].queryset = Course.objects.filter(branch_id=branch_id)
-            except (ValueError, TypeError):
+                branch = Branch.objects.get(id=branch_id)
+                self.fields['user_groups'].queryset = BranchGroup.objects.filter(
+                    branch=branch, 
+                    group_type='user',
+                    is_active=True
+                ).order_by('name')
+                self.fields['course_groups'].queryset = BranchGroup.objects.filter(
+                    branch=branch, 
+                    group_type='course',
+                    is_active=True
+                ).order_by('name')
+                self.fields['courses'].queryset = Course.objects.filter(branch=branch)
+            except (ValueError, TypeError, Branch.DoesNotExist):
+                self.fields['user_groups'].queryset = BranchGroup.objects.none()
+                self.fields['course_groups'].queryset = BranchGroup.objects.none()
                 self.fields['courses'].queryset = Course.objects.none()
+        else:
+            # No branch selected, show no groups
+            self.fields['user_groups'].queryset = BranchGroup.objects.none()
+            self.fields['course_groups'].queryset = BranchGroup.objects.none()
+            self.fields['courses'].queryset = Course.objects.none()
         
         # Add error classes to all fields
         for field in self.fields:
@@ -175,6 +223,34 @@ class CustomUserCreationForm(UserCreationForm):
         if commit:
             user.save()
             
+            # Handle group assignments
+            user_groups = self.cleaned_data.get('user_groups', [])
+            course_groups = self.cleaned_data.get('course_groups', [])
+            
+            # Add user to selected user groups
+            for group in user_groups:
+                from groups.models import GroupMembership
+                GroupMembership.objects.get_or_create(
+                    group=group,
+                    user=user,
+                    defaults={
+                        'is_active': True,
+                        'invited_by': self.request.user if self.request else None
+                    }
+                )
+            
+            # Add user to selected course groups
+            for group in course_groups:
+                from groups.models import GroupMembership
+                GroupMembership.objects.get_or_create(
+                    group=group,
+                    user=user,
+                    defaults={
+                        'is_active': True,
+                        'invited_by': self.request.user if self.request else None
+                    }
+                )
+            
             # Handle course enrollments if courses were selected
             courses = self.cleaned_data.get('courses')
             if courses:
@@ -190,6 +266,24 @@ class CustomUserCreationForm(UserCreationForm):
                             'enrollment_source': 'manual'
                         }
                     )
+            
+            # Auto-enroll user in courses based on course group memberships
+            if course_groups:
+                from courses.models import CourseEnrollment
+                from django.utils import timezone
+                
+                for group in course_groups:
+                    # Get courses accessible to this group
+                    accessible_courses = group.accessible_courses.all()
+                    for course in accessible_courses:
+                        CourseEnrollment.objects.get_or_create(
+                            user=user,
+                            course=course,
+                            defaults={
+                                'enrolled_at': timezone.now(),
+                                'enrollment_source': 'auto_group'
+                            }
+                        )
         return user
 
 class TabbedUserCreationForm(UserCreationForm):
@@ -654,6 +748,21 @@ class TabbedUserCreationForm(UserCreationForm):
         widget=forms.FileInput(attrs={'class': 'form-control', 'accept': 'image/*'}),
         help_text="Upload a profile picture. Recommended size: 300x300 pixels. Max file size: 5MB."
     )
+    
+    # Group selection fields
+    user_groups = forms.ModelMultipleChoiceField(
+        queryset=None,  # Will be set in __init__
+        required=False,
+        widget=forms.SelectMultiple(attrs={'class': 'form-select', 'size': '5', 'id': 'user-groups'}),
+        help_text="Select user groups to assign the user to (optional)"
+    )
+    
+    course_groups = forms.ModelMultipleChoiceField(
+        queryset=None,  # Will be set in __init__
+        required=False,
+        widget=forms.SelectMultiple(attrs={'class': 'form-select', 'size': '5', 'id': 'course-groups'}),
+        help_text="Select course groups to assign the user to (optional)"
+    )
 
     
     class Meta:
@@ -661,7 +770,7 @@ class TabbedUserCreationForm(UserCreationForm):
         fields = [
             # Account fields
             'username', 'password1', 'password2', 'role', 'branch', 'business', 'timezone',
-            'email', 'phone_number', 'contact_preference', 'profile_image',
+            'email', 'phone_number', 'contact_preference', 'profile_image', 'user_groups', 'course_groups',
             
             # Personal info fields
             'unique_learner_number', 'date_of_birth', 'sex', 'sex_other', 'sexual_orientation', 'sexual_orientation_other', 'ethnicity', 'ethnicity_other',
@@ -741,6 +850,21 @@ class TabbedUserCreationForm(UserCreationForm):
 
         # Set up timezone choices
         self.fields['timezone'].widget.choices = [(tz, tz) for tz in pytz.common_timezones]
+
+        # Set timezone initial value from user's timezone preference
+        if self.instance and hasattr(self.instance, 'timezone_preference'):
+            try:
+                timezone_pref = getattr(self.instance, 'timezone_preference', None)
+                if timezone_pref and timezone_pref.timezone:
+                    self.fields['timezone'].initial = timezone_pref.timezone
+                else:
+                    # Fallback to user's timezone field
+                    self.fields['timezone'].initial = self.instance.timezone
+            except Exception:
+                # If there's any error accessing timezone_preference, fallback to user's timezone field
+                self.fields['timezone'].initial = self.instance.timezone
+        elif self.instance and self.instance.timezone:
+            self.fields['timezone'].initial = self.instance.timezone
 
         # Handle self-editing restrictions
         if self.is_self_edit:
@@ -976,6 +1100,52 @@ class TabbedUserCreationForm(UserCreationForm):
         if commit:
             user.save()
             
+            # Handle group assignments
+            user_groups = self.cleaned_data.get('user_groups', [])
+            course_groups = self.cleaned_data.get('course_groups', [])
+            
+            # Add user to selected user groups
+            for group in user_groups:
+                from groups.models import GroupMembership
+                GroupMembership.objects.get_or_create(
+                    group=group,
+                    user=user,
+                    defaults={
+                        'is_active': True,
+                        'invited_by': self.request.user if self.request else None
+                    }
+                )
+            
+            # Add user to selected course groups
+            for group in course_groups:
+                from groups.models import GroupMembership
+                GroupMembership.objects.get_or_create(
+                    group=group,
+                    user=user,
+                    defaults={
+                        'is_active': True,
+                        'invited_by': self.request.user if self.request else None
+                    }
+                )
+            
+            # Auto-enroll user in courses based on course group memberships
+            if course_groups:
+                from courses.models import CourseEnrollment
+                from django.utils import timezone
+                
+                for group in course_groups:
+                    # Get courses accessible to this group
+                    accessible_courses = group.accessible_courses.all()
+                    for course in accessible_courses:
+                        CourseEnrollment.objects.get_or_create(
+                            user=user,
+                            course=course,
+                            defaults={
+                                'enrolled_at': timezone.now(),
+                                'enrollment_source': 'auto_group'
+                            }
+                        )
+            
             # Handle business assignment for Super Admin users
             role = self.cleaned_data.get('role')
             business = self.cleaned_data.get('business')
@@ -1152,12 +1322,27 @@ class CustomUserChangeForm(forms.ModelForm):
         help_text="Upload a profile picture. Recommended size: 300x300 pixels. Max file size: 5MB."
     )
     
+    # Group selection fields
+    user_groups = forms.ModelMultipleChoiceField(
+        queryset=None,  # Will be set in __init__
+        required=False,
+        widget=forms.SelectMultiple(attrs={'class': 'form-select', 'size': '5', 'id': 'user-groups'}),
+        help_text="Select user groups to assign the user to (optional)"
+    )
+    
+    course_groups = forms.ModelMultipleChoiceField(
+        queryset=None,  # Will be set in __init__
+        required=False,
+        widget=forms.SelectMultiple(attrs={'class': 'form-select', 'size': '5', 'id': 'course-groups'}),
+        help_text="Select course groups to assign the user to (optional)"
+    )
+    
     class Meta:
         model = CustomUser
         fields = [
             # Account fields
             'username', 'email', 'role', 'branch', 'business', 'timezone', 'is_active',
-            'phone_number', 'contact_preference', 'password1', 'password2', 'profile_image',
+            'phone_number', 'contact_preference', 'password1', 'password2', 'profile_image', 'user_groups', 'course_groups',
             
             # Personal info fields
             'unique_learner_number', 'date_of_birth', 'sex', 'sex_other', 'sexual_orientation', 'sexual_orientation_other', 'ethnicity', 'ethnicity_other',
@@ -1286,6 +1471,21 @@ class CustomUserChangeForm(forms.ModelForm):
         # Set up timezone choices
         self.fields['timezone'].widget.choices = [(tz, tz) for tz in pytz.common_timezones]
 
+        # Set timezone initial value from user's timezone preference
+        if self.instance and hasattr(self.instance, 'timezone_preference'):
+            try:
+                timezone_pref = getattr(self.instance, 'timezone_preference', None)
+                if timezone_pref and timezone_pref.timezone:
+                    self.fields['timezone'].initial = timezone_pref.timezone
+                else:
+                    # Fallback to user's timezone field
+                    self.fields['timezone'].initial = self.instance.timezone
+            except Exception:
+                # If there's any error accessing timezone_preference, fallback to user's timezone field
+                self.fields['timezone'].initial = self.instance.timezone
+        elif self.instance and self.instance.timezone:
+            self.fields['timezone'].initial = self.instance.timezone
+
         # Handle self-editing restrictions
         if self.is_self_edit:
             # Users editing their own profile cannot change role or branch
@@ -1364,6 +1564,17 @@ class CustomUserChangeForm(forms.ModelForm):
             if 'password2' in self.fields:
                 self.fields['password2'].required = False
                 self.fields['password2'].widget.attrs.pop('required', None)
+
+        # Ensure the branch field has the correct initial value when editing existing users
+        if self.instance and self.instance.pk and self.instance.branch:
+            current_branch = self.instance.branch
+            # Make sure the user's current branch is included in the queryset
+            if current_branch not in self.fields['branch'].queryset:
+                # Add the current branch to the queryset if it's not already there
+                self.fields['branch'].queryset = self.fields['branch'].queryset | Branch.objects.filter(id=current_branch.id)
+            
+            # Set the initial value to the user's current branch
+            self.fields['branch'].initial = current_branch
 
     def clean_branch(self):
         """Clean branch field, ensuring it's set even if disabled in form"""
@@ -1656,7 +1867,31 @@ class CustomUserChangeForm(forms.ModelForm):
         
         # Set timezone if provided
         if 'timezone' in self.cleaned_data:
-            user.timezone = self.cleaned_data.get('timezone')
+            timezone_value = self.cleaned_data.get('timezone')
+            user.timezone = timezone_value
+            
+            # Also update UserTimezone model if it exists
+            try:
+                if hasattr(user, 'timezone_preference'):
+                    timezone_pref, created = user.timezone_preference.get_or_create(
+                        defaults={'timezone': timezone_value, 'auto_detected': False}
+                    )
+                    if not created:
+                        timezone_pref.timezone = timezone_value
+                        timezone_pref.auto_detected = False
+                        timezone_pref.save()
+                else:
+                    # Create UserTimezone record if it doesn't exist
+                    from .models import UserTimezone
+                    UserTimezone.objects.get_or_create(
+                        user=user,
+                        defaults={'timezone': timezone_value, 'auto_detected': False}
+                    )
+            except Exception as e:
+                # Log the error but don't fail the form save
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.warning(f"Failed to update UserTimezone for user {user.username}: {str(e)}")
         
         # Handle password change if provided
         password = self.cleaned_data.get('password1')

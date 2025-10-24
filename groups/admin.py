@@ -35,8 +35,8 @@ class GroupMemberRoleInline(admin.TabularInline):
 class GroupMembershipInline(admin.TabularInline):
     model = GroupMembership
     extra = 1
-    fields = ('user', 'custom_role', 'is_active', 'invited_by')
-    readonly_fields = ('invited_by',)
+    fields = ('user', 'custom_role', 'is_active')
+    # Remove invited_by from fields since it's handled automatically
     
     def get_queryset(self, request):
         qs = super().get_queryset(request)
@@ -63,9 +63,6 @@ class GroupMembershipInline(admin.TabularInline):
                     kwargs["queryset"] = GroupMemberRole.objects.filter(
                         group=self.parent_instance  # Only show roles from the current group
                     )
-            elif db_field.name == "invited_by":
-                kwargs["initial"] = request.user
-                kwargs["queryset"] = CustomUser.objects.filter(id=request.user.id)
 
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
@@ -219,8 +216,10 @@ class BranchGroupAdmin(admin.ModelAdmin):
                 obj.delete()
             # Save new/modified instances
             for instance in instances:
-                if isinstance(instance, GroupMembership) and not instance.pk:
-                    instance.invited_by = request.user
+                if isinstance(instance, GroupMembership):
+                    # Set invited_by for new instances or if it's None
+                    if not instance.pk or instance.invited_by is None:
+                        instance.invited_by = request.user
                 instance.save()
             formset.save_m2m()
         else:

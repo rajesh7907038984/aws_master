@@ -31,6 +31,38 @@ from tinymce_editor.models import BranchAITokenLimit, AITokenUsage
 
 logger = logging.getLogger(__name__)
 
+def validate_global_admin_branch_access(user, branch_id):
+    """
+    Validate that a global admin can access and modify a specific branch.
+    
+    Args:
+        user: The user making the request
+        branch_id: The ID of the branch to validate
+        
+    Returns:
+        tuple: (is_valid, branch_object, error_message)
+    """
+    try:
+        # Check if user is global admin
+        if user.role != 'globaladmin':
+            return False, None, "Only global administrators can perform this action"
+        
+        # Get the branch
+        branch = Branch.objects.get(id=branch_id)
+        
+        # Check if branch is active
+        if not branch.is_active:
+            return False, None, "Cannot modify inactive branch"
+        
+        # Global admins can access all active branches
+        return True, branch, None
+        
+    except Branch.DoesNotExist:
+        return False, None, "Branch not found"
+    except Exception as e:
+        logger.error(f"Error validating global admin branch access: {str(e)}")
+        return False, None, f"Error validating branch access: {str(e)}"
+
 @login_required
 def account_settings(request):
     """Render the account settings page with multiple accordion sections."""
@@ -850,7 +882,7 @@ LMS System''',
             form_type = request.POST.get('form_type')
             
             # Handle integration forms (zoom, stripe, paypal)
-            if form_type in ['zoom_integration', 'stripe_integration', 'paypal_integration', 'sharepoint_integration', 'enable_branch_sharepoint', 'sharepoint_system_settings', 'order_management_system_settings']:
+            if form_type in ['zoom_integration', 'stripe_integration', 'paypal_integration', 'sharepoint_integration', 'enable_branch_sharepoint', 'sharepoint_system_settings', 'teams_system_settings', 'enable_branch_teams', 'order_management_system_settings']:
                 
                 # Zoom Integration Form (only for branch admins)
                 if form_type == 'zoom_integration':
@@ -1036,21 +1068,23 @@ LMS System''',
                 
                 # Enable SharePoint Integration for Branch Form
                 elif form_type == 'enable_branch_sharepoint':
-                    if request.user.role == 'globaladmin':
-                        branch_id = request.POST.get('branch_id')
-                        if branch_id:
-                            try:
-                                from branches.models import Branch
-                                branch = Branch.objects.get(id=branch_id)
+                    branch_id = request.POST.get('branch_id')
+                    if branch_id:
+                        # Use the validation function
+                        is_valid, branch, error_msg = validate_global_admin_branch_access(request.user, branch_id)
+                        
+                        if not is_valid:
+                            messages.error(request, error_msg)
+                        else:
+                            # Check if integration is already enabled
+                            if branch.sharepoint_integration_enabled:
+                                messages.warning(request, f'SharePoint integration is already enabled for {branch.name}.')
+                            else:
                                 branch.sharepoint_integration_enabled = True
                                 branch.save()
                                 messages.success(request, f'SharePoint integration enabled for {branch.name}.')
-                            except Branch.DoesNotExist:
-                                messages.error(request, 'Branch not found.')
-                        else:
-                            messages.error(request, 'Branch ID not provided.')
                     else:
-                        messages.error(request, 'Only global administrators can enable SharePoint integration for branches.')
+                        messages.error(request, 'Branch ID not provided.')
                     
                     return redirect(reverse('account_settings:settings') + '?tab=integrations&integration=sharepoint')
                 
@@ -1101,6 +1135,83 @@ LMS System''',
                         messages.error(request, 'Only global administrators can modify SharePoint system settings.')
                     
                     return redirect(f"{reverse('account_settings:settings')}?tab=sharepoint_system")
+                
+                # Teams System Settings Form (Global Admin only)
+                elif form_type == 'teams_system_settings':
+                    if request.user.role == 'globaladmin':
+                        try:
+                            from branches.models import Branch
+                            
+                            # Update global Teams integration setting
+                            teams_integration_enabled = request.POST.get('teams_integration_enabled') == 'on'
+                            teams_sync_entra_groups = request.POST.get('teams_sync_entra_groups') == 'on'
+                            teams_sync_meetings = request.POST.get('teams_sync_meetings') == 'on'
+                            teams_sync_attendance = request.POST.get('teams_sync_attendance') == 'on'
+                            
+                            global_admin_settings.teams_integration_enabled = teams_integration_enabled
+                            global_admin_settings.teams_sync_entra_groups = teams_sync_entra_groups
+                            global_admin_settings.teams_sync_meetings = teams_sync_meetings
+                            global_admin_settings.teams_sync_attendance = teams_sync_attendance
+                            global_admin_settings.save()
+                            
+                            # Update branch-level Teams integration settings
+                            all_branches = Branch.objects.all()
+                            updated_branches = []
+                            
+                            # Use bulk update to avoid model validation issues
+                            enabled_branch_ids = []
+                            for branch in all_branches:
+                                branch_enabled = request.POST.get(f'teams_enabled_branches') and str(branch.id) in request.POST.getlist('teams_enabled_branches')
+                                if branch_enabled:
+                                    enabled_branch_ids.append(branch.id)
+                            
+                            # Disable Teams integration for all branches first
+                            Branch.objects.all().update(teams_integration_enabled=False)
+                            
+                            # Enable Teams integration for selected branches
+                            if enabled_branch_ids:
+                                Branch.objects.filter(id__in=enabled_branch_ids).update(teams_integration_enabled=True)
+                                updated_branches = list(Branch.objects.filter(id__in=enabled_branch_ids).values_list('name', flat=True))
+                            
+                            # If no branches were selected, all branches are disabled
+                            if not enabled_branch_ids:
+                                updated_branches = ['All branches disabled']
+                            
+                            success_message = 'Teams system settings updated successfully.'
+                            if updated_branches:
+                                success_message += f' Updated branches: {", ".join(updated_branches)}'
+                            
+                            messages.success(request, success_message)
+                            
+                        except Exception as e:
+                            logger.error(f"Error updating Teams system settings: {str(e)}")
+                            messages.error(request, f'Error updating Teams system settings: {str(e)}')
+                    else:
+                        messages.error(request, 'Only global administrators can modify Teams system settings.')
+                    
+                    return redirect(f"{reverse('account_settings:settings')}?tab=teams_system")
+                
+                # Enable Branch Teams Integration (Global Admin only)
+                elif form_type == 'enable_branch_teams':
+                    branch_id = request.POST.get('branch_id')
+                    if branch_id:
+                        # Use the validation function
+                        is_valid, branch, error_msg = validate_global_admin_branch_access(request.user, branch_id)
+                        
+                        if not is_valid:
+                            messages.error(request, error_msg)
+                        else:
+                            # Check if integration is already enabled
+                            if branch.teams_integration_enabled:
+                                messages.warning(request, f'Teams integration is already enabled for {branch.name}.')
+                            else:
+                                branch.teams_integration_enabled = True
+                                branch.save()
+                                messages.success(request, f'Teams integration enabled for {branch.name}.')
+                    else:
+                        messages.error(request, 'Branch ID not provided.')
+                    
+                    return redirect(reverse('account_settings:settings') + '?tab=integrations&integration=teams')
                 
                 # Order Management System Settings Form (Global Admin and Super Admin)
                 elif form_type == 'order_management_system_settings':

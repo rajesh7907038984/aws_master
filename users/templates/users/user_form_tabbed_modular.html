@@ -2256,6 +2256,532 @@ function showNotification(message, type) {
             }, 5000);
         });
     }
+
+    // Group Selection JavaScript
+    document.addEventListener('DOMContentLoaded', function() {
+        const branchSelect = document.getElementById('id_branch') || document.querySelector('select[name="branch"]');
+        const userGroupsSelect = document.getElementById('user-groups') || document.getElementById('id_user_groups') || document.querySelector('select[name="user_groups"]');
+        const courseGroupsSelect = document.getElementById('course-groups') || document.getElementById('id_course_groups') || document.querySelector('select[name="course_groups"]');
+        const groupSection = document.getElementById('group-selection-section');
+        const roleSelect = document.getElementById('id_role');
+        
+        console.log('Group Selection Debug:', {
+            branchSelect: branchSelect,
+            userGroupsSelect: userGroupsSelect,
+            courseGroupsSelect: courseGroupsSelect,
+            groupSection: groupSection,
+            roleSelect: roleSelect
+        });
+        
+        // Debug initial values
+        if (userGroupsSelect) {
+            console.log('Initial user groups:', Array.from(userGroupsSelect.selectedOptions).map(option => ({value: option.value, text: option.text})));
+        }
+        if (courseGroupsSelect) {
+            console.log('Initial course groups:', Array.from(courseGroupsSelect.selectedOptions).map(option => ({value: option.value, text: option.text})));
+        }
+        
+        if (!branchSelect || !groupSection) {
+            console.log('Missing required elements for group selection');
+            return;
+        }
+        
+        // Function to update group options based on selected branch
+        function updateGroupOptions(branchId) {
+            if (!branchId) {
+                // Clear options if no branch selected
+                if (userGroupsSelect) {
+                    userGroupsSelect.innerHTML = '<option value="">No groups available</option>';
+                }
+                if (courseGroupsSelect) {
+                    courseGroupsSelect.innerHTML = '<option value="">No groups available</option>';
+                }
+                return;
+            }
+            
+            // Fetch groups for the selected branch
+            // Include user ID if we're editing a specific user
+            const userId = document.querySelector('input[name="user_id"]')?.value || 
+                          window.location.pathname.match(/\/users\/(\d+)\/edit/)?.[1];
+            const apiUrl = userId ? 
+                `/users/api/branches/${branchId}/groups/?user_id=${userId}` : 
+                `/users/api/branches/${branchId}/groups/`;
+            
+            fetch(apiUrl)
+                .then(response => response.json())
+                .then(data => {
+                    // Store current selected values before clearing
+                    const currentUserGroupValues = Array.from(userGroupsSelect.selectedOptions).map(option => option.value);
+                    const currentCourseGroupValues = Array.from(courseGroupsSelect.selectedOptions).map(option => option.value);
+                    
+                    // Update user groups
+                    if (userGroupsSelect) {
+                        userGroupsSelect.innerHTML = '';
+                        if (data.user_groups && data.user_groups.length > 0) {
+                            data.user_groups.forEach(group => {
+                                const option = document.createElement('option');
+                                option.value = group.id;
+                                option.textContent = group.name;
+                                // Restore selection if this group was previously selected
+                                if (currentUserGroupValues.includes(group.id.toString())) {
+                                    option.selected = true;
+                                }
+                                userGroupsSelect.appendChild(option);
+                            });
+                        } else {
+                            const option = document.createElement('option');
+                            option.value = '';
+                            option.textContent = 'No user groups available';
+                            userGroupsSelect.appendChild(option);
+                        }
+                    }
+                    
+                    // Update course groups
+                    if (courseGroupsSelect) {
+                        courseGroupsSelect.innerHTML = '';
+                        if (data.course_groups && data.course_groups.length > 0) {
+                            data.course_groups.forEach(group => {
+                                const option = document.createElement('option');
+                                option.value = group.id;
+                                option.textContent = group.name;
+                                // Restore selection if this group was previously selected
+                                if (currentCourseGroupValues.includes(group.id.toString())) {
+                                    option.selected = true;
+                                }
+                                courseGroupsSelect.appendChild(option);
+                            });
+                        } else {
+                            const option = document.createElement('option');
+                            option.value = '';
+                            option.textContent = 'No course groups available';
+                            courseGroupsSelect.appendChild(option);
+                        }
+                    }
+                    
+                    // Update the selected groups display after loading new options
+                    updateSelectedGroupsDisplay();
+                })
+                .catch(error => {
+                    console.error('Error fetching groups:', error);
+                    // Show error message
+                    if (userGroupsSelect) {
+                        userGroupsSelect.innerHTML = '<option value="">Error loading groups</option>';
+                    }
+                    if (courseGroupsSelect) {
+                        courseGroupsSelect.innerHTML = '<option value="">Error loading groups</option>';
+                    }
+                });
+        }
+        
+        // Event listener for branch selection change
+        branchSelect.addEventListener('change', function() {
+            const branchId = this.value;
+            updateGroupOptions(branchId);
+        });
+        
+        // Function to show/hide group selection based on role
+        function toggleGroupSelection(role) {
+            if (role === 'learner' || role === 'instructor') {
+                groupSection.style.display = 'block';
+            } else {
+                groupSection.style.display = 'none';
+            }
+        }
+        
+        // Event listener for role selection change
+        if (roleSelect) {
+            roleSelect.addEventListener('change', function() {
+                toggleGroupSelection(this.value);
+            });
+            
+            // Initialize with current role
+            toggleGroupSelection(roleSelect.value);
+        }
+        
+        // Initialize with current branch selection
+        if (branchSelect.value) {
+            // Store initial values before updating
+            const initialUserGroups = Array.from(userGroupsSelect.selectedOptions).map(option => option.value);
+            const initialCourseGroups = Array.from(courseGroupsSelect.selectedOptions).map(option => option.value);
+            
+            updateGroupOptions(branchSelect.value);
+            
+            // Restore initial selections after a short delay to ensure options are loaded
+            setTimeout(() => {
+                if (userGroupsSelect && initialUserGroups.length > 0) {
+                    initialUserGroups.forEach(value => {
+                        const option = userGroupsSelect.querySelector(`option[value="${value}"]`);
+                        if (option) {
+                            option.selected = true;
+                        }
+                    });
+                }
+                
+                if (courseGroupsSelect && initialCourseGroups.length > 0) {
+                    initialCourseGroups.forEach(value => {
+                        const option = courseGroupsSelect.querySelector(`option[value="${value}"]`);
+                        if (option) {
+                            option.selected = true;
+                        }
+                    });
+                }
+            }, 500);
+        }
+        
+        // Auto-selection functionality for user groups when course groups are selected
+        function autoSelectUserGroups() {
+            const roleSelect = document.getElementById('id_role');
+            const courseGroupsSelect = document.getElementById('course-groups') || document.getElementById('id_course_groups');
+            const userGroupsSelect = document.getElementById('user-groups') || document.getElementById('id_user_groups');
+            
+            if (roleSelect && courseGroupsSelect && userGroupsSelect) {
+                const selectedCourseGroups = Array.from(courseGroupsSelect.selectedOptions).map(option => option.value);
+                const selectedUserGroups = Array.from(userGroupsSelect.selectedOptions).map(option => option.value);
+                
+                // If learner has course groups selected but no user groups, auto-select user groups
+                if (roleSelect.value === 'learner' && 
+                    selectedCourseGroups.length > 0 && 
+                    selectedUserGroups.length === 0) {
+                    
+                    // Auto-select all available user groups for this branch
+                    const branchId = document.getElementById('id_branch').value;
+                    if (branchId) {
+                        const userId = document.querySelector('input[name="user_id"]')?.value || 
+                                      window.location.pathname.match(/\/users\/(\d+)\/edit/)?.[1];
+                        const apiUrl = userId ? 
+                            `/users/api/branches/${branchId}/groups/?user_id=${userId}` : 
+                            `/users/api/branches/${branchId}/groups/`;
+                        
+                        fetch(apiUrl)
+                            .then(response => response.json())
+                            .then(data => {
+                                if (data.user_groups && data.user_groups.length > 0) {
+                                    // Select all user groups
+                                    data.user_groups.forEach(group => {
+                                        const option = userGroupsSelect.querySelector(`option[value="${group.id}"]`);
+                                        if (option) {
+                                            option.selected = true;
+                                        }
+                                    });
+                                    
+                                    // Show notification to user
+                                    showAutoSelectionNotification(data.user_groups.length);
+                                    
+                                    // Update the selected groups display
+                                    updateSelectedGroupsDisplay();
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Error auto-selecting user groups:', error);
+                            });
+                    }
+                }
+            }
+        }
+        
+        // Function to show auto-selection notification
+        function showAutoSelectionNotification(groupCount) {
+            // Remove existing notification if any
+            const existingNotification = document.getElementById('auto-selection-notice');
+            if (existingNotification) {
+                existingNotification.remove();
+            }
+            
+            const notification = document.createElement('div');
+            notification.id = 'auto-selection-notice';
+            notification.className = 'bg-blue-50 border border-blue-200 rounded-md p-3 mb-4';
+            notification.innerHTML = `
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <i class="fas fa-info-circle text-blue-400"></i>
+                    </div>
+                    <div class="ml-3">
+                        <p class="text-sm text-blue-700">
+                            <strong>Auto-Selection:</strong> ${groupCount} user group(s) have been automatically selected based on your course group assignments.
+                        </p>
+                    </div>
+                </div>
+            `;
+            
+            const groupSection = document.getElementById('group-selection-section');
+            if (groupSection) {
+                groupSection.insertBefore(notification, groupSection.firstChild);
+                
+                // Auto-hide notification after 5 seconds
+                setTimeout(() => {
+                    if (notification.parentNode) {
+                        notification.remove();
+                    }
+                }, 5000);
+            }
+        }
+        
+        // Function to show unenrollment notification
+        function showUnenrollmentNotification(groupType, count) {
+            // Remove existing unenrollment notification if any
+            const existingNotification = document.getElementById('unenrollment-notice');
+            if (existingNotification) {
+                existingNotification.remove();
+            }
+            
+            const notification = document.createElement('div');
+            notification.id = 'unenrollment-notice';
+            notification.className = 'bg-yellow-50 border border-yellow-200 rounded-md p-3 mb-4';
+            notification.innerHTML = `
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <i class="fas fa-exclamation-triangle text-yellow-400"></i>
+                    </div>
+                    <div class="ml-3">
+                        <p class="text-sm text-yellow-700">
+                            <strong>Course Unenrollment:</strong> ${count} ${groupType} cleared. The learner will be automatically unenrolled from any courses they were enrolled in through these groups.
+                        </p>
+                    </div>
+                </div>
+            `;
+            
+            const groupSection = document.getElementById('group-selection-section');
+            if (groupSection) {
+                groupSection.insertBefore(notification, groupSection.firstChild);
+                
+                // Auto-hide notification after 8 seconds (longer than auto-selection)
+                setTimeout(() => {
+                    if (notification.parentNode) {
+                        notification.remove();
+                    }
+                }, 8000);
+            }
+        }
+        
+        // Add event listeners for auto-selection
+        if (courseGroupsSelect) {
+            courseGroupsSelect.addEventListener('change', autoSelectUserGroups);
+        }
+        
+        if (roleSelect) {
+            roleSelect.addEventListener('change', autoSelectUserGroups);
+        }
+        
+        // Call auto-selection on page load with a delay to ensure form is fully loaded
+        setTimeout(autoSelectUserGroups, 1500);
+        
+        // Enhanced Group Management Functions
+        function updateSelectedGroupsDisplay() {
+            const selectedUserGroupsList = document.getElementById('selected-user-groups-list');
+            const selectedCourseGroupsList = document.getElementById('selected-course-groups-list');
+            
+            // Update selected user groups display
+            if (userGroupsSelect && selectedUserGroupsList) {
+                selectedUserGroupsList.innerHTML = '';
+                const selectedUserGroups = Array.from(userGroupsSelect.selectedOptions);
+                
+                if (selectedUserGroups.length === 0) {
+                    selectedUserGroupsList.innerHTML = '<p class="text-sm text-gray-500 italic">No user groups selected</p>';
+                } else {
+                    selectedUserGroups.forEach(option => {
+                        if (option.value) {
+                            const groupTag = document.createElement('div');
+                            groupTag.className = 'inline-flex items-center bg-white border border-blue-200 text-blue-700 rounded-md px-3 py-1.5 text-sm shadow-sm hover:shadow-md transition-shadow';
+                            groupTag.innerHTML = `
+                                <span class="mr-2">${option.textContent}</span>
+                                <button type="button" 
+                                        class="text-red-500 hover:text-red-700 ml-1 hover:bg-red-50 rounded-full p-1" 
+                                        onclick="removeUserGroup('${option.value}')"
+                                        title="Remove this group">
+                                    <i class="fas fa-times text-xs"></i>
+                                </button>
+                            `;
+                            selectedUserGroupsList.appendChild(groupTag);
+                        }
+                    });
+                }
+            }
+            
+            // Update selected course groups display
+            if (courseGroupsSelect && selectedCourseGroupsList) {
+                selectedCourseGroupsList.innerHTML = '';
+                const selectedCourseGroups = Array.from(courseGroupsSelect.selectedOptions);
+                
+                if (selectedCourseGroups.length === 0) {
+                    selectedCourseGroupsList.innerHTML = '<p class="text-sm text-gray-500 italic">No course groups selected</p>';
+                } else {
+                    selectedCourseGroups.forEach(option => {
+                        if (option.value) {
+                            const groupTag = document.createElement('div');
+                            groupTag.className = 'inline-flex items-center bg-white border border-green-200 text-green-700 rounded-md px-3 py-1.5 text-sm shadow-sm hover:shadow-md transition-shadow';
+                            groupTag.innerHTML = `
+                                <span class="mr-2">${option.textContent}</span>
+                                <button type="button" 
+                                        class="text-red-500 hover:text-red-700 ml-1 hover:bg-red-50 rounded-full p-1" 
+                                        onclick="removeCourseGroup('${option.value}')"
+                                        title="Remove this group">
+                                    <i class="fas fa-times text-xs"></i>
+                                </button>
+                            `;
+                            selectedCourseGroupsList.appendChild(groupTag);
+                        }
+                    });
+                }
+            }
+        }
+        
+        // Function to remove a user group
+        window.removeUserGroup = function(groupId) {
+            if (userGroupsSelect) {
+                const option = userGroupsSelect.querySelector(`option[value="${groupId}"]`);
+                if (option) {
+                    option.selected = false;
+                    updateSelectedGroupsDisplay();
+                }
+            }
+        }
+        
+        // Function to remove a course group
+        window.removeCourseGroup = function(groupId) {
+            if (courseGroupsSelect) {
+                const option = courseGroupsSelect.querySelector(`option[value="${groupId}"]`);
+                if (option) {
+                    option.selected = false;
+                    updateSelectedGroupsDisplay();
+                }
+            }
+        }
+        
+        // Bulk selection functions for user groups
+        function selectAllUserGroups() {
+            if (userGroupsSelect) {
+                Array.from(userGroupsSelect.options).forEach(option => {
+                    if (option.value) {
+                        option.selected = true;
+                    }
+                });
+                updateSelectedGroupsDisplay();
+            }
+        }
+        
+        function clearAllUserGroups() {
+            if (userGroupsSelect) {
+                const selectedCount = Array.from(userGroupsSelect.selectedOptions).length;
+                
+                if (selectedCount === 0) {
+                    return; // Nothing to clear
+                }
+                
+                // Show confirmation dialog
+                const confirmMessage = `Are you sure you want to clear all ${selectedCount} selected user group(s)?\n\nThis will also unenroll the learner from any courses they were enrolled in through these groups.`;
+                
+                if (confirm(confirmMessage)) {
+                    Array.from(userGroupsSelect.options).forEach(option => {
+                        option.selected = false;
+                    });
+                    updateSelectedGroupsDisplay();
+                    
+                    // Show notification about course unenrollment
+                    showUnenrollmentNotification('user groups', selectedCount);
+                }
+            }
+        }
+        
+        // Bulk selection functions for course groups
+        function selectAllCourseGroups() {
+            if (courseGroupsSelect) {
+                Array.from(courseGroupsSelect.options).forEach(option => {
+                    if (option.value) {
+                        option.selected = true;
+                    }
+                });
+                updateSelectedGroupsDisplay();
+            }
+        }
+        
+        function clearAllCourseGroups() {
+            if (courseGroupsSelect) {
+                const selectedCount = Array.from(courseGroupsSelect.selectedOptions).length;
+                
+                if (selectedCount === 0) {
+                    return; // Nothing to clear
+                }
+                
+                // Show confirmation dialog
+                const confirmMessage = `Are you sure you want to clear all ${selectedCount} selected course group(s)?\n\nThis will unenroll the learner from all courses they were enrolled in through these groups.`;
+                
+                if (confirm(confirmMessage)) {
+                    Array.from(courseGroupsSelect.options).forEach(option => {
+                        option.selected = false;
+                    });
+                    updateSelectedGroupsDisplay();
+                    
+                    // Show notification about course unenrollment
+                    showUnenrollmentNotification('course groups', selectedCount);
+                }
+            }
+        }
+        
+        // Event listeners for bulk selection buttons
+        document.getElementById('select-all-user-groups')?.addEventListener('click', selectAllUserGroups);
+        document.getElementById('clear-all-user-groups')?.addEventListener('click', clearAllUserGroups);
+        document.getElementById('select-all-course-groups')?.addEventListener('click', selectAllCourseGroups);
+        document.getElementById('clear-all-course-groups')?.addEventListener('click', clearAllCourseGroups);
+        
+        // Event listeners for dropdown bulk selection buttons
+        document.getElementById('select-all-user-groups-dropdown')?.addEventListener('click', selectAllUserGroups);
+        document.getElementById('clear-all-user-groups-dropdown')?.addEventListener('click', clearAllUserGroups);
+        document.getElementById('select-all-course-groups-dropdown')?.addEventListener('click', selectAllCourseGroups);
+        document.getElementById('clear-all-course-groups-dropdown')?.addEventListener('click', clearAllCourseGroups);
+        
+        // Event listeners for selection changes
+        if (userGroupsSelect) {
+            userGroupsSelect.addEventListener('change', updateSelectedGroupsDisplay);
+        }
+        
+        if (courseGroupsSelect) {
+            courseGroupsSelect.addEventListener('change', updateSelectedGroupsDisplay);
+        }
+        
+        // Function to clear all groups (both user and course groups)
+        function clearAllGroups() {
+            const userGroupsSelected = Array.from(userGroupsSelect?.selectedOptions || []).length;
+            const courseGroupsSelected = Array.from(courseGroupsSelect?.selectedOptions || []).length;
+            const totalSelected = userGroupsSelected + courseGroupsSelected;
+            
+            if (totalSelected === 0) {
+                return; // Nothing to clear
+            }
+            
+            // Show comprehensive confirmation dialog
+            const confirmMessage = `Are you sure you want to clear all selected groups?\n\n` +
+                `• ${userGroupsSelected} user group(s)\n` +
+                `• ${courseGroupsSelected} course group(s)\n\n` +
+                `This will unenroll the learner from ALL courses they were enrolled in through these groups.`;
+            
+            if (confirm(confirmMessage)) {
+                // Clear user groups
+                if (userGroupsSelect) {
+                    Array.from(userGroupsSelect.options).forEach(option => {
+                        option.selected = false;
+                    });
+                }
+                
+                // Clear course groups
+                if (courseGroupsSelect) {
+                    Array.from(courseGroupsSelect.options).forEach(option => {
+                        option.selected = false;
+                    });
+                }
+                
+                updateSelectedGroupsDisplay();
+                
+                // Show comprehensive unenrollment notification
+                showUnenrollmentNotification('all groups', totalSelected);
+            }
+        }
+        
+        // Add event listener for a potential "Clear All Groups" button (if needed in future)
+        // document.getElementById('clear-all-groups')?.addEventListener('click', clearAllGroups);
+        
+        // Initialize selected groups display
+        updateSelectedGroupsDisplay();
+    });
 </script>
 <script src="{% static 'core/js/form_tabs.js' %}"></script>
 <script src="{% static 'core/js/dynamic_forms.js' %}"></script>

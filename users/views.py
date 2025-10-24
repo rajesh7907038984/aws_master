@@ -25,6 +25,7 @@ from .forms import (
     AdminPasswordChangeForm,
     TabbedUserCreationForm
 )
+from .forms_enhanced import EnhancedUserCreationForm, EnhancedUserChangeForm
 import logging
 from django.db import models
 from django import forms
@@ -1742,7 +1743,8 @@ def edit_user(request, user_id):
             messages.error(request, "Admin users are not allowed to set users to super admin or global admin roles.")
             return redirect('users:edit_user', user_id=user_id)
         
-        form = CustomUserChangeForm(post_data, request.FILES, instance=target_user, request=request)
+        from .forms_enhanced import EnhancedUserChangeForm
+        form = EnhancedUserChangeForm(post_data, request.FILES, instance=target_user, request=request)
         
         # Handle branch validation based on user role and target user role
         target_role = post_data.get('role', target_user.role)
@@ -3077,7 +3079,8 @@ def edit_user(request, user_id):
             'given_name': target_user.first_name,
             'family_name': target_user.last_name,
         }
-        form = CustomUserChangeForm(instance=target_user, request=request, initial=initial_data)
+        from .forms_enhanced import EnhancedUserChangeForm
+        form = EnhancedUserChangeForm(instance=target_user, request=request, initial=initial_data)
 
     # Get existing questionnaire data
     existing_questionnaires = UserQuestionnaire.objects.filter(user=target_user).order_by('question_order')
@@ -3818,8 +3821,9 @@ def user_create(request):
             post_data['duration'] = employment_entries[0]['duration']
             post_data['key_skills'] = employment_entries[0]['key_skills']
         
-        # Use the TabbedUserCreationForm
-        form = TabbedUserCreationForm(post_data, request=request, files=request.FILES)
+        # Use the EnhancedUserCreationForm with group selection
+        from .forms_enhanced import EnhancedUserCreationForm
+        form = EnhancedUserCreationForm(post_data, request=request, files=request.FILES)
         
         # Log user creation attempt for auditing
         logger.info(f"User creation attempted by: {request.user.role} user {request.user.id}")
@@ -4410,7 +4414,8 @@ def user_create(request):
             messages.error(request, "Please correct the errors below.")
     else:
         # GET request - display the form
-        form = TabbedUserCreationForm(request=request)
+        from .forms_enhanced import EnhancedUserCreationForm
+        form = EnhancedUserCreationForm(request=request)
         
         # Make only these fields required for all roles, regardless of role
         # Global Admin users now also need to specify business/branch

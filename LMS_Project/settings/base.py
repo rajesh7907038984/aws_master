@@ -205,6 +205,7 @@ INSTALLED_APPS = [
     'reports',
     'account_settings',
     'sharepoint_integration',
+    'teams_integration',
 ]
 
 # ==============================================
@@ -649,6 +650,10 @@ MEDIA_ROOT = get_env('MEDIA_ROOT', str(BASE_DIR / 'media_local'))  # Fallback fo
 # ==============================================
 # CELERY CONFIGURATION
 # ==============================================
+
+# Enable synchronous task execution for development/testing
+CELERY_TASK_ALWAYS_EAGER = True
+CELERY_TASK_EAGER_PROPAGATES = True
 
 # Conditional celery import to avoid import errors during deployment
 try:

@@ -348,19 +348,29 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
         
-        // Auto-detect on page load if timezone is not set, is UTC, or if user wants to update
-        if (timezoneSelect.value === '' || timezoneSelect.value === 'UTC' || timezoneSelect.value === '') {
-            setTimeout(() => {
-                detectAndSetTimezone();
-            }, 1000);
+        // Auto-detect on page load only if timezone is truly empty or default
+        // Don't auto-detect if user already has a timezone set
+        if (timezoneSelect.value === '' || timezoneSelect.value === 'UTC') {
+            // Only auto-detect for new users or if timezone was never properly set
+            const isNewUser = !timezoneSelect.value || timezoneSelect.value === 'UTC';
+            if (isNewUser) {
+                setTimeout(() => {
+                    detectAndSetTimezone();
+                }, 1000);
+            }
         }
         
-        // Also check if we should auto-detect based on user's current timezone
+        // Only show timezone suggestion if user has a meaningful timezone set (not UTC or empty)
         const currentUserTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
         const timezoneOptions = Array.from(timezoneSelect.options).map(option => option.value);
         
-        // If the user's current timezone is different from what's selected, offer to update
-        if (timezoneOptions.includes(currentUserTimezone) && timezoneSelect.value !== currentUserTimezone) {
+        // If the user's current timezone is different from what's selected, show a subtle indicator
+        // But don't be aggressive about changing it - only suggest if there's a significant difference
+        if (timezoneOptions.includes(currentUserTimezone) && 
+            timezoneSelect.value !== currentUserTimezone && 
+            timezoneSelect.value !== 'UTC' && 
+            timezoneSelect.value !== '') {
+            
             // Show a subtle indicator that timezone might need updating
             const timezoneStatus = document.getElementById('timezone-status');
             if (timezoneStatus) {
@@ -369,7 +379,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 timezoneStatus.style.fontSize = '12px';
             }
             
-            // Auto-update if the difference is significant (not just a minor timezone difference)
+            // Only suggest update if the difference is significant (not just a minor timezone difference)
             // This helps users who have moved or are using a different device
             setTimeout(() => {
                 if (confirm(`Your browser timezone (${currentUserTimezone}) is different from the selected timezone (${timezoneSelect.value}). Would you like to update it to match your current location?`)) {

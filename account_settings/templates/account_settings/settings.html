@@ -551,6 +551,14 @@
                                                 class="pb-4 border-b-2 font-medium text-sm">
                                             Zoom
                                         </button>
+                                        <button @click="setActiveIntegration('teams')" 
+                                                :class="{ 'border-blue-500 text-blue-600': activeIntegration === 'teams', 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300': activeIntegration !== 'teams' }" 
+                                                class="pb-4 border-b-2 font-medium text-sm">
+                                            Microsoft Teams
+                                            {% if not request.user.branch.teams_integration_enabled %}
+                                            <span class="ml-1 px-1.5 py-0.5 text-xs bg-yellow-100 text-yellow-800 rounded-full">Disabled</span>
+                                            {% endif %}
+                                        </button>
                                         <button @click="setActiveIntegration('sharepoint')" 
                                                 :class="{ 'border-blue-500 text-blue-600': activeIntegration === 'sharepoint', 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300': activeIntegration !== 'sharepoint' }" 
                                                 class="pb-4 border-b-2 font-medium text-sm">
@@ -564,6 +572,147 @@
                                 </div>
                                     
 
+                                    <!-- Teams Integration Content -->
+                                    {% if is_branch_admin %}
+                                    <div x-show="activeIntegration === 'teams'" class="space-y-4">
+                                        
+                                        <!-- Teams Integration Enable/Disable Control -->
+                                        {% if not request.user.branch.teams_integration_enabled %}
+                                        <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+                                            <div class="flex items-start">
+                                                <div class="flex-shrink-0">
+                                                    <i class="fas fa-exclamation-triangle text-yellow-500 mt-1"></i>
+                                                </div>
+                                                <div class="ml-3 flex-1">
+                                                    <h4 class="text-sm font-medium text-yellow-800">Teams Integration Not Enabled</h4>
+                                                    <p class="mt-1 text-sm text-yellow-700">Teams integration is not enabled for your branch. {% if is_globaladmin %}You can enable it below.{% else %}Please contact your global administrator to enable Teams integration for your branch.{% endif %}</p>
+                                                    
+                                                    {% if is_globaladmin %}
+                                                    <form method="post" action="{% url 'account_settings:settings' %}" class="mt-3">
+                                                        {% csrf_token %}
+                                                        <input type="hidden" name="form_type" value="enable_branch_teams">
+                                                        <input type="hidden" name="branch_id" value="{{ request.user.branch.id }}">
+                                                        <button type="submit" class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-yellow-700 bg-yellow-100 hover:bg-yellow-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500">
+                                                            <i class="fas fa-check mr-2"></i>
+                                                            Enable Teams Integration for This Branch
+                                                        </button>
+                                                    </form>
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {% endif %}
+                                        
+                                        {% if request.user.branch.teams_integration_enabled %}
+                                        <div class="bg-white rounded-lg overflow-hidden">
+                                            <div class="p-4">
+                                                <h3 class="text-lg font-semibold text-gray-800 mb-2">Microsoft Teams Integration</h3>
+                                                <p class="text-gray-600 mb-4">Connect your Microsoft Teams account to schedule meetings, sync Entra ID groups, and manage Teams meetings directly from the LMS.</p>
+                                                
+                                                {% if teams_integration %}
+                                                    <div class="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+                                                        <div class="flex items-start">
+                                                            <div class="flex-shrink-0 mt-0.5">
+                                                                <svg class="h-5 w-5 text-green-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                                                                </svg>
+                                                            </div>
+                                                            <div class="ml-3">
+                                                                <h3 class="text-sm font-medium text-green-800">Integration Active</h3>
+                                                                <div class="mt-2 text-sm text-green-700">
+                                                                    <p>Your Microsoft Teams integration is set up and working correctly.</p>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    <div class="bg-white border border-gray-200 rounded-lg p-4">
+                                                        <div class="flex justify-between items-start">
+                                                            <div>
+                                                                <h4 class="text-sm font-medium text-gray-900">Integration Details</h4>
+                                                                <div class="mt-2 space-y-2">
+                                                                    <div class="flex items-center">
+                                                                        <span class="text-xs text-gray-500 w-24">Name:</span>
+                                                                        <span class="text-sm text-gray-700">{{ teams_integration.name }}</span>
+                                                                    </div>
+                                                                    <div class="flex items-center">
+                                                                        <span class="text-xs text-gray-500 w-24">Client ID:</span>
+                                                                        <span class="text-sm text-gray-700">{{ teams_integration.client_id|slice:":6" }}****</span>
+                                                                    </div>
+                                                                    <div class="flex items-center">
+                                                                        <span class="text-xs text-gray-500 w-24">Tenant ID:</span>
+                                                                        <span class="text-sm text-gray-700">{{ teams_integration.tenant_id|slice:":6" }}****</span>
+                                                                    </div>
+                                                                    <div class="flex items-center">
+                                                                        <span class="text-xs text-gray-500 w-24">Status:</span>
+                                                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {% if teams_integration.is_active %}bg-green-100 text-green-800{% else %}bg-red-100 text-red-800{% endif %}">
+                                                                            {{ teams_integration.is_active|yesno:"Active,Inactive" }}
+                                                                        </span>
+                                                                    </div>
+                                                                    <div class="flex items-center">
+                                                                        <span class="text-xs text-gray-500 w-24">Created:</span>
+                                                                        <span class="text-sm text-gray-700">{{ teams_integration.created_at|date:"M d, Y" }}</span>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                            
+                                                            <div class="flex flex-col space-y-2">
+                                                                <button type="button" class="text-sm font-medium text-blue-600 hover:text-blue-500 integration-edit-btn"
+                                                                       data-target="editTeamsIntegrationModal">
+                                                                    Edit
+                                                                </button>
+                                                                <button type="button" onclick="testTeamsConnection()" class="text-sm font-medium text-green-600 hover:text-green-500">
+                                                                    Test Connection
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                {% else %}
+                                                    <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+                                                        <div class="flex items-start">
+                                                            <div class="flex-shrink-0">
+                                                                <i class="fas fa-exclamation-triangle text-yellow-500 mt-1"></i>
+                                                            </div>
+                                                            <div class="ml-3">
+                                                                <h4 class="text-sm font-medium text-yellow-800">No Teams Integration Found</h4>
+                                                                <p class="mt-1 text-sm text-yellow-700">You haven't set up Microsoft Teams integration yet. Click the "Add Integration" button below to get started.</p>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                                                        <div class="flex items-start">
+                                                            <div class="flex-shrink-0">
+                                                                <i class="fas fa-info-circle text-blue-500 mt-1"></i>
+                                                            </div>
+                                                            <div class="ml-3">
+                                                                <h4 class="text-sm font-medium text-blue-800">Setup Prerequisites</h4>
+                                                                <div class="mt-2 text-sm text-blue-700">
+                                                                    <p class="mb-2">Before configuring Teams integration, ensure you have:</p>
+                                                                    <ul class="list-disc list-inside space-y-1">
+                                                                        <li>Azure AD App Registration with Microsoft Graph API permissions</li>
+                                                                        <li>Client ID, Client Secret, and Tenant ID from your Azure app</li>
+                                                                        <li>Admin consent for the required permissions</li>
+                                                                    </ul>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    <div class="flex justify-center">
+                                                        <button type="button" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 integration-add-btn"
+                                                               data-target="addTeamsIntegrationModal">
+                                                            <i class="fas fa-plus mr-2"></i>
+                                                            Add Teams Integration
+                                                        </button>
+                                                    </div>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% endif %}
+                                    {% endif %}
+                                    
                                     <!-- Zoom Integration Content -->
                                     {% if is_branch_admin %}
                                     <div x-show="activeIntegration === 'zoom'" class="space-y-4">
@@ -710,11 +859,32 @@
                     {% endif %}
                     
                     <!-- SharePoint Integration Content -->
-                    {% if is_branch_admin %}
+                    {% if is_branch_admin or is_globaladmin %}
                     <div x-show="activeIntegration === 'sharepoint'" class="space-y-4">
                         
                         <!-- SharePoint Integration Enable/Disable Control -->
-                        {% if not request.user.branch.sharepoint_integration_enabled %}
+                        {% if is_globaladmin %}
+                        <!-- Global Admin: Show system-wide SharePoint configuration -->
+                        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                            <div class="flex items-start">
+                                <div class="flex-shrink-0">
+                                    <i class="fas fa-info-circle text-blue-500 mt-1"></i>
+                                </div>
+                                <div class="ml-3 flex-1">
+                                    <h4 class="text-sm font-medium text-blue-800">SharePoint System Configuration</h4>
+                                    <p class="mt-1 text-sm text-blue-700">As a global administrator, you can configure SharePoint integration system-wide and manage branch-level access. Use the SharePoint System Configuration section below to manage all branches.</p>
+                                    
+                                    <div class="mt-3">
+                                        <a href="#sharepoint_system" onclick="toggleSection('sharepoint_system')" class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-blue-700 bg-blue-100 hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                                            <i class="fas fa-cog mr-2"></i>
+                                            Configure SharePoint System-Wide
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% elif is_branch_admin and not request.user.branch.sharepoint_integration_enabled %}
+                        <!-- Branch Admin: Show branch-specific SharePoint enablement -->
                         <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
                             <div class="flex items-start">
                                 <div class="flex-shrink-0">
@@ -722,25 +892,13 @@
                                 </div>
                                 <div class="ml-3 flex-1">
                                     <h4 class="text-sm font-medium text-yellow-800">SharePoint Integration Not Enabled</h4>
-                                    <p class="mt-1 text-sm text-yellow-700">SharePoint integration is not enabled for your branch. {% if is_globaladmin %}You can enable it below.{% else %}Please contact your global administrator to enable SharePoint integration for your branch.{% endif %}</p>
-                                    
-                                    {% if is_globaladmin %}
-                                    <form method="post" action="{% url 'account_settings:settings' %}" class="mt-3">
-                                        {% csrf_token %}
-                                        <input type="hidden" name="form_type" value="enable_branch_sharepoint">
-                                        <input type="hidden" name="branch_id" value="{{ request.user.branch.id }}">
-                                        <button type="submit" class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-yellow-700 bg-yellow-100 hover:bg-yellow-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500">
-                                            <i class="fas fa-check mr-2"></i>
-                                            Enable SharePoint Integration for This Branch
-                                        </button>
-                                    </form>
-                                    {% endif %}
+                                    <p class="mt-1 text-sm text-yellow-700">SharePoint integration is not enabled for your branch. Please contact your global administrator to enable SharePoint integration for your branch.</p>
                                 </div>
                             </div>
                         </div>
                         {% endif %}
                         
-                        {% if request.user.branch.sharepoint_integration_enabled %}
+                        {% if is_branch_admin and request.user.branch.sharepoint_integration_enabled %}
                         <div class="bg-white rounded-lg overflow-hidden">
                             <div class="p-4">
                                 <h3 class="text-lg font-semibold text-gray-800 mb-2">SharePoint Integration</h3>
@@ -3426,6 +3584,358 @@
         </div>
     </div>
     
+    <!-- Teams System Configuration Section -->
+    <div class="accordion-section" data-section-id="teams_system">
+        <div class="accordion-header" @click="toggleSection('teams_system')" :class="{ 'border-blue-500': activeSection === 'teams_system' }">
+            <h3 class="flex items-center">
+                <i class="fab fa-microsoft text-blue-600 mr-3"></i>
+                Teams System Configuration
+            </h3>
+            <svg class="w-5 h-5 transform transition-transform duration-300" :class="{ 'rotate-180': activeSection === 'teams_system' }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+            </svg>
+        </div>
+        
+        <div x-show="activeSection === 'teams_system'" x-transition class="accordion-content">
+            <div class="bg-white p-6">
+                <div class="mb-6">
+                    <h2 class="text-xl font-bold text-gray-900">Teams System Configuration</h2>
+                    <p class="text-gray-600">Configure Microsoft Teams integration system-wide and manage branch-level access.</p>
+                </div>
+
+                <form action="{% url 'account_settings:settings' %}" method="post">
+                    {% csrf_token %}
+                    <input type="hidden" name="form_type" value="teams_system_settings">
+                    
+                    <div class="space-y-6">
+                        <!-- Teams Global Enable/Disable -->
+                        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                            <div class="flex items-start">
+                                <div class="flex-shrink-0">
+                                    <i class="fas fa-info-circle text-blue-500 mt-1"></i>
+                                </div>
+                                <div class="ml-3 flex-1">
+                                    <h4 class="text-sm font-medium text-blue-800">Teams Integration Control</h4>
+                                    <p class="mt-1 text-sm text-blue-700">
+                                        Enable or disable Microsoft Teams integration system-wide. When disabled, all existing integrations will be deactivated.
+                                    </p>
+                                    <div class="mt-3">
+                                        <label class="flex items-center space-x-2">
+                                            <input type="checkbox" name="teams_integration_enabled" 
+                                                   {% if global_admin_settings.teams_integration_enabled %}checked{% endif %}
+                                                   class="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50">
+                                            <span class="text-sm font-medium text-blue-800">Enable Teams Integration System-Wide</span>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Teams Sync Options -->
+                        <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                            <h4 class="text-md font-medium text-gray-800 mb-3">Teams Synchronization Options</h4>
+                            <div class="space-y-3">
+                                <label class="flex items-center space-x-2">
+                                    <input type="checkbox" name="teams_sync_entra_groups" 
+                                           {% if global_admin_settings.teams_sync_entra_groups %}checked{% endif %}
+                                           class="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50">
+                                    <span class="text-sm text-gray-700">Enable Entra ID group synchronization</span>
+                                </label>
+                                <label class="flex items-center space-x-2">
+                                    <input type="checkbox" name="teams_sync_meetings" 
+                                           {% if global_admin_settings.teams_sync_meetings %}checked{% endif %}
+                                           class="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50">
+                                    <span class="text-sm text-gray-700">Enable Teams meeting synchronization</span>
+                                </label>
+                                <label class="flex items-center space-x-2">
+                                    <input type="checkbox" name="teams_sync_attendance" 
+                                           {% if global_admin_settings.teams_sync_attendance %}checked{% endif %}
+                                           class="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50">
+                                    <span class="text-sm text-gray-700">Enable Teams meeting attendance tracking</span>
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <!-- Branch Management -->
+                        <div class="border-t pt-4">
+                            <h4 class="text-md font-medium text-gray-800 mb-3">Branch Teams Access</h4>
+                            <p class="text-sm text-gray-600 mb-4">Manage which branches have access to Teams integration.</p>
+                            
+                            <!-- Search and Filter Controls -->
+                            <div class="mb-6 space-y-3">
+                                <div class="flex flex-col sm:flex-row gap-3">
+                                    <div class="flex-1">
+                                        <label for="teams-business-search" class="sr-only">Search businesses and branches</label>
+                                        <div class="relative">
+                                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                                <i class="fas fa-search text-gray-400"></i>
+                                            </div>
+                                            <input type="text" id="teams-business-search" 
+                                                   class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                                                   placeholder="Search businesses or branches..." 
+                                                   oninput="filterTeamsBusinesses(this.value)">
+                                        </div>
+                                    </div>
+                                    <div class="flex gap-2">
+                                        <button type="button" onclick="toggleAllTeamsBusinesses(true)" 
+                                                class="px-3 py-2 text-sm font-medium text-blue-700 bg-blue-100 border border-blue-300 rounded-md hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                                            <i class="fas fa-chevron-down mr-1"></i>
+                                            Expand All
+                                        </button>
+                                        <button type="button" onclick="toggleAllTeamsBusinesses(false)" 
+                                                class="px-3 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500">
+                                            <i class="fas fa-chevron-up mr-1"></i>
+                                            Collapse All
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                <!-- Quick Actions -->
+                                <div class="flex flex-wrap gap-2">
+                                    <button type="button" onclick="toggleAllTeams(true)" 
+                                            class="px-3 py-1.5 text-xs font-medium text-green-700 bg-green-100 border border-green-300 rounded-md hover:bg-green-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                                        <i class="fas fa-check-circle mr-1"></i>
+                                        Enable All Teams
+                                    </button>
+                                    <button type="button" onclick="toggleAllTeams(false)" 
+                                            class="px-3 py-1.5 text-xs font-medium text-red-700 bg-red-100 border border-red-300 rounded-md hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
+                                        <i class="fas fa-times-circle mr-1"></i>
+                                        Disable All Teams
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- Business-wise Branch Grouping -->
+                            <div class="space-y-4" id="teams-business-groups">
+                                {% if businesses_with_branches %}
+                                    {% for business_group in businesses_with_branches %}
+                                    <div class="teams-business-group border border-gray-200 rounded-lg" data-business-name="{{ business_group.business.name|default:'No Business' }}">
+                                        <!-- Business Header -->
+                                        <div class="teams-business-header bg-gray-50 px-4 py-3 border-b border-gray-200 cursor-pointer" 
+                                             onclick="toggleTeamsBusinessGroup('{{ forloop.counter0 }}')">
+                                            <div class="flex items-center justify-between">
+                                                <div class="flex items-center space-x-3">
+                                                    <i class="fas fa-building text-gray-600"></i>
+                                                    <div>
+                                                        <h5 class="font-medium text-gray-900">
+                                                            {% if business_group.business %}
+                                                                {{ business_group.business.name }}
+                                                            {% else %}
+                                                                No Business Assigned
+                                                            {% endif %}
+                                                        </h5>
+                                                        <p class="text-sm text-gray-500">
+                                                            {{ business_group.branches|length }} branch{{ business_group.branches|length|pluralize }}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                <div class="flex items-center space-x-3">
+                                                    <label class="flex items-center space-x-2">
+                                                        <input type="checkbox" class="teams-business-toggle rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
+                                                               onchange="toggleTeamsBusiness('{{ forloop.counter0 }}', this.checked)">
+                                                        <span class="text-sm text-gray-700">All</span>
+                                                    </label>
+                                                    <svg class="w-5 h-5 text-gray-400 teams-business-chevron-{{ forloop.counter0 }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                                    </svg>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Branches List -->
+                                        <div class="teams-business-branches-{{ forloop.counter0 }} hidden p-4 space-y-3">
+                                            {% for branch_data in business_group.branches %}
+                                            <div class="teams-branch-item flex items-center justify-between p-3 bg-white border border-gray-200 rounded-lg" data-branch-name="{{ branch_data.branch.name }}">
+                                                <div class="flex items-center space-x-3">
+                                                    <i class="fas fa-code-branch text-gray-500"></i>
+                                                    <div>
+                                                        <h6 class="font-medium text-gray-900">{{ branch_data.branch.name }}</h6>
+                                                        <p class="text-sm text-gray-500">Created: {{ branch_data.branch.created_at|date:"M d, Y" }}</p>
+                                                    </div>
+                                                </div>
+                                                <div class="flex items-center space-x-3">
+                                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {% if branch_data.branch.teams_integration_enabled %}bg-green-100 text-green-800{% else %}bg-red-100 text-red-800{% endif %}">
+                                                        {% if branch_data.branch.teams_integration_enabled %}Enabled{% else %}Disabled{% endif %}
+                                                    </span>
+                                                    <label class="flex items-center space-x-2">
+                                                        <input type="checkbox" name="teams_enabled_branches" value="{{ branch_data.branch.id }}"
+                                                               class="teams-branch-checkbox rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
+                                                               {% if branch_data.branch.teams_integration_enabled %}checked{% endif %}
+                                                               onchange="updateTeamsBusinessToggle('{{ forloop.parentloop.counter0 }}')">
+                                                        <span class="text-sm text-gray-700">Teams</span>
+                                                    </label>
+                                                </div>
+                                            </div>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                {% else %}
+                                    <div class="text-center py-8 text-gray-500">
+                                        <i class="fas fa-building text-4xl mb-4"></i>
+                                        <p>No businesses or branches found.</p>
+                                    </div>
+                                {% endif %}
+                                
+                                <!-- No Results Message -->
+                                <div id="teams-no-results" class="hidden text-center py-8 text-gray-500">
+                                    <i class="fas fa-search text-4xl mb-4"></i>
+                                    <p>No businesses or branches match your search.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-6 flex justify-end">
+                        <button type="submit" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                            <i class="fas fa-save mr-2"></i>
+                            Save Teams System Settings
+                        </button>
+                    </div>
+                </form>
+                
+                <!-- Teams System Configuration JavaScript -->
+                <script>
+                    // Toggle individual business group
+                    function toggleTeamsBusinessGroup(groupIndex) {
+                        const branchesDiv = document.querySelector(`.teams-business-branches-${groupIndex}`);
+                        const chevron = document.querySelector(`.teams-business-chevron-${groupIndex}`);
+                        
+                        if (branchesDiv.classList.contains('hidden')) {
+                            branchesDiv.classList.remove('hidden');
+                            chevron.classList.add('rotate-180');
+                        } else {
+                            branchesDiv.classList.add('hidden');
+                            chevron.classList.remove('rotate-180');
+                        }
+                    }
+                    
+                    // Toggle all businesses (expand/collapse)
+                    function toggleAllTeamsBusinesses(expand) {
+                        const businessGroups = document.querySelectorAll('.teams-business-group');
+                        businessGroups.forEach((group, index) => {
+                            const branchesDiv = group.querySelector(`.teams-business-branches-${index}`);
+                            const chevron = group.querySelector(`.teams-business-chevron-${index}`);
+                            
+                            if (expand) {
+                                branchesDiv.classList.remove('hidden');
+                                chevron.classList.add('rotate-180');
+                            } else {
+                                branchesDiv.classList.add('hidden');
+                                chevron.classList.remove('rotate-180');
+                            }
+                        });
+                    }
+                    
+                    // Toggle Teams for all branches in a business
+                    function toggleTeamsBusiness(groupIndex, enabled) {
+                        const businessGroup = document.querySelector(`.teams-business-group:nth-child(${parseInt(groupIndex) + 1})`);
+                        const checkboxes = businessGroup.querySelectorAll('.teams-branch-checkbox');
+                        
+                        checkboxes.forEach(checkbox => {
+                            checkbox.checked = enabled;
+                        });
+                    }
+                    
+                    // Update business toggle state based on branch checkboxes
+                    function updateTeamsBusinessToggle(groupIndex) {
+                        const businessGroup = document.querySelector(`.teams-business-group:nth-child(${parseInt(groupIndex) + 1})`);
+                        const businessToggle = businessGroup.querySelector('.teams-business-toggle');
+                        const branchCheckboxes = businessGroup.querySelectorAll('.teams-branch-checkbox');
+                        
+                        const checkedCount = Array.from(branchCheckboxes).filter(cb => cb.checked).length;
+                        const totalCount = branchCheckboxes.length;
+                        
+                        if (checkedCount === 0) {
+                            businessToggle.checked = false;
+                            businessToggle.indeterminate = false;
+                        } else if (checkedCount === totalCount) {
+                            businessToggle.checked = true;
+                            businessToggle.indeterminate = false;
+                        } else {
+                            businessToggle.checked = false;
+                            businessToggle.indeterminate = true;
+                        }
+                    }
+                    
+                    // Toggle all Teams checkboxes
+                    function toggleAllTeams(enabled) {
+                        const checkboxes = document.querySelectorAll('.teams-branch-checkbox');
+                        checkboxes.forEach(checkbox => {
+                            checkbox.checked = enabled;
+                        });
+                        
+                        // Update all business toggles
+                        const businessGroups = document.querySelectorAll('.teams-business-group');
+                        businessGroups.forEach((group, index) => {
+                            updateTeamsBusinessToggle(index);
+                        });
+                    }
+                    
+                    // Filter businesses and branches
+                    function filterTeamsBusinesses(searchTerm) {
+                        const businessGroups = document.querySelectorAll('.teams-business-group');
+                        const noResults = document.getElementById('teams-no-results');
+                        let visibleCount = 0;
+                        
+                        businessGroups.forEach(group => {
+                            const businessName = group.getAttribute('data-business-name').toLowerCase();
+                            const branchItems = group.querySelectorAll('.teams-branch-item');
+                            let hasVisibleBranches = false;
+                            
+                            // Check if business name matches
+                            const businessMatches = businessName.includes(searchTerm.toLowerCase());
+                            
+                            // Filter branches within this business
+                            branchItems.forEach(branchItem => {
+                                const branchName = branchItem.getAttribute('data-branch-name').toLowerCase();
+                                const branchMatches = branchName.includes(searchTerm.toLowerCase());
+                                
+                                if (businessMatches || branchMatches || searchTerm === '') {
+                                    branchItem.style.display = '';
+                                    hasVisibleBranches = true;
+                                } else {
+                                    branchItem.style.display = 'none';
+                                }
+                            });
+                            
+                            // Show/hide business group based on whether it has visible branches
+                            if (hasVisibleBranches || businessMatches || searchTerm === '') {
+                                group.style.display = '';
+                                visibleCount++;
+                                
+                                // Auto-expand if searching
+                                if (searchTerm !== '') {
+                                    const branchesDiv = group.querySelector('[class*="teams-business-branches-"]');
+                                    const chevron = group.querySelector('[class*="teams-business-chevron-"]');
+                                    if (branchesDiv) branchesDiv.classList.remove('hidden');
+                                    if (chevron) chevron.classList.add('rotate-180');
+                                }
+                            } else {
+                                group.style.display = 'none';
+                            }
+                        });
+                        
+                        // Show/hide no results message
+                        if (visibleCount === 0 && searchTerm !== '') {
+                            noResults.classList.remove('hidden');
+                        } else {
+                            noResults.classList.add('hidden');
+                        }
+                    }
+                    
+                    // Initialize business toggles on page load
+                    document.addEventListener('DOMContentLoaded', function() {
+                        const businessGroups = document.querySelectorAll('.teams-business-group');
+                        businessGroups.forEach((group, index) => {
+                            updateTeamsBusinessToggle(index);
+                        });
+                    });
+                </script>
+            </div>
+        </div>
+    </div>
+    
     <!-- Order Management Features Control Section -->
     <div class="accordion-section" data-section-id="order_management_system">
         <div class="accordion-header" @click="toggleSection('order_management_system')" :class="{ 'border-blue-500': activeSection === 'order_management_system' }">
@@ -4324,6 +4834,51 @@
 </div>
 {% endif %} 
 
+<!-- Add Teams Integration Modal -->
+<div id="addTeamsIntegrationModal" class="modal hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50" style="display:none;">
+    <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+        <div class="mt-3 text-center">
+            <h3 class="text-lg leading-6 font-medium text-gray-900">Add Teams Integration</h3>
+            <div class="mt-2 px-7 py-3">
+                <!-- Teams Integration Add Form -->
+                <form action="{% url 'account_settings:settings' %}" method="post">
+                    {% csrf_token %}
+                    <input type="hidden" name="form_type" value="teams_integration">
+                    
+                    <div class="mb-4">
+                        <label for="teams-name" class="block text-sm font-medium text-gray-700 text-left">Name</label>
+                        <input type="text" id="teams-name" name="teams_name" required class="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md" placeholder="My Teams Integration">
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label for="teams-client-id" class="block text-sm font-medium text-gray-700 text-left">Client ID</label>
+                        <input type="text" id="teams-client-id" name="teams_client_id" required class="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md" placeholder="12345678-1234-1234-1234-123456789abc">
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label for="teams-client-secret" class="block text-sm font-medium text-gray-700 text-left">Client Secret</label>
+                        <input type="password" id="teams-client-secret" name="teams_client_secret" required class="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md" placeholder="Your client secret">
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label for="teams-tenant-id" class="block text-sm font-medium text-gray-700 text-left">Tenant ID</label>
+                        <input type="text" id="teams-tenant-id" name="teams_tenant_id" required class="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md" placeholder="12345678-1234-1234-1234-123456789abc">
+                    </div>
+                    
+                    <div class="items-center px-4 py-3">
+                        <button type="button" class="modal-close px-4 py-2 bg-gray-200 text-gray-800 text-base font-medium rounded-md w-1/3 shadow-sm hover:bg-gray-300">
+                            Cancel
+                        </button>
+                        <button type="submit" class="px-4 py-2 text-white text-base font-medium rounded-md w-1/3 shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500" style="background-color: #1c2260;" onmouseover="this.style.backgroundColor='#181f56'" onmouseout="this.style.backgroundColor='#1c2260'">
+                            Add Integration
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
 // Inject Django URLs for use by JavaScript
 window.BACKUP_LIST_URL = "{% url 'account_settings:get_backups' %}";
@@ -4361,6 +4916,17 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Open modal when clicking edit button
     integrationEditButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const targetModalId = this.getAttribute('data-target');
+            if (targetModalId) {
+                showModal(targetModalId);
+            }
+        });
+    });
+
+    // Open modal when clicking add button
+    const integrationAddButtons = document.querySelectorAll('.integration-add-btn');
+    integrationAddButtons.forEach(button => {
         button.addEventListener('click', function() {
             const targetModalId = this.getAttribute('data-target');
             if (targetModalId) {

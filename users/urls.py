@@ -1,6 +1,7 @@
 from django.urls import path
 from django.contrib.auth import views as auth_views
 from . import views
+from . import api_views
 from django.shortcuts import redirect
 
 app_name = 'users'
@@ -38,6 +39,11 @@ urlpatterns = [
     path('<int:user_id>/password/', views.password_change, name='password_change'),
     path('<int:user_id>/send-forgot-password/', views.admin_send_forgot_password, name='admin_send_forgot_password'),
     path('send-self-password-reset/', views.send_self_password_reset, name='send_self_password_reset'),
+    
+        # API endpoints for group selection
+        path('api/branches/<int:branch_id>/groups/', api_views.get_branch_groups, name='api_branch_groups'),
+    path('api/groups/<int:group_id>/courses/', api_views.get_group_courses, name='api_group_courses'),
+    path('api/users/<int:user_id>/groups/', api_views.update_user_groups, name='api_update_user_groups'),
     path('settings/', views.user_settings, name='user_settings'),
 
     # Dashboard URLs moved to main urls.py for direct access

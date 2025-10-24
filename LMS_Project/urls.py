@@ -122,6 +122,7 @@ urlpatterns = [
     path('certificates/', include('certificates.urls', namespace='certificates')),
     path('notifications/', include('lms_notifications.urls', namespace='lms_notifications')),
     path('account/', include('account_settings.urls', namespace='account_settings')),
+    path('teams-integration/', include('teams_integration.urls', namespace='teams_integration')),
     path('individual-learning-plan/', include('individual_learning_plan.urls', namespace='individual_learning_plan')),
     path('role-management/', include('role_management.urls', namespace='role_management')),
     path('course-reviews/', include('course_reviews.urls', namespace='course_reviews')),

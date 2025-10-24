@@ -1,0 +1,351 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Teams Integration Dashboard{% endblock %}
+
+{% block extra_css %}
+<style>
+    .integration-card {
+        border: 1px solid #e3e6f0;
+        border-radius: 0.35rem;
+        box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
+        margin-bottom: 1.5rem;
+    }
+    
+    .integration-header {
+        background: linear-gradient(45deg, #0078d4, #106ebe);
+        color: white;
+        padding: 1rem;
+        border-radius: 0.35rem 0.35rem 0 0;
+    }
+    
+    .sync-status {
+        display: inline-block;
+        padding: 0.25rem 0.5rem;
+        border-radius: 0.25rem;
+        font-size: 0.875rem;
+        font-weight: 500;
+    }
+    
+    .status-success { background-color: #d4edda; color: #155724; }
+    .status-failed { background-color: #f8d7da; color: #721c24; }
+    .status-pending { background-color: #fff3cd; color: #856404; }
+    
+    .stats-card {
+        background: white;
+        border-radius: 0.35rem;
+        padding: 1.5rem;
+        box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
+        margin-bottom: 1.5rem;
+    }
+    
+    .stats-number {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #5a5c69;
+    }
+    
+    .recent-logs {
+        max-height: 400px;
+        overflow-y: auto;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Heading -->
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <h1 class="h3 mb-0 text-gray-800">
+            <i class="fab fa-microsoft text-primary"></i>
+            Teams Integration Dashboard
+        </h1>
+        <div>
+            <a href="{% url 'teams_integration:health_check' %}" class="btn btn-info btn-sm">
+                <i class="fas fa-heartbeat"></i> Health Check
+            </a>
+            <a href="{% url 'teams_integration:sync_logs' %}" class="btn btn-secondary btn-sm">
+                <i class="fas fa-list"></i> View All Logs
+            </a>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row">
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="stats-card">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                            Total Syncs
+                        </div>
+                        <div class="stats-number">{{ sync_stats.total_syncs }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-sync-alt fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="stats-card">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                            Successful Syncs
+                        </div>
+                        <div class="stats-number">{{ sync_stats.successful_syncs }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-check-circle fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="stats-card">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">
+                            Failed Syncs
+                        </div>
+                        <div class="stats-number">{{ sync_stats.failed_syncs }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-exclamation-circle fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="stats-card">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                            Active Integrations
+                        </div>
+                        <div class="stats-number">{{ sync_stats.active_integrations }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-plug fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Teams Integrations -->
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fab fa-microsoft"></i>
+                        Teams Integrations
+                    </h6>
+                </div>
+                <div class="card-body">
+                    {% if integrations %}
+                        {% for integration in integrations %}
+                        <div class="integration-card">
+                            <div class="integration-header">
+                                <div class="row align-items-center">
+                                    <div class="col">
+                                        <h5 class="mb-0">{{ integration.name }}</h5>
+                                        <small>{{ integration.branch.name if integration.branch else 'Global' }}</small>
+                                    </div>
+                                    <div class="col-auto">
+                                        <span class="sync-status {% if integration.is_active %}status-success{% else %}status-failed{% endif %}">
+                                            {% if integration.is_active %}Active{% else %}Inactive{% endif %}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <p><strong>Tenant ID:</strong> {{ integration.tenant_id }}</p>
+                                        <p><strong>Client ID:</strong> {{ integration.client_id|truncatechars:20 }}...</p>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <p><strong>Last Sync:</strong> 
+                                            {% if integration.last_sync_datetime %}
+                                                {{ integration.last_sync_datetime|date:"M d, Y H:i" }}
+                                            {% else %}
+                                                Never
+                                            {% endif %}
+                                        </p>
+                                        <p><strong>Status:</strong> 
+                                            <span class="sync-status 
+                                                {% if integration.last_sync_status == 'success' %}status-success
+                                                {% elif integration.last_sync_status == 'failed' %}status-failed
+                                                {% else %}status-pending{% endif %}">
+                                                {{ integration.last_sync_status|title }}
+                                            </span>
+                                        </p>
+                                    </div>
+                                </div>
+                                <div class="mt-3">
+                                    <button class="btn btn-primary btn-sm" onclick="testConnection({{ integration.id }})">
+                                        <i class="fas fa-plug"></i> Test Connection
+                                    </button>
+                                    <button class="btn btn-success btn-sm" onclick="syncEntraGroups({{ integration.id }})">
+                                        <i class="fas fa-sync"></i> Sync Entra Groups
+                                    </button>
+                                    <a href="{% url 'teams_integration:entra_mappings' %}" class="btn btn-info btn-sm">
+                                        <i class="fas fa-users"></i> View Mappings
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="text-center py-4">
+                            <i class="fab fa-microsoft fa-3x text-gray-300 mb-3"></i>
+                            <h5 class="text-gray-600">No Teams Integrations Found</h5>
+                            <p class="text-gray-500">Configure Teams integration in Account Settings to get started.</p>
+                            <a href="{% url 'account_settings:settings' %}?tab=integrations&integration=teams" class="btn btn-primary">
+                                <i class="fas fa-cog"></i> Configure Teams Integration
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-history"></i>
+                        Recent Sync Logs
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="recent-logs">
+                        {% if recent_logs %}
+                            {% for log in recent_logs %}
+                            <div class="d-flex align-items-center mb-3">
+                                <div class="flex-shrink-0">
+                                    <i class="fas fa-{% if log.status == 'completed' %}check-circle text-success{% elif log.status == 'failed' %}exclamation-circle text-danger{% else %}clock text-warning{% endif %}"></i>
+                                </div>
+                                <div class="flex-grow-1 ms-3">
+                                    <div class="text-sm font-weight-bold">{{ log.get_sync_type_display }}</div>
+                                    <div class="text-xs text-gray-500">
+                                        {{ log.started_at|date:"M d, H:i" }}
+                                        {% if log.items_processed > 0 %}
+                                            • {{ log.items_processed }} items
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="text-center py-3">
+                                <i class="fas fa-inbox fa-2x text-gray-300 mb-2"></i>
+                                <p class="text-gray-500 mb-0">No sync logs yet</p>
+                            </div>
+                        {% endif %}
+                    </div>
+                    <div class="text-center mt-3">
+                        <a href="{% url 'teams_integration:sync_logs' %}" class="btn btn-sm btn-outline-primary">
+                            View All Logs
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function testConnection(integrationId) {
+    const button = event.target;
+    const originalText = button.innerHTML;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Testing...';
+    button.disabled = true;
+    
+    fetch(`/teams-integration/test-connection/${integrationId}/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+            'Content-Type': 'application/json',
+        },
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert('success', data.message);
+        } else {
+            showAlert('error', data.error);
+        }
+    })
+    .catch(error => {
+        showAlert('error', 'Connection test failed: ' + error.message);
+    })
+    .finally(() => {
+        button.innerHTML = originalText;
+        button.disabled = false;
+    });
+}
+
+function syncEntraGroups(integrationId) {
+    const button = event.target;
+    const originalText = button.innerHTML;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Syncing...';
+    button.disabled = true;
+    
+    fetch(`/teams-integration/sync-entra-groups/${integrationId}/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+            'Content-Type': 'application/json',
+        },
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert('success', data.message);
+        } else {
+            showAlert('error', data.error);
+        }
+    })
+    .catch(error => {
+        showAlert('error', 'Sync failed: ' + error.message);
+    })
+    .finally(() => {
+        button.innerHTML = originalText;
+        button.disabled = false;
+    });
+}
+
+function showAlert(type, message) {
+    const alertClass = type === 'success' ? 'alert-success' : 'alert-danger';
+    const alertHtml = `
+        <div class="alert ${alertClass} alert-dismissible fade show" role="alert">
+            ${message}
+            <button type="button" class="close" data-dismiss="alert">
+                <span>&times;</span>
+            </button>
+        </div>
+    `;
+    
+    // Insert at the top of the page
+    const container = document.querySelector('.container-fluid');
+    container.insertAdjacentHTML('afterbegin', alertHtml);
+    
+    // Auto-dismiss after 5 seconds
+    setTimeout(() => {
+        const alert = container.querySelector('.alert');
+        if (alert) {
+            alert.remove();
+        }
+    }, 5000);
+}
+</script>
+{% endblock %}

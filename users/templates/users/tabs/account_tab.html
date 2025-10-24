@@ -185,7 +185,7 @@
                 <select name="{{ form.branch.name }}" id="{{ form.branch.id_for_label }}" class="form-select">
                     <option value="">Select branch...</option>
                     {% for branch in form.branch.field.queryset %}
-                        <option value="{{ branch.pk }}" {% if form.branch.value == branch.pk %}selected{% endif %}>{{ branch.name }}</option>
+                        <option value="{{ branch.pk }}" {% if form.branch.value == branch.pk or form.instance.branch.pk == branch.pk %}selected{% endif %}>{{ branch.name }}</option>
                     {% endfor %}
                 </select>
                 {% if request.user.role == 'globaladmin' %}
@@ -236,6 +236,147 @@
             {% endif %}
         </div>
         {% endif %}
+
+        <!-- Group Selection Section -->
+        <div id="group-selection-section" class="mt-6 border-t pt-6">
+            <h4 class="text-lg font-medium text-gray-900 mb-4">Group Assignment</h4>
+            <p class="text-sm text-gray-600 mb-4">Select groups to assign the user to. Course groups will automatically enroll the user in associated courses.</p>
+            <div class="bg-yellow-50 border border-yellow-200 rounded-md p-3 mb-4">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <i class="fas fa-exclamation-triangle text-yellow-400"></i>
+                    </div>
+                    <div class="ml-3">
+                        <p class="text-sm text-yellow-700">
+                            <strong>Important:</strong> Clearing groups will automatically unenroll the learner from any courses they were enrolled in through those groups.
+                        </p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Auto-selection notice -->
+            <div id="auto-selection-info" class="bg-blue-50 border border-blue-200 rounded-md p-3 mb-4">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <i class="fas fa-info-circle text-blue-400"></i>
+                    </div>
+                    <div class="ml-3">
+                        <p class="text-sm text-blue-700">
+                            <strong>Auto-Selection:</strong> For learners, user groups will be automatically selected when you assign course groups.
+                        </p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Currently Selected Groups Display -->
+            <div class="mb-6">
+                <!-- Currently Selected User Groups -->
+                <div id="selected-user-groups" class="mb-4">
+                    <div class="flex items-center justify-between mb-2">
+                        <h5 class="text-md font-medium text-gray-800">Currently Selected User Groups:</h5>
+                        <div class="flex space-x-2">
+                            <button type="button" 
+                                    id="select-all-user-groups" 
+                                    class="text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 px-2 py-1 rounded">
+                                Select All
+                            </button>
+                            <button type="button" 
+                                    id="clear-all-user-groups" 
+                                    class="text-xs bg-red-100 hover:bg-red-200 text-red-700 px-2 py-1 rounded">
+                                Clear All
+                            </button>
+                        </div>
+                    </div>
+                    <div id="selected-user-groups-list" class="flex flex-wrap gap-2 p-3 bg-gray-50 rounded-lg border border-gray-200 min-h-[50px]">
+                        <!-- Selected groups will be populated here by JavaScript -->
+                    </div>
+                </div>
+                
+                <!-- Currently Selected Course Groups -->
+                <div id="selected-course-groups" class="mb-4">
+                    <div class="flex items-center justify-between mb-2">
+                        <h5 class="text-md font-medium text-gray-800">Currently Selected Course Groups:</h5>
+                        <div class="flex space-x-2">
+                            <button type="button" 
+                                    id="select-all-course-groups" 
+                                    class="text-xs bg-green-100 hover:bg-green-200 text-green-700 px-2 py-1 rounded">
+                                Select All
+                            </button>
+                            <button type="button" 
+                                    id="clear-all-course-groups" 
+                                    class="text-xs bg-red-100 hover:bg-red-200 text-red-700 px-2 py-1 rounded">
+                                Clear All
+                            </button>
+                        </div>
+                    </div>
+                    <div id="selected-course-groups-list" class="flex flex-wrap gap-2 p-3 bg-gray-50 rounded-lg border border-gray-200 min-h-[50px]">
+                        <!-- Selected groups will be populated here by JavaScript -->
+                    </div>
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- User Groups -->
+                <div class="form-group">
+                    <div class="flex items-center justify-between mb-2">
+                        <label for="{{ form.user_groups.id_for_label }}" class="form-label">User Groups</label>
+                        <div class="flex space-x-2">
+                            <button type="button" 
+                                    id="select-all-user-groups-dropdown" 
+                                    class="text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 px-2 py-1 rounded">
+                                Select All
+                            </button>
+                            <button type="button" 
+                                    id="clear-all-user-groups-dropdown" 
+                                    class="text-xs bg-red-100 hover:bg-red-200 text-red-700 px-2 py-1 rounded">
+                                Clear All
+                            </button>
+                        </div>
+                    </div>
+                    {% if form.user_groups %}
+                        {{ form.user_groups }}
+                        {% if form.user_groups.errors %}
+                        <div class="error-message">{{ form.user_groups.errors.0 }}</div>
+                        {% endif %}
+                        <div class="form-help-text">{{ form.user_groups.help_text }}</div>
+                    {% else %}
+                        <div class="text-red-600">User groups field not available in form</div>
+                    {% endif %}
+                </div>
+
+                <!-- Course Groups -->
+                <div class="form-group">
+                    <div class="flex items-center justify-between mb-2">
+                        <label for="{{ form.course_groups.id_for_label }}" class="form-label">Course Groups</label>
+                        <div class="flex space-x-2">
+                            <button type="button" 
+                                    id="select-all-course-groups-dropdown" 
+                                    class="text-xs bg-green-100 hover:bg-green-200 text-green-700 px-2 py-1 rounded">
+                                Select All
+                            </button>
+                            <button type="button" 
+                                    id="clear-all-course-groups-dropdown" 
+                                    class="text-xs bg-red-100 hover:bg-red-200 text-red-700 px-2 py-1 rounded">
+                                Clear All
+                            </button>
+                        </div>
+                    </div>
+                    {% if form.course_groups %}
+                        {{ form.course_groups }}
+                        {% if form.course_groups.errors %}
+                        <div class="error-message">{{ form.course_groups.errors.0 }}</div>
+                        {% endif %}
+                        <div class="form-help-text">{{ form.course_groups.help_text }}</div>
+                    {% else %}
+                        <div class="text-red-600">Course groups field not available in form</div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            
+            <!-- Group Conflicts -->
+            <div id="group-conflicts" class="mt-4"></div>
+        </div>
 
         {% if is_edit_mode %}
         <div class="form-group">
