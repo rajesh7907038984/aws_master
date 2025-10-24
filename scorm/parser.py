@@ -472,6 +472,7 @@ class ScormParser:
     def _detect_package_type(self, zip_ref):
         """
         Detect package type from content when no manifest is found
+        Enhanced to properly detect all authoring tools
         
         Args:
             zip_ref: ZipFile object
@@ -487,15 +488,27 @@ class ScormParser:
             has_js = any(f.lower().endswith('.js') for f in file_list)
             has_css = any(f.lower().endswith('.css') for f in file_list)
             
-            # Check for specific authoring tool indicators
+            # Check for specific authoring tool indicators (in order of priority)
             if any('storyline' in f.lower() for f in file_list):
+                return 'storyline'
+            elif any('story.html' in f.lower() for f in file_list):
+                return 'storyline'
+            elif any('articulate' in f.lower() for f in file_list):
                 return 'storyline'
             elif any('captivate' in f.lower() for f in file_list):
                 return 'captivate'
+            elif any('adobe' in f.lower() for f in file_list):
+                return 'captivate'
             elif any('lectora' in f.lower() for f in file_list):
+                return 'lectora'
+            elif any('trivantis' in f.lower() for f in file_list):
                 return 'lectora'
             elif any('html5' in f.lower() for f in file_list):
                 return 'html5'
+            elif any('xapi' in f.lower() for f in file_list):
+                return 'xapi'
+            elif any('tincan' in f.lower() for f in file_list):
+                return 'xapi'
             elif any('scorm' in f.lower() for f in file_list):
                 return 'legacy'
             
@@ -503,7 +516,9 @@ class ScormParser:
             entry_points = ['index.html', 'story.html', 'launch.html', 'start.html', 'main.html']
             for entry_point in entry_points:
                 if any(f.lower().endswith(entry_point) for f in file_list):
-                    if has_html and (has_js or has_css):
+                    if 'story.html' in entry_point:
+                        return 'storyline'
+                    elif has_html and (has_js or has_css):
                         return 'html5'
                     else:
                         return 'legacy'
@@ -512,11 +527,11 @@ class ScormParser:
             if has_html:
                 return 'legacy'
             
-            return None
+            return 'unknown'
             
         except Exception as e:
             logger.error(f"Error detecting package type: {e}")
-            return None
+            return 'unknown'
     
     def _handle_legacy_package(self, zip_ref):
         """

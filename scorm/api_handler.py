@@ -108,12 +108,16 @@ class ScormAPIHandler:
         if not self.attempt.cmi_data:
             self.attempt.cmi_data = self._initialize_cmi_data()
         
-        # CRITICAL FIX: Check for existing bookmark data and set entry mode accordingly
+        # CRITICAL FIX: Enhanced resume detection for SCORM content
         has_bookmark_data = bool(self.attempt.lesson_location or self.attempt.suspend_data)
+        is_resumable_attempt = self.attempt.lesson_status in ['incomplete', 'not_attempted', 'browsed']
         
-        if has_bookmark_data:
+        # Determine if this should be a resume scenario
+        should_resume = has_bookmark_data or is_resumable_attempt
+        
+        if should_resume:
             self.attempt.entry = 'resume'
-            logger.info(f"SCORM Resume: lesson_location='{self.attempt.lesson_location}', suspend_data='{self.attempt.suspend_data[:50] if self.attempt.suspend_data else 'None'}...'")
+            logger.info(f"SCORM Resume: lesson_location='{self.attempt.lesson_location}', suspend_data='{self.attempt.suspend_data[:50] if self.attempt.suspend_data else 'None'}...', status='{self.attempt.lesson_status}'")
         else:
             self.attempt.entry = 'ab-initio'
             logger.info(f"SCORM New attempt: starting from beginning")
@@ -121,12 +125,15 @@ class ScormAPIHandler:
         if self.version == '1.2':
             # CRITICAL FIX: Always set entry mode in CMI data
             self.attempt.cmi_data['cmi.core.entry'] = self.attempt.entry
+            logger.info(f"🔖 RESUME: Set cmi.core.entry to '{self.attempt.entry}'")
             
             # CRITICAL FIX: Ensure bookmark data is ALWAYS available in CMI data
             if self.attempt.lesson_location:
                 self.attempt.cmi_data['cmi.core.lesson_location'] = self.attempt.lesson_location
+                logger.info(f"🔖 RESUME: Set cmi.core.lesson_location to '{self.attempt.lesson_location}'")
             if self.attempt.suspend_data:
                 self.attempt.cmi_data['cmi.suspend_data'] = self.attempt.suspend_data
+                logger.info(f"🔖 RESUME: Set cmi.suspend_data ({len(self.attempt.suspend_data)} chars)")
             
             # Ensure other required fields are set
             if not self.attempt.cmi_data.get('cmi.core.lesson_status'):
@@ -138,12 +145,15 @@ class ScormAPIHandler:
         else:
             # CRITICAL FIX: Always set entry mode in CMI data
             self.attempt.cmi_data['cmi.entry'] = self.attempt.entry
+            logger.info(f"🔖 RESUME: Set cmi.entry to '{self.attempt.entry}'")
             
             # CRITICAL FIX: Ensure bookmark data is ALWAYS available in CMI data
             if self.attempt.lesson_location:
                 self.attempt.cmi_data['cmi.location'] = self.attempt.lesson_location
+                logger.info(f"🔖 RESUME: Set cmi.location to '{self.attempt.lesson_location}'")
             if self.attempt.suspend_data:
                 self.attempt.cmi_data['cmi.suspend_data'] = self.attempt.suspend_data
+                logger.info(f"🔖 RESUME: Set cmi.suspend_data ({len(self.attempt.suspend_data)} chars)")
             
             # Ensure other required fields are set
             if not self.attempt.cmi_data.get('cmi.completion_status'):

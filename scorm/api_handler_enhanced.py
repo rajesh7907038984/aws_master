@@ -267,6 +267,13 @@ class ScormAPIHandlerEnhanced:
         # CRITICAL FIX: Check for existing bookmark data and set entry mode accordingly
         has_bookmark_data = bool(self.attempt.lesson_location or self.attempt.suspend_data)
         
+        # STORYLINE FIX: Auto-set status to incomplete when user starts Storyline content
+        if hasattr(self.attempt, 'scorm_package') and self.attempt.scorm_package.version == 'storyline':
+            if not self.attempt.lesson_status or self.attempt.lesson_status == 'not_attempted':
+                self.attempt.lesson_status = 'incomplete'
+                self.attempt.cmi_data['cmi.core.lesson_status'] = 'incomplete'
+                logger.info("STORYLINE: Auto-set lesson_status to 'incomplete' on initialize")
+        
         if has_bookmark_data:
             self.attempt.entry = 'resume'
             suspend_data_preview = self.attempt.suspend_data[:50] if self.attempt.suspend_data else "None"
@@ -339,47 +346,49 @@ class ScormAPIHandlerEnhanced:
         else:
             self.attempt.cmi_data['cmi.exit'] = 'logout'
         
-        # CRITICAL FIX: Only mark as completed if SCORM content explicitly set completion status
-        # Don't automatically complete just because terminate was called (user might have navigated away)
+        # CRITICAL FIX: Always save data on terminate, regardless of completion status
+        # This ensures that time, progress, and location data are preserved
         
         # Check if SCORM content explicitly set lesson_status via SetValue calls
         explicit_status_set = hasattr(self.attempt, '_explicit_status_set') and self.attempt._explicit_status_set
         
+        # CRITICAL FIX: Always determine lesson status based on available data
         if not self.attempt.lesson_status or self.attempt.lesson_status == 'not_attempted':
             if explicit_status_set:
                 # SCORM content explicitly set status - trust it
                 logger.info("TERMINATE: SCORM content explicitly set lesson_status - trusting content decision")
             elif self.attempt.score_raw is not None and self.attempt.score_raw > 0:
-                # Only set completion status if we have a real score AND evidence of actual interaction
-                has_real_interaction = (
+                # Has a score - determine pass/fail based on mastery score
+                mastery_score = self.attempt.scorm_package.mastery_score or 70
+                if self.attempt.score_raw >= mastery_score:
+                    self.attempt.lesson_status = 'passed'
+                    status_to_set = 'passed'
+                else:
+                    self.attempt.lesson_status = 'failed'  
+                    status_to_set = 'failed'
+                logger.info("TERMINATE: Set lesson_status to %s based on score %s (mastery: %s)", 
+                           status_to_set, self.attempt.score_raw, mastery_score)
+            else:
+                # No score - check for evidence of interaction to determine status
+                has_interaction = (
                     self.attempt.lesson_location or  # Has bookmark data
-                    (self.attempt.suspend_data and len(self.attempt.suspend_data) > 100) or  # Has substantial progress data
-                    self.attempt.total_time != '0000:00:00.00'  # Has spent time
+                    (self.attempt.suspend_data and len(self.attempt.suspend_data) > 5) or  # Has any progress data
+                    self.attempt.total_time != '0000:00:00.00' or  # Has spent time
+                    self.attempt.progress_percentage and self.attempt.progress_percentage > 0  # Has progress
                 )
                 
-                if has_real_interaction:
-                    mastery_score = self.attempt.scorm_package.mastery_score or 70
-                    if self.attempt.score_raw >= mastery_score:
-                        self.attempt.lesson_status = 'passed'
-                        status_to_set = 'passed'
-                    else:
-                        self.attempt.lesson_status = 'failed'  
-                        status_to_set = 'failed'
-                    logger.info("TERMINATE: Set lesson_status to %s based on score %s with evidence of interaction (mastery: %s)", 
-                               status_to_set, self.attempt.score_raw, mastery_score)
-                else:
-                    # Score found but no evidence of real interaction - mark as incomplete
+                if has_interaction:
+                    # User interacted with content but no score - mark as incomplete
                     self.attempt.lesson_status = 'incomplete'
                     status_to_set = 'incomplete'
-                    logger.warning("TERMINATE: Score %s found but no evidence of real interaction - marking as incomplete to prevent false completion", 
-                                 self.attempt.score_raw)
-            else:
-                # No score or insufficient interaction - mark as incomplete (user probably just navigated away)
-                self.attempt.lesson_status = 'incomplete'
-                status_to_set = 'incomplete'
-                logger.info("TERMINATE: No score or insufficient interaction - marking as incomplete (user likely navigated away)")
+                    logger.info("TERMINATE: User interacted with content but no score - marking as incomplete")
+                else:
+                    # No interaction at all - mark as not attempted
+                    self.attempt.lesson_status = 'not_attempted'
+                    status_to_set = 'not_attempted'
+                    logger.info("TERMINATE: No interaction detected - marking as not_attempted")
             
-            # Update CMI data only if status was determined
+            # Update CMI data with determined status
             if 'status_to_set' in locals():
                 if self.version == '1.2':
                     self.attempt.cmi_data['cmi.core.lesson_status'] = status_to_set
@@ -390,6 +399,15 @@ class ScormAPIHandlerEnhanced:
         
         # Save all data
         self._commit_data()
+        
+        # CRITICAL FIX: Force save attempt data even if commit failed
+        # This ensures that at minimum, the attempt data is preserved
+        try:
+            self.attempt.last_accessed = timezone.now()
+            self.attempt.save()
+            logger.info("✅ TERMINATE: Final save completed successfully")
+        except Exception as e:
+            logger.error("❌ TERMINATE: Final save failed: %s", str(e))
         
         logger.info("SCORM API Terminated for attempt %s - exit_mode: %s, lesson_status: %s", 
                    self.attempt.id, self.attempt.exit_mode, self.attempt.lesson_status)
@@ -567,6 +585,13 @@ class ScormAPIHandlerEnhanced:
                     # CRITICAL FIX: Update progress immediately when lesson_status changes
                     self._update_topic_progress()
                     logger.info("SCORM 1.2: Updated lesson_status to '%s' and triggered progress update", value)
+                    
+                    # STORYLINE FIX: Force status update for Storyline packages
+                    if hasattr(self.attempt, 'scorm_package') and self.attempt.scorm_package.version == 'storyline':
+                        if value == 'incomplete':
+                            logger.info("STORYLINE: Status set to incomplete - user is actively using content")
+                            # Force update TopicProgress for Storyline
+                            self._update_topic_progress()
                 elif element == 'cmi.core.score.raw':
                     try:
                         # CRITICAL FIX: Store score in both model field AND cmi_data for consistency
@@ -601,6 +626,10 @@ class ScormAPIHandlerEnhanced:
                             self.attempt.save()
                             self._update_topic_progress()
                             logger.info("SCORE: Immediately saved to database and updated TopicProgress")
+                            
+                            # CRITICAL FIX: Also update CMI data with score information
+                            self.attempt.cmi_data['cmi.core.score.raw'] = str(value)
+                            self.attempt.cmi_data['cmi.core.lesson_status'] = self.attempt.lesson_status
                         else:
                             self.attempt.score_raw = None
                             self.attempt.cmi_data['cmi.core.score.raw'] = ''
@@ -628,10 +657,13 @@ class ScormAPIHandlerEnhanced:
                     logger.info("🔖 BOOKMARK UPDATE: lesson_location changed from '%s' to '%s' for attempt %s", 
                                old_location or 'None', value or 'None', self.attempt.id)
                     
+                    # CRITICAL FIX: Update progress tracking when location changes
+                    self._update_progress_from_location(value)
+                    
                     # ENHANCED: Immediate save for critical bookmark data to prevent data loss
                     try:
                         self.attempt.last_accessed = timezone.now()
-                        self.attempt.save(update_fields=['lesson_location', 'cmi_data', 'last_accessed'])
+                        self.attempt.save(update_fields=['lesson_location', 'cmi_data', 'last_accessed', 'progress_percentage'])
                         logger.info("🔖 BOOKMARK SAVED: Immediately saved lesson_location and CMI data")
                         # CRITICAL FIX: Update progress when location changes (indicates progress)
                         self._update_topic_progress()
@@ -660,7 +692,11 @@ class ScormAPIHandlerEnhanced:
                         logger.error("❌ SUSPEND DATA SAVE ERROR: %s", str(save_error))
                 elif element == 'cmi.core.session_time':
                     self.attempt.session_time = value
+                    logger.info(f"⏱️ TIME TRACKING: Setting session_time to {value}")
                     self._update_total_time(value)
+                    # CRITICAL FIX: Save immediately to ensure time tracking works
+                    self.attempt.save()
+                    logger.info(f"⏱️ TIME TRACKING: Saved attempt with session_time")
                 elif element == 'cmi.core.exit':
                     self.attempt.exit_mode = value
                 elif element == 'cmi.core.total_time':
@@ -1776,3 +1812,33 @@ class ScormAPIHandlerEnhanced:
             logger.error("❌ ENROLLMENT ERROR: Failed to update enrollment: %s", str(e))
             import traceback
             logger.error(traceback.format_exc())
+    
+    def _update_progress_from_location(self, location):
+        """Update progress percentage based on lesson location"""
+        try:
+            if not location:
+                return
+            
+            # Extract slide number from location (e.g., "slide_1", "slide_2", etc.)
+            if 'slide_' in location.lower():
+                try:
+                    slide_num = int(location.split('_')[-1])
+                    # Estimate progress based on slide number
+                    # Assume 10 slides total for now (this could be made dynamic)
+                    estimated_total_slides = 10
+                    progress = min((slide_num / estimated_total_slides) * 100, 100)
+                    
+                    self.attempt.progress_percentage = Decimal(str(progress))
+                    self.attempt.last_visited_slide = location
+                    self.attempt.completed_slides = slide_num
+                    self.attempt.total_slides = estimated_total_slides
+                    
+                    logger.info(f"📊 PROGRESS: Updated to {progress}% based on location {location}")
+                    
+                except (ValueError, IndexError):
+                    # If we can't parse the slide number, just mark as in progress
+                    self.attempt.progress_percentage = Decimal('10.00')  # Minimal progress
+                    logger.info(f"📊 PROGRESS: Set minimal progress for location {location}")
+            
+        except Exception as e:
+            logger.error(f"❌ PROGRESS ERROR: Failed to update progress from location {location}: {str(e)}")

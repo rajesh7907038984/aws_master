@@ -37,6 +37,7 @@ class EnhancedScormTimeTracker:
             'html5': self._handle_html5_time,
             'dual': self._handle_dual_scorm_time,
             'legacy': self._handle_legacy_time,
+            'unknown': self._handle_legacy_time,  # Default fallback
         }
     
     def save_time_with_reliability(self, session_time, total_time=None):

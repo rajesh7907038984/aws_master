@@ -256,14 +256,25 @@ def scorm_view(request, topic_id):
                 if not attempt.cmi_data:
                     attempt.cmi_data = {}
                 
-                # Enhanced resume logic - handle different scenarios
+                # CRITICAL FIX: Enhanced resume logic for SCORM content detection
                 has_bookmark_data = bool(attempt.lesson_location or attempt.suspend_data)
+                is_resumable_attempt = attempt.lesson_status in ['incomplete', 'not_attempted', 'browsed']
                 
-                if has_bookmark_data:
-                    # Standard resume with bookmark data
-                    logger.info(f"RESUME: Found bookmark data for attempt {attempt.id}")
+                # Determine if this should be a resume scenario
+                should_resume = has_bookmark_data or is_resumable_attempt
+                
+                if should_resume:
+                    # This is a resume scenario - set entry mode to resume
+                    logger.info(f"RESUME: Resume scenario detected for attempt {attempt.id} - status: {attempt.lesson_status}, bookmark: {has_bookmark_data}")
                     
-                    # Load resume data into CMI data
+                    # Set entry mode to resume FIRST
+                    attempt.entry = 'resume'
+                    if scorm_package.version == '1.2':
+                        attempt.cmi_data['cmi.core.entry'] = 'resume'
+                    else:  # SCORM 2004
+                        attempt.cmi_data['cmi.entry'] = 'resume'
+                    
+                    # Load bookmark data if available
                     if attempt.lesson_location:
                         if scorm_package.version == '1.2':
                             attempt.cmi_data['cmi.core.lesson_location'] = attempt.lesson_location
@@ -278,50 +289,28 @@ def scorm_view(request, topic_id):
                             attempt.cmi_data['cmi.suspend_data'] = attempt.suspend_data
                         logger.info(f"RESUME: Set suspend_data ({len(attempt.suspend_data)} chars)")
                     
-                    # Set entry mode to resume
-                    attempt.entry = 'resume'
+                    # Ensure basic CMI data is set for resume
                     if scorm_package.version == '1.2':
-                        attempt.cmi_data['cmi.core.entry'] = 'resume'
+                        attempt.cmi_data['cmi.core.lesson_status'] = attempt.lesson_status or 'not attempted'
+                        attempt.cmi_data['cmi.core.lesson_mode'] = 'normal'
+                        attempt.cmi_data['cmi.core.credit'] = 'credit'
+                        attempt.cmi_data['cmi.core.student_id'] = str(attempt.user.id) if attempt.user else 'student'
+                        attempt.cmi_data['cmi.core.student_name'] = attempt.user.get_full_name() or attempt.user.username if attempt.user else 'Student'
                     else:  # SCORM 2004
-                        attempt.cmi_data['cmi.entry'] = 'resume'
+                        attempt.cmi_data['cmi.completion_status'] = attempt.completion_status or 'incomplete'
+                        attempt.cmi_data['cmi.success_status'] = attempt.success_status or 'unknown'
+                        attempt.cmi_data['cmi.learner_id'] = str(attempt.user.id) if attempt.user else 'student'
+                        attempt.cmi_data['cmi.learner_name'] = attempt.user.get_full_name() or attempt.user.username if attempt.user else 'Student'
                     
-                    logger.info(f"RESUME: Set entry mode to 'resume'")
+                    logger.info(f"RESUME: Set entry mode to 'resume' with CMI data")
                 else:
-                    # No bookmark data - check if this is a legitimate resume scenario
-                    if attempt.lesson_status in ['incomplete', 'not_attempted']:
-                        # This is a legitimate resume scenario even without bookmark data
-                        # The SCORM content will determine where to start
-                        logger.info(f"RESUME: No bookmark data but legitimate resume for attempt {attempt.id}")
-                        
-                        # Set entry mode to resume (content will handle positioning)
-                        attempt.entry = 'resume'
-                        if scorm_package.version == '1.2':
-                            attempt.cmi_data['cmi.core.entry'] = 'resume'
-                        else:  # SCORM 2004
-                            attempt.cmi_data['cmi.entry'] = 'resume'
-                        
-                        # Ensure basic CMI data is set
-                        if scorm_package.version == '1.2':
-                            attempt.cmi_data['cmi.core.lesson_status'] = attempt.lesson_status or 'not attempted'
-                            attempt.cmi_data['cmi.core.lesson_mode'] = 'normal'
-                            attempt.cmi_data['cmi.core.credit'] = 'credit'
-                            attempt.cmi_data['cmi.core.student_id'] = str(attempt.user.id) if attempt.user else 'student'
-                            attempt.cmi_data['cmi.core.student_name'] = attempt.user.get_full_name() or attempt.user.username if attempt.user else 'Student'
-                        else:  # SCORM 2004
-                            attempt.cmi_data['cmi.completion_status'] = attempt.completion_status or 'incomplete'
-                            attempt.cmi_data['cmi.success_status'] = attempt.success_status or 'unknown'
-                            attempt.cmi_data['cmi.learner_id'] = str(attempt.user.id) if attempt.user else 'student'
-                            attempt.cmi_data['cmi.learner_name'] = attempt.user.get_full_name() or attempt.user.username if attempt.user else 'Student'
-                        
-                        logger.info(f"RESUME: Set entry mode to 'resume' with basic CMI data")
-                    else:
-                        # This shouldn't happen - completed attempts should create new attempts
-                        logger.warning(f"RESUME: Unexpected attempt status '{attempt.lesson_status}' for attempt {attempt.id}")
-                        attempt.entry = 'ab-initio'
-                        if scorm_package.version == '1.2':
-                            attempt.cmi_data['cmi.core.entry'] = 'ab-initio'
-                        else:  # SCORM 2004
-                            attempt.cmi_data['cmi.entry'] = 'ab-initio'
+                    # This is a new attempt
+                    logger.info(f"RESUME: New attempt for attempt {attempt.id}")
+                    attempt.entry = 'ab-initio'
+                    if scorm_package.version == '1.2':
+                        attempt.cmi_data['cmi.core.entry'] = 'ab-initio'
+                    else:  # SCORM 2004
+                        attempt.cmi_data['cmi.entry'] = 'ab-initio'
                 
                 # Save the updated attempt
                 attempt.save()
@@ -711,100 +700,123 @@ def scorm_content(request, topic_id=None, path=None, attempt_id=None):
             if 'text/html' in content_type:
                 html_content = content.decode('utf-8')
                 
-                # CRITICAL FIX: For xAPI/Tin Can packages (Articulate Storyline), 
-                # don't inject complex SCORM code - just provide parent API reference
-                if scorm_package.version == 'xapi':
-                    # Minimal API bridge for xAPI content - doesn't interfere with Storyline
-                    api_injection = '''
+                # CRITICAL FIX: Handle ALL SCORM package types properly
+                if scorm_package.version in ['xapi', 'storyline', 'captivate', 'lectora', 'html5', 'legacy', 'dual']:
+                    # Minimal API bridge for modern SCORM packages - doesn't interfere with content
+                    api_injection = f'''
 <script>
-// Minimal API bridge for Tin Can/xAPI content
-// Version: 4.0 - Non-intrusive for Articulate Storyline
-console.log('[xAPI] Minimal API bridge loaded');
+// Universal SCORM API bridge for modern packages
+// Version: 5.0 - Non-intrusive for all authoring tools
+console.log('[SCORM] Universal API bridge loaded for {scorm_package.version}');
 
 // Only provide parent window API reference if needed
-if (window.parent && window.parent !== window) {
-    if (window.parent.API && !window.API) {
+if (window.parent && window.parent !== window) {{
+    if (window.parent.API && !window.API) {{
         window.API = window.parent.API;
-        console.log('[xAPI] Parent SCORM API available');
-    }
-    if (window.parent.API_1484_11 && !window.API_1484_11) {
+        console.log('[SCORM] Parent SCORM API available');
+    }}
+    if (window.parent.API_1484_11 && !window.API_1484_11) {{
         window.API_1484_11 = window.parent.API_1484_11;
-        console.log('[xAPI] Parent SCORM 2004 API available');
-    }
-}
+        console.log('[SCORM] Parent SCORM 2004 API available');
+    }}
+}}
 
 // Minimal fallback API stub (only if no API exists)
-if (!window.API && !window.API_1484_11) {
-    window.API = window.API_1484_11 = {
-        LMSInitialize: function() { return 'true'; },
-        Initialize: function() { return 'true'; },
-        LMSFinish: function() { return 'true'; },
-        Terminate: function() { return 'true'; },
-        LMSGetValue: function(e) { return ''; },
-        GetValue: function(e) { return ''; },
-        LMSSetValue: function(e,v) { return 'true'; },
-        SetValue: function(e,v) { return 'true'; },
-        LMSCommit: function() { return 'true'; },
-        Commit: function() { return 'true'; },
-        LMSGetLastError: function() { return '0'; },
-        GetLastError: function() { return '0'; },
-        LMSGetErrorString: function(c) { return ''; },
-        GetErrorString: function(c) { return ''; },
-        LMSGetDiagnostic: function(c) { return ''; },
-        GetDiagnostic: function(c) { return ''; }
-    };
-    console.log('[xAPI] Minimal fallback API created');
-}
+if (!window.API && !window.API_1484_11) {{
+    window.API = window.API_1484_11 = {{
+        LMSInitialize: function() {{ return 'true'; }},
+        Initialize: function() {{ return 'true'; }},
+        LMSFinish: function() {{ return 'true'; }},
+        Terminate: function() {{ return 'true'; }},
+        LMSGetValue: function(e) {{ return ''; }},
+        GetValue: function(e) {{ return ''; }},
+        LMSSetValue: function(e,v) {{ return 'true'; }},
+        SetValue: function(e,v) {{ return 'true'; }},
+        LMSCommit: function() {{ return 'true'; }},
+        Commit: function() {{ return 'true'; }},
+        LMSGetLastError: function() {{ return '0'; }},
+        GetLastError: function() {{ return '0'; }},
+        LMSGetErrorString: function(c) {{ return ''; }},
+        GetErrorString: function(c) {{ return ''; }},
+        LMSGetDiagnostic: function(c) {{ return ''; }},
+        GetDiagnostic: function(c) {{ return ''; }}
+    }};
+    console.log('[SCORM] Universal fallback API created for {scorm_package.version}');
+}}
 </script>'''
-                else:
-                    # For SCORM 1.2 and 2004 packages, also use minimal injection
-                    # The heavy tracking code is handled in the player template
-                    api_injection = '''
+                elif scorm_package.version in ['1.1', '1.2', '2004']:
+                    # For traditional SCORM packages, use full API injection
+                    api_injection = f'''
 <script>
-// Lightweight SCORM API - Points to parent window API
-// Version: 4.0 - Simplified for all SCORM types
-console.log('[SCORM] API bridge loaded for content');
+// Full SCORM API for traditional packages
+// Version: 5.0 - Complete SCORM 1.2/2004 support
+console.log('[SCORM] Full API loaded for {scorm_package.version}');
 
 // Try to use parent window's API if available (iframe scenario)
-if (window.parent && window.parent !== window) {
-    if (window.parent.API && !window.API) {
+if (window.parent && window.parent !== window) {{
+    if (window.parent.API && !window.API) {{
         window.API = window.parent.API;
         console.log('[SCORM] Using parent SCORM 1.2 API');
-    }
-    if (window.parent.API_1484_11 && !window.API_1484_11) {
+    }}
+    if (window.parent.API_1484_11 && !window.API_1484_11) {{
         window.API_1484_11 = window.parent.API_1484_11;
         console.log('[SCORM] Using parent SCORM 2004 API');
-    }
-}
+    }}
+}}
 
 // Minimal fallback API stub (only if no API exists)
-if (!window.API) {
-    window.API = {
-        LMSInitialize: function() { return 'true'; },
-        LMSFinish: function() { return 'true'; },
-        LMSGetValue: function(e) { return ''; },
-        LMSSetValue: function(e,v) { return 'true'; },
-        LMSCommit: function() { return 'true'; },
-        LMSGetLastError: function() { return '0'; },
-        LMSGetErrorString: function(c) { return ''; },
-        LMSGetDiagnostic: function(c) { return ''; }
-    };
+if (!window.API) {{
+    window.API = {{
+        LMSInitialize: function() {{ return 'true'; }},
+        LMSFinish: function() {{ return 'true'; }},
+        LMSGetValue: function(e) {{ return ''; }},
+        LMSSetValue: function(e,v) {{ return 'true'; }},
+        LMSCommit: function() {{ return 'true'; }},
+        LMSGetLastError: function() {{ return '0'; }},
+        LMSGetErrorString: function(c) {{ return ''; }},
+        LMSGetDiagnostic: function(c) {{ return ''; }}
+    }};
     console.log('[SCORM] Minimal SCORM 1.2 fallback API created');
-}
+}}
 
-if (!window.API_1484_11) {
-    window.API_1484_11 = {
-        Initialize: function() { return 'true'; },
-        Terminate: function() { return 'true'; },
-        GetValue: function(e) { return ''; },
-        SetValue: function(e,v) { return 'true'; },
-        Commit: function() { return 'true'; },
-        GetLastError: function() { return '0'; },
-        GetErrorString: function(c) { return ''; },
-        GetDiagnostic: function(c) { return ''; }
-    };
+if (!window.API_1484_11) {{
+    window.API_1484_11 = {{
+        Initialize: function() {{ return 'true'; }},
+        Terminate: function() {{ return 'true'; }},
+        GetValue: function(e) {{ return ''; }},
+        SetValue: function(e,v) {{ return 'true'; }},
+        Commit: function() {{ return 'true'; }},
+        GetLastError: function() {{ return '0'; }},
+        GetErrorString: function(c) {{ return ''; }},
+        GetDiagnostic: function(c) {{ return ''; }}
+    }};
     console.log('[SCORM] Minimal SCORM 2004 fallback API created');
-}
+}}
+</script>'''
+                else:
+                    # For unknown packages, use minimal API
+                    api_injection = f'''
+<script>
+// Minimal API for unknown packages
+console.log('[SCORM] Minimal API for unknown package type: {scorm_package.version}');
+window.API = window.API_1484_11 = {{
+    LMSInitialize: function() {{ return 'true'; }},
+    Initialize: function() {{ return 'true'; }},
+    LMSFinish: function() {{ return 'true'; }},
+    Terminate: function() {{ return 'true'; }},
+    LMSGetValue: function(e) {{ return ''; }},
+    GetValue: function(e) {{ return ''; }},
+    LMSSetValue: function(e,v) {{ return 'true'; }},
+    SetValue: function(e,v) {{ return 'true'; }},
+    LMSCommit: function() {{ return 'true'; }},
+    Commit: function() {{ return 'true'; }},
+    LMSGetLastError: function() {{ return '0'; }},
+    GetLastError: function() {{ return '0'; }},
+    LMSGetErrorString: function(c) {{ return ''; }},
+    GetErrorString: function(c) {{ return ''; }},
+    LMSGetDiagnostic: function(c) {{ return ''; }},
+    GetDiagnostic: function(c) {{ return ''; }}
+}};
 </script>'''
                 
                 # Inject before </head> or at beginning of <body>

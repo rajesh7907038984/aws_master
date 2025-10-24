@@ -1368,13 +1368,43 @@
                 launchUrl: launchUrl
             });
             
-            // Check for Storyline packages
+            // Check for all package types in order of priority
             if (packageVersion === 'storyline' || 
-                'storyline' in packageTitle || 
-                'story.html' in launchUrl ||
+                packageTitle.includes('storyline') || 
+                launchUrl.includes('story.html') ||
                 window.location.href.includes('storyline')) {
                 console.log('🎯 Detected: Storyline package');
                 return 'storyline';
+            }
+            
+            if (packageVersion === 'captivate' || packageTitle.includes('captivate')) {
+                console.log('🎯 Detected: Captivate package');
+                return 'captivate';
+            }
+            
+            if (packageVersion === 'lectora' || packageTitle.includes('lectora')) {
+                console.log('🎯 Detected: Lectora package');
+                return 'lectora';
+            }
+            
+            if (packageVersion === 'html5' || packageTitle.includes('html5')) {
+                console.log('🎯 Detected: HTML5 package');
+                return 'html5';
+            }
+            
+            if (packageVersion === 'xapi' || packageTitle.includes('xapi')) {
+                console.log('📊 Detected: xAPI package');
+                return 'xapi';
+            }
+            
+            if (packageVersion === 'legacy' || packageTitle.includes('legacy')) {
+                console.log('📊 Detected: Legacy package');
+                return 'legacy';
+            }
+            
+            if (packageVersion === 'dual' || packageTitle.includes('dual')) {
+                console.log('📊 Detected: Dual SCORM package');
+                return 'dual';
             }
             
             // ENHANCED: Check suspend data patterns for resume scenarios
@@ -1390,64 +1420,158 @@
                 }
             }
             
-            // Check for other package types (preserve existing functionality)
-            if (packageVersion === 'xapi' || 'xapi' in packageTitle) {
-                console.log('📊 Detected: xAPI package');
-                return 'xapi';
-            }
-            
-            if (packageVersion === 'html5' || 'html5' in packageTitle) {
-                console.log('📊 Detected: HTML5 package');
-                return 'html5';
-            }
-            
-            if (packageVersion === 'captivate' || 'captivate' in packageTitle) {
-                console.log('📊 Detected: Captivate package');
-                return 'captivate';
-            }
-            
-            if (packageVersion === 'lectora' || 'lectora' in packageTitle) {
-                console.log('📊 Detected: Lectora package');
-                return 'lectora';
-            }
-            
-            // Default to generic SCORM (preserves existing functionality)
-            console.log('📊 Detected: Generic SCORM package');
+            // Default fallback
+            console.log('📊 Detected: Generic package');
             return 'generic';
         }
         
+        // STORYLINE FIX: Enhanced progress tracking for Storyline packages
+        function trackStorylineProgress() {
+            const packageType = detectPackageType();
+            if (packageType === 'storyline' && window.API && window.API._initialized) {
+                // STORYLINE FIX: Force status update on any interaction
+                console.log('🎯 STORYLINE: Tracking user interaction - updating status');
+                window.API.LMSSetValue('cmi.core.lesson_status', 'incomplete');
+                window.API.LMSCommit('');
+            }
+        }
+
         // CRITICAL FIX: Enhanced EXIT ASSESSMENT button handling with package detection
         function handleExitButtonClicks() {
             const packageType = detectPackageType();
             console.log(`🎯 Detected package type: ${packageType}`);
             
+            // STORYLINE FIX: Add event listeners for Storyline progress tracking
+            if (packageType === 'storyline') {
+                document.addEventListener('click', trackStorylineProgress);
+                document.addEventListener('keydown', trackStorylineProgress);
+                document.addEventListener('mousemove', trackStorylineProgress);
+                console.log('🎯 STORYLINE: Progress tracking listeners added');
+            }
+            
             // PACKAGE-TYPE-AWARE EXIT BUTTON DETECTION: Safe exit button detection for different SCORM types
             function fixExitButtons() {
                 let exitButtonSelectors = [];
                 
-                // STORYLINE-SPECIFIC: Enhanced exit button detection for Storyline
+                // CRITICAL FIX: Enhanced Storyline-specific exit button detection
                 if (packageType === 'storyline') {
                     exitButtonSelectors = [
+                        // STORYLINE FIX: Core Storyline exit button patterns
                         'button[onclick*="exit"]',
                         'button[onclick*="close"]', 
                         'button[onclick*="finish"]',
                         'button[onclick*="terminate"]',
                         'a[onclick*="exit"]',
                         'a[onclick*="close"]',
+                        'a[onclick*="finish"]',
+                        'a[onclick*="terminate"]',
+                        
+                        // STORYLINE FIX: CSS class-based detection
                         '.exit-button',
                         '.close-button',
                         '.finish-button',
+                        '.terminate-button',
+                        '.storyline-exit',
+                        '.storyline-close',
+                        '.storyline-finish',
+                        
+                        // STORYLINE FIX: Data attribute detection
                         '[data-action="exit"]',
                         '[data-action="close"]',
                         '[data-action="finish"]',
+                        '[data-action="terminate"]',
+                        '[data-exit="true"]',
+                        '[data-close="true"]',
+                        '[data-finish="true"]',
+                        
+                        // STORYLINE FIX: Text content detection
                         'button:contains("EXIT")',
                         'button:contains("Exit")',
                         'button:contains("exit")',
                         'button:contains("Close")',
                         'button:contains("close")',
                         'button:contains("Finish")',
-                        'button:contains("finish")'
+                        'button:contains("finish")',
+                        'button:contains("Terminate")',
+                        'button:contains("terminate")',
+                        'button:contains("Quit")',
+                        'button:contains("quit")',
+                        'button:contains("End")',
+                        'button:contains("end")',
+                        
+                        // STORYLINE FIX: Enhanced class-based detection
+                        'button[class*="exit"]',
+                        'button[class*="close"]',
+                        'button[class*="finish"]',
+                        'button[class*="terminate"]',
+                        'button[class*="quit"]',
+                        'button[class*="end"]',
+                        'a[class*="exit"]',
+                        'a[class*="close"]',
+                        'a[class*="finish"]',
+                        'a[class*="terminate"]',
+                        'a[class*="quit"]',
+                        'a[class*="end"]',
+                        
+                        // STORYLINE FIX: ID-based detection
+                        '[id*="exit"]',
+                        '[id*="close"]',
+                        '[id*="finish"]',
+                        '[id*="terminate"]',
+                        '[id*="quit"]',
+                        '[id*="end"]',
+                        
+                        // STORYLINE FIX: Title attribute detection
+                        'button[title*="exit"]',
+                        'button[title*="close"]',
+                        'button[title*="finish"]',
+                        'button[title*="terminate"]',
+                        'button[title*="quit"]',
+                        'button[title*="end"]',
+                        'a[title*="exit"]',
+                        'a[title*="close"]',
+                        'a[title*="finish"]',
+                        'a[title*="terminate"]',
+                        'a[title*="quit"]',
+                        'a[title*="end"]',
+                        
+                        // STORYLINE FIX: Value attribute detection for input buttons
+                        'input[value*="EXIT"]',
+                        'input[value*="Exit"]',
+                        'input[value*="exit"]',
+                        'input[value*="Close"]',
+                        'input[value*="close"]',
+                        'input[value*="Finish"]',
+                        'input[value*="finish"]',
+                        'input[value*="Terminate"]',
+                        'input[value*="terminate"]',
+                        'input[value*="Quit"]',
+                        'input[value*="quit"]',
+                        'input[value*="End"]',
+                        'input[value*="end"]'
                     ];
+                    
+                    // STORYLINE FIX: Enhanced exit button detection with retry logic
+                    function findAndFixStorylineExitButtons() {
+                        exitButtonSelectors.forEach(selector => {
+                            try {
+                                const buttons = document.querySelectorAll(selector);
+                                buttons.forEach(button => {
+                                    if (!button.hasAttribute('data-scorm-exit-handled')) {
+                                        button.addEventListener('click', handleStorylineExit);
+                                        button.setAttribute('data-scorm-exit-handled', 'true');
+                                        console.log('🎯 STORYLINE: Exit button found and handled:', button);
+                                    }
+                                });
+                            } catch (e) {
+                                // Ignore selector errors
+                            }
+                        });
+                    }
+                    
+                    // Run immediately and on DOM changes
+                    findAndFixStorylineExitButtons();
+                    setInterval(findAndFixStorylineExitButtons, 2000);
                 }
                 // GENERIC SCORM: Standard exit button detection (preserves existing functionality)
                 else {
@@ -1555,18 +1679,82 @@
                 }
             }
             
+            // CRITICAL FIX: Handle CONTINUE buttons (SCORM 1.2 specific)
+            function fixContinueButtons() {
+                console.log('🔧 SCORM 1.2: Fixing continue buttons...');
+                
+                const continueButtonSelectors = [
+                    'button:contains("Continue")',
+                    'button:contains("continue")',
+                    'button:contains("CONTINUE")',
+                    'input[type="button"]:contains("Continue")',
+                    'input[type="button"]:contains("continue")',
+                    'a:contains("Continue")',
+                    'a:contains("continue")',
+                    '.continue-button',
+                    '#continue-button',
+                    '[data-action="continue"]'
+                ];
+                
+                let continueButtonsFound = 0;
+                
+                continueButtonSelectors.forEach(selector => {
+                    try {
+                        const buttons = document.querySelectorAll(selector);
+                        buttons.forEach(button => {
+                            const buttonText = button.textContent || button.value || '';
+                            if (buttonText.toLowerCase().includes('continue')) {
+                                console.log('Found continue button:', button);
+                                continueButtonsFound++;
+                                
+                                // Remove any existing click handlers to avoid conflicts
+                                const newButton = button.cloneNode(true);
+                                button.parentNode.replaceChild(newButton, button);
+                                
+                                // Add continue button click handler
+                                newButton.addEventListener('click', function(e) {
+                                    console.log('🎯 CONTINUE button clicked (SCORM 1.2)');
+                                    
+                                    // Ensure SCORM API is ready
+                                    if (window.API && !window.API._initialized) {
+                                        console.log('🔄 Initializing SCORM API for continue button...');
+                                        window.API.LMSInitialize('');
+                                        window.API_1484_11.Initialize('');
+                                        window.API._initialized = true;
+                                    }
+                                    
+                                    // Let the original button behavior continue
+                                    return true;
+                                });
+                            }
+                        });
+                    } catch (e) {
+                        // Ignore selector errors
+                    }
+                });
+                
+                if (continueButtonsFound > 0) {
+                    console.log(`Fixed ${continueButtonsFound} continue button(s) (SCORM 1.2)`);
+                }
+            }
+            
             // Run immediately
             fixExitButtons();
+            fixContinueButtons();
             
             // OPTIMIZATION: Run periodically but less frequently (every 5 seconds instead of 2)
             setInterval(fixExitButtons, 5000);
+            setInterval(fixContinueButtons, 5000);
             
             // OPTIMIZATION: Simplified MutationObserver with debouncing
             if (window.MutationObserver) {
                 let debounceTimer;
                 const observer = new MutationObserver(function(mutations) {
                     clearTimeout(debounceTimer);
-                    debounceTimer = setTimeout(fixExitButtons, 500);
+                    debounceTimer = setTimeout(() => {
+                        fixExitButtons();
+                        fixContinueButtons();
+                    }, 500);
                 });
                 
                 observer.observe(document.body, {
@@ -1888,6 +2076,38 @@
                         });
                     });
                     
+                    // CRITICAL FIX: Re-bind CONTINUE button (SCORM 1.2 specific fix)
+                    const continueButtons = iframeDoc.querySelectorAll('button, input[type="button"], a');
+                    continueButtons.forEach(button => {
+                        const buttonText = button.textContent || button.value || '';
+                        if (buttonText.toLowerCase().includes('continue') || 
+                            button.classList.contains('continue-button') ||
+                            button.id === 'continue-button') {
+                            
+                            console.log('🔄 Re-binding CONTINUE button (SCORM 1.2):', button);
+                            
+                            // Remove existing listeners
+                            const newButton = button.cloneNode(true);
+                            button.parentNode.replaceChild(newButton, button);
+                            
+                            // Add new listener
+                            newButton.addEventListener('click', function(e) {
+                                console.log('🎯 CONTINUE button clicked (SCORM 1.2)');
+                                
+                                // Ensure SCORM API is ready
+                                if (window.API && !window.API._initialized) {
+                                    console.log('🔄 Initializing SCORM API for continue button...');
+                                    window.API.LMSInitialize('');
+                                    window.API_1484_11.Initialize('');
+                                    window.API._initialized = true;
+                                }
+                                
+                                // Let the original button behavior continue
+                                return true;
+                            });
+                        }
+                    });
+                    
                 } catch (e) {
                     console.log('Cross-origin iframe, using parent API for button binding');
                 }
@@ -2049,6 +2269,7 @@
                 // Set entry mode to resume
                 window.API.LMSSetValue('cmi.core.entry', 'resume');
                 window.API.LMSSetValue('cmi.entry', 'resume');
+                console.log('📚 RESUME: Set entry mode to resume for SCORM content');
                 console.log('📚 STORYLINE: Set entry mode to resume');
                 
                 // Clear stored data after successful restoration
@@ -2061,7 +2282,7 @@
             }
         }
         
-        // Enhanced exit button handler injection for iframe content
+        // CRITICAL FIX: Enhanced exit button handler injection for iframe content
         function injectExitButtonHandler() {
             try {
                 const iframe = document.getElementById('scormFrame');
@@ -2069,13 +2290,21 @@
                     const iframeDoc = iframe.contentDocument;
                     const iframeWindow = iframe.contentWindow;
                     
+                    // CRITICAL FIX: Remove iframe sandbox restrictions for exit buttons
+                    if (iframe.hasAttribute('sandbox')) {
+                        const currentSandbox = iframe.getAttribute('sandbox');
+                        const newSandbox = currentSandbox + ' allow-top-navigation allow-popups';
+                        iframe.setAttribute('sandbox', newSandbox);
+                        console.log('🔧 FIXED: Enhanced iframe sandbox permissions for exit buttons');
+                    }
+                    
                     // Inject comprehensive exit button handler script
                     const script = iframeDoc.createElement('script');
                     script.textContent = `
                         (function() {
                             console.log('SCORM Exit Button Handler injected into iframe');
                             
-                            // Enhanced exit button detection and handling
+                            // CRITICAL FIX: Enhanced exit button detection and handling
                             function handleExitButtons() {
                                 function findAndFixExitButtons() {
                                     const exitSelectors = [
@@ -2098,7 +2327,23 @@
                                         '.exit-button',
                                         '.exit-btn',
                                         '#exit-button',
-                                        '#exit-btn'
+                                        '#exit-btn',
+                                        // STORYLINE-SPECIFIC: Additional Storyline exit button patterns
+                                        'button[onclick*="exit"]',
+                                        'button[onclick*="close"]',
+                                        'button[onclick*="finish"]',
+                                        'button[onclick*="terminate"]',
+                                        'a[onclick*="exit"]',
+                                        'a[onclick*="close"]',
+                                        'a[onclick*="finish"]',
+                                        'a[onclick*="terminate"]',
+                                        // GENERIC SCORM: Additional generic patterns
+                                        'button[title*="exit"]',
+                                        'button[title*="Exit"]',
+                                        'button[title*="EXIT"]',
+                                        'input[title*="exit"]',
+                                        'input[title*="Exit"]',
+                                        'input[title*="EXIT"]'
                                     ];
                                     
                                     let buttonsFound = 0;
@@ -2117,60 +2362,179 @@
                                                     console.log('Found exit button in iframe:', button);
                                                     buttonsFound++;
                                                     
-                                                    // Remove existing handlers and add new one
+                                                    // CRITICAL FIX: Enhanced event handler replacement to prevent conflicts
                                                     const newButton = button.cloneNode(true);
-                                                    button.parentNode.replaceChild(newButton, button);
                                                     
-                                                    newButton.addEventListener('click', function(e) {
+                                                    // CRITICAL FIX: Remove ALL existing event listeners
+                                                    const newButtonClone = newButton.cloneNode(true);
+                                                    button.parentNode.replaceChild(newButtonClone, button);
+                                                    
+                                                    // CRITICAL FIX: Add multiple event listeners for better compatibility
+                                                    const exitHandler = function(e) {
                                                         e.preventDefault();
                                                         e.stopPropagation();
+                                                        e.stopImmediatePropagation();
                                                         
-                                                        console.log('EXIT ASSESSMENT button clicked in iframe');
+                                                        console.log('🔧 FIXED: EXIT ASSESSMENT button clicked in iframe');
                                                         
                                                         // Show user feedback
-                                                        const originalText = newButton.textContent || newButton.value;
-                                                        newButton.textContent = 'Exiting...';
-                                                        newButton.disabled = true;
+                                                        const originalText = newButtonClone.textContent || newButtonClone.value;
+                                                        newButtonClone.textContent = 'Exiting...';
+                                                        newButtonClone.disabled = true;
                                                         
-                                                        // Call SCORM API to save data
+                                                        // CRITICAL FIX: Enhanced SCORM API call with multiple fallbacks
                                                         try {
-                                                            // Try to call parent window's SCORM API
+                                                            console.log('🔧 FIXED: Attempting SCORM API calls...');
+                                                            
+                                                            // Method 1: Try parent window's SCORM API
                                                             if (window.parent && window.parent.API) {
-                                                                console.log('Calling parent SCORM API...');
+                                                                console.log('🔧 FIXED: Calling parent SCORM API...');
                                                                 
                                                                 // Save current progress
                                                                 if (window.parent.API.LMSCommit) {
-                                                                    window.parent.API.LMSCommit('');
+                                                                    const commitResult = window.parent.API.LMSCommit('');
+                                                                    console.log('🔧 FIXED: LMSCommit result:', commitResult);
                                                                 }
                                                                 
                                                                 // Terminate session
                                                                 if (window.parent.API.LMSFinish) {
-                                                                    const result = window.parent.API.LMSFinish('');
-                                                                    console.log('SCORM LMSFinish result:', result);
+                                                                    const finishResult = window.parent.API.LMSFinish('');
+                                                                    console.log('🔧 FIXED: LMSFinish result:', finishResult);
+                                                                }
+                                                            }
+                                                            
+                                                            // Method 2: Try SCORM 2004 API
+                                                            if (window.parent && window.parent.API_1484_11) {
+                                                                console.log('🔧 FIXED: Calling SCORM 2004 API...');
+                                                                
+                                                                if (window.parent.API_1484_11.Commit) {
+                                                                    const commitResult = window.parent.API_1484_11.Commit('');
+                                                                    console.log('🔧 FIXED: SCORM 2004 Commit result:', commitResult);
                                                                 }
                                                                 
-                                                                // Also try SCORM 2004 API
-                                                                if (window.parent.API_1484_11 && window.parent.API_1484_11.Terminate) {
-                                                                    window.parent.API_1484_11.Terminate('');
+                                                                if (window.parent.API_1484_11.Terminate) {
+                                                                    const terminateResult = window.parent.API_1484_11.Terminate('');
+                                                                    console.log('🔧 FIXED: SCORM 2004 Terminate result:', terminateResult);
+                                                                }
+                                                            }
+                                                            
+                                                            // Method 3: Try direct API calls
+                                                            if (window.API) {
+                                                                console.log('🔧 FIXED: Calling local SCORM API...');
+                                                                
+                                                                if (window.API.LMSCommit) {
+                                                                    const commitResult = window.API.LMSCommit('');
+                                                                    console.log('🔧 FIXED: Local LMSCommit result:', commitResult);
                                                                 }
                                                                 
-                                                                // Send message to parent to handle redirect
-                                                                window.parent.postMessage({
-                                                                    action: 'scorm_exit',
-                                                                    type: 'exit_assessment'
-                                                                }, '*');
+                                                                if (window.API.LMSFinish) {
+                                                                    const finishResult = window.API.LMSFinish('');
+                                                                    console.log('🔧 FIXED: Local LMSFinish result:', finishResult);
+                                                                }
+                                                            }
+                                                                }
                                                                 
-                                                                console.log('SCORM data saved, redirecting...');
+                                                                // CRITICAL FIX: Enhanced cross-frame communication with multiple methods
+                                                                console.log('🔧 FIXED: Attempting cross-frame communication...');
+                                                                
+                                                                // Method 1: Send structured message to parent
+                                                                try {
+                                                                    window.parent.postMessage({
+                                                                        action: 'scorm_exit',
+                                                                        type: 'exit_assessment',
+                                                                        source: 'iframe',
+                                                                        timestamp: Date.now()
+                                                                    }, '*');
+                                                                    console.log('🔧 FIXED: Structured message sent to parent');
+                                                                } catch (e) {
+                                                                    console.error('🔧 FIXED: Error sending structured message:', e);
+                                                                }
+                                                                
+                                                                // Method 2: Send simple string message as fallback
+                                                                try {
+                                                                    window.parent.postMessage('scorm_exit', '*');
+                                                                    console.log('🔧 FIXED: Simple message sent to parent');
+                                                                } catch (e) {
+                                                                    console.error('🔧 FIXED: Error sending simple message:', e);
+                                                                }
+                                                                
+                                                                // Method 3: Try direct function call to parent
+                                                                try {
+                                                                    if (window.parent && window.parent.scormExit) {
+                                                                        window.parent.scormExit();
+                                                                        console.log('🔧 FIXED: Direct function call to parent');
+                                                                    }
+                                                                } catch (e) {
+                                                                    console.error('🔧 FIXED: Error calling parent function:', e);
+                                                                }
+                                                                
+                                                                // Method 4: Try window.close as last resort
+                                                                setTimeout(() => {
+                                                                    try {
+                                                                        window.close();
+                                                                        console.log('🔧 FIXED: Attempted window.close()');
+                                                                    } catch (e) {
+                                                                        console.error('🔧 FIXED: Error closing window:', e);
+                                                                    }
+                                                                }, 1000);
+                                                                
+                                                                console.log('🔧 FIXED: SCORM data saved, redirecting...');
                                                             } else {
-                                                                console.log('Parent SCORM API not available, sending exit message...');
-                                                                window.parent.postMessage('scorm_exit', '*');
+                                                                console.log('🔧 FIXED: Parent SCORM API not available, sending exit message...');
+                                                                
+                                                                // CRITICAL FIX: Enhanced fallback communication
+                                                                try {
+                                                                    window.parent.postMessage({
+                                                                        action: 'scorm_exit',
+                                                                        type: 'exit_assessment',
+                                                                        source: 'iframe',
+                                                                        fallback: true,
+                                                                        timestamp: Date.now()
+                                                                    }, '*');
+                                                                    console.log('🔧 FIXED: Fallback structured message sent');
+                                                                } catch (e) {
+                                                                    console.error('🔧 FIXED: Error sending fallback message:', e);
+                                                                }
+                                                                
+                                                                try {
+                                                                    window.parent.postMessage('scorm_exit', '*');
+                                                                    console.log('🔧 FIXED: Fallback simple message sent');
+                                                                } catch (e) {
+                                                                    console.error('🔧 FIXED: Error sending fallback simple message:', e);
+                                                                }
                                                             }
                                                         } catch (error) {
-                                                            console.error('Error calling SCORM API:', error);
-                                                            // Still send exit message
-                                                            window.parent.postMessage('scorm_exit', '*');
+                                                            console.error('🔧 FIXED: Error calling SCORM API:', error);
+                                                            
+                                                            // CRITICAL FIX: Enhanced error handling with multiple fallbacks
+                                                            try {
+                                                                window.parent.postMessage({
+                                                                    action: 'scorm_exit',
+                                                                    type: 'exit_assessment',
+                                                                    source: 'iframe',
+                                                                    error: true,
+                                                                    errorMessage: error.message,
+                                                                    timestamp: Date.now()
+                                                                }, '*');
+                                                                console.log('🔧 FIXED: Error message sent to parent');
+                                                            } catch (e) {
+                                                                console.error('🔧 FIXED: Error sending error message:', e);
+                                                            }
+                                                            
+                                                            try {
+                                                                window.parent.postMessage('scorm_exit', '*');
+                                                                console.log('🔧 FIXED: Error fallback message sent');
+                                                            } catch (e) {
+                                                                console.error('🔧 FIXED: Error sending error fallback:', e);
+                                                            }
                                                         }
-                                                    });
+                                                    };
+                                                    
+                                                    // CRITICAL FIX: Add multiple event listeners for maximum compatibility
+                                                    newButtonClone.addEventListener('click', exitHandler, true);
+                                                    newButtonClone.addEventListener('click', exitHandler, false);
+                                                    newButtonClone.addEventListener('mousedown', exitHandler, true);
+                                                    newButtonClone.addEventListener('mouseup', exitHandler, true);
                                                     
                                                     console.log('Exit button handler attached in iframe');
                                                 }
