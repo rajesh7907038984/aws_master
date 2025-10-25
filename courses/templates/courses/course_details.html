@@ -1200,7 +1200,6 @@
                 <div class="tab">Outcomes</div>
                 <div class="tab">Rubrics</div>
                 <div class="tab">Certificate</div>
-                <div class="tab">Reviews</div>
             </div>
 
             <div class="tab-content">
@@ -1460,50 +1459,6 @@
                         </div>
                     {% endif %}
                 </div>
-                
-                <!-- Reviews Tab Content (Hidden by default) -->
-                <div class="reviews-content" style="display: none;">
-                    <div class="p-4">
-                        <div class="d-flex justify-content-between align-items-center mb-4">
-                            <h2 class="text-2xl font-bold">Course Reviews</h2>
-                            {% if progress == 100 and course.survey %}
-                                <a href="{% url 'course_reviews:submit_course_survey' course.id %}" class="btn btn-primary">
-                                    <i class="fas fa-star"></i> Write a Review
-                                </a>
-                            {% endif %}
-                        </div>
-                        
-                        {% if course.total_reviews > 0 %}
-                            <div class="mb-4 p-4 bg-gray-50 rounded-lg">
-                                <div class="d-flex align-items-center gap-3">
-                                    <div class="text-center">
-                                        <div class="text-4xl font-bold">{{ course.average_rating|floatformat:1 }}</div>
-                                        <div class="mt-1">
-                                            {% star_rating_display course.average_rating 5 False %}
-                                        </div>
-                                        <div class="text-sm text-gray-600 mt-1">{{ course.total_reviews }} review{{ course.total_reviews|pluralize }}</div>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div class="mt-4">
-                                <a href="{% url 'course_reviews:course_reviews_list' course.id %}" class="btn btn-outline-primary w-full">
-                                    <i class="fas fa-list"></i> View All Reviews
-                                </a>
-                            </div>
-                        {% else %}
-                            <div class="p-6 bg-gray-50 rounded-lg text-center">
-                                <i class="fas fa-star text-gray-300" style="font-size: 3rem;"></i>
-                                <p class="mt-3 text-gray-600">No reviews yet. Be the first to review this course!</p>
-                                {% if progress == 100 and course.survey %}
-                                    <a href="{% url 'course_reviews:submit_course_survey' course.id %}" class="btn btn-primary mt-3">
-                                        <i class="fas fa-star"></i> Write the First Review
-                                    </a>
-                                {% endif %}
-                            </div>
-                        {% endif %}
-                    </div>
-                </div>
             </div>
         </div>
 
@@ -1734,15 +1689,51 @@
         const videoError = document.getElementById('video-error');
         
         if (videoElement) {
-            // Add event listeners for video
+            // Enhanced video error handling
             videoElement.addEventListener('error', function(e) {
-                console.error('Video error:', e);
-                if (videoError) {
-                    videoError.classList.remove('hidden');
-                    videoError.innerHTML = `<p class="text-red-700">Error loading video: ${e.target.error ? e.target.error.message : 'Unknown error'}</p>`;
+                const error = e.target.error;
+                let errorMessage = 'Unknown video error';
+                let errorCode = 'UNKNOWN';
+                
+                if (error) {
+                    switch(error.code) {
+                        case error.MEDIA_ERR_ABORTED:
+                            errorMessage = 'Video playback was aborted';
+                            errorCode = 'ABORTED';
+                            break;
+                        case error.MEDIA_ERR_NETWORK:
+                            errorMessage = 'Network error occurred while loading video';
+                            errorCode = 'NETWORK';
+                            break;
+                        case error.MEDIA_ERR_DECODE:
+                            errorMessage = 'Video format not supported or corrupted';
+                            errorCode = 'DECODE';
+                            break;
+                        case error.MEDIA_ERR_SRC_NOT_SUPPORTED:
+                            errorMessage = 'Video source not supported';
+                            errorCode = 'SRC_NOT_SUPPORTED';
+                            break;
+                        default:
+                            errorMessage = error.message || 'Unknown video error';
+                    }
                 }
                 
-                // Check the video status via API
+                console.error('Video error:', errorCode, errorMessage);
+                
+                if (videoError) {
+                    videoError.classList.remove('hidden');
+                    videoError.innerHTML = `
+                        <div class="text-center">
+                            <p class="text-red-700 font-semibold">Video Error: ${errorMessage}</p>
+                            <p class="text-red-600 text-sm mt-2">Error Code: ${errorCode}</p>
+                            <button onclick="retryVideoLoad()" class="mt-3 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
+                                Retry Loading Video
+                            </button>
+                        </div>
+                    `;
+                }
+                
+                // Check the video status via API for more details
                 checkVideoStatus();
             });
             
@@ -1753,45 +1744,121 @@
                 }
             });
             
+            videoElement.addEventListener('loadstart', function() {
+                console.log('Video loading started');
+                if (videoError) {
+                    videoError.classList.add('hidden');
+                }
+            });
+            
+            videoElement.addEventListener('canplay', function() {
+                console.log('Video can start playing');
+                if (videoError) {
+                    videoError.classList.add('hidden');
+                }
+            });
+            
             // Initial check for video status
             checkVideoStatus();
         }
         
+        // Global function for retrying video load
+        window.retryVideoLoad = function() {
+            const videoElement = document.getElementById('courseVideo');
+            if (videoElement) {
+                console.log('Retrying video load...');
+                videoElement.load();
+                checkVideoStatus();
+            }
+        };
+        
         function checkVideoStatus() {
+            console.log('Checking video status for course {{ course.id }}...');
+            
             fetch(`/courses/{{ course.id }}/check-video/`)
                 .then(response => {
                     if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        return response.json();
-    })
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
                 .then(data => {
-                    console.log('Video status:', data);
+                    console.log('Video status response:', data);
                     
                     if (data.success && data.video_exists) {
                         console.log('Video exists, available at:', data.stream_url);
                         
-                        // If we have a source element, update it
-                        if (videoElement.querySelector('source')) {
+                        // Update video source if needed
+                        if (videoElement && videoElement.querySelector('source')) {
                             const sourceElement = videoElement.querySelector('source');
                             const currentSrc = sourceElement.src;
                             
                             // Only reload if source has changed
                             if (currentSrc !== data.stream_url) {
+                                console.log('Updating video source from', currentSrc, 'to', data.stream_url);
                                 sourceElement.src = data.stream_url;
                                 videoElement.load();
                             }
                         }
+                        
+                        // Hide any error messages
+                        if (videoError) {
+                            videoError.classList.add('hidden');
+                        }
+                        
                     } else {
-                        console.error('Video check failed:', data.error || 'Unknown error');
+                        // Handle video not found or access issues
+                        let errorMessage = data.error || 'Unknown error';
+                        let warningMessage = data.warning || '';
+                        
+                        console.error('Video check failed:', errorMessage);
+                        if (warningMessage) {
+                            console.warn('Video warning:', warningMessage);
+                        }
+                        
                         if (videoError) {
                             videoError.classList.remove('hidden');
-                            videoError.innerHTML = `<p class="text-red-700">Video check failed: ${data.error || 'Unknown error'}</p>`;
+                            let errorHtml = `
+                                <div class="text-center">
+                                    <p class="text-red-700 font-semibold">Video Unavailable</p>
+                                    <p class="text-red-600 text-sm mt-2">${errorMessage}</p>
+                            `;
+                            
+                            if (warningMessage) {
+                                errorHtml += `<p class="text-yellow-600 text-sm mt-1">Warning: ${warningMessage}</p>`;
+                            }
+                            
+                            errorHtml += `
+                                    <div class="mt-3 space-x-2">
+                                        <button onclick="retryVideoLoad()" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
+                                            Retry
+                                        </button>
+                                        <button onclick="checkVideoStatus()" class="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600">
+                                            Check Again
+                                        </button>
+                                    </div>
+                                </div>
+                            `;
+                            
+                            videoError.innerHTML = errorHtml;
                         }
                     }
                 })
                 .catch(error => {
                     console.error('Error checking video status:', error);
+                    
+                    if (videoError) {
+                        videoError.classList.remove('hidden');
+                        videoError.innerHTML = `
+                            <div class="text-center">
+                                <p class="text-red-700 font-semibold">Connection Error</p>
+                                <p class="text-red-600 text-sm mt-2">Unable to check video status</p>
+                                <button onclick="checkVideoStatus()" class="mt-3 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
+                                    Try Again
+                                </button>
+                            </div>
+                        `;
+                    }
                 });
         }
         

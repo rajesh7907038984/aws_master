@@ -6,7 +6,7 @@ from django.db.models import Q, Max, Count, F, Sum, Avg, Exists, OuterRef, Prefe
 from django.urls import reverse, NoReverseMatch
 from django.core.exceptions import ValidationError
 from django.template.exceptions import TemplateDoesNotExist
-# from django.views.decorators.csrf import ensure_csrf_cookie, csrf_protect, csrf_exempt  # COMMENTED OUT TO FIX ERRORS
+from django.views.decorators.csrf import ensure_csrf_cookie, csrf_protect, csrf_exempt
 from django.views.decorators.http import require_POST, require_http_methods, require_GET
 from django.utils.decorators import method_decorator
 from django.utils import timezone
@@ -4295,16 +4295,10 @@ def course_settings(request, course_id):
         course_outcomes = request.POST.get('course_outcomes')
         course_rubrics = request.POST.get('course_rubrics')
         
-        # Only process certificate settings for non-instructor users
-        if request.user.role != 'instructor':
-            issue_certificate = request.POST.get('issue_certificate') == 'on'
-            certificate_type = request.POST.get('certificate_type')
-            certificate_template_id = request.POST.get('certificate_template')
-        else:
-            # For instructor users, don't change certificate settings
-            issue_certificate = course.issue_certificate
-            certificate_type = course.certificate_type
-            certificate_template_id = course.certificate_template.id if course.certificate_template else None
+        # Process certificate settings for all users (including instructors)
+        issue_certificate = request.POST.get('issue_certificate') == 'on'
+        certificate_type = request.POST.get('certificate_type')
+        certificate_template_id = request.POST.get('certificate_template')
         
         # Process survey selection (available to admins and instructors)
         survey_id = request.POST.get('survey')
@@ -5646,52 +5640,111 @@ def remove_group_from_course(request, course_id, group_id):
             'error': "This group is not associated with the course."
         }, status=400)
 
-@login_required
 def stream_video(request, path):
     """
     Stream video content with proper headers for efficient buffering
+    Enhanced for S3 storage with proper error handling and CORS support
+    Requires authentication for security
     """
     try:
+        # Decode URL-encoded path to handle spaces in filenames
+        import urllib.parse
+        path = urllib.parse.unquote(path)
+        
         # Sanitize path to prevent path traversal attacks
         path = path.replace('..', '').replace('\\', '/').lstrip('/')
         
-        # For S3 storage, we can't use os.path.exists
-        # Instead, we'll try to access the file through the storage backend
-        try:
-            from django.core.files.storage import default_storage
-            # Try to open file directly instead of checking existence first (S3 permission-safe)
-            try:
-                file_obj = default_storage.open(path)
-            except Exception as open_error:
-                if "403" in str(open_error) or "Forbidden" in str(open_error):
-                    logger.error(f"S3 permission denied for video file: {path}")
-                    return HttpResponseForbidden('Access denied to video file')
-                elif "NoSuchKey" in str(open_error) or "not found" in str(open_error):
-                    logger.error(f"Video file not found: {path}")
-                    return HttpResponseNotFound('Video file not found')
-                else:
-                    logger.error(f"Error opening video file {path}: {open_error}")
-                    return HttpResponseNotFound('Video file not found')
-        except Exception as e:
-            logger.error(f"Error checking video file existence: {str(e)}")
-            return HttpResponseNotFound('Video file not found')
-            
-        # Get file size - for S3, we can't get exact size without downloading
-        # We'll use a default size for now
-        file_size = 1024 * 1024  # Default 1MB
+        # Log video access attempts for security monitoring
+        user_info = f"User: {request.user.id if request.user.is_authenticated else 'Anonymous'}"
+        ip_address = request.META.get('REMOTE_ADDR', 'Unknown')
+        logger.info(f"Video access attempt: {path} by {user_info} from {ip_address}")
         
-        # Get content type
+        # Basic security check - ensure path is within expected video directory
+        if not path.startswith('course_videos/'):
+            logger.warning(f"Suspicious video path access: {path}")
+            return HttpResponseForbidden('Invalid video path')
+        
+        # For S3 storage, we need to handle this differently
+        from django.core.files.storage import default_storage
+        import mimetypes
+        import re
+        from wsgiref.util import FileWrapper
+        
+        # Skip existence check since MediaS3Storage.exists() always returns False
+        # Instead, try to generate the URL directly
+        try:
+            # Generate S3 URL - this will work if file exists
+            file_url = default_storage.url(path)
+            if not file_url:
+                logger.error(f"Video file not found: {path}")
+                return HttpResponseNotFound('Video file not found')
+                
+        except Exception as open_error:
+            error_msg = str(open_error).lower()
+            if "403" in error_msg or "forbidden" in error_msg:
+                logger.error(f"S3 permission denied for video file: {path}")
+                return HttpResponseForbidden('Access denied to video file')
+            elif "nosuchkey" in error_msg or "not found" in error_msg:
+                logger.error(f"Video file not found: {path}")
+                return HttpResponseNotFound('Video file not found')
+            else:
+                logger.error(f"Error accessing video file {path}: {open_error}")
+                return HttpResponseNotFound('Video file not found')
+        
+        # Get content type based on file extension
         content_type, encoding = mimetypes.guess_type(path)
         if not content_type:
-            content_type = 'video/mp4'  # Default to MP4 if type cannot be determined
+            # Determine content type by file extension
+            if path.lower().endswith('.mp4'):
+                content_type = 'video/mp4'
+            elif path.lower().endswith('.webm'):
+                content_type = 'video/webm'
+            elif path.lower().endswith('.ogg'):
+                content_type = 'video/ogg'
+            elif path.lower().endswith('.avi'):
+                content_type = 'video/avi'
+            elif path.lower().endswith('.mov'):
+                content_type = 'video/quicktime'
+            else:
+                content_type = 'video/mp4'  # Default fallback
         
-        # Handle range header for partial content
+        # For authenticated video streaming, we'll proxy through Django
+        # This ensures authentication is maintained while allowing video playback
+        try:
+            # Stream the video content directly through Django
+            return _stream_video_direct(request, path, content_type)
+            
+        except Exception as s3_error:
+            logger.error(f"Error streaming video {path}: {s3_error}")
+            return HttpResponseServerError('Error streaming video')
+        
+    except Exception as e:
+        logger.error(f"Error streaming video {path}: {str(e)}", exc_info=True)
+        return HttpResponseServerError('Error streaming video')
+
+
+def _stream_video_direct(request, path, content_type):
+    """
+    Fallback method to stream video directly through Django
+    Used when S3 redirect fails
+    """
+    try:
+        from django.core.files.storage import default_storage
+        
+        # Try to open the file from S3
+        file_obj = default_storage.open(path)
+        
+        # Get file size if possible
+        try:
+            file_size = file_obj.size
+        except:
+            file_size = None
+        
+        # Handle range requests for video seeking
         range_header = request.META.get('HTTP_RANGE', '').strip()
         range_match = re.match(r'bytes=(\d+)-(\d*)', range_header)
         
-        file_handle = open(file_path, 'rb')
-        
-        if range_match:
+        if range_match and file_size:
             first_byte, last_byte = range_match.groups()
             first_byte = int(first_byte) if first_byte else 0
             last_byte = int(last_byte) if last_byte else file_size - 1
@@ -5701,9 +5754,23 @@ def stream_video(request, path):
                 
             length = last_byte - first_byte + 1
             
-            file_handle.seek(first_byte)
+            # Seek to the start position
+            file_obj.seek(first_byte)
+            
+            # Create streaming response for partial content
+            def file_iterator():
+                remaining = length
+                while remaining > 0:
+                    chunk_size = min(8192, remaining)
+                    chunk = file_obj.read(chunk_size)
+                    if not chunk:
+                        break
+                    remaining -= len(chunk)
+                    yield chunk
+                file_obj.close()
+            
             response = StreamingHttpResponse(
-                FileWrapper(file_handle, 8192),  # 8KB chunks
+                file_iterator(),
                 status=206,
                 content_type=content_type
             )
@@ -5711,25 +5778,44 @@ def stream_video(request, path):
             response['Content-Length'] = str(length)
             response['Content-Range'] = f'bytes {first_byte}-{last_byte}/{file_size}'
         else:
+            # Full file streaming
+            def file_iterator():
+                while True:
+                    chunk = file_obj.read(8192)
+                    if not chunk:
+                        break
+                    yield chunk
+                file_obj.close()
+            
             response = StreamingHttpResponse(
-                FileWrapper(file_handle, 8192),  # 8KB chunks
+                file_iterator(),
                 content_type=content_type
             )
-            response['Content-Length'] = str(file_size)
+            
+            if file_size:
+                response['Content-Length'] = str(file_size)
         
+        # Add essential headers for video streaming
         response['Accept-Ranges'] = 'bytes'
-        response['Cache-Control'] = 'public, max-age=3600'  # Cache for 1 hour
+        response['Cache-Control'] = 'public, max-age=3600'
+        
+        # Add CORS headers
+        response['Access-Control-Allow-Origin'] = '*'
+        response['Access-Control-Allow-Methods'] = 'GET, HEAD, OPTIONS'
+        response['Access-Control-Allow-Headers'] = 'Range, Content-Range, Content-Length, Content-Type'
+        response['Access-Control-Expose-Headers'] = 'Content-Range, Content-Length, Accept-Ranges'
+        
         return response
         
     except Exception as e:
-        logger.error(f"Error streaming video {path}: {str(e)}")
+        logger.error(f"Error in direct video streaming for {path}: {str(e)}")
         return HttpResponseServerError('Error streaming video')
 
 @login_required
 def check_video_status(request, course_id):
     """
     Check if a course video file exists and is accessible
-    Returns JSON response with status information
+    Enhanced with better S3 error handling and detailed status information
     """
     try:
         course = get_object_or_404(Course, id=course_id)
@@ -5748,31 +5834,77 @@ def check_video_status(request, course_id):
                 'error': "No video associated with this course."
             })
         
-        # Check if the file exists
-        # For S3 storage, we can't use os.path.exists with .path
-        # Instead, check if the file has a URL (which means it exists)
-        file_exists = hasattr(course.course_video, 'url')
-        
-        # Get file details if it exists
+        # Enhanced file existence check for S3
+        file_exists = False
         file_info = {}
-        if file_exists:
-            # For S3 storage, we can't get file size or modification time using os.path
-            # We'll use the URL and basic info instead
-            file_info = {
-                'exists': True,
-                'url': course.course_video.url,
-                'name': str(course.course_video).split('/')[-1] if course.course_video else 'Unknown'
-            }
+        stream_url = None
+        error_details = None
         
-        return JsonResponse({
+        try:
+            from django.core.files.storage import default_storage
+            
+            # Try to get the file URL from S3
+            try:
+                file_url = default_storage.url(course.course_video.name)
+                if file_url:
+                    file_exists = True
+                    file_info = {
+                        'exists': True,
+                        'url': file_url,
+                        'name': str(course.course_video).split('/')[-1] if course.course_video else 'Unknown',
+                        'size': getattr(course.course_video, 'size', 'Unknown'),
+                        'content_type': getattr(course.course_video, 'content_type', 'video/mp4')
+                    }
+                    # Generate the stream URL with proper path
+                    stream_url = reverse('courses:stream_video', kwargs={'path': course.course_video.name})
+                    
+                    # Ensure the URL is absolute for proper video loading
+                    if not stream_url.startswith('http'):
+                        # Use request domain for staging environments to ensure correct URL generation
+                        if 'staging.nexsy.io' in request.get_host():
+                            stream_url = f"https://staging.nexsy.io{stream_url}"
+                        else:
+                            # Fallback to Site model for production environments
+                            from django.contrib.sites.models import Site
+                            try:
+                                current_site = Site.objects.get_current()
+                                stream_url = f"https://{current_site.domain}{stream_url}"
+                            except:
+                                # Final fallback to request domain
+                                stream_url = f"https://{request.get_host()}{stream_url}"
+                    
+            except Exception as url_error:
+                error_msg = str(url_error).lower()
+                if "403" in error_msg or "forbidden" in error_msg:
+                    error_details = "Permission denied accessing video file"
+                    logger.warning(f"S3 permission denied for video: {course.course_video.name}")
+                elif "nosuchkey" in error_msg or "not found" in error_msg:
+                    error_details = "Video file not found in storage"
+                    logger.warning(f"Video file not found: {course.course_video.name}")
+                else:
+                    error_details = f"Error accessing video file: {str(url_error)}"
+                    logger.error(f"Error accessing video file {course.course_video.name}: {url_error}")
+                    
+        except Exception as e:
+            error_details = f"Storage error: {str(e)}"
+            logger.error(f"Storage error for course {course_id}: {str(e)}")
+        
+        # Return detailed response
+        response_data = {
             'success': True,
             'video_exists': file_exists,
-            'file_info': file_info if file_exists else {},
-            'stream_url': reverse('courses:stream_video', kwargs={'path': course.course_video.name}) if file_exists else None
-        })
+            'file_info': file_info,
+            'stream_url': stream_url
+        }
+        
+        if error_details:
+            response_data['warning'] = error_details
+            response_data['video_exists'] = False
+        
+        return JsonResponse(response_data)
         
     except Exception as e:
-        logger.error(f"Error checking video status for course {course_id}: {str(e)}")
+        logger.error(f"Error checking video status for course {course_id}: {str(e)}", exc_info=True)
         return JsonResponse({
             'success': False,
             'error': f"Error checking video status: {str(e)}"

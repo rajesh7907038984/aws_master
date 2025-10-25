@@ -1269,7 +1269,7 @@ class ScormAPIHandlerEnhanced:
             self._update_total_time_original(session_time)
     
     def _update_total_time_original(self, session_time):
-        """Original time tracking method as fallback"""
+        """Original time tracking method as fallback with improved reliability"""
         try:
             # Parse session time
             if session_time.startswith('PT'):
@@ -1279,14 +1279,28 @@ class ScormAPIHandlerEnhanced:
                 # SCORM 1.2 time format
                 total_seconds = self._parse_scorm_time(session_time)
             
+            if total_seconds <= 0:
+                logger.warning(f"Invalid session time: {session_time}")
+                return
+            
             # Parse current total time
             current_total = self._parse_scorm_time(self.attempt.total_time)
             
-            # Add session time to total
-            new_total = current_total + total_seconds
+            # For new attempts, use session time as total time
+            # For existing attempts, add session time to current total
+            if current_total == 0:
+                new_total = total_seconds
+            else:
+                new_total = current_total + total_seconds
             
-            # Format back to SCORM time
+            # Update both SCORM format and seconds
             self.attempt.total_time = self._format_scorm_time(new_total)
+            self.attempt.time_spent_seconds = int(new_total)
+            
+            # Update session time as well
+            self.attempt.session_time = self._format_scorm_time(total_seconds)
+            
+            logger.info(f"Updated total time: {current_total}s + {total_seconds}s = {new_total}s")
             
         except Exception as e:
             logger.error("Error updating total time: %s", str(e))

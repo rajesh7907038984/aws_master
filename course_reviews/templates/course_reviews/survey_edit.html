@@ -5,37 +5,74 @@
 
 {% block extra_css %}
 <style>
-    /* Simple Survey Edit Page Styling */
-    .form-label {
-        font-weight: 500;
-        color: #374151;
-        margin-bottom: 0.5rem;
-        font-size: 0.875rem;
+    /* Enhanced Survey Edit Page Styling - Matching Quiz Form Style */
+    .form-group {
+        margin-bottom: 1.5rem;
     }
     
-    .form-control, .form-select {
-        border: 1px solid #E5E7EB;
-        border-radius: 6px;
-        padding: 0.5rem 0.75rem;
+    .form-label {
+        display: block;
+        font-weight: 500;
         font-size: 0.875rem;
+        line-height: 1.25rem;
+        color: #374151;
+        margin-bottom: 0.5rem;
+    }
+
+    .form-control, .form-select {
+        width: 100%;
+        padding: 0.5rem 0.75rem;
+        border: 1px solid #E5E7EB;
+        border-radius: 0.375rem;
+        font-size: 0.875rem;
+        color: #374151;
+        background-color: white;
+        transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
     }
     
     .form-control:focus, .form-select:focus {
-        border-color: #9CA3AF;
         outline: none;
-        box-shadow: none;
+        border-color: #2563EB;
+        box-shadow: 0 0 0 1px #2563EB;
+    }
+    
+    .form-error {
+        margin-top: 0.25rem;
+        font-size: 0.875rem;
+        color: #dc2626;
+        font-weight: 500;
+        display: block;
+    }
+    
+    .field-error {
+        border-color: #dc2626 !important;
+        box-shadow: 0 0 0 1px #dc2626;
+    }
+    
+    .form-help {
+        margin-top: 0.25rem;
+        font-size: 0.75rem;
+        color: #6b7280;
+    }
+    
+    .required-field::after {
+        content: "*";
+        color: #dc2626;
+        margin-left: 0.25rem;
     }
     
     .formset-row {
         background: #F9FAFB;
         border: 1px solid #E5E7EB;
-        border-radius: 6px;
-        padding: 1.25rem;
+        border-radius: 0.5rem;
+        padding: 1.5rem;
         margin-bottom: 1rem;
+        transition: all 0.2s ease;
     }
     
     .formset-row:hover {
         background: #F3F4F6;
+        border-color: #D1D5DB;
     }
     
     .field-header {
@@ -50,13 +87,13 @@
     .field-number {
         background: #6B7280;
         color: white;
-        width: 28px;
-        height: 28px;
-        border-radius: 4px;
+        width: 32px;
+        height: 32px;
+        border-radius: 0.375rem;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-weight: 500;
+        font-weight: 600;
         font-size: 0.875rem;
     }
     
@@ -65,7 +102,7 @@
         align-items: center;
         gap: 0.25rem;
         padding: 0.25rem 0.625rem;
-        border-radius: 4px;
+        border-radius: 0.375rem;
         font-size: 0.75rem;
         font-weight: 500;
         background: #E5E7EB;
@@ -76,8 +113,8 @@
         background: #FEE2E2;
         color: #991B1B;
         border: 1px solid #FCA5A5;
-        border-radius: 4px;
-        padding: 0.375rem 0.75rem;
+        border-radius: 0.375rem;
+        padding: 0.5rem 0.75rem;
         font-size: 0.75rem;
         font-weight: 500;
         cursor: pointer;
@@ -100,9 +137,45 @@
         background: #DBEAFE;
         color: #1E3A8A;
         padding: 0.25rem 0.5rem;
-        border-radius: 4px;
+        border-radius: 0.375rem;
         font-size: 0.75rem;
         font-weight: 500;
+    }
+    
+    .status-toggle {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .status-toggle input {
+        width: auto;
+    }
+    
+    .empty-state {
+        text-align: center;
+        padding: 3rem;
+        background-color: #F9FAFB;
+        border: 1px solid #E5E7EB;
+        border-radius: 0.5rem;
+    }
+    
+    .empty-state i {
+        font-size: 3rem;
+        color: #9CA3AF;
+        margin-bottom: 1rem;
+    }
+    
+    .empty-state h3 {
+        font-size: 1.125rem;
+        font-weight: 500;
+        color: #374151;
+        margin-bottom: 0.5rem;
+    }
+    
+    .empty-state p {
+        color: #6B7280;
+        font-size: 0.875rem;
     }
     
     .status-badge {
@@ -151,161 +224,215 @@
         </div>
 
         <!-- Form -->
-        <form method="post" novalidate class="px-6 py-4">
+        <form method="post" class="divide-y divide-gray-200" id="surveyForm">
             {% csrf_token %}
             
-            <!-- Survey Details Section -->
-            <div class="mb-6">
-                <h2 class="text-lg font-medium text-gray-900 mb-4">Survey Details</h2>
-                
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                    <div class="md:col-span-2">
+            {% if form.non_field_errors %}
+            <div class="px-6 py-4 bg-red-50 border-l-4 border-red-500">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0">
+                        <svg class="h-5 w-5 text-red-500" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+                        </svg>
+                    </div>
+                    <div class="ml-3">
+                        <h3 class="text-sm font-medium text-red-800">Form Validation Errors</h3>
+                        <div class="mt-2 text-sm text-red-700">
+                            {% for error in form.non_field_errors %}
+                                <p class="mb-1">{{ error }}</p>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="px-6 py-4 space-y-6">
+                <!-- Survey Details Section -->
+                <div>
+                    <h2 class="text-lg font-medium text-gray-900 mb-4">Survey Details</h2>
+                    
+                    <!-- Title -->
+                    <div class="form-group">
                         <label for="{{ form.title.id_for_label }}" class="form-label">
-                            Survey Title <span class="text-danger">*</span>
+                            Survey Title <span class="text-red-500">*</span>
                         </label>
                         {{ form.title }}
                         {% if form.title.errors %}
-                            <div class="text-red-600 text-sm mt-1">{{ form.title.errors }}</div>
+                        <p class="form-error">{{ form.title.errors.0 }}</p>
                         {% endif %}
                     </div>
-                    
-                    <div>
+
+                    <!-- Description -->
+                    <div class="form-group">
+                        <label for="{{ form.description.id_for_label }}" class="form-label">
+                            Description
+                        </label>
+                        {{ form.description }}
+                        {% if form.description.errors %}
+                        <p class="form-error">{{ form.description.errors.0 }}</p>
+                        {% endif %}
+                        <p class="form-help">Optional description for your survey</p>
+                    </div>
+
+                    <!-- Status -->
+                    <div class="form-group">
                         <label class="form-label">Status</label>
-                        <div class="form-check form-switch" style="padding-top: 0.5rem;">
+                        <div class="status-toggle">
                             {{ form.is_active }}
-                            <label class="form-check-label text-sm" for="{{ form.is_active.id_for_label }}">
-                                Survey is Active
-                            </label>
+                            <span>Active</span>
                         </div>
+                        <p class="form-help">Active surveys are visible to students and can be submitted.</p>
                     </div>
                 </div>
 
+                <!-- Survey Fields Section -->
                 <div>
-                    <label for="{{ form.description.id_for_label }}" class="form-label">Description</label>
-                    {{ form.description }}
-                    {% if form.description.errors %}
-                        <div class="text-red-600 text-sm mt-1">{{ form.description.errors }}</div>
-                    {% endif %}
-                </div>
-            </div>
-
-            <!-- Survey Fields Section -->
-            <div class="mb-6">
-                <div class="d-flex justify-content-between align-items-center mb-4 pb-3 border-bottom" style="border-color: #E5E7EB;">
-                    <div>
-                        <h2 class="mb-1" style="font-size: 1.125rem; font-weight: 500; color: #111827;">Survey Fields</h2>
-                        <p class="mb-0" style="font-size: 0.875rem; color: #6B7280;">{{ formset.total_form_count }} field{{ formset.total_form_count|pluralize }} configured</p>
-                    </div>
-                    <button type="button" class="btn btn-outline-secondary btn-sm d-inline-flex align-items-center" onclick="addNewField()" style="gap: 0.5rem;">
-                        <svg style="width: 16px; height: 16px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
-                        </svg>
-                        Add New Field
-                    </button>
-                </div>
-
-                {{ formset.management_form }}
-                
-                {% if formset.non_form_errors %}
-                    <div class="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded mb-4">
-                        {{ formset.non_form_errors }}
-                    </div>
-                {% endif %}
-
-                <div id="formset-container">
-                    {% for form in formset %}
-                    <div class="formset-row" data-field-index="{{ forloop.counter }}">
-                        {{ form.id }}
-                        
-                        <!-- Field Header -->
-                        <div class="field-header">
-                            <div class="d-flex align-items-center gap-3">
-                                <div class="field-number">{{ forloop.counter }}</div>
-                                <div>
-                                    <span class="field-type-badge" data-field-type="{{ form.field_type.value }}">
-                                        <span class="field-type-text">{{ form.field_type.value|default:"text" }}</span>
-                                    </span>
-                                    {% if form.is_required.value %}
-                                    <span class="required-badge ms-2">
-                                        Required
-                                    </span>
-                                    {% endif %}
-                                </div>
-                            </div>
-                            
-                            {% if formset.can_delete %}
-                            <div class="field-actions">
-                                <label class="delete-field-btn" onclick="toggleDelete(this)">
-                                    Remove
-                                </label>
-                                <div class="delete-checkbox">
-                                    {{ form.DELETE }}
-                                </div>
-                            </div>
-                            {% endif %}
+                    <div class="flex justify-between items-center mb-4">
+                        <div>
+                            <h2 class="text-lg font-medium text-gray-900">Survey Fields</h2>
+                            <p class="text-sm text-gray-600">{{ formset.total_form_count }} field{{ formset.total_form_count|pluralize }} configured</p>
                         </div>
-                        
-                        <!-- Field Content -->
-                        <div class="field-row-content">
-                            <div class="row g-2 align-items-end">
-                                <div class="col-md-3">
-                                    <label class="form-label small">Question/Label <span class="text-danger">*</span></label>
-                                    {{ form.label }}
-                                    {% if form.label.errors %}
-                                        <div class="text-danger small">{{ form.label.errors }}</div>
-                                    {% endif %}
-                                </div>
-                                <div class="col-md-2">
-                                    <label class="form-label small">Field Type <span class="text-danger">*</span></label>
-                                    {{ form.field_type }}
-                                    {% if form.field_type.errors %}
-                                        <div class="text-danger small">{{ form.field_type.errors }}</div>
-                                    {% endif %}
-                                </div>
-                                <div class="col-md-2">
-                                    <label class="form-label small">Placeholder</label>
-                                    {{ form.placeholder }}
-                                </div>
-                                <div class="col-md-2">
-                                    <label class="form-label small">Help Text</label>
-                                    {{ form.help_text }}
-                                </div>
-                                <div class="col-md-1">
-                                    <label class="form-label small">Max Rating</label>
-                                    {{ form.max_rating }}
-                                </div>
-                                <div class="col-md-1">
-                                    <label class="form-label small">Order</label>
-                                    {{ form.order }}
-                                    {% if form.order.errors %}
-                                        <div class="text-danger small">{{ form.order.errors }}</div>
-                                    {% endif %}
-                                </div>
-                                <div class="col-md-1">
-                                    <label class="form-label small d-block">Required</label>
-                                    <div class="form-check">
-                                        {{ form.is_required }}
-                                        <label class="form-check-label small">Yes</label>
+                        <div class="flex gap-2">
+                            <button type="button" class="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50" onclick="addNewField()">
+                                <svg class="-ml-1 mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                                </svg>
+                                Add New Field
+                            </button>
+                        </div>
+                    </div>
+
+                    {{ formset.management_form }}
+                    
+                    {% if formset.non_form_errors %}
+                        <div class="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded mb-4">
+                            {{ formset.non_form_errors }}
+                        </div>
+                    {% endif %}
+
+                    <div id="formset-container">
+                        {% for form in formset %}
+                        <div class="formset-row" data-field-index="{{ forloop.counter }}">
+                            {{ form.id }}
+                            
+                            <!-- Field Header -->
+                            <div class="field-header">
+                                <div class="flex items-center gap-3">
+                                    <div class="field-number">{{ forloop.counter }}</div>
+                                    <div>
+                                        <span class="field-type-badge" data-field-type="{{ form.field_type.value }}">
+                                            <span class="field-type-text">{{ form.field_type.value|default:"text" }}</span>
+                                        </span>
+                                        {% if form.is_required.value %}
+                                        <span class="required-badge ml-2">
+                                            Required
+                                        </span>
+                                        {% endif %}
                                     </div>
                                 </div>
+                                
+                                {% if formset.can_delete %}
+                                <div class="field-actions">
+                                    <label class="delete-field-btn" onclick="toggleDelete(this)">
+                                        Remove
+                                    </label>
+                                    <div class="delete-checkbox">
+                                        {{ form.DELETE }}
+                                    </div>
+                                </div>
+                                {% endif %}
+                            </div>
+                            
+                            <!-- Field Content -->
+                            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                <div class="form-group">
+                                    <label class="form-label">Question/Label <span class="text-red-500">*</span></label>
+                                    {{ form.label }}
+                                    {% if form.label.errors %}
+                                        <p class="form-error">{{ form.label.errors.0 }}</p>
+                                    {% endif %}
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label class="form-label">Field Type <span class="text-red-500">*</span></label>
+                                    {{ form.field_type }}
+                                    {% if form.field_type.errors %}
+                                        <p class="form-error">{{ form.field_type.errors.0 }}</p>
+                                    {% endif %}
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label class="form-label">Placeholder</label>
+                                    {{ form.placeholder }}
+                                    {% if form.placeholder.errors %}
+                                        <p class="form-error">{{ form.placeholder.errors.0 }}</p>
+                                    {% endif %}
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label class="form-label">Help Text</label>
+                                    {{ form.help_text }}
+                                    {% if form.help_text.errors %}
+                                        <p class="form-error">{{ form.help_text.errors.0 }}</p>
+                                    {% endif %}
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label class="form-label">Max Rating</label>
+                                    {{ form.max_rating }}
+                                    {% if form.max_rating.errors %}
+                                        <p class="form-error">{{ form.max_rating.errors.0 }}</p>
+                                    {% endif %}
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label class="form-label">Order</label>
+                                    {{ form.order }}
+                                    {% if form.order.errors %}
+                                        <p class="form-error">{{ form.order.errors.0 }}</p>
+                                    {% endif %}
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label class="form-label">Required</label>
+                                    <div class="flex items-center">
+                                        {{ form.is_required }}
+                                        <label class="ml-2 text-sm text-gray-700">Yes</label>
+                                    </div>
+                                    {% if form.is_required.errors %}
+                                        <p class="form-error">{{ form.is_required.errors.0 }}</p>
+                                    {% endif %}
+                                </div>
                             </div>
                         </div>
+                        {% empty %}
+                        <div class="empty-state">
+                            <i class="fas fa-question-circle"></i>
+                            <h3>No fields added yet</h3>
+                            <p>Add your first question to start building your survey.</p>
+                        </div>
+                        {% endfor %}
                     </div>
-                    {% empty %}
-                    <div class="text-center py-8 bg-gray-50 rounded border border-gray-200">
-                        <p class="text-gray-500">No fields added yet. Add your first question to start building your survey.</p>
-                    </div>
-                    {% endfor %}
                 </div>
             </div>
 
-            <!-- Action Buttons -->
-            <div class="d-flex justify-content-between align-items-center pt-4 border-top" style="border-color: #E5E7EB;">
-                <a href="{% url 'course_reviews:survey_list' %}" class="btn btn-outline-secondary">
+            <!-- Form Actions -->
+            <div class="px-6 py-4 bg-gray-50 flex justify-end space-x-3">
+                <a href="{% url 'course_reviews:survey_list' %}" 
+                   class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
                     Cancel
                 </a>
-                <button type="submit" class="btn text-white" style="background-color: #1c2260;" onmouseover="this.style.backgroundColor='#181f56'" onmouseout="this.style.backgroundColor='#1c2260'">
-                    Save Changes
+                <button type="submit" 
+                        class="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                    <span id="submitButtonText">Save Changes</span>
+                    <span id="submitButtonLoading" style="display: none;">
+                        <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Saving...
+                    </span>
                 </button>
             </div>
         </form>
@@ -315,8 +442,9 @@
 
 {% block extra_js %}
 <script>
-    // Simple Survey Edit Page JavaScript
+    // Enhanced Survey Edit Page JavaScript
     document.addEventListener('DOMContentLoaded', function() {
+        
         
         // Function to toggle delete checkbox
         window.toggleDelete = function(button) {
@@ -368,7 +496,7 @@
                     
                     if (checkbox.checked && !requiredBadge) {
                         requiredBadge = document.createElement('span');
-                        requiredBadge.className = 'required-badge ms-2';
+                        requiredBadge.className = 'required-badge ml-2';
                         requiredBadge.textContent = 'Required';
                         header.appendChild(requiredBadge);
                     } else if (!checkbox.checked && requiredBadge) {
@@ -377,6 +505,7 @@
                 }
             });
         });
+        
         
         // Add new field functionality
         window.addNewField = function() {
@@ -397,7 +526,7 @@
                 newForm.setAttribute('data-field-index', newIndex + 1);
                 newForm.innerHTML = `
                     <div class="field-header">
-                        <div class="d-flex align-items-center gap-3">
+                        <div class="flex items-center gap-3">
                             <div class="field-number">${newIndex + 1}</div>
                             <div>
                                 <span class="field-type-badge">
@@ -409,8 +538,8 @@
                             <label class="delete-field-btn" onclick="toggleDelete(this)">Remove</label>
                         </div>
                     </div>
-                    <div class="field-row-content">
-                        <p class="text-sm text-gray-600 mb-3">Please save the form to add more details to this field.</p>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <p class="text-sm text-gray-600 col-span-full">Please save the form to add more details to this field.</p>
                     </div>
                 `;
                 container.appendChild(newForm);
@@ -425,12 +554,13 @@
                     const fieldNumber = newForm.querySelector('.field-number');
                     if (fieldNumber) fieldNumber.textContent = newIndex + 1;
                     
-                    // Clear input values
+                    // Clear input values only for new fields (not existing ones)
                     const inputs = newForm.querySelectorAll('input:not([type="hidden"]), textarea, select');
                     inputs.forEach(input => {
+                        // Only clear if it's a new field (no existing value)
                         if (input.type === 'checkbox') {
                             input.checked = false;
-                        } else {
+                        } else if (!input.value || input.value === '') {
                             input.value = '';
                         }
                     });
@@ -457,6 +587,21 @@
                 }
             }, 100);
         };
+        
+        // Form submission handling
+        const form = document.getElementById('surveyForm');
+        if (form) {
+            form.addEventListener('submit', function() {
+                const submitButton = this.querySelector('button[type="submit"]');
+                const submitText = document.getElementById('submitButtonText');
+                const submitLoading = document.getElementById('submitButtonLoading');
+                
+                if (submitText && submitLoading) {
+                    submitText.style.display = 'none';
+                    submitLoading.style.display = 'inline';
+                }
+            });
+        }
     });
 </script>
 {% endblock %}

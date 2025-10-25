@@ -17,7 +17,7 @@ from django.urls import reverse_lazy
 from django.conf import settings
 
 from core.mixins.enhanced_view_mixins import CourseViewMixin, RobustAtomicViewMixin, BaseErrorHandlingMixin
-from .models import Course, Topic, Section, Enrollment
+from .models import Course, Topic, Section, CourseEnrollment
 from .forms import CourseForm
 
 logger = logging.getLogger(__name__)
@@ -390,7 +390,7 @@ def enhanced_stream_video(request, path):
             return HttpResponseForbidden('Access denied')
         
         # Stream the video
-        def file_iterator(file_path, chunk_size=8192):
+        def file_iterator(chunk_size=8192):
             try:
                 with open(file_path, 'rb') as file:
                     while True:
@@ -407,7 +407,7 @@ def enhanced_stream_video(request, path):
         
         # Create streaming response
         response = StreamingHttpResponse(
-            file_iterator(file_path),
+            file_iterator(),
             content_type='video/mp4'
         )
         response['Content-Length'] = str(file_size)

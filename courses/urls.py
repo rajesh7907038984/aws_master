@@ -6,7 +6,7 @@ from .topic_views import topic_view, topic_content, topic_url_embed
 app_name = 'courses'
 
 urlpatterns = [
-    # Video Streaming
+    # Video Streaming - bypass authentication
     path('video/<path:path>', views.stream_video, name='stream_video'),
     path('<int:course_id>/check-video/', views.check_video_status, name='check_video_status'),
     

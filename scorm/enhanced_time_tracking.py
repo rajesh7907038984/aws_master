@@ -126,17 +126,35 @@ class EnhancedScormTimeTracker:
         return False
     
     def _update_total_time(self, attempt, session_time):
-        """Update total time by adding session time"""
+        """Update total time by adding session time with improved reliability"""
         try:
             session_seconds = self._parse_scorm_time_to_seconds(session_time)
+            if session_seconds <= 0:
+                logger.warning(f"Invalid session time: {session_time}")
+                return False
+                
             current_total = self._parse_scorm_time_to_seconds(attempt.total_time)
-            new_total = current_total + session_seconds
             
+            # For new attempts, use session time as total time
+            # For existing attempts, add session time to current total
+            if current_total == 0:
+                new_total = session_seconds
+            else:
+                new_total = current_total + session_seconds
+            
+            # Update both SCORM format and seconds
             attempt.total_time = self._format_scorm_time(new_total)
             attempt.time_spent_seconds = int(new_total)
             
+            # Ensure session time is also updated
+            attempt.session_time = self._format_scorm_time(session_seconds)
+            
+            logger.info(f"Updated total time: {current_total}s + {session_seconds}s = {new_total}s")
+            return True
+            
         except Exception as e:
             logger.error(f"Error updating total time: {str(e)}")
+            return False
     
     def _parse_scorm_time_to_seconds(self, time_str):
         """Convert SCORM time format to seconds"""
@@ -286,45 +304,45 @@ class EnhancedScormTimeTracker:
             return False
     
     # Version-specific time handlers
-    def _handle_scorm_1_1_time(self, time_str):
+    def _handle_scorm_1_1_time(self, attempt, session_time, total_time=None):
         """Handle SCORM 1.1 time format"""
-        return self._parse_scorm_time_to_seconds(time_str)
+        return self._update_total_time(attempt, session_time)
     
-    def _handle_scorm_1_2_time(self, time_str):
+    def _handle_scorm_1_2_time(self, attempt, session_time, total_time=None):
         """Handle SCORM 1.2 time format"""
-        return self._parse_scorm_time_to_seconds(time_str)
+        return self._update_total_time(attempt, session_time)
     
-    def _handle_scorm_2004_time(self, time_str):
+    def _handle_scorm_2004_time(self, attempt, session_time, total_time=None):
         """Handle SCORM 2004 time format"""
-        return self._parse_scorm_time_to_seconds(time_str)
+        return self._update_total_time(attempt, session_time)
     
-    def _handle_storyline_time(self, time_str):
+    def _handle_storyline_time(self, attempt, session_time, total_time=None):
         """Handle Articulate Storyline time format"""
-        return self._parse_scorm_time_to_seconds(time_str)
+        return self._update_total_time(attempt, session_time)
     
-    def _handle_captivate_time(self, time_str):
+    def _handle_captivate_time(self, attempt, session_time, total_time=None):
         """Handle Adobe Captivate time format"""
-        return self._parse_scorm_time_to_seconds(time_str)
+        return self._update_total_time(attempt, session_time)
     
-    def _handle_lectora_time(self, time_str):
+    def _handle_lectora_time(self, attempt, session_time, total_time=None):
         """Handle Lectora time format"""
-        return self._parse_scorm_time_to_seconds(time_str)
+        return self._update_total_time(attempt, session_time)
     
-    def _handle_html5_time(self, time_str):
+    def _handle_html5_time(self, attempt, session_time, total_time=None):
         """Handle HTML5 package time format"""
-        return self._parse_scorm_time_to_seconds(time_str)
+        return self._update_total_time(attempt, session_time)
     
-    def _handle_xapi_time(self, time_str):
+    def _handle_xapi_time(self, attempt, session_time, total_time=None):
         """Handle xAPI/Tin Can time format"""
-        return self._parse_scorm_time_to_seconds(time_str)
+        return self._update_total_time(attempt, session_time)
     
-    def _handle_dual_scorm_time(self, time_str):
+    def _handle_dual_scorm_time(self, attempt, session_time, total_time=None):
         """Handle dual SCORM + xAPI time format"""
-        return self._parse_scorm_time_to_seconds(time_str)
+        return self._update_total_time(attempt, session_time)
     
-    def _handle_legacy_time(self, time_str):
+    def _handle_legacy_time(self, attempt, session_time, total_time=None):
         """Handle legacy SCORM time format"""
-        return self._parse_scorm_time_to_seconds(time_str)
+        return self._update_total_time(attempt, session_time)
     
     def _validate_time_data(self, session_time, total_time):
         """Validate time data before processing"""

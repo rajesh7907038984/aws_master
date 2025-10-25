@@ -9,7 +9,7 @@ from storages.backends.s3boto3 import S3Boto3Storage
 class MediaS3Storage(S3Boto3Storage):
     """
     Custom S3 storage for media files that doesn't require HeadObject permission
-    Lets django-storages handle all signature generation and AWS configuration
+    Enhanced for video streaming with proper URL generation
     """
     
     @property
@@ -39,6 +39,44 @@ class MediaS3Storage(S3Boto3Storage):
         # Don't check for file_overwrite, just return the name
         # This avoids extra S3 calls
         return name
+    
+    def url(self, name):
+        """
+        Enhanced URL generation for video streaming
+        Ensures proper URL format for video files
+        """
+        try:
+            # Get the base URL from parent class
+            url = super().url(name)
+            
+            # For video files, ensure proper URL format
+            if name and any(name.lower().endswith(ext) for ext in ['.mp4', '.webm', '.ogg', '.avi', '.mov', '.m4v']):
+                # Ensure HTTPS for video streaming
+                if url.startswith('http://'):
+                    url = url.replace('http://', 'https://', 1)
+                
+                # Add query parameters for better caching and streaming
+                separator = '&' if '?' in url else '?'
+                url += f"{separator}response-content-type=video%2Fmp4&response-cache-control=max-age%3D3600"
+            
+            return url
+            
+        except Exception as e:
+            # Log the error but don't raise it to avoid breaking the application
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(f"Error generating URL for {name}: {str(e)}")
+            
+            # Return a fallback URL
+            from django.conf import settings
+            bucket_name = getattr(settings, 'AWS_STORAGE_BUCKET_NAME', '')
+            region = getattr(settings, 'AWS_S3_REGION_NAME', 'eu-west-2')
+            location = self.location
+            
+            if bucket_name:
+                return f"https://{bucket_name}.s3.{region}.amazonaws.com/{location}/{name}"
+            else:
+                raise e
 
 class StaticS3Storage(S3Boto3Storage):
     """
