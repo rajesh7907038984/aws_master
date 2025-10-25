@@ -200,10 +200,10 @@ class ScormParser:
                 return
             
             # Detect SCORM version
-            self.version = self._detect_version(root)
+            scorm_version = self._detect_version(root)
             
-            # Get namespaces for this version
-            ns = self.NAMESPACES.get(self.version, self.NAMESPACES['1.2'])
+            # Get namespaces for this version (use original SCORM version for parsing)
+            ns = self.NAMESPACES.get(scorm_version, self.NAMESPACES['1.2'])
             
             # Extract package metadata
             self.manifest_data['identifier'] = root.get('identifier', '')
@@ -362,6 +362,15 @@ class ScormParser:
             # Store raw manifest data
             self.manifest_data['raw_manifest'] = manifest_content.decode('utf-8', errors='ignore')
             
+            # Now detect authoring tool using the launch URL
+            authoring_tool = self._detect_authoring_tool(root, self.launch_url)
+            if authoring_tool:
+                self.version = authoring_tool
+                logger.info(f"🎯 Detected authoring tool: {authoring_tool} (SCORM {scorm_version})")
+            else:
+                self.version = scorm_version
+                logger.info(f"📦 Using SCORM version: {scorm_version}")
+            
             logger.info(f"Parsed SCORM {self.version} package: {self.manifest_data.get('title')}")
             logger.info(f"Launch URL: {self.launch_url}")
             
@@ -401,6 +410,69 @@ class ScormParser:
         
         # Default to SCORM 1.2
         return '1.2'
+    
+    def _detect_authoring_tool(self, root, launch_url=None):
+        """
+        Detect the authoring tool that created this SCORM package
+        
+        Args:
+            root: XML root element
+            launch_url: Launch URL from manifest (optional)
+            
+        Returns:
+            str: Authoring tool ('storyline', 'captivate', 'lectora', etc.) or None
+        """
+        try:
+            # Check manifest metadata for authoring tool indicators
+            metadata = root.find('.//metadata')
+            if metadata is not None:
+                metadata_text = ET.tostring(metadata, encoding='unicode').lower()
+                
+                if 'articulate' in metadata_text or 'storyline' in metadata_text:
+                    return 'storyline'
+                elif 'adobe' in metadata_text or 'captivate' in metadata_text:
+                    return 'captivate'
+                elif 'lectora' in metadata_text or 'trivantis' in metadata_text:
+                    return 'lectora'
+                elif 'ispring' in metadata_text:
+                    return 'ispring'
+            
+            # Check for specific XML patterns
+            # Articulate packages often have specific organization structures
+            orgs = root.find('.//organizations')
+            if orgs is not None:
+                org = orgs.find('.//organization')
+                if org is not None:
+                    # Articulate Storyline pattern - check for specific identifiers
+                    items = org.findall('.//item')
+                    for item in items:
+                        identifier = item.get('identifier', '')
+                        if '6jQqYp2f5VT_course_id' in identifier or 'storyline' in identifier.lower():
+                            return 'storyline'
+            
+            # Check for Adobe Captivate patterns
+            if root.find('.//{http://www.adlnet.org/xsd/adlcp_rootv1p2}masteryscore') is not None:
+                # Look for Captivate-specific patterns
+                if any('captivate' in str(elem).lower() for elem in root.iter()):
+                    return 'captivate'
+            
+            # Check launch URL for authoring tool indicators
+            if launch_url:
+                launch_url_lower = launch_url.lower()
+                if 'story.html' in launch_url_lower:
+                    return 'storyline'
+                elif 'index_lms.html' in launch_url_lower:
+                    return 'storyline'  # Common Storyline launch file
+                elif 'captivate' in launch_url_lower:
+                    return 'captivate'
+                elif 'lectora' in launch_url_lower:
+                    return 'lectora'
+            
+            return None
+            
+        except Exception as e:
+            logger.error(f"Error detecting authoring tool: {e}")
+            return None
     
     def _parse_tincan_manifest(self, root):
         """
@@ -493,6 +565,8 @@ class ScormParser:
                 return 'storyline'
             elif any('story.html' in f.lower() for f in file_list):
                 return 'storyline'
+            elif any('index_lms.html' in f.lower() for f in file_list):
+                return 'storyline'  # Common Storyline launch file
             elif any('articulate' in f.lower() for f in file_list):
                 return 'storyline'
             elif any('captivate' in f.lower() for f in file_list):
@@ -513,10 +587,10 @@ class ScormParser:
                 return 'legacy'
             
             # Check for common entry points
-            entry_points = ['index.html', 'story.html', 'launch.html', 'start.html', 'main.html']
+            entry_points = ['index_lms.html', 'story.html', 'index.html', 'launch.html', 'start.html', 'main.html']
             for entry_point in entry_points:
                 if any(f.lower().endswith(entry_point) for f in file_list):
-                    if 'story.html' in entry_point:
+                    if 'story.html' in entry_point or 'index_lms.html' in entry_point:
                         return 'storyline'
                     elif has_html and (has_js or has_css):
                         return 'html5'

@@ -33,6 +33,7 @@ class ScormPackageValidator:
         '.html', '.htm', '.js', '.css', '.json', '.xml',
         '.png', '.jpg', '.jpeg', '.gif', '.svg', '.bmp',
         '.mp4', '.mp3', '.wav', '.avi', '.mov', '.wmv',
+        '.aac', '.m4a', '.wma', '.flac', '.ogg',  # Additional audio formats
         '.pdf', '.doc', '.docx', '.ppt', '.pptx',
         '.swf', '.flv',  # Legacy Flash content
         '.woff', '.woff2', '.ttf', '.eot',  # Fonts

@@ -151,6 +151,13 @@ class ScormAPIHandler:
             if self.attempt.lesson_location:
                 self.attempt.cmi_data['cmi.location'] = self.attempt.lesson_location
                 logger.info(f"🔖 RESUME: Set cmi.location to '{self.attempt.lesson_location}'")
+            elif self.attempt.suspend_data:
+                # CRITICAL FIX: If we have suspend_data but no lesson_location, 
+                # set a default location to enable resume functionality
+                default_location = "resume_point_1"
+                self.attempt.cmi_data['cmi.location'] = default_location
+                logger.info(f"🔖 RESUME: Set default cmi.location for resume: '{default_location}'")
+            
             if self.attempt.suspend_data:
                 self.attempt.cmi_data['cmi.suspend_data'] = self.attempt.suspend_data
                 logger.info(f"🔖 RESUME: Set cmi.suspend_data ({len(self.attempt.suspend_data)} chars)")
@@ -240,7 +247,13 @@ class ScormAPIHandler:
             if not value or str(value).strip() == '':
                 logger.info(f"SCORM API GetValue({element}) - value is empty, applying default")
                 if element == 'cmi.core.lesson_status':
-                    value = self.attempt.lesson_status if self.attempt.lesson_status != 'not_attempted' else 'not attempted'
+                    # CRITICAL FIX FOR SCORM 1.2: If we have resume data, return 'incomplete' not 'not attempted'
+                    has_resume_data = bool(self.attempt.lesson_location or self.attempt.suspend_data)
+                    if has_resume_data and (not value or value == 'not_attempted'):
+                        value = 'incomplete'
+                        logger.info(f"SCORM 1.2 RESUME: Override lesson_status to 'incomplete' for resume scenario")
+                    else:
+                        value = self.attempt.lesson_status if self.attempt.lesson_status != 'not_attempted' else 'not attempted'
                     # Ensure it's a valid SCORM 1.2 status
                     valid_statuses = ['passed', 'completed', 'failed', 'incomplete', 'browsed', 'not attempted']
                     if value not in valid_statuses:
@@ -250,11 +263,28 @@ class ScormAPIHandler:
                 elif element == 'cmi.core.credit':
                     value = 'credit'
                 elif element == 'cmi.completion_status':
-                    value = self.attempt.completion_status or 'incomplete'
+                    # CRITICAL FIX FOR SCORM 2004: If we have resume data, return the actual status
+                    # Don't override to 'incomplete' if it's actually 'completed'
+                    value = self.attempt.cmi_data.get(element, '')
+                    if not value or value == '':
+                        # Only set default if truly empty
+                        has_resume_data = bool(self.attempt.lesson_location or self.attempt.suspend_data)
+                        if has_resume_data:
+                            value = self.attempt.completion_status or 'incomplete'
+                            logger.info(f"SCORM 2004 RESUME: Set completion_status to '{value}' for resume scenario")
+                        else:
+                            value = self.attempt.completion_status or 'incomplete'
+                    logger.info(f"SCORM 2004: Returning completion_status = '{value}'")
                 elif element == 'cmi.mode':
                     value = 'normal'
                 elif element == 'cmi.success_status':
-                    value = self.attempt.success_status or 'unknown'
+                    # CRITICAL FIX FOR SCORM 2004: If we have resume data, return 'unknown' for resume scenarios
+                    has_resume_data = bool(self.attempt.lesson_location or self.attempt.suspend_data)
+                    if has_resume_data and (not value or value == 'not_attempted'):
+                        value = 'unknown'
+                        logger.info(f"SCORM 2004 RESUME: Override success_status to 'unknown' for resume scenario")
+                    else:
+                        value = self.attempt.success_status or 'unknown'
                 elif element in ['cmi.core.score.max', 'cmi.score.max']:
                     value = str(self.attempt.score_max) if self.attempt.score_max else '100'
                 elif element in ['cmi.core.score.min', 'cmi.score.min']:

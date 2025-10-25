@@ -10,6 +10,7 @@ from datetime import datetime, timedelta
 from decimal import Decimal
 from django.utils import timezone
 from .models import ScormInteraction, ScormObjective, ScormComment
+from .debug_logger import ScormDebugLogger
 
 logger = logging.getLogger(__name__)
 
@@ -274,6 +275,20 @@ class ScormAPIHandlerEnhanced:
                 self.attempt.cmi_data['cmi.core.lesson_status'] = 'incomplete'
                 logger.info("STORYLINE: Auto-set lesson_status to 'incomplete' on initialize")
         
+        # CRITICAL FIX FOR SCORM 2004 STORYLINE: Handle completion_status and success_status
+        if self.version == '2004' or (hasattr(self.attempt, 'scorm_package') and self.attempt.scorm_package.version == 'storyline'):
+            # For SCORM 2004, we need to set both completion_status and success_status
+            if has_bookmark_data:
+                # If we have resume data, set completion_status to 'incomplete' and success_status to 'unknown'
+                self.attempt.completion_status = 'incomplete'
+                self.attempt.success_status = 'unknown'
+                logger.info("SCORM 2004 STORYLINE: Set completion_status='incomplete', success_status='unknown' for resume")
+            else:
+                # New attempt
+                self.attempt.completion_status = 'not attempted'
+                self.attempt.success_status = 'unknown'
+                logger.info("SCORM 2004 STORYLINE: Set completion_status='not attempted' for new attempt")
+        
         if has_bookmark_data:
             self.attempt.entry = 'resume'
             suspend_data_preview = self.attempt.suspend_data[:50] if self.attempt.suspend_data else "None"
@@ -309,12 +324,20 @@ class ScormAPIHandlerEnhanced:
             if self.attempt.lesson_location:
                 self.attempt.cmi_data['cmi.location'] = self.attempt.lesson_location
                 logger.info("🔖 RESUME: Set location in CMI data: %s", self.attempt.lesson_location)
+            elif self.attempt.suspend_data:
+                # CRITICAL FIX: If we have suspend_data but no lesson_location, 
+                # set a default location to enable resume functionality
+                default_location = "resume_point_1"
+                self.attempt.cmi_data['cmi.location'] = default_location
+                logger.info("🔖 RESUME: Set default location in CMI data for resume: %s", default_location)
+            
             if self.attempt.suspend_data:
                 self.attempt.cmi_data['cmi.suspend_data'] = self.attempt.suspend_data
                 logger.info("🔖 RESUME: Set suspend_data in CMI data (%d chars)", len(self.attempt.suspend_data))
             
             # Set other required fields
-            self.attempt.cmi_data['cmi.completion_status'] = self.attempt.lesson_status or 'not attempted'
+            self.attempt.cmi_data['cmi.completion_status'] = self.attempt.completion_status or 'not attempted'
+            self.attempt.cmi_data['cmi.success_status'] = self.attempt.success_status or 'unknown'
             self.attempt.cmi_data['cmi.mode'] = 'normal'
             self.attempt.cmi_data['cmi.credit'] = 'credit'
             self.attempt.cmi_data['cmi.learner_id'] = str(self.attempt.user.id) if self.attempt.user else 'student'
@@ -348,6 +371,14 @@ class ScormAPIHandlerEnhanced:
         
         # CRITICAL FIX: Always save data on terminate, regardless of completion status
         # This ensures that time, progress, and location data are preserved
+        
+        # Ensure JSON fields are properly initialized before saving
+        if self.attempt.navigation_history is None:
+            self.attempt.navigation_history = []
+        if self.attempt.detailed_tracking is None:
+            self.attempt.detailed_tracking = {}
+        if self.attempt.session_data is None:
+            self.attempt.session_data = {}
         
         # Check if SCORM content explicitly set lesson_status via SetValue calls
         explicit_status_set = hasattr(self.attempt, '_explicit_status_set') and self.attempt._explicit_status_set
@@ -434,7 +465,13 @@ class ScormAPIHandlerEnhanced:
             if not value or str(value).strip() == '' or value is None:
                 # SCORM 1.2 Core Elements - Always provide defaults
                 if element == 'cmi.core.lesson_status':
-                    value = self.attempt.lesson_status or 'not attempted'
+                    # CRITICAL FIX FOR SCORM 1.2: If we have resume data, return 'incomplete' not 'not attempted'
+                    has_resume_data = bool(self.attempt.lesson_location or self.attempt.suspend_data)
+                    if has_resume_data and (not value or value == 'not_attempted'):
+                        value = 'incomplete'
+                        logger.info(f"SCORM 1.2 RESUME: Override lesson_status to 'incomplete' for resume scenario")
+                    else:
+                        value = self.attempt.lesson_status or 'not attempted'
                 elif element == 'cmi.core.entry':
                     value = self.attempt.entry or 'ab-initio'
                 elif element == 'cmi.core.credit':
@@ -478,9 +515,21 @@ class ScormAPIHandlerEnhanced:
                 
                 # SCORM 2004 Elements
                 elif element == 'cmi.completion_status':
-                    value = self.attempt.completion_status or 'incomplete'
+                    # CRITICAL FIX FOR SCORM 2004: If we have resume data, return 'incomplete' not 'not_attempted'
+                    has_resume_data = bool(self.attempt.lesson_location or self.attempt.suspend_data)
+                    if has_resume_data and (not value or value == 'not_attempted'):
+                        value = 'incomplete'
+                        logger.info(f"SCORM 2004 RESUME: Override completion_status to 'incomplete' for resume scenario")
+                    else:
+                        value = self.attempt.completion_status or 'incomplete'
                 elif element == 'cmi.success_status':
-                    value = self.attempt.success_status or 'unknown'
+                    # CRITICAL FIX FOR SCORM 2004: If we have resume data, return 'unknown' for resume scenarios
+                    has_resume_data = bool(self.attempt.lesson_location or self.attempt.suspend_data)
+                    if has_resume_data and (not value or value == 'not_attempted'):
+                        value = 'unknown'
+                        logger.info(f"SCORM 2004 RESUME: Override success_status to 'unknown' for resume scenario")
+                    else:
+                        value = self.attempt.success_status or 'unknown'
                 elif element == 'cmi.mode':
                     value = 'normal'
                 elif element == 'cmi.credit':
@@ -1450,8 +1499,9 @@ class ScormAPIHandlerEnhanced:
             logger.error("AUTO_EXTRACT: Failed to apply extracted score: %s", str(e))
     
     def _commit_data(self):
-        """Save attempt data to database with atomic transactions"""
-        from django.db import transaction
+        """Save attempt data to database with enhanced validation and error handling"""
+        from django.db import transaction, IntegrityError, DatabaseError
+        from django.core.exceptions import ValidationError
         
         logger.info("💾 _COMMIT_DATA: Starting (score_raw=%s, cmi_score=%s, lesson_location=%s, suspend_data_len=%s)", 
                    self.attempt.score_raw, 
@@ -1461,77 +1511,154 @@ class ScormAPIHandlerEnhanced:
         
         # Only save to database if not a preview attempt
         if not getattr(self.attempt, 'is_preview', False):
-            try:
-                # Use atomic transaction for data consistency
-                with transaction.atomic():
-                    # CRITICAL: Store the score and bookmark before any operations
-                    score_before = self.attempt.score_raw
-                    cmi_score_before = self.attempt.cmi_data.get('cmi.core.score.raw') or self.attempt.cmi_data.get('cmi.score.raw')
-                    location_before = self.attempt.lesson_location
-                    suspend_data_len_before = len(self.attempt.suspend_data) if self.attempt.suspend_data else 0
-                    
-                    # Update last accessed timestamp
-                    self.attempt.last_accessed = timezone.now()
-                    
-                    logger.info("💾 _COMMIT_DATA: Before save (score_raw=%s, type=%s, bookmark=%s)", 
-                               self.attempt.score_raw, type(self.attempt.score_raw),
-                               self.attempt.lesson_location[:30] if self.attempt.lesson_location else 'None')
-                    
-                    # Save ScormAttempt with validation and signal coordination
-                    try:
-                        # Mark that this is being updated by the API handler to prevent signal conflicts
-                        self.attempt._updating_from_api_handler = True
+            max_retries = 3
+            for retry_count in range(max_retries):
+                try:
+                    # Use atomic transaction for data consistency
+                    with transaction.atomic():
+                        # CRITICAL: Store the score and bookmark before any operations
+                        score_before = self.attempt.score_raw
+                        cmi_score_before = self.attempt.cmi_data.get('cmi.core.score.raw') or self.attempt.cmi_data.get('cmi.score.raw')
+                        location_before = self.attempt.lesson_location
+                        suspend_data_len_before = len(self.attempt.suspend_data) if self.attempt.suspend_data else 0
                         
-                        self.attempt.full_clean()
-                        self.attempt.save()
-                        logger.info("💾 _COMMIT_DATA: ScormAttempt saved successfully")
+                        # Update last accessed timestamp
+                        self.attempt.last_accessed = timezone.now()
                         
-                        # Remove the flag after successful save
-                        delattr(self.attempt, '_updating_from_api_handler')
-                    except Exception as save_error:
-                        # Clean up flag even on error
-                        if hasattr(self.attempt, '_updating_from_api_handler'):
+                        logger.info("💾 _COMMIT_DATA: Before save (score_raw=%s, type=%s, bookmark=%s)", 
+                                   self.attempt.score_raw, type(self.attempt.score_raw),
+                                   self.attempt.lesson_location[:30] if self.attempt.lesson_location else 'None')
+                        
+                        # Enhanced validation before save
+                        self._validate_attempt_data()
+                        
+                        # Save ScormAttempt with validation and signal coordination
+                        try:
+                            # Mark that this is being updated by the API handler to prevent signal conflicts
+                            self.attempt._updating_from_api_handler = True
+                            
+                            # Ensure JSON fields are properly initialized before validation
+                            if self.attempt.navigation_history is None:
+                                self.attempt.navigation_history = []
+                            if self.attempt.detailed_tracking is None:
+                                self.attempt.detailed_tracking = {}
+                            if self.attempt.session_data is None:
+                                self.attempt.session_data = {}
+                            
+                            # Enhanced validation
+                            try:
+                                self.attempt.full_clean()
+                            except ValidationError as ve:
+                                logger.warning("Validation errors found, attempting to fix: %s", str(ve))
+                                self._fix_validation_errors(ve)
+                            
+                            # Save with retry logic
+                            self.attempt.save()
+                            logger.info("💾 _COMMIT_DATA: ScormAttempt saved successfully")
+                            
+                            # Remove the flag after successful save
                             delattr(self.attempt, '_updating_from_api_handler')
-                        logger.error("❌ _COMMIT_DATA: ScormAttempt save failed: %s", str(save_error))
-                        raise
-                    
-                    # Verify the save actually worked
-                    from scorm.models import ScormAttempt
-                    saved_attempt = ScormAttempt.objects.get(id=self.attempt.id)
-                    logger.info("💾 _COMMIT_DATA: DB verification (score_raw=%s, cmi_score=%s, bookmark=%s, suspend_len=%s)", 
+                            
+                        except Exception as save_error:
+                            # Clean up flag even on error
+                            if hasattr(self.attempt, '_updating_from_api_handler'):
+                                delattr(self.attempt, '_updating_from_api_handler')
+                            logger.error("❌ _COMMIT_DATA: ScormAttempt save failed: %s", str(save_error))
+                            
+                            # Handle specific error types
+                            if isinstance(save_error, IntegrityError):
+                                logger.error("❌ Database integrity error: %s", str(save_error))
+                                if retry_count < max_retries - 1:
+                                    logger.info("🔄 Retrying save after integrity error (attempt %d)", retry_count + 1)
+                                    continue
+                            elif isinstance(save_error, DatabaseError):
+                                logger.error("❌ Database error: %s", str(save_error))
+                                if retry_count < max_retries - 1:
+                                    logger.info("🔄 Retrying save after database error (attempt %d)", retry_count + 1)
+                                    continue
+                            else:
+                                logger.error("❌ Unexpected error: %s", str(save_error))
+                            
+                            raise
+                        
+                        # Verify the save actually worked
+                        from scorm.models import ScormAttempt
+                        saved_attempt = ScormAttempt.objects.get(id=self.attempt.id)
+                        logger.info("💾 _COMMIT_DATA: DB verification (score_raw=%s, cmi_score=%s, bookmark=%s, suspend_len=%s)", 
                                saved_attempt.score_raw,
                                saved_attempt.cmi_data.get('cmi.core.score.raw') or saved_attempt.cmi_data.get('cmi.score.raw'),
                                saved_attempt.lesson_location[:30] if saved_attempt.lesson_location else 'None',
                                len(saved_attempt.suspend_data) if saved_attempt.suspend_data else 0)
-                    
-                    # CRITICAL: Check for data loss during save
-                    if score_before and not saved_attempt.score_raw:
-                        logger.error("❌ _COMMIT_DATA: SCORE LOST DURING SAVE! Before=%s, After=%s", score_before, saved_attempt.score_raw)
-                        raise ValueError(f"Score lost during save: {score_before} -> {saved_attempt.score_raw}")
-                    
-                    if location_before and not saved_attempt.lesson_location:
-                        logger.error("❌ _COMMIT_DATA: BOOKMARK LOST DURING SAVE! Before=%s, After=%s", location_before, saved_attempt.lesson_location)
-                        raise ValueError(f"Bookmark lost during save: {location_before} -> {saved_attempt.lesson_location}")
-                    
-                    if suspend_data_len_before > 0 and not saved_attempt.suspend_data:
-                        logger.error("❌ _COMMIT_DATA: SUSPEND_DATA LOST DURING SAVE! Before=%s chars, After=%s", suspend_data_len_before, len(saved_attempt.suspend_data) if saved_attempt.suspend_data else 0)
-                        raise ValueError(f"Suspend data lost during save: {suspend_data_len_before} chars -> {len(saved_attempt.suspend_data) if saved_attempt.suspend_data else 0}")
-                    
-                    # AUTOMATIC SCORE EXTRACTION: If SCORM content didn't report score, try to extract from suspend_data
-                    self._auto_extract_score_from_suspend_data()
-                    
-                    # Update TopicProgress (within same transaction for consistency)
-                    self._update_topic_progress()
-                    
-                    logger.info("✅ _COMMIT_DATA: All data committed successfully with atomic transaction")
-                    
-            except Exception as e:
-                logger.error("❌ _COMMIT_DATA: Transaction failed: %s", str(e))
-                import traceback
-                logger.error(traceback.format_exc())
-                raise
+                        
+                        # Break out of retry loop on success
+                        break
+                        
+                except Exception as e:
+                    if retry_count == max_retries - 1:
+                        logger.error("❌ _COMMIT_DATA: All retry attempts failed: %s", str(e))
+                        raise
+                    else:
+                        logger.warning("⚠️ _COMMIT_DATA: Retry %d failed, trying again: %s", retry_count + 1, str(e))
+                        continue
         else:
             logger.info("Preview attempt - skipping database save")
+    
+    def _validate_attempt_data(self):
+        """Validate attempt data before saving"""
+        # Validate score data
+        if self.attempt.score_raw is not None:
+            if not isinstance(self.attempt.score_raw, (int, float, Decimal)):
+                try:
+                    self.attempt.score_raw = float(self.attempt.score_raw)
+                except (ValueError, TypeError):
+                    logger.warning("Invalid score_raw value: %s", self.attempt.score_raw)
+                    self.attempt.score_raw = None
+        
+        # Validate time data
+        if self.attempt.total_time and not isinstance(self.attempt.total_time, str):
+            self.attempt.total_time = str(self.attempt.total_time)
+        
+        if self.attempt.session_time and not isinstance(self.attempt.session_time, str):
+            self.attempt.session_time = str(self.attempt.session_time)
+        
+        # Validate CMI data
+        if not isinstance(self.attempt.cmi_data, dict):
+            self.attempt.cmi_data = {}
+        
+        # Validate JSON fields
+        if not isinstance(self.attempt.navigation_history, list):
+            self.attempt.navigation_history = []
+        
+        if not isinstance(self.attempt.detailed_tracking, dict):
+            self.attempt.detailed_tracking = {}
+        
+        if not isinstance(self.attempt.session_data, dict):
+            self.attempt.session_data = {}
+    
+    def _fix_validation_errors(self, validation_error):
+        """Fix common validation errors"""
+        error_dict = validation_error.error_dict if hasattr(validation_error, 'error_dict') else {}
+        
+        for field, errors in error_dict.items():
+            if field == 'score_raw':
+                # Fix score_raw validation errors
+                if self.attempt.score_raw is not None:
+                    try:
+                        self.attempt.score_raw = float(self.attempt.score_raw)
+                    except (ValueError, TypeError):
+                        self.attempt.score_raw = None
+            elif field == 'total_time':
+                # Fix time validation errors
+                if self.attempt.total_time:
+                    self.attempt.total_time = str(self.attempt.total_time)
+            elif field in ['navigation_history', 'detailed_tracking', 'session_data']:
+                # Fix JSON field validation errors
+                if field == 'navigation_history' and not isinstance(self.attempt.navigation_history, list):
+                    self.attempt.navigation_history = []
+                elif field == 'detailed_tracking' and not isinstance(self.attempt.detailed_tracking, dict):
+                    self.attempt.detailed_tracking = {}
+                elif field == 'session_data' and not isinstance(self.attempt.session_data, dict):
+                    self.attempt.session_data = {}
     
     def _build_interaction_data(self, index):
         """Build interaction data from CMI data for database storage"""

@@ -128,7 +128,7 @@ class DynamicScormScoreProcessor:
     
     def extract_score_dynamically(self, suspend_data):
         """
-        Dynamically extract score based on detected format
+        Dynamically extract score based on detected format with enhanced reliability
         """
         if not suspend_data:
             return None
@@ -139,7 +139,7 @@ class DynamicScormScoreProcessor:
             if not decoded_data:
                 return None
                 
-            # Auto-detect format
+            # Auto-detect format with enhanced detection
             self.detected_format = self.auto_detect_format(decoded_data)
             logger.info(f"Dynamic Processor: Detected SCORM format '{self.detected_format}' for attempt {self.attempt.id}")
             
@@ -149,12 +149,16 @@ class DynamicScormScoreProcessor:
                 logger.info(f"Dynamic Processor: No completion evidence found for format '{self.detected_format}'")
                 return None
             
-            # Extract score using format-specific patterns
+            # Extract score using format-specific patterns with retry logic
             score = self._extract_score_by_format(decoded_data, self.detected_format)
             
             if score is not None:
-                logger.info(f"Dynamic Processor: Extracted score {score} using '{self.detected_format}' format")
-                return score
+                # Validate extracted score
+                if 0 <= score <= 100:
+                    logger.info(f"Dynamic Processor: Extracted valid score {score} using '{self.detected_format}' format")
+                    return score
+                else:
+                    logger.warning(f"Dynamic Processor: Invalid score {score} extracted, trying fallback methods")
             
             # CRITICAL FIX: Handle case where quiz is complete but score field is empty
             # This happens when score is 100% in some SCORM packages (especially Articulate Storyline)
@@ -162,19 +166,51 @@ class DynamicScormScoreProcessor:
                 logger.info(f"Dynamic Processor: Quiz complete with empty score field - assuming 100% score")
                 return 100.0
             
-            # Fallback: Try all formats if the detected one doesn't work
+            # Enhanced fallback: Try all formats if the detected one doesn't work
+            logger.info(f"Dynamic Processor: Trying fallback score extraction methods")
             for format_name, patterns in self.SCORE_PATTERNS.items():
                 if format_name != self.detected_format:
-                    score = self._extract_score_by_format(decoded_data, format_name)
-                    if score is not None:
-                        logger.info(f"Dynamic Processor: Extracted score {score} using fallback format '{format_name}'")
-                        return score
+                    fallback_score = self._extract_score_by_format(decoded_data, format_name)
+                    if fallback_score is not None and 0 <= fallback_score <= 100:
+                        logger.info(f"Dynamic Processor: Fallback extraction successful using '{format_name}' format: {fallback_score}")
+                        return fallback_score
             
+            # Final fallback: Check for any numeric patterns
+            numeric_score = self._extract_numeric_score(decoded_data)
+            if numeric_score is not None:
+                logger.info(f"Dynamic Processor: Extracted numeric score: {numeric_score}")
+                return numeric_score
+                
+            logger.warning(f"Dynamic Processor: No valid score found in suspend data for attempt {self.attempt.id}")
             return None
             
         except Exception as e:
             logger.error(f"Dynamic Processor: Error extracting score: {str(e)}")
             return None
+    
+    def _extract_numeric_score(self, decoded_data):
+        """Extract any numeric score from decoded data"""
+        import re
+        
+        # Look for any numeric patterns that could be scores
+        numeric_patterns = [
+            r'(\d+(?:\.\d+)?)\s*%',  # Percentage scores
+            r'score["\s:]*(\d+(?:\.\d+)?)',  # Generic score patterns
+            r'(\d+(?:\.\d+)?)\s*out\s*of\s*\d+',  # X out of Y patterns
+            r'(\d+(?:\.\d+)?)\s*/\s*\d+',  # X/Y patterns
+        ]
+        
+        for pattern in numeric_patterns:
+            matches = re.findall(pattern, decoded_data, re.IGNORECASE)
+            for match in matches:
+                try:
+                    score = float(match)
+                    if 0 <= score <= 100:
+                        return score
+                except ValueError:
+                    continue
+        
+        return None
     
     def _decode_suspend_data(self, suspend_data):
         """Decode compressed suspend_data from various formats"""

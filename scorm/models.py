@@ -203,6 +203,7 @@ class ScormAttempt(models.Model):
     )
     navigation_history = models.JSONField(
         default=list,
+        blank=True,
         help_text="History of slide navigation with timestamps"
     )
     
@@ -222,10 +223,12 @@ class ScormAttempt(models.Model):
     # Additional tracking data
     detailed_tracking = models.JSONField(
         default=dict,
+        blank=True,
         help_text="Detailed tracking data including slide visits, time per slide, etc."
     )
     session_data = models.JSONField(
         default=dict,
+        blank=True,
         help_text="Current session data including start time, current slide, etc."
     )
     
@@ -250,6 +253,18 @@ class ScormAttempt(models.Model):
         if self.score_raw is not None and self.score_max:
             return (float(self.score_raw) / float(self.score_max)) * 100
         return None
+    
+    def clean(self):
+        """Custom validation to ensure JSON fields are properly initialized"""
+        super().clean()
+        
+        # Ensure JSON fields are never None
+        if self.navigation_history is None:
+            self.navigation_history = []
+        if self.detailed_tracking is None:
+            self.detailed_tracking = {}
+        if self.session_data is None:
+            self.session_data = {}
     
     def is_passed(self):
         """Check if attempt is passed based on mastery score"""

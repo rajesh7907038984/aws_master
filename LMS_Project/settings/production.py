@@ -34,6 +34,10 @@ AWS_DEPLOYMENT = True
 SESSION_ENGINE = 'django.contrib.sessions.backends.db'  # Use standard session backend
 SESSION_COOKIE_SECURE = True  # Enable secure cookies for HTTPS
 SESSION_SAVE_EVERY_REQUEST = False  # Optimize for production performance
+SESSION_COOKIE_AGE = 86400  # 24 hours
+SESSION_EXPIRE_AT_BROWSER_CLOSE = False
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = 'Lax'
 
 # CSRF configuration - production overrides only
 CSRF_COOKIE_SECURE = True  # Enable secure CSRF cookies for production HTTPS
@@ -151,14 +155,18 @@ DATABASES = {
             'connect_timeout': 120,  # Increased from 60 to 120 seconds for SCORM time tracking
             'sslmode': 'prefer',
             'application_name': 'LMS_Production',
+            'keepalives_idle': 600,  # Keep connections alive
+            'keepalives_interval': 30,
+            'keepalives_count': 3,
         },
-        'CONN_MAX_AGE': 300,  # Reduced from 600 to 300 seconds (5 minutes) for better reliability
+        'CONN_MAX_AGE': 180,  # Reduced to 3 minutes for better reliability
         'CONN_HEALTH_CHECKS': True,  # Enable connection health checks
+        'ATOMIC_REQUESTS': False,  # Disable atomic requests for better performance
         # Connection pool settings for SCORM time tracking
-        'CONN_POOL_SIZE': 20,  # Maximum connections in pool
-        'CONN_POOL_OVERFLOW': 10,  # Additional connections when pool is full
+        'CONN_POOL_SIZE': 10,  # Reduced pool size for stability
+        'CONN_POOL_OVERFLOW': 5,  # Reduced overflow for stability
         'CONN_POOL_TIMEOUT': 30,  # Timeout for getting connection from pool
-        'CONN_POOL_RECYCLE': 3600,  # Recycle connections after 1 hour
+        'CONN_POOL_RECYCLE': 1800,  # Recycle connections after 30 minutes
     }
 }
 print("🗄️  Using database configuration: {}".format(DATABASES['default']['HOST']))

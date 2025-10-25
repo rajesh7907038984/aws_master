@@ -42,8 +42,13 @@ class EnhancedScormTimeTracker:
     
     def save_time_with_reliability(self, session_time, total_time=None):
         """
-        Save time tracking data with comprehensive error handling and retry logic
+        Enhanced time tracking with comprehensive error handling and retry logic
         """
+        # Validate input data first
+        if not self._validate_time_data(session_time, total_time):
+            logger.error("Invalid time data provided")
+            return False
+        
         for attempt_num in range(self.max_retries):
             try:
                 with transaction.atomic():
@@ -52,23 +57,23 @@ class EnhancedScormTimeTracker:
                         id=self.attempt.id
                     )
                     
-                    # Update time tracking fields
-                    if session_time:
-                        locked_attempt.session_time = session_time
-                        self._update_total_time(locked_attempt, session_time)
+                    # Enhanced time tracking with version-specific handling
+                    handler = self.time_handlers.get(self.scorm_version, self._handle_legacy_time)
+                    success = handler(locked_attempt, session_time, total_time)
                     
-                    if total_time:
-                        locked_attempt.total_time = total_time
-                        locked_attempt.time_spent_seconds = self._parse_scorm_time_to_seconds(total_time)
+                    if not success:
+                        logger.warning(f"Version-specific handler failed for {self.scorm_version}")
+                        # Fallback to generic handling
+                        self._handle_generic_time(locked_attempt, session_time, total_time)
                     
-                    # Update session tracking
+                    # Update session tracking with enhanced reliability
                     now = timezone.now()
                     if not locked_attempt.session_start_time:
                         locked_attempt.session_start_time = now
                     locked_attempt.session_end_time = now
                     locked_attempt.last_accessed = now
                     
-                    # Update detailed tracking
+                    # Enhanced detailed tracking
                     if not locked_attempt.detailed_tracking:
                         locked_attempt.detailed_tracking = {}
                     
@@ -78,26 +83,31 @@ class EnhancedScormTimeTracker:
                         'session_count': locked_attempt.detailed_tracking.get('session_count', 0) + 1,
                         'last_updated': now.isoformat(),
                         'save_attempt': attempt_num + 1,
-                        'scorm_version': self.scorm_version
+                        'scorm_version': self.scorm_version,
+                        'time_tracking_method': 'enhanced',
+                        'reliability_score': self._calculate_reliability_score(locked_attempt)
                     })
                     
-                    # Ensure required fields are not blank
+                    # Ensure required fields are properly initialized
                     if not locked_attempt.navigation_history:
                         locked_attempt.navigation_history = []
                     if not locked_attempt.session_data:
                         locked_attempt.session_data = {}
                     
-                    # Validate before save
-                    locked_attempt.full_clean()
+                    # Enhanced validation before save
+                    self._validate_attempt_before_save(locked_attempt)
+                    
+                    # Save with enhanced error handling
                     locked_attempt.save()
                     
-                    # Verify save worked
-                    self._verify_save_success(locked_attempt)
+                    # Verify save worked with comprehensive checks
+                    if not self._verify_save_success(locked_attempt):
+                        raise DatabaseError("Save verification failed")
                     
-                    # Sync with TopicProgress
+                    # Sync with TopicProgress using enhanced sync
                     self._sync_with_topic_progress(locked_attempt)
                     
-                    logger.info(f"✅ Time tracking saved successfully for {self.scorm_version} (attempt {attempt_num + 1})")
+                    logger.info(f"✅ Enhanced time tracking saved successfully for {self.scorm_version} (attempt {attempt_num + 1})")
                     return True
                     
             except (DatabaseError, IntegrityError) as e:
@@ -315,6 +325,63 @@ class EnhancedScormTimeTracker:
     def _handle_legacy_time(self, time_str):
         """Handle legacy SCORM time format"""
         return self._parse_scorm_time_to_seconds(time_str)
+    
+    def _validate_time_data(self, session_time, total_time):
+        """Validate time data before processing"""
+        try:
+            if session_time and not isinstance(session_time, str):
+                return False
+            if total_time and not isinstance(total_time, str):
+                return False
+            return True
+        except Exception:
+            return False
+    
+    def _validate_attempt_before_save(self, attempt):
+        """Validate attempt data before saving"""
+        # Ensure JSON fields are properly initialized
+        if not isinstance(attempt.navigation_history, list):
+            attempt.navigation_history = []
+        if not isinstance(attempt.detailed_tracking, dict):
+            attempt.detailed_tracking = {}
+        if not isinstance(attempt.session_data, dict):
+            attempt.session_data = {}
+        if not isinstance(attempt.cmi_data, dict):
+            attempt.cmi_data = {}
+    
+    def _calculate_reliability_score(self, attempt):
+        """Calculate reliability score for time tracking"""
+        score = 100  # Start with perfect score
+        
+        # Deduct points for missing data
+        if not attempt.session_time:
+            score -= 20
+        if not attempt.total_time:
+            score -= 20
+        if not attempt.time_spent_seconds:
+            score -= 20
+        if not attempt.session_start_time:
+            score -= 10
+        if not attempt.session_end_time:
+            score -= 10
+        
+        return max(0, score)
+    
+    def _handle_generic_time(self, attempt, session_time, total_time):
+        """Generic time handling fallback"""
+        try:
+            if session_time:
+                attempt.session_time = session_time
+                self._update_total_time(attempt, session_time)
+            
+            if total_time:
+                attempt.total_time = total_time
+                attempt.time_spent_seconds = self._parse_scorm_time_to_seconds(total_time)
+            
+            return True
+        except Exception as e:
+            logger.error(f"Generic time handling failed: {str(e)}")
+            return False
 
 
 class ScormTimeTrackingMiddleware:

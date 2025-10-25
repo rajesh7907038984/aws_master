@@ -22,13 +22,14 @@ class EnhancedScormResumeHandler:
     
     def can_resume(self) -> bool:
         """
-        Check if this attempt can be resumed
+        Enhanced check if this attempt can be resumed with format-specific logic
         """
         # Check if attempt is in a resumable state
         if self.attempt.lesson_status in ['completed', 'passed', 'failed']:
+            logger.info(f"RESUME: Cannot resume - attempt status: {self.attempt.lesson_status}")
             return False
         
-        # Check if there's any progress or legitimate resume scenario
+        # Enhanced progress detection with format-specific logic
         has_progress = (
             self.attempt.lesson_location or 
             self.attempt.suspend_data or 
@@ -36,23 +37,60 @@ class EnhancedScormResumeHandler:
             self.attempt.entry == 'resume'
         )
         
+        # Format-specific resume logic
+        package_type = self.detect_package_type()
+        
+        if package_type == 'storyline':
+            # Storyline can resume even with minimal data
+            has_progress = has_progress or (
+                self.attempt.cmi_data and 
+                len(self.attempt.cmi_data) > 0
+            )
+        elif package_type == 'captivate':
+            # Captivate requires more specific data
+            has_progress = has_progress and (
+                self.attempt.lesson_location or 
+                self.attempt.suspend_data
+            )
+        elif package_type == 'lectora':
+            # Lectora has specific resume requirements
+            has_progress = has_progress and (
+                self.attempt.lesson_location or
+                self.attempt.detailed_tracking
+            )
+        
+        logger.info(f"RESUME: Can resume check - has_progress: {has_progress}, package_type: {package_type}")
         return has_progress
     
     def prepare_resume_data(self) -> Dict[str, Any]:
         """
-        Prepare resume data for the SCORM content
-        Returns CMI data structure appropriate for the package version
+        Enhanced resume data preparation with format-specific handling
         """
         # Ensure CMI data is initialized
         if not self.attempt.cmi_data:
             self.attempt.cmi_data = {}
+        
+        if not self.can_resume():
+            logger.info("RESUME: Cannot resume, preparing restart data")
+            return self._prepare_restart_resume()
+        
+        package_type = self.detect_package_type()
+        logger.info(f"RESUME: Preparing resume data for package type: {package_type}")
         
         # Determine if this is a true resume (with bookmark data) or a restart
         has_bookmark_data = bool(self.attempt.lesson_location or self.attempt.suspend_data)
         
         if has_bookmark_data:
             logger.info(f"RESUME: Found bookmark data for attempt {self.attempt.id}")
-            return self._prepare_bookmark_resume()
+            # Format-specific resume data preparation
+            if package_type == 'storyline':
+                return self._prepare_storyline_resume()
+            elif package_type == 'captivate':
+                return self._prepare_captivate_resume()
+            elif package_type == 'lectora':
+                return self._prepare_lectora_resume()
+            else:
+                return self._prepare_bookmark_resume()
         else:
             logger.info(f"RESUME: No bookmark data for attempt {self.attempt.id} - preparing restart resume")
             return self._prepare_restart_resume()
@@ -100,17 +138,96 @@ class EnhancedScormResumeHandler:
             if self.attempt.lesson_location:
                 cmi_data['cmi.location'] = self.attempt.lesson_location
                 logger.info(f"RESUME: Set location: {self.attempt.lesson_location}")
+            elif self.attempt.suspend_data:
+                # CRITICAL FIX: If we have suspend_data but no lesson_location, 
+                # set a default location to enable resume functionality
+                default_location = "resume_point_1"
+                cmi_data['cmi.location'] = default_location
+                logger.info(f"RESUME: Set default location for resume: {default_location}")
             
             if self.attempt.suspend_data:
                 cmi_data['cmi.suspend_data'] = self.attempt.suspend_data
                 logger.info(f"RESUME: Set suspend_data ({len(self.attempt.suspend_data)} chars)")
             
-            # Set other required fields
-            cmi_data['cmi.completion_status'] = self.attempt.completion_status or 'incomplete'
-            cmi_data['cmi.success_status'] = self.attempt.success_status or 'unknown'
+            # CRITICAL FIX FOR SCORM 2004 STORYLINE: Set proper status for resume
+            if self.attempt.lesson_location or self.attempt.suspend_data:
+                # If we have bookmark data, this is a resume - set completion_status to 'incomplete'
+                cmi_data['cmi.completion_status'] = 'incomplete'
+                cmi_data['cmi.success_status'] = 'unknown'
+                logger.info("SCORM 2004 STORYLINE: Resume detected - set completion_status='incomplete'")
+            else:
+                # No bookmark data, use existing status
+                cmi_data['cmi.completion_status'] = self.attempt.completion_status or 'not attempted'
+                cmi_data['cmi.success_status'] = self.attempt.success_status or 'unknown'
+            
             cmi_data['cmi.learner_id'] = str(self.user.id) if self.user else 'student'
             cmi_data['cmi.learner_name'] = self.user.get_full_name() or self.user.username if self.user else 'Student'
         
+        return cmi_data
+    
+    def _prepare_storyline_resume(self) -> Dict[str, Any]:
+        """Prepare Storyline-specific resume data"""
+        cmi_data = self.attempt.cmi_data.copy()
+        
+        # Set entry mode to resume
+        self.attempt.entry = 'resume'
+        
+        if self.package.version == '1.2':
+            cmi_data['cmi.core.entry'] = 'resume'
+            # Storyline 1.2 specific handling
+            if self.attempt.lesson_location:
+                cmi_data['cmi.core.lesson_location'] = self.attempt.lesson_location
+            if self.attempt.suspend_data:
+                cmi_data['cmi.suspend_data'] = self.attempt.suspend_data
+        else:  # SCORM 2004
+            cmi_data['cmi.entry'] = 'resume'
+            # Storyline 2004 specific handling
+            if self.attempt.lesson_location:
+                cmi_data['cmi.location'] = self.attempt.lesson_location
+            if self.attempt.suspend_data:
+                cmi_data['cmi.suspend_data'] = self.attempt.suspend_data
+        
+        logger.info("RESUME: Prepared Storyline-specific resume data")
+        return cmi_data
+    
+    def _prepare_captivate_resume(self) -> Dict[str, Any]:
+        """Prepare Captivate-specific resume data"""
+        cmi_data = self.attempt.cmi_data.copy()
+        
+        # Set entry mode to resume
+        self.attempt.entry = 'resume'
+        
+        if self.package.version == '1.2':
+            cmi_data['cmi.core.entry'] = 'resume'
+            # Captivate requires specific lesson_location format
+            if self.attempt.lesson_location:
+                cmi_data['cmi.core.lesson_location'] = self.attempt.lesson_location
+        else:  # SCORM 2004
+            cmi_data['cmi.entry'] = 'resume'
+            if self.attempt.lesson_location:
+                cmi_data['cmi.location'] = self.attempt.lesson_location
+        
+        logger.info("RESUME: Prepared Captivate-specific resume data")
+        return cmi_data
+    
+    def _prepare_lectora_resume(self) -> Dict[str, Any]:
+        """Prepare Lectora-specific resume data"""
+        cmi_data = self.attempt.cmi_data.copy()
+        
+        # Set entry mode to resume
+        self.attempt.entry = 'resume'
+        
+        if self.package.version == '1.2':
+            cmi_data['cmi.core.entry'] = 'resume'
+            # Lectora specific handling
+            if self.attempt.lesson_location:
+                cmi_data['cmi.core.lesson_location'] = self.attempt.lesson_location
+        else:  # SCORM 2004
+            cmi_data['cmi.entry'] = 'resume'
+            if self.attempt.lesson_location:
+                cmi_data['cmi.location'] = self.attempt.lesson_location
+        
+        logger.info("RESUME: Prepared Lectora-specific resume data")
         return cmi_data
     
     def _prepare_restart_resume(self) -> Dict[str, Any]:
@@ -144,9 +261,10 @@ class EnhancedScormResumeHandler:
         else:  # SCORM 2004
             cmi_data['cmi.entry'] = 'resume'
             
-            # Set basic CMI data
-            cmi_data['cmi.completion_status'] = self.attempt.completion_status or 'incomplete'
-            cmi_data['cmi.success_status'] = self.attempt.success_status or 'unknown'
+            # CRITICAL FIX FOR SCORM 2004 STORYLINE: Set proper status for restart resume
+            # For restart resume (no bookmark data), set completion_status to 'incomplete' to indicate progress
+            cmi_data['cmi.completion_status'] = 'incomplete'
+            cmi_data['cmi.success_status'] = 'unknown'
             cmi_data['cmi.learner_id'] = str(self.user.id) if self.user else 'student'
             cmi_data['cmi.learner_name'] = self.user.get_full_name() or self.user.username if self.user else 'Student'
         
