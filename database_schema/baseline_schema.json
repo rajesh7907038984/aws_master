@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "created_at": "2025-10-22T15:43:16.854434",
+    "created_at": "2025-10-25T08:10:21.785850",
     "database_engine": "django.db.backends.postgresql",
     "database_name": "postgres",
     "django_version": "Unknown",
@@ -519,6 +519,30 @@
         "default": null,
         "position": 43,
         "precision": 64
+      },
+      "teams_integration_enabled": {
+        "type": "boolean",
+        "nullable": false,
+        "default": null,
+        "position": 44
+      },
+      "teams_sync_attendance": {
+        "type": "boolean",
+        "nullable": false,
+        "default": null,
+        "position": 45
+      },
+      "teams_sync_entra_groups": {
+        "type": "boolean",
+        "nullable": false,
+        "default": null,
+        "position": 46
+      },
+      "teams_sync_meetings": {
+        "type": "boolean",
+        "nullable": false,
+        "default": null,
+        "position": 47
       }
     },
     "account_settings_importjob": {
@@ -3682,6 +3706,12 @@
         "nullable": true,
         "default": "false",
         "position": 10
+      },
+      "teams_integration_enabled": {
+        "type": "boolean",
+        "nullable": false,
+        "default": null,
+        "position": 11
       }
     },
     "branches_branchuserlimits": {
@@ -13420,6 +13450,466 @@
         "precision": 64
       }
     },
+    "teams_integration_entragroupmapping": {
+      "id": {
+        "type": "bigint",
+        "nullable": false,
+        "default": "nextval('teams_integration_entragroupmapping_id_seq'::regclass)",
+        "position": 1,
+        "precision": 64
+      },
+      "entra_group_id": {
+        "type": "character varying",
+        "nullable": false,
+        "default": null,
+        "position": 2,
+        "max_length": 255
+      },
+      "entra_group_name": {
+        "type": "character varying",
+        "nullable": false,
+        "default": null,
+        "position": 3,
+        "max_length": 255
+      },
+      "entra_group_email": {
+        "type": "character varying",
+        "nullable": true,
+        "default": null,
+        "position": 4,
+        "max_length": 254
+      },
+      "is_active": {
+        "type": "boolean",
+        "nullable": false,
+        "default": null,
+        "position": 5
+      },
+      "auto_sync_enabled": {
+        "type": "boolean",
+        "nullable": false,
+        "default": null,
+        "position": 6
+      },
+      "sync_frequency_minutes": {
+        "type": "integer",
+        "nullable": false,
+        "default": null,
+        "position": 7,
+        "precision": 32
+      },
+      "last_sync_at": {
+        "type": "timestamp with time zone",
+        "nullable": true,
+        "default": null,
+        "position": 8
+      },
+      "last_sync_status": {
+        "type": "character varying",
+        "nullable": false,
+        "default": null,
+        "position": 9,
+        "max_length": 20
+      },
+      "total_users_synced": {
+        "type": "integer",
+        "nullable": false,
+        "default": null,
+        "position": 10,
+        "precision": 32
+      },
+      "last_sync_users_count": {
+        "type": "integer",
+        "nullable": false,
+        "default": null,
+        "position": 11,
+        "precision": 32
+      },
+      "sync_error": {
+        "type": "text",
+        "nullable": true,
+        "default": null,
+        "position": 12
+      },
+      "retry_count": {
+        "type": "integer",
+        "nullable": false,
+        "default": null,
+        "position": 13,
+        "precision": 32
+      },
+      "created_at": {
+        "type": "timestamp with time zone",
+        "nullable": false,
+        "default": null,
+        "position": 14
+      },
+      "updated_at": {
+        "type": "timestamp with time zone",
+        "nullable": false,
+        "default": null,
+        "position": 15
+      },
+      "integration_id": {
+        "type": "bigint",
+        "nullable": false,
+        "default": null,
+        "position": 16,
+        "precision": 64
+      },
+      "lms_group_id": {
+        "type": "bigint",
+        "nullable": false,
+        "default": null,
+        "position": 17,
+        "precision": 64
+      },
+      "target_course_id": {
+        "type": "bigint",
+        "nullable": true,
+        "default": null,
+        "position": 18,
+        "precision": 64
+      },
+      "target_group_type": {
+        "type": "character varying",
+        "nullable": false,
+        "default": null,
+        "position": 19,
+        "max_length": 10
+      }
+    },
+    "teams_integration_teamsmeetingsync": {
+      "id": {
+        "type": "bigint",
+        "nullable": false,
+        "default": "nextval('teams_integration_teamsmeetingsync_id_seq'::regclass)",
+        "position": 1,
+        "precision": 64
+      },
+      "teams_meeting_id": {
+        "type": "character varying",
+        "nullable": false,
+        "default": null,
+        "position": 2,
+        "max_length": 255
+      },
+      "teams_meeting_url": {
+        "type": "character varying",
+        "nullable": true,
+        "default": null,
+        "position": 3,
+        "max_length": 500
+      },
+      "attendance_synced": {
+        "type": "boolean",
+        "nullable": false,
+        "default": null,
+        "position": 4
+      },
+      "recordings_synced": {
+        "type": "boolean",
+        "nullable": false,
+        "default": null,
+        "position": 5
+      },
+      "chat_synced": {
+        "type": "boolean",
+        "nullable": false,
+        "default": null,
+        "position": 6
+      },
+      "files_synced": {
+        "type": "boolean",
+        "nullable": false,
+        "default": null,
+        "position": 7
+      },
+      "last_attendance_sync": {
+        "type": "timestamp with time zone",
+        "nullable": true,
+        "default": null,
+        "position": 8
+      },
+      "last_recording_sync": {
+        "type": "timestamp with time zone",
+        "nullable": true,
+        "default": null,
+        "position": 9
+      },
+      "last_chat_sync": {
+        "type": "timestamp with time zone",
+        "nullable": true,
+        "default": null,
+        "position": 10
+      },
+      "last_file_sync": {
+        "type": "timestamp with time zone",
+        "nullable": true,
+        "default": null,
+        "position": 11
+      },
+      "meeting_duration_minutes": {
+        "type": "integer",
+        "nullable": false,
+        "default": null,
+        "position": 12,
+        "precision": 32
+      },
+      "total_participants": {
+        "type": "integer",
+        "nullable": false,
+        "default": null,
+        "position": 13,
+        "precision": 32
+      },
+      "meeting_status": {
+        "type": "character varying",
+        "nullable": false,
+        "default": null,
+        "position": 14,
+        "max_length": 20
+      },
+      "sync_errors": {
+        "type": "jsonb",
+        "nullable": false,
+        "default": null,
+        "position": 15
+      },
+      "retry_count": {
+        "type": "integer",
+        "nullable": false,
+        "default": null,
+        "position": 16,
+        "precision": 32
+      },
+      "last_error": {
+        "type": "text",
+        "nullable": true,
+        "default": null,
+        "position": 17
+      },
+      "created_at": {
+        "type": "timestamp with time zone",
+        "nullable": false,
+        "default": null,
+        "position": 18
+      },
+      "updated_at": {
+        "type": "timestamp with time zone",
+        "nullable": false,
+        "default": null,
+        "position": 19
+      },
+      "conference_id": {
+        "type": "bigint",
+        "nullable": false,
+        "default": null,
+        "position": 20,
+        "precision": 64
+      }
+    },
+    "teams_integration_teamssynclog": {
+      "id": {
+        "type": "bigint",
+        "nullable": false,
+        "default": "nextval('teams_integration_teamssynclog_id_seq'::regclass)",
+        "position": 1,
+        "precision": 64
+      },
+      "sync_type": {
+        "type": "character varying",
+        "nullable": false,
+        "default": null,
+        "position": 2,
+        "max_length": 20
+      },
+      "status": {
+        "type": "character varying",
+        "nullable": false,
+        "default": null,
+        "position": 3,
+        "max_length": 20
+      },
+      "started_at": {
+        "type": "timestamp with time zone",
+        "nullable": false,
+        "default": null,
+        "position": 4
+      },
+      "completed_at": {
+        "type": "timestamp with time zone",
+        "nullable": true,
+        "default": null,
+        "position": 5
+      },
+      "duration_seconds": {
+        "type": "integer",
+        "nullable": false,
+        "default": null,
+        "position": 6,
+        "precision": 32
+      },
+      "items_processed": {
+        "type": "integer",
+        "nullable": false,
+        "default": null,
+        "position": 7,
+        "precision": 32
+      },
+      "items_created": {
+        "type": "integer",
+        "nullable": false,
+        "default": null,
+        "position": 8,
+        "precision": 32
+      },
+      "items_updated": {
+        "type": "integer",
+        "nullable": false,
+        "default": null,
+        "position": 9,
+        "precision": 32
+      },
+      "items_failed": {
+        "type": "integer",
+        "nullable": false,
+        "default": null,
+        "position": 10,
+        "precision": 32
+      },
+      "error_message": {
+        "type": "text",
+        "nullable": true,
+        "default": null,
+        "position": 11
+      },
+      "error_details": {
+        "type": "jsonb",
+        "nullable": false,
+        "default": null,
+        "position": 12
+      },
+      "sync_direction": {
+        "type": "character varying",
+        "nullable": false,
+        "default": null,
+        "position": 13,
+        "max_length": 20
+      },
+      "sync_metadata": {
+        "type": "jsonb",
+        "nullable": false,
+        "default": null,
+        "position": 14
+      },
+      "api_response": {
+        "type": "jsonb",
+        "nullable": false,
+        "default": null,
+        "position": 15
+      },
+      "initiated_by_id": {
+        "type": "bigint",
+        "nullable": true,
+        "default": null,
+        "position": 16,
+        "precision": 64
+      },
+      "integration_id": {
+        "type": "bigint",
+        "nullable": false,
+        "default": null,
+        "position": 17,
+        "precision": 64
+      }
+    },
+    "teams_integration_teamsusersync": {
+      "id": {
+        "type": "bigint",
+        "nullable": false,
+        "default": "nextval('teams_integration_teamsusersync_id_seq'::regclass)",
+        "position": 1,
+        "precision": 64
+      },
+      "entra_user_id": {
+        "type": "character varying",
+        "nullable": true,
+        "default": null,
+        "position": 2,
+        "max_length": 255
+      },
+      "entra_email": {
+        "type": "character varying",
+        "nullable": true,
+        "default": null,
+        "position": 3,
+        "max_length": 254
+      },
+      "entra_display_name": {
+        "type": "character varying",
+        "nullable": true,
+        "default": null,
+        "position": 4,
+        "max_length": 255
+      },
+      "sync_status": {
+        "type": "character varying",
+        "nullable": false,
+        "default": null,
+        "position": 5,
+        "max_length": 20
+      },
+      "last_sync_at": {
+        "type": "timestamp with time zone",
+        "nullable": true,
+        "default": null,
+        "position": 6
+      },
+      "sync_error": {
+        "type": "text",
+        "nullable": true,
+        "default": null,
+        "position": 7
+      },
+      "sync_metadata": {
+        "type": "jsonb",
+        "nullable": false,
+        "default": null,
+        "position": 8
+      },
+      "entra_groups": {
+        "type": "jsonb",
+        "nullable": false,
+        "default": null,
+        "position": 9
+      },
+      "lms_groups": {
+        "type": "jsonb",
+        "nullable": false,
+        "default": null,
+        "position": 10
+      },
+      "created_at": {
+        "type": "timestamp with time zone",
+        "nullable": false,
+        "default": null,
+        "position": 11
+      },
+      "updated_at": {
+        "type": "timestamp with time zone",
+        "nullable": false,
+        "default": null,
+        "position": 12
+      },
+      "user_id": {
+        "type": "bigint",
+        "nullable": false,
+        "default": null,
+        "position": 13,
+        "precision": 64
+      }
+    },
     "tinymce_editor_aitokenusage": {
       "id": {
         "type": "bigint",
@@ -18470,6 +18960,122 @@
         "definition": "CREATE UNIQUE INDEX sharepoint_integration_sharepointsynclog_pkey ON public.sharepoint_integration_sharepointsynclog USING btree (id)"
       }
     ],
+    "teams_integration_entragroupmapping": [
+      {
+        "name": "teams_integ_integra_b7027a_idx",
+        "definition": "CREATE INDEX teams_integ_integra_b7027a_idx ON public.teams_integration_entragroupmapping USING btree (integration_id, is_active)"
+      },
+      {
+        "name": "teams_integ_last_sy_5d8a1c_idx",
+        "definition": "CREATE INDEX teams_integ_last_sy_5d8a1c_idx ON public.teams_integration_entragroupmapping USING btree (last_sync_at)"
+      },
+      {
+        "name": "teams_integ_lms_gro_b67e23_idx",
+        "definition": "CREATE INDEX teams_integ_lms_gro_b67e23_idx ON public.teams_integration_entragroupmapping USING btree (lms_group_id)"
+      },
+      {
+        "name": "teams_integration_entrag_integration_id_entra_gro_ee171851_uniq",
+        "definition": "CREATE UNIQUE INDEX teams_integration_entrag_integration_id_entra_gro_ee171851_uniq ON public.teams_integration_entragroupmapping USING btree (integration_id, entra_group_id)"
+      },
+      {
+        "name": "teams_integration_entragroupmapping_integration_id_a1e79da7",
+        "definition": "CREATE INDEX teams_integration_entragroupmapping_integration_id_a1e79da7 ON public.teams_integration_entragroupmapping USING btree (integration_id)"
+      },
+      {
+        "name": "teams_integration_entragroupmapping_lms_group_id_8823e9da",
+        "definition": "CREATE INDEX teams_integration_entragroupmapping_lms_group_id_8823e9da ON public.teams_integration_entragroupmapping USING btree (lms_group_id)"
+      },
+      {
+        "name": "teams_integration_entragroupmapping_pkey",
+        "definition": "CREATE UNIQUE INDEX teams_integration_entragroupmapping_pkey ON public.teams_integration_entragroupmapping USING btree (id)"
+      },
+      {
+        "name": "teams_integration_entragroupmapping_target_course_id_df860296",
+        "definition": "CREATE INDEX teams_integration_entragroupmapping_target_course_id_df860296 ON public.teams_integration_entragroupmapping USING btree (target_course_id)"
+      }
+    ],
+    "teams_integration_teamsmeetingsync": [
+      {
+        "name": "teams_integ_confere_99a98d_idx",
+        "definition": "CREATE INDEX teams_integ_confere_99a98d_idx ON public.teams_integration_teamsmeetingsync USING btree (conference_id)"
+      },
+      {
+        "name": "teams_integ_meeting_28d3b3_idx",
+        "definition": "CREATE INDEX teams_integ_meeting_28d3b3_idx ON public.teams_integration_teamsmeetingsync USING btree (meeting_status)"
+      },
+      {
+        "name": "teams_integ_teams_m_d1fd91_idx",
+        "definition": "CREATE INDEX teams_integ_teams_m_d1fd91_idx ON public.teams_integration_teamsmeetingsync USING btree (teams_meeting_id)"
+      },
+      {
+        "name": "teams_integration_teamsm_teams_meeting_id_9729d0e1_like",
+        "definition": "CREATE INDEX teams_integration_teamsm_teams_meeting_id_9729d0e1_like ON public.teams_integration_teamsmeetingsync USING btree (teams_meeting_id varchar_pattern_ops)"
+      },
+      {
+        "name": "teams_integration_teamsmeetingsync_conference_id_de56027b",
+        "definition": "CREATE INDEX teams_integration_teamsmeetingsync_conference_id_de56027b ON public.teams_integration_teamsmeetingsync USING btree (conference_id)"
+      },
+      {
+        "name": "teams_integration_teamsmeetingsync_pkey",
+        "definition": "CREATE UNIQUE INDEX teams_integration_teamsmeetingsync_pkey ON public.teams_integration_teamsmeetingsync USING btree (id)"
+      },
+      {
+        "name": "teams_integration_teamsmeetingsync_teams_meeting_id_key",
+        "definition": "CREATE UNIQUE INDEX teams_integration_teamsmeetingsync_teams_meeting_id_key ON public.teams_integration_teamsmeetingsync USING btree (teams_meeting_id)"
+      }
+    ],
+    "teams_integration_teamssynclog": [
+      {
+        "name": "teams_integ_integra_15d46e_idx",
+        "definition": "CREATE INDEX teams_integ_integra_15d46e_idx ON public.teams_integration_teamssynclog USING btree (integration_id, sync_type)"
+      },
+      {
+        "name": "teams_integ_started_bddfe8_idx",
+        "definition": "CREATE INDEX teams_integ_started_bddfe8_idx ON public.teams_integration_teamssynclog USING btree (started_at)"
+      },
+      {
+        "name": "teams_integ_status_f4b001_idx",
+        "definition": "CREATE INDEX teams_integ_status_f4b001_idx ON public.teams_integration_teamssynclog USING btree (status, started_at)"
+      },
+      {
+        "name": "teams_integration_teamssynclog_initiated_by_id_e07d3de6",
+        "definition": "CREATE INDEX teams_integration_teamssynclog_initiated_by_id_e07d3de6 ON public.teams_integration_teamssynclog USING btree (initiated_by_id)"
+      },
+      {
+        "name": "teams_integration_teamssynclog_integration_id_75514882",
+        "definition": "CREATE INDEX teams_integration_teamssynclog_integration_id_75514882 ON public.teams_integration_teamssynclog USING btree (integration_id)"
+      },
+      {
+        "name": "teams_integration_teamssynclog_pkey",
+        "definition": "CREATE UNIQUE INDEX teams_integration_teamssynclog_pkey ON public.teams_integration_teamssynclog USING btree (id)"
+      }
+    ],
+    "teams_integration_teamsusersync": [
+      {
+        "name": "teams_integ_entra_u_7adce0_idx",
+        "definition": "CREATE INDEX teams_integ_entra_u_7adce0_idx ON public.teams_integration_teamsusersync USING btree (entra_user_id)"
+      },
+      {
+        "name": "teams_integ_sync_st_a69510_idx",
+        "definition": "CREATE INDEX teams_integ_sync_st_a69510_idx ON public.teams_integration_teamsusersync USING btree (sync_status)"
+      },
+      {
+        "name": "teams_integ_user_id_60b6f4_idx",
+        "definition": "CREATE INDEX teams_integ_user_id_60b6f4_idx ON public.teams_integration_teamsusersync USING btree (user_id)"
+      },
+      {
+        "name": "teams_integration_teamsu_user_id_entra_user_id_05418ff7_uniq",
+        "definition": "CREATE UNIQUE INDEX teams_integration_teamsu_user_id_entra_user_id_05418ff7_uniq ON public.teams_integration_teamsusersync USING btree (user_id, entra_user_id)"
+      },
+      {
+        "name": "teams_integration_teamsusersync_pkey",
+        "definition": "CREATE UNIQUE INDEX teams_integration_teamsusersync_pkey ON public.teams_integration_teamsusersync USING btree (id)"
+      },
+      {
+        "name": "teams_integration_teamsusersync_user_id_6dc98e9f",
+        "definition": "CREATE INDEX teams_integration_teamsusersync_user_id_6dc98e9f ON public.teams_integration_teamsusersync USING btree (user_id)"
+      }
+    ],
     "tinymce_editor_aitokenusage": [
       {
         "name": "tinymce_edi_created_6ae4fa_idx",
@@ -19000,6 +19606,26 @@
         "column": null
       },
       {
+        "name": "2200_33741_44_not_null",
+        "type": "CHECK",
+        "column": null
+      },
+      {
+        "name": "2200_33741_45_not_null",
+        "type": "CHECK",
+        "column": null
+      },
+      {
+        "name": "2200_33741_46_not_null",
+        "type": "CHECK",
+        "column": null
+      },
+      {
+        "name": "2200_33741_47_not_null",
+        "type": "CHECK",
+        "column": null
+      },
+      {
         "name": "2200_33741_6_not_null",
         "type": "CHECK",
         "column": null
@@ -19174,6 +19800,20 @@
         "type": "UNIQUE",
         "column": "submenu_item",
         "foreign_table": "account_settings_menucontrolsettings",
+        "foreign_column": "menu_section"
+      },
+      {
+        "name": "account_settings_menucon_menu_section_submenu_ite_d716d839_uniq",
+        "type": "UNIQUE",
+        "column": "menu_section",
+        "foreign_table": "account_settings_menucontrolsettings",
+        "foreign_column": "menu_section"
+      },
+      {
+        "name": "account_settings_menucon_menu_section_submenu_ite_d716d839_uniq",
+        "type": "UNIQUE",
+        "column": "menu_section",
+        "foreign_table": "account_settings_menucontrolsettings",
         "foreign_column": "submenu_item"
       },
       {
@@ -19181,21 +19821,7 @@
         "type": "UNIQUE",
         "column": "submenu_item",
         "foreign_table": "account_settings_menucontrolsettings",
-        "foreign_column": "menu_section"
-      },
-      {
-        "name": "account_settings_menucon_menu_section_submenu_ite_d716d839_uniq",
-        "type": "UNIQUE",
-        "column": "menu_section",
-        "foreign_table": "account_settings_menucontrolsettings",
         "foreign_column": "submenu_item"
-      },
-      {
-        "name": "account_settings_menucon_menu_section_submenu_ite_d716d839_uniq",
-        "type": "UNIQUE",
-        "column": "menu_section",
-        "foreign_table": "account_settings_menucontrolsettings",
-        "foreign_column": "menu_section"
       },
       {
         "name": "account_settings_menucontrolsettings_pkey",
@@ -19224,9 +19850,9 @@
       {
         "name": "account_settings_menucontrols_menucontrolsettings_id_role_i_key",
         "type": "UNIQUE",
-        "column": "menucontrolsettings_id",
+        "column": "role_id",
         "foreign_table": "account_settings_menucontrolsettings_visible_to_custom_roles",
-        "foreign_column": "menucontrolsettings_id"
+        "foreign_column": "role_id"
       },
       {
         "name": "account_settings_menucontrols_menucontrolsettings_id_role_i_key",
@@ -19245,9 +19871,9 @@
       {
         "name": "account_settings_menucontrols_menucontrolsettings_id_role_i_key",
         "type": "UNIQUE",
-        "column": "role_id",
+        "column": "menucontrolsettings_id",
         "foreign_table": "account_settings_menucontrolsettings_visible_to_custom_roles",
-        "foreign_column": "role_id"
+        "foreign_column": "menucontrolsettings_id"
       },
       {
         "name": "account_settings_menucontrolsetting_menucontrolsettings_id_fkey",
@@ -19967,7 +20593,7 @@
       {
         "name": "assignments_assignment_topics_assignment_id_topic_id_key",
         "type": "UNIQUE",
-        "column": "topic_id",
+        "column": "assignment_id",
         "foreign_table": "assignments_assignment_topics",
         "foreign_column": "topic_id"
       },
@@ -19981,7 +20607,7 @@
       {
         "name": "assignments_assignment_topics_assignment_id_topic_id_key",
         "type": "UNIQUE",
-        "column": "assignment_id",
+        "column": "topic_id",
         "foreign_table": "assignments_assignment_topics",
         "foreign_column": "topic_id"
       },
@@ -20170,20 +20796,6 @@
       {
         "name": "assignments_assignmentco_assignment_id_course_id_2aac22ed_uniq",
         "type": "UNIQUE",
-        "column": "assignment_id",
-        "foreign_table": "assignments_assignmentcourse",
-        "foreign_column": "assignment_id"
-      },
-      {
-        "name": "assignments_assignmentco_assignment_id_course_id_2aac22ed_uniq",
-        "type": "UNIQUE",
-        "column": "course_id",
-        "foreign_table": "assignments_assignmentcourse",
-        "foreign_column": "assignment_id"
-      },
-      {
-        "name": "assignments_assignmentco_assignment_id_course_id_2aac22ed_uniq",
-        "type": "UNIQUE",
         "column": "course_id",
         "foreign_table": "assignments_assignmentcourse",
         "foreign_column": "course_id"
@@ -20194,6 +20806,20 @@
         "column": "assignment_id",
         "foreign_table": "assignments_assignmentcourse",
         "foreign_column": "course_id"
+      },
+      {
+        "name": "assignments_assignmentco_assignment_id_course_id_2aac22ed_uniq",
+        "type": "UNIQUE",
+        "column": "assignment_id",
+        "foreign_table": "assignments_assignmentcourse",
+        "foreign_column": "assignment_id"
+      },
+      {
+        "name": "assignments_assignmentco_assignment_id_course_id_2aac22ed_uniq",
+        "type": "UNIQUE",
+        "column": "course_id",
+        "foreign_table": "assignments_assignmentcourse",
+        "foreign_column": "assignment_id"
       },
       {
         "name": "assignments_assignmentcourse_pkey",
@@ -20358,7 +20984,7 @@
       {
         "name": "assignments_assignmentre_assignment_id_student_id_6f445cc2_uniq",
         "type": "UNIQUE",
-        "column": "assignment_id",
+        "column": "student_id",
         "foreign_table": "assignments_assignmentreportconfirmation",
         "foreign_column": "student_id"
       },
@@ -20372,16 +20998,16 @@
       {
         "name": "assignments_assignmentre_assignment_id_student_id_6f445cc2_uniq",
         "type": "UNIQUE",
-        "column": "student_id",
+        "column": "assignment_id",
         "foreign_table": "assignments_assignmentreportconfirmation",
-        "foreign_column": "student_id"
+        "foreign_column": "assignment_id"
       },
       {
         "name": "assignments_assignmentre_assignment_id_student_id_6f445cc2_uniq",
         "type": "UNIQUE",
         "column": "assignment_id",
         "foreign_table": "assignments_assignmentreportconfirmation",
-        "foreign_column": "assignment_id"
+        "foreign_column": "student_id"
       },
       {
         "name": "assignments_assignmentreportconfirmation_pkey",
@@ -20544,13 +21170,6 @@
         "type": "UNIQUE",
         "column": "user_id",
         "foreign_table": "assignments_assignmentsubmission",
-        "foreign_column": "assignment_id"
-      },
-      {
-        "name": "assignments_assignmentsu_assignment_id_user_id_46859386_uniq",
-        "type": "UNIQUE",
-        "column": "assignment_id",
-        "foreign_table": "assignments_assignmentsubmission",
         "foreign_column": "user_id"
       },
       {
@@ -20559,13 +21178,20 @@
         "column": "assignment_id",
         "foreign_table": "assignments_assignmentsubmission",
         "foreign_column": "assignment_id"
+      },
+      {
+        "name": "assignments_assignmentsu_assignment_id_user_id_46859386_uniq",
+        "type": "UNIQUE",
+        "column": "assignment_id",
+        "foreign_table": "assignments_assignmentsubmission",
+        "foreign_column": "user_id"
       },
       {
         "name": "assignments_assignmentsu_assignment_id_user_id_46859386_uniq",
         "type": "UNIQUE",
         "column": "user_id",
         "foreign_table": "assignments_assignmentsubmission",
-        "foreign_column": "user_id"
+        "foreign_column": "assignment_id"
       },
       {
         "name": "assignments_assignmentsubmission_pkey",
@@ -20626,9 +21252,9 @@
       {
         "name": "assignments_filesubmissi_submission_id_iteration__8ab3b760_uniq",
         "type": "UNIQUE",
-        "column": "iteration_number",
+        "column": "submission_id",
         "foreign_table": "assignments_filesubmissioniteration",
-        "foreign_column": "iteration_number"
+        "foreign_column": "submission_id"
       },
       {
         "name": "assignments_filesubmissi_submission_id_iteration__8ab3b760_uniq",
@@ -20647,9 +21273,9 @@
       {
         "name": "assignments_filesubmissi_submission_id_iteration__8ab3b760_uniq",
         "type": "UNIQUE",
-        "column": "submission_id",
+        "column": "iteration_number",
         "foreign_table": "assignments_filesubmissioniteration",
-        "foreign_column": "submission_id"
+        "foreign_column": "iteration_number"
       },
       {
         "name": "assignments_filesubmissioniteration_file_size_check",
@@ -20824,6 +21450,13 @@
       {
         "name": "assignments_studentanswer_question_id_student_id_0675970c_uniq",
         "type": "UNIQUE",
+        "column": "question_id",
+        "foreign_table": "assignments_studentanswer",
+        "foreign_column": "student_id"
+      },
+      {
+        "name": "assignments_studentanswer_question_id_student_id_0675970c_uniq",
+        "type": "UNIQUE",
         "column": "student_id",
         "foreign_table": "assignments_studentanswer",
         "foreign_column": "question_id"
@@ -20841,13 +21474,6 @@
         "column": "question_id",
         "foreign_table": "assignments_studentanswer",
         "foreign_column": "question_id"
-      },
-      {
-        "name": "assignments_studentanswer_question_id_student_id_0675970c_uniq",
-        "type": "UNIQUE",
-        "column": "question_id",
-        "foreign_table": "assignments_studentanswer",
-        "foreign_column": "student_id"
       }
     ],
     "assignments_supportingdocquestion": [
@@ -20994,9 +21620,9 @@
       {
         "name": "assignments_textquestion_question_id_submission_i_ef03b1c8_uniq",
         "type": "UNIQUE",
-        "column": "question_id",
+        "column": "submission_id",
         "foreign_table": "assignments_textquestionanswer",
-        "foreign_column": "submission_id"
+        "foreign_column": "question_id"
       },
       {
         "name": "assignments_textquestion_question_id_submission_i_ef03b1c8_uniq",
@@ -21008,7 +21634,7 @@
       {
         "name": "assignments_textquestion_question_id_submission_i_ef03b1c8_uniq",
         "type": "UNIQUE",
-        "column": "submission_id",
+        "column": "question_id",
         "foreign_table": "assignments_textquestionanswer",
         "foreign_column": "question_id"
       },
@@ -21017,7 +21643,7 @@
         "type": "UNIQUE",
         "column": "question_id",
         "foreign_table": "assignments_textquestionanswer",
-        "foreign_column": "question_id"
+        "foreign_column": "submission_id"
       },
       {
         "name": "assignments_textquestionanswer_pkey",
@@ -21085,42 +21711,14 @@
       {
         "name": "assignments_textquestion_question_id_submission_i_5ab74c3c_uniq",
         "type": "UNIQUE",
-        "column": "question_id",
-        "foreign_table": "assignments_textquestionansweriteration",
-        "foreign_column": "submission_id"
-      },
-      {
-        "name": "assignments_textquestion_question_id_submission_i_5ab74c3c_uniq",
-        "type": "UNIQUE",
-        "column": "question_id",
-        "foreign_table": "assignments_textquestionansweriteration",
-        "foreign_column": "iteration_number"
-      },
-      {
-        "name": "assignments_textquestion_question_id_submission_i_5ab74c3c_uniq",
-        "type": "UNIQUE",
-        "column": "question_id",
+        "column": "iteration_number",
         "foreign_table": "assignments_textquestionansweriteration",
         "foreign_column": "question_id"
       },
       {
         "name": "assignments_textquestion_question_id_submission_i_5ab74c3c_uniq",
         "type": "UNIQUE",
-        "column": "submission_id",
-        "foreign_table": "assignments_textquestionansweriteration",
-        "foreign_column": "iteration_number"
-      },
-      {
-        "name": "assignments_textquestion_question_id_submission_i_5ab74c3c_uniq",
-        "type": "UNIQUE",
-        "column": "submission_id",
-        "foreign_table": "assignments_textquestionansweriteration",
-        "foreign_column": "question_id"
-      },
-      {
-        "name": "assignments_textquestion_question_id_submission_i_5ab74c3c_uniq",
-        "type": "UNIQUE",
-        "column": "submission_id",
+        "column": "iteration_number",
         "foreign_table": "assignments_textquestionansweriteration",
         "foreign_column": "submission_id"
       },
@@ -21134,16 +21732,44 @@
       {
         "name": "assignments_textquestion_question_id_submission_i_5ab74c3c_uniq",
         "type": "UNIQUE",
-        "column": "iteration_number",
+        "column": "submission_id",
+        "foreign_table": "assignments_textquestionansweriteration",
+        "foreign_column": "submission_id"
+      },
+      {
+        "name": "assignments_textquestion_question_id_submission_i_5ab74c3c_uniq",
+        "type": "UNIQUE",
+        "column": "submission_id",
         "foreign_table": "assignments_textquestionansweriteration",
         "foreign_column": "question_id"
       },
       {
         "name": "assignments_textquestion_question_id_submission_i_5ab74c3c_uniq",
         "type": "UNIQUE",
-        "column": "iteration_number",
+        "column": "submission_id",
+        "foreign_table": "assignments_textquestionansweriteration",
+        "foreign_column": "iteration_number"
+      },
+      {
+        "name": "assignments_textquestion_question_id_submission_i_5ab74c3c_uniq",
+        "type": "UNIQUE",
+        "column": "question_id",
         "foreign_table": "assignments_textquestionansweriteration",
         "foreign_column": "submission_id"
+      },
+      {
+        "name": "assignments_textquestion_question_id_submission_i_5ab74c3c_uniq",
+        "type": "UNIQUE",
+        "column": "question_id",
+        "foreign_table": "assignments_textquestionansweriteration",
+        "foreign_column": "question_id"
+      },
+      {
+        "name": "assignments_textquestion_question_id_submission_i_5ab74c3c_uniq",
+        "type": "UNIQUE",
+        "column": "question_id",
+        "foreign_table": "assignments_textquestionansweriteration",
+        "foreign_column": "iteration_number"
       },
       {
         "name": "assignments_textquestionansweriteration_iteration_number_check",
@@ -21263,14 +21889,7 @@
         "type": "UNIQUE",
         "column": "submission_id",
         "foreign_table": "assignments_textsubmissionanswer",
-        "foreign_column": "field_id"
-      },
-      {
-        "name": "assignments_textsubmissi_field_id_submission_id_d9f5d203_uniq",
-        "type": "UNIQUE",
-        "column": "field_id",
-        "foreign_table": "assignments_textsubmissionanswer",
-        "foreign_column": "field_id"
+        "foreign_column": "submission_id"
       },
       {
         "name": "assignments_textsubmissi_field_id_submission_id_d9f5d203_uniq",
@@ -21284,7 +21903,14 @@
         "type": "UNIQUE",
         "column": "submission_id",
         "foreign_table": "assignments_textsubmissionanswer",
-        "foreign_column": "submission_id"
+        "foreign_column": "field_id"
+      },
+      {
+        "name": "assignments_textsubmissi_field_id_submission_id_d9f5d203_uniq",
+        "type": "UNIQUE",
+        "column": "field_id",
+        "foreign_table": "assignments_textsubmissionanswer",
+        "foreign_column": "field_id"
       },
       {
         "name": "assignments_textsubmissionanswer_pkey",
@@ -21352,9 +21978,37 @@
       {
         "name": "assignments_textsubmissi_field_id_submission_id_i_aca0d67e_uniq",
         "type": "UNIQUE",
+        "column": "iteration_number",
+        "foreign_table": "assignments_textsubmissionansweriteration",
+        "foreign_column": "field_id"
+      },
+      {
+        "name": "assignments_textsubmissi_field_id_submission_id_i_aca0d67e_uniq",
+        "type": "UNIQUE",
         "column": "submission_id",
         "foreign_table": "assignments_textsubmissionansweriteration",
         "foreign_column": "submission_id"
+      },
+      {
+        "name": "assignments_textsubmissi_field_id_submission_id_i_aca0d67e_uniq",
+        "type": "UNIQUE",
+        "column": "iteration_number",
+        "foreign_table": "assignments_textsubmissionansweriteration",
+        "foreign_column": "submission_id"
+      },
+      {
+        "name": "assignments_textsubmissi_field_id_submission_id_i_aca0d67e_uniq",
+        "type": "UNIQUE",
+        "column": "submission_id",
+        "foreign_table": "assignments_textsubmissionansweriteration",
+        "foreign_column": "field_id"
+      },
+      {
+        "name": "assignments_textsubmissi_field_id_submission_id_i_aca0d67e_uniq",
+        "type": "UNIQUE",
+        "column": "field_id",
+        "foreign_table": "assignments_textsubmissionansweriteration",
+        "foreign_column": "field_id"
       },
       {
         "name": "assignments_textsubmissi_field_id_submission_id_i_aca0d67e_uniq",
@@ -21366,28 +22020,14 @@
       {
         "name": "assignments_textsubmissi_field_id_submission_id_i_aca0d67e_uniq",
         "type": "UNIQUE",
-        "column": "submission_id",
-        "foreign_table": "assignments_textsubmissionansweriteration",
-        "foreign_column": "field_id"
-      },
-      {
-        "name": "assignments_textsubmissi_field_id_submission_id_i_aca0d67e_uniq",
-        "type": "UNIQUE",
         "column": "field_id",
         "foreign_table": "assignments_textsubmissionansweriteration",
-        "foreign_column": "field_id"
+        "foreign_column": "submission_id"
       },
       {
         "name": "assignments_textsubmissi_field_id_submission_id_i_aca0d67e_uniq",
         "type": "UNIQUE",
-        "column": "iteration_number",
-        "foreign_table": "assignments_textsubmissionansweriteration",
-        "foreign_column": "field_id"
-      },
-      {
-        "name": "assignments_textsubmissi_field_id_submission_id_i_aca0d67e_uniq",
-        "type": "UNIQUE",
-        "column": "iteration_number",
+        "column": "submission_id",
         "foreign_table": "assignments_textsubmissionansweriteration",
         "foreign_column": "iteration_number"
       },
@@ -21395,20 +22035,6 @@
         "name": "assignments_textsubmissi_field_id_submission_id_i_aca0d67e_uniq",
         "type": "UNIQUE",
         "column": "iteration_number",
-        "foreign_table": "assignments_textsubmissionansweriteration",
-        "foreign_column": "submission_id"
-      },
-      {
-        "name": "assignments_textsubmissi_field_id_submission_id_i_aca0d67e_uniq",
-        "type": "UNIQUE",
-        "column": "field_id",
-        "foreign_table": "assignments_textsubmissionansweriteration",
-        "foreign_column": "submission_id"
-      },
-      {
-        "name": "assignments_textsubmissi_field_id_submission_id_i_aca0d67e_uniq",
-        "type": "UNIQUE",
-        "column": "submission_id",
         "foreign_table": "assignments_textsubmissionansweriteration",
         "foreign_column": "iteration_number"
       },
@@ -21595,16 +22221,16 @@
       {
         "name": "assignments_topicassignm_topic_id_assignment_id_ccda1cb9_uniq",
         "type": "UNIQUE",
-        "column": "topic_id",
+        "column": "assignment_id",
         "foreign_table": "assignments_topicassignment",
-        "foreign_column": "topic_id"
+        "foreign_column": "assignment_id"
       },
       {
         "name": "assignments_topicassignm_topic_id_assignment_id_ccda1cb9_uniq",
         "type": "UNIQUE",
-        "column": "assignment_id",
+        "column": "topic_id",
         "foreign_table": "assignments_topicassignment",
-        "foreign_column": "assignment_id"
+        "foreign_column": "topic_id"
       },
       {
         "name": "assignments_topicassignment_order_check",
@@ -21680,14 +22306,7 @@
       {
         "name": "auth_group_permissions_group_id_permission_id_0cd325b0_uniq",
         "type": "UNIQUE",
-        "column": "group_id",
-        "foreign_table": "auth_group_permissions",
-        "foreign_column": "group_id"
-      },
-      {
-        "name": "auth_group_permissions_group_id_permission_id_0cd325b0_uniq",
-        "type": "UNIQUE",
-        "column": "group_id",
+        "column": "permission_id",
         "foreign_table": "auth_group_permissions",
         "foreign_column": "permission_id"
       },
@@ -21701,7 +22320,14 @@
       {
         "name": "auth_group_permissions_group_id_permission_id_0cd325b0_uniq",
         "type": "UNIQUE",
-        "column": "permission_id",
+        "column": "group_id",
+        "foreign_table": "auth_group_permissions",
+        "foreign_column": "group_id"
+      },
+      {
+        "name": "auth_group_permissions_group_id_permission_id_0cd325b0_uniq",
+        "type": "UNIQUE",
+        "column": "group_id",
         "foreign_table": "auth_group_permissions",
         "foreign_column": "permission_id"
       },
@@ -21744,6 +22370,13 @@
       {
         "name": "auth_permission_content_type_id_codename_01ab375a_uniq",
         "type": "UNIQUE",
+        "column": "codename",
+        "foreign_table": "auth_permission",
+        "foreign_column": "content_type_id"
+      },
+      {
+        "name": "auth_permission_content_type_id_codename_01ab375a_uniq",
+        "type": "UNIQUE",
         "column": "content_type_id",
         "foreign_table": "auth_permission",
         "foreign_column": "content_type_id"
@@ -21761,13 +22394,6 @@
         "column": "content_type_id",
         "foreign_table": "auth_permission",
         "foreign_column": "codename"
-      },
-      {
-        "name": "auth_permission_content_type_id_codename_01ab375a_uniq",
-        "type": "UNIQUE",
-        "column": "codename",
-        "foreign_table": "auth_permission",
-        "foreign_column": "content_type_id"
       },
       {
         "name": "auth_permission_pkey",
@@ -21941,7 +22567,14 @@
       {
         "name": "branch_portal_cartitem_cart_id_course_id_948cec88_uniq",
         "type": "UNIQUE",
-        "column": "cart_id",
+        "column": "course_id",
+        "foreign_table": "branch_portal_cartitem",
+        "foreign_column": "cart_id"
+      },
+      {
+        "name": "branch_portal_cartitem_cart_id_course_id_948cec88_uniq",
+        "type": "UNIQUE",
+        "column": "course_id",
         "foreign_table": "branch_portal_cartitem",
         "foreign_column": "course_id"
       },
@@ -21955,14 +22588,7 @@
       {
         "name": "branch_portal_cartitem_cart_id_course_id_948cec88_uniq",
         "type": "UNIQUE",
-        "column": "course_id",
-        "foreign_table": "branch_portal_cartitem",
-        "foreign_column": "cart_id"
-      },
-      {
-        "name": "branch_portal_cartitem_cart_id_course_id_948cec88_uniq",
-        "type": "UNIQUE",
-        "column": "course_id",
+        "column": "cart_id",
         "foreign_table": "branch_portal_cartitem",
         "foreign_column": "course_id"
       },
@@ -22361,13 +22987,6 @@
       {
         "name": "branch_portal_orderitem_order_id_course_id_43b15a4d_uniq",
         "type": "UNIQUE",
-        "column": "course_id",
-        "foreign_table": "branch_portal_orderitem",
-        "foreign_column": "course_id"
-      },
-      {
-        "name": "branch_portal_orderitem_order_id_course_id_43b15a4d_uniq",
-        "type": "UNIQUE",
         "column": "order_id",
         "foreign_table": "branch_portal_orderitem",
         "foreign_column": "order_id"
@@ -22375,7 +22994,7 @@
       {
         "name": "branch_portal_orderitem_order_id_course_id_43b15a4d_uniq",
         "type": "UNIQUE",
-        "column": "order_id",
+        "column": "course_id",
         "foreign_table": "branch_portal_orderitem",
         "foreign_column": "course_id"
       },
@@ -22385,6 +23004,13 @@
         "column": "course_id",
         "foreign_table": "branch_portal_orderitem",
         "foreign_column": "order_id"
+      },
+      {
+        "name": "branch_portal_orderitem_order_id_course_id_43b15a4d_uniq",
+        "type": "UNIQUE",
+        "column": "order_id",
+        "foreign_table": "branch_portal_orderitem",
+        "foreign_column": "course_id"
       },
       {
         "name": "branch_portal_orderitem_pkey",
@@ -22564,20 +23190,6 @@
       {
         "name": "branches_adminbranchassignment_user_id_branch_id_a412a78c_uniq",
         "type": "UNIQUE",
-        "column": "branch_id",
-        "foreign_table": "branches_adminbranchassignment",
-        "foreign_column": "branch_id"
-      },
-      {
-        "name": "branches_adminbranchassignment_user_id_branch_id_a412a78c_uniq",
-        "type": "UNIQUE",
-        "column": "user_id",
-        "foreign_table": "branches_adminbranchassignment",
-        "foreign_column": "branch_id"
-      },
-      {
-        "name": "branches_adminbranchassignment_user_id_branch_id_a412a78c_uniq",
-        "type": "UNIQUE",
         "column": "user_id",
         "foreign_table": "branches_adminbranchassignment",
         "foreign_column": "user_id"
@@ -22587,10 +23199,29 @@
         "type": "UNIQUE",
         "column": "branch_id",
         "foreign_table": "branches_adminbranchassignment",
+        "foreign_column": "branch_id"
+      },
+      {
+        "name": "branches_adminbranchassignment_user_id_branch_id_a412a78c_uniq",
+        "type": "UNIQUE",
+        "column": "branch_id",
+        "foreign_table": "branches_adminbranchassignment",
         "foreign_column": "user_id"
+      },
+      {
+        "name": "branches_adminbranchassignment_user_id_branch_id_a412a78c_uniq",
+        "type": "UNIQUE",
+        "column": "user_id",
+        "foreign_table": "branches_adminbranchassignment",
+        "foreign_column": "branch_id"
       }
     ],
     "branches_branch": [
+      {
+        "name": "2200_33337_11_not_null",
+        "type": "CHECK",
+        "column": null
+      },
       {
         "name": "2200_33337_1_not_null",
         "type": "CHECK",
@@ -22911,13 +23542,6 @@
       {
         "name": "business_businessuserass_business_id_user_id_8cc9abf0_uniq",
         "type": "UNIQUE",
-        "column": "business_id",
-        "foreign_table": "business_businessuserassignment",
-        "foreign_column": "business_id"
-      },
-      {
-        "name": "business_businessuserass_business_id_user_id_8cc9abf0_uniq",
-        "type": "UNIQUE",
         "column": "user_id",
         "foreign_table": "business_businessuserassignment",
         "foreign_column": "user_id"
@@ -22925,7 +23549,7 @@
       {
         "name": "business_businessuserass_business_id_user_id_8cc9abf0_uniq",
         "type": "UNIQUE",
-        "column": "user_id",
+        "column": "business_id",
         "foreign_table": "business_businessuserassignment",
         "foreign_column": "business_id"
       },
@@ -22935,6 +23559,13 @@
         "column": "business_id",
         "foreign_table": "business_businessuserassignment",
         "foreign_column": "user_id"
+      },
+      {
+        "name": "business_businessuserass_business_id_user_id_8cc9abf0_uniq",
+        "type": "UNIQUE",
+        "column": "user_id",
+        "foreign_table": "business_businessuserassignment",
+        "foreign_column": "business_id"
       },
       {
         "name": "business_businessuserassignment_pkey",
@@ -23604,14 +24235,7 @@
       {
         "name": "conferences_conferenceat_conference_id_user_id_6636933a_uniq",
         "type": "UNIQUE",
-        "column": "conference_id",
-        "foreign_table": "conferences_conferenceattendance",
-        "foreign_column": "conference_id"
-      },
-      {
-        "name": "conferences_conferenceat_conference_id_user_id_6636933a_uniq",
-        "type": "UNIQUE",
-        "column": "conference_id",
+        "column": "user_id",
         "foreign_table": "conferences_conferenceattendance",
         "foreign_column": "user_id"
       },
@@ -23625,9 +24249,16 @@
       {
         "name": "conferences_conferenceat_conference_id_user_id_6636933a_uniq",
         "type": "UNIQUE",
-        "column": "user_id",
+        "column": "conference_id",
         "foreign_table": "conferences_conferenceattendance",
         "foreign_column": "user_id"
+      },
+      {
+        "name": "conferences_conferenceat_conference_id_user_id_6636933a_uniq",
+        "type": "UNIQUE",
+        "column": "conference_id",
+        "foreign_table": "conferences_conferenceattendance",
+        "foreign_column": "conference_id"
       },
       {
         "name": "conferences_conferenceattendance_pkey",
@@ -23878,35 +24509,7 @@
       {
         "name": "conferences_conferencepa_conference_id_user_id_pa_727fae3b_uniq",
         "type": "UNIQUE",
-        "column": "participant_id",
-        "foreign_table": "conferences_conferenceparticipant",
-        "foreign_column": "user_id"
-      },
-      {
-        "name": "conferences_conferencepa_conference_id_user_id_pa_727fae3b_uniq",
-        "type": "UNIQUE",
-        "column": "participant_id",
-        "foreign_table": "conferences_conferenceparticipant",
-        "foreign_column": "conference_id"
-      },
-      {
-        "name": "conferences_conferencepa_conference_id_user_id_pa_727fae3b_uniq",
-        "type": "UNIQUE",
-        "column": "participant_id",
-        "foreign_table": "conferences_conferenceparticipant",
-        "foreign_column": "participant_id"
-      },
-      {
-        "name": "conferences_conferencepa_conference_id_user_id_pa_727fae3b_uniq",
-        "type": "UNIQUE",
-        "column": "user_id",
-        "foreign_table": "conferences_conferenceparticipant",
-        "foreign_column": "conference_id"
-      },
-      {
-        "name": "conferences_conferencepa_conference_id_user_id_pa_727fae3b_uniq",
-        "type": "UNIQUE",
-        "column": "user_id",
+        "column": "conference_id",
         "foreign_table": "conferences_conferenceparticipant",
         "foreign_column": "participant_id"
       },
@@ -23922,14 +24525,42 @@
         "type": "UNIQUE",
         "column": "user_id",
         "foreign_table": "conferences_conferenceparticipant",
+        "foreign_column": "participant_id"
+      },
+      {
+        "name": "conferences_conferencepa_conference_id_user_id_pa_727fae3b_uniq",
+        "type": "UNIQUE",
+        "column": "user_id",
+        "foreign_table": "conferences_conferenceparticipant",
+        "foreign_column": "conference_id"
+      },
+      {
+        "name": "conferences_conferencepa_conference_id_user_id_pa_727fae3b_uniq",
+        "type": "UNIQUE",
+        "column": "user_id",
+        "foreign_table": "conferences_conferenceparticipant",
         "foreign_column": "user_id"
       },
       {
         "name": "conferences_conferencepa_conference_id_user_id_pa_727fae3b_uniq",
         "type": "UNIQUE",
-        "column": "conference_id",
+        "column": "participant_id",
         "foreign_table": "conferences_conferenceparticipant",
         "foreign_column": "participant_id"
+      },
+      {
+        "name": "conferences_conferencepa_conference_id_user_id_pa_727fae3b_uniq",
+        "type": "UNIQUE",
+        "column": "participant_id",
+        "foreign_table": "conferences_conferenceparticipant",
+        "foreign_column": "conference_id"
+      },
+      {
+        "name": "conferences_conferencepa_conference_id_user_id_pa_727fae3b_uniq",
+        "type": "UNIQUE",
+        "column": "participant_id",
+        "foreign_table": "conferences_conferenceparticipant",
+        "foreign_column": "user_id"
       },
       {
         "name": "conferences_conferenceparticipant_participant_id_key",
@@ -24129,14 +24760,14 @@
       {
         "name": "conferences_conferenceru_attendance_id_criterion__e90d360c_uniq",
         "type": "UNIQUE",
-        "column": "attendance_id",
+        "column": "criterion_id",
         "foreign_table": "conferences_conferencerubricevaluation",
         "foreign_column": "criterion_id"
       },
       {
         "name": "conferences_conferenceru_attendance_id_criterion__e90d360c_uniq",
         "type": "UNIQUE",
-        "column": "criterion_id",
+        "column": "attendance_id",
         "foreign_table": "conferences_conferencerubricevaluation",
         "foreign_column": "criterion_id"
       },
@@ -24343,6 +24974,13 @@
       {
         "name": "conferences_participantt_participant_id_data_type_99bc6e23_uniq",
         "type": "UNIQUE",
+        "column": "recorded_at",
+        "foreign_table": "conferences_participanttrackingdata",
+        "foreign_column": "recorded_at"
+      },
+      {
+        "name": "conferences_participantt_participant_id_data_type_99bc6e23_uniq",
+        "type": "UNIQUE",
         "column": "data_type",
         "foreign_table": "conferences_participanttrackingdata",
         "foreign_column": "recorded_at"
@@ -24360,13 +24998,6 @@
         "column": "recorded_at",
         "foreign_table": "conferences_participanttrackingdata",
         "foreign_column": "data_type"
-      },
-      {
-        "name": "conferences_participantt_participant_id_data_type_99bc6e23_uniq",
-        "type": "UNIQUE",
-        "column": "recorded_at",
-        "foreign_table": "conferences_participanttrackingdata",
-        "foreign_column": "recorded_at"
       },
       {
         "name": "conferences_participantt_participant_id_data_type_99bc6e23_uniq",
@@ -24686,7 +25317,28 @@
       {
         "name": "course_reviews_courserev_course_id_user_id_survey_7185756f_uniq",
         "type": "UNIQUE",
+        "column": "course_id",
+        "foreign_table": "course_reviews_coursereview",
+        "foreign_column": "course_id"
+      },
+      {
+        "name": "course_reviews_courserev_course_id_user_id_survey_7185756f_uniq",
+        "type": "UNIQUE",
+        "column": "course_id",
+        "foreign_table": "course_reviews_coursereview",
+        "foreign_column": "survey_id"
+      },
+      {
+        "name": "course_reviews_courserev_course_id_user_id_survey_7185756f_uniq",
+        "type": "UNIQUE",
         "column": "survey_id",
+        "foreign_table": "course_reviews_coursereview",
+        "foreign_column": "user_id"
+      },
+      {
+        "name": "course_reviews_courserev_course_id_user_id_survey_7185756f_uniq",
+        "type": "UNIQUE",
+        "column": "course_id",
         "foreign_table": "course_reviews_coursereview",
         "foreign_column": "user_id"
       },
@@ -24707,13 +25359,6 @@
       {
         "name": "course_reviews_courserev_course_id_user_id_survey_7185756f_uniq",
         "type": "UNIQUE",
-        "column": "course_id",
-        "foreign_table": "course_reviews_coursereview",
-        "foreign_column": "course_id"
-      },
-      {
-        "name": "course_reviews_courserev_course_id_user_id_survey_7185756f_uniq",
-        "type": "UNIQUE",
         "column": "user_id",
         "foreign_table": "course_reviews_coursereview",
         "foreign_column": "user_id"
@@ -24722,20 +25367,6 @@
         "name": "course_reviews_courserev_course_id_user_id_survey_7185756f_uniq",
         "type": "UNIQUE",
         "column": "user_id",
-        "foreign_table": "course_reviews_coursereview",
-        "foreign_column": "survey_id"
-      },
-      {
-        "name": "course_reviews_courserev_course_id_user_id_survey_7185756f_uniq",
-        "type": "UNIQUE",
-        "column": "course_id",
-        "foreign_table": "course_reviews_coursereview",
-        "foreign_column": "user_id"
-      },
-      {
-        "name": "course_reviews_courserev_course_id_user_id_survey_7185756f_uniq",
-        "type": "UNIQUE",
-        "column": "course_id",
         "foreign_table": "course_reviews_coursereview",
         "foreign_column": "survey_id"
       },
@@ -24935,16 +25566,16 @@
       {
         "name": "course_reviews_surveyres_survey_field_id_user_id__d07be711_uniq",
         "type": "UNIQUE",
-        "column": "course_id",
+        "column": "user_id",
         "foreign_table": "course_reviews_surveyresponse",
         "foreign_column": "survey_field_id"
       },
       {
         "name": "course_reviews_surveyres_survey_field_id_user_id__d07be711_uniq",
         "type": "UNIQUE",
-        "column": "survey_field_id",
+        "column": "user_id",
         "foreign_table": "course_reviews_surveyresponse",
-        "foreign_column": "survey_field_id"
+        "foreign_column": "course_id"
       },
       {
         "name": "course_reviews_surveyres_survey_field_id_user_id__d07be711_uniq",
@@ -24956,30 +25587,9 @@
       {
         "name": "course_reviews_surveyres_survey_field_id_user_id__d07be711_uniq",
         "type": "UNIQUE",
-        "column": "user_id",
-        "foreign_table": "course_reviews_surveyresponse",
-        "foreign_column": "course_id"
-      },
-      {
-        "name": "course_reviews_surveyres_survey_field_id_user_id__d07be711_uniq",
-        "type": "UNIQUE",
-        "column": "user_id",
+        "column": "survey_field_id",
         "foreign_table": "course_reviews_surveyresponse",
         "foreign_column": "survey_field_id"
-      },
-      {
-        "name": "course_reviews_surveyres_survey_field_id_user_id__d07be711_uniq",
-        "type": "UNIQUE",
-        "column": "user_id",
-        "foreign_table": "course_reviews_surveyresponse",
-        "foreign_column": "user_id"
-      },
-      {
-        "name": "course_reviews_surveyres_survey_field_id_user_id__d07be711_uniq",
-        "type": "UNIQUE",
-        "column": "course_id",
-        "foreign_table": "course_reviews_surveyresponse",
-        "foreign_column": "course_id"
       },
       {
         "name": "course_reviews_surveyres_survey_field_id_user_id__d07be711_uniq",
@@ -24992,6 +25602,27 @@
         "name": "course_reviews_surveyres_survey_field_id_user_id__d07be711_uniq",
         "type": "UNIQUE",
         "column": "course_id",
+        "foreign_table": "course_reviews_surveyresponse",
+        "foreign_column": "user_id"
+      },
+      {
+        "name": "course_reviews_surveyres_survey_field_id_user_id__d07be711_uniq",
+        "type": "UNIQUE",
+        "column": "course_id",
+        "foreign_table": "course_reviews_surveyresponse",
+        "foreign_column": "survey_field_id"
+      },
+      {
+        "name": "course_reviews_surveyres_survey_field_id_user_id__d07be711_uniq",
+        "type": "UNIQUE",
+        "column": "course_id",
+        "foreign_table": "course_reviews_surveyresponse",
+        "foreign_column": "course_id"
+      },
+      {
+        "name": "course_reviews_surveyres_survey_field_id_user_id__d07be711_uniq",
+        "type": "UNIQUE",
+        "column": "user_id",
         "foreign_table": "course_reviews_surveyresponse",
         "foreign_column": "user_id"
       },
@@ -25139,7 +25770,7 @@
       {
         "name": "courses_comment_likes_comment_id_customuser_id_key",
         "type": "UNIQUE",
-        "column": "comment_id",
+        "column": "customuser_id",
         "foreign_table": "courses_comment_likes",
         "foreign_column": "comment_id"
       },
@@ -25153,7 +25784,7 @@
       {
         "name": "courses_comment_likes_comment_id_customuser_id_key",
         "type": "UNIQUE",
-        "column": "customuser_id",
+        "column": "comment_id",
         "foreign_table": "courses_comment_likes",
         "foreign_column": "comment_id"
       },
@@ -25424,6 +26055,13 @@
       {
         "name": "courses_course_accessible_groups_course_id_branchgroup_id_key",
         "type": "UNIQUE",
+        "column": "course_id",
+        "foreign_table": "courses_course_accessible_groups",
+        "foreign_column": "course_id"
+      },
+      {
+        "name": "courses_course_accessible_groups_course_id_branchgroup_id_key",
+        "type": "UNIQUE",
         "column": "branchgroup_id",
         "foreign_table": "courses_course_accessible_groups",
         "foreign_column": "course_id"
@@ -25441,13 +26079,6 @@
         "column": "branchgroup_id",
         "foreign_table": "courses_course_accessible_groups",
         "foreign_column": "branchgroup_id"
-      },
-      {
-        "name": "courses_course_accessible_groups_course_id_branchgroup_id_key",
-        "type": "UNIQUE",
-        "column": "course_id",
-        "foreign_table": "courses_course_accessible_groups",
-        "foreign_column": "course_id"
       },
       {
         "name": "courses_course_accessible_groups_course_id_fkey",
@@ -25492,6 +26123,13 @@
         "type": "UNIQUE",
         "column": "customuser_id",
         "foreign_table": "courses_course_enrolled_users",
+        "foreign_column": "course_id"
+      },
+      {
+        "name": "courses_course_enrolled_users_course_id_customuser_id_key",
+        "type": "UNIQUE",
+        "column": "customuser_id",
+        "foreign_table": "courses_course_enrolled_users",
         "foreign_column": "customuser_id"
       },
       {
@@ -25500,13 +26138,6 @@
         "column": "course_id",
         "foreign_table": "courses_course_enrolled_users",
         "foreign_column": "customuser_id"
-      },
-      {
-        "name": "courses_course_enrolled_users_course_id_customuser_id_key",
-        "type": "UNIQUE",
-        "column": "customuser_id",
-        "foreign_table": "courses_course_enrolled_users",
-        "foreign_column": "course_id"
       },
       {
         "name": "courses_course_enrolled_users_course_id_fkey",
@@ -25556,7 +26187,7 @@
       {
         "name": "courses_course_prerequisites_from_course_id_to_course_id_key",
         "type": "UNIQUE",
-        "column": "from_course_id",
+        "column": "to_course_id",
         "foreign_table": "courses_course_prerequisites",
         "foreign_column": "from_course_id"
       },
@@ -25570,16 +26201,16 @@
       {
         "name": "courses_course_prerequisites_from_course_id_to_course_id_key",
         "type": "UNIQUE",
-        "column": "to_course_id",
+        "column": "from_course_id",
         "foreign_table": "courses_course_prerequisites",
-        "foreign_column": "from_course_id"
+        "foreign_column": "to_course_id"
       },
       {
         "name": "courses_course_prerequisites_from_course_id_to_course_id_key",
         "type": "UNIQUE",
         "column": "from_course_id",
         "foreign_table": "courses_course_prerequisites",
-        "foreign_column": "to_course_id"
+        "foreign_column": "from_course_id"
       },
       {
         "name": "courses_course_prerequisites_pkey",
@@ -25624,6 +26255,20 @@
         "type": "UNIQUE",
         "column": "course_id",
         "foreign_table": "courses_course_topics",
+        "foreign_column": "topic_id"
+      },
+      {
+        "name": "courses_course_topics_course_id_topic_id_key",
+        "type": "UNIQUE",
+        "column": "topic_id",
+        "foreign_table": "courses_course_topics",
+        "foreign_column": "topic_id"
+      },
+      {
+        "name": "courses_course_topics_course_id_topic_id_key",
+        "type": "UNIQUE",
+        "column": "topic_id",
+        "foreign_table": "courses_course_topics",
         "foreign_column": "course_id"
       },
       {
@@ -25631,21 +26276,7 @@
         "type": "UNIQUE",
         "column": "course_id",
         "foreign_table": "courses_course_topics",
-        "foreign_column": "topic_id"
-      },
-      {
-        "name": "courses_course_topics_course_id_topic_id_key",
-        "type": "UNIQUE",
-        "column": "topic_id",
-        "foreign_table": "courses_course_topics",
         "foreign_column": "course_id"
-      },
-      {
-        "name": "courses_course_topics_course_id_topic_id_key",
-        "type": "UNIQUE",
-        "column": "topic_id",
-        "foreign_table": "courses_course_topics",
-        "foreign_column": "topic_id"
       },
       {
         "name": "courses_course_topics_pkey",
@@ -25715,20 +26346,6 @@
       {
         "name": "courses_coursecompletion_course_id_topic_id_f463e223_uniq",
         "type": "UNIQUE",
-        "column": "course_id",
-        "foreign_table": "courses_coursecompletionrequirement",
-        "foreign_column": "topic_id"
-      },
-      {
-        "name": "courses_coursecompletion_course_id_topic_id_f463e223_uniq",
-        "type": "UNIQUE",
-        "column": "topic_id",
-        "foreign_table": "courses_coursecompletionrequirement",
-        "foreign_column": "topic_id"
-      },
-      {
-        "name": "courses_coursecompletion_course_id_topic_id_f463e223_uniq",
-        "type": "UNIQUE",
         "column": "topic_id",
         "foreign_table": "courses_coursecompletionrequirement",
         "foreign_column": "course_id"
@@ -25738,7 +26355,21 @@
         "type": "UNIQUE",
         "column": "course_id",
         "foreign_table": "courses_coursecompletionrequirement",
+        "foreign_column": "topic_id"
+      },
+      {
+        "name": "courses_coursecompletion_course_id_topic_id_f463e223_uniq",
+        "type": "UNIQUE",
+        "column": "course_id",
+        "foreign_table": "courses_coursecompletionrequirement",
         "foreign_column": "course_id"
+      },
+      {
+        "name": "courses_coursecompletion_course_id_topic_id_f463e223_uniq",
+        "type": "UNIQUE",
+        "column": "topic_id",
+        "foreign_table": "courses_coursecompletionrequirement",
+        "foreign_column": "topic_id"
       },
       {
         "name": "courses_coursecompletionrequirement_pkey",
@@ -25798,23 +26429,23 @@
       {
         "name": "courses_courseenrollment_course_id_user_id_2561c7d6_uniq",
         "type": "UNIQUE",
-        "column": "user_id",
-        "foreign_table": "courses_courseenrollment",
-        "foreign_column": "course_id"
-      },
-      {
-        "name": "courses_courseenrollment_course_id_user_id_2561c7d6_uniq",
-        "type": "UNIQUE",
-        "column": "course_id",
-        "foreign_table": "courses_courseenrollment",
-        "foreign_column": "course_id"
-      },
-      {
-        "name": "courses_courseenrollment_course_id_user_id_2561c7d6_uniq",
-        "type": "UNIQUE",
         "column": "course_id",
         "foreign_table": "courses_courseenrollment",
         "foreign_column": "user_id"
+      },
+      {
+        "name": "courses_courseenrollment_course_id_user_id_2561c7d6_uniq",
+        "type": "UNIQUE",
+        "column": "course_id",
+        "foreign_table": "courses_courseenrollment",
+        "foreign_column": "course_id"
+      },
+      {
+        "name": "courses_courseenrollment_course_id_user_id_2561c7d6_uniq",
+        "type": "UNIQUE",
+        "column": "user_id",
+        "foreign_table": "courses_courseenrollment",
+        "foreign_column": "course_id"
       },
       {
         "name": "courses_courseenrollment_course_id_user_id_2561c7d6_uniq",
@@ -25929,19 +26560,19 @@
         "type": "UNIQUE",
         "column": "course_id",
         "foreign_table": "courses_coursetopic",
-        "foreign_column": "course_id"
-      },
-      {
-        "name": "courses_coursetopic_course_id_topic_id_1c16f198_uniq",
-        "type": "UNIQUE",
-        "column": "course_id",
-        "foreign_table": "courses_coursetopic",
         "foreign_column": "topic_id"
       },
       {
         "name": "courses_coursetopic_course_id_topic_id_1c16f198_uniq",
         "type": "UNIQUE",
         "column": "topic_id",
+        "foreign_table": "courses_coursetopic",
+        "foreign_column": "course_id"
+      },
+      {
+        "name": "courses_coursetopic_course_id_topic_id_1c16f198_uniq",
+        "type": "UNIQUE",
+        "column": "course_id",
         "foreign_table": "courses_coursetopic",
         "foreign_column": "course_id"
       },
@@ -26058,28 +26689,28 @@
       {
         "name": "courses_discussion_likes_discussion_id_customuser_id_key",
         "type": "UNIQUE",
-        "column": "discussion_id",
+        "column": "customuser_id",
         "foreign_table": "courses_discussion_likes",
         "foreign_column": "customuser_id"
       },
       {
         "name": "courses_discussion_likes_discussion_id_customuser_id_key",
         "type": "UNIQUE",
-        "column": "discussion_id",
+        "column": "customuser_id",
         "foreign_table": "courses_discussion_likes",
         "foreign_column": "discussion_id"
       },
       {
         "name": "courses_discussion_likes_discussion_id_customuser_id_key",
         "type": "UNIQUE",
-        "column": "customuser_id",
+        "column": "discussion_id",
         "foreign_table": "courses_discussion_likes",
         "foreign_column": "customuser_id"
       },
       {
         "name": "courses_discussion_likes_discussion_id_customuser_id_key",
         "type": "UNIQUE",
-        "column": "customuser_id",
+        "column": "discussion_id",
         "foreign_table": "courses_discussion_likes",
         "foreign_column": "discussion_id"
       },
@@ -26353,6 +26984,13 @@
       {
         "name": "courses_topic_restricted_learners_topic_id_customuser_id_key",
         "type": "UNIQUE",
+        "column": "topic_id",
+        "foreign_table": "courses_topic_restricted_learners",
+        "foreign_column": "customuser_id"
+      },
+      {
+        "name": "courses_topic_restricted_learners_topic_id_customuser_id_key",
+        "type": "UNIQUE",
         "column": "customuser_id",
         "foreign_table": "courses_topic_restricted_learners",
         "foreign_column": "topic_id"
@@ -26361,13 +26999,6 @@
         "name": "courses_topic_restricted_learners_topic_id_customuser_id_key",
         "type": "UNIQUE",
         "column": "customuser_id",
-        "foreign_table": "courses_topic_restricted_learners",
-        "foreign_column": "customuser_id"
-      },
-      {
-        "name": "courses_topic_restricted_learners_topic_id_customuser_id_key",
-        "type": "UNIQUE",
-        "column": "topic_id",
         "foreign_table": "courses_topic_restricted_learners",
         "foreign_column": "customuser_id"
       },
@@ -26481,16 +27112,9 @@
       {
         "name": "courses_topicprogress_user_id_topic_id_ebf88624_uniq",
         "type": "UNIQUE",
-        "column": "user_id",
-        "foreign_table": "courses_topicprogress",
-        "foreign_column": "user_id"
-      },
-      {
-        "name": "courses_topicprogress_user_id_topic_id_ebf88624_uniq",
-        "type": "UNIQUE",
         "column": "topic_id",
         "foreign_table": "courses_topicprogress",
-        "foreign_column": "topic_id"
+        "foreign_column": "user_id"
       },
       {
         "name": "courses_topicprogress_user_id_topic_id_ebf88624_uniq",
@@ -26502,9 +27126,16 @@
       {
         "name": "courses_topicprogress_user_id_topic_id_ebf88624_uniq",
         "type": "UNIQUE",
-        "column": "topic_id",
+        "column": "user_id",
         "foreign_table": "courses_topicprogress",
         "foreign_column": "user_id"
+      },
+      {
+        "name": "courses_topicprogress_user_id_topic_id_ebf88624_uniq",
+        "type": "UNIQUE",
+        "column": "topic_id",
+        "foreign_table": "courses_topicprogress",
+        "foreign_column": "topic_id"
       }
     ],
     "discussions_attachment": [
@@ -26643,7 +27274,7 @@
         "type": "UNIQUE",
         "column": "comment_id",
         "foreign_table": "discussions_comment_likes",
-        "foreign_column": "customuser_id"
+        "foreign_column": "comment_id"
       },
       {
         "name": "discussions_comment_likes_comment_id_customuser_id_key",
@@ -26651,20 +27282,20 @@
         "column": "customuser_id",
         "foreign_table": "discussions_comment_likes",
         "foreign_column": "customuser_id"
+      },
+      {
+        "name": "discussions_comment_likes_comment_id_customuser_id_key",
+        "type": "UNIQUE",
+        "column": "customuser_id",
+        "foreign_table": "discussions_comment_likes",
+        "foreign_column": "comment_id"
       },
       {
         "name": "discussions_comment_likes_comment_id_customuser_id_key",
         "type": "UNIQUE",
         "column": "comment_id",
         "foreign_table": "discussions_comment_likes",
-        "foreign_column": "comment_id"
-      },
-      {
-        "name": "discussions_comment_likes_comment_id_customuser_id_key",
-        "type": "UNIQUE",
-        "column": "customuser_id",
-        "foreign_table": "discussions_comment_likes",
-        "foreign_column": "comment_id"
+        "foreign_column": "customuser_id"
       },
       {
         "name": "discussions_comment_likes_comment_id_fkey",
@@ -26809,21 +27440,7 @@
       {
         "name": "discussions_discussion_likes_discussion_id_customuser_id_key",
         "type": "UNIQUE",
-        "column": "customuser_id",
-        "foreign_table": "discussions_discussion_likes",
-        "foreign_column": "discussion_id"
-      },
-      {
-        "name": "discussions_discussion_likes_discussion_id_customuser_id_key",
-        "type": "UNIQUE",
         "column": "discussion_id",
-        "foreign_table": "discussions_discussion_likes",
-        "foreign_column": "discussion_id"
-      },
-      {
-        "name": "discussions_discussion_likes_discussion_id_customuser_id_key",
-        "type": "UNIQUE",
-        "column": "customuser_id",
         "foreign_table": "discussions_discussion_likes",
         "foreign_column": "customuser_id"
       },
@@ -26831,6 +27448,20 @@
         "name": "discussions_discussion_likes_discussion_id_customuser_id_key",
         "type": "UNIQUE",
         "column": "discussion_id",
+        "foreign_table": "discussions_discussion_likes",
+        "foreign_column": "discussion_id"
+      },
+      {
+        "name": "discussions_discussion_likes_discussion_id_customuser_id_key",
+        "type": "UNIQUE",
+        "column": "customuser_id",
+        "foreign_table": "discussions_discussion_likes",
+        "foreign_column": "discussion_id"
+      },
+      {
+        "name": "discussions_discussion_likes_discussion_id_customuser_id_key",
+        "type": "UNIQUE",
+        "column": "customuser_id",
         "foreign_table": "discussions_discussion_likes",
         "foreign_column": "customuser_id"
       },
@@ -26928,7 +27559,7 @@
       {
         "name": "django_content_type_app_label_model_76bd3d3b_uniq",
         "type": "UNIQUE",
-        "column": "model",
+        "column": "app_label",
         "foreign_table": "django_content_type",
         "foreign_column": "app_label"
       },
@@ -26942,16 +27573,16 @@
       {
         "name": "django_content_type_app_label_model_76bd3d3b_uniq",
         "type": "UNIQUE",
-        "column": "app_label",
+        "column": "model",
         "foreign_table": "django_content_type",
-        "foreign_column": "model"
+        "foreign_column": "app_label"
       },
       {
         "name": "django_content_type_app_label_model_76bd3d3b_uniq",
         "type": "UNIQUE",
         "column": "app_label",
         "foreign_table": "django_content_type",
-        "foreign_column": "app_label"
+        "foreign_column": "model"
       },
       {
         "name": "django_content_type_pkey",
@@ -27203,28 +27834,28 @@
       {
         "name": "groups_branchgroup_name_branch_id_19792dc5_uniq",
         "type": "UNIQUE",
-        "column": "name",
+        "column": "branch_id",
         "foreign_table": "groups_branchgroup",
         "foreign_column": "name"
       },
       {
         "name": "groups_branchgroup_name_branch_id_19792dc5_uniq",
         "type": "UNIQUE",
-        "column": "name",
+        "column": "branch_id",
         "foreign_table": "groups_branchgroup",
         "foreign_column": "branch_id"
       },
       {
         "name": "groups_branchgroup_name_branch_id_19792dc5_uniq",
         "type": "UNIQUE",
-        "column": "branch_id",
+        "column": "name",
         "foreign_table": "groups_branchgroup",
         "foreign_column": "name"
       },
       {
         "name": "groups_branchgroup_name_branch_id_19792dc5_uniq",
         "type": "UNIQUE",
-        "column": "branch_id",
+        "column": "name",
         "foreign_table": "groups_branchgroup",
         "foreign_column": "branch_id"
       },
@@ -27269,13 +27900,6 @@
         "type": "UNIQUE",
         "column": "group_id",
         "foreign_table": "groups_coursegroup",
-        "foreign_column": "course_id"
-      },
-      {
-        "name": "groups_coursegroup_course_id_group_id_f4d9f3cf_uniq",
-        "type": "UNIQUE",
-        "column": "course_id",
-        "foreign_table": "groups_coursegroup",
         "foreign_column": "group_id"
       },
       {
@@ -27284,13 +27908,20 @@
         "column": "course_id",
         "foreign_table": "groups_coursegroup",
         "foreign_column": "course_id"
+      },
+      {
+        "name": "groups_coursegroup_course_id_group_id_f4d9f3cf_uniq",
+        "type": "UNIQUE",
+        "column": "course_id",
+        "foreign_table": "groups_coursegroup",
+        "foreign_column": "group_id"
       },
       {
         "name": "groups_coursegroup_course_id_group_id_f4d9f3cf_uniq",
         "type": "UNIQUE",
         "column": "group_id",
         "foreign_table": "groups_coursegroup",
-        "foreign_column": "group_id"
+        "foreign_column": "course_id"
       },
       {
         "name": "groups_coursegroup_created_by_id_9321d9ca_fk_users_cus",
@@ -27371,16 +28002,16 @@
       {
         "name": "groups_coursegroupaccess_course_id_group_id_b0ac86c5_uniq",
         "type": "UNIQUE",
-        "column": "group_id",
+        "column": "course_id",
         "foreign_table": "groups_coursegroupaccess",
         "foreign_column": "course_id"
       },
       {
         "name": "groups_coursegroupaccess_course_id_group_id_b0ac86c5_uniq",
         "type": "UNIQUE",
-        "column": "course_id",
+        "column": "group_id",
         "foreign_table": "groups_coursegroupaccess",
-        "foreign_column": "course_id"
+        "foreign_column": "group_id"
       },
       {
         "name": "groups_coursegroupaccess_course_id_group_id_b0ac86c5_uniq",
@@ -27394,7 +28025,7 @@
         "type": "UNIQUE",
         "column": "group_id",
         "foreign_table": "groups_coursegroupaccess",
-        "foreign_column": "group_id"
+        "foreign_column": "course_id"
       },
       {
         "name": "groups_coursegroupaccess_pkey",
@@ -27548,7 +28179,7 @@
       {
         "name": "groups_groupmembership_group_id_user_id_5d6d7029_uniq",
         "type": "UNIQUE",
-        "column": "group_id",
+        "column": "user_id",
         "foreign_table": "groups_groupmembership",
         "foreign_column": "group_id"
       },
@@ -27556,20 +28187,20 @@
         "name": "groups_groupmembership_group_id_user_id_5d6d7029_uniq",
         "type": "UNIQUE",
         "column": "group_id",
+        "foreign_table": "groups_groupmembership",
+        "foreign_column": "group_id"
+      },
+      {
+        "name": "groups_groupmembership_group_id_user_id_5d6d7029_uniq",
+        "type": "UNIQUE",
+        "column": "user_id",
         "foreign_table": "groups_groupmembership",
         "foreign_column": "user_id"
       },
       {
         "name": "groups_groupmembership_group_id_user_id_5d6d7029_uniq",
         "type": "UNIQUE",
-        "column": "user_id",
-        "foreign_table": "groups_groupmembership",
-        "foreign_column": "group_id"
-      },
-      {
-        "name": "groups_groupmembership_group_id_user_id_5d6d7029_uniq",
-        "type": "UNIQUE",
-        "column": "user_id",
+        "column": "group_id",
         "foreign_table": "groups_groupmembership",
         "foreign_column": "user_id"
       },
@@ -27792,7 +28423,14 @@
       {
         "name": "individual_learning_plan_document_id_learner_id_abe79b64_uniq",
         "type": "UNIQUE",
-        "column": "learner_id",
+        "column": "document_id",
+        "foreign_table": "individual_learning_plan_healthsafetydocumentreadreceipt",
+        "foreign_column": "learner_id"
+      },
+      {
+        "name": "individual_learning_plan_document_id_learner_id_abe79b64_uniq",
+        "type": "UNIQUE",
+        "column": "document_id",
         "foreign_table": "individual_learning_plan_healthsafetydocumentreadreceipt",
         "foreign_column": "document_id"
       },
@@ -27806,14 +28444,7 @@
       {
         "name": "individual_learning_plan_document_id_learner_id_abe79b64_uniq",
         "type": "UNIQUE",
-        "column": "document_id",
-        "foreign_table": "individual_learning_plan_healthsafetydocumentreadreceipt",
-        "foreign_column": "learner_id"
-      },
-      {
-        "name": "individual_learning_plan_document_id_learner_id_abe79b64_uniq",
-        "type": "UNIQUE",
-        "column": "document_id",
+        "column": "learner_id",
         "foreign_table": "individual_learning_plan_healthsafetydocumentreadreceipt",
         "foreign_column": "document_id"
       },
@@ -28650,13 +29281,6 @@
       {
         "name": "individual_learning_plan_document_id_learner_id_18f2e4cc_uniq",
         "type": "UNIQUE",
-        "column": "learner_id",
-        "foreign_table": "individual_learning_plan_inductiondocumentreadreceipt",
-        "foreign_column": "learner_id"
-      },
-      {
-        "name": "individual_learning_plan_document_id_learner_id_18f2e4cc_uniq",
-        "type": "UNIQUE",
         "column": "document_id",
         "foreign_table": "individual_learning_plan_inductiondocumentreadreceipt",
         "foreign_column": "learner_id"
@@ -28665,13 +29289,20 @@
         "name": "individual_learning_plan_document_id_learner_id_18f2e4cc_uniq",
         "type": "UNIQUE",
         "column": "learner_id",
+        "foreign_table": "individual_learning_plan_inductiondocumentreadreceipt",
+        "foreign_column": "learner_id"
+      },
+      {
+        "name": "individual_learning_plan_document_id_learner_id_18f2e4cc_uniq",
+        "type": "UNIQUE",
+        "column": "document_id",
         "foreign_table": "individual_learning_plan_inductiondocumentreadreceipt",
         "foreign_column": "document_id"
       },
       {
         "name": "individual_learning_plan_document_id_learner_id_18f2e4cc_uniq",
         "type": "UNIQUE",
-        "column": "document_id",
+        "column": "learner_id",
         "foreign_table": "individual_learning_plan_inductiondocumentreadreceipt",
         "foreign_column": "document_id"
       },
@@ -29045,13 +29676,6 @@
       {
         "name": "individual_learning_plan_learning_needs_id_title_06078e0f_uniq",
         "type": "UNIQUE",
-        "column": "learning_needs_id",
-        "foreign_table": "individual_learning_plan_learningneedssection",
-        "foreign_column": "learning_needs_id"
-      },
-      {
-        "name": "individual_learning_plan_learning_needs_id_title_06078e0f_uniq",
-        "type": "UNIQUE",
         "column": "title",
         "foreign_table": "individual_learning_plan_learningneedssection",
         "foreign_column": "title"
@@ -29060,6 +29684,13 @@
         "name": "individual_learning_plan_learning_needs_id_title_06078e0f_uniq",
         "type": "UNIQUE",
         "column": "title",
+        "foreign_table": "individual_learning_plan_learningneedssection",
+        "foreign_column": "learning_needs_id"
+      },
+      {
+        "name": "individual_learning_plan_learning_needs_id_title_06078e0f_uniq",
+        "type": "UNIQUE",
+        "column": "learning_needs_id",
         "foreign_table": "individual_learning_plan_learningneedssection",
         "foreign_column": "learning_needs_id"
       },
@@ -29557,9 +30188,16 @@
       {
         "name": "individual_learning_plan_ilp_id_title_611d32e4_uniq",
         "type": "UNIQUE",
+        "column": "ilp_id",
+        "foreign_table": "individual_learning_plan_strengthsweaknessessection",
+        "foreign_column": "ilp_id"
+      },
+      {
+        "name": "individual_learning_plan_ilp_id_title_611d32e4_uniq",
+        "type": "UNIQUE",
         "column": "title",
         "foreign_table": "individual_learning_plan_strengthsweaknessessection",
-        "foreign_column": "title"
+        "foreign_column": "ilp_id"
       },
       {
         "name": "individual_learning_plan_ilp_id_title_611d32e4_uniq",
@@ -29571,16 +30209,9 @@
       {
         "name": "individual_learning_plan_ilp_id_title_611d32e4_uniq",
         "type": "UNIQUE",
-        "column": "ilp_id",
-        "foreign_table": "individual_learning_plan_strengthsweaknessessection",
-        "foreign_column": "ilp_id"
-      },
-      {
-        "name": "individual_learning_plan_ilp_id_title_611d32e4_uniq",
-        "type": "UNIQUE",
         "column": "title",
         "foreign_table": "individual_learning_plan_strengthsweaknessessection",
-        "foreign_column": "ilp_id"
+        "foreign_column": "title"
       },
       {
         "name": "individual_learning_plan_strengthsweaknessessection_order_check",
@@ -29888,7 +30519,7 @@
       {
         "name": "lms_messages_message_recipients_message_id_customuser_id_key",
         "type": "UNIQUE",
-        "column": "message_id",
+        "column": "customuser_id",
         "foreign_table": "lms_messages_message_recipients",
         "foreign_column": "customuser_id"
       },
@@ -29902,7 +30533,7 @@
       {
         "name": "lms_messages_message_recipients_message_id_customuser_id_key",
         "type": "UNIQUE",
-        "column": "customuser_id",
+        "column": "message_id",
         "foreign_table": "lms_messages_message_recipients",
         "foreign_column": "customuser_id"
       },
@@ -30007,28 +30638,28 @@
         "type": "UNIQUE",
         "column": "message_id",
         "foreign_table": "lms_messages_messagereadstatus",
-        "foreign_column": "message_id"
-      },
-      {
-        "name": "lms_messages_messagereadstatus_message_id_user_id_1fe4a583_uniq",
-        "type": "UNIQUE",
-        "column": "user_id",
-        "foreign_table": "lms_messages_messagereadstatus",
         "foreign_column": "user_id"
-      },
-      {
-        "name": "lms_messages_messagereadstatus_message_id_user_id_1fe4a583_uniq",
-        "type": "UNIQUE",
-        "column": "user_id",
-        "foreign_table": "lms_messages_messagereadstatus",
-        "foreign_column": "message_id"
       },
       {
         "name": "lms_messages_messagereadstatus_message_id_user_id_1fe4a583_uniq",
         "type": "UNIQUE",
         "column": "message_id",
         "foreign_table": "lms_messages_messagereadstatus",
+        "foreign_column": "message_id"
+      },
+      {
+        "name": "lms_messages_messagereadstatus_message_id_user_id_1fe4a583_uniq",
+        "type": "UNIQUE",
+        "column": "user_id",
+        "foreign_table": "lms_messages_messagereadstatus",
         "foreign_column": "user_id"
+      },
+      {
+        "name": "lms_messages_messagereadstatus_message_id_user_id_1fe4a583_uniq",
+        "type": "UNIQUE",
+        "column": "user_id",
+        "foreign_table": "lms_messages_messagereadstatus",
+        "foreign_column": "message_id"
       },
       {
         "name": "lms_messages_messagereadstatus_pkey",
@@ -30181,20 +30812,6 @@
       {
         "name": "lms_notifications_bulknotific_bulknotification_id_customuse_key",
         "type": "UNIQUE",
-        "column": "customuser_id",
-        "foreign_table": "lms_notifications_bulknotification_custom_recipients",
-        "foreign_column": "bulknotification_id"
-      },
-      {
-        "name": "lms_notifications_bulknotific_bulknotification_id_customuse_key",
-        "type": "UNIQUE",
-        "column": "bulknotification_id",
-        "foreign_table": "lms_notifications_bulknotification_custom_recipients",
-        "foreign_column": "bulknotification_id"
-      },
-      {
-        "name": "lms_notifications_bulknotific_bulknotification_id_customuse_key",
-        "type": "UNIQUE",
         "column": "bulknotification_id",
         "foreign_table": "lms_notifications_bulknotification_custom_recipients",
         "foreign_column": "customuser_id"
@@ -30205,6 +30822,20 @@
         "column": "customuser_id",
         "foreign_table": "lms_notifications_bulknotification_custom_recipients",
         "foreign_column": "customuser_id"
+      },
+      {
+        "name": "lms_notifications_bulknotific_bulknotification_id_customuse_key",
+        "type": "UNIQUE",
+        "column": "customuser_id",
+        "foreign_table": "lms_notifications_bulknotification_custom_recipients",
+        "foreign_column": "bulknotification_id"
+      },
+      {
+        "name": "lms_notifications_bulknotific_bulknotification_id_customuse_key",
+        "type": "UNIQUE",
+        "column": "bulknotification_id",
+        "foreign_table": "lms_notifications_bulknotification_custom_recipients",
+        "foreign_column": "bulknotification_id"
       },
       {
         "name": "lms_notifications_bulknotification_cus_bulknotification_id_fkey",
@@ -30247,7 +30878,7 @@
       {
         "name": "lms_notifications_bulknotific_bulknotification_id_branch_id_key",
         "type": "UNIQUE",
-        "column": "bulknotification_id",
+        "column": "branch_id",
         "foreign_table": "lms_notifications_bulknotification_target_branches",
         "foreign_column": "bulknotification_id"
       },
@@ -30268,7 +30899,7 @@
       {
         "name": "lms_notifications_bulknotific_bulknotification_id_branch_id_key",
         "type": "UNIQUE",
-        "column": "branch_id",
+        "column": "bulknotification_id",
         "foreign_table": "lms_notifications_bulknotification_target_branches",
         "foreign_column": "bulknotification_id"
       },
@@ -30313,7 +30944,7 @@
       {
         "name": "lms_notifications_bulknotific_bulknotification_id_course_id_key",
         "type": "UNIQUE",
-        "column": "bulknotification_id",
+        "column": "course_id",
         "foreign_table": "lms_notifications_bulknotification_target_courses",
         "foreign_column": "course_id"
       },
@@ -30327,16 +30958,16 @@
       {
         "name": "lms_notifications_bulknotific_bulknotification_id_course_id_key",
         "type": "UNIQUE",
-        "column": "course_id",
+        "column": "bulknotification_id",
         "foreign_table": "lms_notifications_bulknotification_target_courses",
-        "foreign_column": "bulknotification_id"
+        "foreign_column": "course_id"
       },
       {
         "name": "lms_notifications_bulknotific_bulknotification_id_course_id_key",
         "type": "UNIQUE",
         "column": "course_id",
         "foreign_table": "lms_notifications_bulknotification_target_courses",
-        "foreign_column": "course_id"
+        "foreign_column": "bulknotification_id"
       },
       {
         "name": "lms_notifications_bulknotification_ta_bulknotification_id_fkey2",
@@ -30381,20 +31012,13 @@
         "type": "UNIQUE",
         "column": "bulknotification_id",
         "foreign_table": "lms_notifications_bulknotification_target_groups",
-        "foreign_column": "branchgroup_id"
+        "foreign_column": "bulknotification_id"
       },
       {
         "name": "lms_notifications_bulknotific_bulknotification_id_branchgro_key",
         "type": "UNIQUE",
         "column": "bulknotification_id",
         "foreign_table": "lms_notifications_bulknotification_target_groups",
-        "foreign_column": "bulknotification_id"
-      },
-      {
-        "name": "lms_notifications_bulknotific_bulknotification_id_branchgro_key",
-        "type": "UNIQUE",
-        "column": "branchgroup_id",
-        "foreign_table": "lms_notifications_bulknotification_target_groups",
         "foreign_column": "branchgroup_id"
       },
       {
@@ -30403,6 +31027,13 @@
         "column": "branchgroup_id",
         "foreign_table": "lms_notifications_bulknotification_target_groups",
         "foreign_column": "bulknotification_id"
+      },
+      {
+        "name": "lms_notifications_bulknotific_bulknotification_id_branchgro_key",
+        "type": "UNIQUE",
+        "column": "branchgroup_id",
+        "foreign_table": "lms_notifications_bulknotification_target_groups",
+        "foreign_column": "branchgroup_id"
       },
       {
         "name": "lms_notifications_bulknotification_ta_bulknotification_id_fkey1",
@@ -30899,7 +31530,7 @@
         "type": "UNIQUE",
         "column": "notification_type_id",
         "foreign_table": "lms_notifications_notificationtypesettings",
-        "foreign_column": "user_id"
+        "foreign_column": "notification_type_id"
       },
       {
         "name": "lms_notifications_notifi_user_id_notification_typ_d74157a0_uniq",
@@ -30907,20 +31538,20 @@
         "column": "user_id",
         "foreign_table": "lms_notifications_notificationtypesettings",
         "foreign_column": "user_id"
+      },
+      {
+        "name": "lms_notifications_notifi_user_id_notification_typ_d74157a0_uniq",
+        "type": "UNIQUE",
+        "column": "user_id",
+        "foreign_table": "lms_notifications_notificationtypesettings",
+        "foreign_column": "notification_type_id"
       },
       {
         "name": "lms_notifications_notifi_user_id_notification_typ_d74157a0_uniq",
         "type": "UNIQUE",
         "column": "notification_type_id",
         "foreign_table": "lms_notifications_notificationtypesettings",
-        "foreign_column": "notification_type_id"
-      },
-      {
-        "name": "lms_notifications_notifi_user_id_notification_typ_d74157a0_uniq",
-        "type": "UNIQUE",
-        "column": "user_id",
-        "foreign_table": "lms_notifications_notificationtypesettings",
-        "foreign_column": "notification_type_id"
+        "foreign_column": "user_id"
       },
       {
         "name": "lms_notifications_notificationtypesettings_pkey",
@@ -31048,13 +31679,6 @@
       {
         "name": "lms_outcomes_outcomealig_outcome_id_content_type__8bdbf1af_uniq",
         "type": "UNIQUE",
-        "column": "content_type",
-        "foreign_table": "lms_outcomes_outcomealignment",
-        "foreign_column": "outcome_id"
-      },
-      {
-        "name": "lms_outcomes_outcomealig_outcome_id_content_type__8bdbf1af_uniq",
-        "type": "UNIQUE",
         "column": "outcome_id",
         "foreign_table": "lms_outcomes_outcomealignment",
         "foreign_column": "outcome_id"
@@ -31064,28 +31688,7 @@
         "type": "UNIQUE",
         "column": "object_id",
         "foreign_table": "lms_outcomes_outcomealignment",
-        "foreign_column": "content_type"
-      },
-      {
-        "name": "lms_outcomes_outcomealig_outcome_id_content_type__8bdbf1af_uniq",
-        "type": "UNIQUE",
-        "column": "outcome_id",
-        "foreign_table": "lms_outcomes_outcomealignment",
-        "foreign_column": "object_id"
-      },
-      {
-        "name": "lms_outcomes_outcomealig_outcome_id_content_type__8bdbf1af_uniq",
-        "type": "UNIQUE",
-        "column": "object_id",
-        "foreign_table": "lms_outcomes_outcomealignment",
         "foreign_column": "outcome_id"
-      },
-      {
-        "name": "lms_outcomes_outcomealig_outcome_id_content_type__8bdbf1af_uniq",
-        "type": "UNIQUE",
-        "column": "outcome_id",
-        "foreign_table": "lms_outcomes_outcomealignment",
-        "foreign_column": "content_type"
       },
       {
         "name": "lms_outcomes_outcomealig_outcome_id_content_type__8bdbf1af_uniq",
@@ -31104,9 +31707,37 @@
       {
         "name": "lms_outcomes_outcomealig_outcome_id_content_type__8bdbf1af_uniq",
         "type": "UNIQUE",
+        "column": "outcome_id",
+        "foreign_table": "lms_outcomes_outcomealignment",
+        "foreign_column": "content_type"
+      },
+      {
+        "name": "lms_outcomes_outcomealig_outcome_id_content_type__8bdbf1af_uniq",
+        "type": "UNIQUE",
+        "column": "outcome_id",
+        "foreign_table": "lms_outcomes_outcomealignment",
+        "foreign_column": "object_id"
+      },
+      {
+        "name": "lms_outcomes_outcomealig_outcome_id_content_type__8bdbf1af_uniq",
+        "type": "UNIQUE",
         "column": "object_id",
         "foreign_table": "lms_outcomes_outcomealignment",
         "foreign_column": "object_id"
+      },
+      {
+        "name": "lms_outcomes_outcomealig_outcome_id_content_type__8bdbf1af_uniq",
+        "type": "UNIQUE",
+        "column": "object_id",
+        "foreign_table": "lms_outcomes_outcomealignment",
+        "foreign_column": "content_type"
+      },
+      {
+        "name": "lms_outcomes_outcomealig_outcome_id_content_type__8bdbf1af_uniq",
+        "type": "UNIQUE",
+        "column": "content_type",
+        "foreign_table": "lms_outcomes_outcomealignment",
+        "foreign_column": "outcome_id"
       },
       {
         "name": "lms_outcomes_outcomealignment_object_id_check",
@@ -31188,13 +31819,6 @@
         "type": "UNIQUE",
         "column": "student_id",
         "foreign_table": "lms_outcomes_outcomeevaluation",
-        "foreign_column": "student_id"
-      },
-      {
-        "name": "lms_outcomes_outcomeeval_student_id_outcome_id_d6011e8e_uniq",
-        "type": "UNIQUE",
-        "column": "outcome_id",
-        "foreign_table": "lms_outcomes_outcomeevaluation",
         "foreign_column": "outcome_id"
       },
       {
@@ -31203,13 +31827,20 @@
         "column": "outcome_id",
         "foreign_table": "lms_outcomes_outcomeevaluation",
         "foreign_column": "student_id"
+      },
+      {
+        "name": "lms_outcomes_outcomeeval_student_id_outcome_id_d6011e8e_uniq",
+        "type": "UNIQUE",
+        "column": "outcome_id",
+        "foreign_table": "lms_outcomes_outcomeevaluation",
+        "foreign_column": "outcome_id"
       },
       {
         "name": "lms_outcomes_outcomeeval_student_id_outcome_id_d6011e8e_uniq",
         "type": "UNIQUE",
         "column": "student_id",
         "foreign_table": "lms_outcomes_outcomeevaluation",
-        "foreign_column": "outcome_id"
+        "foreign_column": "student_id"
       },
       {
         "name": "lms_outcomes_outcomeevaluation_evidence_count_check",
@@ -31343,16 +31974,9 @@
       {
         "name": "lms_outcomes_rubriccrite_criterion_id_outcome_id_9719570f_uniq",
         "type": "UNIQUE",
-        "column": "outcome_id",
+        "column": "criterion_id",
         "foreign_table": "lms_outcomes_rubriccriterionoutcome",
         "foreign_column": "outcome_id"
-      },
-      {
-        "name": "lms_outcomes_rubriccrite_criterion_id_outcome_id_9719570f_uniq",
-        "type": "UNIQUE",
-        "column": "outcome_id",
-        "foreign_table": "lms_outcomes_rubriccriterionoutcome",
-        "foreign_column": "criterion_id"
       },
       {
         "name": "lms_outcomes_rubriccrite_criterion_id_outcome_id_9719570f_uniq",
@@ -31364,9 +31988,16 @@
       {
         "name": "lms_outcomes_rubriccrite_criterion_id_outcome_id_9719570f_uniq",
         "type": "UNIQUE",
-        "column": "criterion_id",
+        "column": "outcome_id",
         "foreign_table": "lms_outcomes_rubriccriterionoutcome",
         "foreign_column": "outcome_id"
+      },
+      {
+        "name": "lms_outcomes_rubriccrite_criterion_id_outcome_id_9719570f_uniq",
+        "type": "UNIQUE",
+        "column": "outcome_id",
+        "foreign_table": "lms_outcomes_rubriccriterionoutcome",
+        "foreign_column": "criterion_id"
       },
       {
         "name": "lms_outcomes_rubriccriterionoutcome_pkey",
@@ -31614,7 +32245,7 @@
         "type": "UNIQUE",
         "column": "discussion_id",
         "foreign_table": "lms_rubrics_rubricevaluation",
-        "foreign_column": "student_id"
+        "foreign_column": "discussion_id"
       },
       {
         "name": "lms_rubrics_rubricevalua_discussion_id_criterion__d2de0d69_uniq",
@@ -31628,7 +32259,14 @@
         "type": "UNIQUE",
         "column": "discussion_id",
         "foreign_table": "lms_rubrics_rubricevaluation",
-        "foreign_column": "discussion_id"
+        "foreign_column": "student_id"
+      },
+      {
+        "name": "lms_rubrics_rubricevalua_submission_id_criterion__c85d407e_uniq",
+        "type": "UNIQUE",
+        "column": "criterion_id",
+        "foreign_table": "lms_rubrics_rubricevaluation",
+        "foreign_column": "criterion_id"
       },
       {
         "name": "lms_rubrics_rubricevalua_submission_id_criterion__c85d407e_uniq",
@@ -31641,13 +32279,6 @@
         "name": "lms_rubrics_rubricevalua_submission_id_criterion__c85d407e_uniq",
         "type": "UNIQUE",
         "column": "submission_id",
-        "foreign_table": "lms_rubrics_rubricevaluation",
-        "foreign_column": "criterion_id"
-      },
-      {
-        "name": "lms_rubrics_rubricevalua_submission_id_criterion__c85d407e_uniq",
-        "type": "UNIQUE",
-        "column": "criterion_id",
         "foreign_table": "lms_rubrics_rubricevaluation",
         "foreign_column": "criterion_id"
       },
@@ -31852,13 +32483,6 @@
       {
         "name": "lms_rubrics_rubricoveral_conference_id_student_id_dc3fdcfc_uniq",
         "type": "UNIQUE",
-        "column": "student_id",
-        "foreign_table": "lms_rubrics_rubricoverallfeedback",
-        "foreign_column": "student_id"
-      },
-      {
-        "name": "lms_rubrics_rubricoveral_conference_id_student_id_dc3fdcfc_uniq",
-        "type": "UNIQUE",
         "column": "conference_id",
         "foreign_table": "lms_rubrics_rubricoverallfeedback",
         "foreign_column": "student_id"
@@ -31878,11 +32502,11 @@
         "foreign_column": "conference_id"
       },
       {
-        "name": "lms_rubrics_rubricoveral_discussion_id_student_id_f56a1684_uniq",
+        "name": "lms_rubrics_rubricoveral_conference_id_student_id_dc3fdcfc_uniq",
         "type": "UNIQUE",
         "column": "student_id",
         "foreign_table": "lms_rubrics_rubricoverallfeedback",
-        "foreign_column": "discussion_id"
+        "foreign_column": "student_id"
       },
       {
         "name": "lms_rubrics_rubricoveral_discussion_id_student_id_f56a1684_uniq",
@@ -31903,6 +32527,13 @@
         "type": "UNIQUE",
         "column": "student_id",
         "foreign_table": "lms_rubrics_rubricoverallfeedback",
+        "foreign_column": "discussion_id"
+      },
+      {
+        "name": "lms_rubrics_rubricoveral_discussion_id_student_id_f56a1684_uniq",
+        "type": "UNIQUE",
+        "column": "student_id",
+        "foreign_table": "lms_rubrics_rubricoverallfeedback",
         "foreign_column": "student_id"
       },
       {
@@ -31915,7 +32546,7 @@
       {
         "name": "lms_rubrics_rubricoveral_quiz_attempt_id_student__1b6b759a_uniq",
         "type": "UNIQUE",
-        "column": "quiz_attempt_id",
+        "column": "student_id",
         "foreign_table": "lms_rubrics_rubricoverallfeedback",
         "foreign_column": "quiz_attempt_id"
       },
@@ -31929,9 +32560,23 @@
       {
         "name": "lms_rubrics_rubricoveral_quiz_attempt_id_student__1b6b759a_uniq",
         "type": "UNIQUE",
-        "column": "student_id",
+        "column": "quiz_attempt_id",
         "foreign_table": "lms_rubrics_rubricoverallfeedback",
         "foreign_column": "quiz_attempt_id"
+      },
+      {
+        "name": "lms_rubrics_rubricoveral_submission_id_student_id_f198183d_uniq",
+        "type": "UNIQUE",
+        "column": "student_id",
+        "foreign_table": "lms_rubrics_rubricoverallfeedback",
+        "foreign_column": "student_id"
+      },
+      {
+        "name": "lms_rubrics_rubricoveral_submission_id_student_id_f198183d_uniq",
+        "type": "UNIQUE",
+        "column": "submission_id",
+        "foreign_table": "lms_rubrics_rubricoverallfeedback",
+        "foreign_column": "student_id"
       },
       {
         "name": "lms_rubrics_rubricoveral_submission_id_student_id_f198183d_uniq",
@@ -31946,20 +32591,6 @@
         "column": "submission_id",
         "foreign_table": "lms_rubrics_rubricoverallfeedback",
         "foreign_column": "submission_id"
-      },
-      {
-        "name": "lms_rubrics_rubricoveral_submission_id_student_id_f198183d_uniq",
-        "type": "UNIQUE",
-        "column": "submission_id",
-        "foreign_table": "lms_rubrics_rubricoverallfeedback",
-        "foreign_column": "student_id"
-      },
-      {
-        "name": "lms_rubrics_rubricoveral_submission_id_student_id_f198183d_uniq",
-        "type": "UNIQUE",
-        "column": "student_id",
-        "foreign_table": "lms_rubrics_rubricoverallfeedback",
-        "foreign_column": "student_id"
       },
       {
         "name": "lms_rubrics_rubricoverallfeedback_pkey",
@@ -32615,13 +33246,6 @@
       {
         "name": "quiz_quizrubricevaluatio_quiz_attempt_id_criterio_3329eb9d_uniq",
         "type": "UNIQUE",
-        "column": "quiz_attempt_id",
-        "foreign_table": "quiz_quizrubricevaluation",
-        "foreign_column": "criterion_id"
-      },
-      {
-        "name": "quiz_quizrubricevaluatio_quiz_attempt_id_criterio_3329eb9d_uniq",
-        "type": "UNIQUE",
         "column": "criterion_id",
         "foreign_table": "quiz_quizrubricevaluation",
         "foreign_column": "criterion_id"
@@ -32632,6 +33256,13 @@
         "column": "criterion_id",
         "foreign_table": "quiz_quizrubricevaluation",
         "foreign_column": "quiz_attempt_id"
+      },
+      {
+        "name": "quiz_quizrubricevaluatio_quiz_attempt_id_criterio_3329eb9d_uniq",
+        "type": "UNIQUE",
+        "column": "quiz_attempt_id",
+        "foreign_table": "quiz_quizrubricevaluation",
+        "foreign_column": "criterion_id"
       },
       {
         "name": "quiz_quizrubricevaluation_pkey",
@@ -32874,16 +33505,9 @@
       {
         "name": "reports_report_shared_with_report_id_customuser_id_key",
         "type": "UNIQUE",
-        "column": "report_id",
-        "foreign_table": "reports_report_shared_with",
-        "foreign_column": "customuser_id"
-      },
-      {
-        "name": "reports_report_shared_with_report_id_customuser_id_key",
-        "type": "UNIQUE",
         "column": "customuser_id",
         "foreign_table": "reports_report_shared_with",
-        "foreign_column": "customuser_id"
+        "foreign_column": "report_id"
       },
       {
         "name": "reports_report_shared_with_report_id_customuser_id_key",
@@ -32895,9 +33519,16 @@
       {
         "name": "reports_report_shared_with_report_id_customuser_id_key",
         "type": "UNIQUE",
+        "column": "report_id",
+        "foreign_table": "reports_report_shared_with",
+        "foreign_column": "customuser_id"
+      },
+      {
+        "name": "reports_report_shared_with_report_id_customuser_id_key",
+        "type": "UNIQUE",
         "column": "customuser_id",
         "foreign_table": "reports_report_shared_with",
-        "foreign_column": "report_id"
+        "foreign_column": "customuser_id"
       },
       {
         "name": "reports_report_shared_with_report_id_fkey",
@@ -33167,6 +33798,13 @@
       {
         "name": "role_management_rolecapability_role_id_capability_18609662_uniq",
         "type": "UNIQUE",
+        "column": "role_id",
+        "foreign_table": "role_management_rolecapability",
+        "foreign_column": "role_id"
+      },
+      {
+        "name": "role_management_rolecapability_role_id_capability_18609662_uniq",
+        "type": "UNIQUE",
         "column": "capability",
         "foreign_table": "role_management_rolecapability",
         "foreign_column": "role_id"
@@ -33177,13 +33815,6 @@
         "column": "capability",
         "foreign_table": "role_management_rolecapability",
         "foreign_column": "capability"
-      },
-      {
-        "name": "role_management_rolecapability_role_id_capability_18609662_uniq",
-        "type": "UNIQUE",
-        "column": "role_id",
-        "foreign_table": "role_management_rolecapability",
-        "foreign_column": "role_id"
       }
     ],
     "role_management_userrole": [
@@ -33245,18 +33876,18 @@
         "type": "UNIQUE",
         "column": "user_id",
         "foreign_table": "role_management_userrole",
-        "foreign_column": "role_id"
-      },
-      {
-        "name": "role_management_userrole_user_id_role_id_a576bfe0_uniq",
-        "type": "UNIQUE",
-        "column": "role_id",
-        "foreign_table": "role_management_userrole",
         "foreign_column": "user_id"
       },
       {
         "name": "role_management_userrole_user_id_role_id_a576bfe0_uniq",
         "type": "UNIQUE",
+        "column": "user_id",
+        "foreign_table": "role_management_userrole",
+        "foreign_column": "role_id"
+      },
+      {
+        "name": "role_management_userrole_user_id_role_id_a576bfe0_uniq",
+        "type": "UNIQUE",
         "column": "role_id",
         "foreign_table": "role_management_userrole",
         "foreign_column": "role_id"
@@ -33264,7 +33895,7 @@
       {
         "name": "role_management_userrole_user_id_role_id_a576bfe0_uniq",
         "type": "UNIQUE",
-        "column": "user_id",
+        "column": "role_id",
         "foreign_table": "role_management_userrole",
         "foreign_column": "user_id"
       }
@@ -33414,16 +34045,16 @@
       {
         "name": "scorm_attempt_user_id_scorm_package_id_a7428eee_uniq",
         "type": "UNIQUE",
-        "column": "attempt_number",
+        "column": "scorm_package_id",
         "foreign_table": "scorm_attempt",
         "foreign_column": "user_id"
       },
       {
         "name": "scorm_attempt_user_id_scorm_package_id_a7428eee_uniq",
         "type": "UNIQUE",
-        "column": "scorm_package_id",
+        "column": "attempt_number",
         "foreign_table": "scorm_attempt",
-        "foreign_column": "scorm_package_id"
+        "foreign_column": "user_id"
       },
       {
         "name": "scorm_attempt_user_id_scorm_package_id_a7428eee_uniq",
@@ -33435,13 +34066,6 @@
       {
         "name": "scorm_attempt_user_id_scorm_package_id_a7428eee_uniq",
         "type": "UNIQUE",
-        "column": "attempt_number",
-        "foreign_table": "scorm_attempt",
-        "foreign_column": "scorm_package_id"
-      },
-      {
-        "name": "scorm_attempt_user_id_scorm_package_id_a7428eee_uniq",
-        "type": "UNIQUE",
         "column": "user_id",
         "foreign_table": "scorm_attempt",
         "foreign_column": "user_id"
@@ -33449,30 +34073,37 @@
       {
         "name": "scorm_attempt_user_id_scorm_package_id_a7428eee_uniq",
         "type": "UNIQUE",
-        "column": "attempt_number",
-        "foreign_table": "scorm_attempt",
-        "foreign_column": "attempt_number"
-      },
-      {
-        "name": "scorm_attempt_user_id_scorm_package_id_a7428eee_uniq",
-        "type": "UNIQUE",
-        "column": "user_id",
-        "foreign_table": "scorm_attempt",
-        "foreign_column": "attempt_number"
-      },
-      {
-        "name": "scorm_attempt_user_id_scorm_package_id_a7428eee_uniq",
-        "type": "UNIQUE",
         "column": "user_id",
         "foreign_table": "scorm_attempt",
         "foreign_column": "scorm_package_id"
+      },
+      {
+        "name": "scorm_attempt_user_id_scorm_package_id_a7428eee_uniq",
+        "type": "UNIQUE",
+        "column": "user_id",
+        "foreign_table": "scorm_attempt",
+        "foreign_column": "attempt_number"
       },
       {
         "name": "scorm_attempt_user_id_scorm_package_id_a7428eee_uniq",
         "type": "UNIQUE",
         "column": "scorm_package_id",
         "foreign_table": "scorm_attempt",
-        "foreign_column": "user_id"
+        "foreign_column": "scorm_package_id"
+      },
+      {
+        "name": "scorm_attempt_user_id_scorm_package_id_a7428eee_uniq",
+        "type": "UNIQUE",
+        "column": "attempt_number",
+        "foreign_table": "scorm_attempt",
+        "foreign_column": "scorm_package_id"
+      },
+      {
+        "name": "scorm_attempt_user_id_scorm_package_id_a7428eee_uniq",
+        "type": "UNIQUE",
+        "column": "attempt_number",
+        "foreign_table": "scorm_attempt",
+        "foreign_column": "attempt_number"
       }
     ],
     "scorm_comment": [
@@ -33887,6 +34518,493 @@
         "foreign_column": "success_count"
       }
     ],
+    "teams_integration_entragroupmapping": [
+      {
+        "name": "2200_53673_10_not_null",
+        "type": "CHECK",
+        "column": null
+      },
+      {
+        "name": "2200_53673_11_not_null",
+        "type": "CHECK",
+        "column": null
+      },
+      {
+        "name": "2200_53673_13_not_null",
+        "type": "CHECK",
+        "column": null
+      },
+      {
+        "name": "2200_53673_14_not_null",
+        "type": "CHECK",
+        "column": null
+      },
+      {
+        "name": "2200_53673_15_not_null",
+        "type": "CHECK",
+        "column": null
+      },
+      {
+        "name": "2200_53673_16_not_null",
+        "type": "CHECK",
+        "column": null
+      },
+      {
+        "name": "2200_53673_17_not_null",
+        "type": "CHECK",
+        "column": null
+      },
+      {
+        "name": "2200_53673_19_not_null",
+        "type": "CHECK",
+        "column": null
+      },
+      {
+        "name": "2200_53673_1_not_null",
+        "type": "CHECK",
+        "column": null
+      },
+      {
+        "name": "2200_53673_2_not_null",
+        "type": "CHECK",
+        "column": null
+      },
+      {
+        "name": "2200_53673_3_not_null",
+        "type": "CHECK",
+        "column": null
+      },
+      {
+        "name": "2200_53673_5_not_null",
+        "type": "CHECK",
+        "column": null
+      },
+      {
+        "name": "2200_53673_6_not_null",
+        "type": "CHECK",
+        "column": null
+      },
+      {
+        "name": "2200_53673_7_not_null",
+        "type": "CHECK",
+        "column": null
+      },
+      {
+        "name": "2200_53673_9_not_null",
+        "type": "CHECK",
+        "column": null
+      },
+      {
+        "name": "teams_integration_en_integration_id_a1e79da7_fk_account_s",
+        "type": "FOREIGN KEY",
+        "column": "integration_id",
+        "foreign_table": "account_settings_teamsintegration",
+        "foreign_column": "id"
+      },
+      {
+        "name": "teams_integration_en_lms_group_id_8823e9da_fk_groups_br",
+        "type": "FOREIGN KEY",
+        "column": "lms_group_id",
+        "foreign_table": "groups_branchgroup",
+        "foreign_column": "id"
+      },
+      {
+        "name": "teams_integration_en_target_course_id_df860296_fk_courses_c",
+        "type": "FOREIGN KEY",
+        "column": "target_course_id",
+        "foreign_table": "courses_course",
+        "foreign_column": "id"
+      },
+      {
+        "name": "teams_integration_entrag_integration_id_entra_gro_ee171851_uniq",
+        "type": "UNIQUE",
+        "column": "entra_group_id",
+        "foreign_table": "teams_integration_entragroupmapping",
+        "foreign_column": "integration_id"
+      },
+      {
+        "name": "teams_integration_entrag_integration_id_entra_gro_ee171851_uniq",
+        "type": "UNIQUE",
+        "column": "integration_id",
+        "foreign_table": "teams_integration_entragroupmapping",
+        "foreign_column": "entra_group_id"
+      },
+      {
+        "name": "teams_integration_entrag_integration_id_entra_gro_ee171851_uniq",
+        "type": "UNIQUE",
+        "column": "integration_id",
+        "foreign_table": "teams_integration_entragroupmapping",
+        "foreign_column": "integration_id"
+      },
+      {
+        "name": "teams_integration_entrag_integration_id_entra_gro_ee171851_uniq",
+        "type": "UNIQUE",
+        "column": "entra_group_id",
+        "foreign_table": "teams_integration_entragroupmapping",
+        "foreign_column": "entra_group_id"
+      },
+      {
+        "name": "teams_integration_entragroupmappin_sync_frequency_minutes_check",
+        "type": "CHECK",
+        "column": null,
+        "foreign_table": "teams_integration_entragroupmapping",
+        "foreign_column": "sync_frequency_minutes"
+      },
+      {
+        "name": "teams_integration_entragroupmapping_last_sync_users_count_check",
+        "type": "CHECK",
+        "column": null,
+        "foreign_table": "teams_integration_entragroupmapping",
+        "foreign_column": "last_sync_users_count"
+      },
+      {
+        "name": "teams_integration_entragroupmapping_pkey",
+        "type": "PRIMARY KEY",
+        "column": "id",
+        "foreign_table": "teams_integration_entragroupmapping",
+        "foreign_column": "id"
+      },
+      {
+        "name": "teams_integration_entragroupmapping_retry_count_check",
+        "type": "CHECK",
+        "column": null,
+        "foreign_table": "teams_integration_entragroupmapping",
+        "foreign_column": "retry_count"
+      },
+      {
+        "name": "teams_integration_entragroupmapping_total_users_synced_check",
+        "type": "CHECK",
+        "column": null,
+        "foreign_table": "teams_integration_entragroupmapping",
+        "foreign_column": "total_users_synced"
+      }
+    ],
+    "teams_integration_teamsmeetingsync": [
+      {
+        "name": "2200_53659_12_not_null",
+        "type": "CHECK",
+        "column": null
+      },
+      {
+        "name": "2200_53659_13_not_null",
+        "type": "CHECK",
+        "column": null
+      },
+      {
+        "name": "2200_53659_14_not_null",
+        "type": "CHECK",
+        "column": null
+      },
+      {
+        "name": "2200_53659_15_not_null",
+        "type": "CHECK",
+        "column": null
+      },
+      {
+        "name": "2200_53659_16_not_null",
+        "type": "CHECK",
+        "column": null
+      },
+      {
+        "name": "2200_53659_18_not_null",
+        "type": "CHECK",
+        "column": null
+      },
+      {
+        "name": "2200_53659_19_not_null",
+        "type": "CHECK",
+        "column": null
+      },
+      {
+        "name": "2200_53659_1_not_null",
+        "type": "CHECK",
+        "column": null
+      },
+      {
+        "name": "2200_53659_20_not_null",
+        "type": "CHECK",
+        "column": null
+      },
+      {
+        "name": "2200_53659_2_not_null",
+        "type": "CHECK",
+        "column": null
+      },
+      {
+        "name": "2200_53659_4_not_null",
+        "type": "CHECK",
+        "column": null
+      },
+      {
+        "name": "2200_53659_5_not_null",
+        "type": "CHECK",
+        "column": null
+      },
+      {
+        "name": "2200_53659_6_not_null",
+        "type": "CHECK",
+        "column": null
+      },
+      {
+        "name": "2200_53659_7_not_null",
+        "type": "CHECK",
+        "column": null
+      },
+      {
+        "name": "teams_integration_te_conference_id_de56027b_fk_conferenc",
+        "type": "FOREIGN KEY",
+        "column": "conference_id",
+        "foreign_table": "conferences_conference",
+        "foreign_column": "id"
+      },
+      {
+        "name": "teams_integration_teamsmeetingsy_meeting_duration_minutes_check",
+        "type": "CHECK",
+        "column": null,
+        "foreign_table": "teams_integration_teamsmeetingsync",
+        "foreign_column": "meeting_duration_minutes"
+      },
+      {
+        "name": "teams_integration_teamsmeetingsync_pkey",
+        "type": "PRIMARY KEY",
+        "column": "id",
+        "foreign_table": "teams_integration_teamsmeetingsync",
+        "foreign_column": "id"
+      },
+      {
+        "name": "teams_integration_teamsmeetingsync_retry_count_check",
+        "type": "CHECK",
+        "column": null,
+        "foreign_table": "teams_integration_teamsmeetingsync",
+        "foreign_column": "retry_count"
+      },
+      {
+        "name": "teams_integration_teamsmeetingsync_teams_meeting_id_key",
+        "type": "UNIQUE",
+        "column": "teams_meeting_id",
+        "foreign_table": "teams_integration_teamsmeetingsync",
+        "foreign_column": "teams_meeting_id"
+      },
+      {
+        "name": "teams_integration_teamsmeetingsync_total_participants_check",
+        "type": "CHECK",
+        "column": null,
+        "foreign_table": "teams_integration_teamsmeetingsync",
+        "foreign_column": "total_participants"
+      }
+    ],
+    "teams_integration_teamssynclog": [
+      {
+        "name": "2200_53645_10_not_null",
+        "type": "CHECK",
+        "column": null
+      },
+      {
+        "name": "2200_53645_12_not_null",
+        "type": "CHECK",
+        "column": null
+      },
+      {
+        "name": "2200_53645_13_not_null",
+        "type": "CHECK",
+        "column": null
+      },
+      {
+        "name": "2200_53645_14_not_null",
+        "type": "CHECK",
+        "column": null
+      },
+      {
+        "name": "2200_53645_15_not_null",
+        "type": "CHECK",
+        "column": null
+      },
+      {
+        "name": "2200_53645_17_not_null",
+        "type": "CHECK",
+        "column": null
+      },
+      {
+        "name": "2200_53645_1_not_null",
+        "type": "CHECK",
+        "column": null
+      },
+      {
+        "name": "2200_53645_2_not_null",
+        "type": "CHECK",
+        "column": null
+      },
+      {
+        "name": "2200_53645_3_not_null",
+        "type": "CHECK",
+        "column": null
+      },
+      {
+        "name": "2200_53645_4_not_null",
+        "type": "CHECK",
+        "column": null
+      },
+      {
+        "name": "2200_53645_6_not_null",
+        "type": "CHECK",
+        "column": null
+      },
+      {
+        "name": "2200_53645_7_not_null",
+        "type": "CHECK",
+        "column": null
+      },
+      {
+        "name": "2200_53645_8_not_null",
+        "type": "CHECK",
+        "column": null
+      },
+      {
+        "name": "2200_53645_9_not_null",
+        "type": "CHECK",
+        "column": null
+      },
+      {
+        "name": "teams_integration_te_initiated_by_id_e07d3de6_fk_users_cus",
+        "type": "FOREIGN KEY",
+        "column": "initiated_by_id",
+        "foreign_table": "users_customuser",
+        "foreign_column": "id"
+      },
+      {
+        "name": "teams_integration_te_integration_id_75514882_fk_account_s",
+        "type": "FOREIGN KEY",
+        "column": "integration_id",
+        "foreign_table": "account_settings_teamsintegration",
+        "foreign_column": "id"
+      },
+      {
+        "name": "teams_integration_teamssynclog_duration_seconds_check",
+        "type": "CHECK",
+        "column": null,
+        "foreign_table": "teams_integration_teamssynclog",
+        "foreign_column": "duration_seconds"
+      },
+      {
+        "name": "teams_integration_teamssynclog_items_created_check",
+        "type": "CHECK",
+        "column": null,
+        "foreign_table": "teams_integration_teamssynclog",
+        "foreign_column": "items_created"
+      },
+      {
+        "name": "teams_integration_teamssynclog_items_failed_check",
+        "type": "CHECK",
+        "column": null,
+        "foreign_table": "teams_integration_teamssynclog",
+        "foreign_column": "items_failed"
+      },
+      {
+        "name": "teams_integration_teamssynclog_items_processed_check",
+        "type": "CHECK",
+        "column": null,
+        "foreign_table": "teams_integration_teamssynclog",
+        "foreign_column": "items_processed"
+      },
+      {
+        "name": "teams_integration_teamssynclog_items_updated_check",
+        "type": "CHECK",
+        "column": null,
+        "foreign_table": "teams_integration_teamssynclog",
+        "foreign_column": "items_updated"
+      },
+      {
+        "name": "teams_integration_teamssynclog_pkey",
+        "type": "PRIMARY KEY",
+        "column": "id",
+        "foreign_table": "teams_integration_teamssynclog",
+        "foreign_column": "id"
+      }
+    ],
+    "teams_integration_teamsusersync": [
+      {
+        "name": "2200_53636_10_not_null",
+        "type": "CHECK",
+        "column": null
+      },
+      {
+        "name": "2200_53636_11_not_null",
+        "type": "CHECK",
+        "column": null
+      },
+      {
+        "name": "2200_53636_12_not_null",
+        "type": "CHECK",
+        "column": null
+      },
+      {
+        "name": "2200_53636_13_not_null",
+        "type": "CHECK",
+        "column": null
+      },
+      {
+        "name": "2200_53636_1_not_null",
+        "type": "CHECK",
+        "column": null
+      },
+      {
+        "name": "2200_53636_5_not_null",
+        "type": "CHECK",
+        "column": null
+      },
+      {
+        "name": "2200_53636_8_not_null",
+        "type": "CHECK",
+        "column": null
+      },
+      {
+        "name": "2200_53636_9_not_null",
+        "type": "CHECK",
+        "column": null
+      },
+      {
+        "name": "teams_integration_te_user_id_6dc98e9f_fk_users_cus",
+        "type": "FOREIGN KEY",
+        "column": "user_id",
+        "foreign_table": "users_customuser",
+        "foreign_column": "id"
+      },
+      {
+        "name": "teams_integration_teamsu_user_id_entra_user_id_05418ff7_uniq",
+        "type": "UNIQUE",
+        "column": "entra_user_id",
+        "foreign_table": "teams_integration_teamsusersync",
+        "foreign_column": "entra_user_id"
+      },
+      {
+        "name": "teams_integration_teamsu_user_id_entra_user_id_05418ff7_uniq",
+        "type": "UNIQUE",
+        "column": "user_id",
+        "foreign_table": "teams_integration_teamsusersync",
+        "foreign_column": "entra_user_id"
+      },
+      {
+        "name": "teams_integration_teamsu_user_id_entra_user_id_05418ff7_uniq",
+        "type": "UNIQUE",
+        "column": "user_id",
+        "foreign_table": "teams_integration_teamsusersync",
+        "foreign_column": "user_id"
+      },
+      {
+        "name": "teams_integration_teamsu_user_id_entra_user_id_05418ff7_uniq",
+        "type": "UNIQUE",
+        "column": "entra_user_id",
+        "foreign_table": "teams_integration_teamsusersync",
+        "foreign_column": "user_id"
+      },
+      {
+        "name": "teams_integration_teamsusersync_pkey",
+        "type": "PRIMARY KEY",
+        "column": "id",
+        "foreign_table": "teams_integration_teamsusersync",
+        "foreign_column": "id"
+      }
+    ],
     "tinymce_editor_aitokenusage": [
       {
         "name": "2200_37732_1_not_null",
@@ -34214,20 +35332,6 @@
         "type": "UNIQUE",
         "column": "group_id",
         "foreign_table": "users_customuser_groups",
-        "foreign_column": "customuser_id"
-      },
-      {
-        "name": "users_customuser_groups_customuser_id_group_id_key",
-        "type": "UNIQUE",
-        "column": "customuser_id",
-        "foreign_table": "users_customuser_groups",
-        "foreign_column": "customuser_id"
-      },
-      {
-        "name": "users_customuser_groups_customuser_id_group_id_key",
-        "type": "UNIQUE",
-        "column": "customuser_id",
-        "foreign_table": "users_customuser_groups",
         "foreign_column": "group_id"
       },
       {
@@ -34235,7 +35339,21 @@
         "type": "UNIQUE",
         "column": "group_id",
         "foreign_table": "users_customuser_groups",
+        "foreign_column": "customuser_id"
+      },
+      {
+        "name": "users_customuser_groups_customuser_id_group_id_key",
+        "type": "UNIQUE",
+        "column": "customuser_id",
+        "foreign_table": "users_customuser_groups",
         "foreign_column": "group_id"
+      },
+      {
+        "name": "users_customuser_groups_customuser_id_group_id_key",
+        "type": "UNIQUE",
+        "column": "customuser_id",
+        "foreign_table": "users_customuser_groups",
+        "foreign_column": "customuser_id"
       },
       {
         "name": "users_customuser_groups_group_id_fkey",
@@ -34271,13 +35389,6 @@
       {
         "name": "users_customuser_user_permissio_customuser_id_permission_id_key",
         "type": "UNIQUE",
-        "column": "customuser_id",
-        "foreign_table": "users_customuser_user_permissions",
-        "foreign_column": "customuser_id"
-      },
-      {
-        "name": "users_customuser_user_permissio_customuser_id_permission_id_key",
-        "type": "UNIQUE",
         "column": "permission_id",
         "foreign_table": "users_customuser_user_permissions",
         "foreign_column": "permission_id"
@@ -34285,7 +35396,7 @@
       {
         "name": "users_customuser_user_permissio_customuser_id_permission_id_key",
         "type": "UNIQUE",
-        "column": "permission_id",
+        "column": "customuser_id",
         "foreign_table": "users_customuser_user_permissions",
         "foreign_column": "customuser_id"
       },
@@ -34295,6 +35406,13 @@
         "column": "customuser_id",
         "foreign_table": "users_customuser_user_permissions",
         "foreign_column": "permission_id"
+      },
+      {
+        "name": "users_customuser_user_permissio_customuser_id_permission_id_key",
+        "type": "UNIQUE",
+        "column": "permission_id",
+        "foreign_table": "users_customuser_user_permissions",
+        "foreign_column": "customuser_id"
       },
       {
         "name": "users_customuser_user_permissions_customuser_id_fkey",
@@ -34442,7 +35560,7 @@
         "type": "UNIQUE",
         "column": "subject",
         "foreign_table": "users_manualassessmententry",
-        "foreign_column": "subject"
+        "foreign_column": "user_id"
       },
       {
         "name": "users_manualassessmententry_user_id_subject_0b7f200e_uniq",
@@ -34456,7 +35574,7 @@
         "type": "UNIQUE",
         "column": "subject",
         "foreign_table": "users_manualassessmententry",
-        "foreign_column": "user_id"
+        "foreign_column": "subject"
       }
     ],
     "users_manualvakscore": [
@@ -34812,7 +35930,7 @@
         "type": "UNIQUE",
         "column": "quiz_id",
         "foreign_table": "users_userquizassignment",
-        "foreign_column": "user_id"
+        "foreign_column": "quiz_id"
       },
       {
         "name": "users_userquizassignment_user_id_quiz_id_assignme_461fcd82_uniq",
@@ -34824,6 +35942,20 @@
       {
         "name": "users_userquizassignment_user_id_quiz_id_assignme_461fcd82_uniq",
         "type": "UNIQUE",
+        "column": "user_id",
+        "foreign_table": "users_userquizassignment",
+        "foreign_column": "quiz_id"
+      },
+      {
+        "name": "users_userquizassignment_user_id_quiz_id_assignme_461fcd82_uniq",
+        "type": "UNIQUE",
+        "column": "assignment_type",
+        "foreign_table": "users_userquizassignment",
+        "foreign_column": "user_id"
+      },
+      {
+        "name": "users_userquizassignment_user_id_quiz_id_assignme_461fcd82_uniq",
+        "type": "UNIQUE",
         "column": "assignment_type",
         "foreign_table": "users_userquizassignment",
         "foreign_column": "quiz_id"
@@ -34838,37 +35970,23 @@
       {
         "name": "users_userquizassignment_user_id_quiz_id_assignme_461fcd82_uniq",
         "type": "UNIQUE",
-        "column": "assignment_type",
-        "foreign_table": "users_userquizassignment",
-        "foreign_column": "user_id"
-      },
-      {
-        "name": "users_userquizassignment_user_id_quiz_id_assignme_461fcd82_uniq",
-        "type": "UNIQUE",
         "column": "user_id",
         "foreign_table": "users_userquizassignment",
-        "foreign_column": "quiz_id"
-      },
-      {
-        "name": "users_userquizassignment_user_id_quiz_id_assignme_461fcd82_uniq",
-        "type": "UNIQUE",
-        "column": "user_id",
-        "foreign_table": "users_userquizassignment",
-        "foreign_column": "user_id"
+        "foreign_column": "assignment_type"
       },
       {
         "name": "users_userquizassignment_user_id_quiz_id_assignme_461fcd82_uniq",
         "type": "UNIQUE",
         "column": "quiz_id",
         "foreign_table": "users_userquizassignment",
-        "foreign_column": "quiz_id"
+        "foreign_column": "user_id"
       },
       {
         "name": "users_userquizassignment_user_id_quiz_id_assignme_461fcd82_uniq",
         "type": "UNIQUE",
         "column": "user_id",
         "foreign_table": "users_userquizassignment",
-        "foreign_column": "assignment_type"
+        "foreign_column": "user_id"
       }
     ],
     "users_usertimezone": [

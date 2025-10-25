@@ -1109,6 +1109,44 @@ def course_details(request, course_id):
         except Exception:
             pass
 
+    # Check survey-related context
+    has_survey = course.survey is not None
+    user_has_submitted_survey = False
+    user_can_submit_survey = False
+    user_review = None
+    
+    if course.survey and request.user.is_authenticated:
+        from course_reviews.models import CourseReview, SurveyResponse
+        from courses.models import CourseEnrollment
+        
+        # Check if user has completed the course
+        try:
+            enrollment = CourseEnrollment.objects.get(user=request.user, course=course)
+            if enrollment.completed:
+                user_can_submit_survey = True
+                
+                # Check if user has already submitted survey
+                existing_review = CourseReview.objects.filter(
+                    user=request.user,
+                    course=course,
+                    survey=course.survey
+                ).first()
+                
+                if existing_review:
+                    user_has_submitted_survey = True
+                    user_review = existing_review
+        except CourseEnrollment.DoesNotExist:
+            pass
+
+    # Get course reviews for instructors/admins
+    course_reviews = []
+    if user.role in ['instructor', 'admin', 'superadmin', 'globaladmin'] and has_survey:
+        from course_reviews.models import CourseReview
+        course_reviews = CourseReview.objects.filter(
+            course=course,
+            is_published=True
+        ).select_related('user', 'survey').order_by('-submitted_at')
+
     context = {
         'course': course,
         'sections': sections,
@@ -1128,7 +1166,14 @@ def course_details(request, course_id):
         'user_certificate': user_certificate,
         'completed_topics_count': completed_topics_count,
         'total_topics_count': total_topics_count,
-        'prerequisite_check': prerequisite_check
+        'prerequisite_check': prerequisite_check,
+        # Survey-related context
+        'has_survey': has_survey,
+        'survey': course.survey,
+        'user_has_submitted_survey': user_has_submitted_survey,
+        'user_can_submit_survey': user_can_submit_survey,
+        'user_review': user_review,
+        'course_reviews': course_reviews
     }
 
     return render(request, 'courses/course_details.html', context)

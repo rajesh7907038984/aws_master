@@ -1051,6 +1051,60 @@
     .course-description p {
         margin-bottom: 1em;
     }
+
+    /* Survey Section Styles */
+    .survey-panel {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+        margin-top: 20px;
+    }
+
+    .survey-header {
+        padding: 16px 20px;
+        border-bottom: 1px solid #e5e7eb;
+    }
+
+    .survey-title {
+        font-size: 18px;
+        font-weight: 600;
+        color: #111827;
+        margin: 0;
+    }
+
+    .survey-content {
+        padding: 20px;
+    }
+
+    .survey-submitted,
+    .survey-pending,
+    .survey-locked {
+        border-radius: 6px;
+        padding: 16px;
+    }
+
+    .review-summary {
+        border: 1px solid #e5e7eb;
+    }
+
+    .survey-info {
+        border: 1px solid #dbeafe;
+    }
+
+    .survey-submitted {
+        background-color: #f0fdf4;
+        border: 1px solid #bbf7d0;
+    }
+
+    .survey-pending {
+        background-color: #eff6ff;
+        border: 1px solid #bfdbfe;
+    }
+
+    .survey-locked {
+        background-color: #f9fafb;
+        border: 1px solid #e5e7eb;
+    }
 </style>
 {% endblock %}
 
@@ -1200,6 +1254,7 @@
                 <div class="tab">Outcomes</div>
                 <div class="tab">Rubrics</div>
                 <div class="tab">Certificate</div>
+                <div class="tab">Reviews</div>
             </div>
 
             <div class="tab-content">
@@ -1459,6 +1514,149 @@
                         </div>
                     {% endif %}
                 </div>
+                
+                <!-- Reviews Tab Content (Hidden by default) -->
+                <div class="reviews-content" style="display: none;">
+                    {% if user.role in 'instructor,admin,superadmin,globaladmin'|split:',' %}
+                        <!-- Instructor/Admin view - show all submissions -->
+                        {% if course_reviews %}
+                            <div class="p-4 bg-white rounded-lg shadow-md">
+                                <h2 class="text-2xl font-bold mb-4">Course Reviews & Submissions</h2>
+                                <p class="mb-6">View all learner submissions for this course survey.</p>
+                                
+                                <div class="space-y-4">
+                                    {% for review in course_reviews %}
+                                    <div class="border rounded-lg p-4 bg-gray-50">
+                                        <div class="flex justify-between items-start mb-3">
+                                            <div>
+                                                <h3 class="font-medium text-gray-900">{{ review.user.get_full_name|default:review.user.username }}</h3>
+                                                <p class="text-sm text-gray-600">{{ review.submitted_at|date:"F j, Y g:i A" }}</p>
+                                            </div>
+                                            <div class="flex items-center">
+                                                <span class="text-sm font-medium text-gray-700 mr-2">Rating:</span>
+                                                <div class="flex">
+                                                    {% for i in "12345" %}
+                                                        {% if forloop.counter <= review.average_rating %}
+                                                            <svg class="w-4 h-4 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+                                                                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path>
+                                                            </svg>
+                                                        {% else %}
+                                                            <svg class="w-4 h-4 text-gray-300" fill="currentColor" viewBox="0 0 20 20">
+                                                                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path>
+                                                            </svg>
+                                                        {% endif %}
+                                                    {% endfor %}
+                                                    <span class="ml-2 text-sm text-gray-600">({{ review.average_rating }}/5)</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        {% if review.review_text %}
+                                        <div class="mt-3">
+                                            <h4 class="text-sm font-medium text-gray-700 mb-2">Review Text:</h4>
+                                            <p class="text-sm text-gray-600 bg-white p-3 rounded border">{{ review.review_text }}</p>
+                                        </div>
+                                        {% endif %}
+                                        
+                                        <!-- Show individual survey responses -->
+                                        <div class="mt-4">
+                                            <h4 class="text-sm font-medium text-gray-700 mb-2">Survey Responses:</h4>
+                                            <div class="space-y-2">
+                                                {% for response in review.survey.survey_responses.all %}
+                                                    {% if response.user == review.user and response.course == course %}
+                                                    <div class="bg-white p-3 rounded border">
+                                                        <div class="flex justify-between items-start">
+                                                            <div>
+                                                                <p class="text-sm font-medium text-gray-900">{{ response.survey_field.label }}</p>
+                                                                <p class="text-sm text-gray-600 mt-1">
+                                                                    {% if response.survey_field.field_type == 'rating' %}
+                                                                        <div class="flex items-center">
+                                                                            <span class="mr-2">Rating:</span>
+                                                                            <div class="flex">
+                                                                                {% for i in "12345" %}
+                                                                                    {% if forloop.counter <= response.rating_response %}
+                                                                                        <svg class="w-3 h-3 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+                                                                                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path>
+                                                                                        </svg>
+                                                                                    {% else %}
+                                                                                        <svg class="w-3 h-3 text-gray-300" fill="currentColor" viewBox="0 0 20 20">
+                                                                                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path>
+                                                                                        </svg>
+                                                                                    {% endif %}
+                                                                                {% endfor %}
+                                                                            </div>
+                                                                            <span class="ml-1 text-xs text-gray-500">({{ response.rating_response }}/5)</span>
+                                                                        </div>
+                                                                    {% else %}
+                                                                        {{ response.text_response|truncatechars:200 }}
+                                                                    {% endif %}
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    {% endif %}
+                                                {% endfor %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        {% else %}
+                            <div class="p-6 bg-gray-50 rounded-lg text-center">
+                                <p>No course reviews have been submitted yet.</p>
+                            </div>
+                        {% endif %}
+                    {% else %}
+                        <!-- Learner view - show their own submission if exists -->
+                        {% if user_review %}
+                        <div class="p-4 bg-white rounded-lg shadow-md">
+                            <h2 class="text-2xl font-bold mb-4">Your Course Review</h2>
+                            <div class="border rounded-lg p-4 bg-gray-50">
+                                <div class="flex justify-between items-start mb-3">
+                                    <div>
+                                        <h3 class="font-medium text-gray-900">Your Review</h3>
+                                        <p class="text-sm text-gray-600">{{ user_review.submitted_at|date:"F j, Y g:i A" }}</p>
+                                    </div>
+                                    <div class="flex items-center">
+                                        <span class="text-sm font-medium text-gray-700 mr-2">Your Rating:</span>
+                                        <div class="flex">
+                                            {% for i in "12345" %}
+                                                {% if forloop.counter <= user_review.average_rating %}
+                                                    <svg class="w-4 h-4 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+                                                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path>
+                                                    </svg>
+                                                {% else %}
+                                                    <svg class="w-4 h-4 text-gray-300" fill="currentColor" viewBox="0 0 20 20">
+                                                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path>
+                                                    </svg>
+                                                {% endif %}
+                                            {% endfor %}
+                                            <span class="ml-2 text-sm text-gray-600">({{ user_review.average_rating }}/5)</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                {% if user_review.review_text %}
+                                <div class="mt-3">
+                                    <h4 class="text-sm font-medium text-gray-700 mb-2">Your Review Text:</h4>
+                                    <p class="text-sm text-gray-600 bg-white p-3 rounded border">{{ user_review.review_text }}</p>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% else %}
+                        <div class="p-6 bg-gray-50 rounded-lg text-center">
+                            <p>You haven't submitted a review for this course yet.</p>
+                            {% if has_survey and user_can_submit_survey %}
+                            <a href="{% url 'course_reviews:submit_course_survey' course.id %}" class="inline-block bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600 transition mt-4">
+                                Submit Course Review
+                            </a>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+                    {% endif %}
+                </div>
             </div>
         </div>
 
@@ -1509,6 +1707,128 @@
                 
             </div>
         </div>
+        
+        <!-- Survey/Review Section -->
+        {% if has_survey %}
+        <div class="survey-panel">
+            <div class="survey-header">
+                <h2 class="survey-title">Course Review</h2>
+            </div>
+            <div class="survey-content">
+                <!-- Always show survey info first -->
+                <div class="survey-info bg-blue-50 p-4 rounded-lg mb-4">
+                    <h4 class="font-medium text-blue-900 mb-2">{{ survey.title }}</h4>
+                    {% if survey.description %}
+                    <p class="text-sm text-blue-700">{{ survey.description }}</p>
+                    {% endif %}
+                </div>
+                
+                {% if user_can_submit_survey %}
+                    {% if user_has_submitted_survey %}
+                        <div class="survey-submitted">
+                            <div class="flex items-center mb-4">
+                                <div class="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center text-white mr-3">
+                                    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                    </svg>
+                                </div>
+                                <div>
+                                    <h3 class="text-lg font-medium text-gray-900">Review Submitted</h3>
+                                    <p class="text-sm text-gray-600">Thank you for your feedback!</p>
+                                </div>
+                            </div>
+                            
+                            {% if user_review %}
+                            <div class="review-summary bg-gray-50 p-4 rounded-lg">
+                                <div class="flex items-center mb-2">
+                                    <span class="text-sm font-medium text-gray-700">Your Rating:</span>
+                                    <div class="flex ml-2">
+                                        {% for i in "12345" %}
+                                            {% if forloop.counter <= user_review.average_rating %}
+                                                <svg class="w-4 h-4 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+                                                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path>
+                                                </svg>
+                                            {% else %}
+                                                <svg class="w-4 h-4 text-gray-300" fill="currentColor" viewBox="0 0 20 20">
+                                                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path>
+                                                </svg>
+                                            {% endif %}
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                                {% if user_review.review_text %}
+                                <p class="text-sm text-gray-600">{{ user_review.review_text|truncatewords:20 }}</p>
+                                {% endif %}
+                            </div>
+                            {% endif %}
+                            
+                            <div class="mt-4">
+                                <a href="{% url 'course_reviews:submit_course_survey' course.id %}" 
+                                   class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                                    </svg>
+                                    Edit Review
+                                </a>
+                            </div>
+                        </div>
+                    {% else %}
+                        <div class="survey-pending">
+                            <div class="flex items-center mb-4">
+                                <div class="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white mr-3">
+                                    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                    </svg>
+                                </div>
+                                <div>
+                                    <h3 class="text-lg font-medium text-gray-900">Course Review Available</h3>
+                                    <p class="text-sm text-gray-600">Share your feedback about this course</p>
+                                </div>
+                            </div>
+                            
+                            <div class="survey-info bg-blue-50 p-4 rounded-lg mb-4">
+                                <h4 class="font-medium text-blue-900 mb-2">{{ survey.title }}</h4>
+                                {% if survey.description %}
+                                <p class="text-sm text-blue-700">{{ survey.description }}</p>
+                                {% endif %}
+                            </div>
+                            
+                            <a href="{% url 'course_reviews:submit_course_survey' course.id %}" 
+                               class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700">
+                                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                                Submit Review
+                            </a>
+                        </div>
+                    {% endif %}
+                {% else %}
+                    <div class="survey-locked">
+                        <div class="flex items-center mb-4">
+                            <div class="w-8 h-8 rounded-full bg-gray-400 flex items-center justify-center text-white mr-3">
+                                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+                                </svg>
+                            </div>
+                            <div>
+                                <h3 class="text-lg font-medium text-gray-900">Review Available After Completion</h3>
+                                <p class="text-sm text-gray-600">Complete the course to submit your review</p>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-gray-50 p-4 rounded-lg">
+                            <p class="text-sm text-gray-600 mb-2">
+                                <strong>Course Review Survey:</strong> This survey will be available once you complete all course topics.
+                            </p>
+                            <p class="text-sm text-gray-600">
+                                You'll be able to share your feedback and rate your learning experience.
+                            </p>
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
     </div>
 </div>
 {% endblock %}
