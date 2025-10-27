@@ -267,6 +267,9 @@ def upload_media_file(request):
                 filename=original_name,
                 description=f'Uploaded via TinyMCE editor on {timezone.now().date()}'
             )
+        except ImportError:
+            # lms_media module not available, skip registration
+            pass
         except Exception as e:
             logger.error(f"Error registering media file: {str(e)}")
             # Continue with upload even if registration fails

@@ -11,10 +11,10 @@ header {
     visibility: visible;
     opacity: 1;
     z-index: 50;
-}
-
-header > div,
-header .flex.items-center {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
     overflow: visible;
 }
 
@@ -43,18 +43,18 @@ div.header-icon-permanent {
     visibility: visible !important;
     opacity: 1 !important;
 }
-
-/* Override ANY JavaScript attempts to hide permanent icons */  
-.header-icon-permanent[style*="display: none"],
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
 .header-icon-permanent[style*="visibility: hidden"],
 .header-icon-permanent[style*="opacity: 0"] {
     display: flex !important;
     visibility: visible !important;
     opacity: 1 !important;
 }
-
-.header-icon svg,
-.discussion-icon svg,
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
 .notification-icon svg,
 #mobile-menu-toggle svg {
     display: inline-block;
