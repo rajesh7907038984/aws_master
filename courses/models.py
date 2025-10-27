@@ -3223,9 +3223,11 @@ class CourseCompletionRequirement(models.Model):
     )
     requirement_type = models.CharField(
         max_length=100,
+        default='score_threshold',
         help_text="Type of requirement (e.g., 'topic_completion', 'score_threshold')"
     )
     requirement_value = models.TextField(
+        default='0',
         help_text="Value or configuration for the requirement"
     )
     created_at = models.DateTimeField(auto_now_add=True)
