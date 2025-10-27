@@ -51,7 +51,8 @@ from .models import (
     Course, 
     Topic, 
     CourseEnrollment, 
-    Section
+    Section,
+    CourseCompletionRequirement
 )
 
 # Import Comment and Attachment dynamically (they may not exist)
@@ -96,6 +97,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 @login_required
+@require_capability('manage_courses')
 # @ensure_csrf_cookie  # COMMENTED OUT TO FIX ERRORS
 # @csrf_protect  # COMMENTED OUT TO FIX ERRORS
 def course_manage(request: HttpRequest) -> HttpResponse:
@@ -389,7 +391,6 @@ def course_list(request):
     user = request.user
     
     # Import needed models
-    from courses.models import CourseEnrollment
     
     # Import TopicProgress dynamically
     try:
@@ -1117,7 +1118,6 @@ def course_details(request, course_id):
     
     if course.survey and request.user.is_authenticated:
         from course_reviews.models import CourseReview, SurveyResponse
-        from courses.models import CourseEnrollment
         
         # Check if user has completed the course
         try:
@@ -4499,7 +4499,6 @@ def course_settings(request, course_id):
             # Handle custom completion requirements if completion criteria is custom
             if completion_criteria == 'custom':
                 # Import the model
-                from .models import CourseCompletionRequirement
                 
                 # Get selected topics and their scores
                 selected_topics = request.POST.getlist('completion_topics')
@@ -4528,9 +4527,8 @@ def course_settings(request, course_id):
                         # Create the requirement
                         CourseCompletionRequirement.objects.create(
                             course=course,
-                            topic=topic,
-                            required_score=required_score,
-                            is_mandatory=True
+                            requirement_type='topic_score',
+                            requirement_value=f'topic_id:{topic_id},score:{required_score}'
                         )
                         
                     except Topic.DoesNotExist:
@@ -6030,7 +6028,6 @@ def api_enrolled_learners(request, course_id):
     
     # Also allow instructors who are enrolled in the course (invited instructors)
     if not has_permission and request.user.role == 'instructor':
-        from courses.models import CourseEnrollment
         is_enrolled_instructor = CourseEnrollment.objects.filter(
             user=request.user, 
             course=course
@@ -6091,7 +6088,6 @@ def course_create_user(request, course_id):
             user = form.save()
             
             # Ensure the user is enrolled in the current course if not already
-            from courses.models import CourseEnrollment
             from django.utils import timezone
             
             enrollment, created = CourseEnrollment.objects.get_or_create(
