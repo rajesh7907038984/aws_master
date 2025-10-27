@@ -390,11 +390,12 @@ def scorm_view(request, topic_id):
     response = render(request, 'scorm/player_clean.html', context)
     
     # Set secure CSP headers for SCORM content (no external CDNs)
+    # FIXED: Allow data: URLs for fonts and unsafe-eval for scripts
     response['Content-Security-Policy'] = (
         "default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: https://*.s3.*.amazonaws.com https://*.amazonaws.com *; "
-        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.s3.*.amazonaws.com https://*.amazonaws.com *; "
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: https://*.s3.*.amazonaws.com https://*.amazonaws.com *; "
         "worker-src 'self' blob: data: https://*.s3.*.amazonaws.com https://*.amazonaws.com *; "
-        "style-src 'self' 'unsafe-inline' https://*.s3.*.amazonaws.com https://*.amazonaws.com *; "
+        "style-src 'self' 'unsafe-inline' data: blob: https://*.s3.*.amazonaws.com https://*.amazonaws.com *; "
         "img-src 'self' data: blob: https://*.s3.*.amazonaws.com https://*.amazonaws.com *; "
         "font-src 'self' data: blob: https://*.s3.*.amazonaws.com https://*.amazonaws.com *; "
         "connect-src 'self' https://*.s3.*.amazonaws.com https://*.amazonaws.com *; "
@@ -410,6 +411,9 @@ def scorm_view(request, topic_id):
     response['Cross-Origin-Resource-Policy'] = 'cross-origin'
     response['X-Frame-Options'] = 'SAMEORIGIN'
     response['Access-Control-Allow-Origin'] = '*'
+    
+    # DEBUG: Log CSP headers being set
+    logger.info(f"CSP Headers set for SCORM view {topic_id}: {response['Content-Security-Policy']}")
     
     # STORYLINE FIX: Remove duplicate CSP headers that conflict with permissive ones above
     
@@ -793,6 +797,49 @@ def scorm_content(request, topic_id=None, path=None, attempt_id=None):
                 except Exception as e:
                     logger.error(f"Error proxying media file {path}: {str(e)}")
                     # Fallback to direct S3 redirect for media files
+                    from django.http import HttpResponseRedirect
+                    return HttpResponseRedirect(s3_url)
+            # NEW: Handle font files for video player icons (FIXES ICON DISPLAY)
+            elif path and any(path.lower().endswith(ext) for ext in [
+                '.woff', '.woff2', '.ttf', '.eot', '.otf', '.svg'
+            ]):
+                try:
+                    import requests
+                    response = requests.get(s3_url, timeout=5)
+                    response.raise_for_status()
+                    
+                    # Determine correct MIME type for fonts
+                    content_type = 'application/octet-stream'
+                    if path.lower().endswith('.woff'):
+                        content_type = 'font/woff'
+                    elif path.lower().endswith('.woff2'):
+                        content_type = 'font/woff2'
+                    elif path.lower().endswith('.ttf'):
+                        content_type = 'font/ttf'
+                    elif path.lower().endswith('.otf'):
+                        content_type = 'font/otf'
+                    elif path.lower().endswith('.eot'):
+                        content_type = 'application/vnd.ms-fontobject'
+                    elif path.lower().endswith('.svg'):
+                        content_type = 'image/svg+xml'
+                    
+                    # Create response with proper CORS and caching headers
+                    django_response = HttpResponse(response.content, content_type=content_type)
+                    django_response['Access-Control-Allow-Origin'] = '*'
+                    django_response['Access-Control-Allow-Methods'] = 'GET, HEAD, OPTIONS'
+                    django_response['Cache-Control'] = 'public, max-age=31536000'  # Cache fonts for 1 year
+                    django_response['X-Frame-Options'] = 'SAMEORIGIN'
+                    
+                    if 'Content-Length' in response.headers:
+                        django_response['Content-Length'] = response.headers['Content-Length']
+                    if 'ETag' in response.headers:
+                        django_response['ETag'] = response.headers['ETag']
+                    
+                    logger.info(f"Proxying font file {path} with proper MIME type and CORS headers")
+                    return django_response
+                    
+                except Exception as e:
+                    logger.error(f"Error proxying font file {path}: {str(e)}")
                     from django.http import HttpResponseRedirect
                     return HttpResponseRedirect(s3_url)
             else:
