@@ -78,6 +78,39 @@ class ScormPackage(models.Model):
     
     def __str__(self):
         return f"{self.title} ({self.version})"
+    
+    def get_correct_launch_url(self):
+        """
+        Get the correct launch URL, preferring SCORM API wrapper files over content files.
+        This helps fix packages that were incorrectly configured with story.html instead of index_lms.html.
+        """
+        from django.core.files.storage import default_storage
+        
+        # If already using a SCORM API wrapper, return as-is
+        if self.launch_url and any(wrapper in self.launch_url.lower() for wrapper in ['index_lms.html', 'indexapi.html', 'lms.html', 'scorm.html']):
+            return self.launch_url
+        
+        # Check if SCORM API wrapper files exist
+        scorm_api_wrappers = ['index_lms.html', 'indexAPI.html', 'lms.html', 'scorm.html']
+        for wrapper in scorm_api_wrappers:
+            wrapper_path = f"{self.extracted_path}/{wrapper}"
+            if default_storage.exists(wrapper_path):
+                return wrapper
+        
+        # Fallback to current launch URL
+        return self.launch_url
+    
+    def fix_launch_url(self):
+        """
+        Fix the launch URL if it's pointing to a content file instead of SCORM API wrapper.
+        Returns True if the launch URL was updated.
+        """
+        correct_url = self.get_correct_launch_url()
+        if correct_url != self.launch_url:
+            self.launch_url = correct_url
+            self.save()
+            return True
+        return False
 
 
 class ScormAttempt(models.Model):

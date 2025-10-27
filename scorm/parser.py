@@ -154,16 +154,21 @@ class ScormParser:
                     # Launch URL is relative to manifest location
                     pass
             
-            # CRITICAL FIX: If launch URL is not set or is index_lms.html, check for story.html
-            # story.html is the correct player file for Articulate Storyline packages
-            if not self.launch_url or self.launch_url == 'index_lms.html':
-                # Check if story.html exists in extracted files
-                story_html_candidates = [f for f in extracted_files if f.lower().endswith('story.html')]
-                if story_html_candidates:
-                    self.launch_url = story_html_candidates[0]
-                    logger.info(f"Using story.html as launch file: {self.launch_url}")
-                elif not self.launch_url:
-                    # Fallback to other common entry points (prioritize story.html)
+            # CRITICAL FIX: Prioritize SCORM API wrapper files over content files
+            # For Articulate Storyline packages, index_lms.html is the correct SCORM API wrapper
+            if not self.launch_url:
+                # First, check for SCORM API wrapper files (these handle SCORM communication)
+                scorm_api_wrappers = ['index_lms.html', 'indexAPI.html', 'lms.html', 'scorm.html']
+                for wrapper in scorm_api_wrappers:
+                    wrapper_candidates = [f for f in extracted_files if f.lower().endswith(wrapper)]
+                    if wrapper_candidates:
+                        self.launch_url = wrapper_candidates[0]
+                        logger.info(f"Using SCORM API wrapper as launch file: {self.launch_url}")
+                        break
+                
+                # If no SCORM API wrapper found, fallback to content files
+                if not self.launch_url:
+                    # Fallback to other common entry points (prioritize story.html for content)
                     entry_points = ['story.html', 'index.html', 'launch.html', 'start.html', 'main.html']
                     for entry_point in entry_points:
                         candidates = [f for f in extracted_files if f.lower().endswith(entry_point)]
