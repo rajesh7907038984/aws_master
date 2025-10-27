@@ -389,21 +389,25 @@ def scorm_view(request, topic_id):
     
     response = render(request, 'scorm/player_clean.html', context)
     
-    # Set permissive CSP headers for SCORM content with enhanced video support
+    # Set secure CSP headers for SCORM content (no external CDNs)
     response['Content-Security-Policy'] = (
         "default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: https://*.s3.*.amazonaws.com https://*.amazonaws.com *; "
         "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.s3.*.amazonaws.com https://*.amazonaws.com *; "
         "worker-src 'self' blob: data: https://*.s3.*.amazonaws.com https://*.amazonaws.com *; "
         "style-src 'self' 'unsafe-inline' https://*.s3.*.amazonaws.com https://*.amazonaws.com *; "
         "img-src 'self' data: blob: https://*.s3.*.amazonaws.com https://*.amazonaws.com *; "
-        "font-src 'self' data: https://*.s3.*.amazonaws.com https://*.amazonaws.com *; "
+        "font-src 'self' data: blob: https://*.s3.*.amazonaws.com https://*.amazonaws.com *; "
         "connect-src 'self' https://*.s3.*.amazonaws.com https://*.amazonaws.com *; "
         "media-src 'self' data: blob: https://*.s3.*.amazonaws.com https://*.amazonaws.com *; "
         "frame-src 'self' https://*.s3.*.amazonaws.com https://*.amazonaws.com *; "
-        "frame-ancestors 'self' *; "  # Add this line for better iframe support
+        "frame-ancestors 'self' *; "
         "object-src 'none'"
     )
     
+    # Add additional headers for better module loading (fixes Svelte version conflicts)
+    response['Cross-Origin-Embedder-Policy'] = 'unsafe-none'
+    response['Cross-Origin-Opener-Policy'] = 'same-origin'
+    response['Cross-Origin-Resource-Policy'] = 'cross-origin'
     response['X-Frame-Options'] = 'SAMEORIGIN'
     response['Access-Control-Allow-Origin'] = '*'
     
@@ -832,6 +836,7 @@ def scorm_content(request, topic_id=None, path=None, attempt_id=None):
 // SCORM 2004 Storyline API Bridge - PostMessage Communication
 // Version: 6.0 - Fixes child window communication issues
 console.log('[SCORM 2004] Storyline API bridge loaded');
+
 
 // LOCALIZATION FIX: Provide fallback strings for missing localization
 (function() {{

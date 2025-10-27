@@ -3,14 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <!-- Load static files first -->
+    {% load static %}
+    
     <title>{{ topic.title }} - SCORM Content</title>
     <style>
         body {
             margin: 0;
             padding: 0;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: #f5f5f5;
         }
+        
+        
         .scorm-header {
             background: white;
             padding: 1rem;
@@ -32,6 +37,8 @@
         @media (max-width: 768px) { .scorm-header { flex-direction: column; gap: 0.5rem; } }
         .disabled { opacity: 0.6; pointer-events: none; }
         .debug { position: fixed; right: 8px; bottom: 8px; background: rgba(0,0,0,0.6); color: white; padding: 8px; border-radius: 6px; font-size: 12px; max-width: 320px; z-index: 9999; }
+        
+    
     </style>
 </head>
 <body>
@@ -56,7 +63,7 @@
             class="scorm-iframe" 
             src="{{ content_url }}"
             allow="fullscreen; autoplay; encrypted-media; microphone; camera; picture-in-picture; clipboard-write; clipboard-read; web-share"
-            sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox allow-downloads allow-modals allow-presentation allow-top-navigation-by-user-activation"
+            sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-downloads allow-modals allow-presentation allow-top-navigation allow-pointer-lock allow-orientation-lock allow-popups-to-escape-sandbox"
             referrerpolicy="no-referrer-when-downgrade"
             onload="handleFrameLoad()"
             onerror="handleFrameError()">
@@ -66,6 +73,13 @@
     <div id="debug" class="debug" style="display:none"></div>
 
     <script>
+    
+   
+    // Monitor CSP violations
+    document.addEventListener('securitypolicyviolation', function(e) {
+        console.log('🚨 CSP Violation:', e.violatedDirective, 'Blocked:', e.blockedURI);
+    });
+    
     // -----------------------
     // Configuration / helpers
     // -----------------------
