@@ -226,10 +226,9 @@ def scorm_view(request, topic_id):
                     user=request.user,
                     scorm_package=scorm_package,
                     attempt_number=attempt_number,
-                    # CRITICAL FIX: Initialize required fields to prevent validation errors
-                    navigation_history=[],
-                    detailed_tracking={},
-                    session_data={}
+                    # Initialize CMI data to prevent validation errors
+                    cmi_data={},
+                    cmi_data_history=[]
                 )
                 logger.info(f"Created new attempt {attempt.id} (previous status: {last_attempt.lesson_status}, completed: {last_attempt.completed_at is not None})")
                 
@@ -346,10 +345,9 @@ def scorm_view(request, topic_id):
                     user=request.user,
                     scorm_package=scorm_package,
                     attempt_number=1,
-                    # CRITICAL FIX: Initialize required fields to prevent validation errors
-                    navigation_history=[],
-                    detailed_tracking={},
-                    session_data={}
+                    # Initialize CMI data to prevent validation errors
+                    cmi_data={},
+                    cmi_data_history=[]
                 )
                 logger.info(f"Created first attempt {attempt.id} for user {request.user.username}")
             
@@ -1655,13 +1653,10 @@ def scorm_status(request, attempt_id):
                 'completed_at': attempt.completed_at.isoformat() if attempt.completed_at else None,
                 # Enhanced tracking data
                 'time_spent_seconds': attempt.time_spent_seconds,
-                'last_visited_slide': attempt.last_visited_slide,
-                'progress_percentage': float(attempt.progress_percentage) if attempt.progress_percentage else 0,
                 'session_start_time': attempt.session_start_time.isoformat() if attempt.session_start_time else None,
                 'session_end_time': attempt.session_end_time.isoformat() if attempt.session_end_time else None,
-                'detailed_tracking': attempt.detailed_tracking,
-                'session_data': attempt.session_data,
-                'navigation_history': attempt.navigation_history[-10:] if attempt.navigation_history else [],  # Last 10 navigation entries
+                'cmi_data': attempt.cmi_data,
+                'cmi_data_history': attempt.cmi_data_history[-10:] if attempt.cmi_data_history else [],  # Last 10 CMI changes
             }
         })
         
@@ -1881,14 +1876,10 @@ def scorm_tracking_report(request, attempt_id):
             },
             'progress_tracking': {
                 'lesson_location': attempt.lesson_location,
-                'last_visited_slide': attempt.last_visited_slide,
-                'progress_percentage': float(attempt.progress_percentage) if attempt.progress_percentage else 0,
                 'suspend_data': attempt.suspend_data,
             },
-            'navigation_history': attempt.navigation_history if attempt.navigation_history else [],
-            'detailed_tracking': attempt.detailed_tracking if attempt.detailed_tracking else {},
-            'session_data': attempt.session_data if attempt.session_data else {},
             'cmi_data': attempt.cmi_data if attempt.cmi_data else {},
+            'cmi_data_history': attempt.cmi_data_history if attempt.cmi_data_history else [],
         }
         
         return JsonResponse({

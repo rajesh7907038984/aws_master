@@ -391,22 +391,18 @@ class ScormAPIHandler:
                         self.last_error = '405'  # Incorrect data type
                         return 'false'
                 elif element == 'cmi.core.lesson_location':
-                    # CRITICAL FIX: Store bookmark data in both CMI data and model fields
+                    # Store bookmark data in both CMI data and model fields
                     self.attempt.lesson_location = value
                     self.attempt.cmi_data['cmi.core.lesson_location'] = value
-                    # Enhanced slide tracking
-                    self._update_slide_tracking(value)
                 elif element == 'cmi.core.session_time':
                     self.attempt.session_time = value
                     self._update_total_time(value)
                 elif element == 'cmi.core.exit':
                     self.attempt.exit_mode = value
                 elif element == 'cmi.suspend_data':
-                    # CRITICAL FIX: Store suspend data in both CMI data and model fields
+                    # Store suspend data in both CMI data and model fields
                     self.attempt.suspend_data = value
                     self.attempt.cmi_data['cmi.suspend_data'] = value
-                    # ENHANCED: Parse and sync progress from suspend data
-                    self._parse_and_sync_suspend_data(value)
             else:  # SCORM 2004
                 if element == 'cmi.completion_status':
                     self.attempt.completion_status = value
@@ -449,22 +445,18 @@ class ScormAPIHandler:
                         self.last_error = '405'  # Incorrect data type
                         return 'false'
                 elif element == 'cmi.location':
-                    # CRITICAL FIX: Store bookmark data in both CMI data and model fields
+                    # Store bookmark data in both CMI data and model fields
                     self.attempt.lesson_location = value
                     self.attempt.cmi_data['cmi.location'] = value
-                    # Enhanced slide tracking
-                    self._update_slide_tracking(value)
                 elif element == 'cmi.session_time':
                     self.attempt.session_time = value
                     self._update_total_time(value)
                 elif element == 'cmi.exit':
                     self.attempt.exit_mode = value
                 elif element == 'cmi.suspend_data':
-                    # CRITICAL FIX: Store suspend data in both CMI data and model fields
+                    # Store suspend data in both CMI data and model fields
                     self.attempt.suspend_data = value
                     self.attempt.cmi_data['cmi.suspend_data'] = value
-                    # ENHANCED: Parse and sync progress from suspend data
-                    self._parse_and_sync_suspend_data(value)
             
             self.last_error = '0'
             return 'true'
@@ -566,17 +558,6 @@ class ScormAPIHandler:
             if not self.attempt.session_start_time:
                 self.attempt.session_start_time = timezone.now()
             self.attempt.session_end_time = timezone.now()
-            
-            # Update detailed tracking
-            if not self.attempt.detailed_tracking:
-                self.attempt.detailed_tracking = {}
-            
-            self.attempt.detailed_tracking.update({
-                'total_time_seconds': int(new_total),
-                'last_session_duration': total_seconds,
-                'session_count': self.attempt.detailed_tracking.get('session_count', 0) + 1,
-                'last_updated': timezone.now().isoformat()
-            })
             
         except Exception as e:
             logger.error(f"Error updating total time: {str(e)}")
@@ -693,13 +674,15 @@ class ScormAPIHandler:
                 'scorm_sync': True,  # Mark as synced
             })
             
-            # ENHANCED: More flexible completion status sync
+            # CMI-ONLY: Use only standard SCORM CMI completion status
             is_completed = (
-                self.attempt.lesson_status in ['passed', 'failed', 'completed'] or
-                (self.attempt.score_raw is not None and self.attempt.score_raw > 0) or
-                (self.attempt.suspend_data and any(keyword in self.attempt.suspend_data.lower() 
-                    for keyword in ['complete', 'done', 'qd', 'finished', 'passed', 'failed'])) or
-                (self.attempt.progress_percentage and self.attempt.progress_percentage >= 100)
+                self.attempt.lesson_status in ['completed', 'passed'] or
+                self.attempt.completion_status in ['completed', 'passed'] or
+                self.attempt.success_status in ['passed'] or
+                # Check CMI data fields directly
+                self.attempt.cmi_data.get('cmi.completion_status') in ['completed', 'passed'] or
+                self.attempt.cmi_data.get('cmi.core.lesson_status') in ['completed', 'passed'] or
+                self.attempt.cmi_data.get('cmi.success_status') in ['passed']
             )
             
             # Update completion status
@@ -745,153 +728,3 @@ class ScormAPIHandler:
         except Exception as e:
             logger.error(f"Error updating topic progress: {str(e)}")
     
-    def _update_slide_tracking(self, slide_location):
-        """Enhanced slide tracking with detailed navigation history"""
-        try:
-            current_time = timezone.now()
-            
-            # Update last visited slide
-            self.attempt.last_visited_slide = slide_location
-            
-            # Initialize tracking data if not exists
-            if not self.attempt.detailed_tracking:
-                self.attempt.detailed_tracking = {}
-            if not self.attempt.navigation_history:
-                self.attempt.navigation_history = []
-            
-            # Add to navigation history
-            navigation_entry = {
-                'slide': slide_location,
-                'timestamp': current_time.isoformat(),
-                'session_time': self.attempt.session_time,
-                'total_time': self.attempt.total_time
-            }
-            self.attempt.navigation_history.append(navigation_entry)
-            
-            # Update progress calculation
-            self._update_progress_calculation()
-            
-            # Update session data
-            if not self.attempt.session_data:
-                self.attempt.session_data = {}
-            
-            self.attempt.session_data.update({
-                'current_slide': slide_location,
-                'last_visit_time': current_time.isoformat(),
-                'session_duration': self.attempt.session_time
-            })
-            
-            logger.info(f"Updated slide tracking: {slide_location}")
-            
-        except Exception as e:
-            logger.error(f"Error updating slide tracking: {str(e)}")
-    
-    def _update_progress_calculation(self):
-        """Calculate and update progress percentage based on completed slides and suspend data"""
-        try:
-            if not self.attempt.detailed_tracking:
-                self.attempt.detailed_tracking = {}
-            
-            # Extract data from suspend data if available
-            completed_slides = []
-            progress_from_suspend = None
-            
-            if self.attempt.suspend_data:
-                # Parse suspend data for completed slides and progress
-                # Format: "progress=30&current_slide=3&completed_slides=1,2"
-                import re
-                
-                # Extract progress percentage from suspend data
-                progress_match = re.search(r'progress=(\d+)', self.attempt.suspend_data)
-                if progress_match:
-                    progress_from_suspend = int(progress_match.group(1))
-                
-                # Extract completed slides from suspend data
-                completed_match = re.search(r'completed_slides=([^&]+)', self.attempt.suspend_data)
-                if completed_match:
-                    completed_slides = completed_match.group(1).split(',')
-                    completed_slides = [s.strip() for s in completed_slides if s.strip()]
-            
-            # Update completed slides list
-            self.attempt.completed_slides = completed_slides
-            
-            # Calculate progress percentage - prioritize suspend data
-            if progress_from_suspend is not None:
-                # Use progress from suspend data (most accurate)
-                progress_percentage = progress_from_suspend
-                logger.info(f"Using progress from suspend data: {progress_percentage}%")
-            elif len(completed_slides) > 0:
-                # Calculate based on completed slides (conservative estimate)
-                progress_percentage = min(len(completed_slides) * 20, 100)  # 20% per slide, max 100%
-            else:
-                # Estimate based on current slide if total not set
-                try:
-                    current_slide_num = int(self.attempt.last_visited_slide.split('_')[-1]) if self.attempt.last_visited_slide else 1
-                    progress_percentage = min((current_slide_num / 10) * 100, 100)  # Assume 10 slides if unknown
-                except:
-                    progress_percentage = 0
-            
-            self.attempt.progress_percentage = progress_percentage
-            
-            # Update detailed tracking
-            self.attempt.detailed_tracking.update({
-                'completed_slides': completed_slides,
-                'progress_percentage': float(progress_percentage),
-                'current_slide': self.attempt.last_visited_slide,
-                'progress_source': 'suspend_data' if progress_from_suspend is not None else 'calculated',
-                'last_progress_update': timezone.now().isoformat()
-            })
-            
-            logger.info(f"Updated progress: {progress_percentage}%, completed slides: {completed_slides}")
-            
-        except Exception as e:
-            logger.error(f"Error updating progress calculation: {str(e)}")
-    
-    def _parse_and_sync_suspend_data(self, suspend_data):
-        """Parse suspend data and immediately sync progress to backend - ENHANCED FOR STORYLINE"""
-        try:
-            if not suspend_data:
-                return
-            
-            import re
-            
-            # ENHANCED: Check for Storyline completion patterns FIRST
-            # Removed: Now using only CMI-based completion logic
-            
-            # Parse progress from suspend data (generic patterns)
-            progress_match = re.search(r'progress=(\d+)', suspend_data)
-            current_slide_match = re.search(r'current_slide=([^&]+)', suspend_data)
-            completed_slides_match = re.search(r'completed_slides=([^&]+)', suspend_data)
-            
-            if progress_match:
-                progress_percentage = int(progress_match.group(1))
-                current_slide = current_slide_match.group(1) if current_slide_match else 'current'
-                completed_slides = []
-                
-                if completed_slides_match:
-                    completed_slides = [s.strip() for s in completed_slides_match.group(1).split(',') if s.strip()]
-                
-                # Update progress immediately
-                self.attempt.progress_percentage = progress_percentage
-                self.attempt.last_visited_slide = f'slide_{current_slide}' if current_slide != 'current' else 'current'
-                self.attempt.completed_slides = completed_slides
-                
-                # Update detailed tracking
-                if not self.attempt.detailed_tracking:
-                    self.attempt.detailed_tracking = {}
-                
-                self.attempt.detailed_tracking.update({
-                    'progress_percentage': float(progress_percentage),
-                    'current_slide': self.attempt.last_visited_slide,
-                    'completed_slides': completed_slides,
-                    'progress_source': 'suspend_data_parsing',
-                    'last_progress_update': timezone.now().isoformat(),
-                    'sync_method': 'automatic'
-                })
-                
-                logger.info(f"[SCORM SYNC] Progress {progress_percentage}% synced from suspend data")
-                
-        except Exception as e:
-            logger.error(f"Error parsing and syncing suspend data: {str(e)}")
-    
-

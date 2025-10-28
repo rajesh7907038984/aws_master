@@ -73,26 +73,11 @@ class EnhancedScormTimeTracker:
                     locked_attempt.session_end_time = now
                     locked_attempt.last_accessed = now
                     
-                    # Enhanced detailed tracking
-                    if not locked_attempt.detailed_tracking:
-                        locked_attempt.detailed_tracking = {}
-                    
-                    locked_attempt.detailed_tracking.update({
-                        'total_time_seconds': locked_attempt.time_spent_seconds,
-                        'last_session_duration': self._parse_scorm_time_to_seconds(session_time) if session_time else 0,
-                        'session_count': locked_attempt.detailed_tracking.get('session_count', 0) + 1,
-                        'last_updated': now.isoformat(),
-                        'save_attempt': attempt_num + 1,
-                        'scorm_version': self.scorm_version,
-                        'time_tracking_method': 'enhanced',
-                        'reliability_score': self._calculate_reliability_score(locked_attempt)
-                    })
-                    
-                    # Ensure required fields are properly initialized
-                    if not locked_attempt.navigation_history:
-                        locked_attempt.navigation_history = []
-                    if not locked_attempt.session_data:
-                        locked_attempt.session_data = {}
+                    # Ensure CMI data is properly initialized
+                    if not locked_attempt.cmi_data:
+                        locked_attempt.cmi_data = {}
+                    if not locked_attempt.cmi_data_history:
+                        locked_attempt.cmi_data_history = []
                     
                     # Enhanced validation before save
                     self._validate_attempt_before_save(locked_attempt)
@@ -357,15 +342,11 @@ class EnhancedScormTimeTracker:
     
     def _validate_attempt_before_save(self, attempt):
         """Validate attempt data before saving"""
-        # Ensure JSON fields are properly initialized
-        if not isinstance(attempt.navigation_history, list):
-            attempt.navigation_history = []
-        if not isinstance(attempt.detailed_tracking, dict):
-            attempt.detailed_tracking = {}
-        if not isinstance(attempt.session_data, dict):
-            attempt.session_data = {}
+        # Ensure CMI data fields are properly initialized
         if not isinstance(attempt.cmi_data, dict):
             attempt.cmi_data = {}
+        if not isinstance(attempt.cmi_data_history, list):
+            attempt.cmi_data_history = []
     
     def _calculate_reliability_score(self, attempt):
         """Calculate reliability score for time tracking"""
@@ -450,10 +431,9 @@ class ScormTimeTrackingMonitor:
         try:
             from scorm.models import ScormAttempt
             
-            # Check for failed time tracking saves
-            failed_attempts = ScormAttempt.objects.filter(
-                detailed_tracking__has_key='save_attempt',
-                detailed_tracking__save_attempt__gt=1
+            # Check for CMI data integrity
+            cmi_attempts = ScormAttempt.objects.filter(
+                cmi_data__isnull=False
             ).count()
             
             # Check for cache fallbacks
@@ -467,7 +447,7 @@ class ScormTimeTrackingMonitor:
             
             return {
                 'status': 'healthy',
-                'failed_attempts': failed_attempts,
+                'cmi_attempts': cmi_attempts,
                 'fallback_count': fallback_count,
                 'database_connected': True
             }

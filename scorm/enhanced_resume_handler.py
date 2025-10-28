@@ -61,7 +61,7 @@ class EnhancedScormResumeHandler:
             # Lectora has specific resume requirements
             has_progress = has_progress and (
                 self.attempt.lesson_location or
-                self.attempt.detailed_tracking
+                self.attempt.cmi_data
             )
         
         logger.info(f"RESUME: Can resume check - has_progress: {has_progress}, package_type: {package_type}")
@@ -109,13 +109,11 @@ class EnhancedScormResumeHandler:
         # Set entry mode to resume
         self.attempt.entry = 'resume'
         
-        # CRITICAL FIX: Initialize required fields to prevent validation errors
-        if not self.attempt.navigation_history:
-            self.attempt.navigation_history = []
-        if not self.attempt.detailed_tracking:
-            self.attempt.detailed_tracking = {}
-        if not self.attempt.session_data:
-            self.attempt.session_data = {}
+        # Initialize CMI data to prevent validation errors
+        if not self.attempt.cmi_data:
+            self.attempt.cmi_data = {}
+        if not self.attempt.cmi_data_history:
+            self.attempt.cmi_data_history = []
         
         if self.package.version == '1.2':
             cmi_data['cmi.core.entry'] = 'resume'
@@ -248,13 +246,11 @@ class EnhancedScormResumeHandler:
         # Set entry mode to resume (content will determine positioning)
         self.attempt.entry = 'resume'
         
-        # CRITICAL FIX: Initialize required fields to prevent validation errors
-        if not self.attempt.navigation_history:
-            self.attempt.navigation_history = []
-        if not self.attempt.detailed_tracking:
-            self.attempt.detailed_tracking = {}
-        if not self.attempt.session_data:
-            self.attempt.session_data = {}
+        # Initialize CMI data to prevent validation errors
+        if not self.attempt.cmi_data:
+            self.attempt.cmi_data = {}
+        if not self.attempt.cmi_data_history:
+            self.attempt.cmi_data_history = []
         
         if self.package.version == '1.2':
             cmi_data['cmi.core.entry'] = 'resume'

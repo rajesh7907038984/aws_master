@@ -443,7 +443,7 @@ def get_topic_progress(topic, user):
             from scorm.models import ScormPackage
             scorm_package = ScormPackage.objects.get(topic=topic)
             
-            # Use ONLY SCORM CMI data for completion determination (same logic for all package types)
+            # Use ONLY SCORM CMI data for completion determination (CMI-only approach)
             is_completed = (
                 # PRIMARY: Trust CMI completion status (proper SCORM standard)
                 latest_attempt.completion_status in ['completed', 'passed'] or
@@ -453,10 +453,7 @@ def get_topic_progress(topic, user):
                 # CMI DATA VALIDATION: Check CMI data fields
                 latest_attempt.cmi_data.get('cmi.completion_status') in ['completed', 'passed'] or
                 latest_attempt.cmi_data.get('cmi.core.lesson_status') in ['completed', 'passed'] or
-                latest_attempt.cmi_data.get('cmi.success_status') in ['passed'] or
-                
-                # BACKUP: Score-based completion (only if valid score exists)
-                (latest_attempt.score_raw is not None and latest_attempt.score_raw >= (scorm_package.mastery_score or 70))
+                latest_attempt.cmi_data.get('cmi.success_status') in ['passed']
             )
             
             if is_completed and not progress.completed:

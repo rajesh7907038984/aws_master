@@ -167,8 +167,8 @@ def has_scorm_progress(registration):
     if registration.total_time and registration.total_time > 0:
         return True
     
-    # Third check: Content is completed or passed (regardless of access time)
-    if registration.completion_status in ['completed', 'passed']:
+    # Third check: Content is completed or passed (CMI-only check)
+    if registration.completion_status in ['completed', 'passed'] or registration.lesson_status in ['completed', 'passed'] or registration.success_status == 'passed':
         return True
         
     # Fourth check: Has a score AND was accessed (prevents false positives from programmatic scores)
@@ -446,19 +446,20 @@ def get_activity_score(activity, student_id, grades, quiz_attempts, scorm_regist
                 ).first()
                 
                 if topic_progress and (topic_progress.last_score is not None or topic_progress.completed or topic_progress.attempts > 0 or topic_progress.last_accessed):
-                    # Calculate completion status
+                    # CMI-ONLY: Calculate completion status using only CMI data
                     completion_status = 'completed' if topic_progress.completed else 'incomplete'
                     
-                    # Determine success status based on score
+                    # CMI-ONLY: Determine success status based on CMI completion status
                     success_status = 'unknown'
-                    if topic_progress.last_score is not None:
-                        # Consider passed if score is 70% or higher
+                    if topic_progress.completed:
+                        # If TopicProgress shows completed, it means CMI completion was detected
+                        success_status = 'passed'
+                    elif topic_progress.last_score is not None:
+                        # Only use score for progress indication, not completion determination
                         if float(topic_progress.last_score) >= 70:
                             success_status = 'passed'
                         else:
                             success_status = 'failed'
-                    elif topic_progress.completed:
-                        success_status = 'passed'
                     elif (topic_progress.attempts > 0 or topic_progress.last_accessed) and not topic_progress.completed:
                         # Learner has attempted/accessed but not completed - consider as failed
                         success_status = 'failed'
@@ -643,9 +644,10 @@ def calculate_student_total(student_id, activities, grades, quiz_attempts, scorm
                                     score_percentage = Decimal(str(registration.score)) / Decimal('100')
                                     activity_score = score_percentage * activity_max_score
                                     
-                                    # Add to total only if completed or passed
-                                    if (registration.completion_status in ['completed', 'passed'] and 
-                                        registration.success_status != 'failed'):
+                                    # CMI-ONLY: Add to total only if completed or passed based on CMI data
+                                    if (registration.completion_status in ['completed', 'passed'] or 
+                                        registration.lesson_status in ['completed', 'passed'] or
+                                        registration.success_status == 'passed'):
                                         total_earned += activity_score
                                 break  # Use the first matching registration
                     

@@ -113,10 +113,7 @@ class ProgressCalculationService:
                 # CMI DATA VALIDATION: Check CMI data fields
                 latest_attempt.cmi_data.get('cmi.completion_status') in ['completed', 'passed'] or
                 latest_attempt.cmi_data.get('cmi.core.lesson_status') in ['completed', 'passed'] or
-                latest_attempt.cmi_data.get('cmi.success_status') in ['passed'] or
-                
-                # BACKUP: Score-based completion (only if valid score exists)
-                (latest_attempt.score_raw is not None and latest_attempt.score_raw >= (scorm_package.mastery_score or 70))
+                latest_attempt.cmi_data.get('cmi.success_status') in ['passed']
             )
             
             if is_completed:

@@ -383,13 +383,9 @@ class ScormAPIHandlerEnhanced:
         # CRITICAL FIX: Always save data on terminate, regardless of completion status
         # This ensures that time, progress, and location data are preserved
         
-        # Ensure JSON fields are properly initialized before saving
-        if self.attempt.navigation_history is None:
-            self.attempt.navigation_history = []
-        if self.attempt.detailed_tracking is None:
-            self.attempt.detailed_tracking = {}
-        if self.attempt.session_data is None:
-            self.attempt.session_data = {}
+        # Ensure CMI data is properly initialized before saving
+        if not self.attempt.cmi_data:
+            self.attempt.cmi_data = {}
         
         # Check if SCORM content explicitly set lesson_status via SetValue calls
         explicit_status_set = hasattr(self.attempt, '_explicit_status_set') and self.attempt._explicit_status_set
@@ -415,8 +411,7 @@ class ScormAPIHandlerEnhanced:
                 has_interaction = (
                     self.attempt.lesson_location or  # Has bookmark data
                     (self.attempt.suspend_data and len(self.attempt.suspend_data) > 5) or  # Has any progress data
-                    self.attempt.total_time != '0000:00:00.00' or  # Has spent time
-                    self.attempt.progress_percentage and self.attempt.progress_percentage > 0  # Has progress
+                    self.attempt.total_time != '0000:00:00.00'  # Has spent time
                 )
                 
                 if has_interaction:
@@ -721,13 +716,10 @@ class ScormAPIHandlerEnhanced:
                     logger.info("🔖 BOOKMARK UPDATE: lesson_location changed from '%s' to '%s' for attempt %s", 
                                old_location or 'None', value or 'None', self.attempt.id)
                     
-                    # CRITICAL FIX: Update progress tracking when location changes
-                    self._update_progress_from_location(value)
-                    
                     # ENHANCED: Immediate save for critical bookmark data to prevent data loss
                     try:
                         self.attempt.last_accessed = timezone.now()
-                        self.attempt.save(update_fields=['lesson_location', 'cmi_data', 'last_accessed', 'progress_percentage'])
+                        self.attempt.save(update_fields=['lesson_location', 'cmi_data', 'last_accessed'])
                         logger.info("🔖 BOOKMARK SAVED: Immediately saved lesson_location and CMI data")
                         # CRITICAL FIX: Update progress when location changes (indicates progress)
                         self._update_topic_progress()
@@ -1245,34 +1237,6 @@ class ScormAPIHandlerEnhanced:
         elif status == 'failed':
             self.attempt.success_status = 'failed'
     
-    def _calculate_scorm_1_2_progress(self):
-        """Calculate progress percentage for SCORM 1.2 based on lesson_status and other factors"""
-        try:
-            lesson_status = self.attempt.lesson_status
-            
-            # SCORM 1.2 progress calculation based on lesson_status
-            if lesson_status == 'completed':
-                return 100.0
-            elif lesson_status == 'passed':
-                return 100.0
-            elif lesson_status == 'failed':
-                return 100.0  # Failed but completed
-            elif lesson_status == 'incomplete':
-                # Check if there's location data to estimate progress
-                if self.attempt.lesson_location:
-                    # If there's a lesson location, assume some progress
-                    return 50.0
-                else:
-                    return 25.0  # Started but not much progress
-            elif lesson_status == 'browsed':
-                return 25.0  # Browsed but not completed
-            else:  # not_attempted
-                return 0.0
-                
-        except Exception as e:
-            logger.error(f"Error calculating SCORM 1.2 progress: {str(e)}")
-            return 0.0
-    
     def _update_total_time(self, session_time):
         """Update total time by adding session time with enhanced reliability"""
         try:
@@ -1580,13 +1544,9 @@ class ScormAPIHandlerEnhanced:
                             # Mark that this is being updated by the API handler to prevent signal conflicts
                             self.attempt._updating_from_api_handler = True
                             
-                            # Ensure JSON fields are properly initialized before validation
-                            if self.attempt.navigation_history is None:
-                                self.attempt.navigation_history = []
-                            if self.attempt.detailed_tracking is None:
-                                self.attempt.detailed_tracking = {}
-                            if self.attempt.session_data is None:
-                                self.attempt.session_data = {}
+                            # Ensure CMI data is properly initialized before validation
+                            if not self.attempt.cmi_data:
+                                self.attempt.cmi_data = {}
                             
                             # Enhanced validation
                             try:
@@ -1667,16 +1627,6 @@ class ScormAPIHandlerEnhanced:
         # Validate CMI data
         if not isinstance(self.attempt.cmi_data, dict):
             self.attempt.cmi_data = {}
-        
-        # Validate JSON fields
-        if not isinstance(self.attempt.navigation_history, list):
-            self.attempt.navigation_history = []
-        
-        if not isinstance(self.attempt.detailed_tracking, dict):
-            self.attempt.detailed_tracking = {}
-        
-        if not isinstance(self.attempt.session_data, dict):
-            self.attempt.session_data = {}
     
     def _fix_validation_errors(self, validation_error):
         """Fix common validation errors"""
@@ -1694,14 +1644,10 @@ class ScormAPIHandlerEnhanced:
                 # Fix time validation errors
                 if self.attempt.total_time:
                     self.attempt.total_time = str(self.attempt.total_time)
-            elif field in ['navigation_history', 'detailed_tracking', 'session_data']:
-                # Fix JSON field validation errors
-                if field == 'navigation_history' and not isinstance(self.attempt.navigation_history, list):
-                    self.attempt.navigation_history = []
-                elif field == 'detailed_tracking' and not isinstance(self.attempt.detailed_tracking, dict):
-                    self.attempt.detailed_tracking = {}
-                elif field == 'session_data' and not isinstance(self.attempt.session_data, dict):
-                    self.attempt.session_data = {}
+            elif field == 'cmi_data':
+                # Fix CMI data validation errors
+                if not isinstance(self.attempt.cmi_data, dict):
+                    self.attempt.cmi_data = {}
     
     def _build_interaction_data(self, index):
         """Build interaction data from CMI data for database storage"""
@@ -1871,10 +1817,7 @@ class ScormAPIHandlerEnhanced:
                 # Parse time spent from SCORM format to seconds
                 time_seconds = self._parse_scorm_time_to_seconds(self.attempt.total_time)
                 
-                # Calculate progress percentage for SCORM 1.2
-                progress_percentage = self._calculate_scorm_1_2_progress()
-                
-                # Update progress data with comprehensive tracking and sync metadata
+                # Update progress data with CMI data only
                 progress.progress_data = {
                     'scorm_attempt_id': self.attempt.id,
                     'lesson_status': self.attempt.lesson_status,
@@ -1890,7 +1833,6 @@ class ScormAPIHandlerEnhanced:
                     'suspend_data': self.attempt.suspend_data,
                     'entry': self.attempt.entry,
                     'exit_mode': self.attempt.exit_mode,
-                    'progress_percentage': progress_percentage,  # SCORM 1.2 calculated progress
                     'last_updated': timezone.now().isoformat(),
                     'sync_method': 'enhanced_api_handler',
                     'sync_timestamp': timezone.now().isoformat(),
@@ -2039,30 +1981,3 @@ class ScormAPIHandlerEnhanced:
             import traceback
             logger.error(traceback.format_exc())
     
-    def _update_progress_from_location(self, location):
-        """Update progress percentage based on lesson location"""
-        try:
-            if not location:
-                return
-            
-            # Extract slide number from location (e.g., "slide_1", "slide_2", etc.)
-            if 'slide_' in location.lower():
-                try:
-                    slide_num = int(location.split('_')[-1])
-                    # Estimate progress based on slide number
-                    # Use conservative progress estimation
-                    progress = min(slide_num * 10, 100)  # 10% per slide, max 100%
-                    
-                    self.attempt.progress_percentage = Decimal(str(progress))
-                    self.attempt.last_visited_slide = location
-                    self.attempt.completed_slides = slide_num
-                    
-                    logger.info(f"📊 PROGRESS: Updated to {progress}% based on location {location}")
-                    
-                except (ValueError, IndexError):
-                    # If we can't parse the slide number, just mark as in progress
-                    self.attempt.progress_percentage = Decimal('10.00')  # Minimal progress
-                    logger.info(f"📊 PROGRESS: Set minimal progress for location {location}")
-            
-        except Exception as e:
-            logger.error(f"❌ PROGRESS ERROR: Failed to update progress from location {location}: {str(e)}")

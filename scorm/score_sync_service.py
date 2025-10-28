@@ -184,7 +184,7 @@ class ScormScoreSyncService:
     @staticmethod
     def _extract_best_score(attempt: 'ScormAttempt') -> Optional[float]:
         """
-        Extract the best available score from a SCORM attempt
+        Extract the best available score from a SCORM attempt using only CMI data
         Checks multiple sources in priority order
         """
         scores = []
@@ -193,7 +193,7 @@ class ScormScoreSyncService:
         if attempt.score_raw is not None:
             scores.append(float(attempt.score_raw))
         
-        # Priority 2: CMI data scores
+        # Priority 2: CMI data scores only
         if attempt.cmi_data:
             # SCORM 2004
             cmi_score = attempt.cmi_data.get('cmi.score.raw')
@@ -218,10 +218,6 @@ class ScormScoreSyncService:
                     scores.append(float(scaled_score) * 100)
                 except:
                     pass
-        
-        # Priority 3: Progress percentage (if completed)
-        if attempt.lesson_status in ['completed', 'passed'] and attempt.progress_percentage:
-            scores.append(float(attempt.progress_percentage))
         
         # Return the highest score found
         return max(scores) if scores else None

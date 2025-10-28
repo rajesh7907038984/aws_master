@@ -94,10 +94,9 @@ class ScormTimeTrackingHealthMiddleware:
         try:
             from scorm.models import ScormAttempt
             
-            # Check for failed time tracking saves
-            failed_attempts = ScormAttempt.objects.filter(
-                detailed_tracking__has_key='save_attempt',
-                detailed_tracking__save_attempt__gt=1
+            # Check for CMI data integrity
+            cmi_attempts = ScormAttempt.objects.filter(
+                cmi_data__isnull=False
             ).count()
             
             # Check for cache fallbacks
@@ -111,7 +110,7 @@ class ScormTimeTrackingHealthMiddleware:
             
             health_status = {
                 'status': 'healthy',
-                'failed_attempts': failed_attempts,
+                'cmi_attempts': cmi_attempts,
                 'fallback_count': fallback_count,
                 'database_connected': True,
                 'timestamp': timezone.now().isoformat()

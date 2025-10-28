@@ -257,24 +257,6 @@ class ScormAttempt(models.Model):
         blank=True,
         help_text="Suspend data for resuming"
     )
-    # Additional progress tracking fields
-    last_visited_slide = models.CharField(
-        max_length=800,
-        blank=True,
-        help_text="Last visited slide/page identifier"
-    )
-    progress_percentage = models.DecimalField(
-        max_digits=5,
-        decimal_places=2,
-        default=0.00,
-        help_text="Progress percentage (0-100)"
-    )
-    navigation_history = models.JSONField(
-        default=list,
-        blank=True,
-        help_text="History of slide navigation with timestamps"
-    )
-    
     # Additional SCORM data
     entry = models.CharField(
         max_length=20,
@@ -293,17 +275,6 @@ class ScormAttempt(models.Model):
         default=list,
         blank=True,
         help_text="Complete history of CMI data changes with timestamps"
-    )
-    # Additional tracking data
-    detailed_tracking = models.JSONField(
-        default=dict,
-        blank=True,
-        help_text="Detailed tracking data including slide visits, time per slide, etc."
-    )
-    session_data = models.JSONField(
-        default=dict,
-        blank=True,
-        help_text="Current session data including start time, current slide, etc."
     )
     
     
@@ -346,13 +317,7 @@ class ScormAttempt(models.Model):
         """Custom validation to ensure JSON fields are properly initialized"""
         super().clean()
         
-        # Ensure JSON fields are never None
-        if self.navigation_history is None:
-            self.navigation_history = []
-        if self.detailed_tracking is None:
-            self.detailed_tracking = {}
-        if self.session_data is None:
-            self.session_data = {}
+        # Ensure CMI data fields are never None
         if self.cmi_data is None:
             self.cmi_data = {}
         if self.cmi_data_history is None:

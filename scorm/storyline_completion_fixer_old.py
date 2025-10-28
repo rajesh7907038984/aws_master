@@ -167,11 +167,11 @@ class ScormCompletionFixer:
                 attempt.cmi_data['cmi.success_status'] = attempt.success_status
                 attempt.cmi_data['cmi.core.score.raw'] = str(attempt.score_raw)
                 
-                # Update detailed tracking
-                if not attempt.detailed_tracking:
-                    attempt.detailed_tracking = {}
+                # Update CMI data
+                if not attempt.cmi_data:
+                    attempt.cmi_data = {}
                 
-                attempt.detailed_tracking.update({
+                attempt.cmi_data.update({
                     'storyline_completion_detected': True,
                     'completion_reason': analysis['reason'],
                     'completion_source': 'package_specific_criteria',

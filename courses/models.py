@@ -2439,21 +2439,28 @@ class TopicProgress(models.Model):
                     if total_attempts > self.attempts:
                         self.attempts = total_attempts
                     
-                    # Check if should be marked as completed based on lesson_status OR Storyline completion
+                    # CMI-ONLY: Check completion using only CMI data
                     lesson_status_lower = latest_attempt.lesson_status.lower() if latest_attempt.lesson_status else ''
+                    completion_status_lower = latest_attempt.completion_status.lower() if latest_attempt.completion_status else ''
+                    success_status_lower = latest_attempt.success_status.lower() if latest_attempt.success_status else ''
+
                     should_complete = (
-                        lesson_status_lower in ['completed', 'passed', 'failed'] or 
-                        storyline_completed
+                        lesson_status_lower in ['completed', 'passed'] or
+                        completion_status_lower in ['completed', 'passed'] or
+                        success_status_lower == 'passed' or
+                        # Check CMI data fields
+                        latest_attempt.cmi_data.get('cmi.completion_status', '').lower() in ['completed', 'passed'] or
+                        latest_attempt.cmi_data.get('cmi.core.lesson_status', '').lower() in ['completed', 'passed'] or
+                        latest_attempt.cmi_data.get('cmi.success_status', '').lower() == 'passed'
                     )
                     
                     if not self.completed and should_complete:
-                        # Mark as completed if lesson_status indicates the activity was finished
-                        # OR if Storyline completion patterns are detected
+                        # Mark as completed if CMI completion status indicates the activity was finished
                         self.completed = True
                         if not self.completed_at:
                             self.completed_at = latest_attempt.last_accessed or timezone.now()
                         self.completion_method = 'scorm'
-                        logger.info(f"SCORM_SYNC: Marked topic {self.topic.id} as completed for user {self.user.username} (lesson_status: {latest_attempt.lesson_status}, storyline_completed: {storyline_completed})")
+                        logger.info(f"SCORM_SYNC: Marked topic {self.topic.id} as completed for user {self.user.username} (CMI completion status detected)")
                     
                     logger.info(f"SCORM_SYNC: Updated scores for topic {self.topic.id}, user {self.user.username} - last_score: {old_last_score} -> {self.last_score}, best_score: {old_best_score} -> {self.best_score}, attempts: {self.attempts}")
                     return True
