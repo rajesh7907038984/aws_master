@@ -20,6 +20,11 @@ class EnhancedScormResumeHandler:
         self.package = attempt.scorm_package
         self.user = attempt.user
     
+    def _get_schema_default(self, field):
+        """Get schema-defined default value for a field based on SCORM version"""
+        from .cmi_data_handler import CMIDataHandler
+        return CMIDataHandler.get_schema_default(field, self.package.version)
+    
     def can_resume(self) -> bool:
         """
         Enhanced check if this attempt can be resumed with format-specific logic
@@ -124,10 +129,10 @@ class EnhancedScormResumeHandler:
                 cmi_data['cmi.suspend_data'] = self.attempt.suspend_data
                 logger.info(f"RESUME: Set suspend_data ({len(self.attempt.suspend_data)} chars)")
             
-            # Set other required fields
-            cmi_data['cmi.core.lesson_status'] = self.attempt.lesson_status or 'not attempted'
-            cmi_data['cmi.core.lesson_mode'] = 'normal'
-            cmi_data['cmi.core.credit'] = 'credit'
+            # Set other required fields with schema defaults
+            cmi_data['cmi.core.lesson_status'] = self.attempt.lesson_status or self._get_schema_default('cmi.core.lesson_status')
+            cmi_data['cmi.core.lesson_mode'] = self._get_schema_default('cmi.core.lesson_mode')
+            cmi_data['cmi.core.credit'] = self._get_schema_default('cmi.core.credit')
             cmi_data['cmi.core.student_id'] = str(self.user.id) if self.user else 'student'
             cmi_data['cmi.core.student_name'] = self.user.get_full_name() or self.user.username if self.user else 'Student'
             
@@ -140,10 +145,11 @@ class EnhancedScormResumeHandler:
                 logger.info(f"RESUME: Set location: {self.attempt.lesson_location}")
             elif self.attempt.suspend_data:
                 # CRITICAL FIX: If we have suspend_data but no lesson_location, 
-                # set a default location to enable resume functionality
-                default_location = "resume_point_1"
+                # set a schema-defined default location to enable resume functionality
+                schema_default = self._get_schema_default('cmi.location')
+                default_location = schema_default or 'lesson_1'
                 cmi_data['cmi.location'] = default_location
-                logger.info(f"RESUME: Set default location for resume: {default_location}")
+                logger.info(f"RESUME: Set schema-defined default location for resume: {default_location}")
             
             if self.attempt.suspend_data:
                 cmi_data['cmi.suspend_data'] = self.attempt.suspend_data
@@ -156,9 +162,11 @@ class EnhancedScormResumeHandler:
                 cmi_data['cmi.success_status'] = 'unknown'
                 logger.info("SCORM 2004 STORYLINE: Resume detected - set completion_status='incomplete'")
             else:
-                # No bookmark data, use existing status
-                cmi_data['cmi.completion_status'] = self.attempt.completion_status or 'not attempted'
-                cmi_data['cmi.success_status'] = self.attempt.success_status or 'unknown'
+                # No bookmark data, use existing status with schema defaults
+                schema_completion_default = self._get_schema_default('cmi.completion_status')
+                schema_success_default = self._get_schema_default('cmi.success_status')
+                cmi_data['cmi.completion_status'] = self.attempt.completion_status or schema_completion_default
+                cmi_data['cmi.success_status'] = self.attempt.success_status or schema_success_default
             
             cmi_data['cmi.learner_id'] = str(self.user.id) if self.user else 'student'
             cmi_data['cmi.learner_name'] = self.user.get_full_name() or self.user.username if self.user else 'Student'
@@ -251,10 +259,10 @@ class EnhancedScormResumeHandler:
         if self.package.version == '1.2':
             cmi_data['cmi.core.entry'] = 'resume'
             
-            # Set basic CMI data
-            cmi_data['cmi.core.lesson_status'] = self.attempt.lesson_status or 'not attempted'
-            cmi_data['cmi.core.lesson_mode'] = 'normal'
-            cmi_data['cmi.core.credit'] = 'credit'
+            # Set basic CMI data with schema defaults
+            cmi_data['cmi.core.lesson_status'] = self.attempt.lesson_status or self._get_schema_default('cmi.core.lesson_status')
+            cmi_data['cmi.core.lesson_mode'] = self._get_schema_default('cmi.core.lesson_mode')
+            cmi_data['cmi.core.credit'] = self._get_schema_default('cmi.core.credit')
             cmi_data['cmi.core.student_id'] = str(self.user.id) if self.user else 'student'
             cmi_data['cmi.core.student_name'] = self.user.get_full_name() or self.user.username if self.user else 'Student'
             

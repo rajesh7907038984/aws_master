@@ -81,7 +81,7 @@ class ProgressCalculationService:
     
     @classmethod
     def _calculate_scorm_progress(cls, progress, topic) -> Dict[str, Any]:
-        """Calculate progress for SCORM content"""
+        """Calculate progress for SCORM content using ONLY CMI data"""
         try:
             # Get native SCORM package data
             from scorm.models import ScormPackage, ScormAttempt
@@ -101,15 +101,23 @@ class ProgressCalculationService:
             if not latest_attempt:
                 return {'completion_percentage': 0.0}
             
-            # Calculate based on SCORM completion status and score requirements
+            # Use ONLY SCORM CMI data for completion determination
             completion_percentage = 0.0
             
-            # Check completion based on SCORM version
-            is_completed = False
-            if scorm_package.version == '1.2':
-                is_completed = latest_attempt.lesson_status in ['completed', 'passed']
-            else:  # SCORM 2004
-                is_completed = latest_attempt.completion_status == 'completed'
+            # PRIMARY: Check CMI completion status (proper SCORM standard)
+            is_completed = (
+                latest_attempt.completion_status in ['completed', 'passed'] or
+                latest_attempt.lesson_status in ['completed', 'passed'] or
+                latest_attempt.success_status in ['passed'] or
+                
+                # CMI DATA VALIDATION: Check CMI data fields
+                latest_attempt.cmi_data.get('cmi.completion_status') in ['completed', 'passed'] or
+                latest_attempt.cmi_data.get('cmi.core.lesson_status') in ['completed', 'passed'] or
+                latest_attempt.cmi_data.get('cmi.success_status') in ['passed'] or
+                
+                # BACKUP: Score-based completion (only if valid score exists)
+                (latest_attempt.score_raw is not None and latest_attempt.score_raw >= (scorm_package.mastery_score or 70))
+            )
             
             if is_completed:
                 # Check if there's a mastery score requirement
@@ -124,12 +132,11 @@ class ProgressCalculationService:
                 else:
                     completion_percentage = 100.0
             else:
-                # Calculate partial progress based on available data
-                if progress.progress_data.get('completion_percent'):
-                    completion_percentage = float(progress.progress_data['completion_percent'])
-                elif latest_attempt.score_raw:
-                    # Estimate progress based on score
+                # Use only CMI score data for partial progress
+                if latest_attempt.score_raw:
                     completion_percentage = min(float(latest_attempt.score_raw), 90.0)
+                else:
+                    completion_percentage = 0.0
             
             return {
                 'completion_percentage': completion_percentage,

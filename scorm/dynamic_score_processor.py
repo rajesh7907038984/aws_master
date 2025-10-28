@@ -181,11 +181,11 @@ class DynamicScormScoreProcessor:
                 logger.info(f"Dynamic Processor: Extracted numeric score: {numeric_score}")
                 return numeric_score
             
-            # STORYLINE FIX: Handle custom Storyline format
-            custom_score = self._extract_custom_storyline_score(decoded_data)
-            if custom_score is not None:
-                logger.info(f"Dynamic Processor: Extracted custom Storyline score: {custom_score}")
-                return custom_score
+            # Use ONLY SCORM CMI data for score extraction
+            cmi_score = self._extract_cmi_score(decoded_data)
+            if cmi_score is not None:
+                logger.info(f"Dynamic Processor: Extracted CMI score: {cmi_score}")
+                return cmi_score
                 
             logger.warning(f"Dynamic Processor: No valid score found in suspend data for attempt {self.attempt.id}")
             return None
@@ -218,90 +218,49 @@ class DynamicScormScoreProcessor:
         
         return None
     
-    def _extract_custom_storyline_score(self, decoded_data):
-        """Extract score from custom Storyline format based on package type"""
+    def _extract_cmi_score(self, decoded_data):
+        """Extract score using proper SCORM CMI data - NO CUSTOM CALCULATIONS"""
         try:
-            # Check if this is our custom decoded format
-            if decoded_data.startswith('{') and 'custom_storyline' in decoded_data:
-                import json
-                decoded_info = json.loads(decoded_data)
-                
-                package_type = decoded_info.get('package_type', 'unknown')
-                score_source = decoded_info.get('score_source', 'unknown')
-                
-                logger.info(f"Custom Storyline: Package type detected: {package_type}")
-                
-                # Handle different package types
-                if package_type == 'quiz_based':
-                    # For quiz-based packages, use the quiz score
-                    if 'potential_score' in decoded_info:
-                        score = decoded_info['potential_score']
-                        logger.info(f"Custom Storyline: Quiz-based score: {score}")
-                        return score
-                    else:
-                        logger.warning("Custom Storyline: Quiz-based package but no quiz score found")
-                        return None
-                        
-                elif package_type == 'slide_completion':
-                    # For slide completion packages, calculate based on slides visited
-                    visited_slides = decoded_info.get('visited_slides', 0)
-                    total_slides = decoded_info.get('total_slides', visited_slides)
-                    
-                    if visited_slides > 0:
-                        if total_slides > 0:
-                            completion_percentage = (visited_slides / total_slides) * 100
-                            logger.info(f"Custom Storyline: Slide completion: {visited_slides}/{total_slides} = {completion_percentage}%")
-                            return completion_percentage
-                        else:
-                            # If we don't know total slides, assume completion if multiple slides visited
-                            if visited_slides >= 3:
-                                logger.info(f"Custom Storyline: Multiple slides visited ({visited_slides}) - assuming 100% completion")
-                                return 100.0
-                            else:
-                                completion_percentage = (visited_slides / 5) * 100  # Assume 5 total slides
-                                logger.info(f"Custom Storyline: Estimated completion: {completion_percentage}%")
-                                return completion_percentage
-                    else:
-                        logger.warning("Custom Storyline: Slide completion package but no slides visited")
-                        return None
-                        
-                elif package_type == 'percentage_based':
-                    # For percentage-based packages, use the percentage score
-                    if 'potential_score' in decoded_info:
-                        score = decoded_info['potential_score']
-                        logger.info(f"Custom Storyline: Percentage-based score: {score}%")
-                        return score
-                    else:
-                        logger.warning("Custom Storyline: Percentage-based package but no percentage found")
-                        return None
-                        
-                else:  # unknown package type
-                    # Fallback logic for unknown package types
-                    if 'potential_score' in decoded_info:
-                        score = decoded_info['potential_score']
-                        logger.info(f"Custom Storyline: Unknown package type, using extracted score: {score}")
-                        return score
-                    
-                    # If we have completion evidence but no specific score
-                    if decoded_info.get('has_completion', False):
-                        visited_slides = decoded_info.get('visited_slides', 0)
-                        if visited_slides > 0:
-                            # Assume completion-based scoring
-                            if visited_slides >= 5:
-                                logger.info(f"Custom Storyline: Unknown type, multiple slides visited - assuming 100%")
-                                return 100.0
-                            else:
-                                completion_percentage = (visited_slides / 5) * 100
-                                logger.info(f"Custom Storyline: Unknown type, estimated completion: {completion_percentage}%")
-                                return completion_percentage
-                        else:
-                            logger.info("Custom Storyline: Unknown type, completion detected - assuming 100%")
-                            return 100.0
+            # PRIMARY: Look for CMI score data first
+            cmi_score_patterns = [
+                r'cmi\.core\.score\.raw["\s:]*(\d+(?:\.\d+)?)',  # SCORM 1.2 score
+                r'cmi\.score\.raw["\s:]*(\d+(?:\.\d+)?)',        # SCORM 2004 score
+                r'cmi\.core\.score\.scaled["\s:]*(\d+(?:\.\d+)?)', # SCORM 1.2 scaled
+                r'cmi\.score\.scaled["\s:]*(\d+(?:\.\d+)?)',     # SCORM 2004 scaled
+            ]
             
+            for pattern in cmi_score_patterns:
+                score_match = re.search(pattern, decoded_data, re.IGNORECASE)
+                if score_match:
+                    score = float(score_match.group(1))
+                    if 0 <= score <= 100:
+                        logger.info(f"Dynamic Processor: Found CMI score {score}% using pattern {pattern}")
+                        return score
+            
+            # SECONDARY: Look for CMI completion status for pass/fail
+            cmi_completion_patterns = [
+                r'cmi\.completion_status["\s:]*["\']?(completed|passed|failed)["\']?',
+                r'cmi\.core\.lesson_status["\s:]*["\']?(completed|passed|failed)["\']?',
+                r'cmi\.success_status["\s:]*["\']?(passed|failed)["\']?',
+            ]
+            
+            for pattern in cmi_completion_patterns:
+                status_match = re.search(pattern, decoded_data, re.IGNORECASE)
+                if status_match:
+                    status = status_match.group(1).lower()
+                    if status in ['completed', 'passed']:
+                        logger.info(f"Dynamic Processor: Found completion status '{status}' - scoring as 100%")
+                        return 100.0
+                    elif status == 'failed':
+                        logger.info(f"Dynamic Processor: Found completion status '{status}' - scoring as 0%")
+                        return 0.0
+            
+            # NO CUSTOM CALCULATIONS - Only use SCORM CMI data
+            logger.info(f"Dynamic Processor: No valid CMI data found for score extraction")
             return None
             
         except Exception as e:
-            logger.warning(f"Failed to extract custom Storyline score: {e}")
+            logger.warning(f"Dynamic Processor: Failed to extract CMI score: {e}")
             return None
     
     def _decode_suspend_data(self, suspend_data):
@@ -367,51 +326,37 @@ class DynamicScormScoreProcessor:
             # IMPROVED: Detect package type based on suspend data patterns
             import re
             
-            # Count visited slides to determine completion percentage
-            visited_count = suspend_data.count('Visited')
-            if visited_count > 0:
-                decoded_info['visited_slides'] = visited_count
+            # Check for completion indicators
+            if 'Visited' in suspend_data:
                 decoded_info['has_completion'] = True
             
-            # Detect package type based on patterns - PRIORITIZE SLIDE COMPLETION
-            quiz_indicators = ['quiz', 'question', 'answer', 'correct', 'wrong', 'assessment']
-            slide_indicators = ['Visited', 'visited', 'slide', 'page']
-            percentage_indicators = ['%', 'percent', 'completion']
+            # Use ONLY SCORM CMI data for package type detection
+            # Look for CMI completion status indicators
+            cmi_indicators = ['cmi.completion_status', 'cmi.core.lesson_status', 'cmi.success_status']
+            cmi_count = sum(1 for indicator in cmi_indicators if indicator in suspend_data.lower())
             
-            quiz_count = sum(1 for indicator in quiz_indicators if indicator in suspend_data.lower())
-            slide_count = sum(1 for indicator in slide_indicators if indicator in suspend_data.lower())
-            percent_count = sum(1 for indicator in percentage_indicators if indicator in suspend_data.lower())
-            
-            # CRITICAL FIX: Prioritize slide completion over quiz detection
-            # If we find "Visited" markers, this is definitely slide-based SCORM
-            if visited_count > 0:
-                decoded_info['package_type'] = 'slide_completion'
-                logger.info(f"Dynamic Processor: Detected slide-completion SCORM with {visited_count} visited slides")
-            elif quiz_count > 0:
-                decoded_info['package_type'] = 'quiz_based'
-            elif percent_count > 0:
-                decoded_info['package_type'] = 'percentage_based'
+            if cmi_count > 0:
+                decoded_info['package_type'] = 'cmi_based'
+                logger.info(f"Dynamic Processor: Detected CMI-based SCORM")
             else:
                 decoded_info['package_type'] = 'unknown'
             
-            # Extract scores based on package type
-            if decoded_info['package_type'] == 'quiz_based':
-                # Look for quiz-specific score patterns
-                quiz_patterns = [
-                    r'score["\s:]*(\d+)',           # score: 50
-                    r'result["\s:]*(\d+)',          # result: 50
-                    r'correct["\s:]*(\d+)',         # correct: 5
-                    r'wrong["\s:]*(\d+)',           # wrong: 5
-                    r'(\d+)\s*/\s*\d+',             # 5/10 format
-                    r'(\d+)\s*out\s*of\s*\d+',     # 5 out of 10
+            # Extract scores based on CMI data only
+            if decoded_info['package_type'] == 'cmi_based':
+                # Look for CMI score patterns
+                cmi_score_patterns = [
+                    r'cmi\.core\.score\.raw["\s:]*(\d+(?:\.\d+)?)',  # SCORM 1.2 score
+                    r'cmi\.score\.raw["\s:]*(\d+(?:\.\d+)?)',        # SCORM 2004 score
+                    r'cmi\.core\.score\.scaled["\s:]*(\d+(?:\.\d+)?)', # SCORM 1.2 scaled
+                    r'cmi\.score\.scaled["\s:]*(\d+(?:\.\d+)?)',     # SCORM 2004 scaled
                 ]
                 
                 potential_scores = []
-                for pattern in quiz_patterns:
+                for pattern in cmi_score_patterns:
                     matches = re.findall(pattern, suspend_data, re.IGNORECASE)
                     for match in matches:
                         try:
-                            score = int(match)
+                            score = float(match)
                             if 0 <= score <= 100:
                                 potential_scores.append(score)
                         except ValueError:
@@ -419,76 +364,7 @@ class DynamicScormScoreProcessor:
                 
                 if potential_scores:
                     decoded_info['potential_score'] = max(potential_scores)
-                    decoded_info['score_source'] = 'quiz_patterns'
-                    
-            elif decoded_info['package_type'] == 'slide_completion':
-                # Calculate score based on slide completion
-                if visited_count > 0:
-                    # CRITICAL FIX: Only mark as completed if there's clear completion evidence
-                    has_completion_evidence = (
-                        'complete' in decoded_data.lower() or
-                        'finished' in decoded_data.lower() or
-                        'done' in decoded_data.lower() or
-                        'passed' in decoded_data.lower() or
-                        'failed' in decoded_data.lower() or
-                        '"qd"true' in decoded_data or
-                        'qd":true' in decoded_data or
-                        'qd"true' in decoded_data
-                    )
-                    
-                    if has_completion_evidence:
-                        # User has completion evidence - mark as 100% completed
-                        decoded_info['potential_score'] = 100.0
-                        decoded_info['score_source'] = 'slide_completion_with_evidence'
-                        decoded_info['total_slides'] = visited_count
-                        logger.info(f"Dynamic Processor: Slide completion with evidence - {visited_count} slides = 100% score")
-                    else:
-                        # CRITICAL FIX: Don't give partial scores for incomplete content
-                        # If user exits early without completion evidence, don't assign any score
-                        logger.info(f"Dynamic Processor: User visited {visited_count} slides but no completion evidence - no score assigned")
-                        decoded_info['potential_score'] = None
-                        decoded_info['score_source'] = 'incomplete_no_evidence'
-                        decoded_info['total_slides'] = visited_count
-                    
-            elif decoded_info['package_type'] == 'percentage_based':
-                # Look for percentage patterns
-                percent_patterns = [
-                    r'(\d+)%',                      # 50%
-                    r'percent["\s:]*(\d+)',        # percent: 50
-                    r'completion["\s:]*(\d+)',     # completion: 50
-                ]
-                
-                potential_scores = []
-                for pattern in percent_patterns:
-                    matches = re.findall(pattern, suspend_data, re.IGNORECASE)
-                    for match in matches:
-                        try:
-                            score = int(match)
-                            if 0 <= score <= 100:
-                                potential_scores.append(score)
-                        except ValueError:
-                            continue
-                
-                if potential_scores:
-                    decoded_info['potential_score'] = max(potential_scores)
-                    decoded_info['score_source'] = 'percentage_patterns'
-            
-            # Fallback: Look for any reasonable scores if no specific type detected
-            if 'potential_score' not in decoded_info:
-                isolated_numbers = re.findall(r'(?<![0-9])(\d{2,3})(?![0-9])', suspend_data)
-                valid_scores = []
-                
-                for num in isolated_numbers:
-                    score = int(num)
-                    if 0 <= score <= 100:
-                        # Only consider it a score if it's in a reasonable range
-                        if score in [0, 25, 50, 75, 100] or (10 <= score <= 90):
-                            valid_scores.append(score)
-                
-                if valid_scores:
-                    decoded_info['potential_score'] = max(valid_scores)
-                    decoded_info['score_source'] = 'isolated_numbers'
-                    decoded_info['package_type'] = 'unknown'
+                    decoded_info['score_source'] = 'cmi_score_patterns'
             
             return json.dumps(decoded_info)
             
@@ -497,59 +373,18 @@ class DynamicScormScoreProcessor:
             return suspend_data
     
     def _has_completion_evidence(self, decoded_data):
-        """Check if there's evidence of actual completion based on detected format"""
+        """Check if there's evidence of completion using SCORM CMI data only"""
         
-        # CRITICAL FIX: Check for slide completion FIRST
-        visited_count = decoded_data.count('Visited')
-        if visited_count >= 3:
-            logger.info(f"Dynamic Processor: Found slide completion evidence - {visited_count} visited slides")
-            return True
-        
-        format_patterns = self.COMPLETION_PATTERNS.get(self.detected_format, []).copy()
-        
-        # Add generic completion patterns
-        format_patterns.extend(self.COMPLETION_PATTERNS['generic_scorm'])
-        
-        # STORYLINE FIX: Handle custom Storyline format
-        try:
-            if decoded_data.startswith('{') and 'custom_storyline' in decoded_data:
-                # This is our custom decoded format
-                import json
-                decoded_info = json.loads(decoded_data)
-                if decoded_info.get('has_completion', False):
-                    logger.info(f"Custom Storyline format shows completion evidence: {decoded_info.get('completion_indicators', [])}")
-                    return True
-        except Exception:
-            pass
-        
-        # CRITICAL FIX: Add the working patterns for the specific format we're seeing
-        if self.detected_format == 'articulate_storyline':
-            format_patterns.extend([
-                r'qd"["\s]*true',                # The pattern that actually works
-                r'qd["\s:]*true',                # Variations
-                r'"qd"["\s:]*true',              # More variations
-            ])
-        
-        for pattern in format_patterns:
-            try:
-                if re.search(pattern, decoded_data, re.IGNORECASE):
-                    logger.info(f"Dynamic Processor: Found completion evidence using pattern: {pattern}")
-                    return True
-            except re.error as e:
-                logger.warning(f"Dynamic Processor: Invalid regex pattern '{pattern}': {e}")
-                continue
-        
-        # Additional manual checks for problematic formats
-        manual_checks = [
-            'qd"true' in decoded_data,
-            '"qd"true' in decoded_data,
-            'quiz_done' in decoded_data.lower(),
-            'assessment_complete' in decoded_data.lower(),
+        # Use ONLY SCORM CMI completion status
+        cmi_completion_patterns = [
+            r'cmi\.completion_status["\s:]*["\']?(completed|passed|failed)["\']?',
+            r'cmi\.core\.lesson_status["\s:]*["\']?(completed|passed|failed)["\']?',
+            r'cmi\.success_status["\s:]*["\']?(passed|failed)["\']?',
         ]
         
-        for i, check in enumerate(manual_checks):
-            if check:
-                logger.info(f"Dynamic Processor: Found completion evidence via manual check #{i+1}")
+        for pattern in cmi_completion_patterns:
+            if re.search(pattern, decoded_data, re.IGNORECASE):
+                logger.info(f"Dynamic Processor: Found CMI completion evidence")
                 return True
         
         return False

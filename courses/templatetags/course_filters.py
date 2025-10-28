@@ -439,16 +439,34 @@ def get_topic_progress(topic, user):
         ).order_by('-id').first()
         
         if latest_attempt:
-            # Sync completion status from latest attempt
-            if latest_attempt.lesson_status in ['completed', 'passed']:
-                if not progress.completed:
-                    progress.completed = True
-                    progress.completion_method = 'scorm'
-                    progress.last_score = latest_attempt.score_raw
-                    if not progress.completed_at:
-                        progress.completed_at = timezone.now()
-                    progress.save()
-                    logger.info(f"🔄 TEMPLATE SYNC: Fixed SCORM completion for topic {topic.id}, user {user.username}")
+            # Sync completion status from latest attempt - use ONLY CMI data
+            from scorm.models import ScormPackage
+            scorm_package = ScormPackage.objects.get(topic=topic)
+            
+            # Use ONLY SCORM CMI data for completion determination (same logic for all package types)
+            is_completed = (
+                # PRIMARY: Trust CMI completion status (proper SCORM standard)
+                latest_attempt.completion_status in ['completed', 'passed'] or
+                latest_attempt.lesson_status in ['completed', 'passed'] or
+                latest_attempt.success_status in ['passed'] or
+                
+                # CMI DATA VALIDATION: Check CMI data fields
+                latest_attempt.cmi_data.get('cmi.completion_status') in ['completed', 'passed'] or
+                latest_attempt.cmi_data.get('cmi.core.lesson_status') in ['completed', 'passed'] or
+                latest_attempt.cmi_data.get('cmi.success_status') in ['passed'] or
+                
+                # BACKUP: Score-based completion (only if valid score exists)
+                (latest_attempt.score_raw is not None and latest_attempt.score_raw >= (scorm_package.mastery_score or 70))
+            )
+            
+            if is_completed and not progress.completed:
+                progress.completed = True
+                progress.completion_method = 'scorm'
+                progress.last_score = latest_attempt.score_raw
+                if not progress.completed_at:
+                    progress.completed_at = timezone.now()
+                progress.save()
+                logger.info(f"🔄 TEMPLATE SYNC: Fixed SCORM completion for topic {topic.id}, user {user.username}")
             
             # Update progress_data with latest SCORM data
             if not isinstance(progress.progress_data, dict):
@@ -694,30 +712,67 @@ def next_incomplete_topic(course, user):
 
 @register.filter
 def is_completed(topic, user):
-    """Check if a topic is completed by the user"""
+    """Check if a topic is completed by the user - Preserve quiz functionality"""
     if not user.is_authenticated:
         return False
         
     try:
         progress = TopicProgress.objects.get(topic=topic, user=user)
         
-        # For SCORM content, also check progress_data for completion status
+        # For SCORM content, use different logic based on package type
         if topic.content_type == 'SCORM':
-            # Check main completed field first
+            # PRIORITY 1: Check main completed field
             if progress.completed:
                 return True
+            
+            # PRIORITY 2: Check SCORM attempt data
+            try:
+                from scorm.models import ScormAttempt, ScormPackage
+                scorm_package = ScormPackage.objects.get(topic=topic)
+                latest_attempt = ScormAttempt.objects.filter(
+                    user=user,
+                    scorm_package=scorm_package
+                ).order_by('-last_accessed').first()
                 
-            # If not completed, check if progress_data indicates completion
-            if (isinstance(progress.progress_data, dict) and 
-                progress.progress_data.get('completion_status') in ['completed', 'passed']):
-                # Auto-fix the completion status (restored for real-time sync)
-                progress.completed = True
-                progress.completion_method = 'scorm'
-                if not progress.completed_at:
-                    progress.completed_at = timezone.now()
-                progress.save()
-                logger.info(f"Auto-fixed SCORM completion in is_completed filter for topic {topic.id}, user {user.username}")
-                return True
+                if latest_attempt:
+                    # DIFFERENT LOGIC FOR QUIZ vs SLIDE-BASED
+                    if scorm_package.is_quiz_based():
+                        # QUIZ-BASED: Use standard SCORM completion logic
+                        if latest_attempt.lesson_status in ['completed', 'passed']:
+                            progress.completed = True
+                            progress.completion_method = 'scorm'
+                            if not progress.completed_at:
+                                progress.completed_at = timezone.now()
+                            progress.save()
+                            logger.info(f"Quiz SCORM completion synced for topic {topic.id}, user {user.username}")
+                            return True
+                    
+                    elif scorm_package.is_slide_based():
+                        # SLIDE-BASED: Use ONLY CMI completion status (proper SCORM standard)
+                        if (latest_attempt.lesson_status in ['completed', 'passed'] or
+                            latest_attempt.completion_status in ['completed', 'passed'] or
+                            latest_attempt.success_status in ['passed']):
+                            progress.completed = True
+                            progress.completion_method = 'scorm'
+                            if not progress.completed_at:
+                                progress.completed_at = timezone.now()
+                            progress.save()
+                            logger.info(f"Slide SCORM completion synced for topic {topic.id}, user {user.username}")
+                            return True
+                    
+                    else:
+                        # UNKNOWN TYPE: Use conservative approach
+                        if latest_attempt.lesson_status in ['completed', 'passed']:
+                            progress.completed = True
+                            progress.completion_method = 'scorm'
+                            if not progress.completed_at:
+                                progress.completed_at = timezone.now()
+                            progress.save()
+                            logger.info(f"Unknown SCORM completion synced for topic {topic.id}, user {user.username}")
+                            return True
+                            
+            except Exception as e:
+                logger.error(f"Error checking SCORM completion for topic {topic.id}: {str(e)}")
         
         return progress.completed
     except TopicProgress.DoesNotExist:

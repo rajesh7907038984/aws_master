@@ -358,6 +358,60 @@ class CMIDataHandler:
             'scorm_version': self.attempt.scorm_package.version,
         }
     
+    @classmethod
+    def get_schema_default(cls, field, version='1.2'):
+        """
+        Get schema-defined default value for a field based on SCORM version
+        
+        Args:
+            field (str): CMI field name (e.g., 'cmi.core.lesson_status')
+            version (str): SCORM version ('1.2' or '2004')
+            
+        Returns:
+            str: Schema-defined default value
+        """
+        # Get field specification based on SCORM version
+        if version == '1.2':
+            spec = cls.SCORM_12_CMI_FIELDS.get(field)
+        elif version == '2004':
+            spec = cls.SCORM_2004_CMI_FIELDS.get(field)
+        else:
+            # Default to SCORM 1.2 for unknown versions
+            spec = cls.SCORM_12_CMI_FIELDS.get(field)
+        
+        if spec and 'values' in spec:
+            # Return first valid value as default
+            return spec['values'][0]
+        
+        # Fallback defaults for common fields
+        fallback_defaults = {
+            'cmi.core.lesson_status': 'not attempted',
+            'cmi.completion_status': 'not attempted', 
+            'cmi.success_status': 'unknown',
+            'cmi.core.entry': 'ab-initio',
+            'cmi.core.credit': 'credit',
+            'cmi.core.lesson_mode': 'normal',
+            'cmi.core.lesson_location': 'lesson_1',
+            'cmi.location': 'lesson_1',
+            'cmi.mode': 'normal',
+            'cmi.core.exit': '',
+            'cmi.exit': '',
+            'cmi.core.session_time': '0000:00:00.00',
+            'cmi.session_time': '0000:00:00.00',
+            'cmi.core.total_time': '0000:00:00.00',
+            'cmi.total_time': '0000:00:00.00',
+            'cmi.core.score.raw': '0',
+            'cmi.score.raw': '0',
+            'cmi.core.score.max': '100',
+            'cmi.score.max': '100',
+            'cmi.core.score.min': '0',
+            'cmi.score.min': '0',
+            'cmi.core.score.scaled': '0',
+            'cmi.score.scaled': '0'
+        }
+        
+        return fallback_defaults.get(field, '')
+    
     def validate_all_cmi_data(self):
         """Validate all CMI data fields"""
         validation_results = {}

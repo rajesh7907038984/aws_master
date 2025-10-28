@@ -2822,18 +2822,20 @@ class TopicProgress(models.Model):
                         self.best_score = normalized_score
                     logger.info(f"Updated score: {normalized_score}")
             
-            # Calculate completion percentage
+            # Use ONLY SCORM CMI data for completion percentage calculation
             completion_percent = 0
-            objectives = registration_report.get('objectives', [])
             
-            if objectives and len(objectives) > 0:
-                completed_objectives = sum(1 for obj_data in objectives if obj_data.get('success') == 'PASSED')
-                if len(objectives) > 0:
-                    completion_percent = round((completed_objectives / len(objectives)) * 100)
-                    logger.info(f"Calculated completion percentage from objectives: {completion_percent}% ({completed_objectives}/{len(objectives)} objectives completed)")
-            elif completion_status in ['completed', 'passed'] or success_status == 'passed':
+            # PRIMARY: Use CMI completion status for completion percentage
+            if completion_status in ['completed', 'passed'] or success_status == 'passed':
                 completion_percent = 100
-                logger.info(f"Setting completion percentage to 100% based on completion/success status")
+                logger.info(f"Setting completion percentage to 100% based on CMI completion/success status")
+            elif normalized_score is not None:
+                # Use score as completion percentage if no explicit completion status
+                completion_percent = min(float(normalized_score), 90.0)  # Cap at 90% if not explicitly completed
+                logger.info(f"Using score as completion percentage: {completion_percent}%")
+            else:
+                completion_percent = 0
+                logger.info(f"No CMI completion status or score found - completion percentage: 0%")
             
             # Save progress data with standardized field names for consistency
             self.progress_data.update({

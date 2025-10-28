@@ -603,7 +603,7 @@ def pre_calculate_student_scores(students, activities, grades, quiz_attempts, sc
                                 ).first()
                                 
                                 if topic_progress and (topic_progress.best_score is not None or topic_progress.last_score is not None or topic_progress.completed or topic_progress.attempts > 0 or topic_progress.last_accessed):
-                                    # Calculate completion status
+                                    # Use ONLY SCORM CMI data for completion status
                                     completion_status = 'completed' if topic_progress.completed else 'incomplete'
                                     
                                     # Get score from last_score (most recent/live) to match SCORM results page
@@ -622,19 +622,33 @@ def pre_calculate_student_scores(students, activities, grades, quiz_attempts, sc
                                             except (ValueError, TypeError):
                                                 pass
                                     
-                                    # Determine success status based on score
+                                    # Use ONLY CMI data for success status determination
                                     success_status = 'unknown'
                                     if score_value is not None:
-                                        # Consider passed if score is 70% or higher (typical passing threshold)
-                                        if score_value >= 70:
+                                        # Use mastery score from SCORM package if available
+                                        mastery_score = 70  # Default threshold
+                                        try:
+                                            from scorm.models import ScormPackage
+                                            scorm_package = ScormPackage.objects.get(topic=activity['object'])
+                                            mastery_score = scorm_package.mastery_score or 70
+                                        except:
+                                            pass
+                                        
+                                        if score_value >= mastery_score:
                                             success_status = 'passed'
                                         else:
                                             success_status = 'failed'
-                                    elif topic_progress.completed:
-                                        success_status = 'passed'
-                                    elif topic_progress.last_accessed and not topic_progress.completed and score_value is None:
-                                        # Learner has accessed but not completed or scored - show as in progress
-                                        success_status = 'in_progress'
+                                    else:
+                                        # Check CMI success status from progress data
+                                        progress_data = topic_progress.progress_data or {}
+                                        cmi_success_status = progress_data.get('success_status')
+                                        if cmi_success_status in ['passed', 'failed']:
+                                            success_status = cmi_success_status
+                                        elif topic_progress.completed:
+                                            success_status = 'passed'
+                                        elif topic_progress.last_accessed and not topic_progress.completed and score_value is None:
+                                            # Learner has accessed but not completed or scored - show as in progress
+                                            success_status = 'in_progress'
                                     
                                     student_scores[activity_id] = {
                                         'score': score_value,

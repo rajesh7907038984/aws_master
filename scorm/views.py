@@ -100,8 +100,8 @@ def scorm_view(request, topic_id):
                 'cmi.core.student_name': (request.user.get_full_name() or request.user.username) if is_authenticated else 'Guest User',
                 'cmi.core.lesson_location': '',
                 'cmi.core.credit': 'credit',
-                'cmi.core.lesson_status': 'not attempted',
-                'cmi.core.entry': 'ab-initio',
+                'cmi.core.lesson_status': attempt.get_schema_default('cmi.core.lesson_status'),
+                'cmi.core.entry': attempt.get_schema_default('cmi.core.entry'),
                 'cmi.core.score.raw': '',
                 'cmi.core.score.max': '100',
                 'cmi.core.score.min': '0',
@@ -122,7 +122,7 @@ def scorm_view(request, topic_id):
                 'cmi.credit': 'credit',
                 'cmi.completion_status': 'incomplete',
                 'cmi.success_status': 'unknown',
-                'cmi.entry': 'ab-initio',
+                'cmi.entry': attempt.get_schema_default('cmi.entry'),
                 'cmi.score.raw': '',
                 'cmi.score.max': '100',
                 'cmi.score.min': '0',
@@ -151,7 +151,7 @@ def scorm_view(request, topic_id):
             'session_time': '0000:00:00.00',
             'lesson_location': '',
             'suspend_data': '',
-            'entry': 'ab-initio',
+            'entry': attempt.get_schema_default('cmi.core.entry'),
             'exit_mode': '',
             'cmi_data': cmi_data,
             'started_at': timezone.now(),
@@ -190,7 +190,7 @@ def scorm_view(request, topic_id):
                 'lesson_status': 'not_attempted',
                 'lesson_location': '',
                 'suspend_data': '',
-                'entry': 'ab-initio',
+                'entry': attempt.get_schema_default('cmi.core.entry'),
                 'exit_mode': '',
                 'cmi_data': {},
                 'started_at': timezone.now(),
@@ -303,7 +303,7 @@ def scorm_view(request, topic_id):
                         if attempt.lesson_location or attempt.suspend_data:
                             if attempt.lesson_status == 'not_attempted':
                                 attempt.lesson_status = 'incomplete'
-                        attempt.cmi_data['cmi.core.lesson_status'] = attempt.lesson_status or 'not attempted'
+                        attempt.cmi_data['cmi.core.lesson_status'] = attempt.lesson_status or attempt.get_schema_default('cmi.core.lesson_status')
                         attempt.cmi_data['cmi.core.lesson_mode'] = 'normal'
                         attempt.cmi_data['cmi.core.credit'] = 'credit'
                         attempt.cmi_data['cmi.core.student_id'] = str(attempt.user.id) if attempt.user else 'student'
@@ -329,11 +329,11 @@ def scorm_view(request, topic_id):
                 else:
                     # This is a new attempt
                     logger.info(f"RESUME: New attempt for attempt {attempt.id}")
-                    attempt.entry = 'ab-initio'
+                    attempt.entry = attempt.get_schema_default('cmi.core.entry')
                     if scorm_package.version == '1.2':
-                        attempt.cmi_data['cmi.core.entry'] = 'ab-initio'
+                        attempt.cmi_data['cmi.core.entry'] = attempt.get_schema_default('cmi.core.entry')
                     else:  # SCORM 2004
-                        attempt.cmi_data['cmi.entry'] = 'ab-initio'
+                        attempt.cmi_data['cmi.entry'] = attempt.get_schema_default('cmi.entry')
                 
                 # Save the updated attempt
                 attempt.save()
@@ -486,8 +486,8 @@ def scorm_api(request, attempt_id):
                     'cmi.core.student_name': request.user.get_full_name() or request.user.username,
                     'cmi.core.lesson_location': '',
                     'cmi.core.credit': 'credit',
-                    'cmi.core.lesson_status': 'not attempted',
-                    'cmi.core.entry': 'ab-initio',
+                    'cmi.core.lesson_status': attempt.get_schema_default('cmi.core.lesson_status'),
+                    'cmi.core.entry': attempt.get_schema_default('cmi.core.entry'),
                     'cmi.core.score.raw': '',
                     'cmi.core.score.max': '100',
                     'cmi.core.score.min': '0',
@@ -508,7 +508,7 @@ def scorm_api(request, attempt_id):
                     'cmi.credit': 'credit',
                     'cmi.completion_status': 'incomplete',
                     'cmi.success_status': 'unknown',
-                    'cmi.entry': 'ab-initio',
+                    'cmi.entry': attempt.get_schema_default('cmi.entry'),
                     'cmi.score.raw': '',
                     'cmi.score.max': '100',
                     'cmi.score.min': '0',
@@ -537,7 +537,7 @@ def scorm_api(request, attempt_id):
                 'session_time': '0000:00:00.00',
                 'lesson_location': '',
                 'suspend_data': '',
-                'entry': 'ab-initio',
+                'entry': attempt.get_schema_default('cmi.core.entry'),
                 'exit_mode': '',
                 'cmi_data': cmi_data,
                 'started_at': timezone.now(),
@@ -1384,11 +1384,11 @@ console.log('[SCORM 2004] PostMessage API bridge ready');
 // This ensures Storyline can access actual SCORM data instead of empty values
 const resumeData = {{
     suspendData: '{{ attempt.suspend_data|default:"" }}',
-    lessonLocation: '{{ attempt.lesson_location|default:"resume_point_1" }}',
-    entry: '{{ attempt.entry|default:"ab-initio" }}',
-    completionStatus: '{{ attempt.completion_status|default:"not attempted" }}',
-    successStatus: '{{ attempt.success_status|default:"unknown" }}',
-    lessonStatus: '{{ attempt.lesson_status|default:"not attempted" }}'
+    lessonLocation: '{{ attempt.lesson_location|default:attempt.get_schema_default:"cmi.core.lesson_location" }}',
+    entry: '{{ attempt.entry|default:attempt.get_schema_default:"cmi.core.entry" }}',
+    completionStatus: '{{ attempt.completion_status|default:attempt.get_schema_default:"cmi.completion_status" }}',
+    successStatus: '{{ attempt.success_status|default:attempt.get_schema_default:"cmi.success_status" }}',
+    lessonStatus: '{{ attempt.lesson_status|default:attempt.get_schema_default:"cmi.core.lesson_status" }}'
 }};
 
 // Make resume data available to Storyline
@@ -1657,8 +1657,6 @@ def scorm_status(request, attempt_id):
                 'time_spent_seconds': attempt.time_spent_seconds,
                 'last_visited_slide': attempt.last_visited_slide,
                 'progress_percentage': float(attempt.progress_percentage) if attempt.progress_percentage else 0,
-                'completed_slides': attempt.completed_slides,
-                'total_slides': attempt.total_slides,
                 'session_start_time': attempt.session_start_time.isoformat() if attempt.session_start_time else None,
                 'session_end_time': attempt.session_end_time.isoformat() if attempt.session_end_time else None,
                 'detailed_tracking': attempt.detailed_tracking,
@@ -1885,8 +1883,6 @@ def scorm_tracking_report(request, attempt_id):
                 'lesson_location': attempt.lesson_location,
                 'last_visited_slide': attempt.last_visited_slide,
                 'progress_percentage': float(attempt.progress_percentage) if attempt.progress_percentage else 0,
-                'completed_slides': attempt.completed_slides,
-                'total_slides': attempt.total_slides,
                 'suspend_data': attempt.suspend_data,
             },
             'navigation_history': attempt.navigation_history if attempt.navigation_history else [],

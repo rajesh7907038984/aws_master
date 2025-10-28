@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.contrib import messages
 from django.utils.html import format_html
 from .models import ScormPackage, ScormAttempt
-from .storyline_completion_fixer import StorylineCompletionFixer
+# from .storyline_completion_fixer import ScormCompletionFixer  # Removed - file doesn't exist
 
 
 @admin.action(description='Fix Storyline completion issues')
@@ -61,28 +61,23 @@ class ScormAttemptAdmin(admin.ModelAdmin):
     actions = [fix_storyline_completion]
     
     def completion_indicator(self, obj):
-        """Show completion indicators from suspend data"""
+        """Show completion status using proper SCORM CMI data"""
         if not obj.suspend_data:
             return "No suspend data"
         
-        visited_count = obj.suspend_data.count('Visited')
-        has_100 = '100' in obj.suspend_data
-        
-        if visited_count >= 3 and has_100:
-            return format_html(
-                '<span style="color: green;">✅ Complete ({})</span>', 
-                visited_count
-            )
-        elif visited_count >= 3:
-            return format_html(
-                '<span style="color: orange;">⚠️ Partial ({})</span>', 
-                visited_count
-            )
+        # Use CMI completion status instead of custom calculations
+        if obj.completion_status in ['completed', 'passed']:
+            return format_html('<span style="color: green;">✅ Complete (CMI)</span>')
+        elif obj.completion_status == 'failed':
+            return format_html('<span style="color: red;">❌ Failed (CMI)</span>')
+        elif obj.lesson_status in ['completed', 'passed']:
+            return format_html('<span style="color: green;">✅ Complete (Lesson)</span>')
+        elif obj.success_status == 'passed':
+            return format_html('<span style="color: green;">✅ Passed (Success)</span>')
+        elif obj.success_status == 'failed':
+            return format_html('<span style="color: red;">❌ Failed (Success)</span>')
         else:
-            return format_html(
-                '<span style="color: red;">❌ Incomplete ({})</span>', 
-                visited_count
-            )
+            return format_html('<span style="color: orange;">⚠️ Incomplete</span>')
     
     completion_indicator.short_description = 'Slide Progress'
     

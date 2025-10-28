@@ -111,6 +111,49 @@ class ScormPackage(models.Model):
             self.save()
             return True
         return False
+    
+    def get_package_type(self):
+        """
+        Determine if this is quiz-based or slide-based SCORM
+        Returns: 'quiz_based', 'slide_based', or 'unknown'
+        """
+        # Check version field first
+        if self.version in ['captivate', 'lectora', 'ispring']:
+            return 'quiz_based'
+        elif self.version == 'storyline':
+            return 'slide_based'
+        
+        # Check manifest data for indicators
+        if self.manifest_data:
+            manifest_text = str(self.manifest_data).lower()
+            
+            # Quiz-based indicators
+            quiz_indicators = ['quiz', 'assessment', 'test', 'question', 'captivate', 'lectora']
+            if any(indicator in manifest_text for indicator in quiz_indicators):
+                return 'quiz_based'
+            
+            # Slide-based indicators
+            slide_indicators = ['storyline', 'slide', 'scene', 'story.html']
+            if any(indicator in manifest_text for indicator in slide_indicators):
+                return 'slide_based'
+        
+        # Check launch URL
+        if self.launch_url:
+            launch_lower = self.launch_url.lower()
+            if 'story.html' in launch_lower or 'storyline' in launch_lower:
+                return 'slide_based'
+            elif 'quiz' in launch_lower or 'assessment' in launch_lower:
+                return 'quiz_based'
+        
+        return 'unknown'
+    
+    def is_slide_based(self):
+        """Check if this is a slide-based SCORM package"""
+        return self.get_package_type() == 'slide_based'
+    
+    def is_quiz_based(self):
+        """Check if this is a quiz-based SCORM package"""
+        return self.get_package_type() == 'quiz_based'
 
 
 class ScormAttempt(models.Model):
@@ -226,14 +269,6 @@ class ScormAttempt(models.Model):
         default=0.00,
         help_text="Progress percentage (0-100)"
     )
-    completed_slides = models.IntegerField(
-        default=0,
-        help_text="Number of completed slides"
-    )
-    total_slides = models.IntegerField(
-        default=0,
-        help_text="Total number of slides in the course"
-    )
     navigation_history = models.JSONField(
         default=list,
         blank=True,
@@ -283,6 +318,20 @@ class ScormAttempt(models.Model):
         verbose_name_plural = 'SCORM Attempts'
         unique_together = ['user', 'scorm_package', 'attempt_number']
         ordering = ['-started_at']
+    
+    def get_schema_default(self, field):
+        """Get schema-defined default value for a field based on SCORM version"""
+        from .cmi_data_handler import CMIDataHandler
+        return CMIDataHandler.get_schema_default(field, self.scorm_package.version)
+    
+    def get_proper_defaults(self):
+        """Get proper schema-defined defaults for all SCORM fields"""
+        return {
+            'lesson_status': self.get_schema_default('cmi.core.lesson_status'),
+            'completion_status': self.get_schema_default('cmi.completion_status'),
+            'success_status': self.get_schema_default('cmi.success_status'),
+            'entry': self.get_schema_default('cmi.core.entry'),
+        }
     
     def __str__(self):
         return f"{self.user.username} - {self.scorm_package.title} - Attempt {self.attempt_number}"

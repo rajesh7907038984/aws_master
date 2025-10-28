@@ -20,6 +20,11 @@ class EnhancedScormAPIHandler:
         self.cmi_handler = CMIDataHandler(attempt)
         self.last_error = None
     
+    def _get_schema_default(self, field):
+        """Get schema-defined default value for a field based on SCORM version"""
+        from .cmi_data_handler import CMIDataHandler
+        return CMIDataHandler.get_schema_default(field, self.attempt.scorm_package.version)
+    
     def get_value(self, element):
         """
         Get CMI element value with complete data storage
@@ -167,11 +172,11 @@ class EnhancedScormAPIHandler:
                 self.cmi_handler.update_cmi_field('cmi.learner_id', str(self.attempt.user.id), validate=False)
                 self.cmi_handler.update_cmi_field('cmi.learner_name', self.attempt.user.get_full_name() or self.attempt.user.username, validate=False)
                 
-                # Set default values for common fields
-                self.cmi_handler.update_cmi_field('cmi.core.lesson_status', 'not attempted', validate=False)
-                self.cmi_handler.update_cmi_field('cmi.core.entry', 'ab-initio', validate=False)
-                self.cmi_handler.update_cmi_field('cmi.core.credit', 'credit', validate=False)
-                self.cmi_handler.update_cmi_field('cmi.core.lesson_mode', 'normal', validate=False)
+                # Set default values for common fields with schema defaults
+                self.cmi_handler.update_cmi_field('cmi.core.lesson_status', self._get_schema_default('cmi.core.lesson_status'), validate=False)
+                self.cmi_handler.update_cmi_field('cmi.core.entry', self._get_schema_default('cmi.core.entry'), validate=False)
+                self.cmi_handler.update_cmi_field('cmi.core.credit', self._get_schema_default('cmi.core.credit'), validate=False)
+                self.cmi_handler.update_cmi_field('cmi.core.lesson_mode', self._get_schema_default('cmi.core.lesson_mode'), validate=False)
                 
                 # Set score range defaults
                 self.cmi_handler.update_cmi_field('cmi.core.score.min', '0', validate=False)

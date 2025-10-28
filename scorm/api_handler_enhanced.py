@@ -147,6 +147,11 @@ class ScormAPIHandlerEnhanced:
             self.attempt.cmi_data = self._initialize_cmi_data()
             self.attempt.save()
     
+    def _get_schema_default(self, field):
+        """Get schema-defined default value for a field based on SCORM version"""
+        from .cmi_data_handler import CMIDataHandler
+        return CMIDataHandler.get_schema_default(field, self.version)
+    
     def _initialize_cmi_data(self):
         """Initialize comprehensive CMI data structure for SCORM 1.2 and 2004"""
         if self.version == '1.2':
@@ -156,15 +161,15 @@ class ScormAPIHandlerEnhanced:
                 'cmi.core.student_id': str(self.attempt.user.id),
                 'cmi.core.student_name': self.attempt.user.get_full_name() or self.attempt.user.username,
                 'cmi.core.lesson_location': self.attempt.lesson_location or '',
-                'cmi.core.credit': 'credit',
-                'cmi.core.lesson_status': self.attempt.lesson_status or 'not attempted',
-                'cmi.core.entry': self.attempt.entry or 'ab-initio',
+                'cmi.core.credit': self._get_schema_default('cmi.core.credit'),
+                'cmi.core.lesson_status': self.attempt.lesson_status or self._get_schema_default('cmi.core.lesson_status'),
+                'cmi.core.entry': self.attempt.entry or self._get_schema_default('cmi.core.entry'),
                 'cmi.core.score._children': 'raw,max,min',
                 'cmi.core.score.raw': str(self.attempt.score_raw) if self.attempt.score_raw else '',
                 'cmi.core.score.max': str(self.attempt.score_max) if self.attempt.score_max else '100',
                 'cmi.core.score.min': str(self.attempt.score_min) if self.attempt.score_min else '0',
                 'cmi.core.total_time': self.attempt.total_time or '0000:00:00.00',
-                'cmi.core.lesson_mode': 'normal',
+                'cmi.core.lesson_mode': self._get_schema_default('cmi.core.lesson_mode'),
                 'cmi.core.exit': '',
                 'cmi.core.session_time': '',
                 'cmi.suspend_data': self.attempt.suspend_data or '',
@@ -200,17 +205,17 @@ class ScormAPIHandlerEnhanced:
                 'cmi.learner_id': str(self.attempt.user.id),
                 'cmi.learner_name': self.attempt.user.get_full_name() or self.attempt.user.username,
                 'cmi.location': self.attempt.lesson_location or '',
-                'cmi.credit': 'credit',
-                'cmi.completion_status': self.attempt.completion_status or 'incomplete',
-                'cmi.success_status': self.attempt.success_status or 'unknown',
-                'cmi.entry': self.attempt.entry or 'ab-initio',
+                'cmi.credit': self._get_schema_default('cmi.credit'),
+                'cmi.completion_status': self.attempt.completion_status or self._get_schema_default('cmi.completion_status'),
+                'cmi.success_status': self.attempt.success_status or self._get_schema_default('cmi.success_status'),
+                'cmi.entry': self.attempt.entry or self._get_schema_default('cmi.entry'),
                 'cmi.score._children': 'raw,min,max,scaled',
                 'cmi.score.raw': str(self.attempt.score_raw) if self.attempt.score_raw else '',
                 'cmi.score.max': str(self.attempt.score_max) if self.attempt.score_max else '100',
                 'cmi.score.min': str(self.attempt.score_min) if self.attempt.score_min else '0',
                 'cmi.score.scaled': str(self.attempt.score_scaled) if self.attempt.score_scaled else '',
                 'cmi.total_time': self.attempt.total_time or 'PT00H00M00S',
-                'cmi.mode': 'normal',
+                'cmi.mode': self._get_schema_default('cmi.mode'),
                 'cmi.exit': '',
                 'cmi.session_time': '',
                 'cmi.suspend_data': self.attempt.suspend_data or '',
@@ -285,7 +290,7 @@ class ScormAPIHandlerEnhanced:
                 logger.info("SCORM 2004 STORYLINE: Set completion_status='incomplete', success_status='unknown' for resume")
             else:
                 # New attempt
-                self.attempt.completion_status = 'not attempted'
+                self.attempt.completion_status = self._get_schema_default('cmi.completion_status')
                 self.attempt.success_status = 'unknown'
                 logger.info("SCORM 2004 STORYLINE: Set completion_status='not attempted' for new attempt")
         
@@ -294,7 +299,7 @@ class ScormAPIHandlerEnhanced:
             suspend_data_preview = self.attempt.suspend_data[:50] if self.attempt.suspend_data else "None"
             logger.info("SCORM Resume: location='%s', suspend_data='%s...'", self.attempt.lesson_location, suspend_data_preview)
         else:
-            self.attempt.entry = 'ab-initio'
+            self.attempt.entry = self._get_schema_default('cmi.core.entry')
             logger.info("SCORM New attempt: starting fresh")
         
         # CRITICAL FIX: Update CMI data with proper defaults AND resume data
@@ -311,7 +316,7 @@ class ScormAPIHandlerEnhanced:
                 logger.info("🔖 RESUME: Set suspend_data in CMI data (%d chars)", len(self.attempt.suspend_data))
             
             # Set other required fields
-            self.attempt.cmi_data['cmi.core.lesson_status'] = self.attempt.lesson_status or 'not attempted'
+            self.attempt.cmi_data['cmi.core.lesson_status'] = self.attempt.lesson_status or self._get_schema_default('cmi.core.lesson_status')
             self.attempt.cmi_data['cmi.core.lesson_mode'] = 'normal'
             self.attempt.cmi_data['cmi.core.credit'] = 'credit'
             self.attempt.cmi_data['cmi.core.student_id'] = str(self.attempt.user.id) if self.attempt.user else 'student'
@@ -326,20 +331,26 @@ class ScormAPIHandlerEnhanced:
                 logger.info("🔖 RESUME: Set location in CMI data: %s", self.attempt.lesson_location)
             elif self.attempt.suspend_data:
                 # CRITICAL FIX: If we have suspend_data but no lesson_location, 
-                # set a default location to enable resume functionality
-                default_location = "resume_point_1"
+                # set a schema-defined default location to enable resume functionality
+                schema_default = self._get_schema_default('cmi.location')
+                default_location = schema_default or 'lesson_1'
                 self.attempt.cmi_data['cmi.location'] = default_location
-                logger.info("🔖 RESUME: Set default location in CMI data for resume: %s", default_location)
+                logger.info("🔖 RESUME: Set schema-defined default location in CMI data for resume: %s", default_location)
             
             if self.attempt.suspend_data:
                 self.attempt.cmi_data['cmi.suspend_data'] = self.attempt.suspend_data
                 logger.info("🔖 RESUME: Set suspend_data in CMI data (%d chars)", len(self.attempt.suspend_data))
             
-            # Set other required fields
-            self.attempt.cmi_data['cmi.completion_status'] = self.attempt.completion_status or 'not attempted'
-            self.attempt.cmi_data['cmi.success_status'] = self.attempt.success_status or 'unknown'
-            self.attempt.cmi_data['cmi.mode'] = 'normal'
-            self.attempt.cmi_data['cmi.credit'] = 'credit'
+            # Set other required fields with schema defaults
+            schema_completion_default = self._get_schema_default('cmi.completion_status')
+            schema_success_default = self._get_schema_default('cmi.success_status')
+            schema_mode_default = self._get_schema_default('cmi.mode')
+            schema_credit_default = self._get_schema_default('cmi.credit')
+            
+            self.attempt.cmi_data['cmi.completion_status'] = self.attempt.completion_status or schema_completion_default
+            self.attempt.cmi_data['cmi.success_status'] = self.attempt.success_status or schema_success_default
+            self.attempt.cmi_data['cmi.mode'] = schema_mode_default
+            self.attempt.cmi_data['cmi.credit'] = schema_credit_default
             self.attempt.cmi_data['cmi.learner_id'] = str(self.attempt.user.id) if self.attempt.user else 'student'
             self.attempt.cmi_data['cmi.learner_name'] = self.attempt.user.get_full_name() or self.attempt.user.username if self.attempt.user else 'Student'
         
@@ -463,7 +474,7 @@ class ScormAPIHandlerEnhanced:
             
             # Always apply proper defaults for SCORM elements - check for empty or None
             if not value or str(value).strip() == '' or value is None:
-                # SCORM 1.2 Core Elements - Always provide defaults
+                # SCORM 1.2 Core Elements - Always provide schema-defined defaults
                 if element == 'cmi.core.lesson_status':
                     # CRITICAL FIX FOR SCORM 1.2: If we have resume data, return 'incomplete' not 'not attempted'
                     has_resume_data = bool(self.attempt.lesson_location or self.attempt.suspend_data)
@@ -471,13 +482,15 @@ class ScormAPIHandlerEnhanced:
                         value = 'incomplete'
                         logger.info(f"SCORM 1.2 RESUME: Override lesson_status to 'incomplete' for resume scenario")
                     else:
-                        value = self.attempt.lesson_status or 'not attempted'
+                        schema_default = self._get_schema_default('cmi.core.lesson_status')
+                        value = self.attempt.lesson_status or schema_default
                 elif element == 'cmi.core.entry':
-                    value = self.attempt.entry or 'ab-initio'
+                    schema_default = self._get_schema_default('cmi.core.entry')
+                    value = self.attempt.entry or schema_default
                 elif element == 'cmi.core.credit':
-                    value = 'credit'
+                    value = self._get_schema_default('cmi.core.credit')
                 elif element == 'cmi.core.lesson_mode':
-                    value = 'normal'
+                    value = self._get_schema_default('cmi.core.lesson_mode')
                 elif element == 'cmi.core.student_id':
                     value = str(self.attempt.user.id) if self.attempt.user else 'student'
                 elif element == 'cmi.core.student_name':
@@ -521,7 +534,8 @@ class ScormAPIHandlerEnhanced:
                         value = 'incomplete'
                         logger.info(f"SCORM 2004 RESUME: Override completion_status to 'incomplete' for resume scenario")
                     else:
-                        value = self.attempt.completion_status or 'incomplete'
+                        schema_default = self._get_schema_default('cmi.completion_status')
+                        value = self.attempt.completion_status or schema_default
                 elif element == 'cmi.success_status':
                     # CRITICAL FIX FOR SCORM 2004: If we have resume data, return 'unknown' for resume scenarios
                     has_resume_data = bool(self.attempt.lesson_location or self.attempt.suspend_data)
@@ -529,11 +543,12 @@ class ScormAPIHandlerEnhanced:
                         value = 'unknown'
                         logger.info(f"SCORM 2004 RESUME: Override success_status to 'unknown' for resume scenario")
                     else:
-                        value = self.attempt.success_status or 'unknown'
+                        schema_default = self._get_schema_default('cmi.success_status')
+                        value = self.attempt.success_status or schema_default
                 elif element == 'cmi.mode':
-                    value = 'normal'
+                    value = self._get_schema_default('cmi.mode')
                 elif element == 'cmi.credit':
-                    value = 'credit'
+                    value = self._get_schema_default('cmi.credit')
                 elif element == 'cmi.progress_measure':
                     value = ''
                 elif element == 'cmi._version':
@@ -1384,14 +1399,7 @@ class ScormAPIHandlerEnhanced:
             logger.info("AUTO_EXTRACT: Analyzing suspend_data for embedded score (current score: %s)", self.attempt.score_raw)
             
             # ENHANCED: Check for Storyline completion patterns FIRST
-            self._check_storyline_completion_enhanced()
-            
-            # CRITICAL FIX: Check for slide completion FIRST before looking for quiz scores
-            visited_count = self.attempt.suspend_data.count('Visited')
-            if visited_count >= 3:
-                logger.info("AUTO_EXTRACT: SLIDE COMPLETION DETECTED - Found %d 'Visited' markers, scoring as 100%%", visited_count)
-                self._apply_extracted_score(100.0)
-                return
+            # Removed: Now using only CMI-based completion logic
             
             # Try to parse suspend_data as JSON
             try:
@@ -1532,103 +1540,6 @@ class ScormAPIHandlerEnhanced:
             
         except Exception as e:
             logger.error("AUTO_EXTRACT: Failed to apply extracted score: %s", str(e))
-    
-    def _check_storyline_completion_enhanced(self):
-        """ENHANCED STORYLINE COMPLETION CHECK - More sophisticated detection"""
-        try:
-            if not self.attempt.suspend_data:
-                return
-            
-            logger.info(f"STORYLINE ENHANCED CHECK: Analyzing suspend data ({len(self.attempt.suspend_data)} chars)")
-            
-            # Count visited slides - Storyline marks completed slides with "Visited"
-            visited_count = self.attempt.suspend_data.count('Visited')
-            logger.info(f"STORYLINE ENHANCED CHECK: Found {visited_count} 'Visited' markers")
-            
-            # Check for completion indicators with more patterns
-            completion_indicators = [
-                'complete', 'finished', 'done', 'passed', 'failed',
-                'qd"true', 'qd":true', 'quiz_done":true', 'assessment_done":true',
-                'lesson_done":true', 'course_done":true', '100', 'completed'
-            ]
-            
-            found_indicators = []
-            for indicator in completion_indicators:
-                if indicator in self.attempt.suspend_data:
-                    found_indicators.append(indicator)
-            
-            logger.info(f"STORYLINE ENHANCED CHECK: Found completion indicators: {found_indicators}")
-            
-            # ENHANCED STORYLINE COMPLETION LOGIC:
-            is_storyline_completed = False
-            completion_reason = ""
-            
-            # Pattern 1: Multiple slides visited + completion indicators
-            if visited_count >= 3 and found_indicators:
-                is_storyline_completed = True
-                completion_reason = f"Storyline completion detected: {visited_count} slides visited + indicators: {found_indicators}"
-            
-            # Pattern 2: 100% completion indicator + slides visited
-            elif visited_count >= 3 and '100' in self.attempt.suspend_data:
-                is_storyline_completed = True
-                completion_reason = f"Storyline completion detected: {visited_count} slides visited + 100% indicator"
-            
-            # Pattern 3: Many slides visited (assume complete course)
-            elif visited_count >= 5:
-                is_storyline_completed = True
-                completion_reason = f"Storyline completion detected: {visited_count} slides visited (assumed complete course)"
-            
-            # Pattern 4: Completion indicators without slide count (quiz completion)
-            elif found_indicators and any(ind in ['qd"true', 'qd":true', 'quiz_done":true'] for ind in found_indicators):
-                is_storyline_completed = True
-                completion_reason = f"Storyline quiz completion detected: indicators: {found_indicators}"
-            
-            if is_storyline_completed:
-                logger.info(f"STORYLINE ENHANCED COMPLETION: {completion_reason}")
-                
-                # Update completion status
-                self.attempt.lesson_status = 'completed'
-                self.attempt.completion_status = 'completed'
-                self.attempt.success_status = 'passed'
-                
-                # Set completion score if not already set
-                if self.attempt.score_raw is None:
-                    self.attempt.score_raw = 100.0  # Default completion score
-                    logger.info("STORYLINE ENHANCED COMPLETION: Set default completion score to 100")
-                
-                # Update CMI data
-                self.attempt.cmi_data['cmi.core.lesson_status'] = 'completed'
-                self.attempt.cmi_data['cmi.completion_status'] = 'completed'
-                self.attempt.cmi_data['cmi.success_status'] = 'passed'
-                self.attempt.cmi_data['cmi.core.score.raw'] = str(self.attempt.score_raw)
-                
-                # Update detailed tracking
-                if not self.attempt.detailed_tracking:
-                    self.attempt.detailed_tracking = {}
-                
-                self.attempt.detailed_tracking.update({
-                    'storyline_completion_detected': True,
-                    'completion_reason': completion_reason,
-                    'visited_slides_count': visited_count,
-                    'completion_indicators': found_indicators,
-                    'completion_source': 'storyline_enhanced_suspend_data_analysis',
-                    'completion_timestamp': timezone.now().isoformat()
-                })
-                
-                logger.info(f"STORYLINE ENHANCED COMPLETION: Updated attempt {self.attempt.id} - status: completed, score: {self.attempt.score_raw}")
-                
-                # CRITICAL: Save the attempt to database
-                self.attempt.save()
-                logger.info("STORYLINE ENHANCED COMPLETION: Attempt saved to database")
-                
-                # Immediately update TopicProgress
-                self._update_topic_progress()
-                
-            else:
-                logger.info(f"STORYLINE ENHANCED CHECK: Not completed yet - {visited_count} slides visited, indicators: {found_indicators}")
-                
-        except Exception as e:
-            logger.error(f"STORYLINE ENHANCED CHECK ERROR: {str(e)}")
     
     def _commit_data(self):
         """Save attempt data to database with enhanced validation and error handling"""
@@ -1901,21 +1812,36 @@ class ScormAPIHandlerEnhanced:
                     # Set completion status based on score
                     mastery_score = self.attempt.scorm_package.mastery_score or 70
                     if extracted_score >= mastery_score:
+                        self.attempt.lesson_status = 'passed'
                         self.attempt.completion_status = 'completed'
                         self.attempt.success_status = 'passed'
-                        self.attempt.lesson_status = 'passed'
                     else:
+                        self.attempt.lesson_status = 'failed'
                         self.attempt.completion_status = 'completed'
                         self.attempt.success_status = 'failed'
-                        self.attempt.lesson_status = 'failed'
-                    
-                    # Save and sync
-                    self.attempt.save()
-                    self._update_topic_progress()
-                    
-                    logger.info(f"AUTO-PROCESS: Successfully processed score {extracted_score} for attempt {self.attempt.id}")
                 else:
-                    logger.info(f"AUTO-PROCESS: No score could be extracted from suspend data for attempt {self.attempt.id}")
+                    # ENHANCED: For slide-based SCORM, use ONLY CMI completion status
+                    if self.attempt.scorm_package.is_slide_based():
+                        # PRIMARY: Check CMI completion status (proper SCORM standard)
+                        cmi_completion = self.attempt.cmi_data.get('cmi.completion_status')
+                        cmi_lesson_status = self.attempt.cmi_data.get('cmi.core.lesson_status')
+                        cmi_success = self.attempt.cmi_data.get('cmi.success_status')
+                        
+                        if cmi_completion in ['completed', 'passed'] or cmi_lesson_status in ['completed', 'passed'] or cmi_success in ['passed']:
+                            logger.info(f"AUTO-PROCESS: CMI completion status detected for slide-based SCORM attempt {self.attempt.id}")
+                            self.attempt.score_raw = 100.0
+                            self.attempt.score_scaled = 1.0
+                            self.attempt.lesson_status = 'completed'
+                            self.attempt.completion_status = 'completed'
+                            self.attempt.success_status = 'passed'
+                        else:
+                            logger.info(f"AUTO-PROCESS: No score could be extracted from suspend data for attempt {self.attempt.id}")
+                
+                # Save and sync
+                self.attempt.save()
+                self._update_topic_progress()
+                
+                logger.info(f"AUTO-PROCESS: Successfully processed attempt {self.attempt.id}")
             else:
                 logger.info(f"AUTO-PROCESS: Skipping - attempt {self.attempt.id} has score {self.attempt.score_raw} or no suspend data")
                 
@@ -1965,7 +1891,6 @@ class ScormAPIHandlerEnhanced:
                     'entry': self.attempt.entry,
                     'exit_mode': self.attempt.exit_mode,
                     'progress_percentage': progress_percentage,  # SCORM 1.2 calculated progress
-                    'completion_percent': progress_percentage,  # For compatibility
                     'last_updated': timezone.now().isoformat(),
                     'sync_method': 'enhanced_api_handler',
                     'sync_timestamp': timezone.now().isoformat(),
@@ -2125,14 +2050,12 @@ class ScormAPIHandlerEnhanced:
                 try:
                     slide_num = int(location.split('_')[-1])
                     # Estimate progress based on slide number
-                    # Assume 10 slides total for now (this could be made dynamic)
-                    estimated_total_slides = 10
-                    progress = min((slide_num / estimated_total_slides) * 100, 100)
+                    # Use conservative progress estimation
+                    progress = min(slide_num * 10, 100)  # 10% per slide, max 100%
                     
                     self.attempt.progress_percentage = Decimal(str(progress))
                     self.attempt.last_visited_slide = location
                     self.attempt.completed_slides = slide_num
-                    self.attempt.total_slides = estimated_total_slides
                     
                     logger.info(f"📊 PROGRESS: Updated to {progress}% based on location {location}")
                     
