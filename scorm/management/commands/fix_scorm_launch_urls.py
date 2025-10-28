@@ -62,15 +62,25 @@ class Command(BaseCommand):
             is_content_file = any(content_file in current_url.lower() for content_file in content_files)
             
             if is_content_file:
-                # Look for SCORM API wrapper files
-                scorm_api_wrappers = ['index_lms.html', 'indexAPI.html', 'lms.html', 'scorm.html']
+                # Look for indexAPI.html specifically
+                scorm_api_wrappers = ['indexAPI.html']
                 found_wrapper = None
                 
-                for wrapper in scorm_api_wrappers:
-                    wrapper_path = f"{package.extracted_path}/{wrapper}"
-                    if default_storage.exists(wrapper_path):
-                        found_wrapper = wrapper
-                        break
+                # Get list of files in the package directory
+                try:
+                    files_in_package = default_storage.listdir(package.extracted_path)[1]
+                    for wrapper in scorm_api_wrappers:
+                        if wrapper in files_in_package:
+                            found_wrapper = wrapper
+                            break
+                except Exception as e:
+                    self.stdout.write(f"   ⚠️  Error checking package files: {e}")
+                    # Fallback to individual file checks
+                    for wrapper in scorm_api_wrappers:
+                        wrapper_path = f"{package.extracted_path}/{wrapper}"
+                        if default_storage.exists(wrapper_path):
+                            found_wrapper = wrapper
+                            break
                 
                 if found_wrapper:
                     self.stdout.write(f"   ✅ Found SCORM API wrapper: {found_wrapper}")

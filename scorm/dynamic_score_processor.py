@@ -180,6 +180,12 @@ class DynamicScormScoreProcessor:
             if numeric_score is not None:
                 logger.info(f"Dynamic Processor: Extracted numeric score: {numeric_score}")
                 return numeric_score
+            
+            # STORYLINE FIX: Handle custom Storyline format
+            custom_score = self._extract_custom_storyline_score(decoded_data)
+            if custom_score is not None:
+                logger.info(f"Dynamic Processor: Extracted custom Storyline score: {custom_score}")
+                return custom_score
                 
             logger.warning(f"Dynamic Processor: No valid score found in suspend data for attempt {self.attempt.id}")
             return None
@@ -212,6 +218,92 @@ class DynamicScormScoreProcessor:
         
         return None
     
+    def _extract_custom_storyline_score(self, decoded_data):
+        """Extract score from custom Storyline format based on package type"""
+        try:
+            # Check if this is our custom decoded format
+            if decoded_data.startswith('{') and 'custom_storyline' in decoded_data:
+                import json
+                decoded_info = json.loads(decoded_data)
+                
+                package_type = decoded_info.get('package_type', 'unknown')
+                score_source = decoded_info.get('score_source', 'unknown')
+                
+                logger.info(f"Custom Storyline: Package type detected: {package_type}")
+                
+                # Handle different package types
+                if package_type == 'quiz_based':
+                    # For quiz-based packages, use the quiz score
+                    if 'potential_score' in decoded_info:
+                        score = decoded_info['potential_score']
+                        logger.info(f"Custom Storyline: Quiz-based score: {score}")
+                        return score
+                    else:
+                        logger.warning("Custom Storyline: Quiz-based package but no quiz score found")
+                        return None
+                        
+                elif package_type == 'slide_completion':
+                    # For slide completion packages, calculate based on slides visited
+                    visited_slides = decoded_info.get('visited_slides', 0)
+                    total_slides = decoded_info.get('total_slides', visited_slides)
+                    
+                    if visited_slides > 0:
+                        if total_slides > 0:
+                            completion_percentage = (visited_slides / total_slides) * 100
+                            logger.info(f"Custom Storyline: Slide completion: {visited_slides}/{total_slides} = {completion_percentage}%")
+                            return completion_percentage
+                        else:
+                            # If we don't know total slides, assume completion if multiple slides visited
+                            if visited_slides >= 3:
+                                logger.info(f"Custom Storyline: Multiple slides visited ({visited_slides}) - assuming 100% completion")
+                                return 100.0
+                            else:
+                                completion_percentage = (visited_slides / 5) * 100  # Assume 5 total slides
+                                logger.info(f"Custom Storyline: Estimated completion: {completion_percentage}%")
+                                return completion_percentage
+                    else:
+                        logger.warning("Custom Storyline: Slide completion package but no slides visited")
+                        return None
+                        
+                elif package_type == 'percentage_based':
+                    # For percentage-based packages, use the percentage score
+                    if 'potential_score' in decoded_info:
+                        score = decoded_info['potential_score']
+                        logger.info(f"Custom Storyline: Percentage-based score: {score}%")
+                        return score
+                    else:
+                        logger.warning("Custom Storyline: Percentage-based package but no percentage found")
+                        return None
+                        
+                else:  # unknown package type
+                    # Fallback logic for unknown package types
+                    if 'potential_score' in decoded_info:
+                        score = decoded_info['potential_score']
+                        logger.info(f"Custom Storyline: Unknown package type, using extracted score: {score}")
+                        return score
+                    
+                    # If we have completion evidence but no specific score
+                    if decoded_info.get('has_completion', False):
+                        visited_slides = decoded_info.get('visited_slides', 0)
+                        if visited_slides > 0:
+                            # Assume completion-based scoring
+                            if visited_slides >= 5:
+                                logger.info(f"Custom Storyline: Unknown type, multiple slides visited - assuming 100%")
+                                return 100.0
+                            else:
+                                completion_percentage = (visited_slides / 5) * 100
+                                logger.info(f"Custom Storyline: Unknown type, estimated completion: {completion_percentage}%")
+                                return completion_percentage
+                        else:
+                            logger.info("Custom Storyline: Unknown type, completion detected - assuming 100%")
+                            return 100.0
+            
+            return None
+            
+        except Exception as e:
+            logger.warning(f"Failed to extract custom Storyline score: {e}")
+            return None
+    
     def _decode_suspend_data(self, suspend_data):
         """Decode compressed suspend_data from various formats"""
         try:
@@ -239,15 +331,196 @@ class DynamicScormScoreProcessor:
             return str(data)
             
         except Exception:
-            # Not JSON, might be plain text
+            # Not JSON, might be plain text or custom Storyline format
+            # STORYLINE FIX: Handle custom Storyline suspend data format
+            if suspend_data and not suspend_data.startswith('{'):
+                # This might be custom Storyline format - try to extract completion info
+                return self._decode_custom_storyline_format(suspend_data)
+            return suspend_data
+    
+    def _decode_custom_storyline_format(self, suspend_data):
+        """Decode custom Storyline suspend data format"""
+        try:
+            # STORYLINE FIX: Handle custom format like: 2O5c304050607080FDC1001511u0101101111012110131101411015110y10v_player...
+            # Look for completion indicators in the custom format
+            
+            # Check for completion patterns in the raw data
+            completion_indicators = [
+                'Visited',  # Storyline often marks slides as visited
+                'complete', 'finished', 'done', 'passed', 'failed',
+                '100', 'quiz', 'assessment', 'lesson'
+            ]
+            
+            decoded_info = {
+                'format': 'custom_storyline',
+                'raw_data': suspend_data,
+                'has_completion': False,
+                'completion_indicators': [],
+                'package_type': 'unknown'
+            }
+            
+            for indicator in completion_indicators:
+                if indicator.lower() in suspend_data.lower():
+                    decoded_info['completion_indicators'].append(indicator)
+                    decoded_info['has_completion'] = True
+            
+            # IMPROVED: Detect package type based on suspend data patterns
+            import re
+            
+            # Count visited slides to determine completion percentage
+            visited_count = suspend_data.count('Visited')
+            if visited_count > 0:
+                decoded_info['visited_slides'] = visited_count
+                decoded_info['has_completion'] = True
+            
+            # Detect package type based on patterns - PRIORITIZE SLIDE COMPLETION
+            quiz_indicators = ['quiz', 'question', 'answer', 'correct', 'wrong', 'assessment']
+            slide_indicators = ['Visited', 'visited', 'slide', 'page']
+            percentage_indicators = ['%', 'percent', 'completion']
+            
+            quiz_count = sum(1 for indicator in quiz_indicators if indicator in suspend_data.lower())
+            slide_count = sum(1 for indicator in slide_indicators if indicator in suspend_data.lower())
+            percent_count = sum(1 for indicator in percentage_indicators if indicator in suspend_data.lower())
+            
+            # CRITICAL FIX: Prioritize slide completion over quiz detection
+            # If we find "Visited" markers, this is definitely slide-based SCORM
+            if visited_count > 0:
+                decoded_info['package_type'] = 'slide_completion'
+                logger.info(f"Dynamic Processor: Detected slide-completion SCORM with {visited_count} visited slides")
+            elif quiz_count > 0:
+                decoded_info['package_type'] = 'quiz_based'
+            elif percent_count > 0:
+                decoded_info['package_type'] = 'percentage_based'
+            else:
+                decoded_info['package_type'] = 'unknown'
+            
+            # Extract scores based on package type
+            if decoded_info['package_type'] == 'quiz_based':
+                # Look for quiz-specific score patterns
+                quiz_patterns = [
+                    r'score["\s:]*(\d+)',           # score: 50
+                    r'result["\s:]*(\d+)',          # result: 50
+                    r'correct["\s:]*(\d+)',         # correct: 5
+                    r'wrong["\s:]*(\d+)',           # wrong: 5
+                    r'(\d+)\s*/\s*\d+',             # 5/10 format
+                    r'(\d+)\s*out\s*of\s*\d+',     # 5 out of 10
+                ]
+                
+                potential_scores = []
+                for pattern in quiz_patterns:
+                    matches = re.findall(pattern, suspend_data, re.IGNORECASE)
+                    for match in matches:
+                        try:
+                            score = int(match)
+                            if 0 <= score <= 100:
+                                potential_scores.append(score)
+                        except ValueError:
+                            continue
+                
+                if potential_scores:
+                    decoded_info['potential_score'] = max(potential_scores)
+                    decoded_info['score_source'] = 'quiz_patterns'
+                    
+            elif decoded_info['package_type'] == 'slide_completion':
+                # Calculate score based on slide completion
+                if visited_count > 0:
+                    # CRITICAL FIX: Only mark as completed if there's clear completion evidence
+                    has_completion_evidence = (
+                        'complete' in decoded_data.lower() or
+                        'finished' in decoded_data.lower() or
+                        'done' in decoded_data.lower() or
+                        'passed' in decoded_data.lower() or
+                        'failed' in decoded_data.lower() or
+                        '"qd"true' in decoded_data or
+                        'qd":true' in decoded_data or
+                        'qd"true' in decoded_data
+                    )
+                    
+                    if has_completion_evidence:
+                        # User has completion evidence - mark as 100% completed
+                        decoded_info['potential_score'] = 100.0
+                        decoded_info['score_source'] = 'slide_completion_with_evidence'
+                        decoded_info['total_slides'] = visited_count
+                        logger.info(f"Dynamic Processor: Slide completion with evidence - {visited_count} slides = 100% score")
+                    else:
+                        # CRITICAL FIX: Don't give partial scores for incomplete content
+                        # If user exits early without completion evidence, don't assign any score
+                        logger.info(f"Dynamic Processor: User visited {visited_count} slides but no completion evidence - no score assigned")
+                        decoded_info['potential_score'] = None
+                        decoded_info['score_source'] = 'incomplete_no_evidence'
+                        decoded_info['total_slides'] = visited_count
+                    
+            elif decoded_info['package_type'] == 'percentage_based':
+                # Look for percentage patterns
+                percent_patterns = [
+                    r'(\d+)%',                      # 50%
+                    r'percent["\s:]*(\d+)',        # percent: 50
+                    r'completion["\s:]*(\d+)',     # completion: 50
+                ]
+                
+                potential_scores = []
+                for pattern in percent_patterns:
+                    matches = re.findall(pattern, suspend_data, re.IGNORECASE)
+                    for match in matches:
+                        try:
+                            score = int(match)
+                            if 0 <= score <= 100:
+                                potential_scores.append(score)
+                        except ValueError:
+                            continue
+                
+                if potential_scores:
+                    decoded_info['potential_score'] = max(potential_scores)
+                    decoded_info['score_source'] = 'percentage_patterns'
+            
+            # Fallback: Look for any reasonable scores if no specific type detected
+            if 'potential_score' not in decoded_info:
+                isolated_numbers = re.findall(r'(?<![0-9])(\d{2,3})(?![0-9])', suspend_data)
+                valid_scores = []
+                
+                for num in isolated_numbers:
+                    score = int(num)
+                    if 0 <= score <= 100:
+                        # Only consider it a score if it's in a reasonable range
+                        if score in [0, 25, 50, 75, 100] or (10 <= score <= 90):
+                            valid_scores.append(score)
+                
+                if valid_scores:
+                    decoded_info['potential_score'] = max(valid_scores)
+                    decoded_info['score_source'] = 'isolated_numbers'
+                    decoded_info['package_type'] = 'unknown'
+            
+            return json.dumps(decoded_info)
+            
+        except Exception as e:
+            logger.warning(f"Failed to decode custom Storyline format: {e}")
             return suspend_data
     
     def _has_completion_evidence(self, decoded_data):
         """Check if there's evidence of actual completion based on detected format"""
+        
+        # CRITICAL FIX: Check for slide completion FIRST
+        visited_count = decoded_data.count('Visited')
+        if visited_count >= 3:
+            logger.info(f"Dynamic Processor: Found slide completion evidence - {visited_count} visited slides")
+            return True
+        
         format_patterns = self.COMPLETION_PATTERNS.get(self.detected_format, []).copy()
         
         # Add generic completion patterns
         format_patterns.extend(self.COMPLETION_PATTERNS['generic_scorm'])
+        
+        # STORYLINE FIX: Handle custom Storyline format
+        try:
+            if decoded_data.startswith('{') and 'custom_storyline' in decoded_data:
+                # This is our custom decoded format
+                import json
+                decoded_info = json.loads(decoded_data)
+                if decoded_info.get('has_completion', False):
+                    logger.info(f"Custom Storyline format shows completion evidence: {decoded_info.get('completion_indicators', [])}")
+                    return True
+        except Exception:
+            pass
         
         # CRITICAL FIX: Add the working patterns for the specific format we're seeing
         if self.detected_format == 'articulate_storyline':

@@ -422,6 +422,16 @@
                 return;
             }
 
+            // 5) Handle Storyline exit requests
+            if (data.type === 'SCORM_EXIT_REQUEST') {
+                console.log('Storyline exit request received');
+                tryCommitBeforeExit();
+                setTimeout(() => {
+                    window.location.href = '{% url "courses:topic_view" topic.id %}';
+                }, 500);
+                return;
+            }
+
         } catch (e) { console.error('Message handler error', e); }
     });
 

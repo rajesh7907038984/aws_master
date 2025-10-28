@@ -197,10 +197,10 @@ class ScormAPIHandler:
         else:
             self.attempt.cmi_data['cmi.exit'] = 'logout'
         
-        # SIMPLIFIED: Update lesson status based on score if available (trust SCORM's native logic)
+        # ENHANCED: Better completion detection in terminate
         if not self.attempt.lesson_status or self.attempt.lesson_status == 'not_attempted':
-            # If we have a valid score, determine pass/fail status
-            if self.attempt.score_raw is not None:
+            # Check if we have a valid score first
+            if self.attempt.score_raw is not None and self.attempt.score_raw > 0:
                 mastery_score = self.attempt.scorm_package.mastery_score or 70
                 if self.attempt.score_raw >= mastery_score:
                     self.attempt.lesson_status = 'passed'
@@ -210,10 +210,21 @@ class ScormAPIHandler:
                     status_to_set = 'failed'
                 logger.info(f"TERMINATE: Set lesson_status to {status_to_set} based on score {self.attempt.score_raw} (mastery: {mastery_score})")
             else:
-                # No score available, mark as incomplete
-                self.attempt.lesson_status = 'incomplete'
-                status_to_set = 'incomplete'
-                logger.info(f"TERMINATE: Set lesson_status to incomplete (no score available)")
+                # Check suspend data for completion evidence
+                if self.attempt.suspend_data:
+                    suspend_lower = self.attempt.suspend_data.lower()
+                    if any(keyword in suspend_lower for keyword in ['complete', 'done', 'qd', 'finished', 'passed', 'failed']):
+                        self.attempt.lesson_status = 'completed'
+                        status_to_set = 'completed'
+                        logger.info(f"TERMINATE: Set lesson_status to completed based on suspend data evidence")
+                    else:
+                        self.attempt.lesson_status = 'incomplete'
+                        status_to_set = 'incomplete'
+                        logger.info(f"TERMINATE: Set lesson_status to incomplete (no completion evidence)")
+                else:
+                    self.attempt.lesson_status = 'incomplete'
+                    status_to_set = 'incomplete'
+                    logger.info(f"TERMINATE: Set lesson_status to incomplete (no suspend data)")
             
             # Update CMI data
             if self.version == '1.2':
@@ -675,11 +686,14 @@ class ScormAPIHandler:
                 'scorm_sync': True,  # Mark as synced
             })
             
-            # CRITICAL: Enhanced completion status sync
-            if self.version == '1.2':
-                is_completed = self.attempt.lesson_status in ['completed', 'passed']
-            else:
-                is_completed = self.attempt.completion_status == 'completed'
+            # ENHANCED: More flexible completion status sync
+            is_completed = (
+                self.attempt.lesson_status in ['passed', 'failed', 'completed'] or
+                (self.attempt.score_raw is not None and self.attempt.score_raw > 0) or
+                (self.attempt.suspend_data and any(keyword in self.attempt.suspend_data.lower() 
+                    for keyword in ['complete', 'done', 'qd', 'finished', 'passed', 'failed'])) or
+                (self.attempt.progress_percentage and self.attempt.progress_percentage >= 100)
+            )
             
             # Update completion status
             if is_completed:
@@ -699,8 +713,8 @@ class ScormAPIHandler:
                     progress.completion_method = 'auto'
                     logger.info(f"🔄 SCORM SYNC: Unmarked completion for topic {topic.id} - status: {self.attempt.lesson_status}")
             
-            # Enhanced score tracking
-            if self.attempt.score_raw is not None:
+            # Enhanced score tracking - update scores even if not completed
+            if self.attempt.score_raw is not None and self.attempt.score_raw > 0:
                 score_value = float(self.attempt.score_raw)
                 progress.last_score = score_value
                 
@@ -708,12 +722,9 @@ class ScormAPIHandler:
                 if progress.best_score is None or score_value > progress.best_score:
                     progress.best_score = score_value
                 
-                if is_completed:
-                    logger.info(f"SCORM completed - Score saved to TopicProgress: last_score={progress.last_score}, best_score={progress.best_score}")
-                else:
-                    logger.info(f"SCORM incomplete but score valid - Score saved to TopicProgress: last_score={progress.last_score}, best_score={progress.best_score}")
+                logger.info(f"SCORM score updated - Score saved to TopicProgress: last_score={progress.last_score}, best_score={progress.best_score}")
             else:
-                logger.info(f"No valid score to save (score_raw is None, status: {self.attempt.lesson_status})")
+                logger.info(f"No valid score to save (score_raw is None or 0, status: {self.attempt.lesson_status})")
             
             # Update time spent
             try:
@@ -831,14 +842,17 @@ class ScormAPIHandler:
             logger.error(f"Error updating progress calculation: {str(e)}")
     
     def _parse_and_sync_suspend_data(self, suspend_data):
-        """Parse suspend data and immediately sync progress to backend"""
+        """Parse suspend data and immediately sync progress to backend - ENHANCED FOR STORYLINE"""
         try:
             if not suspend_data:
                 return
             
             import re
             
-            # Parse progress from suspend data
+            # ENHANCED: Check for Storyline completion patterns FIRST
+            self._check_storyline_completion(suspend_data)
+            
+            # Parse progress from suspend data (generic patterns)
             progress_match = re.search(r'progress=(\d+)', suspend_data)
             current_slide_match = re.search(r'current_slide=([^&]+)', suspend_data)
             completed_slides_match = re.search(r'completed_slides=([^&]+)', suspend_data)
@@ -873,5 +887,96 @@ class ScormAPIHandler:
                 
         except Exception as e:
             logger.error(f"Error parsing and syncing suspend data: {str(e)}")
+    
+    def _check_storyline_completion(self, suspend_data):
+        """CRITICAL FIX: Check for Storyline completion patterns in suspend data"""
+        try:
+            if not suspend_data:
+                return
+            
+            logger.info(f"STORYLINE CHECK: Analyzing suspend data ({len(suspend_data)} chars)")
+            
+            # Count visited slides - Storyline marks completed slides with "Visited"
+            visited_count = suspend_data.count('Visited')
+            logger.info(f"STORYLINE CHECK: Found {visited_count} 'Visited' markers")
+            
+            # Check for completion indicators
+            completion_indicators = [
+                'complete', 'finished', 'done', 'passed', 'failed',
+                'qd"true', 'qd":true', 'quiz_done":true', 'assessment_done":true',
+                'lesson_done":true', 'course_done":true'
+            ]
+            
+            found_indicators = []
+            for indicator in completion_indicators:
+                if indicator in suspend_data:
+                    found_indicators.append(indicator)
+            
+            logger.info(f"STORYLINE CHECK: Found completion indicators: {found_indicators}")
+            
+            # STORYLINE COMPLETION LOGIC:
+            # If we have multiple visited slides AND completion indicators, mark as completed
+            is_storyline_completed = False
+            completion_reason = ""
+            
+            if visited_count >= 3:  # Multiple slides visited
+                if found_indicators:
+                    is_storyline_completed = True
+                    completion_reason = f"Storyline completion detected: {visited_count} slides visited + indicators: {found_indicators}"
+                elif '100' in suspend_data:  # 100% completion indicator
+                    is_storyline_completed = True
+                    completion_reason = f"Storyline completion detected: {visited_count} slides visited + 100% indicator"
+                else:
+                    # Check if this looks like a complete course (many slides visited)
+                    if visited_count >= 5:  # Assume 5+ slides = complete course
+                        is_storyline_completed = True
+                        completion_reason = f"Storyline completion detected: {visited_count} slides visited (assumed complete course)"
+            
+            if is_storyline_completed:
+                logger.info(f"STORYLINE COMPLETION: {completion_reason}")
+                
+                # Update completion status
+                self.attempt.lesson_status = 'completed'
+                self.attempt.completion_status = 'completed'
+                self.attempt.success_status = 'passed'
+                
+                # Set completion score if not already set
+                if self.attempt.score_raw is None:
+                    self.attempt.score_raw = 100.0  # Default completion score
+                    logger.info("STORYLINE COMPLETION: Set default completion score to 100")
+                
+                # Update CMI data
+                self.attempt.cmi_data['cmi.core.lesson_status'] = 'completed'
+                self.attempt.cmi_data['cmi.completion_status'] = 'completed'
+                self.attempt.cmi_data['cmi.success_status'] = 'passed'
+                self.attempt.cmi_data['cmi.core.score.raw'] = str(self.attempt.score_raw)
+                
+                # Update detailed tracking
+                if not self.attempt.detailed_tracking:
+                    self.attempt.detailed_tracking = {}
+                
+                self.attempt.detailed_tracking.update({
+                    'storyline_completion_detected': True,
+                    'completion_reason': completion_reason,
+                    'visited_slides_count': visited_count,
+                    'completion_indicators': found_indicators,
+                    'completion_source': 'storyline_suspend_data_analysis',
+                    'completion_timestamp': timezone.now().isoformat()
+                })
+                
+                logger.info(f"STORYLINE COMPLETION: Updated attempt {self.attempt.id} - status: completed, score: {self.attempt.score_raw}")
+                
+                # CRITICAL: Save the attempt to database
+                self.attempt.save()
+                logger.info("STORYLINE COMPLETION: Attempt saved to database")
+                
+                # Immediately update TopicProgress
+                self._update_topic_progress()
+                
+            else:
+                logger.info(f"STORYLINE CHECK: Not completed yet - {visited_count} slides visited, indicators: {found_indicators}")
+                
+        except Exception as e:
+            logger.error(f"STORYLINE CHECK ERROR: {str(e)}")
     
 

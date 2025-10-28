@@ -65,6 +65,17 @@
     <button class="test-button" data-action="exit" onclick="testExit('data-action')">Exit Assessment (data-action)</button>
     <button class="test-button" data-exit="true" onclick="testExit('data-exit')">Exit Assessment (data-exit)</button>
     
+    <h2>Storyline 2004 Specific Tests</h2>
+    <p>These buttons simulate Storyline 2004 exit patterns:</p>
+    
+    <button class="test-button" onclick="testExit('storyline-exit')">Exit Course</button>
+    <button class="test-button" onclick="testExit('storyline-finish')">Finish Course</button>
+    <button class="test-button" onclick="testExit('storyline-complete')">Complete Course</button>
+    <button class="test-button" onclick="testExit('storyline-close')">Close Course</button>
+    
+    <input type="button" class="test-button" value="EXIT COURSE" onclick="testExit('storyline-input-exit')">
+    <input type="button" class="test-button" value="Finish Course" onclick="testExit('storyline-input-finish')">
+    
     <h2>Test Results</h2>
     <div id="results"></div>
     

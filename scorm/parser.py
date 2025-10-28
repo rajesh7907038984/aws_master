@@ -154,19 +154,26 @@ class ScormParser:
                     # Launch URL is relative to manifest location
                     pass
             
-            # CRITICAL FIX: Prioritize SCORM API wrapper files over content files
-            # For Articulate Storyline packages, index_lms.html is the correct SCORM API wrapper
-            if not self.launch_url:
-                # First, check for SCORM API wrapper files (these handle SCORM communication)
-                scorm_api_wrappers = ['index_lms.html', 'indexAPI.html', 'lms.html', 'scorm.html']
-                for wrapper in scorm_api_wrappers:
-                    wrapper_candidates = [f for f in extracted_files if f.lower().endswith(wrapper)]
-                    if wrapper_candidates:
-                        self.launch_url = wrapper_candidates[0]
-                        logger.info(f"Using SCORM API wrapper as launch file: {self.launch_url}")
-                        break
-                
-                # If no SCORM API wrapper found, fallback to content files
+            # CRITICAL FIX: Always prioritize indexAPI.html over content files
+            # Only use indexAPI.html as the SCORM API wrapper for all package types
+            # This runs even if manifest already set a launch URL to ensure we use the API wrapper
+            
+            # First, check for indexAPI.html specifically
+            scorm_api_wrappers = ['indexAPI.html']
+            api_wrapper_found = False
+            for wrapper in scorm_api_wrappers:
+                wrapper_candidates = [f for f in extracted_files if f.lower().endswith(wrapper)]
+                if wrapper_candidates:
+                    original_launch_url = self.launch_url
+                    self.launch_url = wrapper_candidates[0]
+                    api_wrapper_found = True
+                    logger.info(f"✅ Using SCORM API wrapper as launch file: {self.launch_url}")
+                    if original_launch_url and original_launch_url != self.launch_url:
+                        logger.info(f"   Replaced manifest launch URL '{original_launch_url}' with API wrapper")
+                    break
+            
+            # If no SCORM API wrapper found, keep the manifest launch URL or fallback to content files
+            if not api_wrapper_found:
                 if not self.launch_url:
                     # Fallback to other common entry points (prioritize story.html for content)
                     entry_points = ['story.html', 'index.html', 'launch.html', 'start.html', 'main.html']
@@ -176,6 +183,8 @@ class ScormParser:
                             self.launch_url = candidates[0]
                             logger.info(f"Using {entry_point} as launch file: {self.launch_url}")
                             break
+                else:
+                    logger.info(f"Using manifest launch URL: {self.launch_url}")
             
             return {
                 'version': self.version,

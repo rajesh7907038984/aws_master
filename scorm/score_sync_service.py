@@ -66,7 +66,9 @@ class ScormScoreSyncService:
             score_value = ScormScoreSyncService._extract_best_score(scorm_attempt)
             
             if score_value is None:
-                logger.warning(f"No valid score found for attempt {scorm_attempt.id}")
+                # CRITICAL FIX: Don't sync if no valid score found
+                # This prevents incorrect default scores from being assigned
+                logger.info(f"No valid score found for attempt {scorm_attempt.id} - skipping sync to prevent incorrect scoring")
                 return False
             
             # Update TopicProgress with the score

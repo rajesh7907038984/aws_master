@@ -90,8 +90,8 @@ class ScormPackage(models.Model):
         if self.launch_url and any(wrapper in self.launch_url.lower() for wrapper in ['index_lms.html', 'indexapi.html', 'lms.html', 'scorm.html']):
             return self.launch_url
         
-        # Check if SCORM API wrapper files exist
-        scorm_api_wrappers = ['index_lms.html', 'indexAPI.html', 'lms.html', 'scorm.html']
+        # Check if indexAPI.html exists specifically
+        scorm_api_wrappers = ['indexAPI.html']
         for wrapper in scorm_api_wrappers:
             wrapper_path = f"{self.extracted_path}/{wrapper}"
             if default_storage.exists(wrapper_path):
@@ -253,6 +253,12 @@ class ScormAttempt(models.Model):
         default=dict,
         help_text="Complete CMI data model storage"
     )
+    # CMI data history tracking
+    cmi_data_history = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="Complete history of CMI data changes with timestamps"
+    )
     # Additional tracking data
     detailed_tracking = models.JSONField(
         default=dict,
@@ -298,6 +304,10 @@ class ScormAttempt(models.Model):
             self.detailed_tracking = {}
         if self.session_data is None:
             self.session_data = {}
+        if self.cmi_data is None:
+            self.cmi_data = {}
+        if self.cmi_data_history is None:
+            self.cmi_data_history = []
     
     def is_passed(self):
         """Check if attempt is passed based on mastery score"""

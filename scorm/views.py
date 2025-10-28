@@ -719,15 +719,17 @@ def scorm_content(request, topic_id=None, path=None, attempt_id=None):
             logger.error(f"Error generating S3 URL: {str(e)}")
             return HttpResponse('Error generating content URL', status=500)
         
-        # OPTIMIZATION: For video and audio files, proxy through Django to add proper CORS headers
+        # OPTIMIZATION: For video, audio, and image files, proxy through Django to add proper CORS headers
         # For other files, redirect directly to S3 for maximum performance
         if not path.endswith(('.html', '.htm')):
-            # For video and audio files, proxy through Django to add proper headers
+            # For video, audio, and image files, proxy through Django to add proper headers
             if path and any(path.lower().endswith(ext) for ext in [
                 # Video extensions
                 '.mp4', '.webm', '.ogg', '.avi', '.mov', '.m4v', '.flv', '.wmv', '.mkv',
                 # Audio extensions - CRITICAL FIX: Add audio file support
-                '.mp3', '.wav', '.aac', '.m4a', '.wma', '.flac'
+                '.mp3', '.wav', '.aac', '.m4a', '.wma', '.flac',
+                # Image extensions - CRITICAL FIX: Add image file support for CORS
+                '.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg', '.bmp', '.tiff'
             ]):
                 try:
                     import requests
@@ -768,6 +770,29 @@ def scorm_content(request, topic_id=None, path=None, attempt_id=None):
                         content_type = 'video/avi'
                     elif path.lower().endswith('.mov'):
                         content_type = 'video/quicktime'
+                    elif path.lower().endswith('.m4v'):
+                        content_type = 'video/x-m4v'
+                    elif path.lower().endswith('.flv'):
+                        content_type = 'video/x-flv'
+                    elif path.lower().endswith('.wmv'):
+                        content_type = 'video/x-ms-wmv'
+                    elif path.lower().endswith('.mkv'):
+                        content_type = 'video/x-matroska'
+                    # Image content types
+                    elif path.lower().endswith('.jpg') or path.lower().endswith('.jpeg'):
+                        content_type = 'image/jpeg'
+                    elif path.lower().endswith('.png'):
+                        content_type = 'image/png'
+                    elif path.lower().endswith('.gif'):
+                        content_type = 'image/gif'
+                    elif path.lower().endswith('.webp'):
+                        content_type = 'image/webp'
+                    elif path.lower().endswith('.svg'):
+                        content_type = 'image/svg+xml'
+                    elif path.lower().endswith('.bmp'):
+                        content_type = 'image/bmp'
+                    elif path.lower().endswith('.tiff'):
+                        content_type = 'image/tiff'
                     else:
                         # Fallback to S3 response content type
                         content_type = response.headers.get('content-type', 'application/octet-stream')
@@ -776,7 +801,7 @@ def scorm_content(request, topic_id=None, path=None, attempt_id=None):
                     django_response = HttpResponse(response.content, content_type=content_type)
                     django_response['Access-Control-Allow-Origin'] = '*'
                     django_response['Access-Control-Allow-Methods'] = 'GET, HEAD, OPTIONS'
-                    django_response['Access-Control-Allow-Headers'] = 'Range, Content-Range, Content-Length'
+                    django_response['Access-Control-Allow-Headers'] = 'Range, Content-Range, Content-Length, Origin, X-Requested-With, Content-Type, Accept'
                     django_response['Accept-Ranges'] = 'bytes'
                     django_response['Cache-Control'] = 'public, max-age=3600'
                     django_response['X-Frame-Options'] = 'SAMEORIGIN'
@@ -874,6 +899,41 @@ def scorm_content(request, topic_id=None, path=None, attempt_id=None):
             # Inject lightweight SCORM API for HTML files
             if 'text/html' in content_type:
                 html_content = content.decode('utf-8')
+                
+                # CRITICAL FIX: Fix image loading issues in SCORM content
+                import re
+                import urllib.parse
+                
+                # Remove problematic image attributes that cause loading issues
+                html_content = re.sub(r'loading="lazy"', '', html_content)
+                html_content = re.sub(r'crossorigin="anonymous"', '', html_content)
+                html_content = re.sub(r'crossorigin=\'anonymous\'', '', html_content)
+                
+                # Fix relative asset URLs to absolute S3 URLs
+                def fix_asset_url(match):
+                    asset_path = match.group(1)
+                    # URL decode the asset path
+                    decoded_path = urllib.parse.unquote(asset_path)
+                    # Create absolute URL using the base S3 URL
+                    base_url = s3_url.rsplit('/', 1)[0]  # Remove the current file from URL
+                    absolute_url = f"{base_url}/{decoded_path}"
+                    return f'src="{absolute_url}"'
+                
+                # Convert relative asset URLs to absolute URLs
+                html_content = re.sub(r'src="(assets/[^"]+)"', fix_asset_url, html_content)
+                html_content = re.sub(r"src='(assets/[^']+)'", lambda m: f"src='{fix_asset_url(m).split('=')[1]}'", html_content)
+                
+                # Also fix any other relative paths that might be problematic
+                def fix_relative_url(match):
+                    rel_path = match.group(1)
+                    decoded_path = urllib.parse.unquote(rel_path)
+                    base_url = s3_url.rsplit('/', 1)[0]
+                    absolute_url = f"{base_url}/{decoded_path}"
+                    return f'href="{absolute_url}"'
+                
+                html_content = re.sub(r'href="([^"]*\.(jpg|jpeg|png|gif|webp|svg|css|js))"', fix_relative_url, html_content)
+                
+                logger.info(f"Fixed image loading issues in SCORM content: {path}")
                 
                 # CRITICAL FIX: Handle SCORM 2004 Storyline packages properly
                 if scorm_package.version in ['storyline', '2004', '1.2']:
@@ -1342,6 +1402,91 @@ console.log('[SCORM 2004] Resume data injected:', {{
     entry: resumeData.entry,
     completionStatus: resumeData.completionStatus
 }});
+
+// -----------------------
+// STORYLINE EXIT BUTTON DETECTION AND HANDLING
+// -----------------------
+(function() {{
+    console.log('[SCORM 2004] Setting up Storyline exit button detection');
+    
+    // Monitor for exit button clicks
+    document.addEventListener('click', function(event) {{
+        const element = event.target;
+        const text = (element.textContent || element.value || '').toLowerCase();
+        
+        // Check for exit button patterns
+        const isExitButton = (
+            text.includes('exit') || 
+            text.includes('finish') || 
+            text.includes('complete') ||
+            text.includes('close') ||
+            element.classList.contains('courseExit') || 
+            element.classList.contains('exit-button') ||
+            element.classList.contains('courseExit--standard') ||
+            element.getAttribute('data-action') === 'exit' ||
+            element.getAttribute('data-exit') === 'true' ||
+            (element.id && element.id.toLowerCase().includes('exit'))
+        );
+        
+        if (isExitButton) {{
+            console.log('[SCORM 2004] Exit button detected, triggering SCORM termination');
+            
+            // Prevent default navigation
+            event.preventDefault();
+            event.stopPropagation();
+            
+            // Trigger SCORM termination
+            try {{
+                if (window.API_1484_11 && window.API_1484_11.Terminate) {{
+                    window.API_1484_11.Terminate('');
+                }}
+                if (window.API && window.API.LMSFinish) {{
+                    window.API.LMSFinish('');
+                }}
+            }} catch (e) {{
+                console.warn('[SCORM 2004] Error during termination:', e);
+            }}
+            
+            // Send exit request to parent window
+            try {{
+                window.parent.postMessage({{
+                    type: 'SCORM_EXIT_REQUEST',
+                    source: 'scorm_content',
+                    action: 'exit_requested'
+                }}, '*');
+            }} catch (e) {{
+                console.warn('[SCORM 2004] Error sending exit message to parent:', e);
+            }}
+        }}
+    }});
+    
+    // Also monitor for dynamically added exit buttons
+    const observer = new MutationObserver(function(mutations) {{
+        mutations.forEach(function(mutation) {{
+            mutation.addedNodes.forEach(function(node) {{
+                if (node.nodeType === 1) {{ // Element node
+                    const buttons = node.querySelectorAll ? node.querySelectorAll('button, input[type="button"], a') : [];
+                    buttons.forEach(function(button) {{
+                        const text = (button.textContent || button.value || '').toLowerCase();
+                        if (text.includes('exit') || text.includes('finish') || text.includes('complete')) {{
+                            if (!button.hasAttribute('data-scorm-exit-handled')) {{
+                                button.setAttribute('data-scorm-exit-handled', 'true');
+                                console.log('[SCORM 2004] Added exit button handler to:', button);
+                            }}
+                        }}
+                    }});
+                }}
+            }});
+        }});
+    }});
+    
+    observer.observe(document.body, {{
+        childList: true,
+        subtree: true
+    }});
+    
+    console.log('[SCORM 2004] Exit button detection active');
+}})();
 </script>'''
                 elif scorm_package.version in ['xapi', 'captivate', 'lectora', 'html5', 'legacy', 'dual']:
                     # Other package types - minimal bridge

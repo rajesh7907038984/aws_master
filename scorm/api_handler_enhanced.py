@@ -737,6 +737,10 @@ class ScormAPIHandlerEnhanced:
                         # CRITICAL FIX: Update progress when suspend_data changes (indicates progress)
                         self._update_topic_progress()
                         logger.info("🔖 PROGRESS UPDATE: Triggered progress update due to suspend_data change")
+                        
+                        # PERMANENT SOLUTION: Auto-process score from suspend data
+                        if value and len(value) > 50:  # Only process substantial suspend data
+                            self._auto_process_score()
                     except Exception as save_error:
                         logger.error("❌ SUSPEND DATA SAVE ERROR: %s", str(save_error))
                 elif element == 'cmi.core.session_time':
@@ -804,6 +808,9 @@ class ScormAPIHandlerEnhanced:
                             self.attempt.save()
                             self._update_topic_progress()
                             logger.info("SCORE: Immediately saved to database and updated TopicProgress (SCORM 2004)")
+                            
+                            # PERMANENT SOLUTION: Auto-process score using dynamic processor
+                            self._auto_process_score()
                         else:
                             self.attempt.score_raw = None
                             self.attempt.cmi_data['cmi.score.raw'] = ''
@@ -864,6 +871,10 @@ class ScormAPIHandlerEnhanced:
                         self.attempt.last_accessed = timezone.now()
                         self.attempt.save(update_fields=['suspend_data', 'cmi_data', 'last_accessed'])
                         logger.info("🔖 SUSPEND DATA SAVED (SCORM 2004): Immediately saved suspend_data and CMI data")
+                        
+                        # PERMANENT SOLUTION: Auto-process score from suspend data
+                        if value and len(value) > 50:  # Only process substantial suspend data
+                            self._auto_process_score()
                     except Exception as save_error:
                         logger.error("❌ SUSPEND DATA SAVE ERROR (SCORM 2004): %s", str(save_error))
                 elif element == 'cmi.session_time':
@@ -1360,7 +1371,7 @@ class ScormAPIHandlerEnhanced:
         """
         AUTOMATIC FIX: Extract score from suspend_data when SCORM content doesn't report it properly
         Some broken SCORM packages display scores but never call SetValue for cmi.core.score.raw
-        This method automatically detects and fixes that issue
+        This method automatically detects and fixes that issue - ENHANCED FOR STORYLINE
         """
         import json
         import re
@@ -1371,6 +1382,16 @@ class ScormAPIHandlerEnhanced:
         
         try:
             logger.info("AUTO_EXTRACT: Analyzing suspend_data for embedded score (current score: %s)", self.attempt.score_raw)
+            
+            # ENHANCED: Check for Storyline completion patterns FIRST
+            self._check_storyline_completion_enhanced()
+            
+            # CRITICAL FIX: Check for slide completion FIRST before looking for quiz scores
+            visited_count = self.attempt.suspend_data.count('Visited')
+            if visited_count >= 3:
+                logger.info("AUTO_EXTRACT: SLIDE COMPLETION DETECTED - Found %d 'Visited' markers, scoring as 100%%", visited_count)
+                self._apply_extracted_score(100.0)
+                return
             
             # Try to parse suspend_data as JSON
             try:
@@ -1511,6 +1532,103 @@ class ScormAPIHandlerEnhanced:
             
         except Exception as e:
             logger.error("AUTO_EXTRACT: Failed to apply extracted score: %s", str(e))
+    
+    def _check_storyline_completion_enhanced(self):
+        """ENHANCED STORYLINE COMPLETION CHECK - More sophisticated detection"""
+        try:
+            if not self.attempt.suspend_data:
+                return
+            
+            logger.info(f"STORYLINE ENHANCED CHECK: Analyzing suspend data ({len(self.attempt.suspend_data)} chars)")
+            
+            # Count visited slides - Storyline marks completed slides with "Visited"
+            visited_count = self.attempt.suspend_data.count('Visited')
+            logger.info(f"STORYLINE ENHANCED CHECK: Found {visited_count} 'Visited' markers")
+            
+            # Check for completion indicators with more patterns
+            completion_indicators = [
+                'complete', 'finished', 'done', 'passed', 'failed',
+                'qd"true', 'qd":true', 'quiz_done":true', 'assessment_done":true',
+                'lesson_done":true', 'course_done":true', '100', 'completed'
+            ]
+            
+            found_indicators = []
+            for indicator in completion_indicators:
+                if indicator in self.attempt.suspend_data:
+                    found_indicators.append(indicator)
+            
+            logger.info(f"STORYLINE ENHANCED CHECK: Found completion indicators: {found_indicators}")
+            
+            # ENHANCED STORYLINE COMPLETION LOGIC:
+            is_storyline_completed = False
+            completion_reason = ""
+            
+            # Pattern 1: Multiple slides visited + completion indicators
+            if visited_count >= 3 and found_indicators:
+                is_storyline_completed = True
+                completion_reason = f"Storyline completion detected: {visited_count} slides visited + indicators: {found_indicators}"
+            
+            # Pattern 2: 100% completion indicator + slides visited
+            elif visited_count >= 3 and '100' in self.attempt.suspend_data:
+                is_storyline_completed = True
+                completion_reason = f"Storyline completion detected: {visited_count} slides visited + 100% indicator"
+            
+            # Pattern 3: Many slides visited (assume complete course)
+            elif visited_count >= 5:
+                is_storyline_completed = True
+                completion_reason = f"Storyline completion detected: {visited_count} slides visited (assumed complete course)"
+            
+            # Pattern 4: Completion indicators without slide count (quiz completion)
+            elif found_indicators and any(ind in ['qd"true', 'qd":true', 'quiz_done":true'] for ind in found_indicators):
+                is_storyline_completed = True
+                completion_reason = f"Storyline quiz completion detected: indicators: {found_indicators}"
+            
+            if is_storyline_completed:
+                logger.info(f"STORYLINE ENHANCED COMPLETION: {completion_reason}")
+                
+                # Update completion status
+                self.attempt.lesson_status = 'completed'
+                self.attempt.completion_status = 'completed'
+                self.attempt.success_status = 'passed'
+                
+                # Set completion score if not already set
+                if self.attempt.score_raw is None:
+                    self.attempt.score_raw = 100.0  # Default completion score
+                    logger.info("STORYLINE ENHANCED COMPLETION: Set default completion score to 100")
+                
+                # Update CMI data
+                self.attempt.cmi_data['cmi.core.lesson_status'] = 'completed'
+                self.attempt.cmi_data['cmi.completion_status'] = 'completed'
+                self.attempt.cmi_data['cmi.success_status'] = 'passed'
+                self.attempt.cmi_data['cmi.core.score.raw'] = str(self.attempt.score_raw)
+                
+                # Update detailed tracking
+                if not self.attempt.detailed_tracking:
+                    self.attempt.detailed_tracking = {}
+                
+                self.attempt.detailed_tracking.update({
+                    'storyline_completion_detected': True,
+                    'completion_reason': completion_reason,
+                    'visited_slides_count': visited_count,
+                    'completion_indicators': found_indicators,
+                    'completion_source': 'storyline_enhanced_suspend_data_analysis',
+                    'completion_timestamp': timezone.now().isoformat()
+                })
+                
+                logger.info(f"STORYLINE ENHANCED COMPLETION: Updated attempt {self.attempt.id} - status: completed, score: {self.attempt.score_raw}")
+                
+                # CRITICAL: Save the attempt to database
+                self.attempt.save()
+                logger.info("STORYLINE ENHANCED COMPLETION: Attempt saved to database")
+                
+                # Immediately update TopicProgress
+                self._update_topic_progress()
+                
+            else:
+                logger.info(f"STORYLINE ENHANCED CHECK: Not completed yet - {visited_count} slides visited, indicators: {found_indicators}")
+                
+        except Exception as e:
+            logger.error(f"STORYLINE ENHANCED CHECK ERROR: {str(e)}")
     
     def _commit_data(self):
         """Save attempt data to database with enhanced validation and error handling"""
@@ -1761,6 +1879,48 @@ class ScormAPIHandlerEnhanced:
         except Exception as e:
             logger.error(f"Error building interaction data: {str(e)}")
             return None
+    
+    def _auto_process_score(self):
+        """PERMANENT SOLUTION: Automatically process score using dynamic processor"""
+        try:
+            from .dynamic_score_processor import DynamicScormScoreProcessor
+            
+            # Only process if we have suspend data and no score yet
+            if self.attempt.suspend_data and not self.attempt.score_raw:
+                logger.info(f"AUTO-PROCESS: Attempting to extract score from suspend data for attempt {self.attempt.id}")
+                
+                processor = DynamicScormScoreProcessor(self.attempt)
+                extracted_score = processor.extract_score_dynamically(self.attempt.suspend_data)
+                
+                if extracted_score is not None:
+                    logger.info(f"AUTO-PROCESS: Extracted score {extracted_score} for attempt {self.attempt.id}")
+                    
+                    # Update the attempt with extracted score
+                    self.attempt.score_raw = extracted_score
+                    
+                    # Set completion status based on score
+                    mastery_score = self.attempt.scorm_package.mastery_score or 70
+                    if extracted_score >= mastery_score:
+                        self.attempt.completion_status = 'completed'
+                        self.attempt.success_status = 'passed'
+                        self.attempt.lesson_status = 'passed'
+                    else:
+                        self.attempt.completion_status = 'completed'
+                        self.attempt.success_status = 'failed'
+                        self.attempt.lesson_status = 'failed'
+                    
+                    # Save and sync
+                    self.attempt.save()
+                    self._update_topic_progress()
+                    
+                    logger.info(f"AUTO-PROCESS: Successfully processed score {extracted_score} for attempt {self.attempt.id}")
+                else:
+                    logger.info(f"AUTO-PROCESS: No score could be extracted from suspend data for attempt {self.attempt.id}")
+            else:
+                logger.info(f"AUTO-PROCESS: Skipping - attempt {self.attempt.id} has score {self.attempt.score_raw} or no suspend data")
+                
+        except Exception as e:
+            logger.error(f"AUTO-PROCESS ERROR: Failed to process score for attempt {self.attempt.id}: {str(e)}")
     
     def _update_topic_progress(self):
         """Update related TopicProgress based on SCORM data with atomic transactions"""
