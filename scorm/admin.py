@@ -33,10 +33,10 @@ def fix_storyline_completion(modeladmin, request, queryset):
 
 @admin.register(ScormPackage)
 class ScormPackageAdmin(admin.ModelAdmin):
-    list_display = ['title', 'version', 'topic', 'created_at', 'version_indicator']
-    list_filter = ['version', 'created_at']
-    search_fields = ['title', 'identifier', 'topic__title']
-    readonly_fields = ['created_at', 'updated_at', 'extracted_path', 'identifier']
+    list_display = ['title', 'version', 'status', 'extract_status', 'topic', 'created_at', 'version_indicator']
+    list_filter = ['version', 'status', 'extract_status', 'runtime_api', 'lms_launch_type', 'created_at']
+    search_fields = ['title', 'identifier', 'topic__title', 'organization']
+    readonly_fields = ['created_at', 'updated_at', 'extracted_path', 'identifier', 'size']
     
     def version_indicator(self, obj):
         """Show SCORM version with Storyline indicator"""
@@ -47,6 +47,29 @@ class ScormPackageAdmin(admin.ModelAdmin):
             return version
     
     version_indicator.short_description = 'SCORM Type'
+    
+    fieldsets = (
+        ('Basic Information', {
+            'fields': ('topic', 'title', 'description', 'status')
+        }),
+        ('Package Details', {
+            'fields': ('version', 'identifier', 'organization', 'entry_point', 'launch_url')
+        }),
+        ('File Management', {
+            'fields': ('package_file', 'extracted_path', 'size', 'extract_status')
+        }),
+        ('Technical Settings', {
+            'fields': ('runtime_api', 'lms_launch_type', 'is_multi_sco', 'mastery_score', 'has_score_requirement')
+        }),
+        ('Metadata', {
+            'fields': ('metadata', 'duration_estimate'),
+            'classes': ('collapse',)
+        }),
+        ('Audit Information', {
+            'fields': ('created_by', 'created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
 
 
 @admin.register(ScormAttempt)
@@ -92,10 +115,26 @@ class ScormAttemptAdmin(admin.ModelAdmin):
             'fields': ('score_raw', 'score_min', 'score_max', 'score_scaled')
         }),
         ('Time Tracking', {
-            'fields': ('total_time', 'session_time')
+            'fields': ('total_time', 'session_time', 'time_spent_seconds', 'session_start_time', 'session_end_time')
         }),
         ('Location & Suspend Data', {
             'fields': ('lesson_location', 'suspend_data')
+        }),
+        ('SCORM 1.2 Data', {
+            'fields': ('cmi_student_preferences', 'cmi_objectives_12', 'cmi_interactions_12'),
+            'classes': ('collapse',)
+        }),
+        ('SCORM 2004 Data', {
+            'fields': ('cmi_comments_from_learner', 'cmi_comments_from_lms', 'cmi_objectives_2004', 'cmi_interactions_2004'),
+            'classes': ('collapse',)
+        }),
+        ('xAPI Event Data', {
+            'fields': ('xapi_events', 'xapi_actor', 'xapi_verb', 'xapi_object', 'xapi_result', 'xapi_context', 'xapi_timestamp', 'xapi_stored', 'xapi_authority', 'xapi_version', 'xapi_attachments'),
+            'classes': ('collapse',)
+        }),
+        ('CMI Data Storage', {
+            'fields': ('cmi_data', 'cmi_data_history'),
+            'classes': ('collapse',)
         }),
         ('Timestamps', {
             'fields': ('started_at', 'last_accessed', 'completed_at')

@@ -222,9 +222,6 @@ class TrainingTimeRecoveryService:
         """Fix underlying time tracking issues"""
         print("🔄 Fixing time tracking implementation...")
         
-        # Update the enhanced time tracking to be more reliable
-        from scorm.enhanced_time_tracking import EnhancedScormTimeTracker
-        
         # Get attempts that still have zero time
         zero_time_attempts = ScormAttempt.objects.filter(
             time_spent_seconds=0,

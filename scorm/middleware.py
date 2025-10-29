@@ -41,21 +41,23 @@ class ScormTimeTrackingMiddleware:
                             attempt_id = data.get('attempt_id')
                             if attempt_id:
                                 from scorm.models import ScormAttempt
-                                from scorm.enhanced_time_tracking import EnhancedScormTimeTracker
                                 
                                 attempt = ScormAttempt.objects.get(id=attempt_id)
-                                tracker = EnhancedScormTimeTracker(attempt)
                                 
-                                # Try to save the cached data
-                                if tracker.save_time_with_reliability(
-                                    data.get('session_time'),
-                                    data.get('total_time')
-                                ):
-                                    # Success - remove from cache
-                                    cache.delete(key)
-                                    logger.info(f"✅ Processed cached time data for attempt {attempt_id}")
-                                else:
-                                    logger.warning(f"⚠️ Failed to process cached time data for attempt {attempt_id}")
+                                # Update attempt with cached time data
+                                session_time = data.get('session_time')
+                                total_time = data.get('total_time')
+                                
+                                if session_time:
+                                    attempt.session_time = session_time
+                                if total_time:
+                                    attempt.total_time = total_time
+                                
+                                attempt.save()
+                                
+                                # Success - remove from cache
+                                cache.delete(key)
+                                logger.info(f"✅ Processed cached time data for attempt {attempt_id}")
                             
                     except Exception as e:
                         logger.error(f"Error processing cached time data for key {key}: {str(e)}")
@@ -120,8 +122,8 @@ class ScormTimeTrackingHealthMiddleware:
             cache.set('scorm_time_health_status', health_status, timeout=600)
             cache.set('scorm_time_health_last_check', timezone.now(), timeout=600)
             
-            if failed_attempts > 0 or fallback_count > 0:
-                logger.warning(f"SCORM time tracking health: {failed_attempts} failed attempts, {fallback_count} fallbacks")
+            if fallback_count > 0:
+                logger.warning(f"SCORM time tracking health: {fallback_count} fallbacks")
             else:
                 logger.info("SCORM time tracking health: All systems operational")
                 

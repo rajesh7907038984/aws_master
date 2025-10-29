@@ -5,7 +5,6 @@ Integrates with CMIDataHandler for real-time CMI data updates
 import logging
 from django.utils import timezone
 from django.db import transaction
-from .cmi_data_handler import CMIDataHandler
 
 logger = logging.getLogger(__name__)
 
@@ -17,13 +16,18 @@ class EnhancedScormAPIHandler:
     
     def __init__(self, attempt):
         self.attempt = attempt
-        self.cmi_handler = CMIDataHandler(attempt)
         self.last_error = None
     
     def _get_schema_default(self, field):
         """Get schema-defined default value for a field based on SCORM version"""
-        from .cmi_data_handler import CMIDataHandler
-        return CMIDataHandler.get_schema_default(field, self.attempt.scorm_package.version)
+        # Simple defaults based on SCORM version
+        defaults = {
+            'cmi.core.lesson_status': 'not attempted',
+            'cmi.completion_status': 'not attempted',
+            'cmi.success_status': 'unknown',
+            'cmi.core.entry': 'ab-initio',
+        }
+        return defaults.get(field, '')
     
     def get_value(self, element):
         """
@@ -179,8 +183,8 @@ class EnhancedScormAPIHandler:
                 self.cmi_handler.update_cmi_field('cmi.core.lesson_mode', self._get_schema_default('cmi.core.lesson_mode'), validate=False)
                 
                 # Set score range defaults
-                self.cmi_handler.update_cmi_field('cmi.core.score.min', '0', validate=False)
-                self.cmi_handler.update_cmi_field('cmi.core.score.max', '100', validate=False)
+                self.cmi_handler.update_cmi_field('cmi.core.score.min', '', validate=False)
+                self.cmi_handler.update_cmi_field('cmi.core.score.max', '', validate=False)
                 
                 # Set mastery score from package
                 if self.attempt.scorm_package.mastery_score:

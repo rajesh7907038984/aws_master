@@ -2943,12 +2943,8 @@ def test_scorm_connection(request):
         # For display purposes, try to find the integration model (might be None for global settings)
         try:
             logger.info("Looking up SCORM integration from database...")
-            if request.user.branch:
-                scorm_integration = SCORMIntegration.objects.filter(user=request.user, branch=request.user.branch).first()
-                if not scorm_integration:
-                    scorm_integration = SCORMIntegration.objects.filter(user=request.user).first()
-                if not scorm_integration and request.user.branch:
-                    scorm_integration = SCORMIntegration.objects.filter(branch=request.user.branch, is_active=True).first()
+            # SCORM integration removed - using global settings only
+            scorm_integration = None
             logger.info(f"Found SCORM integration: {scorm_integration is not None}")
         except Exception as db_error:
             logger.error(f"Database error looking up SCORM integration: {str(db_error)}")

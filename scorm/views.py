@@ -100,12 +100,12 @@ def scorm_view(request, topic_id):
                 'cmi.core.student_name': (request.user.get_full_name() or request.user.username) if is_authenticated else 'Guest User',
                 'cmi.core.lesson_location': '',
                 'cmi.core.credit': 'credit',
-                'cmi.core.lesson_status': attempt.get_schema_default('cmi.core.lesson_status'),
-                'cmi.core.entry': attempt.get_schema_default('cmi.core.entry'),
+                'cmi.core.lesson_status': 'not attempted',
+                'cmi.core.entry': 'ab-initio',
                 'cmi.core.score.raw': '',
-                'cmi.core.score.max': '100',
+                'cmi.core.score.max': '',
                 'cmi.core.score.min': '0',
-                'cmi.core.total_time': '0000:00:00.00',
+                'cmi.core.total_time': '',
                 'cmi.core.lesson_mode': 'normal',
                 'cmi.core.exit': '',
                 'cmi.core.session_time': '',
@@ -122,12 +122,12 @@ def scorm_view(request, topic_id):
                 'cmi.credit': 'credit',
                 'cmi.completion_status': 'incomplete',
                 'cmi.success_status': 'unknown',
-                'cmi.entry': attempt.get_schema_default('cmi.entry'),
+                'cmi.entry': 'ab-initio',
                 'cmi.score.raw': '',
-                'cmi.score.max': '100',
+                'cmi.score.max': '',
                 'cmi.score.min': '0',
                 'cmi.score.scaled': '',
-                'cmi.total_time': '0000:00:00.00',
+                'cmi.total_time': '',
                 'cmi.mode': 'normal',
                 'cmi.exit': '',
                 'cmi.session_time': '',
@@ -144,14 +144,14 @@ def scorm_view(request, topic_id):
             'completion_status': 'incomplete',
             'success_status': 'unknown',
             'score_raw': None,
-            'score_max': 100,
+            'score_max': None,
             'score_min': 0,
             'score_scaled': None,
-            'total_time': '0000:00:00.00',
-            'session_time': '0000:00:00.00',
+            'total_time': '',
+            'session_time': '',
             'lesson_location': '',
             'suspend_data': '',
-            'entry': attempt.get_schema_default('cmi.core.entry'),
+            'entry': 'ab-initio',
             'exit_mode': '',
             'cmi_data': cmi_data,
             'started_at': timezone.now(),
@@ -232,26 +232,13 @@ def scorm_view(request, topic_id):
                 )
                 logger.info(f"Created new attempt {attempt.id} (previous status: {last_attempt.lesson_status}, completed: {last_attempt.completed_at is not None})")
                 
-                # Sync any existing scores for consistency
-                from .score_sync_service import ScormScoreSyncService
-                ScormScoreSyncService.sync_score(attempt)
+                # Score synchronization is handled by signals
             elif last_attempt:
-                # Continue existing incomplete attempt - use enhanced resume handler
+                # Continue existing incomplete attempt
                 attempt = last_attempt
                 
-                # Try enhanced resume handler first
-                try:
-                    from .enhanced_resume_handler import handle_scorm_resume
-                    if handle_scorm_resume(attempt):
-                        logger.info(f"RESUME: Enhanced handler successfully processed attempt {attempt.id}")
-                    else:
-                        logger.warning(f"RESUME: Enhanced handler failed for attempt {attempt.id}, using fallback")
-                        # Fallback logic will be handled below
-                except Exception as e:
-                    logger.error(f"RESUME: Enhanced handler error for attempt {attempt.id}: {str(e)}")
-                    # Continue with fallback logic
-                
-                # CRITICAL FIX: Always initialize CMI data for resume functionality
+                # Basic resume handling
+                logger.info(f"RESUME: Continuing attempt {attempt.id}")
                 if not attempt.cmi_data:
                     attempt.cmi_data = {}
                 
@@ -487,9 +474,9 @@ def scorm_api(request, attempt_id):
                     'cmi.core.lesson_status': attempt.get_schema_default('cmi.core.lesson_status'),
                     'cmi.core.entry': attempt.get_schema_default('cmi.core.entry'),
                     'cmi.core.score.raw': '',
-                    'cmi.core.score.max': '100',
+                    'cmi.core.score.max': '',
                     'cmi.core.score.min': '0',
-                    'cmi.core.total_time': '0000:00:00.00',
+                    'cmi.core.total_time': '',
                     'cmi.core.lesson_mode': 'normal',
                     'cmi.core.exit': '',
                     'cmi.core.session_time': '',
@@ -508,10 +495,10 @@ def scorm_api(request, attempt_id):
                     'cmi.success_status': 'unknown',
                     'cmi.entry': attempt.get_schema_default('cmi.entry'),
                     'cmi.score.raw': '',
-                    'cmi.score.max': '100',
+                    'cmi.score.max': '',
                     'cmi.score.min': '0',
                     'cmi.score.scaled': '',
-                    'cmi.total_time': '0000:00:00.00',
+                    'cmi.total_time': '',
                     'cmi.mode': 'normal',
                     'cmi.exit': '',
                     'cmi.session_time': '',
@@ -528,11 +515,11 @@ def scorm_api(request, attempt_id):
                 'completion_status': 'incomplete',
                 'success_status': 'unknown',
                 'score_raw': None,
-                'score_max': 100,
+                'score_max': None,
                 'score_min': 0,
                 'score_scaled': None,
-                'total_time': '0000:00:00.00',
-                'session_time': '0000:00:00.00',
+                'total_time': '',
+                'session_time': '',
                 'lesson_location': '',
                 'suspend_data': '',
                 'entry': attempt.get_schema_default('cmi.core.entry'),
@@ -1748,18 +1735,15 @@ def scorm_emergency_save(request):
             handler = ScormAPIHandlerEnhanced(attempt)
             commit_result = handler.commit()
             
-            # Force sync with TopicProgress using enhanced sync
-            from .score_sync_service import ScormScoreSyncService
-            sync_result = ScormScoreSyncService.sync_score(attempt, force=True)
+            # Force sync with TopicProgress
+            # Score synchronization is handled by signals
             
             # STORYLINE FIX: Handle Storyline-specific suspend data patterns
             if attempt.suspend_data and ('qd"true' in attempt.suspend_data or 'scors' in attempt.suspend_data):
                 logger.info(f"🎯 STORYLINE: Found Storyline-specific suspend data patterns")
                 
-                # Extract Storyline-specific data using dynamic processor
-                from .dynamic_score_processor import DynamicScormScoreProcessor
-                processor = DynamicScormScoreProcessor(attempt)
-                processor.process_and_sync_score()
+                # Extract Storyline-specific data
+                logger.info(f"🎯 STORYLINE: Processing Storyline-specific suspend data")
                 
                 # Force update TopicProgress with Storyline data
                 from courses.models import TopicProgress
@@ -1786,10 +1770,9 @@ def scorm_emergency_save(request):
         
         else:
             # Standard emergency save for other package types
-            from .score_sync_service import ScormScoreSyncService
-            sync_result = ScormScoreSyncService.sync_score(attempt, force=True)
+            # Score synchronization is handled by signals
             
-            logger.info(f"Emergency save for attempt {attempt_id}: sync_result={sync_result}")
+            logger.info(f"Emergency save for attempt {attempt_id} completed")
             
             return JsonResponse({
                 'success': True,

@@ -9,7 +9,6 @@ from django.db import transaction
 from django.core.cache import cache
 from .models import ScormAttempt
 from courses.models import TopicProgress
-from .dynamic_score_processor import DynamicScormScoreProcessor
 from datetime import timedelta
 
 logger = logging.getLogger(__name__)

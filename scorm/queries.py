@@ -1,12 +1,11 @@
-# -*- coding: utf-8 -*-
 """
-SCORM Database Queries
-Collection of queries for retrieving SCORM interaction data
+SCORM Query Manager
+Collection of queries for retrieving SCORM data
 """
 from django.db import models
 from django.db.models import Q, Count, Avg, Sum, Max, Min
 from django.contrib.auth import get_user_model
-from .models import ScormPackage, ScormAttempt, ScormInteraction, ScormObjective, ScormComment
+from .models import ScormPackage, ScormAttempt
 
 User = get_user_model()
 
@@ -15,112 +14,6 @@ class ScormQueryManager:
     """
     Manager for SCORM-related database queries
     """
-    
-    @staticmethod
-    def get_user_interactions(user_id, scorm_package_id=None):
-        """
-        Get all interactions for a specific user
-        
-        Args:
-            user_id (int): User ID
-            scorm_package_id (int, optional): Specific SCORM package ID
-            
-        Returns:
-            QuerySet: ScormInteraction objects
-        """
-        query = ScormInteraction.objects.filter(attempt__user_id=user_id)
-        
-        if scorm_package_id:
-            query = query.filter(attempt__scorm_package_id=scorm_package_id)
-        
-        return query.select_related('attempt', 'attempt__user', 'attempt__scorm_package')
-    
-    @staticmethod
-    def get_course_interactions(scorm_package_id):
-        """
-        Get all interactions for a specific SCORM course
-        
-        Args:
-            scorm_package_id (int): SCORM package ID
-            
-        Returns:
-            QuerySet: ScormInteraction objects
-        """
-        return ScormInteraction.objects.filter(
-            attempt__scorm_package_id=scorm_package_id
-        ).select_related('attempt', 'attempt__user')
-    
-    @staticmethod
-    def get_interaction_analytics(scorm_package_id=None, user_id=None):
-        """
-        Get analytics for interactions
-        
-        Args:
-            scorm_package_id (int, optional): Specific SCORM package
-            user_id (int, optional): Specific user
-            
-        Returns:
-            dict: Analytics data
-        """
-        query = ScormInteraction.objects.all()
-        
-        if scorm_package_id:
-            query = query.filter(attempt__scorm_package_id=scorm_package_id)
-        
-        if user_id:
-            query = query.filter(attempt__user_id=user_id)
-        
-        analytics = {
-            'total_interactions': query.count(),
-            'correct_interactions': query.filter(result='correct').count(),
-            'incorrect_interactions': query.filter(result='incorrect').count(),
-            'interaction_types': {},
-            'average_latency': 0,
-            'top_performers': [],
-            'difficult_interactions': []
-        }
-        
-        # Calculate accuracy rate
-        if analytics['total_interactions'] > 0:
-            analytics['accuracy_rate'] = (
-                analytics['correct_interactions'] / analytics['total_interactions']
-            ) * 100
-        
-        # Group by interaction type
-        type_counts = query.values('interaction_type').annotate(
-            count=Count('id'),
-            correct=Count('id', filter=Q(result='correct')),
-            incorrect=Count('id', filter=Q(result='incorrect'))
-        )
-        
-        for item in type_counts:
-            interaction_type = item['interaction_type']
-            analytics['interaction_types'][interaction_type] = {
-                'total': item['count'],
-                'correct': item['correct'],
-                'incorrect': item['incorrect'],
-                'accuracy_rate': (item['correct'] / item['count']) * 100 if item['count'] > 0 else 0
-            }
-        
-        # Calculate average latency
-        latencies = query.exclude(latency='').values_list('latency', flat=True)
-        if latencies:
-            # Convert SCORM latency format to seconds and calculate average
-            total_seconds = 0
-            count = 0
-            for latency in latencies:
-                if latency.startswith('PT') and latency.endswith('S'):
-                    try:
-                        seconds = float(latency[2:-1])
-                        total_seconds += seconds
-                        count += 1
-                    except ValueError:
-                        continue
-            
-            if count > 0:
-                analytics['average_latency'] = total_seconds / count
-        
-        return analytics
     
     @staticmethod
     def get_user_performance_summary(user_id):
@@ -139,49 +32,29 @@ class ScormQueryManager:
             'total_attempts': attempts.count(),
             'completed_attempts': attempts.filter(lesson_status='completed').count(),
             'passed_attempts': attempts.filter(lesson_status='passed').count(),
+            'failed_attempts': attempts.filter(lesson_status='failed').count(),
             'average_score': 0,
+            'best_score': 0,
             'total_time_spent': 0,
-            'courses_taken': attempts.values('scorm_package').distinct().count(),
-            'interaction_summary': {},
-            'recent_activity': []
+            'courses_completed': 0
         }
         
-        # Calculate average score
-        scores = [float(attempt.score_raw) for attempt in attempts if attempt.score_raw]
-        if scores:
-            summary['average_score'] = sum(scores) / len(scores)
-        
-        # Calculate total time spent
-        for attempt in attempts:
-            if attempt.total_time:
-                time_seconds = ScormQueryManager._parse_scorm_time(attempt.total_time)
-                summary['total_time_spent'] += time_seconds
-        
-        # Get interaction summary
-        interactions = ScormInteraction.objects.filter(attempt__user_id=user_id)
-        summary['interaction_summary'] = {
-            'total_interactions': interactions.count(),
-            'correct_interactions': interactions.filter(result='correct').count(),
-            'accuracy_rate': 0
-        }
-        
-        if summary['interaction_summary']['total_interactions'] > 0:
-            summary['interaction_summary']['accuracy_rate'] = (
-                summary['interaction_summary']['correct_interactions'] / 
-                summary['interaction_summary']['total_interactions']
-            ) * 100
-        
-        # Get recent activity
-        recent_attempts = attempts.order_by('-last_accessed')[:5]
-        summary['recent_activity'] = [
-            {
-                'course_title': attempt.scorm_package.title,
-                'status': attempt.lesson_status,
-                'score': float(attempt.score_raw) if attempt.score_raw else None,
-                'last_accessed': attempt.last_accessed
-            }
-            for attempt in recent_attempts
-        ]
+        if summary['total_attempts'] > 0:
+            # Calculate average score
+            scores = attempts.exclude(score_raw__isnull=True).values_list('score_raw', flat=True)
+            if scores:
+                summary['average_score'] = sum(scores) / len(scores)
+                summary['best_score'] = max(scores)
+            
+            # Calculate total time spent
+            time_values = attempts.exclude(time_spent_seconds__isnull=True).values_list('time_spent_seconds', flat=True)
+            if time_values:
+                summary['total_time_spent'] = sum(time_values)
+            
+            # Count completed courses
+            summary['courses_completed'] = attempts.filter(
+                lesson_status__in=['completed', 'passed']
+            ).values('scorm_package_id').distinct().count()
         
         return summary
     
@@ -194,99 +67,45 @@ class ScormQueryManager:
             scorm_package_id (int): SCORM package ID
             
         Returns:
-            dict: Course performance analytics
+            dict: Course analytics
         """
         attempts = ScormAttempt.objects.filter(scorm_package_id=scorm_package_id)
-        interactions = ScormInteraction.objects.filter(attempt__scorm_package_id=scorm_package_id)
         
         analytics = {
-            'course_info': {
-                'package_id': scorm_package_id,
-                'total_attempts': attempts.count(),
-                'unique_learners': attempts.values('user').distinct().count()
-            },
-            'completion_rates': {
-                'completed': attempts.filter(lesson_status='completed').count(),
-                'passed': attempts.filter(lesson_status='passed').count(),
-                'failed': attempts.filter(lesson_status='failed').count(),
-                'incomplete': attempts.filter(lesson_status='incomplete').count()
-            },
-            'scoring_analytics': {
-                'average_score': 0,
-                'highest_score': 0,
-                'lowest_score': 0,
-                'score_distribution': {}
-            },
-            'interaction_analytics': {
-                'total_interactions': interactions.count(),
-                'most_difficult_interactions': [],
-                'interaction_type_performance': {}
-            },
-            'time_analytics': {
-                'average_completion_time': 0,
-                'fastest_completion': 0,
-                'slowest_completion': 0
-            }
+            'total_attempts': attempts.count(),
+            'unique_users': attempts.values('user_id').distinct().count(),
+            'completion_rate': 0,
+            'pass_rate': 0,
+            'average_score': 0,
+            'average_time': 0,
+            'score_distribution': {},
+            'time_distribution': {}
         }
         
-        # Calculate completion rates
-        total_attempts = analytics['course_info']['total_attempts']
-        if total_attempts > 0:
-            for status in analytics['completion_rates']:
-                analytics['completion_rates'][status] = (
-                    analytics['completion_rates'][status] / total_attempts
-                ) * 100
-        
-        # Calculate scoring analytics
-        scores = [float(attempt.score_raw) for attempt in attempts if attempt.score_raw]
-        if scores:
-            analytics['scoring_analytics']['average_score'] = sum(scores) / len(scores)
-            analytics['scoring_analytics']['highest_score'] = max(scores)
-            analytics['scoring_analytics']['lowest_score'] = min(scores)
+        if analytics['total_attempts'] > 0:
+            # Calculate completion and pass rates
+            completed = attempts.filter(lesson_status='completed').count()
+            passed = attempts.filter(lesson_status='passed').count()
             
-            # Score distribution
-            score_ranges = [(0, 50), (50, 70), (70, 85), (85, 100)]
-            for min_score, max_score in score_ranges:
-                range_count = len([s for s in scores if min_score <= s < max_score])
-                analytics['scoring_analytics']['score_distribution'][f'{min_score}-{max_score}'] = range_count
-        
-        # Calculate interaction analytics
-        if interactions.exists():
-            # Find most difficult interactions (lowest accuracy)
-            interaction_accuracy = interactions.values('interaction_id').annotate(
-                total=Count('id'),
-                correct=Count('id', filter=Q(result='correct'))
-            ).annotate(
-                accuracy=Count('id', filter=Q(result='correct')) * 100.0 / Count('id')
-            ).order_by('accuracy')[:5]
+            analytics['completion_rate'] = (completed / analytics['total_attempts']) * 100
+            analytics['pass_rate'] = (passed / analytics['total_attempts']) * 100
             
-            analytics['interaction_analytics']['most_difficult_interactions'] = [
-                {
-                    'interaction_id': item['interaction_id'],
-                    'accuracy_rate': item['accuracy'],
-                    'total_attempts': item['total']
-                }
-                for item in interaction_accuracy
-            ]
-        
-        # Calculate time analytics
-        completion_times = []
-        for attempt in attempts:
-            if attempt.total_time:
-                time_seconds = ScormQueryManager._parse_scorm_time(attempt.total_time)
-                completion_times.append(time_seconds)
-        
-        if completion_times:
-            analytics['time_analytics']['average_completion_time'] = sum(completion_times) / len(completion_times)
-            analytics['time_analytics']['fastest_completion'] = min(completion_times)
-            analytics['time_analytics']['slowest_completion'] = max(completion_times)
+            # Calculate average score
+            scores = attempts.exclude(score_raw__isnull=True).values_list('score_raw', flat=True)
+            if scores:
+                analytics['average_score'] = sum(scores) / len(scores)
+            
+            # Calculate average time
+            times = attempts.exclude(time_spent_seconds__isnull=True).values_list('time_spent_seconds', flat=True)
+            if times:
+                analytics['average_time'] = sum(times) / len(times)
         
         return analytics
     
     @staticmethod
     def get_learner_progress_tracking(user_id, scorm_package_id):
         """
-        Track learner progress through a SCORM course
+        Get detailed progress tracking for a learner on a specific course
         
         Args:
             user_id (int): User ID
@@ -295,180 +114,190 @@ class ScormQueryManager:
         Returns:
             dict: Progress tracking data
         """
-        attempt = ScormAttempt.objects.filter(
+        attempts = ScormAttempt.objects.filter(
             user_id=user_id,
             scorm_package_id=scorm_package_id
-        ).order_by('-attempt_number').first()
+        ).order_by('attempt_number')
         
-        if not attempt:
-            return {'error': 'No attempt found for this user and course'}
-        
-        interactions = ScormInteraction.objects.filter(attempt=attempt)
-        objectives = ScormObjective.objects.filter(attempt=attempt)
+        if not attempts.exists():
+            return None
         
         progress = {
-            'attempt_info': {
-                'attempt_number': attempt.attempt_number,
-                'status': attempt.lesson_status,
-                'completion_status': attempt.completion_status,
-                'success_status': attempt.success_status,
-                'score': float(attempt.score_raw) if attempt.score_raw else None,
-                'started_at': attempt.started_at,
-                'last_accessed': attempt.last_accessed,
-                'completed_at': attempt.completed_at
-            },
-            'interaction_progress': {
-                'total_interactions': interactions.count(),
-                'completed_interactions': interactions.exclude(result='').count(),
-                'correct_interactions': interactions.filter(result='correct').count(),
-                'interaction_details': []
-            },
-            'objective_progress': {
-                'total_objectives': objectives.count(),
-                'completed_objectives': objectives.exclude(completion_status='not attempted').count(),
-                'passed_objectives': objectives.filter(success_status='passed').count(),
-                'objective_details': []
-            },
-            'time_tracking': {
-                'total_time': attempt.total_time,
-                'session_time': attempt.session_time,
-                'time_spent_seconds': ScormQueryManager._parse_scorm_time(attempt.total_time)
-            }
+            'user_id': user_id,
+            'scorm_package_id': scorm_package_id,
+            'total_attempts': attempts.count(),
+            'current_attempt': attempts.last(),
+            'attempt_history': [],
+            'progress_summary': {}
         }
         
-        # Add interaction details
-        for interaction in interactions:
-            progress['interaction_progress']['interaction_details'].append({
-                'interaction_id': interaction.interaction_id,
-                'type': interaction.interaction_type,
-                'result': interaction.result,
-                'timestamp': interaction.timestamp,
-                'latency': interaction.latency
-            })
+        # Build attempt history
+        for attempt in attempts:
+            attempt_data = {
+                'attempt_number': attempt.attempt_number,
+                'lesson_status': attempt.lesson_status,
+                'score_raw': float(attempt.score_raw) if attempt.score_raw else None,
+                'score_max': float(attempt.score_max) if attempt.score_max else None,
+                'time_spent_seconds': attempt.time_spent_seconds,
+                'started_at': attempt.started_at,
+                'completed_at': attempt.completed_at,
+                'last_accessed': attempt.last_accessed
+            }
+            progress['attempt_history'].append(attempt_data)
         
-        # Add objective details
-        for objective in objectives:
-            progress['objective_progress']['objective_details'].append({
-                'objective_id': objective.objective_id,
-                'success_status': objective.success_status,
-                'completion_status': objective.completion_status,
-                'score': float(objective.score_raw) if objective.score_raw else None
-            })
+        # Calculate progress summary
+        latest_attempt = attempts.last()
+        if latest_attempt:
+            progress['progress_summary'] = {
+                'current_status': latest_attempt.lesson_status,
+                'current_score': float(latest_attempt.score_raw) if latest_attempt.score_raw else None,
+                'total_time_spent': sum(a.time_spent_seconds or 0 for a in attempts),
+                'last_accessed': latest_attempt.last_accessed,
+                'is_completed': latest_attempt.lesson_status in ['completed', 'passed'],
+                'is_passed': latest_attempt.lesson_status == 'passed'
+            }
         
         return progress
     
     @staticmethod
     def _parse_scorm_time(time_str):
-        """Parse SCORM time format to seconds"""
+        """
+        Parse SCORM time format to seconds
+        
+        Args:
+            time_str (str): SCORM time format (hhhh:mm:ss.ss)
+            
+        Returns:
+            int: Time in seconds
+        """
         if not time_str:
             return 0
         
         try:
-            # SCORM format: hhhh:mm:ss.ss
             parts = time_str.split(':')
             if len(parts) == 3:
                 hours = int(parts[0])
                 minutes = int(parts[1])
                 seconds = float(parts[2])
-                return hours * 3600 + minutes * 60 + seconds
+                return hours * 3600 + minutes * 60 + int(seconds)
         except (ValueError, IndexError):
             pass
         
         return 0
-
-
-class ScormReportGenerator:
-    """
-    Generator for SCORM reports
-    """
     
     @staticmethod
     def generate_learner_report(user_id, scorm_package_id=None):
         """
-        Generate comprehensive learner report
+        Generate comprehensive report for a learner
         
         Args:
             user_id (int): User ID
             scorm_package_id (int, optional): Specific SCORM package
             
         Returns:
-            dict: Learner report data
+            dict: Learner report
         """
+        user = User.objects.get(id=user_id)
+        
+        # Get all attempts for user
+        attempts_query = ScormAttempt.objects.filter(user_id=user_id)
+        if scorm_package_id:
+            attempts_query = attempts_query.filter(scorm_package_id=scorm_package_id)
+        
+        attempts = attempts_query.select_related('scorm_package', 'scorm_package__topic')
+        
         report = {
-            'learner_info': {
-                'user_id': user_id,
-                'username': User.objects.get(id=user_id).username
+            'user': {
+                'id': user.id,
+                'username': user.username,
+                'email': user.email,
+                'first_name': user.first_name,
+                'last_name': user.last_name
             },
-            'performance_summary': ScormQueryManager.get_user_performance_summary(user_id),
-            'course_analytics': [],
-            'interaction_analytics': ScormQueryManager.get_interaction_analytics(user_id=user_id),
-            'recommendations': []
+            'summary': ScormQueryManager.get_user_performance_summary(user_id),
+            'courses': [],
+            'generated_at': models.DateTimeField(auto_now=True)
         }
         
-        # Get course-specific analytics if package ID provided
-        if scorm_package_id:
-            report['course_analytics'].append(
-                ScormQueryManager.get_course_performance_analytics(scorm_package_id)
-            )
-            report['progress_tracking'] = ScormQueryManager.get_learner_progress_tracking(
-                user_id, scorm_package_id
-            )
+        # Group attempts by course
+        courses = {}
+        for attempt in attempts:
+            package = attempt.scorm_package
+            course_id = package.topic.course.id if package.topic.course else None
+            
+            if course_id not in courses:
+                courses[course_id] = {
+                    'course_id': course_id,
+                    'course_title': package.topic.course.title if package.topic.course else 'Unknown Course',
+                    'package_title': package.title,
+                    'attempts': []
+                }
+            
+            courses[course_id]['attempts'].append({
+                'attempt_number': attempt.attempt_number,
+                'lesson_status': attempt.lesson_status,
+                'score_raw': float(attempt.score_raw) if attempt.score_raw else None,
+                'score_max': float(attempt.score_max) if attempt.score_max else None,
+                'time_spent_seconds': attempt.time_spent_seconds,
+                'started_at': attempt.started_at,
+                'completed_at': attempt.completed_at
+            })
         
-        # Generate recommendations
-        performance = report['performance_summary']
-        if performance['average_score'] < 70:
-            report['recommendations'].append('Consider additional study time')
-        
-        if performance['interaction_summary']['accuracy_rate'] < 80:
-            report['recommendations'].append('Review incorrect answers and retake course')
-        
+        report['courses'] = list(courses.values())
         return report
     
     @staticmethod
     def generate_course_report(scorm_package_id):
         """
-        Generate comprehensive course report
+        Generate comprehensive report for a SCORM course
         
         Args:
             scorm_package_id (int): SCORM package ID
             
         Returns:
-            dict: Course report data
+            dict: Course report
         """
+        package = ScormPackage.objects.select_related('topic', 'topic__course').get(id=scorm_package_id)
+        attempts = ScormAttempt.objects.filter(scorm_package_id=scorm_package_id).select_related('user')
+        
         report = {
-            'course_info': {
-                'package_id': scorm_package_id,
-                'package': ScormPackage.objects.get(id=scorm_package_id)
+            'package': {
+                'id': package.id,
+                'title': package.title,
+                'version': package.version,
+                'course_title': package.topic.course.title if package.topic.course else 'Unknown Course'
             },
-            'performance_analytics': ScormQueryManager.get_course_performance_analytics(scorm_package_id),
-            'interaction_analytics': ScormQueryManager.get_interaction_analytics(scorm_package_id=scorm_package_id),
-            'learner_rankings': [],
-            'recommendations': []
+            'analytics': ScormQueryManager.get_course_performance_analytics(scorm_package_id),
+            'learners': [],
+            'generated_at': models.DateTimeField(auto_now=True)
         }
         
-        # Get top performers
-        top_performers = ScormAttempt.objects.filter(
-            scorm_package_id=scorm_package_id,
-            score_raw__isnull=False
-        ).order_by('-score_raw')[:10]
-        
-        report['learner_rankings'] = [
-            {
-                'user_id': attempt.user_id,
-                'username': attempt.user.username,
-                'score': float(attempt.score_raw),
-                'status': attempt.lesson_status,
+        # Group attempts by user
+        users = {}
+        for attempt in attempts:
+            user_id = attempt.user.id
+            
+            if user_id not in users:
+                users[user_id] = {
+                    'user': {
+                        'id': attempt.user.id,
+                        'username': attempt.user.username,
+                        'email': attempt.user.email,
+                        'first_name': attempt.user.first_name,
+                        'last_name': attempt.user.last_name
+                    },
+                    'attempts': []
+                }
+            
+            users[user_id]['attempts'].append({
+                'attempt_number': attempt.attempt_number,
+                'lesson_status': attempt.lesson_status,
+                'score_raw': float(attempt.score_raw) if attempt.score_raw else None,
+                'score_max': float(attempt.score_max) if attempt.score_max else None,
+                'time_spent_seconds': attempt.time_spent_seconds,
+                'started_at': attempt.started_at,
                 'completed_at': attempt.completed_at
-            }
-            for attempt in top_performers
-        ]
+            })
         
-        # Generate recommendations
-        analytics = report['performance_analytics']
-        if analytics['completion_rates']['failed'] > 20:
-            report['recommendations'].append('Consider reviewing course content difficulty')
-        
-        if analytics['time_analytics']['average_completion_time'] > 3600:  # 1 hour
-            report['recommendations'].append('Course may be too long, consider breaking into modules')
-        
+        report['learners'] = list(users.values())
         return report

@@ -64,15 +64,18 @@ def has_scorm_progress(attempt):
         return True
     
     # Check if there's meaningful progress data that indicates actual user interaction
-    if attempt.cmi_data and isinstance(attempt.cmi_data, dict):
+    if attempt.completion_status or attempt.lesson_status or attempt.success_status:
         # Look for meaningful progress indicators that suggest user interaction
-        if attempt.cmi_data.get('progress', 0) > 0:
+        if attempt.completion_status in ['completed', 'passed']:
             return True
-        if attempt.cmi_data.get('completion_percent', 0) > 0:
+        if attempt.lesson_status in ['completed', 'passed']:
             return True
-        # Only consider scorm_sync if there's also evidence of user interaction
-        if (attempt.cmi_data.get('scorm_sync', False) and 
-            (attempt.last_accessed or attempt.total_time != '0000:00:00.00')):
+        if attempt.success_status == 'passed':
+            return True
+        
+        # Only consider SCORM sync if there's also evidence of user interaction
+        if (attempt.completion_status or attempt.lesson_status or attempt.success_status) and \
+            (attempt.last_accessed or attempt.total_time != '0000:00:00.00'):
             return True
     
     return False
@@ -382,9 +385,9 @@ def pre_calculate_student_scores(students, activities, grades, quiz_attempts, sc
                                             attempt.completion_status in ['completed', 'passed'] or
                                             attempt.success_status in ['passed'] or
                                             # Check CMI data fields directly
-                                            attempt.cmi_data.get('cmi.completion_status') in ['completed', 'passed'] or
-                                            attempt.cmi_data.get('cmi.core.lesson_status') in ['completed', 'passed'] or
-                                            attempt.cmi_data.get('cmi.success_status') in ['passed'] or
+                                            attempt.completion_status in ['completed', 'passed'] or                                     
+                                            attempt.lesson_status in ['completed', 'passed'] or                                    
+                                            attempt.success_status in ['passed'] or
                                             (topic_progress and topic_progress.completed)
                                         )
                                         
@@ -424,13 +427,13 @@ def pre_calculate_student_scores(students, activities, grades, quiz_attempts, sc
                                             elif attempt.success_status == 'passed':
                                                 completion_status = 'completed'
                                                 success_status = 'passed'
-                                            elif attempt.cmi_data.get('cmi.completion_status') in ['completed', 'passed']:
-                                                completion_status = attempt.cmi_data.get('cmi.completion_status')
+                                            elif attempt.completion_status in ['completed', 'passed']:
+                                                completion_status = attempt.completion_status
                                                 success_status = 'passed'
-                                            elif attempt.cmi_data.get('cmi.core.lesson_status') in ['completed', 'passed']:
-                                                completion_status = attempt.cmi_data.get('cmi.core.lesson_status')
+                                            elif attempt.lesson_status in ['completed', 'passed']:
+                                                completion_status = attempt.lesson_status
                                                 success_status = 'passed'
-                                            elif attempt.cmi_data.get('cmi.success_status') == 'passed':
+                                            elif attempt.success_status == 'passed':
                                                 completion_status = 'completed'
                                                 success_status = 'passed'
                                             elif topic_progress and topic_progress.completed:
@@ -455,10 +458,7 @@ def pre_calculate_student_scores(students, activities, grades, quiz_attempts, sc
                                         is_completed = (
                                             attempt.lesson_status in ['completed', 'passed'] or
                                             attempt.completion_status in ['completed', 'passed'] or
-                                            attempt.success_status in ['passed'] or
-                                            attempt.cmi_data.get('cmi.completion_status') in ['completed', 'passed'] or
-                                            attempt.cmi_data.get('cmi.core.lesson_status') in ['completed', 'passed'] or
-                                            attempt.cmi_data.get('cmi.success_status') in ['passed']
+                                            attempt.success_status in ['passed']
                                         )
                                         score_value = float(attempt.score_raw) if (is_completed and attempt.score_raw) else None
                                         completion_status = attempt.lesson_status if attempt.lesson_status else 'incomplete'

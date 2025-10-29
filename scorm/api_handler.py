@@ -53,8 +53,14 @@ class ScormAPIHandler:
     
     def _get_schema_default(self, field):
         """Get schema-defined default value for a field based on SCORM version"""
-        from .cmi_data_handler import CMIDataHandler
-        return CMIDataHandler.get_schema_default(field, self.version)
+        # Simple defaults based on SCORM version
+        defaults = {
+            'cmi.core.lesson_status': 'not attempted',
+            'cmi.completion_status': 'not attempted',
+            'cmi.success_status': 'unknown',
+            'cmi.core.entry': 'ab-initio',
+        }
+        return defaults.get(field, '')
     
     def _initialize_cmi_data(self):
         """Initialize CMI data structure based on SCORM version"""
@@ -67,8 +73,8 @@ class ScormAPIHandler:
                 'cmi.core.lesson_status': self.attempt.lesson_status or self._get_schema_default('cmi.core.lesson_status'),
                 'cmi.core.entry': self.attempt.entry,
                 'cmi.core.score.raw': str(self.attempt.score_raw) if self.attempt.score_raw else '',
-                'cmi.core.score.max': str(self.attempt.score_max) if self.attempt.score_max else '100',
-                'cmi.core.score.min': str(self.attempt.score_min) if self.attempt.score_min else '0',
+                'cmi.core.score.max': str(self.attempt.score_max) if self.attempt.score_max else '',
+                'cmi.core.score.min': str(self.attempt.score_min) if self.attempt.score_min else '',
                 'cmi.core.total_time': self.attempt.total_time,
                 'cmi.core.lesson_mode': self._get_schema_default('cmi.core.lesson_mode'),
                 'cmi.core.exit': '',
@@ -88,8 +94,8 @@ class ScormAPIHandler:
                 'cmi.success_status': self.attempt.success_status,
                 'cmi.entry': self.attempt.entry,
                 'cmi.score.raw': str(self.attempt.score_raw) if self.attempt.score_raw else '',
-                'cmi.score.max': str(self.attempt.score_max) if self.attempt.score_max else '100',
-                'cmi.score.min': str(self.attempt.score_min) if self.attempt.score_min else '0',
+                'cmi.score.max': str(self.attempt.score_max) if self.attempt.score_max else '',
+                'cmi.score.min': str(self.attempt.score_min) if self.attempt.score_min else '',
                 'cmi.score.scaled': str(self.attempt.score_scaled) if self.attempt.score_scaled else '',
                 'cmi.total_time': self.attempt.total_time,
                 'cmi.mode': self._get_schema_default('cmi.mode'),
@@ -216,21 +222,20 @@ class ScormAPIHandler:
                     status_to_set = 'failed'
                 logger.info(f"TERMINATE: Set lesson_status to {status_to_set} based on score {self.attempt.score_raw} (mastery: {mastery_score})")
             else:
-                # Check suspend data for completion evidence
-                if self.attempt.suspend_data:
-                    suspend_lower = self.attempt.suspend_data.lower()
-                    if any(keyword in suspend_lower for keyword in ['complete', 'done', 'qd', 'finished', 'passed', 'failed']):
-                        self.attempt.lesson_status = 'completed'
-                        status_to_set = 'completed'
-                        logger.info(f"TERMINATE: Set lesson_status to completed based on suspend data evidence")
-                    else:
-                        self.attempt.lesson_status = 'incomplete'
-                        status_to_set = 'incomplete'
-                        logger.info(f"TERMINATE: Set lesson_status to incomplete (no completion evidence)")
+                # SCORM COMPLIANCE: Use only CMI completion status
+                # Check CMI data for completion status
+                cmi_completion = self.attempt.cmi_data.get('cmi.completion_status')
+                cmi_lesson_status = self.attempt.cmi_data.get('cmi.core.lesson_status')
+                cmi_success = self.attempt.cmi_data.get('cmi.success_status')
+                
+                if cmi_completion in ['completed', 'passed'] or cmi_lesson_status in ['completed', 'passed'] or cmi_success in ['passed']:
+                    self.attempt.lesson_status = 'completed'
+                    status_to_set = 'completed'
+                    logger.info(f"TERMINATE: Set lesson_status to completed based on CMI completion status")
                 else:
                     self.attempt.lesson_status = 'incomplete'
                     status_to_set = 'incomplete'
-                    logger.info(f"TERMINATE: Set lesson_status to incomplete (no suspend data)")
+                    logger.info(f"TERMINATE: Set lesson_status to incomplete (no CMI completion evidence)")
             
             # Update CMI data
             if self.version == '1.2':
@@ -513,25 +518,34 @@ class ScormAPIHandler:
             self.attempt.success_status = 'failed'
     
     def _update_total_time(self, session_time):
-        """Update total time by adding session time with enhanced reliability"""
+        """Update total time by adding session time"""
         try:
-            from .enhanced_time_tracking import EnhancedScormTimeTracker
+            # Simple time tracking without enhanced features
+            if session_time and self.attempt.session_time:
+                # Parse session time and add to total
+                try:
+                    session_parts = session_time.split(':')
+                    if len(session_parts) == 3:
+                        session_seconds = int(session_parts[0]) * 3600 + int(session_parts[1]) * 60 + float(session_parts[2])
+                        
+                        total_parts = self.attempt.total_time.split(':') if self.attempt.total_time else ['0', '0', '0']
+                        if len(total_parts) == 3:
+                            total_seconds = int(total_parts[0]) * 3600 + int(total_parts[1]) * 60 + float(total_parts[2])
+                            new_total_seconds = total_seconds + session_seconds
+                            
+                            # Convert back to SCORM time format
+                            hours = int(new_total_seconds // 3600)
+                            minutes = int((new_total_seconds % 3600) // 60)
+                            seconds = new_total_seconds % 60
+                            
+                            self.attempt.total_time = f"{hours:04d}:{minutes:02d}:{seconds:06.2f}"
+                except (ValueError, IndexError):
+                    pass
             
-            # Use enhanced time tracking for better reliability
-            tracker = EnhancedScormTimeTracker(self.attempt)
-            success = tracker.save_time_with_reliability(session_time)
+            self.attempt.session_time = session_time
             
-            if not success:
-                logger.error(f"❌ Enhanced time tracking failed for {self.attempt.scorm_package.version}")
-                # Fallback to original method
-                self._update_total_time_original(session_time)
-            else:
-                logger.info(f"✅ Enhanced time tracking successful for {self.attempt.scorm_package.version}")
-                
         except Exception as e:
-            logger.error(f"❌ Enhanced time tracking error: {str(e)}")
-            # Fallback to original method
-            self._update_total_time_original(session_time)
+            logger.error(f"Error updating total time: {str(e)}")
     
     def _update_total_time_original(self, session_time):
         """Original time tracking method as fallback"""
@@ -626,9 +640,7 @@ class ScormAPIHandler:
             try:
                 self.attempt.save()
                 
-                # Use centralized sync service for score synchronization
-                from .score_sync_service import ScormScoreSyncService
-                ScormScoreSyncService.sync_score(self.attempt)
+                # Score synchronization is handled by signals
             finally:
                 # Clean up the flag
                 if hasattr(self.attempt, '_updating_from_api_handler'):

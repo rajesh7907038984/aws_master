@@ -448,12 +448,7 @@ def get_topic_progress(topic, user):
                 # PRIMARY: Trust CMI completion status (proper SCORM standard)
                 latest_attempt.completion_status in ['completed', 'passed'] or
                 latest_attempt.lesson_status in ['completed', 'passed'] or
-                latest_attempt.success_status in ['passed'] or
-                
-                # CMI DATA VALIDATION: Check CMI data fields
-                latest_attempt.cmi_data.get('cmi.completion_status') in ['completed', 'passed'] or
-                latest_attempt.cmi_data.get('cmi.core.lesson_status') in ['completed', 'passed'] or
-                latest_attempt.cmi_data.get('cmi.success_status') in ['passed']
+                latest_attempt.success_status in ['passed']
             )
             
             if is_completed and not progress.completed:

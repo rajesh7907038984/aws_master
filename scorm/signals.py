@@ -23,58 +23,31 @@ def cmi_score_processor(sender, instance, created, **kwargs):
         return
     
     try:
-        # Use centralized sync service with CMI data only
-        from .score_sync_service import ScormScoreSyncService
-        success = ScormScoreSyncService.sync_score(instance)
+        # Process CMI data directly without external service
+        score_value = _extract_score_from_cmi_data(instance)
         
-        if success:
-            logger.info(f"✅ CMI: Successfully synchronized score for attempt {instance.id}")
+        if score_value is not None:
+            # Update topic progress if completed
+            _update_topic_progress_cmi_only(instance, score_value)
+            logger.info(f"✅ CMI: Successfully processed score for attempt {instance.id}")
         
     except Exception as e:
-        logger.error(f"❌ CMI: Error synchronizing attempt {instance.id}: {str(e)}")
+        logger.error(f"❌ CMI: Error processing attempt {instance.id}: {str(e)}")
 
 
 def _extract_score_from_cmi_data(attempt):
-    """Extract score using only CMI data - no custom calculations"""
-    try:
-        scores = []
-        
-        # Priority 1: Direct score_raw field
-        if attempt.score_raw is not None:
-            scores.append(float(attempt.score_raw))
-        
-        # Priority 2: CMI data scores
-        if attempt.cmi_data:
-            # SCORM 2004
-            cmi_score = attempt.cmi_data.get('cmi.score.raw')
-            if cmi_score is not None:
-                try:
-                    scores.append(float(cmi_score))
-                except:
-                    pass
-            
-            # SCORM 1.2
-            core_score = attempt.cmi_data.get('cmi.core.score.raw')
-            if core_score is not None:
-                try:
-                    scores.append(float(core_score))
-                except:
-                    pass
-            
-            # Scaled score (convert from 0-1 to 0-100)
-            scaled_score = attempt.cmi_data.get('cmi.score.scaled') or attempt.cmi_data.get('cmi.core.score.scaled')
-            if scaled_score is not None:
-                try:
-                    scores.append(float(scaled_score) * 100)
-                except:
-                    pass
-        
-        # Return the highest score found
-        return max(scores) if scores else None
-        
-    except Exception as e:
-        logger.error(f"CMI: Error extracting score: {str(e)}")
-        return None
+    """Extract score using only CMI data - SCORM COMPLIANCE ENFORCED"""
+    from .cmi_validator import CMIValidator
+    
+    # Use CMI validator to ensure SCORM compliance
+    cmi_score = CMIValidator.extract_score_from_cmi(attempt.cmi_data, attempt.scorm_package.version)
+    
+    if cmi_score is not None:
+        logger.info(f"CMI: Extracted valid score {cmi_score} from CMI data")
+        return cmi_score
+    
+    logger.warning(f"CMI: No valid score found in CMI data for attempt {attempt.id}")
+    return None
 
 
 def _update_topic_progress_cmi_only(attempt, score_value):
@@ -89,17 +62,15 @@ def _update_topic_progress_cmi_only(attempt, score_value):
             topic=topic
         )
         
-        # Use only CMI completion status (proper SCORM standard)
+        # SCORM COMPLIANCE: Use only CMI completion status
+        from .cmi_validator import CMIValidator
+        completion_status = CMIValidator.extract_completion_status_from_cmi(attempt.cmi_data, attempt.scorm_package.version)
+        
         is_completed = (
-            # PRIMARY: Trust CMI completion status (proper SCORM standard)
-            attempt.completion_status in ['completed', 'passed'] or
-            attempt.lesson_status in ['completed', 'passed'] or
-            attempt.success_status in ['passed'] or
-            
-            # CMI DATA VALIDATION: Check CMI data fields
-            attempt.cmi_data.get('cmi.completion_status') in ['completed', 'passed'] or
-            attempt.cmi_data.get('cmi.core.lesson_status') in ['completed', 'passed'] or
-            attempt.cmi_data.get('cmi.success_status') in ['passed']
+            # Use only CMI data for completion determination
+            completion_status.get('completion_status') in ['completed', 'passed'] or
+            completion_status.get('success_status') in ['passed'] or
+            completion_status.get('lesson_status') in ['completed', 'passed']
         )
         
         if not is_completed:

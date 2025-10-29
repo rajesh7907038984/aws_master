@@ -19,15 +19,9 @@ logger = logging.getLogger(__name__)
 class MasteryScoreExtractor:
     """Extract mastery scores from different SCORM package formats"""
     
-    # Default passing scores by authoring tool (if not found in manifest)
-    DEFAULT_SCORES = {
-        'storyline': 80,      # Articulate Storyline typically uses 80%
-        'rise': 80,           # Rise 360 often doesn't include mastery score
-        'captivate': 70,      # Adobe Captivate default
-        'lectora': 75,        # Lectora default
-        'ispring': 70,        # iSpring default
-        'generic': 70         # Generic SCORM default
-    }
+    # SCORM COMPLIANCE: No hardcoded defaults - only use manifest data
+    # If no mastery score is found in manifest, return None
+    # This ensures we don't assign incorrect passing scores
     
     @classmethod
     def extract_mastery_score(cls, manifest_content, package_filename=''):
@@ -60,10 +54,9 @@ class MasteryScoreExtractor:
             if score is None:
                 score = cls._extract_from_metadata(root)
             
-            # Method 5: Use default for the authoring tool
-            if score is None and authoring_tool in cls.DEFAULT_SCORES:
-                score = cls.DEFAULT_SCORES[authoring_tool]
-                logger.info(f"Using default mastery score for {authoring_tool}: {score}%")
+            # SCORM COMPLIANCE: No default scores - only use manifest data
+            if score is None:
+                logger.warning(f"No mastery score found in manifest for {authoring_tool} - SCORM compliance requires manifest-based scores")
             
             return score
             

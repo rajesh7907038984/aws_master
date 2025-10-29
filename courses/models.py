@@ -606,6 +606,43 @@ class Course(models.Model):
         blank=True,
         help_text="Mastery score for SCORM content (0-100)"
     )
+    
+    # SCORM Course Completion Status
+    scorm_completion_status = models.CharField(
+        max_length=20,
+        choices=[
+            ('not_attempted', 'Not Attempted'),
+            ('incomplete', 'Incomplete'),
+            ('completed', 'Completed'),
+            ('passed', 'Passed'),
+            ('failed', 'Failed'),
+        ],
+        null=True,
+        blank=True,
+        help_text="SCORM course completion status (cmi.core.lesson_status)"
+    )
+    
+    scorm_lesson_status = models.CharField(
+        max_length=20,
+        choices=[
+            ('not_attempted', 'Not Attempted'),
+            ('incomplete', 'Incomplete'),
+            ('completed', 'Completed'),
+            ('passed', 'Passed'),
+            ('failed', 'Failed'),
+            ('browsed', 'Browsed'),
+        ],
+        null=True,
+        blank=True,
+        help_text="SCORM lesson status for the entire course"
+    )
+    
+    scorm_completion_data = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Complete SCORM completion data for the course"
+    )
+    
     certificate_enabled = models.BooleanField(
         default=False,
         help_text="Issue certificates upon course completion"
@@ -2349,15 +2386,23 @@ class TopicProgress(models.Model):
             'last_updated': timezone.now().isoformat()
         })
         
-        # Check completion requirements
+        # ENHANCED: Handle both scored and non-scored SCORM content
         if registration.completion_status in ['completed', 'passed']:
             scorm_content = self.topic.get_scorm_content()
             if scorm_content:
-                if not scorm_content.requires_passing_score or (
-                    registration.score and registration.score >= scorm_content.passing_score
-                ):
+                if scorm_content.mastery_score and scorm_content.has_score_requirement:
+                    # SCORM WITH SCORES: Check passing score requirement
+                    if registration.score and registration.score >= scorm_content.mastery_score:
+                        self.mark_complete('scorm')
+                        logger.info(f"🎯 AUTO-TICK: Topic {self.topic.id} marked complete with passing score {registration.score} >= mastery {scorm_content.mastery_score}")
+                        return
+                    else:
+                        logger.info(f"❌ NO AUTO-TICK: Topic {self.topic.id} not completed - score {registration.score} < mastery {scorm_content.mastery_score}")
+                else:
+                    # SCORM WITHOUT SCORES: Complete based on completion status
                     self.mark_complete('scorm')
-                    return  # mark_complete already calls save()
+                    logger.info(f"🎯 AUTO-TICK: Topic {self.topic.id} marked complete without score requirement (completion status: {registration.completion_status})")
+                    return
                     
         # Save if mark_complete wasn't called
         self.save()
@@ -2439,28 +2484,52 @@ class TopicProgress(models.Model):
                     if total_attempts > self.attempts:
                         self.attempts = total_attempts
                     
-                    # CMI-ONLY: Check completion using only CMI data
+                    # ENHANCED: Handle both scored and non-scored SCORM content
                     lesson_status_lower = latest_attempt.lesson_status.lower() if latest_attempt.lesson_status else ''
                     completion_status_lower = latest_attempt.completion_status.lower() if latest_attempt.completion_status else ''
                     success_status_lower = latest_attempt.success_status.lower() if latest_attempt.success_status else ''
 
-                    should_complete = (
-                        lesson_status_lower in ['completed', 'passed'] or
-                        completion_status_lower in ['completed', 'passed'] or
-                        success_status_lower == 'passed' or
-                        # Check CMI data fields
-                        latest_attempt.cmi_data.get('cmi.completion_status', '').lower() in ['completed', 'passed'] or
-                        latest_attempt.cmi_data.get('cmi.core.lesson_status', '').lower() in ['completed', 'passed'] or
-                        latest_attempt.cmi_data.get('cmi.success_status', '').lower() == 'passed'
-                    )
+                    should_complete = False
+
+                    # Check if SCORM content has a mastery score requirement
+                    if latest_attempt.scorm_package.mastery_score and latest_attempt.scorm_package.has_score_requirement:
+                        # SCORM WITH SCORES: Only complete if passing score achieved
+                        if latest_attempt.score_raw is not None and latest_attempt.score_raw >= latest_attempt.scorm_package.mastery_score:
+                            # Score meets requirement - check completion status
+                            should_complete = (
+                                lesson_status_lower in ['completed', 'passed'] or
+                                completion_status_lower in ['completed', 'passed'] or
+                                success_status_lower == 'passed' or
+latest_attempt.completion_status in ['completed', 'passed'] or                             
+                                latest_attempt.lesson_status in ['completed', 'passed'] or                            
+                                latest_attempt.success_status == 'passed'
+                            )
+                            if should_complete:
+                                logger.info(f"🎯 AUTO-TICK: Topic {self.topic.id} completed with passing score {latest_attempt.score_raw} >= mastery {latest_attempt.scorm_package.mastery_score}")
+                        else:
+                            # Score doesn't meet mastery requirement
+                            should_complete = False
+                            logger.info(f"❌ NO AUTO-TICK: Topic {self.topic.id} not completed - score {latest_attempt.score_raw} < mastery {latest_attempt.scorm_package.mastery_score}")
+                    else:
+                        # SCORM WITHOUT SCORES: Complete based on completion status only
+                        should_complete = (
+                            lesson_status_lower in ['completed', 'passed'] or
+                            completion_status_lower in ['completed', 'passed'] or
+                            success_status_lower == 'passed' or
+latest_attempt.completion_status in ['completed', 'passed'] or                             
+                                latest_attempt.lesson_status in ['completed', 'passed'] or                            
+                                latest_attempt.success_status == 'passed'
+                        )
+                        if should_complete:
+                            logger.info(f"🎯 AUTO-TICK: Topic {self.topic.id} completed without score requirement (completion status: {lesson_status_lower})")
                     
                     if not self.completed and should_complete:
-                        # Mark as completed if CMI completion status indicates the activity was finished
+                        # Mark as completed if conditions are met
                         self.completed = True
                         if not self.completed_at:
                             self.completed_at = latest_attempt.last_accessed or timezone.now()
                         self.completion_method = 'scorm'
-                        logger.info(f"SCORM_SYNC: Marked topic {self.topic.id} as completed for user {self.user.username} (CMI completion status detected)")
+                        logger.info(f"SCORM_SYNC: Marked topic {self.topic.id} as completed for user {self.user.username} (auto-tick logic applied)")
                     
                     logger.info(f"SCORM_SYNC: Updated scores for topic {self.topic.id}, user {self.user.username} - last_score: {old_last_score} -> {self.last_score}, best_score: {old_best_score} -> {self.best_score}, attempts: {self.attempts}")
                     return True

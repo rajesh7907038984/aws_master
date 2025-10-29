@@ -108,31 +108,32 @@ class ProgressCalculationService:
             is_completed = (
                 latest_attempt.completion_status in ['completed', 'passed'] or
                 latest_attempt.lesson_status in ['completed', 'passed'] or
-                latest_attempt.success_status in ['passed'] or
-                
-                # CMI DATA VALIDATION: Check CMI data fields
-                latest_attempt.cmi_data.get('cmi.completion_status') in ['completed', 'passed'] or
-                latest_attempt.cmi_data.get('cmi.core.lesson_status') in ['completed', 'passed'] or
-                latest_attempt.cmi_data.get('cmi.success_status') in ['passed']
+                latest_attempt.success_status in ['passed']
             )
             
             if is_completed:
-                # Check if there's a mastery score requirement
-                if scorm_package.mastery_score:
-                    # Check if score requirement is met
+                # ENHANCED: Handle both scored and non-scored SCORM content
+                if scorm_package.mastery_score and scorm_package.has_score_requirement:
+                    # SCORM WITH SCORES: Check mastery requirement
                     if latest_attempt.score_raw and latest_attempt.score_raw >= scorm_package.mastery_score:
                         completion_percentage = 100.0
                     else:
-                        # Partial completion based on score
+                        # Don't show as completed if score doesn't meet mastery requirement
                         score_progress = (float(latest_attempt.score_raw or 0) / float(scorm_package.mastery_score)) * 100
                         completion_percentage = min(score_progress, 99.0)  # Cap at 99% if not passed
                 else:
+                    # SCORM WITHOUT SCORES: Use completion status only
                     completion_percentage = 100.0
             else:
-                # Use only CMI score data for partial progress
-                if latest_attempt.score_raw:
-                    completion_percentage = min(float(latest_attempt.score_raw), 90.0)
+                # SCORM WITHOUT SCORES: Use completion status only
+                if scorm_package.mastery_score and scorm_package.has_score_requirement:
+                    # Use only CMI score data for partial progress
+                    if latest_attempt.score_raw:
+                        completion_percentage = min(float(latest_attempt.score_raw), 90.0)
+                    else:
+                        completion_percentage = 0.0
                 else:
+                    # No score requirement - use completion status
                     completion_percentage = 0.0
             
             return {
