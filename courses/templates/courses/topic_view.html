@@ -590,6 +590,80 @@
                             </a>
                         </div>
                     </div>
+                {% elif topic.content_type == 'SCORM' and topic.scorm %}
+                    <div class="w-full py-8 scorm-content" data-content-type="SCORM">
+                        {% if topic.scorm.processing_status == 'ready' %}
+                            {% if topic.scorm.get_entry_point %}
+                                {% with progress=topic|get_topic_progress:user %}
+                                <div id="scorm-player-container" class="w-full" style="min-height: 600px;">
+                                    <iframe 
+                                        id="scorm-iframe"
+                                        src="{% url 'scorm:player' topic.scorm.id %}{{ topic.scorm.get_entry_point }}?topic_id={{ topic.id }}{% if progress.bookmark.lesson_location %}&location={{ progress.bookmark.lesson_location|urlencode }}{% endif %}{% if progress.bookmark.suspend_data %}&suspend_data={{ progress.bookmark.suspend_data|urlencode }}{% endif %}{% if progress.bookmark.lesson_location or progress.bookmark.suspend_data or progress.progress_data.scorm_entry %}{% if progress.progress_data.scorm_entry %}&entry={{ progress.progress_data.scorm_entry|urlencode }}{% else %}&entry=resume{% endif %}{% else %}&entry=ab-initio{% endif %}"
+                                        sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+                                        referrerpolicy="no-referrer"
+                                        allow="autoplay; encrypted-media"
+                                        loading="lazy"
+                                        width="100%" 
+                                        height="600"
+                                        style="border: 1px solid #ddd; border-radius: 8px;">
+                                    </iframe>
+                                </div>
+                                {% endwith %}
+                                
+                                <!-- SCORM Progress Indicator -->
+                                <div id="scorm-progress-indicator" class="mt-4 p-4 bg-gray-50 rounded-lg hidden">
+                                    <div class="flex items-center justify-between mb-2">
+                                        <span class="text-sm font-medium text-gray-700">Progress</span>
+                                        <span id="scorm-completion-badge" class="hidden text-xs bg-green-100 text-green-800 px-2 py-1 rounded">Completed</span>
+                                    </div>
+                                    <div class="w-full bg-gray-200 rounded-full h-2">
+                                        <div id="scorm-progress-bar" class="bg-blue-600 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+                                    </div>
+                                    <div class="mt-2 text-xs text-gray-600">
+                                        <span id="scorm-time-spent">Time: 0:00</span>
+                                        <span class="mx-2">|</span>
+                                        <span id="scorm-score">Score: --</span>
+                                    </div>
+                                </div>
+                            {% else %}
+                                <div class="text-center p-8 bg-yellow-50 rounded-lg">
+                                    <i class="fas fa-exclamation-triangle text-yellow-600 text-3xl mb-4"></i>
+                                    <p class="text-yellow-800">SCORM package entry point could not be determined.</p>
+                                </div>
+                            {% endif %}
+                        {% elif topic.scorm.processing_status == 'processing' %}
+                            <div class="text-center p-8 bg-blue-50 rounded-lg">
+                                <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
+                                <p class="text-blue-800 font-medium">Processing SCORM package...</p>
+                                <p class="text-blue-600 text-sm mt-2">This may take a few minutes. Please refresh the page in a moment.</p>
+                            </div>
+                        {% elif topic.scorm.processing_status == 'failed' %}
+                            <div class="text-center p-8 bg-red-50 rounded-lg">
+                                <i class="fas fa-exclamation-circle text-red-600 text-3xl mb-4"></i>
+                                <p class="text-red-800 font-medium">SCORM package processing failed</p>
+                                {% if topic.scorm.processing_error %}
+                                <p class="text-red-600 text-sm mt-2">{{ topic.scorm.processing_error }}</p>
+                                {% endif %}
+                                <p class="text-red-600 text-sm mt-2">Please contact your instructor or administrator.</p>
+                            </div>
+                        {% else %}
+                            <div class="text-center p-8 bg-gray-50 rounded-lg">
+                                <i class="fas fa-clock text-gray-400 text-3xl mb-4"></i>
+                                <p class="text-gray-600">SCORM package is pending processing.</p>
+                            </div>
+                        {% endif %}
+                    </div>
+                {% elif topic.content_type == 'SCORM' and not topic.scorm %}
+                    <div class="w-full flex flex-col items-center justify-center py-8">
+                        <div class="text-center mb-6">
+                            <div class="p-4 bg-yellow-100 text-yellow-800 rounded-lg">
+                                <p><i class="fas fa-exclamation-triangle mr-2"></i>This topic is set as SCORM but no package has been uploaded.</p>
+                                {% if user.is_staff or user.is_instructor %}
+                                    <p class="mt-2">Please edit this topic to upload a SCORM package.</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
                 {% else %}
                     <div class="p-6 bg-gray-100 rounded-lg text-center">
                         <p class="text-gray-600">No content available for this topic.</p>

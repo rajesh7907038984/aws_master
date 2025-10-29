@@ -1466,7 +1466,8 @@ class Topic(models.Model):
         ('Assignment', 'Assignment'),
         ('EmbedVideo', 'Embedded Video'),
         ('Conference', 'ILT/Conference'),
-        ('Discussion', 'Discussion')
+        ('Discussion', 'Discussion'),
+        ('SCORM', 'SCORM'),
     ]
 
     STATUS_CHOICES = [
@@ -1548,6 +1549,14 @@ class Topic(models.Model):
         blank=True,
         related_name='assignment_topics',
         help_text="Associated assignment for Assignment type topics"
+    )
+    scorm = models.ForeignKey(
+        'scorm.ScormPackage',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='topics',
+        help_text="Associated SCORM package for SCORM type topics"
     )
     
     # Learner restriction fields
@@ -2149,6 +2158,27 @@ class TopicProgress(models.Model):
                 
             if 'comment_count' not in self.progress_data:
                 self.progress_data['comment_count'] = 0
+        
+        # SCORM-specific defaults
+        elif self.topic.content_type == 'SCORM':
+            if 'scorm_score' not in self.progress_data:
+                self.progress_data['scorm_score'] = None
+            if 'scorm_max_score' not in self.progress_data:
+                self.progress_data['scorm_max_score'] = None
+            if 'scorm_min_score' not in self.progress_data:
+                self.progress_data['scorm_min_score'] = None
+            if 'scorm_completion_status' not in self.progress_data:
+                self.progress_data['scorm_completion_status'] = 'incomplete'
+            if 'scorm_success_status' not in self.progress_data:
+                self.progress_data['scorm_success_status'] = 'unknown'
+            if 'scorm_total_time' not in self.progress_data:
+                self.progress_data['scorm_total_time'] = '00:00:00'
+            if 'scorm_entry' not in self.progress_data:
+                self.progress_data['scorm_entry'] = 'ab-initio'
+            if 'scorm_session_id' not in self.progress_data:
+                self.progress_data['scorm_session_id'] = None
+            if 'scorm_last_seq' not in self.progress_data:
+                self.progress_data['scorm_last_seq'] = 0
         
         self.save(update_fields=['progress_data'])
         return self.progress_data

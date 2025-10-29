@@ -108,6 +108,13 @@ import threading
 threading.Thread(target=add_dynamic_ip_async, daemon=True).start()
 
 # ==============================================
+# FEATURE FLAGS
+# ==============================================
+
+# Enable/disable SCORM features (for controlled rollout)
+ENABLE_SCORM_FEATURES = get_bool_env('ENABLE_SCORM_FEATURES', True)
+
+# ==============================================
 # PRODUCTION DATABASE CONFIGURATION
 # ==============================================
 

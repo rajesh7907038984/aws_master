@@ -289,6 +289,47 @@ def pre_calculate_student_scores(students, activities, grades, quiz_attempts, sc
                                     'type': 'conference'
                                 }
                         
+                        elif activity_type == 'scorm':
+                            # Handle SCORM activity scores from TopicProgress
+                            from courses.models import TopicProgress
+                            from core.utils.scoring import ScoreCalculationService
+                            
+                            topic = activity['object']
+                            try:
+                                progress = TopicProgress.objects.filter(
+                                    user=student,
+                                    topic=topic
+                                ).first()
+                                
+                                if progress and progress.last_score is not None:
+                                    progress_data = progress.progress_data or {}
+                                    scorm_score = progress_data.get('scorm_score', progress.last_score)
+                                    scorm_max_score = progress_data.get('scorm_max_score', activity.get('max_score', 100))
+                                    
+                                    # Normalize score
+                                    normalized_score = ScoreCalculationService.normalize_score(scorm_score)
+                                    
+                                    student_scores[activity_id] = {
+                                        'score': float(normalized_score) if normalized_score is not None else float(scorm_score),
+                                        'max_score': float(scorm_max_score) if scorm_max_score else activity.get('max_score', 100),
+                                        'date': progress.completed_at or progress.last_accessed,
+                                        'type': 'scorm',
+                                        'completed': progress.completed
+                                    }
+                                else:
+                                    student_scores[activity_id] = {
+                                        'score': None,
+                                        'max_score': activity.get('max_score', 100),
+                                        'type': 'scorm'
+                                    }
+                            except Exception as e:
+                                logger.error(f"Error processing SCORM activity {activity_id} for student {student.id}: {str(e)}")
+                                student_scores[activity_id] = {
+                                    'score': None,
+                                    'max_score': activity.get('max_score', 100),
+                                    'type': 'scorm'
+                                }
+                        
                     
                     except Exception as e:
                         logger.error(f"Error processing activity {activity_id} for student {student.id}: {str(e)}")
@@ -583,6 +624,14 @@ def gradebook_index(request):
                     topic = activity.topics.first()
                     if hasattr(topic, 'courses') and topic.courses.exists():
                         course_info = topic.courses.first()
+            elif activity_type == 'scorm':
+                # SCORM topics are Topic objects themselves
+                if hasattr(activity, 'courses') and activity.courses.exists():
+                    course_info = activity.courses.first()
+                elif hasattr(activity, 'coursetopic_set'):
+                    ct = activity.coursetopic_set.first()
+                    if ct and ct.course:
+                        course_info = ct.course
             return course_info
 
         # Process activities based on filter
@@ -629,6 +678,27 @@ def gradebook_index(request):
                                 'created_at': quiz.created_at,
                                 'max_score': max_score,
                             })
+
+        if activity_filter == 'all' or activity_filter == 'scorm':
+            from courses.models import Topic
+            scorm_topics = Topic.objects.filter(
+                content_type='SCORM',
+                scorm__isnull=False,
+                courses__isnull=False
+            ).distinct().select_related('scorm', 'courses')
+            
+            for scorm_topic in scorm_topics:
+                course_info = get_activity_course_info(scorm_topic, 'scorm')
+                if course_info:  # Only include if has course association
+                    max_score = 100  # Default max score for SCORM
+                    activities_data.append({
+                        'object': scorm_topic,
+                        'type': 'scorm',
+                        'title': scorm_topic.title,
+                        'course': course_info,
+                        'created_at': scorm_topic.created_at,
+                        'max_score': max_score,
+                    })
 
         if activity_filter == 'all' or activity_filter == 'discussion':
             for discussion in discussions:
@@ -768,7 +838,23 @@ def gradebook_index(request):
                     except Exception as e:
                         logger.error(f"Error checking conference attendance: {str(e)}")
                         return "Not Started"
-                        
+                
+                elif activity_type == 'scorm':
+                    # Check SCORM progress from TopicProgress
+                    progress = TopicProgress.objects.filter(
+                        topic=activity_obj,
+                        user_id=user_id
+                    ).first()
+                    
+                    if progress:
+                        if progress.completed:
+                            return "Completed"
+                        elif progress.last_score is not None or (progress.progress_data and progress.progress_data.get('scorm_score')):
+                            return "In Progress"
+                        else:
+                            return "Started"
+                    else:
+                        return "Not Started"
                 
                 return "Not Started"
                 
@@ -813,6 +899,7 @@ def gradebook_index(request):
         ('assignment', 'Assignments'),
         ('quiz', 'Quizzes'),
         ('initial_assessment', 'Initial Assessments'),
+        ('scorm', 'SCORM'),
         ('discussion', 'Discussions'),
         ('conference', 'Conferences'),
     ]
@@ -1120,6 +1207,33 @@ def course_gradebook_detail(request, course_id):
             quiz_counter += 1
 
     # Initial assessments are now handled in the quiz loop above
+    
+    # Add SCORM topics with numbering
+    scorm_counter = 1
+    from courses.models import Topic, TopicProgress
+    scorm_topics = Topic.objects.filter(
+        content_type='SCORM',
+        scorm__isnull=False,
+        courses__isnull=False
+    ).distinct().select_related('scorm')
+    
+    for scorm_topic in scorm_topics:
+        # Get max score from SCORM progress data if available, otherwise default to 100
+        max_score = 100  # Default max score
+        if scorm_topic.scorm:
+            # Try to determine max score from typical SCORM packages (usually 100)
+            max_score = 100
+        
+        activities.append({
+            'object': scorm_topic,
+            'type': 'scorm',
+            'created_at': scorm_topic.created_at,
+            'title': scorm_topic.title,
+            'max_score': max_score,
+            'activity_number': scorm_counter,
+            'activity_name': f"SCORM {scorm_counter}"
+        })
+        scorm_counter += 1
     
     # Add discussions with numbering (only if they have rubrics)
     discussion_counter = 1

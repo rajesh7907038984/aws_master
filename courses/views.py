@@ -2908,6 +2908,173 @@ def update_video_progress(request, topic_id):
 
 
 @login_required
+def update_scorm_progress(request, topic_id):
+    """
+    Update progress for SCORM content with idempotent handling
+    
+    Accepts SCORM data with session_id and sequence number for idempotence
+    """
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Only POST method is allowed'}, status=405)
+    
+    topic = get_object_or_404(Topic, id=topic_id)
+    course = get_topic_course(topic)
+    
+    logger.info(f"Processing SCORM progress update for topic_id={topic_id}, user={request.user.username}")
+    
+    # Check permission
+    if not check_course_permission(request.user, course):
+        logger.warning(f"Permission denied for user={request.user.username} on topic_id={topic_id}")
+        return JsonResponse({'error': 'Permission denied'}, status=403)
+    
+    # Only update progress for SCORM content type
+    if topic.content_type != 'SCORM':
+        logger.warning(f"Invalid content type for topic_id={topic_id}: {topic.content_type}")
+        return JsonResponse({'error': 'This topic is not SCORM content'}, status=400)
+    
+    try:
+        data = json.loads(request.body)
+        from core.utils.type_guards import safe_get_float, safe_get_int, safe_get_string
+        from scorm.utils import parse_scorm_time
+        
+        # Extract idempotence fields
+        session_id = safe_get_string(data, 'session_id')
+        seq = safe_get_int(data, 'seq', 0)
+        client_timestamp = safe_get_string(data, 'client_timestamp')
+        scorm_version = safe_get_string(data, 'scorm_version', '1.2')
+        raw_data = data.get('raw', {})
+        
+        # Get or create progress
+        topic_progress, created = TopicProgress.objects.get_or_create(
+            user=request.user,
+            topic=topic
+        )
+        
+        # Initialize progress_data if needed
+        if created or not topic_progress.progress_data or not isinstance(topic_progress.progress_data, dict):
+            topic_progress.init_progress_data()
+        
+        # Idempotence check: ignore if sequence number is not higher
+        if session_id:
+            current_session = topic_progress.progress_data.get('scorm_session_id')
+            current_seq = topic_progress.progress_data.get('scorm_last_seq', 0)
+            
+            # If same session and seq <= current_seq, this is a duplicate/out-of-order update
+            if current_session == session_id and seq <= current_seq:
+                logger.info(f"Ignoring out-of-order SCORM update: session={session_id}, seq={seq} <= current_seq={current_seq}")
+                return JsonResponse({
+                    'ok': True,
+                    'ignored': True,
+                    'reason': 'out_of_order'
+                })
+            
+            # Update session tracking
+            topic_progress.progress_data['scorm_session_id'] = session_id
+            topic_progress.progress_data['scorm_last_seq'] = seq
+        
+        # Parse SCORM data
+        score_raw = None
+        max_score = None
+        min_score = None
+        completion_status = None
+        success_status = None
+        total_time_str = None
+        lesson_location = None
+        suspend_data = None
+        
+        # Handle SCORM 1.2 and 2004 field names
+        if scorm_version == '1.2':
+            score_raw = safe_get_float(raw_data, 'cmi.core.score.raw')
+            max_score = safe_get_float(raw_data, 'cmi.core.score.max')
+            min_score = safe_get_float(raw_data, 'cmi.core.score.min')
+            completion_status = safe_get_string(raw_data, 'cmi.core.lesson_status')
+            success_status = safe_get_string(raw_data, 'cmi.core.success_status')
+            total_time_str = safe_get_string(raw_data, 'cmi.core.total_time')
+            lesson_location = safe_get_string(raw_data, 'cmi.core.lesson_location')
+            suspend_data = safe_get_string(raw_data, 'cmi.suspend_data')
+        else:  # SCORM 2004
+            score_raw = safe_get_float(raw_data, 'cmi.score.raw')
+            max_score = safe_get_float(raw_data, 'cmi.score.max')
+            min_score = safe_get_float(raw_data, 'cmi.score.min')
+            completion_status = safe_get_string(raw_data, 'cmi.completion_status')
+            success_status = safe_get_string(raw_data, 'cmi.success_status')
+            total_time_str = safe_get_string(raw_data, 'cmi.total_time')
+            lesson_location = safe_get_string(raw_data, 'cmi.location')
+            suspend_data = safe_get_string(raw_data, 'cmi.suspend_data')
+        
+        # Update progress_data
+        if score_raw is not None:
+            topic_progress.progress_data['scorm_score'] = float(score_raw)
+            topic_progress.last_score = float(score_raw)
+            
+            # Update best score
+            if topic_progress.best_score is None or float(score_raw) > topic_progress.best_score:
+                topic_progress.best_score = float(score_raw)
+        
+        if max_score is not None:
+            topic_progress.progress_data['scorm_max_score'] = float(max_score)
+        if min_score is not None:
+            topic_progress.progress_data['scorm_min_score'] = float(min_score)
+        if completion_status:
+            topic_progress.progress_data['scorm_completion_status'] = completion_status.lower()
+        if success_status:
+            topic_progress.progress_data['scorm_success_status'] = success_status.lower()
+        if total_time_str:
+            topic_progress.progress_data['scorm_total_time'] = total_time_str
+            # Parse and update total_time_spent
+            time_seconds = parse_scorm_time(total_time_str, scorm_version)
+            topic_progress.total_time_spent = int(time_seconds)
+        if lesson_location:
+            topic_progress.progress_data['scorm_lesson_location'] = lesson_location
+            # Update bookmark for resume
+            if not topic_progress.bookmark:
+                topic_progress.bookmark = {}
+            topic_progress.bookmark['lesson_location'] = lesson_location
+        if suspend_data:
+            topic_progress.progress_data['scorm_suspend_data'] = suspend_data
+            if not topic_progress.bookmark:
+                topic_progress.bookmark = {}
+            topic_progress.bookmark['suspend_data'] = suspend_data
+        
+        # Update completion status based on SCORM completion/success
+        should_complete = False
+        if completion_status:
+            if completion_status.lower() in ['completed', 'passed']:
+                should_complete = True
+        if success_status and success_status.lower() == 'passed':
+            should_complete = True
+        
+        if should_complete and not topic_progress.completed:
+            logger.info(f"Marking SCORM topic_id={topic_id} as completed for user={request.user.username}")
+            topic_progress.mark_complete('auto')
+            topic_progress.progress_data['scorm_completed_at'] = timezone.now().isoformat()
+        elif not should_complete and topic_progress.completed:
+            # Don't un-complete if already completed
+            pass
+        
+        topic_progress.save()
+        
+        # Return success response
+        return JsonResponse({
+            'ok': True,
+            'saved_at': timezone.now().isoformat(),
+            'progress': {
+                'completed': topic_progress.completed,
+                'score': float(topic_progress.last_score) if topic_progress.last_score else None,
+                'completion_status': topic_progress.progress_data.get('scorm_completion_status'),
+                'success_status': topic_progress.progress_data.get('scorm_success_status'),
+            }
+        })
+        
+    except json.JSONDecodeError as e:
+        logger.error(f"Invalid JSON in SCORM progress request: {str(e)}")
+        return JsonResponse({'error': 'Invalid JSON format'}, status=400)
+    except Exception as e:
+        logger.error(f"Error updating SCORM progress: {str(e)}", exc_info=True)
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+@login_required
 def like_item(request, topic_id, item_type, item_id):
     """Toggle like status for discussions, comments, and replies"""
     topic = get_object_or_404(Topic, id=topic_id)
@@ -6920,6 +7087,61 @@ def topic_create(request, course_id):
             try:
                 # Save the topic to get an ID
                 new_topic.save()
+                
+                # Handle SCORM package upload if content type is SCORM
+                if new_topic.content_type == 'SCORM' and 'scorm_package' in request.FILES:
+                    scorm_file = request.FILES['scorm_package']
+                    
+                    try:
+                        from scorm.models import ScormPackage
+                        from scorm.tasks import extract_scorm_package
+                        from django.core.files.storage import default_storage
+                        import uuid
+                        import os
+                        
+                        # Validate file size (600MB max)
+                        max_size = 600 * 1024 * 1024  # 600MB
+                        if scorm_file.size > max_size:
+                            messages.error(request, "SCORM package exceeds maximum size of 600MB")
+                            new_topic.delete()
+                            return redirect("courses:course_edit", course_id=course.id)
+                        
+                        # Validate file is ZIP
+                        if not scorm_file.name.lower().endswith('.zip'):
+                            messages.error(request, "SCORM package must be a ZIP file")
+                            new_topic.delete()
+                            return redirect("courses:course_edit", course_id=course.id)
+                        
+                        # Create ScormPackage instance
+                        scorm_package = ScormPackage.objects.create(
+                            title=new_topic.title[:255],  # Truncate if needed
+                            package_zip=scorm_file,
+                            processing_status='pending',
+                            created_by=request.user
+                        )
+                        
+                        # Link SCORM package to topic
+                        new_topic.scorm = scorm_package
+                        new_topic.save(update_fields=['scorm'])
+                        
+                        # Queue Celery task for extraction
+                        try:
+                            zip_path = scorm_package.package_zip.path if hasattr(scorm_package.package_zip, 'path') else None
+                            if zip_path:
+                                extract_scorm_package.delay(scorm_package.id, zip_path)
+                            else:
+                                # If using S3, we need to get the S3 path
+                                extract_scorm_package.delay(scorm_package.id, None)
+                            
+                            messages.success(request, f"SCORM package uploaded. Processing in background...")
+                        except Exception as e:
+                            logger.error(f"Error queueing SCORM extraction task: {e}")
+                            messages.warning(request, f"Topic created, but SCORM package extraction may be delayed")
+                        
+                    except Exception as e:
+                        logger.error(f"Error processing SCORM package: {str(e)}", exc_info=True)
+                        messages.error(request, f"Error processing SCORM package: {str(e)}")
+                        # Don't delete topic - let user retry with new package
                 
                 # Create the relationship with the course immediately after saving
                 CourseTopic.objects.create(

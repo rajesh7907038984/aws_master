@@ -7,8 +7,6 @@ import django.db.models.deletion
 
 class Migration(migrations.Migration):
 
-    initial = True
-
     dependencies = [
         ('assignments', '0002_topicassignment_topic'),
         ('lms_rubrics', '0001_initial'),

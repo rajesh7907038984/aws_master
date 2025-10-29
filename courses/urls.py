@@ -72,6 +72,7 @@ urlpatterns = [
     path('topic/<int:topic_id>/like/<str:item_type>/<int:item_id>/', views.like_item, name='like_item'),
     path('topic/<int:topic_id>/toggle-status/', views.toggle_topic_status, name='toggle_topic_status'),
     path('api/update_video_progress/<int:topic_id>/', views.update_video_progress, name='update_video_progress'),
+    path('api/update_scorm_progress/<int:topic_id>/', views.update_scorm_progress, name='update_scorm_progress'),
     
     # Comment Management
     path('topic/<int:topic_id>/comment/<int:comment_id>/delete/', views.delete_comment, name='delete_comment'),

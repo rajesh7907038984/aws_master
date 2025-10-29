@@ -337,7 +337,44 @@ def get_activity_score(activity, student_id, grades, quiz_attempts):
                 'type': 'conference',
                 'object': conference
             }
+        
+        elif activity['type'] == 'scorm':
+            # Get SCORM score from TopicProgress
+            from courses.models import TopicProgress
+            from core.utils.scoring import ScoreCalculationService
             
+            topic = activity['object']
+            try:
+                progress = TopicProgress.objects.filter(
+                    user_id=student_id,
+                    topic=topic
+                ).first()
+                
+                if progress and progress.last_score is not None:
+                    progress_data = progress.progress_data or {}
+                    scorm_score = progress_data.get('scorm_score', progress.last_score)
+                    scorm_max_score = progress_data.get('scorm_max_score', activity.get('max_score', 100))
+                    
+                    # Normalize score
+                    normalized_score = ScoreCalculationService.normalize_score(scorm_score)
+                    
+                    return {
+                        'score': float(normalized_score) if normalized_score is not None else float(scorm_score),
+                        'max_score': float(scorm_max_score) if scorm_max_score else activity.get('max_score', 100),
+                        'date': progress.completed_at or progress.last_accessed,
+                        'type': 'scorm',
+                        'object': topic,
+                        'completed': progress.completed
+                    }
+            except Exception:
+                pass
+            
+            return {
+                'score': None,
+                'max_score': activity.get('max_score', 100),
+                'type': 'scorm',
+                'object': activity['object']
+            }
             
     except (ValueError, AttributeError, TypeError):
         return {'score': None, 'max_score': 0, 'type': 'unknown'}
@@ -486,6 +523,36 @@ def calculate_student_total(student_id, activities, grades, quiz_attempts):
                     
                     # Add total possible points for conference
                     total_possible += activity_max_score
+                
+                elif activity['type'] == 'scorm':
+                    # Handle SCORM topics
+                    from courses.models import TopicProgress
+                    from core.utils.scoring import ScoreCalculationService
+                    
+                    topic = activity['object']
+                    total_possible += activity_max_score
+                    
+                    try:
+                        progress = TopicProgress.objects.filter(
+                            user_id=student_id,
+                            topic=topic
+                        ).first()
+                        
+                        if progress and progress.last_score is not None:
+                            progress_data = progress.progress_data or {}
+                            scorm_score = progress_data.get('scorm_score', progress.last_score)
+                            scorm_max_score = progress_data.get('scorm_max_score', activity.get('max_score', 100))
+                            
+                            # Normalize score
+                            normalized_score = ScoreCalculationService.normalize_score(scorm_score)
+                            
+                            if normalized_score is not None:
+                                total_earned += Decimal(str(normalized_score))
+                            else:
+                                total_earned += Decimal(str(scorm_score))
+                    except Exception:
+                        # If error, just don't add to earned
+                        pass
                             
                 else:
                     # For any other activity types, just add the max_score to total_possible
@@ -520,6 +587,14 @@ def course_has_activities(course, activity_type, assignments=None, quizzes=None,
         elif activity_type == 'quiz' and quizzes:
             # Always check for quiz existence first, regardless of attempts
             return any(quiz.course and quiz.course.id == course.id for quiz in quizzes)
+        elif activity_type == 'scorm':
+            # Check for SCORM topics in the course
+            from courses.models import Topic
+            return Topic.objects.filter(
+                content_type='SCORM',
+                scorm__isnull=False,
+                courses=course
+            ).exists()
         elif activity_type == 'discussion' and discussions:
             return any(discussion.course and discussion.course.id == course.id and discussion.rubric for discussion in discussions)
         elif activity_type == 'conference' and conferences:
@@ -1010,6 +1085,7 @@ def get_activity_type_label(activity_type):
         'quiz': 'QUZ',
         'discussion': 'DSC',
         'conference': 'CNF',
+        'scorm': 'SCM',
     }
     return labels.get(activity_type, 'UNK')
 
@@ -1061,5 +1137,13 @@ def get_activity_status_text(activity_type, score_data):
             return 'Evaluated'
         else:
             return 'Not Evaluated'
+    
+    elif activity_type == 'scorm':
+        if score_data.get('completed'):
+            return 'Completed'
+        elif score_data.get('score') is not None:
+            return 'In Progress'
+        else:
+            return 'Not Started'
     
     return 'Unknown'

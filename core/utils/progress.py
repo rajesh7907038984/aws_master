@@ -53,14 +53,16 @@ class ProgressCalculationService:
             }
             
             # Calculate completion percentage based on topic type
-            if topic.topic_type == 'quiz':
+            if topic.content_type == 'Quiz':
                 result.update(cls._calculate_quiz_progress(user, topic))
-            elif topic.topic_type == 'assignment':
+            elif topic.content_type == 'Assignment':
                 result.update(cls._calculate_assignment_progress(user, topic))
-            elif topic.topic_type == 'video':
+            elif topic.content_type in ['Video', 'EmbedVideo']:
                 result.update(cls._calculate_video_progress(progress, topic))
-            elif topic.topic_type == 'text':
+            elif topic.content_type == 'Text':
                 result.update(cls._calculate_text_progress(progress, topic))
+            elif topic.content_type == 'SCORM':
+                result.update(cls._calculate_scorm_progress(progress, topic))
             else:
                 # Default progress calculation
                 result['completion_percentage'] = 100.0 if progress.completed else 0.0
@@ -218,6 +220,66 @@ class ProgressCalculationService:
             
         except Exception as e:
             logger.error(f"Error calculating text progress: {e}")
+            return {'completion_percentage': 0.0, 'error': str(e)}
+    
+    @classmethod
+    def _calculate_scorm_progress(cls, progress, topic) -> Dict[str, Any]:
+        """Calculate progress for SCORM content"""
+        try:
+            from scorm.utils import parse_scorm_time
+            
+            progress_data = progress.progress_data or {}
+            
+            # Get SCORM completion status
+            completion_status = progress_data.get('scorm_completion_status', 'incomplete')
+            success_status = progress_data.get('scorm_success_status', 'unknown')
+            
+            # Determine completion percentage
+            completion_percentage = 0.0
+            
+            if progress.completed:
+                completion_percentage = 100.0
+            elif completion_status in ['completed', 'passed']:
+                completion_percentage = 100.0
+            elif success_status == 'passed':
+                completion_percentage = 100.0
+            elif completion_status == 'incomplete':
+                # Check if there's a score or time spent indicating partial progress
+                scorm_score = progress_data.get('scorm_score')
+                scorm_max_score = progress_data.get('scorm_max_score')
+                
+                if scorm_score is not None and scorm_max_score is not None and scorm_max_score > 0:
+                    # Calculate percentage based on score
+                    completion_percentage = min((float(scorm_score) / float(scorm_max_score)) * 100, 99.0)
+                elif progress_data.get('scorm_total_time'):
+                    # Some progress indicated by time spent
+                    completion_percentage = 25.0  # Partial progress indicator
+                else:
+                    completion_percentage = 0.0
+            
+            # Get SCORM-specific data
+            scorm_score = progress_data.get('scorm_score')
+            scorm_max_score = progress_data.get('scorm_max_score')
+            scorm_time = progress_data.get('scorm_total_time', '00:00:00')
+            
+            # Parse time to seconds
+            scorm_version = '1.2'  # Default, should be stored in progress_data
+            time_seconds = 0
+            if scorm_time:
+                time_seconds = int(parse_scorm_time(scorm_time, scorm_version))
+            
+            return {
+                'completion_percentage': completion_percentage,
+                'scorm_score': float(scorm_score) if scorm_score is not None else None,
+                'scorm_max_score': float(scorm_max_score) if scorm_max_score is not None else None,
+                'scorm_completion_status': completion_status,
+                'scorm_success_status': success_status,
+                'scorm_total_time': scorm_time,
+                'scorm_time_seconds': time_seconds
+            }
+            
+        except Exception as e:
+            logger.error(f"Error calculating SCORM progress: {e}")
             return {'completion_percentage': 0.0, 'error': str(e)}
     
     @classmethod

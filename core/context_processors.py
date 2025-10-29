@@ -530,4 +530,13 @@ def global_context(request):
             'rate_max_count': 0
         }
     
-    return context 
+    return context
+
+def scorm_features_context(request):
+    """
+    Context processor to provide SCORM feature flag to all templates
+    """
+    from django.conf import settings
+    return {
+        'ENABLE_SCORM_FEATURES': getattr(settings, 'ENABLE_SCORM_FEATURES', True),
+    } 

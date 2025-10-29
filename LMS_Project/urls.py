@@ -113,6 +113,7 @@ urlpatterns = [
     path('categories/', include('categories.urls', namespace='categories')),
     path('quiz/', include('quiz.urls', namespace='quiz')),
     path('assignments/', include('assignments.urls', namespace='assignments')),
+    path('scorm/', include('scorm.urls', namespace='scorm')),
     path('gradebook/', include('gradebook.urls', namespace='gradebook')),
     path('calendar/', include('calendar_app.urls', namespace='calendar')),
     path('reports/', include('reports.urls', namespace='reports')),

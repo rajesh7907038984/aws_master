@@ -6,8 +6,6 @@ import django.db.models.deletion
 
 class Migration(migrations.Migration):
 
-    initial = True
-
     dependencies = [
         ('assignments', '0001_initial'),
         ('courses', '0001_initial'),
