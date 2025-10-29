@@ -1,5 +1,6 @@
 from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
+from django.views.decorators.cache import never_cache
 from .models import Grade
 from django.db.models import Q, Max, Count, Case, When, IntegerField, OuterRef, Subquery
 from assignments.models import Assignment, AssignmentSubmission, AssignmentFeedback
@@ -314,20 +315,35 @@ def pre_calculate_student_scores(students, activities, grades, quiz_attempts, sc
                                         'max_score': float(scorm_max_score) if scorm_max_score else activity.get('max_score', 100),
                                         'date': progress.completed_at or progress.last_accessed,
                                         'type': 'scorm',
-                                        'completed': progress.completed
+                                        'completed': progress.completed,
+                                        'can_resume': False
                                     }
                                 else:
+                                    # Determine if learner has an in-progress attempt that can be resumed
+                                    can_resume = False
+                                    if progress:
+                                        bookmark = progress.bookmark or {}
+                                        has_location = bool(bookmark.get('lesson_location'))
+                                        has_suspend = bool(bookmark.get('suspend_data'))
+                                        # Consider incomplete status as resumable as well
+                                        progress_data = progress.progress_data or {}
+                                        completion_status = (progress_data.get('scorm_completion_status') or '').lower()
+                                        is_incomplete = completion_status in ['incomplete', 'unknown', 'not attempted'] and (has_location or has_suspend)
+                                        can_resume = has_location or has_suspend or is_incomplete
+                                    
                                     student_scores[activity_id] = {
                                         'score': None,
                                         'max_score': activity.get('max_score', 100),
-                                        'type': 'scorm'
+                                        'type': 'scorm',
+                                        'can_resume': can_resume
                                     }
                             except Exception as e:
                                 logger.error(f"Error processing SCORM activity {activity_id} for student {student.id}: {str(e)}")
                                 student_scores[activity_id] = {
                                     'score': None,
                                     'max_score': activity.get('max_score', 100),
-                                    'type': 'scorm'
+                                    'type': 'scorm',
+                                    'can_resume': False
                                 }
                         
                     
@@ -461,6 +477,7 @@ def enhance_student_scores_with_display_data(student_scores, activities):
 
 # Create your views here.
 @login_required
+@never_cache
 def gradebook_index(request):
     """
     Display the gradebook with activity-wise filtering.
@@ -526,6 +543,9 @@ def gradebook_index(request):
             courses = all_courses
     else:
         courses = all_courses
+    
+    # Create a set of accessible course IDs for fast lookup
+    accessible_course_ids = set(all_courses.values_list('id', flat=True))
     
     # Get all activities from the accessible courses, organized by type
     activities_data = []
@@ -626,7 +646,8 @@ def gradebook_index(request):
         if activity_filter == 'all' or activity_filter == 'assignment':
             for assignment in assignments:
                 course_info = get_activity_course_info(assignment, 'assignment')
-                if course_info:  # Only include if has course association
+                # Only include if has course association AND course is in user's accessible courses
+                if course_info and course_info.id in accessible_course_ids:
                     # Use rubric total_points if assignment has rubric, otherwise use assignment max_score
                     max_score = assignment.rubric.total_points if assignment.rubric else assignment.max_score
                     activities_data.append({
@@ -641,7 +662,8 @@ def gradebook_index(request):
         if activity_filter == 'all' or activity_filter == 'quiz' or activity_filter == 'initial_assessment':
             for quiz in quizzes:
                 course_info = get_activity_course_info(quiz, 'quiz')
-                if course_info:  # Only include if has course association
+                # Only include if has course association AND course is in user's accessible courses
+                if course_info and course_info.id in accessible_course_ids:
                     # Use rubric total_points if quiz has rubric, otherwise use quiz total_points
                     max_score = quiz.rubric.total_points if quiz.rubric else (quiz.total_points or 0)
                     
@@ -672,12 +694,13 @@ def gradebook_index(request):
             scorm_topics = Topic.objects.filter(
                 content_type='SCORM',
                 scorm__isnull=False,
-                courses__isnull=False
+                courses__in=courses  # Filter by accessible courses only
             ).distinct().select_related('scorm').prefetch_related('courses')
             
             for scorm_topic in scorm_topics:
                 course_info = get_activity_course_info(scorm_topic, 'scorm')
-                if course_info:  # Only include if has course association
+                # Only include if has course association AND course is in user's accessible courses
+                if course_info and course_info.id in accessible_course_ids:
                     max_score = 100  # Default max score for SCORM
                     activities_data.append({
                         'object': scorm_topic,
@@ -691,7 +714,8 @@ def gradebook_index(request):
         if activity_filter == 'all' or activity_filter == 'discussion':
             for discussion in discussions:
                 course_info = get_activity_course_info(discussion, 'discussion')
-                if course_info and discussion.rubric:  # Only include if has course association AND rubric
+                # Only include if has course association AND course is in user's accessible courses AND has rubric
+                if course_info and course_info.id in accessible_course_ids and discussion.rubric:
                     # Use rubric total_points if discussion has rubric
                     max_score = discussion.rubric.total_points
                     activities_data.append({
@@ -706,7 +730,8 @@ def gradebook_index(request):
         if activity_filter == 'all' or activity_filter == 'conference':
             for conference in conferences:
                 course_info = get_activity_course_info(conference, 'conference')
-                if course_info and hasattr(conference, 'rubric') and conference.rubric:  # Only include if has course association AND rubric
+                # Only include if has course association AND course is in user's accessible courses AND has rubric
+                if course_info and course_info.id in accessible_course_ids and hasattr(conference, 'rubric') and conference.rubric:
                     max_score = conference.rubric.total_points
                     activities_data.append({
                         'object': conference,
@@ -1202,7 +1227,7 @@ def course_gradebook_detail(request, course_id):
     scorm_topics = Topic.objects.filter(
         content_type='SCORM',
         scorm__isnull=False,
-        courses__isnull=False
+        courses=course
     ).distinct().select_related('scorm')
     
     for scorm_topic in scorm_topics:

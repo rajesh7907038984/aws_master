@@ -64,13 +64,14 @@ def scorm_launcher(request, topic_id):
         progress_dict = progress.progress_data if progress.progress_data else {}
         bookmark_dict = progress.bookmark if progress.bookmark else {}
         
+        # Use camelCase keys to match JavaScript expectations
         progress_data = {
-            'lesson_location': bookmark_dict.get('lesson_location', ''),
-            'suspend_data': bookmark_dict.get('suspend_data', ''),
-            'lesson_status': progress_dict.get('scorm_completion_status', 'not attempted'),
-            'score_raw': progress_dict.get('scorm_score', ''),
-            'score_max': progress_dict.get('scorm_max_score', ''),
-            'total_time': progress_dict.get('scorm_total_time', '00:00:00'),
+            'lessonLocation': bookmark_dict.get('lesson_location', ''),
+            'suspendData': bookmark_dict.get('suspend_data', ''),
+            'lessonStatus': progress_dict.get('scorm_completion_status', 'not attempted'),
+            'scoreRaw': progress_dict.get('scorm_score', ''),
+            'scoreMax': progress_dict.get('scorm_max_score', ''),
+            'totalTime': progress_dict.get('scorm_total_time', '00:00:00'),
         }
         
         context = {
@@ -203,7 +204,8 @@ def scorm_player(request, package_id, file_path):
                 
                 # Inject SCORM API script before closing </head> or at the end if no </head>
                 scorm_api_url = f"{request.scheme}://{request.get_host()}/static/scorm/js/scorm-api.js"
-                topic_id = request.GET.get('topic_id', '')
+                topic_id_param = request.GET.get('topic_id', None)
+                topic_id = int(topic_id_param) if topic_id_param and topic_id_param.isdigit() else None
                 
                 # Get CSRF token for JavaScript access
                 from django.middleware.csrf import get_token
@@ -249,6 +251,7 @@ def scorm_player(request, package_id, file_path):
             if (typeof SCORM !== 'undefined' && SCORM.configure) {{
                 var topicId = {topic_id if topic_id else 'null'};
                 var progressUrl = topicId ? '/courses/api/update_scorm_progress/' + topicId + '/' : null;
+                console.log('SCORM API Configuration:', {{ topicId: topicId, progressUpdateUrl: progressUrl }});
                 
                 // Get resume data
                 var entry = '{entry_value}';

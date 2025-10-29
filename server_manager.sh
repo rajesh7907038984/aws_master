@@ -1,6 +1,7 @@
 #!/bin/bash
 
-# Complete LMS Server Management Script
+# Complete LMS Server Management Script with Session Preservation
+# All restart operations now preserve user sessions to prevent auto-logout
 # Usage: ./server_manager.sh [kill|restart|service-restart|quick|status|logs]
 
 LMS_DIR="/home/ec2-user/lms"
@@ -36,6 +37,17 @@ case "$1" in
     restart)
         echo " Full server restart with checks..."
         cd $LMS_DIR
+        
+        echo "🛡️  Preserving user sessions to prevent auto-logout..."
+        source venv/bin/activate
+        python manage.py preserve_sessions
+        
+        if [ $? -ne 0 ]; then
+            echo " Session preservation failed, aborting restart"
+            exit 1
+        fi
+        echo " Sessions preserved successfully"
+        echo ""
         
         echo "🛑 Killing ALL server processes..."
         pkill -f "python.*manage.py runserver" 2>/dev/null || true
@@ -84,6 +96,19 @@ case "$1" in
         ;;
     service-restart)
         echo " Production service restart..."
+        cd $LMS_DIR
+        
+        echo "🛡️  Preserving user sessions to prevent auto-logout..."
+        source venv/bin/activate
+        python manage.py preserve_sessions
+        
+        if [ $? -ne 0 ]; then
+            echo " Session preservation failed, aborting restart"
+            exit 1
+        fi
+        echo " Sessions preserved successfully"
+        echo ""
+        
         echo "🛑 Stopping LMS production service..."
         sudo systemctl stop lms-production 2>/dev/null || true
         
@@ -103,6 +128,17 @@ case "$1" in
     quick)
         echo "⚡ Quick restart..."
         cd $LMS_DIR
+        
+        echo "🛡️  Preserving user sessions to prevent auto-logout..."
+        source venv/bin/activate
+        python manage.py preserve_sessions
+        
+        if [ $? -ne 0 ]; then
+            echo " Session preservation failed, aborting restart"
+            exit 1
+        fi
+        echo " Sessions preserved successfully"
+        echo ""
         
         # Quick kill and restart
         pkill -f "python.*manage.py runserver" 2>/dev/null || true

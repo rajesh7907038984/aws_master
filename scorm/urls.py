@@ -3,6 +3,7 @@ URL routing for SCORM app
 """
 from django.urls import path
 from . import views
+from . import views_enrollment
 
 app_name = 'scorm'
 
@@ -15,5 +16,8 @@ urlpatterns = [
     
     # SCORM package status endpoint
     path('package/<int:package_id>/status/', views.package_status, name='package_status'),
+    
+    # Enhanced SCORM progress tracking with enrollment/attempt models
+    path('progress/<int:topic_id>/', views_enrollment.update_scorm_progress_with_enrollment, name='update_progress'),
 ]
 

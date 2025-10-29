@@ -1405,6 +1405,7 @@
               <option value="">All Types</option>
               <option value="assignment">Assignments</option>
               <option value="quiz">Quizzes</option>
+              <option value="scorm">SCORM</option>
               <option value="discussion">Discussions</option>
               <option value="conference">Conferences</option>
             </select>
@@ -1513,6 +1514,10 @@
                     {% else %}
                       <div class="activity-points">{{ activity.max_score }} pts</div>
                     {% endif %}
+                  {% elif activity.type == 'scorm' %}
+                    <span class="activity-type-label activity-type-scorm">SCORM {{ activity.activity_number }}</span>
+                    <div class="activity-title">{{ activity.title|truncatechars:15 }}</div>
+                    <div class="activity-points">{{ activity.max_score }} pts</div>
                   {% elif activity.type == 'discussion' %}
                     <span class="activity-type-label activity-type-discussion">DSC {{ activity.activity_number }}</span>
                     <div class="activity-title">{{ activity.title|truncatechars:15 }}</div>
@@ -1737,6 +1742,33 @@
                             <a href="{% url 'quiz:quiz_detail' activity.object.id %}" class="view-btn quiz-view-btn">
                               TAKE ASSESSMENT
                             </a>
+                          {% endif %}
+                        {% endif %}
+                        
+                      {% elif activity.type == 'scorm' %}
+                        {% if score_data.score is not None %}
+                          <div class="submission-date">
+                            {{ score_data.date|date:"M d, Y" }}
+                          </div>
+                          <span class="grade-score 
+                            {% if score_data.score >= activity.max_score|mul:0.7 %}grade-excellent{% else %}grade-poor{% endif %}">
+                            {{ score_data.score|floatformat:1 }}/{{ activity.max_score|floatformat:1 }}
+                          </span>
+                        {% else %}
+                          {% if score_data.can_resume %}
+                            <span class="grade-score grade-pending">In Progress</span>
+                            {% if user.role == 'learner' %}
+                              <a href="{% url 'scorm:launcher' activity.object.id %}" target="_blank" rel="noopener noreferrer" class="view-btn scorm-view-btn">
+                                RESUME
+                              </a>
+                            {% endif %}
+                          {% else %}
+                            <span class="grade-score grade-none">Not Attempted</span>
+                            {% if user.role == 'learner' %}
+                              <a href="{% url 'courses:topic_view' activity.object.id %}" class="view-btn scorm-view-btn">
+                                LAUNCH
+                              </a>
+                            {% endif %}
                           {% endif %}
                         {% endif %}
                         
@@ -2203,6 +2235,7 @@ function applyFilters() {
             const labelText = activityTypeLabels[0].textContent.toLowerCase();
             if (labelText.includes('asg')) activityType = 'assignment';
             else if (labelText.includes('quz')) activityType = 'quiz';
+            else if (labelText.includes('scorm')) activityType = 'scorm';
             else if (labelText.includes('dsc')) activityType = 'discussion';
             else if (labelText.includes('cnf')) activityType = 'conference';
         }

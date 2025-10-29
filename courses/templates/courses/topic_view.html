@@ -596,16 +596,22 @@
                             {% with progress=topic|get_topic_progress:user %}
                                 {% with entry_point=topic.scorm.primary_resource_href %}
                                     {% if entry_point and entry_point|length > 0 %}
-                                        <!-- Launch Button -->
+                                        <!-- Launch or Resume Button -->
+                                        {% with bookmark=topic_progress.bookmark %}
+                                        {% with has_location=bookmark.lesson_location|default:''|length %}
+                                        {% with has_suspend=bookmark.suspend_data|default:''|length %}
                                         <div class="flex justify-center items-center py-12">
-                                            <a href="{% url 'scorm:launcher' topic.id %}" 
-                                               target="_blank" 
+                                            <a href="{% url 'scorm:launcher' topic.id %}"
+                                               target="_blank"
                                                rel="noopener noreferrer"
                                                class="btn btn-primary px-8 py-4 text-white rounded-lg shadow-md hover:shadow-lg transition-shadow duration-200 flex items-center gap-2 text-lg">
                                                 <i class="fas fa-external-link-alt"></i>
-                                                Launch SCORM Player
+                                                {% if has_location or has_suspend %}Resume{% else %}Launch SCORM Player{% endif %}
                                             </a>
                                         </div>
+                                        {% endwith %}
+                                        {% endwith %}
+                                        {% endwith %}
                                     {% else %}
                                         <div class="text-center p-8 bg-yellow-50 rounded-lg">
                                             <i class="fas fa-exclamation-triangle text-yellow-600 text-3xl mb-4"></i>

@@ -281,7 +281,8 @@
             // Build content URL
             const contentUrl = '{% url "scorm:player" package.id entry_point %}';
             const params = new URLSearchParams({
-                _no_api: '1'  // Flag to prevent infinite API search
+                _no_api: '1',  // Flag to prevent infinite API search
+                topic_id: '{{ topic.id }}'  // Pass topic ID for progress tracking
             });
             
             const fullUrl = contentUrl + '?' + params.toString();

@@ -3015,6 +3015,10 @@ def update_scorm_progress(request, topic_id):
             topic_progress.progress_data['scorm_session_id'] = session_id
             topic_progress.progress_data['scorm_last_seq'] = seq
         
+        # Save complete raw CMI data for reference/debugging
+        # This ensures we preserve ALL CMI values even if they're not explicitly extracted
+        topic_progress.progress_data['scorm_raw_cmi_data'] = raw_data
+        
         # Parse SCORM data
         score_raw = None
         max_score = None
@@ -3024,6 +3028,8 @@ def update_scorm_progress(request, topic_id):
         total_time_str = None
         lesson_location = None
         suspend_data = None
+        entry_value = None
+        exit_value = None
         
         # Handle SCORM 1.2 and 2004 field names
         if scorm_version == '1.2':
@@ -3035,6 +3041,8 @@ def update_scorm_progress(request, topic_id):
             total_time_str = safe_get_string(raw_data, 'cmi.core.total_time')
             lesson_location = safe_get_string(raw_data, 'cmi.core.lesson_location')
             suspend_data = safe_get_string(raw_data, 'cmi.suspend_data')
+            entry_value = safe_get_string(raw_data, 'cmi.core.entry')
+            exit_value = safe_get_string(raw_data, 'cmi.core.exit')
         else:  # SCORM 2004
             score_raw = safe_get_float(raw_data, 'cmi.score.raw')
             max_score = safe_get_float(raw_data, 'cmi.score.max')
@@ -3044,6 +3052,8 @@ def update_scorm_progress(request, topic_id):
             total_time_str = safe_get_string(raw_data, 'cmi.total_time')
             lesson_location = safe_get_string(raw_data, 'cmi.location')
             suspend_data = safe_get_string(raw_data, 'cmi.suspend_data')
+            entry_value = safe_get_string(raw_data, 'cmi.entry')
+            exit_value = safe_get_string(raw_data, 'cmi.exit')
         
         # Update progress_data
         if score_raw is not None:
@@ -3078,6 +3088,12 @@ def update_scorm_progress(request, topic_id):
             if not topic_progress.bookmark:
                 topic_progress.bookmark = {}
             topic_progress.bookmark['suspend_data'] = suspend_data
+        
+        # Save entry and exit values (important for SCORM behavior)
+        if entry_value:
+            topic_progress.progress_data['scorm_entry'] = entry_value
+        if exit_value:
+            topic_progress.progress_data['scorm_exit'] = exit_value
         
         # Update completion status based on SCORM completion/success using helper
         should_complete = map_scorm_completion(

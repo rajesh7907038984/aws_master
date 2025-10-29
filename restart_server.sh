@@ -1,9 +1,10 @@
 #!/bin/bash
 
 # ==============================================
-# LMS SERVER RESTART SCRIPT
+# LMS SERVER RESTART SCRIPT WITH SESSION PRESERVATION
 # ==============================================
-# This script restarts the LMS server using .env configuration
+# This script restarts the LMS server with automatic session preservation
+# to prevent logged-in users from being auto-logged out
 # Usage: ./restart_server.sh [quick|full]
 # ==============================================
 
@@ -47,6 +48,21 @@ if [[ "$GUNICORN_BIND" == *":"* ]]; then
 else
     SERVER_PORT="8000"
 fi
+
+# ==============================================
+# PRESERVE USER SESSIONS
+# ==============================================
+
+echo "🛡️  Preserving user sessions to prevent auto-logout..."
+python manage.py preserve_sessions
+
+if [ $? -ne 0 ]; then
+    echo " Session preservation failed, aborting restart"
+    exit 1
+fi
+
+echo " Sessions preserved successfully"
+echo ""
 
 # ==============================================
 # STOP EXISTING PROCESSES
