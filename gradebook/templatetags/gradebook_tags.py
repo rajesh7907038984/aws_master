@@ -630,6 +630,27 @@ def course_has_activities(course, activity_type, assignments=None, quizzes=None,
     except Exception:
         return False
 
+
+@register.simple_tag(takes_context=False)
+def scorm_launch_url(scorm_or_topic):
+    """
+    Return the launch URL for a SCORM activity, abstracting the underlying implementation.
+
+    Uses settings.SCORM_LAUNCH_URL_NAME if present (default: 'scorm:launcher').
+    Accepts a Topic or SCORM-like object that can be launched by id.
+    """
+    from django.conf import settings
+    from django.urls import reverse
+
+    try:
+        url_name = getattr(settings, 'SCORM_LAUNCH_URL_NAME', 'scorm:launcher')
+        object_id = getattr(scorm_or_topic, 'id', None)
+        if object_id is None:
+            return ''
+        return reverse(url_name, args=[object_id])
+    except Exception:
+        return ''
+
 @register.simple_tag
 def should_hide_course(student_id, course_id, student_courses_with_activities, user_role=None):
     """

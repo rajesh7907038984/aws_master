@@ -89,6 +89,24 @@
     white-space: nowrap;
     overflow: hidden;
   }
+
+  /* Allow opting out of sticky first column when needed */
+  .gradebook-table.no-sticky-first th:first-child,
+  .gradebook-table.no-sticky-first td:first-child {
+    position: static;
+    left: auto;
+    z-index: auto;
+  }
+
+  /* Disable sticky first column on smaller screens to avoid overlay issues */
+  @media (max-width: 1024px) {
+    .gradebook-table th:first-child,
+    .gradebook-table td:first-child {
+      position: static !important;
+      left: auto !important;
+      z-index: auto !important;
+    }
+  }
   
   .gradebook-table td:last-child {
     border-right: none;
@@ -640,6 +658,11 @@
     border-radius: 0.5rem;
     padding: 1rem;
     margin-bottom: 1rem;
+    position: relative;
+    z-index: 40; /* Above sticky table headers/columns */
+    position: sticky;
+    top: 0;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.04);
   }
 
   .filter-row {
@@ -1766,14 +1789,16 @@
                           {% if score_data.can_resume %}
                             <span class="grade-score grade-pending">In Progress</span>
                             {% if user.role == 'learner' %}
-                              <a href="{% url 'scorm:launcher' activity.object.id %}" class="view-btn scorm-view-btn">
+                              {% scorm_launch_url activity.object as scorm_url %}
+                              <a href="{{ scorm_url }}" class="view-btn scorm-view-btn">
                                 RESUME
                               </a>
                             {% endif %}
                           {% else %}
                             <span class="grade-score grade-none">Not Attempted</span>
                             {% if user.role == 'learner' %}
-                              <a href="{% url 'scorm:launcher' activity.object.id %}" class="view-btn scorm-view-btn">
+                              {% scorm_launch_url activity.object as scorm_url %}
+                              <a href="{{ scorm_url }}" class="view-btn scorm-view-btn">
                                 LAUNCH
                               </a>
                             {% endif %}
@@ -2151,9 +2176,11 @@ function applyFilters() {
             rowVisible = false;
         }
         
-        // Apply global search (search in student name and all activities)
+        // Apply global search (search only in visible columns)
         if (globalSearch) {
-            const rowText = row.textContent.toLowerCase();
+            const visibleCells = row.querySelectorAll('td:not(.activity-filtered)');
+            let rowText = '';
+            visibleCells.forEach(cell => { rowText += ' ' + cell.textContent.toLowerCase(); });
             if (!rowText.includes(globalSearch)) {
                 rowVisible = false;
             }
@@ -2161,7 +2188,8 @@ function applyFilters() {
         
         // Apply status filter
         if (statusFilter) {
-            const activityCells = row.querySelectorAll('td:not(:first-child):not(:last-child)');
+            // Only consider currently visible activity cells (exclude hidden filtered columns)
+            const activityCells = row.querySelectorAll('td:not(:first-child):not(:last-child):not(.activity-filtered)');
             let hasMatchingStatus = false;
             
             activityCells.forEach(cell => {
