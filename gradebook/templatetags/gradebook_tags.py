@@ -373,16 +373,43 @@ def get_activity_score(activity, student_id, grades, quiz_attempts):
                             'completed': progress.completed,
                             'can_resume': bool(progress.bookmark)
                         }
-                    else:
-                        # Content-only SCORM - return completion status only
+                    elif progress.completed or progress_data.get('scorm_completion_status') in ['completed', 'passed']:
+                        # Content-only SCORM but completed - show completion without score
                         return {
                             'score': None,
-                            'max_score': activity.get('max_score', 100),
+                            'max_score': None,
                             'date': progress.completed_at or progress.last_accessed,
                             'type': 'scorm',
                             'object': topic,
-                            'completed': progress.completed,
-                            'can_resume': bool(progress.bookmark)
+                            'completed': True,
+                            'status': 'completed',
+                            'can_resume': False
+                        }
+                    elif progress.last_accessed:
+                        # Content-only SCORM - in progress
+                        bookmark = progress.bookmark or {}
+                        has_resume_data = bool(bookmark.get('lesson_location') or bookmark.get('suspend_data'))
+                        return {
+                            'score': None,
+                            'max_score': None,
+                            'date': progress.last_accessed,
+                            'type': 'scorm',
+                            'object': topic,
+                            'completed': False,
+                            'status': 'in_progress',
+                            'can_resume': has_resume_data
+                        }
+                    else:
+                        # Content-only SCORM - not started
+                        return {
+                            'score': None,
+                            'max_score': None,
+                            'date': None,
+                            'type': 'scorm',
+                            'object': topic,
+                            'completed': False,
+                            'status': 'not_started',
+                            'can_resume': False
                         }
             except Exception:
                 pass

@@ -596,16 +596,39 @@
                             {% with progress=topic|get_topic_progress:user %}
                                 {% with entry_point=topic.scorm.primary_resource_href %}
                                     {% if entry_point and entry_point|length > 0 %}
-                                        <!-- Launch or Resume Button -->
+                                        <!-- Launch or Resume Button with Completion Check -->
                                         {% with bookmark=progress.bookmark %}
                                         {% with has_location=bookmark.lesson_location|default:''|length %}
                                         {% with has_suspend=bookmark.suspend_data|default:''|length %}
                                         <div class="flex justify-center items-center py-12">
-                                            <a href="{% url 'scorm:launcher' topic.id %}"
-                                               class="btn btn-primary px-8 py-4 text-white rounded-lg shadow-md hover:shadow-lg transition-shadow duration-200 flex items-center gap-2 text-lg">
-                                                <i class="fas fa-play-circle"></i>
-                                                {% if has_location or has_suspend %}Resume{% else %}Launch SCORM Player{% endif %}
-                                            </a>
+                                            {% if progress.completed or progress.progress_data.scorm_completion_status|default:''|lower in 'completed,passed' or progress.progress_data.scorm_success_status|default:''|lower == 'passed' %}
+                                                <!-- SCORM Completed -->
+                                                <div class="text-center">
+                                                    <div class="inline-flex items-center gap-3 bg-green-50 border-2 border-green-500 text-green-700 px-8 py-4 rounded-lg shadow-md mb-4">
+                                                        <i class="fas fa-check-circle text-3xl"></i>
+                                                        <div class="text-left">
+                                                            <div class="font-bold text-lg">Completed</div>
+                                                            {% if progress.completed_at %}
+                                                            <div class="text-sm text-green-600">{{ progress.completed_at|date:"M d, Y" }}</div>
+                                                            {% endif %}
+                                                        </div>
+                                                    </div>
+                                                    <div>
+                                                        <a href="{% url 'scorm:launcher' topic.id %}"
+                                                           class="btn btn-outline-primary px-6 py-2 text-sm rounded-lg flex items-center gap-2 inline-flex">
+                                                            <i class="fas fa-redo"></i>
+                                                            Review Content
+                                                        </a>
+                                                    </div>
+                                                </div>
+                                            {% else %}
+                                                <!-- Not Completed - Show Launch/Resume -->
+                                                <a href="{% url 'scorm:launcher' topic.id %}"
+                                                   class="btn btn-primary px-8 py-4 text-white rounded-lg shadow-md hover:shadow-lg transition-shadow duration-200 flex items-center gap-2 text-lg">
+                                                    <i class="fas fa-play-circle"></i>
+                                                    {% if has_location or has_suspend %}Resume{% else %}Launch SCORM Player{% endif %}
+                                                </a>
+                                            {% endif %}
                                         </div>
                                         {% endwith %}
                                         {% endwith %}

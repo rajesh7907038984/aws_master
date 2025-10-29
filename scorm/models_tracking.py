@@ -499,3 +499,4 @@ class ScormCommitLog(models.Model):
     def __str__(self):
         return f"Commit {self.sequence_number} - Attempt {self.attempt.attempt_number}"
 
+

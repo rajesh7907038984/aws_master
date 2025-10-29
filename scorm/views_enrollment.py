@@ -87,9 +87,8 @@ def update_scorm_progress_with_enrollment(request, topic_id):
                 attempt = enrollment.get_current_attempt()
                 
                 if not attempt:
-                    # Create new attempt
-                    attempt = enrollment.create_new_attempt()
-                    attempt.session_id = session_uuid
+                    # Create new attempt with session_id
+                    attempt = enrollment.create_new_attempt(session_id=session_uuid)
                     attempt.scorm_version = scorm_version
                     attempt.save()
                     logger.info(
@@ -145,6 +144,11 @@ def update_scorm_progress_with_enrollment(request, topic_id):
             # Use enrollment's cumulative time across all attempts, not just current attempt
             topic_progress.total_time_spent = enrollment.total_time_seconds
             topic_progress.completed = attempt.completed
+            
+            # Set completion method and timestamp if newly completed
+            if attempt.completed and not topic_progress.completed_at:
+                topic_progress.completion_method = 'scorm'
+                topic_progress.completed_at = attempt.completed_at
             
             if not topic_progress.progress_data:
                 topic_progress.progress_data = {}

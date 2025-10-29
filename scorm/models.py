@@ -891,17 +891,23 @@ class ScormEnrollment(models.Model):
     def __str__(self):
         return f"{self.user.username} - {self.topic.title} ({self.enrollment_status})"
     
-    def create_new_attempt(self):
+    def create_new_attempt(self, session_id=None):
         """Create a new attempt for this enrollment"""
+        import uuid
         self.total_attempts += 1
         self.save()
+        
+        # Generate session_id if not provided
+        if session_id is None:
+            session_id = uuid.uuid4()
         
         return ScormAttempt.objects.create(
             enrollment=self,
             user=self.user,
             topic=self.topic,
             package=self.package,
-            attempt_number=self.total_attempts
+            attempt_number=self.total_attempts,
+            session_id=session_id
         )
     
     def get_current_attempt(self):
@@ -1166,18 +1172,36 @@ class ScormAttempt(models.Model):
         self.last_commit_at = timezone.now()
         
         # Check if completed
-        if self.completion_status in ['completed', 'passed'] or self.success_status == 'passed':
-            if not self.completed:
-                self.completed = True
-                self.completed_at = timezone.now()
-                
-                # Update enrollment
+        # Handle both SCORM 1.2 and 2004 completion logic
+        is_completed = False
+        
+        if scorm_version == '1.2':
+            # SCORM 1.2: lesson_status is stored in completion_status
+            # Values: passed, completed, failed, incomplete, browsed, not attempted
+            # "passed" = completed with passing score
+            # "completed" = completed without score (or score not required)
+            # "failed" = completed with failing score
+            if self.completion_status in ['passed', 'completed', 'failed']:
+                is_completed = True
+        else:
+            # SCORM 2004: separate completion_status and success_status
+            # completion_status: completed, incomplete, not attempted, unknown
+            # success_status: passed, failed, unknown
+            if self.completion_status in ['completed', 'passed'] or self.success_status == 'passed':
+                is_completed = True
+        
+        if is_completed and not self.completed:
+            self.completed = True
+            self.completed_at = timezone.now()
+            
+            # Update enrollment
+            if self.score_raw is not None:
                 self.enrollment.update_best_score(self.score_raw)
-                if not self.enrollment.first_completion_date:
-                    self.enrollment.first_completion_date = self.completed_at
-                self.enrollment.last_completion_date = self.completed_at
-                self.enrollment.enrollment_status = 'completed'
-                self.enrollment.save()
+            if not self.enrollment.first_completion_date:
+                self.enrollment.first_completion_date = self.completed_at
+            self.enrollment.last_completion_date = self.completed_at
+            self.enrollment.enrollment_status = 'completed'
+            self.enrollment.save()
         
         self.save()
     

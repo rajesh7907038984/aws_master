@@ -302,22 +302,52 @@ def pre_calculate_student_scores(students, activities, grades, quiz_attempts, sc
                                     topic=topic
                                 ).first()
                                 
-                                if progress and progress.last_score is not None:
+                                if progress:
                                     progress_data = progress.progress_data or {}
                                     scorm_score = progress_data.get('scorm_score', progress.last_score)
                                     scorm_max_score = progress_data.get('scorm_max_score', activity.get('max_score', 100))
                                     
-                                    # Normalize score
-                                    normalized_score = ScoreCalculationService.normalize_score(scorm_score)
+                                    # Check if has meaningful score (quiz-based SCORM)
+                                    has_score = progress.last_score is not None and float(progress.last_score) > 0
                                     
-                                    student_scores[activity_id] = {
-                                        'score': float(normalized_score) if normalized_score is not None else float(scorm_score),
-                                        'max_score': float(scorm_max_score) if scorm_max_score else activity.get('max_score', 100),
-                                        'date': progress.completed_at or progress.last_accessed,
-                                        'type': 'scorm',
-                                        'completed': progress.completed,
-                                        'can_resume': False
-                                    }
+                                    if has_score:
+                                        # Quiz-based SCORM - include score
+                                        normalized_score = ScoreCalculationService.normalize_score(scorm_score)
+                                        
+                                        student_scores[activity_id] = {
+                                            'score': float(normalized_score) if normalized_score is not None else float(scorm_score),
+                                            'max_score': float(scorm_max_score) if scorm_max_score else activity.get('max_score', 100),
+                                            'date': progress.completed_at or progress.last_accessed,
+                                            'type': 'scorm',
+                                            'completed': progress.completed,
+                                            'can_resume': False
+                                        }
+                                    elif progress.completed or progress_data.get('scorm_completion_status') in ['completed', 'passed']:
+                                        # Content-only SCORM but completed - show completion without score
+                                        student_scores[activity_id] = {
+                                            'score': None,
+                                            'max_score': None,
+                                            'date': progress.completed_at or progress.last_accessed,
+                                            'type': 'scorm',
+                                            'completed': True,
+                                            'status': 'completed',
+                                            'can_resume': False
+                                        }
+                                    elif progress.last_accessed:
+                                        # In-progress SCORM - show resume option
+                                        bookmark = progress.bookmark or {}
+                                        has_resume_data = bool(bookmark.get('lesson_location') or bookmark.get('suspend_data'))
+                                        
+                                        student_scores[activity_id] = {
+                                            'score': None,
+                                            'max_score': None,
+                                            'date': progress.last_accessed,
+                                            'type': 'scorm',
+                                            'completed': False,
+                                            'status': 'in_progress',
+                                            'can_resume': has_resume_data
+                                        }
+                                    # else: not started - don't add to student_scores
                                 else:
                                     # Determine if learner has an in-progress attempt that can be resumed
                                     can_resume = False
