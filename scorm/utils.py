@@ -60,22 +60,33 @@ def parse_imsmanifest(zip_path, manifest_path=None) -> Dict:
                 root = tree.getroot()
                 
                 # Parse namespaces (SCORM uses ADL namespaces)
+                # Auto-detect default namespace from root element
+                default_ns = root.tag.split('}')[0].strip('{') if '}' in root.tag else ''
+                
                 namespaces = {
-                    'default': root.tag.split('}')[0].strip('{') if '}' in root.tag else '',
+                    'default': default_ns,
+                    # IMS namespace variants
                     'ims': 'http://www.imsproject.org/xsd/imscp_rootv1p1p2',
+                    'ims1p1': 'http://www.imsglobal.org/xsd/imscp_v1p1',
+                    'ims1p2': 'http://www.imsproject.org/xsd/imscp_rootv1p1p2',
+                    # ADL namespace variants (SCORM 1.2 and 2004)
                     'adlcp': 'http://www.adlnet.org/xsd/adlcp_rootv1p2',
+                    'adlcp1p3': 'http://www.adlnet.org/xsd/adlcp_v1p3',
                     'adlseq': 'http://www.adlnet.org/xsd/adlseq_v1p3',
                     'adlnav': 'http://www.adlnet.org/xsd/adlnav_v1p3',
+                    'imsss': 'http://www.imsglobal.org/xsd/imsss',
                     'xsi': 'http://www.w3.org/2001/XMLSchema-instance'
                 }
                 
-                # Clean up namespaces if they're in the tag
-                for prefix, uri in list(namespaces.items()):
-                    if '}' in root.tag:
-                        # Try to auto-detect namespace
-                        tag_ns = root.tag.split('}')[0].strip('{')
-                        if tag_ns:
-                            namespaces['default'] = tag_ns
+                # Use the auto-detected namespace if present
+                if default_ns:
+                    # Map the default namespace to the correct variant
+                    if 'imscp_v1p1' in default_ns or 'imsglobal' in default_ns:
+                        namespaces['ims'] = default_ns
+                        namespaces['ims1p1'] = default_ns
+                    elif 'imscp_rootv1p1p2' in default_ns or 'imsproject' in default_ns:
+                        namespaces['ims'] = default_ns
+                        namespaces['ims1p2'] = default_ns
                 
                 result = {
                     'organizations': [],
@@ -106,45 +117,79 @@ def parse_imsmanifest(zip_path, manifest_path=None) -> Dict:
                     if title_elem is not None:
                         result['metadata']['title'] = title_elem.text
                 
-                # Parse organizations
-                orgs_elem = root.find('.//organizations', namespaces)
+                # Parse organizations - try with detected default namespace
+                orgs_elem = None
+                if default_ns:
+                    orgs_elem = root.find(f'{{{default_ns}}}organizations')
                 if orgs_elem is None:
-                    # Try without namespace prefix
-                    orgs_elem = root.find('.//organizations')
+                    orgs_elem = root.find('.//organizations', namespaces)
+                if orgs_elem is None:
+                    # Try without namespace
+                    orgs_elem = root.find('.//{*}organizations')
                 
                 if orgs_elem is not None:
-                    for org in orgs_elem.findall('.//organization', namespaces) or []:
+                    # Find organization elements
+                    orgs = []
+                    if default_ns:
+                        orgs = orgs_elem.findall(f'{{{default_ns}}}organization')
+                    if not orgs:
+                        orgs = orgs_elem.findall('.//organization', namespaces) or []
+                    if not orgs:
+                        orgs = orgs_elem.findall('.//{*}organization') or []
+                    
+                    for org in orgs:
                         org_data = {
                             'identifier': org.get('identifier', ''),
                             'title': '',
                             'items': []
                         }
                         
-                        # Get title
-                        title_elem = org.find('.//title', namespaces)
+                        # Get title - try multiple methods
+                        title_elem = None
+                        if default_ns:
+                            title_elem = org.find(f'{{{default_ns}}}title')
+                        if title_elem is None:
+                            title_elem = org.find('.//title', namespaces)
                         if title_elem is None:
                             title_elem = org.find('.//{*}title')
                         if title_elem is not None:
                             org_data['title'] = title_elem.text or ''
                         
-                        # Parse items
-                        items_elem = org.find('.//item', namespaces)
-                        if items_elem is None:
-                            items_elem = org.find('.//{*}item')
+                        # Parse items - find direct children only
+                        items = []
+                        if default_ns:
+                            items = org.findall(f'{{{default_ns}}}item')
+                        if not items:
+                            items = org.findall('./item', namespaces) or []
+                        if not items:
+                            items = [item for item in org if item.tag.endswith('item')]
                         
-                        if items_elem is not None:
-                            item_data = parse_item(items_elem, namespaces)
+                        for item_elem in items:
+                            item_data = parse_item(item_elem, namespaces, default_ns)
                             org_data['items'].append(item_data)
                         
                         result['organizations'].append(org_data)
                 
-                # Parse resources
-                resources_elem = root.find('.//resources', namespaces)
+                # Parse resources - try with detected default namespace
+                resources_elem = None
+                if default_ns:
+                    resources_elem = root.find(f'{{{default_ns}}}resources')
+                if resources_elem is None:
+                    resources_elem = root.find('.//resources', namespaces)
                 if resources_elem is None:
                     resources_elem = root.find('.//{*}resources')
                 
                 if resources_elem is not None:
-                    for resource in resources_elem.findall('.//resource', namespaces) or []:
+                    # Find resource elements
+                    resources = []
+                    if default_ns:
+                        resources = resources_elem.findall(f'{{{default_ns}}}resource')
+                    if not resources:
+                        resources = resources_elem.findall('.//resource', namespaces) or []
+                    if not resources:
+                        resources = resources_elem.findall('.//{*}resource') or []
+                    
+                    for resource in resources:
                         resource_data = {
                             'identifier': resource.get('identifier', ''),
                             'type': resource.get('type', ''),
@@ -152,8 +197,50 @@ def parse_imsmanifest(zip_path, manifest_path=None) -> Dict:
                             'base': resource.get('base', ''),
                         }
                         
+                        # Extract SCORM-specific attributes (adlcp:scormType)
+                        # Try different namespace variants and attribute patterns
+                        scorm_type = None
+                        
+                        # Method 1: Try with known namespace prefixes
+                        for ns_prefix in ['adlcp', 'adlcp1p3', 'adl']:
+                            ns_uri = namespaces.get(ns_prefix, '')
+                            if ns_uri:
+                                scorm_type = resource.get(f'{{{ns_uri}}}scormType')
+                                if scorm_type:
+                                    break
+                        
+                        # Method 2: Try without namespace
+                        if not scorm_type:
+                            scorm_type = resource.get('scormType')
+                        
+                        # Method 3: Check all attributes for scormtype pattern (case-insensitive)
+                        if not scorm_type:
+                            for attr_name, attr_value in resource.attrib.items():
+                                attr_lower = attr_name.lower()
+                                if 'scormtype' in attr_lower or attr_name.endswith('scormType'):
+                                    scorm_type = attr_value
+                                    logger.debug(f"Found scormType via attribute scan: {attr_name}={attr_value}")
+                                    break
+                        
+                        # Method 4: Look in namespace-prefixed attributes
+                        if not scorm_type:
+                            for attr_name, attr_value in resource.attrib.items():
+                                if attr_name.endswith('}scormType'):
+                                    scorm_type = attr_value
+                                    logger.debug(f"Found scormType via namespace prefix: {attr_value}")
+                                    break
+                        
+                        if scorm_type:
+                            resource_data['scormType'] = scorm_type
+                        else:
+                            logger.debug(f"No scormType found for resource {resource.get('identifier')}")
+                        
                         # Get title if available
-                        title_elem = resource.find('.//title', namespaces)
+                        title_elem = None
+                        if default_ns:
+                            title_elem = resource.find(f'{{{default_ns}}}title')
+                        if title_elem is None:
+                            title_elem = resource.find('.//title', namespaces)
                         if title_elem is None:
                             title_elem = resource.find('.//{*}title')
                         if title_elem is not None:
@@ -168,7 +255,7 @@ def parse_imsmanifest(zip_path, manifest_path=None) -> Dict:
         raise
 
 
-def parse_item(item_elem, namespaces):
+def parse_item(item_elem, namespaces, default_ns=None):
     """Parse an item element from manifest"""
     item_data = {
         'identifier': item_elem.get('identifier', ''),
@@ -178,15 +265,27 @@ def parse_item(item_elem, namespaces):
     }
     
     # Get title
-    title_elem = item_elem.find('.//title', namespaces)
+    title_elem = None
+    if default_ns:
+        title_elem = item_elem.find(f'{{{default_ns}}}title')
+    if title_elem is None:
+        title_elem = item_elem.find('.//title', namespaces)
     if title_elem is None:
         title_elem = item_elem.find('.//{*}title')
     if title_elem is not None:
         item_data['title'] = title_elem.text or ''
     
     # Recursively parse child items
-    for child_item in item_elem.findall('.//item', namespaces) or []:
-        child_data = parse_item(child_item, namespaces)
+    child_items = []
+    if default_ns:
+        child_items = item_elem.findall(f'{{{default_ns}}}item')
+    if not child_items:
+        child_items = item_elem.findall('.//item', namespaces) or []
+    if not child_items:
+        child_items = [child for child in item_elem if child.tag.endswith('item')]
+    
+    for child_item in child_items:
+        child_data = parse_item(child_item, namespaces, default_ns)
         item_data['items'].append(child_data)
     
     return item_data
@@ -278,6 +377,69 @@ def parse_scorm_time(time_str: str, version: str) -> float:
     except (ValueError, AttributeError, IndexError) as e:
         logger.warning(f"Error parsing SCORM time '{time_str}': {e}")
         return 0.0
+
+
+def validate_manifest_structure(zip_path, manifest_path=None) -> Tuple[bool, Optional[str]]:
+    """
+    Validate that manifest has required SCORM structure
+    Handles both namespaced and non-namespaced manifests
+    
+    Returns:
+        Tuple of (is_valid, error_message)
+    """
+    try:
+        if manifest_path is None:
+            manifest_path = find_manifest_in_zip(zip_path)
+        
+        with zipfile.ZipFile(zip_path, 'r') as z:
+            with z.open(manifest_path) as f:
+                try:
+                    tree = ET.parse(f)
+                    root = tree.getroot()
+                except ET.ParseError as e:
+                    return False, f"Invalid XML in manifest: {str(e)}"
+                
+                # Extract namespace if present
+                namespace = {'ns': root.tag.split('}')[0].strip('{')} if '}' in root.tag else {'ns': ''}
+                
+                # Helper function to find elements with or without namespace
+                def find_element(tag_name):
+                    # Try with wildcard namespace
+                    elem = root.find(f'.//{{{namespace["ns"]}}}{tag_name}')
+                    if elem is None:
+                        # Try without namespace
+                        elem = root.find(f'.//{tag_name}')
+                    if elem is None:
+                        # Try with any namespace using iteration
+                        for elem in root.iter():
+                            if elem.tag.endswith(tag_name) or elem.tag == tag_name:
+                                return elem
+                    return elem
+                
+                # Check for required elements
+                orgs_elem = find_element('organizations')
+                if orgs_elem is None:
+                    return False, "Missing <organizations> element in manifest"
+                
+                resources_elem = find_element('resources')
+                if resources_elem is None:
+                    return False, "Missing <resources> element in manifest"
+                
+                # Check that at least one organization or resource exists
+                # Some packages have empty organizations but valid resources
+                org_count = len([e for e in root.iter() if e.tag.endswith('organization')])
+                resource_count = len([e for e in root.iter() if e.tag.endswith('resource')])
+                
+                if org_count == 0 and resource_count == 0:
+                    return False, "No <organization> or <resource> elements found in manifest"
+                
+                if resource_count == 0:
+                    return False, "No <resource> elements found in manifest"
+                
+                return True, None
+                
+    except Exception as e:
+        return False, f"Error validating manifest: {str(e)}"
 
 
 def validate_zip_file(zip_path, max_size_mb=600, max_files=10000):

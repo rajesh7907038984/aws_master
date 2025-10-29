@@ -163,6 +163,11 @@
         color: #7C3AED;
     }
 
+    .activity-type-scorm {
+        background-color: #E0F2FE;
+        color: #0369A1;
+    }
+
     
 
     /* Status badge styles */
@@ -629,7 +634,10 @@
                       <span class="activity-type-badge activity-type-conference">
                         <i class="fas fa-video mr-1"></i>Conference
                       </span>
-                    
+                    {% elif activity.type == 'scorm' %}
+                      <span class="activity-type-badge activity-type-scorm">
+                        <i class="fas fa-graduation-cap mr-1"></i>SCORM
+                      </span>
                     {% endif %}
                   </td>
                   <td>
@@ -685,7 +693,12 @@
                           title="Join conference">
                          <i class="fas fa-video mr-1"></i>Join
                        </a>
-                     
+                     {% elif activity.type == 'scorm' %}
+                       <a href="{% url 'courses:topic_view' activity.object.id %}" 
+                          class="action-btn" 
+                          title="View SCORM activity">
+                         <i class="fas fa-graduation-cap mr-1"></i>View
+                       </a>
                      {% endif %}
                    </td>
                 </tr>

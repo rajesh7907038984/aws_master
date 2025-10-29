@@ -1552,7 +1552,7 @@ class Topic(models.Model):
     )
     scorm = models.ForeignKey(
         'scorm.ScormPackage',
-        on_delete=models.SET_NULL,
+        on_delete=models.CASCADE,
         null=True,
         blank=True,
         related_name='topics',

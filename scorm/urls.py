@@ -7,6 +7,9 @@ from . import views
 app_name = 'scorm'
 
 urlpatterns = [
+    # SCORM launcher (wrapper page with API)
+    path('launch/<int:topic_id>/', views.scorm_launcher, name='launcher'),
+    
     # SCORM player proxy endpoint (same-origin)
     path('player/<int:package_id>/<path:file_path>', views.scorm_player, name='player'),
     

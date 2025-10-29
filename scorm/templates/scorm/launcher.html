@@ -1,0 +1,403 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token }}">
+    <title>SCORM Player - {{ topic.title }}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        html, body {
+            height: 100%;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f5;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+        
+        /* Header styles */
+        #scorm-header {
+            background: #1c2260;
+            color: white;
+            padding: 16px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            z-index: 100;
+        }
+        
+        #scorm-header h1 {
+            font-size: 20px;
+            font-weight: 600;
+            margin: 0;
+            flex: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        #back-button {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            margin-left: 20px;
+            white-space: nowrap;
+        }
+        
+        #back-button:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        
+        #back-button:active {
+            transform: translateY(0);
+        }
+        
+        /* Content area */
+        #content-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            position: relative;
+            min-height: 0; /* allow child to size to remaining space */
+        }
+        
+        #scorm-frame {
+            width: 100%;
+            height: 100%;
+            border: none;
+            display: block;
+            background: white;
+        }
+        
+        #loading {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #f5f5f5;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: #333;
+            z-index: 1000;
+        }
+        
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid #e0e0e0;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .status {
+            margin-top: 20px;
+            font-size: 14px;
+            color: #666;
+        }
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            #scorm-header {
+                padding: 12px 16px;
+            }
+            
+            #scorm-header h1 {
+                font-size: 16px;
+            }
+            
+            #back-button {
+                padding: 8px 16px;
+                font-size: 13px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header with Title and Back Button -->
+    <div id="scorm-header">
+        <h1>{{ topic.title }}</h1>
+        <a href="{% url 'courses:topic_view' topic.id %}" id="back-button">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M10 12L6 8L10 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            Back to Topic
+        </a>
+    </div>
+    
+    <!-- Content Area -->
+    <div id="content-area">
+        <div id="loading">
+            <div class="spinner"></div>
+            <div class="status">Loading SCORM content...</div>
+        </div>
+        
+        <iframe id="scorm-frame" src="about:blank" allow="autoplay; fullscreen"></iframe>
+    </div>
+
+    <!-- SCORM API Wrapper -->
+    <script src="{% static 'scorm/js/scorm-api.js' %}" onerror="handleScriptError()"></script>
+    
+    <script>
+        // Handle script loading failure
+        function handleScriptError() {
+            console.error('✗ Failed to load scorm-api.js');
+            document.getElementById('loading').innerHTML = `
+                <div style="text-align: center; padding: 40px; background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                    <div style="font-size: 48px; margin-bottom: 20px;">⚠️</div>
+                    <h2 style="margin-bottom: 10px; color: #dc2626;">Script Loading Error</h2>
+                    <p style="color: #666; margin-bottom: 10px;">Failed to load SCORM API script.</p>
+                    <p style="color: #999; font-size: 14px;">Please check your internet connection and try again.</p>
+                    <button onclick="window.location.reload()" style="margin-top: 20px; padding: 10px 20px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px;">
+                        Reload Page
+                    </button>
+                </div>
+            `;
+        }
+        
+        // Global SCORM configuration
+        window.scormConfig = {
+            version: '{{ scorm_version }}',
+            progressUpdateUrl: '{% url "courses:update_scorm_progress" topic.id %}',
+            topicId: {{ topic.id }},
+            sessionId: '{{ session_id }}',
+            autoCommitDelay: 30000,  // 30 seconds
+            exitUrl: '{% url "courses:topic_view" topic.id %}',  // URL to navigate to on exit
+            autoExitOnTerminate: true,  // Automatically navigate on LMSFinish/Terminate
+            progressData: {{ progress_data|safe }}
+        };
+
+        // Wait for SCORM API to initialize
+        function waitForAPI() {
+            return new Promise((resolve) => {
+                let attempts = 0;
+                const maxAttempts = 100; // Increased timeout
+                
+                function check() {
+                    attempts++;
+                    
+                    // Check for both SCORM 1.2 and 2004 APIs
+                    const hasAPI = window.API && typeof window.API === 'object';
+                    const hasAPI_1484_11 = window.API_1484_11 && typeof window.API_1484_11 === 'object';
+                    
+                    if (hasAPI || hasAPI_1484_11) {
+                        console.log('✓ SCORM API ready');
+                        console.log('window.API:', !!window.API);
+                        console.log('window.API_1484_11:', !!window.API_1484_11);
+                        
+                        if (window.API) {
+                            console.log('API methods:', Object.keys(window.API));
+                        }
+                        if (window.API_1484_11) {
+                            console.log('API_1484_11 methods:', Object.keys(window.API_1484_11));
+                        }
+                        
+                        // Ensure both APIs point to the same object
+                        if (window.API && !window.API_1484_11) {
+                            window.API_1484_11 = window.API;
+                            console.log('✓ Created API_1484_11 alias');
+                        } else if (window.API_1484_11 && !window.API) {
+                            window.API = window.API_1484_11;
+                            console.log('✓ Created API alias');
+                        }
+                        
+                        // Test accessibility
+                        console.log('Testing API accessibility...');
+                        console.log('typeof window.API:', typeof window.API);
+                        console.log('typeof window.API_1484_11:', typeof window.API_1484_11);
+                        
+                        resolve(true);
+                    } else if (attempts < maxAttempts) {
+                        if (attempts % 10 === 0) {
+                            console.log(`Waiting for API... attempt ${attempts}/${maxAttempts}`);
+                        }
+                        setTimeout(check, 100);
+                    } else {
+                        console.error('✗ SCORM API failed to load after', attempts, 'attempts');
+                        console.error('window.API:', window.API);
+                        console.error('window.API_1484_11:', window.API_1484_11);
+                        resolve(false);
+                    }
+                }
+                check();
+            });
+        }
+
+        // Load SCORM content
+        async function loadContent() {
+            console.log('🚀 Starting SCORM content load...');
+            console.log('Topic ID:', {{ topic.id }});
+            console.log('Package ID:', {{ package.id }});
+            console.log('Entry Point:', '{{ entry_point }}');
+            
+            // Wait for API
+            const apiReady = await waitForAPI();
+            
+            if (!apiReady) {
+                document.getElementById('loading').innerHTML = `
+                    <div style="text-align: center; padding: 40px; background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                        <div style="font-size: 48px; margin-bottom: 20px;">⚠️</div>
+                        <h2 style="margin-bottom: 10px; color: #dc2626;">SCORM API Failed to Load</h2>
+                        <p style="color: #999;">Please refresh the page or contact support.</p>
+                        <button onclick="window.location.reload()" style="margin-top: 20px; padding: 10px 20px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px;">
+                            Reload Page
+                        </button>
+                    </div>
+                `;
+                return;
+            }
+
+            // Build content URL
+            const contentUrl = '{% url "scorm:player" package.id entry_point %}';
+            const params = new URLSearchParams({
+                _no_api: '1'  // Flag to prevent infinite API search
+            });
+            
+            const fullUrl = contentUrl + '?' + params.toString();
+            console.log('📄 Loading content from:', fullUrl);
+            
+            // Set a timeout to show error if loading takes too long
+            const loadTimeout = setTimeout(() => {
+                if (document.getElementById('loading').style.display !== 'none') {
+                    document.getElementById('loading').innerHTML = `
+                        <div style="text-align: center; padding: 40px; background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                            <div style="font-size: 48px; margin-bottom: 20px;">⏱️</div>
+                            <h2 style="margin-bottom: 10px; color: #f59e0b;">Loading Timeout</h2>
+                            <p style="color: #666; margin-bottom: 10px;">The SCORM content is taking longer than expected to load.</p>
+                            <p style="color: #999; font-size: 14px;">This might be due to a large file size or slow connection.</p>
+                            <div style="margin-top: 20px; display: flex; gap: 10px; justify-content: center;">
+                                <button onclick="window.location.reload()" style="padding: 10px 20px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px;">
+                                    Retry
+                                </button>
+                                <button onclick="window.history.back()" style="padding: 10px 20px; background: #6b7280; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px;">
+                                    Go Back
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                }
+            }, 30000); // 30 second timeout
+            
+            // Load content in iframe
+            const iframe = document.getElementById('scorm-frame');
+            
+            // Hide loading screen when iframe loads
+            iframe.onload = function() {
+                clearTimeout(loadTimeout);
+                console.log('✓ SCORM iframe loaded');
+                
+                // Give a small delay to ensure content renders
+                setTimeout(() => {
+                    document.getElementById('loading').style.display = 'none';
+                    console.log('✓ SCORM content displayed');
+                }, 500);
+                
+                // Log API accessibility for debugging
+                console.log('Parent window has API:', !!window.API);
+                console.log('Parent window has API_1484_11:', !!window.API_1484_11);
+                
+                // Try to access iframe's window
+                try {
+                    const iframeWin = iframe.contentWindow;
+                    console.log('Iframe can access parent API:', !!iframeWin.parent.API);
+                } catch(e) {
+                    console.warn('Cannot access iframe window (possible cross-origin):', e);
+                }
+            };
+            
+            iframe.onerror = function(e) {
+                clearTimeout(loadTimeout);
+                console.error('✗ Iframe error:', e);
+                document.getElementById('loading').innerHTML = `
+                    <div style="text-align: center; padding: 40px; background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                        <div style="font-size: 48px; margin-bottom: 20px;">❌</div>
+                        <h2 style="margin-bottom: 10px; color: #dc2626;">Content Failed to Load</h2>
+                        <p style="color: #666; margin-bottom: 10px;">The SCORM content could not be loaded.</p>
+                        <p style="color: #999; font-size: 14px;">Entry point: {{ entry_point }}</p>
+                        <div style="margin-top: 20px; display: flex; gap: 10px; justify-content: center;">
+                            <button onclick="window.location.reload()" style="padding: 10px 20px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px;">
+                                Retry
+                            </button>
+                            <button onclick="window.history.back()" style="padding: 10px 20px; background: #6b7280; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px;">
+                                Go Back
+                            </button>
+                        </div>
+                    </div>
+                `;
+            };
+            
+            // Start loading
+            iframe.src = fullUrl;
+        }
+
+        // Auto-save on page unload
+        window.addEventListener('beforeunload', function(e) {
+            if (window.API && window.API.LMSCommit) {
+                window.API.LMSCommit('');
+            } else if (window.API_1484_11 && window.API_1484_11.Commit) {
+                window.API_1484_11.Commit('');
+            }
+        });
+        
+        // Handle back button click - save progress before navigating
+        document.getElementById('back-button').addEventListener('click', function(e) {
+            console.log('Back button clicked - saving progress...');
+            
+            // Commit data before leaving
+            try {
+                if (window.API && window.API.LMSCommit) {
+                    window.API.LMSCommit('');
+                    console.log('✓ Progress committed (SCORM 1.2)');
+                } else if (window.API_1484_11 && window.API_1484_11.Commit) {
+                    window.API_1484_11.Commit('');
+                    console.log('✓ Progress committed (SCORM 2004)');
+                }
+            } catch(err) {
+                console.error('Error committing progress:', err);
+            }
+            
+            // Allow navigation to proceed
+            // The link will navigate naturally
+        });
+
+        // Start loading
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', loadContent);
+        } else {
+            loadContent();
+        }
+    </script>
+</body>
+</html>
+

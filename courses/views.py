@@ -2907,6 +2907,43 @@ def update_video_progress(request, topic_id):
         return JsonResponse({'error': str(e)}, status=500)
 
 
+def map_scorm_completion(scorm_version, completion_status, success_status, score_raw, max_score):
+    """
+    Map SCORM completion and success status to LMS completion
+    Handles differences between SCORM 1.2 and 2004, and authoring tool variations
+    
+    Rise packages typically set completion_status='completed' when all slides viewed
+    Storyline packages may use both completion_status and success_status with quizzes
+    
+    Returns:
+        bool: Whether the content should be marked complete
+    """
+    if scorm_version == '1.2':
+        # SCORM 1.2: lesson_status can be: passed, completed, failed, incomplete, browsed, not attempted
+        if completion_status in ['passed', 'completed']:
+            return True
+        # Score-based completion
+        if score_raw is not None and max_score and max_score > 0:
+            percentage = (score_raw / max_score) * 100
+            if percentage >= 80:  # 80% threshold
+                return True
+    else:
+        # SCORM 2004: separate completion_status and success_status
+        # completion_status: completed, incomplete, not attempted, unknown
+        # success_status: passed, failed, unknown
+        if completion_status == 'completed':
+            return True
+        if success_status == 'passed':
+            return True
+        # Score-based completion
+        if score_raw is not None and max_score and max_score > 0:
+            percentage = (score_raw / max_score) * 100
+            if percentage >= 80:  # 80% threshold
+                return True
+    
+    return False
+
+
 @login_required
 def update_scorm_progress(request, topic_id):
     """
@@ -2960,13 +2997,19 @@ def update_scorm_progress(request, topic_id):
             current_seq = topic_progress.progress_data.get('scorm_last_seq', 0)
             
             # If same session and seq <= current_seq, this is a duplicate/out-of-order update
-            if current_session == session_id and seq <= current_seq:
-                logger.info(f"Ignoring out-of-order SCORM update: session={session_id}, seq={seq} <= current_seq={current_seq}")
-                return JsonResponse({
-                    'ok': True,
-                    'ignored': True,
-                    'reason': 'out_of_order'
-                })
+            if current_session == session_id:
+                if seq < current_seq:
+                    # Definitely out of order - ignore
+                    logger.info(f"Ignoring out-of-order SCORM update: session={session_id}, seq={seq} < current_seq={current_seq}")
+                    return JsonResponse({
+                        'ok': True,
+                        'ignored': True,
+                        'reason': 'out_of_order'
+                    })
+                elif seq == current_seq:
+                    # Duplicate - check timestamp to see if it's a retry
+                    logger.info(f"Possible duplicate SCORM update: session={session_id}, seq={seq} == current_seq={current_seq}")
+                    # Allow it through in case previous request failed to commit
             
             # Update session tracking
             topic_progress.progress_data['scorm_session_id'] = session_id
@@ -3036,13 +3079,14 @@ def update_scorm_progress(request, topic_id):
                 topic_progress.bookmark = {}
             topic_progress.bookmark['suspend_data'] = suspend_data
         
-        # Update completion status based on SCORM completion/success
-        should_complete = False
-        if completion_status:
-            if completion_status.lower() in ['completed', 'passed']:
-                should_complete = True
-        if success_status and success_status.lower() == 'passed':
-            should_complete = True
+        # Update completion status based on SCORM completion/success using helper
+        should_complete = map_scorm_completion(
+            scorm_version,
+            completion_status,
+            success_status,
+            score_raw,
+            max_score
+        )
         
         if should_complete and not topic_progress.completed:
             logger.info(f"Marking SCORM topic_id={topic_id} as completed for user={request.user.username}")
@@ -3672,18 +3716,7 @@ def topic_edit(request, topic_id, section_id=None):
                 return redirect('courses:topic_edit', topic_id=topic.id)
     
     # Prepare context for GET request
-    content_types = [
-        ('Text', 'Text'),
-        ('Web', 'Web Content'),
-        ('EmbedVideo', 'Embedded Video'),
-        ('Audio', 'Audio'),
-        ('Video', 'Video'),
-        ('Document', 'Document'),
-        ('Quiz', 'Quiz'),
-        ('Assignment', 'Assignment'),
-        ('Conference', 'Conference'),
-        ('Discussion', 'Discussion'),
-    ]
+    content_types = Topic.TOPIC_TYPE_CHOICES
     
     # Define breadcrumbs for this view
     if course:
@@ -7124,19 +7157,54 @@ def topic_create(request, course_id):
                         new_topic.scorm = scorm_package
                         new_topic.save(update_fields=['scorm'])
                         
-                        # Queue Celery task for extraction
+                        # Trigger extraction immediately (signal will also fire, but we ensure it happens here too)
+                        # This provides a guaranteed extraction path even if signal doesn't fire
                         try:
-                            zip_path = scorm_package.package_zip.path if hasattr(scorm_package.package_zip, 'path') else None
-                            if zip_path:
-                                extract_scorm_package.delay(scorm_package.id, zip_path)
-                            else:
-                                # If using S3, we need to get the S3 path
-                                extract_scorm_package.delay(scorm_package.id, None)
+                            zip_path = None
+                            try:
+                                if hasattr(scorm_package.package_zip, 'path') and scorm_package.package_zip.path:
+                                    import os
+                                    zip_path = scorm_package.package_zip.path if os.path.exists(scorm_package.package_zip.path) else None
+                            except (NotImplementedError, AttributeError):
+                                pass  # S3 storage, use None
                             
-                            messages.success(request, f"SCORM package uploaded. Processing in background...")
+                            # Try Celery first (async)
+                            extraction_started = False
+                            try:
+                                if hasattr(extract_scorm_package, 'delay'):
+                                    if zip_path:
+                                        extract_scorm_package.delay(scorm_package.id, zip_path)
+                                    else:
+                                        extract_scorm_package.delay(scorm_package.id, None)
+                                    extraction_started = True
+                                    messages.success(request, f"SCORM package uploaded. Processing in background...")
+                                    logger.info(f"Queued Celery task for SCORM package {scorm_package.id}")
+                            except (AttributeError, Exception) as celery_error:
+                                logger.info(f"Celery not available for package {scorm_package.id}: {celery_error}")
+                            
+                            # If Celery not available, run synchronously immediately
+                            if not extraction_started:
+                                logger.info(f"Running SCORM extraction synchronously for package {scorm_package.id}")
+                                try:
+                                    extract_scorm_package(None, scorm_package.id, None)
+                                    scorm_package.refresh_from_db()
+                                    if scorm_package.processing_status == 'ready':
+                                        messages.success(request, f"SCORM package uploaded and processed successfully!")
+                                    elif scorm_package.processing_status == 'failed':
+                                        messages.warning(request, f"SCORM package uploaded but processing failed: {scorm_package.processing_error}")
+                                    else:
+                                        messages.success(request, f"SCORM package uploaded. Processing...")
+                                except Exception as sync_error:
+                                    logger.error(f"Synchronous extraction failed for package {scorm_package.id}: {sync_error}", exc_info=True)
+                                    messages.warning(request, f"SCORM package uploaded, but processing encountered an error. Please try again.")
                         except Exception as e:
-                            logger.error(f"Error queueing SCORM extraction task: {e}")
-                            messages.warning(request, f"Topic created, but SCORM package extraction may be delayed")
+                            logger.error(f"Error triggering SCORM extraction for package {scorm_package.id}: {e}", exc_info=True)
+                            # Final fallback: try direct extraction
+                            try:
+                                extract_scorm_package(None, scorm_package.id, None)
+                                messages.success(request, f"SCORM package uploaded. Processing...")
+                            except:
+                                messages.warning(request, f"SCORM package uploaded, but automatic processing failed. The package will be processed automatically.")
                         
                     except Exception as e:
                         logger.error(f"Error processing SCORM package: {str(e)}", exc_info=True)

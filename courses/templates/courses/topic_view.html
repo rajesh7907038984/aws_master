@@ -593,44 +593,28 @@
                 {% elif topic.content_type == 'SCORM' and topic.scorm %}
                     <div class="w-full py-8 scorm-content" data-content-type="SCORM">
                         {% if topic.scorm.processing_status == 'ready' %}
-                            {% if topic.scorm.get_entry_point %}
-                                {% with progress=topic|get_topic_progress:user %}
-                                <div id="scorm-player-container" class="w-full" style="min-height: 600px;">
-                                    <iframe 
-                                        id="scorm-iframe"
-                                        src="{% url 'scorm:player' topic.scorm.id %}{{ topic.scorm.get_entry_point }}?topic_id={{ topic.id }}{% if progress.bookmark.lesson_location %}&location={{ progress.bookmark.lesson_location|urlencode }}{% endif %}{% if progress.bookmark.suspend_data %}&suspend_data={{ progress.bookmark.suspend_data|urlencode }}{% endif %}{% if progress.bookmark.lesson_location or progress.bookmark.suspend_data or progress.progress_data.scorm_entry %}{% if progress.progress_data.scorm_entry %}&entry={{ progress.progress_data.scorm_entry|urlencode }}{% else %}&entry=resume{% endif %}{% else %}&entry=ab-initio{% endif %}"
-                                        sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
-                                        referrerpolicy="no-referrer"
-                                        allow="autoplay; encrypted-media"
-                                        loading="lazy"
-                                        width="100%" 
-                                        height="600"
-                                        style="border: 1px solid #ddd; border-radius: 8px;">
-                                    </iframe>
-                                </div>
+                            {% with progress=topic|get_topic_progress:user %}
+                                {% with entry_point=topic.scorm.primary_resource_href %}
+                                    {% if entry_point and entry_point|length > 0 %}
+                                        <!-- Launch Button -->
+                                        <div class="flex justify-center items-center py-12">
+                                            <a href="{% url 'scorm:launcher' topic.id %}" 
+                                               target="_blank" 
+                                               rel="noopener noreferrer"
+                                               class="btn btn-primary px-8 py-4 text-white rounded-lg shadow-md hover:shadow-lg transition-shadow duration-200 flex items-center gap-2 text-lg">
+                                                <i class="fas fa-external-link-alt"></i>
+                                                Launch SCORM Player
+                                            </a>
+                                        </div>
+                                    {% else %}
+                                        <div class="text-center p-8 bg-yellow-50 rounded-lg">
+                                            <i class="fas fa-exclamation-triangle text-yellow-600 text-3xl mb-4"></i>
+                                            <p class="text-yellow-800 font-medium">SCORM package entry point could not be determined.</p>
+                                            <p class="text-yellow-700 text-sm mt-2">Please contact support. Package ID: {{ topic.scorm.id }}</p>
+                                        </div>
+                                    {% endif %}
                                 {% endwith %}
-                                
-                                <!-- SCORM Progress Indicator -->
-                                <div id="scorm-progress-indicator" class="mt-4 p-4 bg-gray-50 rounded-lg hidden">
-                                    <div class="flex items-center justify-between mb-2">
-                                        <span class="text-sm font-medium text-gray-700">Progress</span>
-                                        <span id="scorm-completion-badge" class="hidden text-xs bg-green-100 text-green-800 px-2 py-1 rounded">Completed</span>
-                                    </div>
-                                    <div class="w-full bg-gray-200 rounded-full h-2">
-                                        <div id="scorm-progress-bar" class="bg-blue-600 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
-                                    </div>
-                                    <div class="mt-2 text-xs text-gray-600">
-                                        <span id="scorm-time-spent">Time: 0:00</span>
-                                        <span class="mx-2">|</span>
-                                        <span id="scorm-score">Score: --</span>
-                                    </div>
-                                </div>
-                            {% else %}
-                                <div class="text-center p-8 bg-yellow-50 rounded-lg">
-                                    <i class="fas fa-exclamation-triangle text-yellow-600 text-3xl mb-4"></i>
-                                    <p class="text-yellow-800">SCORM package entry point could not be determined.</p>
-                                </div>
-                            {% endif %}
+                            {% endwith %}
                         {% elif topic.scorm.processing_status == 'processing' %}
                             <div class="text-center p-8 bg-blue-50 rounded-lg">
                                 <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>

@@ -486,25 +486,13 @@ def gradebook_index(request):
         all_courses = Course.objects.filter(id__in=enrolled_courses_ids).order_by('title')
         
     elif user.role == 'instructor':
-        # Show courses where user is the instructor or enrolled - filtered by branch
-        instructor_courses = Course.objects.filter(
-            instructor=user, 
-            is_active=True,
-            branch=user.branch  # Ensure branch filtering
-        )
+        # Show only enrolled courses (same rule as learner)
         enrolled_courses_ids = CourseEnrollment.objects.filter(
             user=user,
-            course__is_active=True,
-            course__branch=user.branch  # Ensure branch filtering
+            course__is_active=True  # Only active courses
         ).values_list('course_id', flat=True)
-        enrolled_courses = Course.objects.filter(
-            id__in=enrolled_courses_ids, 
-            is_active=True,
-            branch=user.branch  # Ensure branch filtering
-        )
         
-        # Combine and remove duplicates
-        all_courses = (instructor_courses | enrolled_courses).distinct().order_by('title')
+        all_courses = Course.objects.filter(id__in=enrolled_courses_ids).order_by('title')
         
     elif user.role == 'admin':
         # Branch admin can only see courses from their effective branch (supports branch switching)
@@ -685,7 +673,7 @@ def gradebook_index(request):
                 content_type='SCORM',
                 scorm__isnull=False,
                 courses__isnull=False
-            ).distinct().select_related('scorm', 'courses')
+            ).distinct().select_related('scorm').prefetch_related('courses')
             
             for scorm_topic in scorm_topics:
                 course_info = get_activity_course_info(scorm_topic, 'scorm')
