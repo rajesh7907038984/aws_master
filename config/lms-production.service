@@ -19,7 +19,7 @@ Environment="DJANGO_SETTINGS_MODULE=LMS_Project.settings.production"
 # No pre-start commands to avoid startup issues
 
 # Main service
-ExecStart=/home/ec2-user/lms/venv/bin/gunicorn --config /home/ec2-user/lms/gunicorn.conf.py LMS_Project.wsgi:application
+ExecStart=/usr/bin/python3 -m gunicorn --config /home/ec2-user/lms/gunicorn.conf.py LMS_Project.wsgi:application
 ExecReload=/bin/kill -HUP $MAINPID
 
 # Restart policy

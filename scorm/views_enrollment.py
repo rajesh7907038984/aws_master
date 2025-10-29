@@ -123,6 +123,14 @@ def update_scorm_progress_with_enrollment(request, topic_id):
             # 4. Update attempt with complete CMI data
             attempt.update_from_cmi_data(raw_cmi_data, scorm_version)
             
+            # Update enrollment's cumulative time from all attempts
+            from django.db.models import Sum
+            total_time_all_attempts = ScormAttempt.objects.filter(
+                enrollment=enrollment
+            ).aggregate(total=Sum('total_time_seconds'))['total'] or 0
+            enrollment.total_time_seconds = total_time_all_attempts
+            enrollment.save(update_fields=['total_time_seconds'])
+            
             # 5. Update TopicProgress for backward compatibility
             topic_progress, _ = TopicProgress.objects.get_or_create(
                 user=request.user,
@@ -134,7 +142,8 @@ def update_scorm_progress_with_enrollment(request, topic_id):
                 topic_progress.last_score = attempt.score_raw
                 topic_progress.best_score = enrollment.best_score
             
-            topic_progress.total_time_spent = attempt.total_time_seconds
+            # Use enrollment's cumulative time across all attempts, not just current attempt
+            topic_progress.total_time_spent = enrollment.total_time_seconds
             topic_progress.completed = attempt.completed
             
             if not topic_progress.progress_data:

@@ -33,7 +33,10 @@
             justify-content: space-between;
             align-items: center;
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            z-index: 100;
+            /* Ensure header stays above iframe and loading overlay */
+            position: sticky;
+            top: 0;
+            z-index: 1100;
         }
         
         #scorm-header h1 {
@@ -62,6 +65,7 @@
             transition: all 0.3s ease;
             margin-left: 20px;
             white-space: nowrap;
+            pointer-events: auto;
         }
         
         #back-button:hover {
@@ -82,6 +86,7 @@
             overflow: hidden;
             position: relative;
             min-height: 0; /* allow child to size to remaining space */
+            z-index: 0;
         }
         
         #scorm-frame {
@@ -90,6 +95,8 @@
             border: none;
             display: block;
             background: white;
+            position: relative;
+            z-index: 1;
         }
         
         #loading {
@@ -104,7 +111,7 @@
             align-items: center;
             justify-content: center;
             color: #333;
-            z-index: 1000;
+            z-index: 1000; /* Below header (1100) so header stays clickable */
         }
         
         .spinner {
@@ -148,7 +155,7 @@
     <!-- Header with Title and Back Button -->
     <div id="scorm-header">
         <h1>{{ topic.title }}</h1>
-        <a href="{% url 'courses:topic_view' topic.id %}" id="back-button">
+        <a href="{% url 'courses:topic_view' topic.id %}" id="back-button" onclick="return handleBackButton(event);">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M10 12L6 8L10 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
@@ -170,6 +177,63 @@
     <script src="{% static 'scorm/js/scorm-api.js' %}" onerror="handleScriptError()"></script>
     
     <script>
+        // Handle "Back to Topic" button click - save progress before navigating
+        function handleBackButton(event) {
+            event.preventDefault();
+            console.log('Back button clicked - saving progress...');
+            
+            // Store the href before async operations (event.currentTarget becomes null in setTimeout)
+            const targetUrl = event.currentTarget.href;
+            
+            // Force save SCORM data
+            if (window.SCORM && typeof window.SCORM.forceSave === 'function') {
+                window.SCORM.forceSave();
+            }
+            
+            // Commit SCORM data before leaving
+            try {
+                if (window.API && window.API.LMSCommit) {
+                    window.API.LMSCommit('');
+                    console.log('✓ Progress committed (SCORM 1.2)');
+                } else if (window.API_1484_11 && window.API_1484_11.Commit) {
+                    window.API_1484_11.Commit('');
+                    console.log('✓ Progress committed (SCORM 2004)');
+                }
+            } catch(err) {
+                console.error('Error committing progress:', err);
+            }
+            
+            // Small delay to ensure save completes, then navigate
+            setTimeout(function() {
+                window.location.href = targetUrl;
+            }, 100);
+            
+            return false;
+        }
+        
+        // Save progress before page unload (tab close, browser close, navigation)
+        window.addEventListener('beforeunload', function(event) {
+            console.log('Page unloading - saving SCORM progress...');
+            
+            // Force save SCORM data synchronously
+            if (window.SCORM && typeof window.SCORM.forceSave === 'function') {
+                window.SCORM.forceSave();
+            }
+            
+            // Don't show confirmation dialog (removed to avoid annoying users)
+            // return undefined allows clean exit
+        });
+        
+        // Also save on visibility change (tab switch, minimize)
+        document.addEventListener('visibilitychange', function() {
+            if (document.visibilityState === 'hidden') {
+                console.log('Page hidden - saving SCORM progress...');
+                if (window.SCORM && typeof window.SCORM.forceSave === 'function') {
+                    window.SCORM.forceSave();
+                }
+            }
+        });
+        
         // Handle script loading failure
         function handleScriptError() {
             console.error('✗ Failed to load scorm-api.js');
@@ -189,7 +253,7 @@
         // Global SCORM configuration
         window.scormConfig = {
             version: '{{ scorm_version }}',
-            progressUpdateUrl: '{% url "courses:update_scorm_progress" topic.id %}',
+            progressUpdateUrl: '{% url "scorm:update_progress" topic.id %}',
             topicId: {{ topic.id }},
             sessionId: '{{ session_id }}',
             autoCommitDelay: 30000,  // 30 seconds
@@ -369,27 +433,6 @@
             } else if (window.API_1484_11 && window.API_1484_11.Commit) {
                 window.API_1484_11.Commit('');
             }
-        });
-        
-        // Handle back button click - save progress before navigating
-        document.getElementById('back-button').addEventListener('click', function(e) {
-            console.log('Back button clicked - saving progress...');
-            
-            // Commit data before leaving
-            try {
-                if (window.API && window.API.LMSCommit) {
-                    window.API.LMSCommit('');
-                    console.log('✓ Progress committed (SCORM 1.2)');
-                } else if (window.API_1484_11 && window.API_1484_11.Commit) {
-                    window.API_1484_11.Commit('');
-                    console.log('✓ Progress committed (SCORM 2004)');
-                }
-            } catch(err) {
-                console.error('Error committing progress:', err);
-            }
-            
-            // Allow navigation to proceed
-            // The link will navigate naturally
         });
 
         // Start loading

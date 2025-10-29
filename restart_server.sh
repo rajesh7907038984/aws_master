@@ -54,7 +54,7 @@ fi
 # ==============================================
 
 echo "🛡️  Preserving user sessions to prevent auto-logout..."
-python manage.py preserve_sessions
+python3 manage.py preserve_sessions
 
 if [ $? -ne 0 ]; then
     echo " Session preservation failed, aborting restart"
@@ -108,8 +108,7 @@ fi
 # ACTIVATE VIRTUAL ENVIRONMENT
 # ==============================================
 
-echo "🐍 Activating virtual environment..."
-source "$PROJECT_ROOT/venv/bin/activate"
+echo "🐍 Using system Python (no virtualenv detected)..."
 
 # ==============================================
 # PRE-START CHECKS (FULL MODE ONLY)
@@ -123,7 +122,7 @@ if [ "$RESTART_MODE" == "full" ]; then
     
     # Django configuration check
     echo "   - Checking Django configuration..."
-    python manage.py check --deploy
+    python3 manage.py check --deploy
     
     if [ $? -ne 0 ]; then
         echo " Django configuration check failed"
@@ -132,7 +131,7 @@ if [ "$RESTART_MODE" == "full" ]; then
     
     # Database migrations
     echo "   - Running database migrations..."
-    python manage.py migrate --noinput
+    python3 manage.py migrate --noinput
     
     if [ $? -ne 0 ]; then
         echo " Database migrations failed"
@@ -141,7 +140,7 @@ if [ "$RESTART_MODE" == "full" ]; then
     
     # Collect static files
     echo "   - Collecting static files..."
-    python manage.py collectstatic --noinput
+    python3 manage.py collectstatic --noinput
     
     if [ $? -ne 0 ]; then
         echo " Static files collection failed"
@@ -150,7 +149,7 @@ if [ "$RESTART_MODE" == "full" ]; then
     
     # Test database connection
     echo "   - Testing database connection..."
-    python manage.py shell -c "
+    python3 manage.py shell -c "
 from django.db import connection
 try:
     connection.ensure_connection()
@@ -182,7 +181,7 @@ echo ""
 mkdir -p "$LOGS_DIR"
 
 # Start Gunicorn
-nohup gunicorn --config "$PROJECT_ROOT/gunicorn.conf.py" LMS_Project.wsgi:application \
+nohup python3 -m gunicorn --config "$PROJECT_ROOT/gunicorn.conf.py" LMS_Project.wsgi:application \
     > "$LOGS_DIR/gunicorn_startup.log" 2>&1 &
 
 # Wait for server to start

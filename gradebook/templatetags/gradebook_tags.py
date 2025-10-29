@@ -350,22 +350,40 @@ def get_activity_score(activity, student_id, grades, quiz_attempts):
                     topic=topic
                 ).first()
                 
-                if progress and progress.last_score is not None:
+                if progress:
                     progress_data = progress.progress_data or {}
                     scorm_score = progress_data.get('scorm_score', progress.last_score)
                     scorm_max_score = progress_data.get('scorm_max_score', activity.get('max_score', 100))
                     
-                    # Normalize score
-                    normalized_score = ScoreCalculationService.normalize_score(scorm_score)
+                    # Check if this is a quiz-based SCORM (has meaningful score) or content-only
+                    # Only treat as quiz-based if score is not None AND not zero
+                    has_meaningful_score = (progress.last_score is not None and 
+                                          float(progress.last_score if progress.last_score is not None else 0) > 0)
                     
-                    return {
-                        'score': float(normalized_score) if normalized_score is not None else float(scorm_score),
-                        'max_score': float(scorm_max_score) if scorm_max_score else activity.get('max_score', 100),
-                        'date': progress.completed_at or progress.last_accessed,
-                        'type': 'scorm',
-                        'object': topic,
-                        'completed': progress.completed
-                    }
+                    if has_meaningful_score:
+                        # Quiz-based SCORM - return score
+                        normalized_score = ScoreCalculationService.normalize_score(scorm_score)
+                        
+                        return {
+                            'score': float(normalized_score) if normalized_score is not None else float(scorm_score),
+                            'max_score': float(scorm_max_score) if scorm_max_score else activity.get('max_score', 100),
+                            'date': progress.completed_at or progress.last_accessed,
+                            'type': 'scorm',
+                            'object': topic,
+                            'completed': progress.completed,
+                            'can_resume': bool(progress.bookmark)
+                        }
+                    else:
+                        # Content-only SCORM - return completion status only
+                        return {
+                            'score': None,
+                            'max_score': activity.get('max_score', 100),
+                            'date': progress.completed_at or progress.last_accessed,
+                            'type': 'scorm',
+                            'object': topic,
+                            'completed': progress.completed,
+                            'can_resume': bool(progress.bookmark)
+                        }
             except Exception:
                 pass
             
@@ -373,7 +391,9 @@ def get_activity_score(activity, student_id, grades, quiz_attempts):
                 'score': None,
                 'max_score': activity.get('max_score', 100),
                 'type': 'scorm',
-                'object': activity['object']
+                'object': activity['object'],
+                'completed': False,
+                'can_resume': False
             }
             
     except (ValueError, AttributeError, TypeError):
@@ -530,7 +550,6 @@ def calculate_student_total(student_id, activities, grades, quiz_attempts):
                     from core.utils.scoring import ScoreCalculationService
                     
                     topic = activity['object']
-                    total_possible += activity_max_score
                     
                     try:
                         progress = TopicProgress.objects.filter(
@@ -538,7 +557,14 @@ def calculate_student_total(student_id, activities, grades, quiz_attempts):
                             topic=topic
                         ).first()
                         
-                        if progress and progress.last_score is not None:
+                        # Only count SCORM in total if it has a meaningful score (quiz-based)
+                        has_meaningful_score = (progress and progress.last_score is not None and 
+                                              float(progress.last_score if progress.last_score is not None else 0) > 0)
+                        
+                        if has_meaningful_score:
+                            # Quiz-based SCORM - count in total
+                            total_possible += activity_max_score
+                            
                             progress_data = progress.progress_data or {}
                             scorm_score = progress_data.get('scorm_score', progress.last_score)
                             scorm_max_score = progress_data.get('scorm_max_score', activity.get('max_score', 100))
@@ -550,8 +576,9 @@ def calculate_student_total(student_id, activities, grades, quiz_attempts):
                                 total_earned += Decimal(str(normalized_score))
                             else:
                                 total_earned += Decimal(str(scorm_score))
+                        # else: Content-only SCORM - don't count in total points
                     except Exception:
-                        # If error, just don't add to earned
+                        # If error, just don't add to earned or possible
                         pass
                             
                 else:

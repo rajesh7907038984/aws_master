@@ -597,15 +597,13 @@
                                 {% with entry_point=topic.scorm.primary_resource_href %}
                                     {% if entry_point and entry_point|length > 0 %}
                                         <!-- Launch or Resume Button -->
-                                        {% with bookmark=topic_progress.bookmark %}
+                                        {% with bookmark=progress.bookmark %}
                                         {% with has_location=bookmark.lesson_location|default:''|length %}
                                         {% with has_suspend=bookmark.suspend_data|default:''|length %}
                                         <div class="flex justify-center items-center py-12">
                                             <a href="{% url 'scorm:launcher' topic.id %}"
-                                               target="_blank"
-                                               rel="noopener noreferrer"
                                                class="btn btn-primary px-8 py-4 text-white rounded-lg shadow-md hover:shadow-lg transition-shadow duration-200 flex items-center gap-2 text-lg">
-                                                <i class="fas fa-external-link-alt"></i>
+                                                <i class="fas fa-play-circle"></i>
                                                 {% if has_location or has_suspend %}Resume{% else %}Launch SCORM Player{% endif %}
                                             </a>
                                         </div>
@@ -757,12 +755,16 @@
                                         <div class="topic-info flex items-center">
                                             <div class="mr-3">
                                                 {% with progress=topic_item|get_topic_progress:user %}
-                                                {% if progress and progress.completed %}
+                                                {% if progress %}
+                                                    {% if progress.completed or progress.progress_data.scorm_completion_status|default:''|lower in 'completed,passed' or progress.progress_data.scorm_success_status|default:''|lower == 'passed' %}
                                                     <div class="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center text-white">
                                                         <svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
                                                         </svg>
                                                     </div>
+                                                    {% else %}
+                                                    <div class="w-5 h-5 rounded-full border-2 border-gray-300"></div>
+                                                    {% endif %}
                                                 {% else %}
                                                     <div class="w-5 h-5 rounded-full border-2 border-gray-300"></div>
                                                 {% endif %}
@@ -794,12 +796,16 @@
                                         <div class="topic-info flex items-center">
                                             <div class="mr-3">
                                                 {% with progress=topic_item|get_topic_progress:user %}
-                                                {% if progress and progress.completed %}
+                                                {% if progress %}
+                                                    {% if progress.completed or progress.progress_data.scorm_completion_status|default:''|lower in 'completed,passed' or progress.progress_data.scorm_success_status|default:''|lower == 'passed' %}
                                                     <div class="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center text-white">
                                                         <svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
                                                         </svg>
                                                     </div>
+                                                    {% else %}
+                                                    <div class="w-5 h-5 rounded-full border-2 border-gray-300"></div>
+                                                    {% endif %}
                                                 {% else %}
                                                     <div class="w-5 h-5 rounded-full border-2 border-gray-300"></div>
                                                 {% endif %}

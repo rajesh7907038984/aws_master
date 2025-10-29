@@ -1747,6 +1747,7 @@
                         
                       {% elif activity.type == 'scorm' %}
                         {% if score_data.score is not None %}
+                          {# Quiz-based SCORM - show score only #}
                           <div class="submission-date">
                             {{ score_data.date|date:"M d, Y" }}
                           </div>
@@ -1754,18 +1755,25 @@
                             {% if score_data.score >= activity.max_score|mul:0.7 %}grade-excellent{% else %}grade-poor{% endif %}">
                             {{ score_data.score|floatformat:1 }}/{{ activity.max_score|floatformat:1 }}
                           </span>
+                        {% elif score_data.completed %}
+                          {# Content-only SCORM - show completion status only #}
+                          <div class="submission-date">
+                            {{ score_data.date|date:"M d, Y" }}
+                          </div>
+                          <span class="grade-score grade-excellent">Completed</span>
                         {% else %}
+                          {# Not completed yet #}
                           {% if score_data.can_resume %}
                             <span class="grade-score grade-pending">In Progress</span>
                             {% if user.role == 'learner' %}
-                              <a href="{% url 'scorm:launcher' activity.object.id %}" target="_blank" rel="noopener noreferrer" class="view-btn scorm-view-btn">
+                              <a href="{% url 'scorm:launcher' activity.object.id %}" class="view-btn scorm-view-btn">
                                 RESUME
                               </a>
                             {% endif %}
                           {% else %}
                             <span class="grade-score grade-none">Not Attempted</span>
                             {% if user.role == 'learner' %}
-                              <a href="{% url 'courses:topic_view' activity.object.id %}" class="view-btn scorm-view-btn">
+                              <a href="{% url 'scorm:launcher' activity.object.id %}" class="view-btn scorm-view-btn">
                                 LAUNCH
                               </a>
                             {% endif %}

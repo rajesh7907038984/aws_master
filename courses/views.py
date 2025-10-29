@@ -2950,6 +2950,7 @@ def update_scorm_progress(request, topic_id):
     Update progress for SCORM content with idempotent handling
     
     Accepts SCORM data with session_id and sequence number for idempotence
+    Supports both regular fetch() and sendBeacon() requests
     """
     if request.method != 'POST':
         return JsonResponse({'error': 'Only POST method is allowed'}, status=405)
@@ -2970,7 +2971,13 @@ def update_scorm_progress(request, topic_id):
         return JsonResponse({'error': 'This topic is not SCORM content'}, status=400)
     
     try:
-        data = json.loads(request.body)
+        # Handle both regular POST and sendBeacon requests
+        if request.content_type == 'text/plain;charset=UTF-8' or request.content_type == 'text/plain':
+            # sendBeacon sends as text/plain, need to manually parse
+            data = json.loads(request.body.decode('utf-8'))
+        else:
+            # Regular JSON request
+            data = json.loads(request.body)
         from core.utils.type_guards import safe_get_float, safe_get_int, safe_get_string
         from scorm.utils import parse_scorm_time
         

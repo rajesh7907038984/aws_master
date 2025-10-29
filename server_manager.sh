@@ -39,8 +39,7 @@ case "$1" in
         cd $LMS_DIR
         
         echo "🛡️  Preserving user sessions to prevent auto-logout..."
-        source venv/bin/activate
-        python manage.py preserve_sessions
+        python3 manage.py preserve_sessions
         
         if [ $? -ne 0 ]; then
             echo " Session preservation failed, aborting restart"
@@ -78,13 +77,12 @@ case "$1" in
             exit 1
         fi
         
-        source venv/bin/activate
-        python manage.py check --deploy
-        python manage.py migrate --noinput
-        python manage.py collectstatic --noinput --clear
+        python3 manage.py check --deploy
+        python3 manage.py migrate --noinput
+        python3 manage.py collectstatic --noinput --clear
         
         mkdir -p $LOGS_DIR
-        nohup gunicorn --config gunicorn.conf.py LMS_Project.wsgi:application > $LOGS_DIR/gunicorn_startup.log 2>&1 &
+        nohup python3 -m gunicorn --config gunicorn.conf.py LMS_Project.wsgi:application > $LOGS_DIR/gunicorn_startup.log 2>&1 &
         
         sleep 3
         if lsof -Pi :8000 -sTCP:LISTEN -t >/dev/null 2>&1; then
@@ -99,8 +97,7 @@ case "$1" in
         cd $LMS_DIR
         
         echo "🛡️  Preserving user sessions to prevent auto-logout..."
-        source venv/bin/activate
-        python manage.py preserve_sessions
+        python3 manage.py preserve_sessions
         
         if [ $? -ne 0 ]; then
             echo " Session preservation failed, aborting restart"
@@ -130,8 +127,7 @@ case "$1" in
         cd $LMS_DIR
         
         echo "🛡️  Preserving user sessions to prevent auto-logout..."
-        source venv/bin/activate
-        python manage.py preserve_sessions
+        python3 manage.py preserve_sessions
         
         if [ $? -ne 0 ]; then
             echo " Session preservation failed, aborting restart"
@@ -154,8 +150,7 @@ case "$1" in
         
         # Load environment and start
         export $(cat production.env | grep -v '^#' | xargs) 2>/dev/null
-        source venv/bin/activate
-        nohup gunicorn --config gunicorn.conf.py LMS_Project.wsgi:application > $LOGS_DIR/gunicorn_startup.log 2>&1 &
+        nohup python3 -m gunicorn --config gunicorn.conf.py LMS_Project.wsgi:application > $LOGS_DIR/gunicorn_startup.log 2>&1 &
         
         sleep 2
         if lsof -Pi :8000 -sTCP:LISTEN -t >/dev/null 2>&1; then

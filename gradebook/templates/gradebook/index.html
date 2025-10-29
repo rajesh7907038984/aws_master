@@ -694,10 +694,10 @@
                          <i class="fas fa-video mr-1"></i>Join
                        </a>
                      {% elif activity.type == 'scorm' %}
-                       <a href="{% url 'courses:topic_view' activity.object.id %}" 
+                       <a href="{% url 'scorm:launcher' activity.object.id %}" 
                           class="action-btn" 
-                          title="View SCORM activity">
-                         <i class="fas fa-graduation-cap mr-1"></i>View
+                          title="Launch SCORM activity">
+                         <i class="fas fa-play-circle mr-1"></i>Launch
                        </a>
                      {% endif %}
                    </td>

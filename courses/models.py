@@ -210,8 +210,9 @@ class CourseEnrollment(models.Model):
         
         hours = total_seconds // 3600
         minutes = (total_seconds % 3600) // 60
+        seconds = total_seconds % 60
         
-        return f"{hours}h {minutes}m"
+        return f"{hours}h {minutes}m {seconds}s"
         
     @property
     def score(self):
@@ -2073,7 +2074,10 @@ class TopicProgress(models.Model):
         return 0.0
     
     def get_progress_percentage(self):
-        """Calculate progress percentage for this topic (SCORM removed)"""
+        """Calculate progress percentage for this topic.
+        For SCORM content, prefer CMI/SCORM fields from progress_data.
+        For other content types, use generic 'progress' field fallback.
+        """
         from core.utils.type_guards import normalize_mixed_type_field, safe_get_float
         
         if self.completed:
@@ -2081,6 +2085,49 @@ class TopicProgress(models.Model):
         
         normalized_data = normalize_mixed_type_field(self.progress_data)
         if normalized_data:
+            # SCORM-specific handling
+            if getattr(self.topic, 'content_type', None) == 'SCORM':
+                # If SCORM completion status is explicitly completed, return 100
+                scorm_completion = normalized_data.get('scorm_completion_status')
+                if isinstance(scorm_completion, str) and scorm_completion.lower() in ['completed', 'passed']:
+                    return 100
+                
+                # Use SCORM progress measure if available (0-1) or percentage if stored
+                progress_measure = normalized_data.get('scorm_progress_measure')
+                if progress_measure is not None:
+                    try:
+                        value = float(progress_measure)
+                        # Many SCORM runtimes use 0..1 for progress_measure
+                        if value <= 1:
+                            return max(0, min(100, round(value * 100)))
+                        return max(0, min(100, round(value)))
+                    except (TypeError, ValueError):
+                        pass
+                
+                # Fallback: derive from score if max score present
+                scorm_score = normalized_data.get('scorm_score')
+                scorm_max = normalized_data.get('scorm_max_score')
+                if scorm_score is not None:
+                    try:
+                        score = float(scorm_score)
+                        if scorm_max:
+                            max_score = float(scorm_max) or 100.0
+                            pct = 0 if max_score == 0 else (score / max_score) * 100.0
+                            return max(0, min(100, round(pct)))
+                        # If only a score exists, assume it's already a percentage 0..100
+                        return max(0, min(100, round(score)))
+                    except (TypeError, ValueError):
+                        pass
+                
+                # Consider any recorded time or first access as some progress (but not arbitrary 50%)
+                total_time = normalized_data.get('scorm_total_time')
+                if total_time:
+                    # Presence of any SCORM time implies engagement
+                    return 1
+                
+                # If nothing SCORM-specific is usable, fall through to generic handling
+            
+            # Generic handling via 'progress' field (supports 0..1 or 0..100)
             progress = safe_get_float(normalized_data, 'progress')
             if progress is not None:
                 if progress <= 1:
@@ -2088,8 +2135,9 @@ class TopicProgress(models.Model):
                 else:
                     return round(min(progress, 100))
         
-        if self.attempts > 0:
-            return 50
+        # Minimal signal of engagement without reliable progress data
+        if self.attempts > 0 or self.total_time_spent > 0 or self.first_accessed is not None:
+            return 1
         
         return 0
 
