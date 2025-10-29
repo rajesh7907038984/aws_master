@@ -107,6 +107,6 @@ LOGGING = {
 
 # Email configuration for testing
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
-DEFAULT_FROM_EMAIL = 'test@nexsy.io'
+DEFAULT_FROM_EMAIL = 'test@localhost'
 
 print("🧪 Test settings loaded successfully")

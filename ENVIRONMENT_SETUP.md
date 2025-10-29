@@ -18,8 +18,6 @@ All hardcoded database and AWS details have been replaced with environment varia
 ### 2. AWS S3 Configuration
 **Files Modified:**
 - `LMS_Project/settings/production.py`
-- `scorm/views_old.py`
-- `scorm/s3_direct.py`
 - `certificates/verify_s3_permissions.sh`
 
 **Changes:**

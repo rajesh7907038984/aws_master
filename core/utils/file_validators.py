@@ -31,7 +31,6 @@ class FileUploadValidator:
         'video': 600 * 1024 * 1024,     # 600MB for videos
         'audio': 600 * 1024 * 1024,     # 600MB for audio
         'archive': 600 * 1024 * 1024,   # 600MB for archives
-        'scorm': 600 * 1024 * 1024,     # 600MB for SCORM packages
         'general': 600 * 1024 * 1024    # 600MB for general files
     }
     
@@ -66,10 +65,6 @@ class FileUploadValidator:
             'extensions': {'.zip', '.rar', '.7z', '.tar', '.gz', '.bz2'},
             'mime_types': {'application/zip', 'application/octet-stream', 'application/x-zip-compressed', 'application/x-rar-compressed', 'application/x-7z-compressed'}
         },
-        'scorm': {
-            'extensions': {'.zip'},
-            'mime_types': {'application/zip', 'application/octet-stream', 'application/x-zip-compressed'}
-        }
     }
     
     @classmethod
@@ -172,24 +167,6 @@ class FileUploadValidator:
         # Get file extension for conditional validation
         file_extension = os.path.splitext(uploaded_file.name)[1].lower()
         
-        # SCORM-specific validation
-        if 'scorm' in allowed_categories and file_extension == '.zip':
-            try:
-                import zipfile
-                uploaded_file.seek(0)
-                with zipfile.ZipFile(uploaded_file, 'r') as zip_file:
-                    # Check for SCORM manifest
-                    file_list = zip_file.namelist()
-                    has_manifest = any('imsmanifest.xml' in f.lower() for f in file_list)
-                    if not has_manifest:
-                        errors.append(_('ZIP file does not contain a valid SCORM manifest (imsmanifest.xml)'))
-            except zipfile.BadZipFile:
-                errors.append(_('File is not a valid ZIP archive'))
-            except Exception as e:
-                logger.warning(f"SCORM validation warning: {str(e)}")
-            finally:
-                uploaded_file.seek(0)
-        
         # Image-specific validation - only validate as image if file has image extension
         if 'image' in allowed_categories and file_extension in cls.FILE_CATEGORIES['image']['extensions']:
             try:
@@ -269,10 +246,7 @@ def validate_media_upload(uploaded_file):
     """Validate media (video/audio) file uploads."""
     return validate_file_upload(uploaded_file, allowed_categories=['video', 'audio'])
 
-def validate_scorm_upload(uploaded_file):
-    """Validate SCORM package uploads."""
-    return validate_file_upload(uploaded_file, allowed_categories=['scorm'])
 
 def validate_general_upload(uploaded_file):
     """Validate general file uploads with all allowed types."""
-    return validate_file_upload(uploaded_file, allowed_categories=['image', 'document', 'video', 'audio', 'archive', 'scorm'])
+    return validate_file_upload(uploaded_file, allowed_categories=['image', 'document', 'video', 'audio', 'archive'])

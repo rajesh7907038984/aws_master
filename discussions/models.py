@@ -82,8 +82,7 @@ class Discussion(models.Model):
         try:
             from courses.models import CourseTopic
         except ImportError:
-            from courses.models import Course
-            CourseTopic = Course.topics.through if hasattr(Course, "topics") else None
+            CourseTopic = None
         
         topic_courses = CourseTopic.objects.filter(
             topic__discussion=self

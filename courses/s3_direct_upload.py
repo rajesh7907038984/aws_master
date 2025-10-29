@@ -28,7 +28,7 @@ def get_presigned_upload_url(request):
         data = json.loads(request.body)
         filename = data.get('filename')
         content_type = data.get('content_type', 'application/octet-stream')
-        file_type = data.get('file_type', 'document')  # scorm, video, audio, document
+        file_type = data.get('file_type', 'document')  # video, audio, document
         
         if not filename:
             return JsonResponse({'error': 'Filename is required'}, status=400)
@@ -38,9 +38,7 @@ def get_presigned_upload_url(request):
         unique_filename = f"{uuid.uuid4()}{ext}"
         
         # Determine S3 key based on file type
-        if file_type == 'scorm':
-            s3_key = f"media/topics/scorm/{unique_filename}"
-        elif file_type == 'video':
+        if file_type == 'video':
             s3_key = f"media/topics/videos/{unique_filename}"
         elif file_type == 'audio':
             s3_key = f"media/topics/audio/{unique_filename}"

@@ -25,7 +25,6 @@ EmploymentRecord = Dict[str, Optional[str]]
 UserCapabilities = Dict[str, Any]
 
 
-ScormData = Dict[str, Any]
 
 
 FormFieldData = Dict[str, Any]
@@ -630,44 +629,6 @@ def validate_employment_record(data: Any) -> Optional[EmploymentRecord]:
     return validated
 
 
-def validate_scorm_data(data: Any) -> Optional[ScormData]:
-    """
-    Validate SCORM data structure
-    
-    Args:
-        data: Raw SCORM data
-        
-    Returns:
-        Validated ScormData or None if invalid
-    """
-    if not isinstance(data, dict):
-        return None
-    
-    validated: ScormData = {}
-    
-    # Required string fields
-    completion_status = safe_get_string(data, 'completion_status')
-    success_status = safe_get_string(data, 'success_status')
-    
-    if not completion_status or not success_status:
-        return None
-    
-    validated['completion_status'] = completion_status
-    validated['success_status'] = success_status
-    
-    # Optional numeric fields
-    for field in ['score_raw', 'score_max', 'score_min']:
-        value = safe_get_float(data, field)
-        if value is not None and value >= 0:
-            validated[field] = value
-    
-    # Optional string fields
-    for field in ['lesson_location', 'lesson_status', 'session_time', 'total_time']:
-        value = safe_get_string(data, field)
-        if value:
-            validated[field] = value
-    
-    return validated
 
 
 def normalize_mixed_type_field(value: Any) -> Optional[Dict[str, Any]]:

@@ -48,9 +48,6 @@
                 <div class="text-2xl font-bold text-gray-900">
                     {% if progress_stats.average_score %}
                         {{ progress_stats.average_score|floatformat:1 }}%
-                        {% if is_scorm %}
-                            <span class="text-xs text-blue-600 ml-1">(SCORM)</span>
-                        {% endif %}
                     {% else %}
                         -
                     {% endif %}
@@ -94,33 +91,7 @@
     </div>
 </div>
 
-<!-- SCORM-Specific Statistics -->
-{% if is_scorm and scorm_stats %}
-<div class="bg-blue-50 rounded-lg shadow-sm border p-6 mb-6">
-    <h3 class="text-lg font-semibold mb-6 text-blue-900">
-        <i class="fas fa-graduation-cap mr-2"></i>SCORM Analytics
-    </h3>
-    
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div class="bg-white rounded-lg p-4 text-center">
-            <div class="text-2xl font-bold text-blue-600">{{ scorm_stats.total_scorm_users|default:0 }}</div>
-            <div class="text-sm text-gray-600">Total Users</div>
-        </div>
-        <div class="bg-white rounded-lg p-4 text-center">
-            <div class="text-2xl font-bold text-green-600">{{ scorm_stats.completion_status_complete|default:0 }}</div>
-            <div class="text-sm text-gray-600">Completed</div>
-        </div>
-        <div class="bg-white rounded-lg p-4 text-center">
-            <div class="text-2xl font-bold text-purple-600">{{ scorm_stats.success_status_passed|default:0 }}</div>
-            <div class="text-sm text-gray-600">Passed</div>
-        </div>
-        <div class="bg-white rounded-lg p-4 text-center">
-            <div class="text-2xl font-bold text-orange-600">{{ scorm_stats.avg_completion_percent|floatformat:1 }}%</div>
-            <div class="text-sm text-gray-600">Avg Score</div>
-        </div>
-    </div>
-</div>
-{% endif %}
+<!-- SCORM-Specific Statistics removed - no longer supported -->
 
 <!-- Summary Statistics -->
 <div class="bg-white rounded-lg shadow-sm border p-6">

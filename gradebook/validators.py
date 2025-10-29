@@ -137,7 +137,7 @@ def validate_activity_type(activity_type: Any) -> str:
     
     allowed_types = {
         'assignment', 'quiz', 'discussion', 'conference', 
-        'scorm', 'initial_assessment', 'vak_test'
+        'initial_assessment', 'vak_test'
     }
     
     if activity_type not in allowed_types:

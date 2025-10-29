@@ -208,14 +208,12 @@ def upload_media_file(request):
         }, status=400)
     
     # Validate file size based on file type
-    # Default max size: 20MB for most files, 100MB for videos, 600MB for SCORM packages
     file_ext = os.path.splitext(uploaded_file.name)[1].lower()
     
     # Video file extensions
     video_extensions = ['.mp4', '.mov', '.avi', '.wmv', '.mkv', '.webm', '.flv', '.m4v']
     
     if file_ext == '.zip':
-        # SCORM packages or archives - allow up to 600MB
         max_size = 600 * 1024 * 1024  # 600MB in bytes
         size_description = "600MB"
     elif file_ext in video_extensions:

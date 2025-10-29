@@ -32,8 +32,7 @@ from courses.models import Course, Topic, CourseEnrollment
 try:
     from courses.models import CourseTopic
 except ImportError:
-    from courses.models import Course
-    CourseTopic = Course.topics.through if hasattr(Course, "topics") else None
+    CourseTopic = None
 
 from courses.views import get_topic_course, check_instructor_management_access
 from lms_rubrics.models import Rubric, RubricRating, RubricEvaluation, RubricCriterion, RubricEvaluationHistory

@@ -15,7 +15,1175 @@ except ImportError:
 try:
     from courses.models import CourseTopic
 except ImportError:
-    CourseTopic = Course.topics.through if hasattr(Course, 'topics') else None
+    CourseTopic = None
+from courses.forms import CourseForm
+from users.models import CustomUser, Branch, UserQuestionnaire
+from .forms import (
+    CustomUserCreationForm, 
+    CustomUserChangeForm, 
+    CustomPasswordChangeForm,
+    AdminPasswordChangeForm,
+    TabbedUserCreationForm
+)
+from .forms_enhanced import EnhancedUserCreationForm, EnhancedUserChangeForm
+import logging
+from django.db import models
+from django import forms
+import os
+import time
+from django.conf import settings
+# from django.views.decorators.csrf import csrf_exempt, csrf_protect  # COMMENTED OUT TO FIX ERRORS
+from django.contrib.admin.models import LogEntry
+from django.db.models import Count, Q, F, Sum, Avg, ExpressionWrapper, DurationField
+from django.db.models.functions import ExtractHour, TruncDate, TruncDay, ExtractWeekDay
+from django.utils import timezone
+from django.urls import reverse, NoReverseMatch
+from django.core.paginator import Paginator, PageNotAnInteger, EmptyPage
+import json
+import pandas as pd
+from django.views.decorators.http import require_http_methods, require_POST
+import xlsxwriter
+from io import BytesIO
+import pytz
+from datetime import timedelta, datetime
+from categories.models import CourseCategory
+from groups.models import BranchGroup, GroupMembership
+import csv
+import io
+from django.core.exceptions import PermissionDenied, ValidationError
+from role_management.models import RoleCapability, UserRole
+from django.apps import apps
+from calendar_app.models import CalendarEvent
+from django.contrib.auth.models import Group
+import requests
+import re
+from branch_portal.models import BranchPortal
+from core.services.todo_service import TodoService
+from .models import CustomUser, UserQuestionnaire, UserQuizAssignment, ManualVAKScore
+from typing import Any, Dict, List, Optional, Union, TYPE_CHECKING
+from django.http import HttpRequest
+from core.utils.type_guards import (
+    safe_get_string, safe_get_int, safe_get_bool, safe_get_list,
+    validate_timezone_data, safe_json_loads, TypeValidationError
+)
+
+if TYPE_CHECKING:
+    from django.db.models import QuerySet
+
+# @csrf_protect  # COMMENTED OUT TO FIX ERRORS
+@require_http_methods(["POST"])
+def timezone_update(request: HttpRequest) -> JsonResponse:
+    """Update user timezone"""
+    from core.utils.api_response import APIResponse, handle_api_exception
+    
+    try:
+        # Safely parse JSON with type validation
+        raw_data = safe_json_loads(request.body.decode('utf-8'))
+        if raw_data is None:
+            return APIResponse.validation_error(
+                errors={'body': 'Invalid JSON data'},
+                message="Request body must be valid JSON"
+            )
+        
+        # Validate timezone data structure using imported utility
+        validated_data = validate_timezone_data(raw_data)
+        if validated_data is None:
+            return APIResponse.validation_error(
+                errors={'timezone': 'Timezone is required and must be a string'},
+                message="Timezone is required and must be a valid string"
+            )
+        
+        timezone_str: str = validated_data['timezone']
+        offset: int = validated_data['offset']
+        
+        # Type safety: check if user exists and is authenticated
+        if not hasattr(request, 'user') or not request.user.is_authenticated:
+            return APIResponse.error(
+                message="User not authenticated",
+                error_type="authentication_required",
+                status_code=401
+            )
+        
+        # Use the UserTimezone model instead of direct user field
+        from .models import UserTimezone
+        timezone_obj, created = UserTimezone.objects.get_or_create(
+            user=request.user,
+            defaults={'timezone': timezone_str, 'auto_detected': False}
+        )
+        if not created:
+            timezone_obj.timezone = timezone_str
+            timezone_obj.auto_detected = False
+            timezone_obj.save()
+        
+        return APIResponse.success(
+            data={
+                'timezone': timezone_str,
+                'offset': offset,
+                'user_id': request.user.id
+            },
+            message="Timezone updated successfully"
+        )
+            
+    except Exception as e:
+        return handle_api_exception(e, request)
+from individual_learning_plan.models import (
+    LearningPreference, SENDAccommodation, StatementOfPurpose, StrengthWeakness,
+    InductionChecklist, HealthSafetyQuestionnaire, LearningNeeds, LearningGoal,
+    InternalCourseReview, EducatorNote, IndividualLearningPlan, HealthSafetyDocument
+)
+from quiz.models import Quiz
+from account_settings.models import GlobalAdminSettings
+from django.contrib.auth.forms import PasswordChangeForm
+from .models import PasswordResetToken, EmailVerificationToken
+from .forms import SimpleRegistrationForm
+from role_management.utils import PermissionManager
+from branches.models import Branch
+
+# PDF processing imports
+try:
+    import pdfplumber
+    PDFPLUMBER_AVAILABLE = True
+    logger = logging.getLogger(__name__)
+    logger.info(f"pdfplumber imported successfully, version: {pdfplumber.__version__}")
+except ImportError as e:
+    PDFPLUMBER_AVAILABLE = False
+    logger = logging.getLogger(__name__)
+    logger.error(f"Failed to import pdfplumber: {str(e)}")
+except Exception as e:
+    PDFPLUMBER_AVAILABLE = False
+    logger = logging.getLogger(__name__)
+    logger.error(f"Unexpected error importing pdfplumber: {str(e)}")
+
+logger = logging.getLogger(__name__)
+
+@login_required
+def role_based_redirect(request: HttpRequest) -> HttpResponse:
+    """Redirect users to their appropriate dashboard based on role with safety guards"""
+    import logging
+    auth_logger = logging.getLogger('authentication')
+    logger = logging.getLogger(__name__)
+
+    user_role = getattr(request.user, 'role', 'learner')
+    username = getattr(request.user, 'username', 'unknown')
+
+    auth_logger.info(f"Role-based redirect for user {username} with role: {user_role}")
+
+    try:
+        if user_role == 'globaladmin':
+            auth_logger.info(f"Redirecting {username} to global admin dashboard")
+            return redirect('dashboard_globaladmin')
+        elif user_role == 'superadmin':
+            auth_logger.info(f"Redirecting {username} to super admin dashboard")
+            return redirect('dashboard_superadmin')
+        elif user_role == 'admin':
+            auth_logger.info(f"Redirecting {username} to admin dashboard")
+            return redirect('dashboard_admin')
+        elif user_role == 'instructor':
+            auth_logger.info(f"Redirecting {username} to instructor dashboard")
+            return redirect('dashboard_instructor')
+        else:
+            auth_logger.info(f"Redirecting {username} to learner dashboard")
+            return redirect('dashboard_learner')
+    except Exception as e:
+        logger.error(f"Dashboard redirect failed for {username} ({user_role}): {e}", exc_info=True)
+        messages.error(request, "We hit an error loading your dashboard. Please try again.")
+        return redirect('dashboard_learner')
+
+def register(request: HttpRequest) -> HttpResponse:
+    """Public learner registration view"""
+    # Get branch from URL parameter if coming from branch portal
+    branch_slug: Optional[str] = request.GET.get('branch')
+    branch: Optional[Branch] = None
+    
+    # Type safety: ensure branch_slug is a string if present
+    if branch_slug is not None and not isinstance(branch_slug, str):
+        branch_slug = str(branch_slug)
+    
+    if branch_slug:
+        try:
+            from branch_portal.models import BranchPortal
+            portal = BranchPortal.objects.get(slug=branch_slug, is_active=True)
+            branch = portal.branch
+        except BranchPortal.DoesNotExist:
+            messages.error(request, "Invalid branch portal.")
+            return redirect('login')
+    
+    if request.method == 'POST':
+        from .forms import SimpleRegistrationForm
+        form = SimpleRegistrationForm(request.POST, branch=branch)
+        
+        if form.is_valid():
+            user = form.save()
+            
+            # Auto-assign to branch if coming from branch portal
+            if branch:
+                user.branch = branch
+                user.save()
+                messages.success(request, f"Account created successfully! You've been enrolled in {branch.name}.")
+            else:
+                # For general registration, assign to a non-default branch (default branch reserved for global admin)
+                from core.utils.default_assignments import DefaultAssignmentManager
+                safe_branch = DefaultAssignmentManager.get_safe_branch_for_user(user)
+                if safe_branch:
+                    user.branch = safe_branch
+                    user.save()
+                    messages.success(request, f"Account created successfully! You've been assigned to {safe_branch.name}.")
+                else:
+                    messages.success(request, "Account created successfully! Please contact administrator for branch assignment.")
+            
+            return redirect('login')
+    else:
+        from .forms import SimpleRegistrationForm
+        form = SimpleRegistrationForm(branch=branch)
+    
+    context = {
+        'form': form,
+        'branch': branch,
+        'branch_portal': branch_slug is not None
+    }
+    
+    return render(request, 'users/register.html', context)
+
+def home(request: HttpRequest) -> HttpResponse:
+    """Main homepage view with redirect loop prevention and session validation"""
+    import logging
+    logger = logging.getLogger('authentication')
+    
+    # CRITICAL FIX: Enhanced authentication check with session recovery
+    # Type safety: check if user exists before accessing is_authenticated
+    is_authenticated = hasattr(request, 'user') and request.user.is_authenticated
+    
+    # Session recovery for edge cases where session exists but user not authenticated
+    if not is_authenticated and hasattr(request, 'session'):
+        user_id = request.session.get('_auth_user_id')
+        if user_id:
+            logger.warning(f"Session recovery attempt for user ID {user_id}")
+            try:
+                from django.contrib.auth import get_user_model
+                User = get_user_model()
+                user = User.objects.get(pk=user_id, is_active=True)
+                user.backend = 'django.contrib.auth.backends.ModelBackend'
+                request.user = user
+                request.session.modified = True
+                is_authenticated = True
+                logger.info(f"Successfully recovered session for user {user.username}")
+            except Exception as e:
+                logger.error(f"Session recovery failed: {e}")
+    
+    # Log home page access with enhanced information
+    logger.info(f"Home page accessed by {'authenticated' if is_authenticated else 'anonymous'} user")
+    
+    if is_authenticated:
+        user_role = getattr(request.user, 'role', None)
+        logger.info(f"Authenticated user {request.user.username} with role {user_role} accessing home")
+        
+        # Direct redirect based on role to avoid redirect chain
+        if user_role == 'globaladmin':
+            logger.info(f"Redirecting {request.user.username} directly to global admin dashboard")
+            return redirect('dashboard_globaladmin')
+        elif user_role == 'superadmin':
+            logger.info(f"Redirecting {request.user.username} directly to super admin dashboard")
+            return redirect('dashboard_superadmin')
+        elif user_role == 'admin':
+            logger.info(f"Redirecting {request.user.username} directly to admin dashboard")
+            return redirect('dashboard_admin')
+        elif user_role == 'instructor':
+            logger.info(f"Redirecting {request.user.username} directly to instructor dashboard")
+            return redirect('dashboard_instructor')
+        elif user_role == 'learner':
+            logger.info(f"Redirecting {request.user.username} directly to learner dashboard")
+            return redirect('dashboard_learner')
+        else:
+            logger.warning(f"User {request.user.username} has unknown role '{user_role}', redirecting to learner dashboard")
+            return redirect('dashboard_learner')
+    else:
+        logger.info("Anonymous user accessing home, redirecting to login")
+        return redirect('login')
+
+def custom_login(request):
+    # Check if user is already authenticated - ADD SAFE CHECK
+    if hasattr(request, 'user') and request.user.is_authenticated:
+        # User is already logged in, redirect to appropriate dashboard
+        user_role = getattr(request.user, 'role', 'learner')
+        if user_role in ['instructor', 'admin', 'superadmin', 'globaladmin']:
+            return redirect('dashboard_instructor')
+        elif user_role == 'learner':
+            return redirect('dashboard_learner')
+        else:
+            return redirect('dashboard_learner')
+    
+    # SIMPLE SESSION FIX - Force session creation with error handling
+    try:
+        if hasattr(request, 'session') and not request.session.session_key:
+            request.session.create()
+            request.session.modified = True
+            request.session.save()
+    except Exception as e:
+        # If session creation fails, continue without session
+        print(f"Session creation failed: {e}")
+        pass
+
+    """Enhanced custom login view with comprehensive Session"""
+    # Get client IP address
+    def get_client_ip(request):
+        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+        if x_forwarded_for:
+            ip = x_forwarded_for.split(',')[0].strip()
+        else:
+            ip = request.META.get('REMOTE_ADDR', '')
+        return ip
+    
+    client_ip = get_client_ip(request)
+    
+    # Initialize default values for rate limiting and session status
+    rate_limit_info = {
+        'is_limited': False,
+        'limit_type': 'minute',
+        'remaining_time': 0,
+        'current_count': 0,
+        'max_count': 60
+    }
+    
+    login_Session_status = {
+        'warning_level': 'none',
+        'failure_count': 0,
+        'remaining_attempts': 5,
+        'max_attempts': 5,
+        'lockout_minutes': 0,
+        'remaining_time': 0,
+        'is_blocked': False
+    }
+    
+    # Check rate limiting status with error handling
+    try:
+        def dummy_get_response(request):
+            return None
+        
+        # Get rate limiting info with fallback
+        # Get login Session status with fallback
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        # Use default values already set above
+    
+    # Combine both Session statuses
+    security_status = {
+        'warning_level': login_Session_status.get('warning_level', 'none'),
+        'failure_count': login_Session_status.get('failure_count', 0),
+        'remaining_attempts': login_Session_status.get('remaining_attempts', 10),
+        'max_attempts': login_Session_status.get('max_attempts', 5),
+        'lockout_minutes': login_Session_status.get('lockout_minutes', 0),
+        'remaining_time': login_Session_status.get('remaining_time', 0),
+        'is_blocked': login_Session_status.get('is_blocked', False),
+        # Add rate limiting info
+        'rate_limited': rate_limit_info['is_limited'],
+        'rate_limit_type': rate_limit_info.get('limit_type'),
+        'rate_remaining_time': rate_limit_info.get('remaining_time', 0),
+        'rate_current_count': rate_limit_info.get('current_count', 0),
+        'rate_max_count': rate_limit_info.get('max_count', 0)
+    }
+    
+    # If rate limited, show rate limiting message and countdown
+    if rate_limit_info['is_limited']:
+        limit_type = "per minute" if rate_limit_info['limit_type'] == 'minute' else "per hour"
+        messages.error(request, 
+            f"Too many authentication attempts ({rate_limit_info['current_count']}/{rate_limit_info['max_count']} {limit_type}). "
+            f"Please wait {rate_limit_info['remaining_time']} seconds before trying again.")
+        
+        # Create proper context with all required variables
+        context = {
+            'form': None,  # No form for rate limited state
+            'next': request.GET.get('next', ''),
+            'security_status': security_status,
+        }
+        return render(request, "users/shared/login.html", context)
+    
+    if request.method == "POST":
+        from django.core.cache import cache
+        import logging
+        
+        # Get Session logger
+        Session_logger = logging.getLogger('Session')
+        auth_logger = logging.getLogger('authentication')
+        logger = logging.getLogger(__name__)
+        
+        # Get client IP address
+        def get_client_ip(request):
+            x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+            if x_forwarded_for:
+                ip = x_forwarded_for.split(',')[0].strip()
+            else:
+                ip = request.META.get('REMOTE_ADDR', '')
+            return ip
+        
+        ip_address = get_client_ip(request)
+        user_agent = request.META.get('HTTP_USER_AGENT', '')
+        
+        # blocked_until_key = f"login_blocked_{ip_address}"
+        # blocked_until = cache.get(blocked_until_key)
+        # if blocked_until and time.time() < blocked_until:
+        #     Session_logger.warning(f"Blocked login attempt from IP: {ip_address}")
+        #     messages.error(request, "Account temporarily locked due to too many failed attempts. Please try again later.")
+        #     return render(request, "users/shared/login.html")
+        
+        username = safe_get_string(request.POST, "username").strip()
+        password = safe_get_string(request.POST, "password")
+        
+        # Input validation
+        if not username or not password:
+            messages.error(request, "Username and password are required.")
+            context = {
+                'form': None,
+                'next': request.GET.get('next', ''),
+                'security_status': security_status,
+            }
+            return render(request, "users/shared/login.html", context)
+        
+        # Terms acceptance validation
+        terms_acceptance = request.POST.get("terms_acceptance")
+        if not terms_acceptance:
+            messages.error(request, "You must agree to the Terms of Service and Privacy Policy to log in.")
+            context = {
+                'form': None,
+                'next': request.GET.get('next', ''),
+                'security_status': security_status,
+            }
+            return render(request, "users/shared/login.html", context)
+        
+        # Sanitize username input
+        import re
+        if not re.match(r'^[a-zA-Z0-9@._-]+$', username):
+            Session_logger.warning(f"Suspicious username pattern in login: {username} from IP: {ip_address}")
+            messages.error(request, "Invalid username format.")
+            context = {
+                'form': None,
+                'next': request.GET.get('next', ''),
+                'security_status': security_status,
+            }
+            return render(request, "users/shared/login.html", context)
+        
+        # Log authentication attempt
+        auth_logger.info(f"Login attempt for user: {username} from IP: {ip_address}")
+        
+        user = authenticate(request, username=username, password=password)
+
+        if user is not None:
+            # Check if user account is active
+            if not user.is_active:
+                Session_logger.warning(f"Login attempt for inactive user: {username} from IP: {ip_address}")
+                messages.error(request, "Account is deactivated. Please contact administrator.")
+                context = {
+                    'form': None,
+                    'next': request.GET.get('next', ''),
+                    'security_status': security_status,
+                }
+                return render(request, "users/shared/login.html", context)
+            
+            # If user doesn't have a branch and there's only one branch, assign it automatically
+            if not user.branch:
+                try:
+                    # Try to get the only branch if there's just one
+                    branch = Branch.objects.first()
+                    if branch:
+                        user.branch = branch
+                        user.save()
+                        auth_logger.info(f"Auto-assigned branch {branch.name} to user {username}")
+                except Branch.DoesNotExist:
+                    # No branches exist, continue without assigning
+                    pass
+                except Exception as e:
+                    # Log any other errors but continue with login
+                    logger.error(f"Error assigning branch to user: {str(e)}")
+                    pass
+
+            # Check if user has 2FA enabled
+            from .models import TwoFactorAuth, OTPToken
+            user_2fa = None
+            try:
+                user_2fa = TwoFactorAuth.objects.get(user=user)
+            except TwoFactorAuth.DoesNotExist:
+                pass
+            
+            if user_2fa and user_2fa.is_enabled:
+                # User has 2FA enabled, generate and send OTP
+                try:
+                    # Clear any existing unused OTP tokens for this user
+                    OTPToken.objects.filter(user=user, is_used=False, purpose='login').delete()
+                    
+                    # Create new OTP token
+                    otp_token = OTPToken.objects.create(user=user, purpose='login')
+                    
+                    # Send OTP email
+                    otp_token.send_otp_email(request)
+                    
+                    # Store user info in session for OTP verification
+                    request.session['otp_user_id'] = user.id
+                    request.session['otp_token_id'] = otp_token.id
+                    request.session['otp_next_url'] = request.GET.get('next') or request.POST.get('next')
+                    
+                    # Clear any login failures on successful authentication
+                    def dummy_get_response(request):
+                        return None
+                    
+                    # Log 2FA step
+                    auth_logger.info(f"2FA OTP sent for user: {username} from IP: {ip_address}")
+                    
+                    messages.success(request, f"A verification code has been sent to {user.email}. Please check your email and enter the code to complete your login.")
+                    
+                    # Redirect to OTP verification page
+                    return redirect('users:verify_otp')
+                    
+                except Exception as e:
+                    logger.error(f"Error sending OTP for user {username}: {str(e)}")
+                    messages.error(request, "Error sending verification code. Please try again or contact support.")
+                    context = {
+                        'form': None,
+                        'next': request.GET.get('next', ''),
+                        'security_status': security_status,
+                    }
+                    return render(request, "users/shared/login.html", context)
+            
+            # Normal login flow (no 2FA or 2FA disabled)
+            # Clear any login failures on successful login
+            def dummy_get_response(request):
+                return None
+            
+            # Log successful login
+            auth_logger.info(f"Successful login for user: {username} from IP: {ip_address}")
+            
+            # Update last login time
+            user.last_login = timezone.now()
+            user.save(update_fields=['last_login'])
+            
+            login(request, user)
+            messages.success(request, f"Welcome back, {user.username}!")
+            
+            # Redirect to next URL if specified, otherwise to role-based redirect
+            next_url = request.GET.get('next') or request.POST.get('next')
+            if next_url:
+                # Validate redirect URL for Session
+                from django.utils.http import url_has_allowed_host_and_scheme
+                if url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
+                    auth_logger.info(f"Redirecting user {username} to next URL: {next_url}")
+                    return redirect(next_url)
+                else:
+                    auth_logger.warning(f"Invalid next URL blocked for user {username}: {next_url}")
+            
+            auth_logger.info(f"Redirecting user {username} (role: {user.role}) to role-based redirect")
+            return redirect('users:role_based_redirect')
+        else:
+            # TEMPORARILY DISABLED - Record failed login attempt
+            def dummy_get_response(request):
+                return None
+            
+            # Log failed attempt
+            Session_logger.warning(f"Failed login attempt for user: {username} from IP: {ip_address} UA: {user_agent}")
+            
+            messages.error(request, "Invalid username or password. Please try again.")
+
+    # Pass Session status to template with all required variables
+    context = {
+        'form': None,  # No form for GET requests
+        'next': request.GET.get('next', ''),  # Get next parameter from URL
+        'security_status': security_status,
+    }
+    return render(request, "users/shared/login.html", context)
+
+def get_or_assign_branch_for_global_admin(request):
+    """
+    Helper function to get or assign a branch for global admin users when needed.
+    For global admins, if no branch is specified, we'll use the last updated user's branch,
+    or create/assign a default branch.
+    """
+    if request.user.role != 'globaladmin':
+        return request.user.branch
+    
+    # Try to get branch from request parameters first
+    branch_id = request.GET.get('branch')
+    if branch_id:
+        try:
+            return Branch.objects.get(id=branch_id)
+        except Branch.DoesNotExist:
+            pass
+    
+    # Get the most recently active user's branch (using last_login for better relevance)
+    last_updated_user = CustomUser.objects.filter(
+        branch__isnull=False,
+        last_login__isnull=False
+    ).order_by('-last_login').first()
+    
+    # Fallback to most recently created user if no one has logged in
+    if not last_updated_user:
+        last_updated_user = CustomUser.objects.filter(
+            branch__isnull=False
+        ).order_by('-date_joined').first()
+    
+    if last_updated_user and last_updated_user.branch:
+        return last_updated_user.branch
+    
+    # If no users have branches, get or create a default branch
+    default_branch = Branch.objects.first()
+    if not default_branch:
+        default_branch = Branch.objects.create(
+            name='Default Branch',
+            description='Default branch for global admin operations'
+        )
+    
+    return default_branch
+
+@login_required
+def user_list(request):
+    """Display list of users based on permissions."""
+    user = request.user
+    
+    # Debug logging
+    logger.info(f"User {user.username} with role '{user.role}' attempting to access user_list")
+    
+    # Define breadcrumbs for this view
+    if request.user.role == 'instructor':
+        breadcrumbs = [
+            {'url': reverse('users:role_based_redirect'), 'label': 'Dashboard', 'icon': 'fa-home'},
+            {'label': 'Learner Management', 'icon': 'fa-users'}
+        ]
+    else:
+        breadcrumbs = [
+            {'url': reverse('users:role_based_redirect'), 'label': 'Dashboard', 'icon': 'fa-home'},
+            {'label': 'User Management', 'icon': 'fa-users'}
+        ]
+    
+    # Allow globaladmin unrestricted access
+    if request.user.role not in ['globaladmin', 'superadmin', 'admin', 'instructor']:
+        logger.warning(f"User {user.username} with role '{user.role}' denied access to user_list")
+        return HttpResponseForbidden(f"You don't have permission to view user list. Your role: {request.user.role}")
+
+    # Get base queryset
+    if request.user.role == 'globaladmin':
+        # Global admin can see all users without restriction, except themselves
+        users = CustomUser.objects.all().exclude(id=request.user.id)
+        branches = Branch.objects.all().order_by('name')
+    elif request.user.role == 'admin':
+        # Filter users by effective branch (supports branch switching) and exclude superadmin and globaladmin users, and exclude current user
+        from core.branch_filters import BranchFilterManager
+        effective_branch = BranchFilterManager.get_effective_branch(request.user, request)
+        users = CustomUser.objects.filter(branch=effective_branch).exclude(role__in=['superadmin', 'globaladmin']).exclude(id=request.user.id)
+        branches = [effective_branch]
+    elif request.user.role == 'instructor':
+        # Instructors can only see learner users, excluding themselves
+        users = CustomUser.objects.filter(
+            branch=request.user.branch,
+            role='learner'
+        ).exclude(id=request.user.id)
+        branches = [request.user.branch]
+    elif request.user.role == 'superadmin':
+        # Super Admin: CONDITIONAL access (business-scoped users)
+        # Note: filter_users_by_business already excludes global admin accounts
+        from core.utils.business_filtering import filter_users_by_business, filter_branches_by_business
+        users = filter_users_by_business(request.user)
+        branches = filter_branches_by_business(request.user).order_by('name')
+    else:
+        users = CustomUser.objects.all().exclude(id=request.user.id)
+        branches = Branch.objects.all().order_by('name')
+
+    # Get groups based on user's business access
+    from core.utils.business_filtering import filter_queryset_by_business
+    if request.user.role == 'superadmin':
+        groups = filter_queryset_by_business(
+            BranchGroup.objects.all(), 
+            request.user, 
+            business_field_path='branch__business'
+        ).order_by('name')
+    else:
+        groups = BranchGroup.objects.all().order_by('name')
+
+    # Handle search functionality
+    search_query = request.GET.get('q', '').strip()
+    if search_query:
+        users = users.filter(
+            Q(username__icontains=search_query) |
+            Q(email__icontains=search_query) |
+            Q(first_name__icontains=search_query) |
+            Q(last_name__icontains=search_query)
+        )
+
+    # Handle status filtering  
+    status_filter = request.GET.get('status', '').strip()
+    selected_status = []
+    if status_filter:
+        selected_status = [status.strip() for status in status_filter.split(',') if status.strip()]
+        if selected_status:
+            status_conditions = Q()
+            for status in selected_status:
+                if status == 'active':
+                    status_conditions |= Q(is_active=True)
+                elif status == 'inactive':
+                    status_conditions |= Q(is_active=False)
+            if status_conditions:
+                users = users.filter(status_conditions)
+
+    # Handle branch filtering
+    branch_filter = request.GET.get('branch', '').strip()
+    selected_branches = []
+    if branch_filter:
+        selected_branches = [branch.strip() for branch in branch_filter.split(',') if branch.strip()]
+        if selected_branches:
+            users = users.filter(branch__id__in=selected_branches)
+
+    # Handle group filtering
+    group_filter = request.GET.get('group', '').strip()
+    selected_groups = []
+    if group_filter:
+        selected_groups = [group.strip() for group in group_filter.split(',') if group.strip()]
+        if selected_groups:
+            users = users.filter(groups__id__in=selected_groups).distinct()
+
+    # Handle role filtering
+    role_filter = request.GET.get('role', '').strip()
+    selected_roles = []
+    if role_filter:
+        selected_roles = [role.strip() for role in role_filter.split(',') if role.strip()]
+        if selected_roles:
+            users = users.filter(role__in=selected_roles)
+
+    # Get available roles based on user permissions
+    available_roles = []
+    if request.user.role == 'globaladmin':
+        # Global admin can filter by all roles
+        available_roles = CustomUser.ROLE_CHOICES
+    elif request.user.role == 'superadmin':
+        # Super admin cannot see globaladmin users
+        available_roles = [
+            ('superadmin', 'SuperAdmin'),
+            ('admin', 'Admin'),
+            ('instructor', 'Instructor'),
+            ('learner', 'Learner'),
+        ]
+    elif request.user.role == 'admin':
+        # Admin cannot see superadmin or globaladmin users
+        available_roles = [
+            ('admin', 'Admin'),
+            ('instructor', 'Instructor'),
+            ('learner', 'Learner'),
+        ]
+    elif request.user.role == 'instructor':
+        # Instructors can only see learners
+        available_roles = [
+            ('learner', 'Learner'),
+        ]
+
+    # Handle pagination
+    per_page = int(request.GET.get('per_page', 10))
+    page = request.GET.get('page', 1)
+    paginator = Paginator(users.order_by('-date_joined').distinct(), per_page)
+    
+    try:
+        users = paginator.page(page)
+    except PageNotAnInteger:
+        users = paginator.page(1)
+    except EmptyPage:
+        users = paginator.page(paginator.num_pages)
+
+    # Import permission manager for capability checking
+    from role_management.utils import PermissionManager
+    from core.branch_filters import filter_context_by_branch
+    
+    context = {
+        'users': users,
+        'branches': branches,
+        'groups': groups,
+        'search_query': search_query,
+        'available_roles': available_roles,
+        'selected_roles': selected_roles,
+        'selected_status': selected_status,
+        'selected_branches': selected_branches,
+        'selected_groups': selected_groups,
+        'can_edit_user': request.user.role in ['globaladmin', 'superadmin', 'admin', 'instructor'],  # Allow globaladmin access
+        'can_delete_user': PermissionManager.user_has_capability(request.user, 'delete_users'),
+        'current_page': int(page),
+        'per_page': per_page,
+        'breadcrumbs': breadcrumbs
+    }
+    
+    # Add branch context for template (enables branch switcher)
+    context = filter_context_by_branch(context, request.user, request)
+    
+    return render(request, 'users/shared/user_list_new.html', context)
+
+@login_required
+@require_POST
+def bulk_delete_users(request):
+    """Handle bulk deletion of users with proper permission checks."""
+    from django.http import JsonResponse
+    from django.contrib import messages
+    import json
+    
+    logger.info(f"Bulk delete request from user: {request.user.username}")
+    logger.info(f"Request method: {request.method}")
+    logger.info(f"Content type: {request.content_type}")
+    logger.info(f"Request body: {request.body}")
+    
+    # Check if user has permission to delete users
+    if request.user.role not in ['globaladmin', 'superadmin', 'admin']:
+        logger.warning(f"User {request.user.username} with role {request.user.role} denied bulk delete access")
+        return JsonResponse({
+            'success': False,
+            'message': 'You do not have permission to delete users.'
+        }, status=403)
+    
+    try:
+        # Parse the JSON data
+        data = json.loads(request.body)
+        user_ids = data.get('user_ids', [])
+        
+        if not user_ids:
+            return JsonResponse({
+                'success': False,
+                'message': 'No users selected for deletion.'
+            }, status=400)
+        
+        # Validate that all IDs are integers
+        try:
+            user_ids = [int(uid) for uid in user_ids]
+        except (ValueError, TypeError):
+            return JsonResponse({
+                'success': False,
+                'message': 'Invalid user IDs provided.'
+            }, status=400)
+        
+        # Get users to delete with permission checks
+        users_to_delete = CustomUser.objects.filter(id__in=user_ids)
+        
+        # Additional permission checks based on user role
+        if request.user.role == 'admin':
+            # Admin can only delete users in their branch and cannot delete superadmin/globaladmin
+            from core.branch_filters import BranchFilterManager
+            effective_branch = BranchFilterManager.get_effective_branch(request.user, request)
+            users_to_delete = users_to_delete.filter(
+                branch=effective_branch
+            ).exclude(role__in=['superadmin', 'globaladmin'])
+        elif request.user.role == 'superadmin':
+            # Super admin can delete users in their business scope but not globaladmin
+            from core.utils.business_filtering import filter_users_by_business
+            business_users = filter_users_by_business(request.user)
+            users_to_delete = users_to_delete.filter(id__in=business_users.values_list('id', flat=True))
+        
+        # Prevent deletion of the current user
+        users_to_delete = users_to_delete.exclude(id=request.user.id)
+        
+        # Get the actual users that will be deleted
+        actual_users = list(users_to_delete)
+        deleted_count = 0
+        
+        # Delete users one by one to handle any potential errors
+        deleted_users = []
+        for user in actual_users:
+            try:
+                user_name = user.get_full_name() or user.username
+                user.delete()  # This will use the comprehensive delete method
+                deleted_users.append(user_name)
+                deleted_count += 1
+                logger.info(f"Successfully deleted user: {user_name} (ID: {user.id}) by {request.user.username}")
+            except Exception as e:
+                logger.error(f"Error deleting user {user.username} (ID: {user.id}): {str(e)}")
+                continue
+        
+        if deleted_count == 0:
+            return JsonResponse({
+                'success': False,
+                'message': 'No users were deleted. You may not have permission to delete the selected users.'
+            }, status=400)
+        
+        # Prepare success message
+        if deleted_count == 1:
+            message = f"Successfully deleted user: {deleted_users[0]}"
+        else:
+            message = f"Successfully deleted {deleted_count} users: {', '.join(deleted_users[:5])}"
+            if len(deleted_users) > 5:
+                message += f" and {len(deleted_users) - 5} more"
+        
+        return JsonResponse({
+            'success': True,
+            'message': message,
+            'deleted_count': deleted_count
+        })
+        
+    except json.JSONDecodeError:
+        return JsonResponse({
+            'success': False,
+            'message': 'Invalid JSON data provided.'
+        }, status=400)
+    except Exception as e:
+        logger.error(f"Error in bulk_delete_users: {str(e)}")
+        return JsonResponse({
+            'success': False,
+            'message': 'An error occurred while deleting users.'
+        }, status=500)
+
+@login_required
+def user_detail(request, user_id):
+    """Display detailed information for a specific user."""
+    target_user = get_object_or_404(CustomUser, id=user_id)
+    
+    # Prevent admin users from viewing superadmin user profiles
+    if request.user.role == 'admin' and target_user.role in ['globaladmin', 'superadmin']:
+        messages.error(request, "You don't have permission to view superadmin user profiles.")
+        return redirect('users:user_list')
+    
+    # Check permission - users can view their own profile or globaladmin/admin/superadmin can view any profile
+    # Instructors can view learners in their branch
+    instructor_viewing_learner = (
+        request.user.role == 'instructor' and 
+        target_user.role == 'learner' and 
+        target_user.branch == request.user.branch
+    )
+    
+    if request.user.id != target_user.id and request.user.role not in ['globaladmin', 'superadmin', 'admin'] and not instructor_viewing_learner:
+        return HttpResponseForbidden("You don't have permission to view this user's profile")
+    
+    # Define breadcrumbs for this view
+    if request.user.role == 'instructor' and target_user.role == 'learner':
+        breadcrumbs = [
+            {'url': reverse('users:role_based_redirect'), 'label': 'Dashboard', 'icon': 'fa-home'},
+            {'url': reverse('users:user_list'), 'label': 'Learner Management', 'icon': 'fa-users'},
+            {'label': target_user.get_full_name() or target_user.username, 'icon': 'fa-user'}
+        ]
+    else:
+        breadcrumbs = [
+            {'url': reverse('users:role_based_redirect'), 'label': 'Dashboard', 'icon': 'fa-home'},
+            {'url': reverse('users:user_list'), 'label': 'User Management', 'icon': 'fa-users'},
+            {'label': target_user.get_full_name() or target_user.username, 'icon': 'fa-user'}
+        ]
+    
+    # Determine if user can edit profile
+    instructor_can_edit_learner = (
+        request.user.role == 'instructor' and 
+        target_user.role == 'learner' and 
+        target_user.branch == request.user.branch
+    )
+    
+    # Get context data needed for ILP tabs (same as edit_user view)
+    try:
+        # Get ILP data for various tabs
+        from individual_learning_plan.models import (
+            InductionChecklistSection, HealthSafety, LearningNeeds, 
+            LearningGoal, StrengthsWeaknessesItem
+        )
+        
+        # Get induction checklist sections
+        induction_sections = InductionChecklistSection.objects.filter(
+            user=target_user
+        ).prefetch_related('items').order_by('created_at')
+        
+        # Get health & safety items
+        existing_health_safety_items = HealthSafety.objects.filter(
+            user=target_user
+        ).order_by('created_at')
+        
+        # Get learning needs items
+        existing_learning_needs_items = LearningNeeds.objects.filter(
+            user=target_user
+        ).order_by('created_at')
+        
+        # Get learning goals
+        existing_learning_goals = LearningGoal.objects.filter(
+            user=target_user
+        ).order_by('created_at')
+        
+        # Get strengths & weaknesses items
+        existing_strengths_items = StrengthsWeaknessesItem.objects.filter(
+            user=target_user
+        ).order_by('created_at')
+        
+    except Exception as e:
+        # If any errors occur, just use empty lists
+        induction_sections = []
+        existing_health_safety_items = []
+        existing_learning_needs_items = []
+        existing_learning_goals = []
+        existing_strengths_items = []
+    
+    # Get branch assessment quizzes
+    initial_assessment_quizzes = []
+    vak_test_quizzes = []
+    initial_assessment_data = []
+    vak_test_data = []
+
+    if target_user.branch:
+        from quiz.models import Quiz, QuizAttempt
+        
+        # Find all Initial Assessment quizzes created by branch admins and instructors
+        initial_assessment_quizzes = Quiz.objects.filter(
+            creator__branch=target_user.branch,
+            creator__role__in=['admin', 'instructor'],
+            is_initial_assessment=True,
+            is_active=True
+        ).order_by('title')
+        
+        # Find all VAK Test quizzes created by branch admins and instructors
+        vak_test_quizzes = Quiz.objects.filter(
+            creator__branch=target_user.branch,
+            creator__role__in=['admin', 'instructor'],
+            is_vak_test=True,
+            is_active=True
+        ).order_by('title')
+        
+        # Get user's attempts for each Initial Assessment quiz - only latest
+        for quiz in initial_assessment_quizzes:
+            latest_attempt = QuizAttempt.objects.filter(
+                quiz=quiz,
+                user=target_user,
+                is_completed=True
+            ).order_by('-end_time').first()
+            
+            if latest_attempt:
+                initial_assessment_data.append({
+                    'quiz': quiz,
+                    'latest_attempt': latest_attempt,
+                    'latest_score': latest_attempt.score,
+                    'attempt_count': QuizAttempt.objects.filter(
+                        quiz=quiz,
+                        user=target_user,
+                        is_completed=True
+                    ).count()
+                })
+        
+        # Get user's attempts for each VAK Test quiz - only latest
+        for quiz in vak_test_quizzes:
+            latest_attempt = QuizAttempt.objects.filter(
+                quiz=quiz,
+                user=target_user,
+                is_completed=True
+            ).order_by('-end_time').first()
+            
+            if latest_attempt:
+                vak_test_data.append({
+                    'quiz': quiz,
+                    'latest_attempt': latest_attempt,
+                    'latest_score': latest_attempt.score,
+                    'attempt_count': QuizAttempt.objects.filter(
+                        quiz=quiz,
+                        user=target_user,
+                        is_completed=True
+                    ).count()
+                })
+    
+    # Get quiz assignments for Assessment Data tab only
+    from users.models import UserQuizAssignment
+    initial_assessment_assignments = UserQuizAssignment.objects.filter(
+        user=target_user,
+        assignment_type='initial_assessment',
+        is_active=True
+    ).select_related('quiz', 'assigned_by').order_by('assigned_at')
+    
+    # Get VAK quiz attempts with course/topic context
+    vak_quiz_attempts = target_user.get_vak_quiz_attempts_with_context()
+    
+    # Get manual assessment entries for Assessment Data tab
+    from users.models import ManualAssessmentEntry
+    manual_assessment_entries = ManualAssessmentEntry.objects.filter(
+        user=target_user
+    ).select_related('entered_by').order_by('subject')
+    
+    # Calculate profile completion data
+    profile_completion = target_user.get_profile_completion_percentage()
+    
+    # Get tab state from URL parameters
+    active_tab = request.GET.get('tab', 'account-tab')
+    active_subtab = request.GET.get('subtab', 'overview-tab')
+    active_nestedtab = request.GET.get('nestedtab', 'assessment-data-tab')
+    
+    # Load existing education records from JSON field
+    existing_education_records = []
+    existing_education_records_json = '[]'
+    if target_user.education_data:
+        try:
+            if isinstance(target_user.education_data, list):
+                existing_education_records = target_user.education_data
+            elif isinstance(target_user.education_data, str):
+                import json
+                existing_education_records = json.loads(target_user.education_data)
+            
+            # Convert to JSON string for template
+            import json
+            existing_education_records_json = json.dumps(existing_education_records)
+        except (json.JSONDecodeError, TypeError):
+            existing_education_records = []
+            existing_education_records_json = '[]'
+    
+    # Load existing employment records from JSON field
+    existing_employment_records = []
+    existing_employment_records_json = '[]'
+    if target_user.employment_data:
+        try:
+            if isinstance(target_user.employment_data, list):
+                existing_employment_records = target_user.employment_data
+            elif isinstance(target_user.employment_data, str):
+                import json
+                existing_employment_records = json.loads(target_user.employment_data)
+            
+            # Convert to JSON string for template
+            import json
+            existing_employment_records_json = json.dumps(existing_employment_records)
+        except (json.JSONDecodeError, TypeError):
+            existing_employment_records = []
+            existing_employment_records_json = '[]'
+    
+    context = {
+        'profile_user': target_user,
+        'can_edit': (request.user.role in ['globaladmin', 'superadmin', 'admin'] or 
+                    request.user.id == target_user.id or 
+                    instructor_can_edit_learner),
+        'breadcrumbs': breadcrumbs,
+        'is_edit_mode': False,  # This is view mode, not edit mode
+        # ILP data for tabs
+        'induction_sections': induction_sections,
+        'existing_health_safety_items': existing_health_safety_items,
+        'existing_learning_needs_items': existing_learning_needs_items,
+        'existing_learning_goals': existing_learning_goals,
+        'existing_strengths_items': existing_strengths_items,
+        # Assessment Data quiz context
+        'initial_assessment_quizzes': initial_assessment_quizzes,
+        'vak_test_quizzes': vak_test_quizzes,
+        'initial_assessment_data': initial_assessment_data,
+        'vak_test_data': vak_test_data,
+        'initial_assessment_assignments': initial_assessment_assignments,
+        # VAK quiz attempts with course/topic context
+        'vak_quiz_attempts': vak_quiz_attempts,
+        # Profile completion data
+        'profile_completion': profile_completion,
+        # Tab state management
+        'active_tab': active_tab,
+        'active_subtab': active_subtab,
+        'active_nestedtab': active_nestedtab,
+        # Education records data
+        'existing_education_records': existing_education_records,
+        'existing_education_records_json': existing_education_records_json,
+        # Employment records data
+        'existing_employment_records': existing_employment_records,
+        'existing_employment_records_json': existing_employment_records_json,
+        # Manual assessment entries for Assessment Data tab
+        'manual_assessment_entries': manual_assessment_entries,
+    }
+    
+    return render(request, 'users/shared/user_profile_tabbed.html', context)
+
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from django.http import HttpResponseForbidden, JsonResponse, HttpResponse, HttpResponseServerError
+from django.contrib.auth import authenticate, login, update_session_auth_hash, logout
+from django.template.exceptions import TemplateDoesNotExist
+from courses.models import Course, Topic, CourseEnrollment
+
+# Import TopicProgress and CourseTopic dynamically
+try:
+    from courses.models import TopicProgress
+except ImportError:
+    TopicProgress = None
+
+try:
+    from courses.models import CourseTopic
+except ImportError:
+    CourseTopic = None
 from courses.forms import CourseForm
 from users.models import CustomUser, Branch, UserQuestionnaire
 from .forms import (
@@ -391,7 +1559,8 @@ def custom_login(request):
         # Create proper context with all required variables
         context = {
             'form': None,  # No form for rate limited state
-            'next': request.GET.get('next', '')
+            'next': request.GET.get('next', ''),
+            'security_status': security_status,
         }
         return render(request, "users/shared/login.html", context)
     
@@ -431,7 +1600,8 @@ def custom_login(request):
             messages.error(request, "Username and password are required.")
             context = {
                 'form': None,
-                'next': request.GET.get('next', '')
+                'next': request.GET.get('next', ''),
+                'security_status': security_status,
             }
             return render(request, "users/shared/login.html", context)
         
@@ -441,7 +1611,8 @@ def custom_login(request):
             messages.error(request, "You must agree to the Terms of Service and Privacy Policy to log in.")
             context = {
                 'form': None,
-                'next': request.GET.get('next', '')
+                'next': request.GET.get('next', ''),
+                'security_status': security_status,
             }
             return render(request, "users/shared/login.html", context)
         
@@ -452,7 +1623,8 @@ def custom_login(request):
             messages.error(request, "Invalid username format.")
             context = {
                 'form': None,
-                'next': request.GET.get('next', '')
+                'next': request.GET.get('next', ''),
+                'security_status': security_status,
             }
             return render(request, "users/shared/login.html", context)
         
@@ -531,7 +1703,8 @@ def custom_login(request):
                     messages.error(request, "Error sending verification code. Please try again or contact support.")
                     context = {
                         'form': None,
-                        'next': request.GET.get('next', '')
+                        'next': request.GET.get('next', ''),
+                        'security_status': security_status,
                     }
                     return render(request, "users/shared/login.html", context)
             
@@ -576,7 +1749,8 @@ def custom_login(request):
     # Pass Session status to template with all required variables
     context = {
         'form': None,  # No form for GET requests
-        'next': request.GET.get('next', '')  # Get next parameter from URL
+        'next': request.GET.get('next', ''),  # Get next parameter from URL
+        'security_status': security_status,
     }
     return render(request, "users/shared/login.html", context)
 

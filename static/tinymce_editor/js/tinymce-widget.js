@@ -490,7 +490,6 @@
                     let maxSize, sizeDescription;
                     
                     if (fileExtension === 'zip') {
-                        // SCORM packages or archives - allow up to 600MB
                         maxSize = 600 * 1024 * 1024;
                         sizeDescription = '600MB';
                     } else if (videoExtensions.includes(fileExtension)) {

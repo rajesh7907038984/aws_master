@@ -122,78 +122,12 @@ def get_item(dictionary, key):
     except (TypeError, AttributeError):
         return None
 
-@register.simple_tag
-def get_scorm_topic(scorm_package):
-    """
-    Gets the Topic object associated with a native SCORM package
-    Usage: {% get_scorm_topic scorm_package as topic %}
-    """
-    try:
-        # Import here to avoid circular imports
-        from courses.models import Topic
-        
-        # For native SCORM, the package has a direct relationship with topic
-        if hasattr(scorm_package, 'topic'):
-            return scorm_package.topic
-        
-        # Fallback: try to find topic by matching SCORM content
-        topic = Topic.objects.filter(
-            content_type='SCORM',
-            scorm_package=scorm_package
-        ).first()
-        return topic
-    except Exception:
-        return None
 
 @register.simple_tag
-def has_scorm_progress(registration):
-    """
-    Check if a SCORM registration represents actual progress (not just an initial registration)
-    """
-    if not registration:
-        return False
-    
-    # Consider it progress if any of these conditions are met:
-    # 1. Has been accessed (last_accessed is set) - this indicates user actually opened the content
-    # 2. Has spent some time (more than 0 seconds) - this indicates user interaction
-    # 3. Completion status is completed or passed - this indicates actual completion
-    # 4. Has a score AND last_accessed (score without access suggests programmatic assignment)
-    
-    # First check: User actually accessed the content
-    if registration.last_accessed:
-        return True
-    
-    # Second check: User spent time on the content
-    if registration.total_time and registration.total_time > 0:
-        return True
-    
-    # Third check: Content is completed or passed (CMI-only check)
-    if registration.completion_status in ['completed', 'passed'] or registration.lesson_status in ['completed', 'passed'] or registration.success_status == 'passed':
-        return True
-        
-    # Fourth check: Has a score AND was accessed (prevents false positives from programmatic scores)
-    if registration.score and registration.score > 0 and registration.last_accessed:
-        return True
-    
-    # Check if there's meaningful progress data that indicates actual user interaction
-    if registration.progress_data and isinstance(registration.progress_data, dict):
-        # Look for meaningful progress indicators that suggest user interaction
-        if registration.progress_data.get('progress', 0) > 0:
-            return True
-        if registration.progress_data.get('completion_percent', 0) > 0:
-            return True
-        # Only consider scorm_sync if there's also evidence of user interaction
-        if (registration.progress_data.get('scorm_sync', False) and 
-            (registration.last_accessed or registration.total_time > 0)):
-            return True
-    
-    return False
-
-@register.simple_tag
-def get_activity_score(activity, student_id, grades, quiz_attempts, scorm_registrations=None):
+def get_activity_score(activity, student_id, grades, quiz_attempts):
     """
     Get the score data for a specific activity and student
-    Usage: {% get_activity_score activity student.id grades quiz_attempts scorm_registrations as score_data %}
+    Usage: {% get_activity_score activity student.id grades quiz_attempts as score_data %}
     """
     try:
         from decimal import Decimal
@@ -404,95 +338,15 @@ def get_activity_score(activity, student_id, grades, quiz_attempts, scorm_regist
                 'object': conference
             }
             
-        elif activity['type'] == 'scorm':
-            # SCORM packages - check registrations for scores
-            if scorm_registrations:
-                for registration in scorm_registrations:
-                    if registration.package.id == activity['object'].id and registration.user_id == student_id:
-                        # Only return registration data if there's actual progress
-                        if has_scorm_progress(registration):
-                            return {
-                                'score': registration.score,
-                                'max_score': activity['max_score'],
-                                'date': registration.created_at,
-                                'type': 'scorm',
-                                'object': activity['object'],
-                                'registration': registration,
-                                'completion_status': registration.completion_status,
-                                'success_status': registration.success_status
-                            }
-                        # If registration exists but no progress, treat as not started and don't return registration data
-                        return {
-                            'score': None,
-                            'max_score': activity['max_score'],
-                            'type': 'scorm',
-                            'object': activity['object']
-                        }
-            return {
-                'score': None,
-                'max_score': activity['max_score'],
-                'type': 'scorm',
-                'object': activity['object']
-            }
-            
-        elif activity['type'] == 'scorm_topic':
-            # SCORM topics - check TopicProgress for scores
-            try:
-                from courses.models import TopicProgress
-                
-                topic_progress = TopicProgress.objects.filter(
-                    topic=activity['object'],
-                    user_id=student_id
-                ).first()
-                
-                if topic_progress and (topic_progress.last_score is not None or topic_progress.completed or topic_progress.attempts > 0 or topic_progress.last_accessed):
-                    # CMI-ONLY: Calculate completion status using only CMI data
-                    completion_status = 'completed' if topic_progress.completed else 'incomplete'
-                    
-                    # CMI-ONLY: Determine success status based on CMI completion status
-                    success_status = 'unknown'
-                    if topic_progress.completed:
-                        # If TopicProgress shows completed, it means CMI completion was detected
-                        success_status = 'passed'
-                    elif topic_progress.last_score is not None:
-                        # Only use score for progress indication, not completion determination
-                        if float(topic_progress.last_score) >= 70:
-                            success_status = 'passed'
-                        else:
-                            success_status = 'failed'
-                    elif (topic_progress.attempts > 0 or topic_progress.last_accessed) and not topic_progress.completed:
-                        # Learner has attempted/accessed but not completed - consider as failed
-                        success_status = 'failed'
-                    
-                    return {
-                        'score': float(topic_progress.last_score) if topic_progress.last_score else None,
-                        'max_score': activity['max_score'],
-                        'date': topic_progress.last_accessed,
-                        'type': 'scorm_topic',
-                        'object': activity['object'],
-                        'topic_progress': topic_progress,
-                        'completion_status': completion_status,
-                        'success_status': success_status,
-                        'completed': topic_progress.completed
-                    }
-            except Exception:
-                pass
-            
-            return {
-                'score': None,
-                'max_score': activity['max_score'],
-                'type': 'scorm_topic',
-                'object': activity['object']
-            }
             
     except (ValueError, AttributeError, TypeError):
         return {'score': None, 'max_score': 0, 'type': 'unknown'}
 
 @register.simple_tag
-def calculate_student_total(student_id, activities, grades, quiz_attempts, scorm_registrations=None):
+def calculate_student_total(student_id, activities, grades, quiz_attempts):
     """
     Calculate total score for a student across all activities
-    Usage: {% calculate_student_total student.id activities grades quiz_attempts scorm_registrations as total_data %}
+    Usage: {% calculate_student_total student.id activities grades quiz_attempts as total_data %}
     Uses only the latest submission/attempt for each activity
     """
     try:
@@ -633,51 +487,6 @@ def calculate_student_total(student_id, activities, grades, quiz_attempts, scorm
                     # Add total possible points for conference
                     total_possible += activity_max_score
                             
-                elif activity['type'] == 'scorm':
-                    # Look for SCORM registrations for this student and package
-                    if scorm_registrations:
-                        for registration in scorm_registrations:
-                            if registration.package.id == activity['object'].id and registration.user_id == student_id:
-                                # Only include score if the SCORM activity has a score
-                                if registration.score is not None:
-                                    # Convert the score to a percentage of max_score (SCORM scores are typically 0-100)
-                                    score_percentage = Decimal(str(registration.score)) / Decimal('100')
-                                    activity_score = score_percentage * activity_max_score
-                                    
-                                    # CMI-ONLY: Add to total only if completed or passed based on CMI data
-                                    if (registration.completion_status in ['completed', 'passed'] or 
-                                        registration.lesson_status in ['completed', 'passed'] or
-                                        registration.success_status == 'passed'):
-                                        total_earned += activity_score
-                                break  # Use the first matching registration
-                    
-                    # Add total possible points for SCORM
-                    total_possible += activity_max_score
-                
-                elif activity['type'] == 'scorm_topic':
-                    # Handle SCORM topics - check TopicProgress for scores
-                    try:
-                        from courses.models import TopicProgress
-                        
-                        topic_progress = TopicProgress.objects.filter(
-                            topic=activity['object'],
-                            user_id=student_id
-                        ).first()
-                        
-                        if topic_progress and topic_progress.last_score is not None:
-                            # Convert the score (typically 0-100) to a percentage of max_score
-                            score_percentage = Decimal(str(topic_progress.last_score)) / Decimal('100')
-                            activity_score = score_percentage * activity_max_score
-                            
-                            # Add to total only if completed or has a passing score
-                            if topic_progress.completed or float(topic_progress.last_score) >= 70:
-                                total_earned += activity_score
-                    except Exception:
-                        pass
-                    
-                    # Add total possible points for SCORM topic
-                    total_possible += activity_max_score
-                
                 else:
                     # For any other activity types, just add the max_score to total_possible
                     total_possible += activity_max_score
@@ -696,23 +505,9 @@ def calculate_student_total(student_id, activities, grades, quiz_attempts, scorm
         logging.error(f"Error in calculate_student_total: {str(e)}")
         return {'earned': 0, 'possible': 0, 'percentage': 0}
 
-@register.simple_tag
-def get_scorm_registration(scorm_registrations, package_id):
-    """
-    Get the first SCORM registration for a specific package
-    Usage: {% get_scorm_registration scorm_registrations activity.object.id as registration %}
-    """
-    try:
-        package_id = int(package_id)
-        for registration in scorm_registrations:
-            if registration.package.id == package_id:
-                return registration
-        return None
-    except (ValueError, AttributeError, TypeError):
-        return None
 
 @register.simple_tag
-def course_has_activities(course, activity_type, assignments=None, quizzes=None, quiz_attempts=None, discussions=None, conferences=None, scorm_registrations=None):
+def course_has_activities(course, activity_type, assignments=None, quizzes=None, quiz_attempts=None, discussions=None, conferences=None):
     """
     Check if a course has activities of a specific type
     MODIFIED: Always show activities if they exist in the course, regardless of student interaction
@@ -729,18 +524,6 @@ def course_has_activities(course, activity_type, assignments=None, quizzes=None,
             return any(discussion.course and discussion.course.id == course.id and discussion.rubric for discussion in discussions)
         elif activity_type == 'conference' and conferences:
             return any(conference.course and conference.course.id == course.id and conference.rubric for conference in conferences)
-        elif activity_type == 'scorm' and scorm_registrations:
-            # For SCORM, check if there are any packages available in the course (via topics)
-            try:
-                from courses.models import Topic
-                # Check if the course has any SCORM topics
-                scorm_topics = Topic.objects.filter(
-                    coursetopic__course=course,
-                    content_type='SCORM'
-                )
-                return scorm_topics.exists()
-            except Exception:
-                return False
         return False
     except Exception:
         return False
@@ -759,25 +542,6 @@ def should_hide_course(student_id, course_id, student_courses_with_activities, u
     except (ValueError, TypeError, AttributeError):
         return False 
 
-@register.simple_tag
-def get_scorm_registration_for_topic(scorm_registrations, student_id, topic_id):
-    """
-    Get the SCORM registration for a specific student and topic
-    Usage: {% get_scorm_registration_for_topic scorm_registrations student.id topic.id as registration %}
-    """
-    try:
-        student_id = int(student_id)
-        topic_id = int(topic_id)
-        
-        for registration in scorm_registrations:
-            if registration.user_id == student_id:
-                # Get the topic associated with this registration
-                topic = get_scorm_topic(registration.package)
-                if topic and topic.id == topic_id:
-                    return registration
-        return None
-    except (ValueError, AttributeError, TypeError):
-        return None 
 
 @register.simple_tag
 def get_activity_status(activity, user_id):
@@ -1180,7 +944,7 @@ def calculate_student_total_optimized(student_scores, student_id, activities):
                     # Add to earned points if score exists and not excused
                     if score_data.get('score') is not None and not score_data.get('excused', False):
                         total_earned += Decimal(str(score_data['score']))
-                    # Also count completed activities even without scores (for SCORM completions)
+                    # Also count completed activities even without scores
                     elif (score_data.get('completed', False) or 
                           score_data.get('completion_status') == 'completed' or 
                           score_data.get('success_status') == 'passed') and not score_data.get('excused', False):
@@ -1246,8 +1010,6 @@ def get_activity_type_label(activity_type):
         'quiz': 'QUZ',
         'discussion': 'DSC',
         'conference': 'CNF',
-        'scorm': 'SCO',
-        'scorm_topic': 'SCO'
     }
     return labels.get(activity_type, 'UNK')
 
@@ -1299,13 +1061,5 @@ def get_activity_status_text(activity_type, score_data):
             return 'Evaluated'
         else:
             return 'Not Evaluated'
-    
-    elif activity_type == 'scorm':
-        if score_data.get('score') and score_data.get('completion_status') == 'completed':
-            return 'Completed'
-        elif score_data.get('registration'):
-            return 'In Progress'
-        else:
-            return 'Not Started'
     
     return 'Unknown'

@@ -234,7 +234,6 @@ document.addEventListener('DOMContentLoaded', function() {
         input.addEventListener('change', function() {
             handleFileUpload(this);
             
-            // Special handling for SCORM file
             if (this.id === 'content_file') {
                 const file = this.files[0];
                 if (file) {

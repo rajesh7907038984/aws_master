@@ -96,17 +96,11 @@ if [ ! -z "$MEDIA_ROOT" ] && [ ! -d "$MEDIA_ROOT" ]; then
     mkdir -p "$MEDIA_ROOT"
 fi
 
-# Create SCORM uploads directory
-if [ ! -z "$SCORM_ROOT_FOLDER" ] && [ ! -d "$SCORM_ROOT_FOLDER" ]; then
-    echo "   Creating SCORM uploads directory: $SCORM_ROOT_FOLDER"
-    mkdir -p "$SCORM_ROOT_FOLDER"
-fi
 
 # Set permissions
 chmod 755 "$LOGS_DIR"
 chmod 755 "$STATIC_ROOT"
 [ ! -z "$MEDIA_ROOT" ] && [ -d "$MEDIA_ROOT" ] && chmod 755 "$MEDIA_ROOT"
-[ ! -z "$SCORM_ROOT_FOLDER" ] && [ -d "$SCORM_ROOT_FOLDER" ] && chmod 755 "$SCORM_ROOT_FOLDER"
 
 echo " Directories created successfully"
 
@@ -208,7 +202,7 @@ import os
 project_root = os.environ.get('PROJECT_ROOT', '/home/ec2-user/lms')
 static_root = os.environ.get('STATIC_ROOT', '/home/ec2-user/lmsstaticfiles')
 media_root = os.environ.get('MEDIA_ROOT', f'{project_root}/media')
-primary_domain = os.environ.get('PRIMARY_DOMAIN', 'lms.nexsy.io')
+primary_domain = os.environ.get('PRIMARY_DOMAIN', 'localhost')
 alb_domain = os.environ.get('ALB_DOMAIN', '')
 gunicorn_bind = os.environ.get('GUNICORN_BIND', '127.0.0.1:8000')
 

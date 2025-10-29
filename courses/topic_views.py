@@ -17,7 +17,7 @@ except ImportError:
 try:
     from .models import CourseTopic
 except ImportError:
-    CourseTopic = Course.topics.through if hasattr(Course, "topics") else None
+    CourseTopic = None
 
 logger = logging.getLogger(__name__)
 
@@ -94,8 +94,7 @@ def topic_view(request, topic_id):
         try:
             from courses.models import CourseTopic
         except ImportError:
-            from courses.models import Course
-            CourseTopic = Course.topics.through if hasattr(Course, "topics") else None
+            CourseTopic = None
         
         # Get all topics for this course that the user can access
         if request.user.is_authenticated and request.user.role == 'learner':

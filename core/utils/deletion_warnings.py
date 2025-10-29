@@ -60,9 +60,6 @@ def _get_topic_deletion_warning(topic_name, related_data_count):
     if related_data_count.get('report_templates', 0) > 0:
         warning_parts.append(f"<li><strong>{related_data_count['report_templates']}</strong> report templates</li>")
     
-    if related_data_count.get('scorm_content', 0) > 0:
-        warning_parts.append(f"<li><strong>{related_data_count['scorm_content']}</strong> SCORM content and files</li>")
-    
     if related_data_count.get('uploaded_files', 0) > 0:
         warning_parts.append(f"<li><strong>{related_data_count['uploaded_files']}</strong> uploaded files</li>")
     
@@ -106,9 +103,6 @@ def _get_course_deletion_warning(course_name, related_data_count):
     
     if related_data_count.get('report_templates', 0) > 0:
         warning_parts.append(f"<li><strong>{related_data_count['report_templates']}</strong> report templates</li>")
-    
-    if related_data_count.get('scorm_content', 0) > 0:
-        warning_parts.append(f"<li><strong>{related_data_count['scorm_content']}</strong> SCORM content and files</li>")
     
     if related_data_count.get('uploaded_files', 0) > 0:
         warning_parts.append(f"<li><strong>{related_data_count['uploaded_files']}</strong> course files and media</li>")
@@ -187,7 +181,6 @@ def get_related_data_counts(obj):
                 except:
                     pass
                 counts['report_templates'] = 0
-                counts['scorm_content'] = 0
                 counts['uploaded_files'] = 1 if obj.content_file else 0
                 
             else:  # Course
@@ -202,7 +195,6 @@ def get_related_data_counts(obj):
                 except:
                     pass
                 counts['report_templates'] = 0
-                counts['scorm_content'] = 0
                 counts['uploaded_files'] = 0
                 if obj.course_image:
                     counts['uploaded_files'] += 1

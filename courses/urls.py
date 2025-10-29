@@ -65,12 +65,9 @@ urlpatterns = [
     path('topic/<int:topic_id>/discussion/', views.topic_discussion_view, name='topic_discussion_view'),
     path('topic/<int:topic_id>/complete/', views.mark_topic_complete, name='mark_topic_complete'),
     
-    # SCORM Upload Management - REMOVED
-    # path('topic/<int:topic_id>/scorm/progress/', views.scorm_upload_progress, name='scorm_upload_progress'),
-    # path('topic/<int:topic_id>/scorm/status/', views.scorm_upload_status, name='scorm_upload_status'),
+    
     path('topic/<int:topic_id>/incomplete/', views.mark_topic_incomplete, name='mark_topic_incomplete'),
-    # SCORM tracking removed
-    # path('topic/<int:topic_id>/scorm-tracking/', views.scorm_tracking_update, name='scorm_tracking_update'),
+    
     path('api/update_audio_progress/<int:topic_id>/', views.update_audio_progress, name='update_audio_progress'),
     path('topic/<int:topic_id>/like/<str:item_type>/<int:item_id>/', views.like_item, name='like_item'),
     path('topic/<int:topic_id>/toggle-status/', views.toggle_topic_status, name='toggle_topic_status'),

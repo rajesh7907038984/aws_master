@@ -125,39 +125,6 @@ class ScoreCalculationService:
             logger.error(f"Failed to convert {percentage}% to points out of {total_points}: {e}")
             return None
     
-    @classmethod
-    def handle_scorm_score(cls, scorm_score_data: Dict[str, Any]) -> Optional[Decimal]:
-        """
-        Handle SCORM score data with proper normalization
-        
-        Args:
-            scorm_score_data: Dictionary containing SCORM score information
-            
-        Returns:
-            Normalized score or None
-        """
-        if not isinstance(scorm_score_data, dict):
-            return cls.normalize_score(scorm_score_data)
-        
-        score = None
-        
-        # Try scaled score first (0-1 range)
-        if 'scaled' in scorm_score_data:
-            try:
-                scaled_score = float(scorm_score_data['scaled'])
-                # Convert to percentage (0-100)
-                score = scaled_score * 100
-            except (ValueError, TypeError) as e:
-                logger.error(f"Failed to process SCORM scaled score: {e}")
-        
-        # Try raw score if scaled not available
-        elif 'raw' in scorm_score_data:
-            try:
-                score = float(scorm_score_data['raw'])
-            except (ValueError, TypeError) as e:
-                logger.error(f"Failed to process SCORM raw score: {e}")
-        
-        return cls.normalize_score(score)
     
     @classmethod
     def validate_score_update(cls, current_score: Any, new_score: Any, 
@@ -255,6 +222,3 @@ def calculate_percentage(earned, total):
     """Backward compatibility function"""
     return ScoreCalculationService.calculate_percentage(earned, total)
 
-def handle_scorm_score(scorm_data):
-    """Backward compatibility function"""
-    return ScoreCalculationService.handle_scorm_score(scorm_data)

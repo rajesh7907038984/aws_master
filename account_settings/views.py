@@ -773,7 +773,7 @@ LMS System''',
         
         # Always load user's own integrations for proper template rendering
         teams_integration = TeamsIntegration.objects.filter(user=request.user).first()
-        # Zoom integration only for branch admins (like SCORM)
+        # Zoom integration only for branch admins
         zoom_integration = ZoomIntegration.objects.filter(user=request.user).first() if is_branch_admin else None
         stripe_integration = StripeIntegration.objects.filter(user=request.user).first()
         paypal_integration = PayPalIntegration.objects.filter(user=request.user).first()
@@ -2248,9 +2248,19 @@ def start_export(request):
     
     # Start export in background
     def run_export():
+        import tempfile
+        import shutil
+        temp_dir_used = False
         try:
-            output_dir = os.path.join(settings.MEDIA_ROOT, 'exports')
-            os.makedirs(output_dir, exist_ok=True)
+            # Determine output directory - use temp if S3, otherwise use MEDIA_ROOT
+            if settings.MEDIA_ROOT:
+                output_dir = os.path.join(settings.MEDIA_ROOT, 'exports')
+                os.makedirs(output_dir, exist_ok=True)
+            else:
+                # Using S3 - create temp directory for export
+                output_dir = tempfile.mkdtemp(prefix='export_')
+                temp_dir_used = True
+                logger.info(f"Using temp directory for export: {output_dir}")
             
             # Use sys.executable to get the current Python interpreter path
             cmd = [
@@ -2272,6 +2282,34 @@ def start_export(request):
                 text=True
             )
             
+            # If using temp directory, upload exported files to S3
+            if temp_dir_used:
+                exported_files = glob.glob(os.path.join(output_dir, '*'))
+                uploaded_count = 0
+                for file_path in exported_files:
+                    if os.path.isfile(file_path):
+                        # Upload to S3
+                        s3_key = f'exports/{os.path.basename(file_path)}'
+                        try:
+                            with open(file_path, 'rb') as f:
+                                default_storage.save(s3_key, ContentFile(f.read()))
+                            uploaded_count += 1
+                            logger.info(f"Uploaded export file to S3: {s3_key}")
+                        except Exception as e:
+                            logger.error(f"Failed to upload {file_path} to S3: {str(e)}")
+                
+                # Clean up temp directory
+                try:
+                    shutil.rmtree(output_dir, ignore_errors=True)
+                    logger.info(f"Cleaned up temp export directory")
+                except Exception as e:
+                    logger.warning(f"Failed to clean up temp directory: {str(e)}")
+                
+                if uploaded_count > 0:
+                    job.status = 'completed'
+                    job.error_message = f'Export completed. {uploaded_count} file(s) uploaded to S3.'
+                    job.save()
+            
         except subprocess.CalledProcessError as e:
             job.status = 'failed'
             error_msg = f'Export command failed with exit code {e.returncode}'
@@ -2281,10 +2319,22 @@ def start_export(request):
                 error_msg += f'\nStderr: {e.stderr}'
             job.error_message = error_msg
             job.save()
+            # Clean up temp directory on error
+            if temp_dir_used:
+                try:
+                    shutil.rmtree(output_dir, ignore_errors=True)
+                except:
+                    pass
         except Exception as e:
             job.status = 'failed'
             job.error_message = f'Unexpected error: {str(e)}'
             job.save()
+            # Clean up temp directory on error
+            if temp_dir_used:
+                try:
+                    shutil.rmtree(output_dir, ignore_errors=True)
+                except:
+                    pass
     
     # Run export in background thread
     thread = threading.Thread(target=run_export)
@@ -2323,15 +2373,27 @@ def start_import(request):
     if not import_file.name.endswith('.zip'):
         return JsonResponse({'success': False, 'error': 'Import file must be a ZIP archive'})
     
-    # Save uploaded file
-    import_dir = os.path.join(settings.MEDIA_ROOT, 'imports')
-    os.makedirs(import_dir, exist_ok=True)
-    
-    file_path = os.path.join(import_dir, f'{timezone.now().strftime("%Y%m%d_%H%M%S")}_{import_file.name}')
-    
-    with open(file_path, 'wb+') as destination:
-        for chunk in import_file.chunks():
-            destination.write(chunk)
+    # Save uploaded file - use temp file if S3, otherwise use MEDIA_ROOT
+    import tempfile
+    if settings.MEDIA_ROOT:
+        import_dir = os.path.join(settings.MEDIA_ROOT, 'imports')
+        os.makedirs(import_dir, exist_ok=True)
+        file_path = os.path.join(import_dir, f'{timezone.now().strftime("%Y%m%d_%H%M%S")}_{import_file.name}')
+        with open(file_path, 'wb+') as destination:
+            for chunk in import_file.chunks():
+                destination.write(chunk)
+    else:
+        # Using S3 - save to temp file first
+        fd, file_path = tempfile.mkstemp(prefix='import_', suffix='.zip')
+        try:
+            with os.fdopen(fd, 'wb') as destination:
+                for chunk in import_file.chunks():
+                    destination.write(chunk)
+            logger.info(f"Saved import file to temp location: {file_path}")
+        except Exception as e:
+            os.close(fd)
+            os.unlink(file_path)
+            raise e
     
     # Create import job
     job = ImportJob.objects.create(
@@ -2344,6 +2406,7 @@ def start_import(request):
     
     # Start import in background
     def run_import():
+        temp_file_used = not settings.MEDIA_ROOT
         try:
             cmd = [
                 sys.executable, 'manage.py', 'import_data',
@@ -2377,6 +2440,14 @@ def start_import(request):
             job.status = 'failed'
             job.error_message = f'Unexpected error: {str(e)}'
             job.save()
+        finally:
+            # Clean up temp file if using S3
+            if temp_file_used and os.path.exists(file_path):
+                try:
+                    os.unlink(file_path)
+                    logger.info(f"Cleaned up temp import file: {file_path}")
+                except Exception as e:
+                    logger.warning(f"Failed to clean up temp import file: {str(e)}")
     
     # Run import in background thread
     thread = threading.Thread(target=run_import)
@@ -2564,10 +2635,19 @@ def create_backup(request):
     
     description = request.POST.get('description', 'Manual backup')
     
+    import tempfile
+    import shutil
+    temp_dir_used = False
     try:
-        # Create backup directory
-        backup_dir = os.path.join(settings.MEDIA_ROOT, 'backups')
-        os.makedirs(backup_dir, exist_ok=True)
+        # Determine backup directory - use temp if S3, otherwise use MEDIA_ROOT
+        if settings.MEDIA_ROOT:
+            backup_dir = os.path.join(settings.MEDIA_ROOT, 'backups')
+            os.makedirs(backup_dir, exist_ok=True)
+        else:
+            # Using S3 - create temp directory for backup
+            backup_dir = tempfile.mkdtemp(prefix='backup_')
+            temp_dir_used = True
+            logger.info(f"Using temp directory for backup: {backup_dir}")
         
         # Generate backup filename with timestamp
         timestamp = timezone.now().strftime('%Y%m%d_%H%M%S')
@@ -2605,6 +2685,19 @@ def create_backup(request):
                 os.rename(actual_backup_path, final_backup_path)
                 actual_backup_path = final_backup_path
             
+            # If using S3, upload backup file to S3 and update file_path
+            if temp_dir_used:
+                s3_key = f'backups/{backup_filename}'
+                try:
+                    with open(actual_backup_path, 'rb') as f:
+                        default_storage.save(s3_key, ContentFile(f.read()))
+                    # Update file_path to S3 key for database record
+                    actual_backup_path = s3_key
+                    logger.info(f"Uploaded backup file to S3: {s3_key}")
+                except Exception as e:
+                    logger.error(f"Failed to upload backup to S3: {str(e)}")
+                    return JsonResponse({'success': False, 'error': f'Failed to upload backup to S3: {str(e)}'})
+            
             # Create backup record
             backup = DataBackup.objects.create(
                 backup_type='manual',
@@ -2613,6 +2706,14 @@ def create_backup(request):
                 created_by=request.user,
                 description=description
             )
+            
+            # Clean up temp directory if using S3
+            if temp_dir_used:
+                try:
+                    shutil.rmtree(backup_dir, ignore_errors=True)
+                    logger.info(f"Cleaned up temp backup directory")
+                except Exception as e:
+                    logger.warning(f"Failed to clean up temp backup directory: {str(e)}")
             
             return JsonResponse({
                 'success': True,
@@ -2623,6 +2724,12 @@ def create_backup(request):
                 'created_at': backup.created_at.isoformat()
             })
         else:
+            # Clean up temp directory if no backup file found
+            if temp_dir_used:
+                try:
+                    shutil.rmtree(backup_dir, ignore_errors=True)
+                except:
+                    pass
             return JsonResponse({'success': False, 'error': 'Backup file not found after export'})
             
     except subprocess.CalledProcessError as e:
@@ -2882,134 +2989,6 @@ def test_sharepoint_connection(request):
     except Exception as e:
         logger.error(f"Error testing SharePoint connection for user {request.user.id}: {str(e)}")
         return JsonResponse({'success': False, 'error': f'Error testing connection: {str(e)}'}) 
-
-
-@login_required
-def test_scorm_connection(request):
-    """Test SCORM Cloud connection for the current user"""
-    logger.info(f"SCORM connection test requested by user {request.user.username} (ID: {request.user.id})")
-    
-    if request.method != 'POST':
-        logger.warning(f"Invalid request method for SCORM test: {request.method}")
-        return JsonResponse({'success': False, 'error': 'Invalid request method'})
-    
-    try:
-        logger.info("Starting SCORM connection test process...")
-        
-        # Add CSRF debug info
-        logger.info(f"CSRF token present: {bool(request.META.get('CSRF_COOKIE'))}")
-        logger.info(f"Request headers: {dict(request.headers)}")
-        
-        # Use the same lookup logic as get_scorm_client to ensure consistency
-        logger.info("Importing SCORM client...")
-        try:
-            from scorm_cloud.utils.api import get_scorm_client
-            logger.info("SCORM client import successful")
-        except ImportError as import_error:
-            logger.error(f"Failed to import SCORM client: {str(import_error)}")
-            return JsonResponse({'success': False, 'error': f'SCORM module not available: {str(import_error)}'})
-        
-        # Get the SCORM client using the same logic as the main application
-        logger.info("Getting SCORM client...")
-        try:
-            scorm_client = get_scorm_client(user=request.user)
-            logger.info(f"SCORM client obtained: {scorm_client is not None}")
-        except Exception as client_error:
-            logger.error(f"Error getting SCORM client: {str(client_error)}")
-            return JsonResponse({'success': False, 'error': f'Error initializing SCORM client: {str(client_error)}'})
-        
-        if not scorm_client:
-            logger.warning(f"Test connection - No SCORM client available for user {request.user.username}")
-            return JsonResponse({
-                'success': False, 
-                'error': 'No SCORM integration found. Please configure SCORM integration first.'
-            })
-        
-        try:
-            logger.info(f"Checking SCORM client configuration...")
-            is_configured = scorm_client.is_configured
-            logger.info(f"SCORM client configured: {is_configured}")
-        except Exception as config_error:
-            logger.error(f"Error checking SCORM client configuration: {str(config_error)}")
-            return JsonResponse({'success': False, 'error': f'Error checking SCORM configuration: {str(config_error)}'})
-        
-        if not is_configured:
-            logger.warning(f"Test connection - SCORM client not properly configured for user {request.user.username}")
-            return JsonResponse({
-                'success': False, 
-                'error': 'SCORM Cloud credentials are missing or invalid. Please check your configuration.'
-            })
-        
-        # For display purposes, try to find the integration model (might be None for global settings)
-        try:
-            logger.info("Looking up SCORM integration from database...")
-            # SCORM integration removed - using global settings only
-            scorm_integration = None
-            logger.info(f"Found SCORM integration: {scorm_integration is not None}")
-        except Exception as db_error:
-            logger.error(f"Database error looking up SCORM integration: {str(db_error)}")
-            # If we can't access the database, but we have a working SCORM client, 
-            # we can still test the connection using the global settings
-        
-        logger.info(f"Test connection - Using SCORM integration: {scorm_integration}")
-        
-        # Test the connection using the client or model's test_connection method
-        if scorm_integration:
-            logger.info(f"Test connection - Testing branch integration with app_id: {scorm_integration.app_id[:6]}****, base_url: {scorm_integration.base_url}")
-            try:
-                test_success, test_message = scorm_integration.test_connection()
-                logger.info(f"Test connection - Result: success={test_success}, message={test_message}")
-                
-                if test_success:
-                    return JsonResponse({
-                        'success': True, 
-                        'message': test_message,
-                        'app_id': scorm_integration.app_id,
-                        'base_url': scorm_integration.base_url,
-                        'integration_type': 'branch_specific'
-                    })
-                else:
-                    return JsonResponse({'success': False, 'error': test_message})
-            except Exception as test_error:
-                logger.error(f"Error testing branch integration: {str(test_error)}")
-                return JsonResponse({'success': False, 'error': f'Error testing branch integration: {str(test_error)}'})
-        else:
-            # Using global settings, test directly with client
-            logger.info(f"Test connection - Testing branch-specific SCORM settings with app_id: {scorm_client.app_id[:6] if scorm_client.app_id else 'None'}****, base_url: {scorm_client.base_url}")
-            
-            # Create a simple ping test using the same method as the model
-            try:
-                # Try to use the SCORM client's built-in test mechanism
-                # Create a simple test by making a basic API call
-                test_response = scorm_client._make_request('GET', 'ping')
-                test_message = "SCORM Cloud connection successful (using branch-specific settings)"
-                logger.info(f"Test connection - Global settings test successful")
-                
-                return JsonResponse({
-                    'success': True, 
-                    'message': test_message,
-                    'app_id': scorm_client.app_id,
-                    'base_url': scorm_client.base_url,
-                    'integration_type': 'global_settings'
-                })
-                    
-            except Exception as test_error:
-                error_msg = f"Failed to test SCORM Cloud connection: {str(test_error)}"
-                logger.error(f"Test connection - Global settings test error: {error_msg}")
-                return JsonResponse({'success': False, 'error': error_msg})
-            
-    except Exception as e:
-        logger.error(f"Unexpected error testing SCORM connection for user {request.user.id}: {str(e)}")
-        logger.exception("Full traceback:")
-        
-        # Check if it's a database error
-        if 'database' in str(e).lower() or 'connection' in str(e).lower():
-            error_msg = 'Database connection error. Please check your database configuration or try again later.'
-        else:
-            error_msg = f'Error testing connection: {str(e)}'
-            
-        return JsonResponse({'success': False, 'error': error_msg})
-
 
 @login_required
 def manual_sharepoint_sync(request):
@@ -3700,7 +3679,7 @@ def generate_dynamic_setup_data(user_list_name, enrollment_list_name, progress_l
                     {'name': 'CourseName', 'type': 'Single line of text', 'required': True, 'description': 'Course title'},
                     {'name': 'TopicID', 'type': 'Single line of text', 'required': True, 'description': 'Topic/module identifier'},
                     {'name': 'TopicName', 'type': 'Single line of text', 'required': True, 'description': 'Topic title'},
-                    {'name': 'TopicType', 'type': 'Choice', 'required': True, 'choices': ['scorm', 'video', 'document', 'text', 'audio', 'web', 'quiz', 'assignment', 'discussion'], 'description': 'Content type'},
+                    {'name': 'TopicType', 'type': 'Choice', 'required': True, 'choices': ['video', 'document', 'text', 'audio', 'web', 'quiz', 'assignment', 'discussion'], 'description': 'Content type'},
                     {'name': 'ProgressPercent', 'type': 'Number', 'required': False, 'description': 'Topic completion percentage'},
                     {'name': 'CompletionDate', 'type': 'Date and Time', 'required': False, 'description': 'Topic completion date'},
                     {'name': 'TimeSpent', 'type': 'Number', 'required': False, 'description': 'Time spent on topic (minutes)'},

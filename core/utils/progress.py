@@ -53,9 +53,7 @@ class ProgressCalculationService:
             }
             
             # Calculate completion percentage based on topic type
-            if topic.topic_type == 'scorm':
-                result.update(cls._calculate_scorm_progress(progress, topic))
-            elif topic.topic_type == 'quiz':
+            if topic.topic_type == 'quiz':
                 result.update(cls._calculate_quiz_progress(user, topic))
             elif topic.topic_type == 'assignment':
                 result.update(cls._calculate_assignment_progress(user, topic))
@@ -80,72 +78,6 @@ class ProgressCalculationService:
             }
     
     @classmethod
-    def _calculate_scorm_progress(cls, progress, topic) -> Dict[str, Any]:
-        """Calculate progress for SCORM content using ONLY CMI data"""
-        try:
-            # Get native SCORM package data
-            from scorm.models import ScormPackage, ScormAttempt
-            
-            # Check if this topic has a SCORM package
-            try:
-                scorm_package = ScormPackage.objects.get(topic=topic)
-            except ScormPackage.DoesNotExist:
-                return {'completion_percentage': 100.0 if progress.completed else 0.0}
-            
-            # Get the user's latest attempt
-            latest_attempt = ScormAttempt.objects.filter(
-                user=progress.user,
-                scorm_package=scorm_package
-            ).order_by('-attempt_number').first()
-            
-            if not latest_attempt:
-                return {'completion_percentage': 0.0}
-            
-            # Use ONLY SCORM CMI data for completion determination
-            completion_percentage = 0.0
-            
-            # PRIMARY: Check CMI completion status (proper SCORM standard)
-            is_completed = (
-                latest_attempt.completion_status in ['completed', 'passed'] or
-                latest_attempt.lesson_status in ['completed', 'passed'] or
-                latest_attempt.success_status in ['passed']
-            )
-            
-            if is_completed:
-                # ENHANCED: Handle both scored and non-scored SCORM content
-                if scorm_package.mastery_score and scorm_package.has_score_requirement:
-                    # SCORM WITH SCORES: Check mastery requirement
-                    if latest_attempt.score_raw and latest_attempt.score_raw >= scorm_package.mastery_score:
-                        completion_percentage = 100.0
-                    else:
-                        # Don't show as completed if score doesn't meet mastery requirement
-                        score_progress = (float(latest_attempt.score_raw or 0) / float(scorm_package.mastery_score)) * 100
-                        completion_percentage = min(score_progress, 99.0)  # Cap at 99% if not passed
-                else:
-                    # SCORM WITHOUT SCORES: Use completion status only
-                    completion_percentage = 100.0
-            else:
-                # SCORM WITHOUT SCORES: Use completion status only
-                if scorm_package.mastery_score and scorm_package.has_score_requirement:
-                    # Use only CMI score data for partial progress
-                    if latest_attempt.score_raw:
-                        completion_percentage = min(float(latest_attempt.score_raw), 90.0)
-                    else:
-                        completion_percentage = 0.0
-                else:
-                    # No score requirement - use completion status
-                    completion_percentage = 0.0
-            
-            return {
-                'completion_percentage': completion_percentage,
-                'scorm_status': latest_attempt.completion_status,
-                'scorm_score': float(latest_attempt.score_raw) if latest_attempt.score_raw else None,
-                'scorm_time': latest_attempt.total_time
-            }
-            
-        except Exception as e:
-            logger.error(f"Error calculating SCORM progress: {e}")
-            return {'completion_percentage': 0.0, 'error': str(e)}
     
     @classmethod
     def _calculate_quiz_progress(cls, user, topic) -> Dict[str, Any]:

@@ -58,12 +58,11 @@ from wsgiref.util import FileWrapper
 import magic
 from io import BytesIO
 
-# Third-party Imports
-from scorm_cloud.utils.api import SCORMCloudError
+ 
 from role_management.utils import require_capability, require_any_capability, PermissionManager
 
 # Core App Imports
-from core.decorators import check_scorm_configuration
+ 
 from core.decorators.error_handling import comprehensive_error_handler, api_error_handler, safe_file_operation
 from core.utils.file_Session import FileSessionValidator
 from core.utils.query_optimization import QueryOptimizer

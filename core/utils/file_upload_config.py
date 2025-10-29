@@ -21,7 +21,6 @@ class FileUploadConfig:
         'document': 600,
         'audio': 600,
         'archive': 600,
-        'scorm': 600,
         'general': 600
     }
     
@@ -159,9 +158,3 @@ class CommonValidators:
         config = FileUploadConfig.get_validator_config('image', 'users')
         return SecureFilenameValidator(**config)
     
-    @staticmethod
-    def get_scorm_validator():
-        """Validator for SCORM packages."""
-        from .secure_filename_validator import SecureFilenameValidator
-        config = FileUploadConfig.get_validator_config('scorm', 'courses')
-        return SecureFilenameValidator(**config)

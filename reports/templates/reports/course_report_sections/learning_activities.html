@@ -28,15 +28,9 @@
                         {{ topic.title }}
                     </td>
                     <td class="px-6 py-4">
-                        {% if topic.scorm_content %}
-                            <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
-                                SCORM
-                            </span>
-                        {% else %}
-                            <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">
-                                Standard
-                            </span>
-                        {% endif %}
+                        <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">
+                            {{ topic.get_content_type_display }}
+                        </span>
                     </td>
                     <td class="px-6 py-4">{{ topic.completed_count|default:0 }}</td>
                     <td class="px-6 py-4">{{ topic.in_progress_count|default:0 }}</td>

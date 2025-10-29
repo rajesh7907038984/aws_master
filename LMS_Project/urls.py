@@ -107,7 +107,6 @@ urlpatterns = [
     path('business/', include('business.urls', namespace='business')),
     path('branch-portal/', include('branch_portal.urls', namespace='branch_portal')),
     path('redirect/', role_based_redirect, name='role_based_redirect'),
-    path('scorm/', include('scorm.urls', namespace='scorm')),  # Native SCORM support
     path('messages/', include('lms_messages.urls', namespace='lms_messages')),
     path('discussions/', include('discussions.urls', namespace='discussions')),
     path('conferences/', include('conferences.urls', namespace='conferences')),

@@ -175,7 +175,6 @@ INSTALLED_APPS = [
     'groups',
     'branches',
     'business',
-    'scorm',  # Native SCORM support
     'branch_portal',
     'LMS_Project',
     'core',
@@ -213,10 +212,8 @@ INSTALLED_APPS = [
 # ==============================================
 
 MIDDLEWARE = [
-    'django.middleware.gzip.GZipMiddleware',  # Enable GZIP compression for large SCORM files
+    'django.middleware.gzip.GZipMiddleware',  # Enable GZIP compression
     'django.middleware.security.SecurityMiddleware',
-    'scorm.middleware.ScormTimeTrackingMiddleware',  # Process cached SCORM time data
-    'scorm.middleware.ScormTimeTrackingHealthMiddleware',  # Monitor SCORM time tracking health
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -326,7 +323,7 @@ SESSION_SAVE_EVERY_REQUEST = True  # CRITICAL: Enable session saving for proper 
 # Session serialization and security
 SESSION_SERIALIZER = 'django.contrib.sessions.serializers.JSONSerializer'
 SESSION_COOKIE_HTTPONLY = True
-SESSION_COOKIE_SAMESITE = 'None'  # Changed from 'Lax' to 'None' to support SCORM in new tabs/iframes
+SESSION_COOKIE_SAMESITE = 'Lax'
 SESSION_COOKIE_NAME = 'lms_sessionid'  # Custom session cookie name
 SESSION_COOKIE_DOMAIN = None
 SESSION_COOKIE_PATH = '/'
@@ -465,7 +462,7 @@ CACHES = {
 OUTLOOK_CLIENT_ID = get_env('OUTLOOK_CLIENT_ID')
 OUTLOOK_CLIENT_SECRET = get_env('OUTLOOK_CLIENT_SECRET')
 OUTLOOK_TENANT_ID = get_env('OUTLOOK_TENANT_ID')
-OUTLOOK_FROM_EMAIL = get_env('OUTLOOK_FROM_EMAIL', 'noreply@nexsy.io')
+OUTLOOK_FROM_EMAIL = get_env('OUTLOOK_FROM_EMAIL')
 
 # Anthropic API Configuration
 ANTHROPIC_API_KEY = get_env('ANTHROPIC_API_KEY')
@@ -493,7 +490,7 @@ else:
     # No hardcoded fallbacks - all email configuration must be done via Global Admin Settings
     print("📧 Email configuration via Global Admin Settings")
 
-DEFAULT_FROM_EMAIL = OUTLOOK_FROM_EMAIL if OUTLOOK_FROM_EMAIL else 'noreply@nexsy.io'
+DEFAULT_FROM_EMAIL = get_env('DEFAULT_FROM_EMAIL', OUTLOOK_FROM_EMAIL if OUTLOOK_FROM_EMAIL else f"noreply@{get_env('PRIMARY_DOMAIN', 'localhost')}")
 
 # ==============================================
 # INTERNATIONALIZATION
@@ -511,25 +508,9 @@ USE_TZ = True
 # Primary domain for the application
 PRIMARY_DOMAIN = get_env('PRIMARY_DOMAIN', 'localhost:8000')
 
-# Base URL for the application (used for email links, SCORM redirects, etc.)
+# Base URL for the application (used for email links, etc.)
 # Auto-constructs HTTPS URL if not explicitly provided
 BASE_URL = get_env('BASE_URL', f'http{"s" if ENVIRONMENT == "production" else ""}://{PRIMARY_DOMAIN}')
-
-# ==============================================
-# SCORM CONFIGURATION (New Implementation)
-# ==============================================
-
-# SCORM Upload Behavior - kept for worker management
-SCORM_IMMEDIATE_SYNC = get_bool_env('SCORM_IMMEDIATE_SYNC', True)
-SCORM_WORKER_AUTO_START = get_bool_env('SCORM_WORKER_AUTO_START', True)
-
-# SCORM Root Folder Configuration
-SCORM_ROOT_FOLDER = get_env('SCORM_ROOT_FOLDER', os.path.join(str(BASE_DIR), 'scorm_uploads'))
-SCORM_AUTO_CLEANUP = get_bool_env('SCORM_AUTO_CLEANUP', True)
-SCORM_CLEANUP_MAX_AGE_HOURS = get_int_env('SCORM_CLEANUP_MAX_AGE_HOURS', 24)
-
-# Note: SCORM functionality now uses local TopicProgress model
-# See courses.models.TopicProgress for SCORM progress tracking
 
 # ==============================================
 # AI INTEGRATION (ANTHROPIC)
@@ -566,12 +547,12 @@ env_trusted_ips = get_list_env('TRUSTED_IPS', default=[])
 TRUSTED_IPS = DEFAULT_TRUSTED_IPS + env_trusted_ips
 
 # Content Session Settings
-X_FRAME_OPTIONS = 'SAMEORIGIN'  # Allow iframes from same origin (required for SCORM content)
+X_FRAME_OPTIONS = 'SAMEORIGIN'  # Allow iframes from same origin
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 SECURE_REFERRER_POLICY = 'strict-origin-when-cross-origin'
 
-# Content Security Policy - Allow S3 content for SCORM
+# Content Security Policy
 # Note: Individual views can override this with more permissive policies
 SECURE_CONTENT_SECURITY_POLICY = None  # Disable default CSP, let views handle it
 
@@ -606,9 +587,9 @@ DATA_UPLOAD_MAX_NUMBER_FIELDS = 1000
 FILE_UPLOAD_PERMISSIONS = 0o644
 FILE_UPLOAD_DIRECTORY_PERMISSIONS = 0o755
 
-# Large file upload support for SCORM packages (1GB+)
-FILE_UPLOAD_MAX_MEMORY_SIZE = 2 * 1024 * 1024 * 1024  # 2GB - supports large SCORM packages
-DATA_UPLOAD_MAX_MEMORY_SIZE = 2 * 1024 * 1024 * 1024   # 2GB - supports large SCORM packages
+# Large file upload support (1GB+)
+FILE_UPLOAD_MAX_MEMORY_SIZE = 2 * 1024 * 1024 * 1024  # 2GB
+DATA_UPLOAD_MAX_MEMORY_SIZE = 2 * 1024 * 1024 * 1024   # 2GB
 DATA_UPLOAD_MAX_NUMBER_FIELDS = 1000
 
 # Temporary file handling for large uploads

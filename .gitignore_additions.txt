@@ -57,6 +57,3 @@ lmsstaticfiles/
 media/
 media_local/
 
-# SCORM uploads
-scorm_uploads/
-scorm_temp/

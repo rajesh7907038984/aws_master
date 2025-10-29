@@ -38,7 +38,6 @@ try:
 except ImportError:
     CourseFeature = None
 from .forms import TopicAdminForm
-# SCORM imports removed - functionality no longer supported
 
 logger = logging.getLogger(__name__)
 
@@ -301,7 +300,6 @@ class TopicProgressAdmin(admin.ModelAdmin):
     search_fields = ('user__username', 'topic__title')
     raw_id_fields = ('user', 'topic')
     readonly_fields = ('last_accessed', 'first_accessed', 'completion_data_display', 'progress_data_display')
-    actions = ['bulk_delete_selected', 'sync_scorm_data']
 
     # Remove default actions (including delete_selected) to avoid duplication
     def get_actions(self, request):
@@ -332,7 +330,6 @@ class TopicProgressAdmin(admin.ModelAdmin):
     )
     
     def get_queryset(self, request):
-        """Override to sync SCORM Cloud data for listed SCORM records and apply permissions"""
         qs = super().get_queryset(request)
         
         # Apply permission filtering
@@ -362,16 +359,7 @@ class TopicProgressAdmin(admin.ModelAdmin):
             # Define logger at the beginning of this section for consistent access
             logger = logging.getLogger(__name__)
             try:
-                # Import SCORM Cloud utilities
-                from scorm_cloud.utils.api import get_scorm_client
-                
-                # Get SCORM progress records with registration IDs
-                scorm_progress = filtered_qs.filter(
-                    topic__content_type='SCORM',
-                    scorm_registration_id__isnull=False
-                ).select_related('topic').order_by('-last_accessed')[:5]  # Limit to 5 most recent for performance
-                
-                for progress in scorm_progress:
+                for progress in filtered_qs:
                     try:
                         # Use a separate transaction for each record to isolate failures
                         with transaction.atomic():
@@ -388,8 +376,7 @@ class TopicProgressAdmin(admin.ModelAdmin):
                                     except (ImportError, ValueError):
                                         pass  # If we can't parse the date, proceed with sync
                             
-                            # Get the latest data from SCORM Cloud
-                            result = scorm_cloud.get_registration_status(progress.scorm_registration_id)
+                            result = None
                             
                             if result:
                                 # Initialize progress_data if needed
@@ -421,7 +408,6 @@ class TopicProgressAdmin(admin.ModelAdmin):
                                     'success_status': success_status,
                                     'completion_percent': completion_percent,
                                     'last_updated': timezone.now().isoformat(),
-                                    'scorm_sync': True,
                                     'status': completion_status if completion_status else 'not_attempted'
                                 })
                                 
@@ -442,7 +428,6 @@ class TopicProgressAdmin(admin.ModelAdmin):
                                 # Update completion status if needed
                                 if completion_status in ['completed', 'passed'] and not progress.completed:
                                     progress.completed = True
-                                    progress.completion_method = 'scorm'
                                     progress.completed_at = timezone.now()
                                     
                                     # Update completion data
@@ -450,9 +435,7 @@ class TopicProgressAdmin(admin.ModelAdmin):
                                         progress.completion_data = {}
                                     
                                     progress.completion_data.update({
-                                        'scorm_completion': True,
                                         'completed_at': progress.completed_at.isoformat(),
-                                        'completion_method': 'scorm'
                                     })
                                 
                             # Update score using unified scoring service
@@ -460,7 +443,6 @@ class TopicProgressAdmin(admin.ModelAdmin):
                                 from core.utils.scoring import ScoreCalculationService
                                 
                                 score_data = result.get('score', {})
-                                normalized_score = ScoreCalculationService.handle_scorm_score(score_data)
                                 
                                 if normalized_score is not None:
                                     progress.last_score = normalized_score
@@ -471,13 +453,12 @@ class TopicProgressAdmin(admin.ModelAdmin):
                                 progress.save()
                                 
                                 # Log the sync
-                                logger.info(f"Synced SCORM data for TopicProgress {progress.id}")
                     except Exception as e:
                         # Log but continue processing other records
-                        logger.error(f"Error syncing individual SCORM record {progress.id}: {str(e)}")
+                        logger.warning(f"Error syncing progress {progress.id}: {e}")
             
             except Exception as e:
-                logger.error(f"Error batch syncing SCORM Cloud data: {str(e)}")
+                logger.error(f"Error in auto sync: {e}")
         
         return filtered_qs
 
@@ -531,19 +512,7 @@ class TopicProgressAdmin(admin.ModelAdmin):
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
     def get_progress_display(self, obj):
-        """Enhanced progress display with SCORM support"""
-        if obj.topic.content_type == 'SCORM':
-            scorm_content = obj.topic.get_scorm_content()
-            if scorm_content:
-                registration = scorm_content.package.get_registration(obj.user)
-                if registration:
-                    status = registration.completion_status
-                    score = registration.score
-                    status_display = status.replace('_', ' ').title()
-                    if score is not None:
-                        return f"{status_display} (Score: {score}%%)"
-                    return status_display
-            return "Not Started"
+        """Enhanced progress display"""
         return f"{obj.get_progress_percentage()}%%"
 
     get_progress_display.short_description = 'Progress'
@@ -691,55 +660,15 @@ class TopicProgressAdmin(admin.ModelAdmin):
         html = "<table class='progress-data'>"
         html += "<tr><th>Property</th><th>Value</th></tr>"
         
-        # Special handling for SCORM content
-        if obj.topic.content_type == 'SCORM':
-            # Display status
-            status_value = obj.progress_data.get('status', 'not_attempted')
-            html += f"<tr><td>Status</td><td>{status_value.replace('_', ' ').title()}</td></tr>"
-            
-            # Display last updated time
-            last_updated = obj.progress_data.get('last_updated')
-            if last_updated:
-                html += f"<tr><td>Last Updated</td><td>{last_updated}</td></tr>"
-            
-            # Display success status
-            success_status = obj.progress_data.get('success_status', 'unknown')
-            html += f"<tr><td>Success Status</td><td>{success_status.replace('_', ' ').title()}</td></tr>"
-            
-            # Display first viewed time
-            first_viewed = obj.progress_data.get('first_viewed_at')
-            if first_viewed:
-                html += f"<tr><td>First Viewed At</td><td>{first_viewed}</td></tr>"
-            
-            # Display last updated at
-            last_updated_at = obj.progress_data.get('last_updated_at')
-            if last_updated_at:
-                html += f"<tr><td>Last Updated At</td><td>{last_updated_at}</td></tr>"
-            
-            # Display SCORM sync status
-            scorm_sync = obj.progress_data.get('scorm_sync', False)
-            html += f"<tr><td>SCORM Sync</td><td>{'Yes' if scorm_sync else 'No'}</td></tr>"
-            
-            # Display completion status
-            completion_status = obj.progress_data.get('completion_status', 'not_attempted')
-            html += f"<tr><td>Completion Status</td><td>{completion_status.replace('_', ' ').title()}</td></tr>"
-            
-            # Display completion percentage
-            completion_percent = obj.progress_data.get('completion_percent', 0)
-            html += f"<tr><td>Completion Percent</td><td>{completion_percent}</td></tr>"
-            
-            html += "</table>"
-            return mark_safe(html)
-            
         # Handle Audio progress special case
-        elif obj.topic.content_type == 'Audio':
+        if obj.topic and obj.topic.content_type == 'Audio':
             html += f"<tr><td>Audio Progress</td><td>{obj.audio_progress:.1f}%</td></tr>"
             html += f"<tr><td>Last Position</td><td>{obj.last_audio_position:.1f}s</td></tr>"
             html += "</table>"
             return mark_safe(html)
         
         # Handle Discussion progress special case
-        if obj.topic.content_type == 'Discussion':
+        if obj.topic and obj.topic.content_type == 'Discussion':
             # Display completion status
             html += f"<tr><td>Discussion Completed</td><td>{'Yes' if obj.completed else 'No'}</td></tr>"
             
@@ -765,7 +694,7 @@ class TopicProgressAdmin(admin.ModelAdmin):
             return mark_safe(html)
         
         # Handle Video progress special case
-        if obj.topic.content_type in ['Video', 'EmbedVideo']:
+        if obj.topic and obj.topic.content_type in ['Video', 'EmbedVideo']:
             # Display percentage progress
             progress_value = obj.progress_data.get('progress', 0)
             html += f"<tr><td>Progress</td><td>{progress_value:.1f}%</td></tr>"
@@ -868,282 +797,7 @@ class TopicProgressAdmin(admin.ModelAdmin):
     bulk_delete_selected.short_description = "Delete selected topic progress"
 
     def change_view(self, request, object_id, form_url='', extra_context=None):
-        """Override to sync SCORM Cloud data when viewing a record"""
-        obj = self.get_object(request, object_id)
-        if obj and obj.topic.content_type == 'SCORM' and obj.scorm_registration_id:
-            # Define logger at the beginning of the method to ensure it's available in all scopes
-            logger = logging.getLogger(__name__)
-            try:
-                # Use atomic transaction to prevent partial updates
-                with transaction.atomic():
-                    # Import SCORM Cloud utilities
-                    from scorm_cloud.utils.api import get_scorm_client
-                    
-                    try:
-                        # Get the latest data from SCORM Cloud
-                        result = scorm_cloud.get_registration_status(obj.scorm_registration_id)
-                        
-                        if result:
-                            # Initialize progress_data if needed
-                            if not isinstance(obj.progress_data, dict):
-                                obj.progress_data = {}
-                            
-                            # Ensure required fields exist
-                            if 'first_viewed_at' not in obj.progress_data:
-                                obj.progress_data['first_viewed_at'] = timezone.now().isoformat()
-                            if 'last_updated_at' not in obj.progress_data:
-                                obj.progress_data['last_updated_at'] = timezone.now().isoformat()
-                            
-                            completion_status = result.get('registrationCompletion', '').lower()
-                            success_status = result.get('registrationSuccess', '').lower()
-                            
-                            # Compute completion percentage based on objectives if available
-                            completion_percent = 0
-                            objectives = result.get('objectives', [])
-                            
-                            if objectives and len(objectives) > 0:
-                                completed_objectives = sum(1 for obj_data in objectives if obj_data.get('success') == 'PASSED')
-                                completion_percent = (completed_objectives / len(objectives)) * 100
-                            elif completion_status == 'completed':
-                                completion_percent = 100
-                            
-                            # Update progress_data
-                            obj.progress_data.update({
-                                'completion_status': completion_status,
-                                'success_status': success_status,
-                                'completion_percent': completion_percent,
-                                'last_updated': timezone.now().isoformat(),
-                                'scorm_cloud_sync': True,
-                                'status': completion_status if completion_status else 'not_attempted'
-                            })
-                            
-                            # Capture runtime data for bookmark
-                            runtime_data = result.get('runtime', {})
-                            if runtime_data and not obj.bookmark:
-                                obj.bookmark = {}
-                            
-                            if runtime_data:
-                                obj.bookmark.update({
-                                    'suspendData': runtime_data.get('suspendData'),
-                                    'lessonLocation': runtime_data.get('lessonLocation'),
-                                    'lessonStatus': runtime_data.get('completionStatus'),
-                                    'entry': runtime_data.get('entry'),
-                                    'updated_at': timezone.now().isoformat()
-                                })
-                            
-                            # Update completion status if needed
-                            if completion_status in ['completed', 'passed'] and not obj.completed:
-                                obj.completed = True
-                                obj.completion_method = 'scorm'
-                                obj.completed_at = timezone.now()
-                                
-                                # Update completion data
-                                if not obj.completion_data:
-                                    obj.completion_data = {}
-                                
-                                obj.completion_data.update({
-                                    'scorm_completion': True,
-                                    'completed_at': obj.completed_at.isoformat(),
-                                    'completion_method': 'scorm'
-                                })
-                            
-                            # Update score using unified scoring service
-                            if 'score' in result:
-                                from core.utils.scoring import ScoreCalculationService
-                                
-                                score_data = result.get('score', {})
-                                normalized_score = ScoreCalculationService.handle_scorm_score(score_data)
-                                
-                                if normalized_score is not None:
-                                    obj.last_score = normalized_score
-                                    if obj.best_score is None or normalized_score > obj.best_score:
-                                        obj.best_score = normalized_score
-                            
-                            # Save the updated object
-                            obj.save()
-                            
-                            # Add a message to show data was synced
-                            messages.info(request, "SCORM Cloud data synchronized successfully.")
-                    except Exception as e:
-                        logger.error(f"Error in SCORM Cloud API call: {str(e)}")
-                        raise  # Re-raise to be caught by outer try/except
-            
-            except Exception as e:
-                logger.error(f"Error syncing SCORM Cloud data: {str(e)}")
-                
-                # Add error message
-                messages.error(request, f"Error syncing with SCORM Cloud: {str(e)}")
-        
-        return super().change_view(request, object_id, form_url, extra_context=extra_context)
-
-    def sync_scorm_data(self, request, queryset):
-        """Manually sync selected records with SCORM Cloud"""
-        # Define logger at the beginning of the method for consistent access
-        logger = logging.getLogger(__name__)
-        try:
-            # Import SCORM Cloud utilities
-            from scorm_cloud.utils.api import get_scorm_client
-            
-            # Filter only SCORM topics with registration IDs
-            scorm_records = queryset.filter(
-                topic__content_type='SCORM',
-                scorm_registration__isnull=False
-            )
-            
-            if not scorm_records.exists():
-                self.message_user(
-                    request, 
-                    "No valid SCORM progress records found to sync.", 
-                    level=messages.WARNING
-                )
-                return
-            
-            synced_count = 0
-            errors = []
-            
-            for progress in scorm_records:
-                try:
-                    # Use transaction.atomic for each record to isolate failures
-                    with transaction.atomic():
-                        try:
-                            # Get the latest data from SCORM Cloud
-                            result = scorm_cloud.get_registration_status(progress.scorm_registration_id)
-                            
-                            if result:
-                                # Initialize progress_data if needed
-                                if not isinstance(progress.progress_data, dict):
-                                    progress.progress_data = {}
-                                
-                                # Ensure required fields exist
-                                if 'first_viewed_at' not in progress.progress_data:
-                                    progress.progress_data['first_viewed_at'] = timezone.now().isoformat()
-                                if 'last_updated_at' not in progress.progress_data:
-                                    progress.progress_data['last_updated_at'] = timezone.now().isoformat()
-                                
-                                completion_status = result.get('registrationCompletion', '').lower()
-                                success_status = result.get('registrationSuccess', '').lower()
-                                
-                                # Compute completion percentage based on objectives if available
-                                completion_percent = 0
-                                objectives = result.get('objectives', [])
-                                
-                                if objectives and len(objectives) > 0:
-                                    completed_objectives = sum(1 for obj_data in objectives if obj_data.get('success') == 'PASSED')
-                                    completion_percent = (completed_objectives / len(objectives)) * 100
-                                elif completion_status == 'completed':
-                                    completion_percent = 100
-                                
-                                # Update progress_data
-                                progress.progress_data.update({
-                                    'completion_status': completion_status,
-                                    'success_status': success_status,
-                                    'completion_percent': completion_percent,
-                                    'last_updated': timezone.now().isoformat(),
-                                    'scorm_sync': True,
-                                    'manual_sync': True,
-                                    'status': completion_status if completion_status else 'not_attempted'
-                                })
-                                
-                                # Capture runtime data for bookmark
-                                runtime_data = result.get('runtime', {})
-                                if runtime_data and not progress.bookmark:
-                                    progress.bookmark = {}
-                                
-                                if runtime_data:
-                                    progress.bookmark.update({
-                                        'suspendData': runtime_data.get('suspendData'),
-                                        'lessonLocation': runtime_data.get('lessonLocation'),
-                                        'lessonStatus': runtime_data.get('completionStatus'),
-                                        'entry': runtime_data.get('entry'),
-                                        'updated_at': timezone.now().isoformat()
-                                    })
-                                
-                                # Update completion status if needed
-                                if completion_status in ['completed', 'passed'] and not progress.completed:
-                                    progress.completed = True
-                                    progress.completion_method = 'scorm'
-                                    progress.completed_at = timezone.now()
-                                    
-                                    # Update completion data
-                                    if not progress.completion_data:
-                                        progress.completion_data = {}
-                                    
-                                    progress.completion_data.update({
-                                        'scorm_completion': True,
-                                        'completed_at': progress.completed_at.isoformat(),
-                                        'completion_method': 'scorm'
-                                    })
-                                
-                            # Update score using unified scoring service
-                            if 'score' in result:
-                                from core.utils.scoring import ScoreCalculationService
-                                
-                                score_data = result.get('score', {})
-                                normalized_score = ScoreCalculationService.handle_scorm_score(score_data)
-                                
-                                if normalized_score is not None:
-                                    progress.last_score = normalized_score
-                                    if progress.best_score is None or normalized_score > progress.best_score:
-                                        progress.best_score = normalized_score
-                                
-                                # Save the updated object
-                                progress.save()
-                                
-                                synced_count += 1
-                        except Exception as e:
-                            logger.error(f"Error in SCORM Cloud API call for record {progress.id}: {str(e)}")
-                            raise  # Re-raise to be caught by outer try/except
-                
-                except Exception as e:
-                    logger.error(f"Error syncing SCORM data for progress {progress.id}: {str(e)}")
-                    errors.append(f"Error with {progress.topic.title} for {progress.user.username}: {str(e)}")
-            
-            # Report results
-            if synced_count > 0:
-                self.message_user(
-                    request,
-                    f"Successfully synchronized {synced_count} of {scorm_records.count()} SCORM progress records.",
-                    level=messages.SUCCESS
-                )
-            
-            if errors:
-                self.message_user(
-                    request,
-                    f"Encountered {len(errors)} errors during synchronization: {', '.join(errors[:3])}{'...' if len(errors) > 3 else ''}",
-                    level=messages.WARNING
-                )
-                
-        except Exception as e:
-            logger.error(f"Error in sync_scorm_data action: {str(e)}")
-            self.message_user(
-                request,
-                f"Error synchronizing SCORM data: {str(e)}",
-                level=messages.ERROR
-            )
-
-    sync_scorm_data.short_description = "Sync selected records with SCORM Cloud"
-
-@admin.register(CourseEnrollment)
-class CourseEnrollmentAdmin(admin.ModelAdmin):
-    list_display = ('user', 'course', 'enrolled_at', 'completed', 'last_accessed')
-    list_filter = ('completed', 'enrolled_at')
-    search_fields = ('user__username', 'course__title')
-    raw_id_fields = ('user', 'course')
-
-    def get_queryset(self, request):
-        qs = super().get_queryset(request)
-        if request.user.is_superuser:
-            return qs
-        if request.user.role == 'admin':
-            return qs.filter(course__branch=request.user.branch)
-        if request.user.role == 'instructor':
-            return qs.filter(
-                course__instructor=request.user
-            ) | qs.filter(
-                course__accessible_groups__memberships__user=request.user,
-                course__accessible_groups__memberships__is_active=True
-            ).distinct()
-        return qs.none()
+        return super().change_view(request, object_id, form_url, extra_context)
     
 admin.site.unregister(Topic)
 admin.site.register(Topic, TopicAdmin)

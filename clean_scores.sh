@@ -25,8 +25,6 @@ if [ $# -eq 0 ]; then
     echo "=========================================="
     echo ""
     echo "This script cleans user learner score-related data including:"
-    echo "  - SCORM attempts and scores"
-    echo "  - SCORM interactions, objectives, and comments"
     echo "  - Gradebook grades"
     echo "  - Topic progress records"
     echo "  - Course enrollment completion data"

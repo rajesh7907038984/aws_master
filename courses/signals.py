@@ -21,8 +21,7 @@ except ImportError:
 try:
     from .models import CourseTopic
 except ImportError:
-    # CourseTopic is a through model, get it dynamically
-    CourseTopic = Course.topics.through if hasattr(Course, 'topics') else None
+    CourseTopic = None
 
 logger = logging.getLogger(__name__)
 
@@ -81,27 +80,6 @@ def cleanup_topic_data(sender, instance, **kwargs):
             
             logger.info(f"Starting cleanup for topic {topic_id}: {topic_title}")
             
-            # 1. Delete SCORM-related data if this is a SCORM topic
-            if instance.content_type == 'SCORM':
-                try:
-                    from scorm.models import ScormPackage, ScormAttempt
-                    
-                    # Check if SCORM package exists
-                    if hasattr(instance, 'scorm_package'):
-                        scorm_package = instance.scorm_package
-                        
-                        # Delete all attempts first
-                        attempts_count = ScormAttempt.objects.filter(scorm_package=scorm_package).count()
-                        if attempts_count > 0:
-                            ScormAttempt.objects.filter(scorm_package=scorm_package).delete()
-                            logger.info(f"Deleted {attempts_count} SCORM attempts for topic {topic_id}")
-                        
-                        # Delete the package (this will cascade to files if configured)
-                        scorm_package.delete()
-                        logger.info(f"Deleted SCORM package for topic {topic_id}")
-                        
-                except Exception as scorm_error:
-                    logger.error(f"Error cleaning up SCORM data for topic {topic_id}: {str(scorm_error)}")
             
             # 2. Delete all progress records for this topic
             progress_records = TopicProgress.objects.filter(topic=instance)
@@ -240,82 +218,3 @@ def send_enrollment_notification(sender, instance, created, **kwargs):
             logger.error(f"Error sending enrollment notification to {instance.user.username} for course {instance.course.title}: {str(e)}")
 
 
-@receiver(post_save, sender=Topic)
-def process_scorm_package(sender, instance, created, **kwargs):
-    """
-    Process SCORM package after Topic is saved with SCORM content.
-    This handler extracts and parses SCORM packages automatically.
-    """
-    # Only process if this is a SCORM topic with a content file
-    if instance.content_type != 'SCORM' or not instance.content_file:
-        return
-    
-    try:
-        # Import SCORM models
-        from scorm.models import ScormPackage
-        
-        # Check if ScormPackage already exists for this topic
-        if hasattr(instance, 'scorm_package') and ScormPackage.objects.filter(topic=instance).exists():
-            logger.info(f"SCORM package already exists for topic {instance.id}, skipping processing")
-            return
-        
-        # Import parser and validators
-        from scorm.parser import ScormParser
-        from scorm.validators import validate_scorm_package, ScormValidationError
-        
-        logger.info(f"🎯 Processing SCORM package for topic {instance.id}: {instance.title}")
-        
-        # Simple SCORM processing - no complex validation
-        logger.info(f" Simple SCORM processing for topic {instance.id}")
-        
-        # Open and parse the SCORM package
-        try:
-            instance.content_file.open('rb')
-            parser = ScormParser(instance.content_file)
-            package_data = parser.parse(skip_validation=True)  # Skip validation since we already did it
-            instance.content_file.close()
-        except Exception as parse_error:
-            logger.error(f" Error parsing SCORM package for topic {instance.id}: {str(parse_error)}")
-            try:
-                instance.content_file.close()
-            except:
-                pass
-            # Don't raise the exception - log the error and return to prevent topic creation failure
-            logger.warning(f" SCORM processing failed for topic {instance.id} - topic will be created without SCORM package")
-            return
-        
-        # Create ScormPackage record
-        try:
-            scorm_package = ScormPackage.objects.create(
-                topic=instance,
-                version=package_data['version'],
-                identifier=package_data['identifier'],
-                title=package_data.get('title', instance.title),
-                description=package_data.get('description', ''),
-                package_file=instance.content_file,
-                extracted_path=package_data['extracted_path'],
-                launch_url=package_data['launch_url'],
-                manifest_data=package_data['manifest_data'],
-                mastery_score=package_data.get('mastery_score')
-            )
-            
-            logger.info(f" SCORM package created successfully for topic {instance.id}")
-            logger.info(f"   📦 Package ID: {scorm_package.id}")
-            logger.info(f"   📌 Version: SCORM {scorm_package.version}")
-            logger.info(f"    Launch URL: {scorm_package.launch_url}")
-            logger.info(f"   📂 Extracted to: {scorm_package.extracted_path}")
-            logger.info(f"   🎯 Mastery Score: {scorm_package.mastery_score or 'Not set'}")
-            logger.info(f"    Title: {scorm_package.title}")
-            
-        except Exception as create_error:
-            logger.error(f" Error creating SCORM package record for topic {instance.id}: {str(create_error)}")
-            import traceback
-            logger.error(f"Traceback: {traceback.format_exc()}")
-            # Don't raise - topic creation should still succeed
-        
-    except Exception as e:
-        logger.error(f" Unexpected error processing SCORM package for topic {instance.id}: {str(e)}")
-        import traceback
-        logger.error(f"Traceback: {traceback.format_exc()}")
-        # Don't raise the exception to prevent topic creation failure
-        # The topic will be created but SCORM package won't be available

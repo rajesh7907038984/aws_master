@@ -287,7 +287,6 @@ class S3CleanupManager:
             f"topic_attachments/{topic_id}",
             f"topic_media/{topic_id}",
             f"editor_uploads/topics/{topic_id}",
-            f"scorm_content/{topic_id}",
             f"topic_files/{topic_id}"
         ]
         

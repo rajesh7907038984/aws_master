@@ -61,7 +61,7 @@ tmp_upload_dir = None
 # keyfile = "/path/to/keyfile"
 # certfile = "/path/to/certfile"
 
-# Security - increased limits for large SCORM uploads
+# Security - increased limits for large file uploads
 limit_request_line = 8190
 limit_request_fields = 200
 limit_request_field_size = 16380

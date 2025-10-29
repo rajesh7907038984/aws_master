@@ -18,8 +18,7 @@
                         "lesson_1.mp4", "Course Intro (Final).webm", "demo-video.ogg"
                     {% elif category == 'document' %}
                         "assignment_1.pdf", "Course Syllabus (2024).docx", "notes-week1.txt"
-                    {% elif category == 'scorm' %}
-                        "my_course_package.zip", "SCORM Package (v2).zip"
+                    
                     {% else %}
                         "my_file.pdf", "Course Material (2024).docx", "lesson-1_intro.mp4"
                     {% endif %}
@@ -34,8 +33,7 @@
                 <li>• <strong>Video formats:</strong> MP4, WEBM only • <strong>Max size:</strong> 500MB</li>
                 {% elif category == 'document' %}
                 <li>• <strong>Document formats:</strong> PDF, DOC, DOCX, TXT, RTF, XLS, XLSX • <strong>Max size:</strong> 50MB</li>
-                {% elif category == 'scorm' %}
-                <li>• <strong>SCORM format:</strong> ZIP files only • <strong>Max size:</strong> 600MB</li>
+                
                 {% else %}
                 <li>• <strong>File formats:</strong> Most common formats supported • <strong>Max size:</strong> varies by type</li>
                 {% endif %}

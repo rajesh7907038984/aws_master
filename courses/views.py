@@ -75,7 +75,7 @@ except ImportError:
 try:
     from courses.models import CourseTopic
 except ImportError:
-    CourseTopic = Course.topics.through if hasattr(Course, "topics") else None
+    CourseTopic = None
 from .forms import CourseForm, TopicForm
 from categories.models import CourseCategory
 from categories.context_processors import get_user_accessible_categories
@@ -2373,14 +2373,6 @@ def mark_topic_complete(request, topic_id):
         progress.progress_data['completed'] = True
         progress.progress_data['completed_at'] = timezone.now().isoformat()
     
-    # CRITICAL FIX: For SCORM content, explicitly sync score before marking complete
-    # This ensures the gradebook reflects the learner's score
-    if topic.content_type == 'SCORM':
-        score_synced = progress.sync_scorm_score()
-        if score_synced:
-            logger.info(f"✅ SCORM Score synced for topic {topic_id} before marking complete (score: {progress.last_score})")
-        else:
-            logger.warning(f"⚠️  No SCORM score found to sync for topic {topic_id}")
     
     # Use the mark_complete method instead of manually setting fields
     # This ensures all necessary fields and completion_data are updated
@@ -3422,14 +3414,6 @@ def topic_edit(request, topic_id, section_id=None):
             discussion_id = form_data.get('discussion')
             if discussion_id:
                 topic.discussion_id = discussion_id
-        elif content_type == 'scorm':
-            # SCORM packages are typically not replaced after creation
-            # But we allow metadata updates (title, description, etc.)
-            # File upload is only allowed during creation, not edit
-            if 'content_file' in files:
-                logger.warning(f"SCORM file upload attempted during edit for topic {topic_id} - ignoring")
-                messages.warning(request, "SCORM packages cannot be replaced after creation.")
-        
         # Handle section assignment
         new_section_name = form_data.get('new_section_name')
         section_id_from_form = form_data.get('section')
@@ -3530,7 +3514,6 @@ def topic_edit(request, topic_id, section_id=None):
         ('Document', 'Document'),
         ('Quiz', 'Quiz'),
         ('Assignment', 'Assignment'),
-        ('SCORM', 'SCORM Package'),
         ('Conference', 'Conference'),
         ('Discussion', 'Discussion'),
     ]
@@ -5903,11 +5886,11 @@ def check_video_status(request, course_id):
                     
                     # Ensure the URL is absolute for proper video loading
                     if not stream_url.startswith('http'):
-                        # Use request domain for staging environments to ensure correct URL generation
-                        if 'staging.nexsy.io' in request.get_host():
-                            stream_url = f"https://staging.nexsy.io{stream_url}"
-                        else:
-                            # Fallback to Site model for production environments
+                        # Use the incoming request to build an absolute URL in all environments
+                        try:
+                            stream_url = request.build_absolute_uri(stream_url)
+                        except Exception:
+                            # Fallback to Site model for environments without full request context
                             from django.contrib.sites.models import Site
                             try:
                                 current_site = Site.objects.get_current()

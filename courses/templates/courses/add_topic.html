@@ -1462,7 +1462,7 @@
                                 <div class="tab-content" id="assessments">
                                     <div class="content-type-options">
                                         {% for type, label in content_types %}
-                                            {% if type in 'Quiz,Assignment,SCORM,Conference,Discussion'|split:',' %}
+                                            {% if type in 'Quiz,Assignment,Conference,Discussion'|split:',' %}
                                             <div class="content-type-option">
                                                 {# Quiz topics are now unlimited per course - no restriction notice needed #}
                                                 {# Assignment topics are now unlimited per course - no restriction notice needed #}
@@ -1471,7 +1471,6 @@
                                                 <label for="type_{{ type }}">
                                                     {% if type == 'Quiz' %}<i class="fas fa-question-circle"></i>
                                                     {% elif type == 'Assignment' %}<i class="fas fa-tasks"></i>
-                                                    {% elif type == 'SCORM' %}<i class="fas fa-box"></i>
                                                     {% elif type == 'Conference' %}<i class="fas fa-users"></i>
                                                     {% elif type == 'Discussion' %}<i class="fas fa-comments"></i>
                                                     {% endif %}
@@ -1613,57 +1612,6 @@
                         <!-- Removed Quiz Description and Instructions section -->
                     </div>
 
-                    <!-- SCORM Content -->
-                    <div id="scorm-content" class="content-type-field">
-                        <div class="file-upload-container">
-                            <label class="block text-sm font-medium text-gray-700 mb-1">SCORM Package (ZIP file)</label>
-                            {% if topic.content_file and topic.content_type.lower == 'scorm' %}
-                            <!-- Existing SCORM file -->
-                            <div class="mt-1 p-4 bg-gray-50 border-2 border-gray-300 rounded-md">
-                                <div class="flex items-center space-x-3">
-                                    <i class="fas fa-file-archive text-3xl text-blue-500"></i>
-                                    <div class="flex-1">
-                                        <p class="text-sm font-medium text-gray-900">{{ topic.content_file|last_part }}</p>
-                                        <p class="text-xs text-gray-500 mt-1">SCORM package uploaded</p>
-                                    </div>
-                                </div>
-                                <div class="mt-3 flex gap-2">
-                                    <a href="{% url 'courses:topic_view' topic.id %}" target="_blank" class="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors">
-                                        <i class="fas fa-play mr-2"></i>
-                                        Preview SCORM Content
-                                    </a>
-                                    <a href="{% url 'courses:topic_view' topic.id %}" class="inline-flex items-center px-4 py-2 bg-gray-600 text-white text-sm font-medium rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-colors">
-                                        <i class="fas fa-external-link-alt mr-2"></i>
-                                        View Topic Page
-                                    </a>
-                                </div>
-                                <div class="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded">
-                                    <p class="text-sm text-yellow-800">
-                                        <i class="fas fa-exclamation-triangle mr-1"></i>
-                                        SCORM packages cannot be replaced once uploaded. To use a different SCORM package, please create a new topic.
-                                    </p>
-                                </div>
-                            </div>
-                            {% else %}
-                            <!-- Simple file upload like video topics -->
-                            <div class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md hover:border-gray-400 transition-colors">
-                                <div class="space-y-1 text-center">
-                                    <i class="fas fa-file-archive text-5xl text-gray-400 mb-3"></i>
-                                    <div class="flex text-sm text-gray-600">
-                                        <label for="scorm-file-input" class="relative cursor-pointer bg-white rounded-md font-medium text-indigo-600 hover:text-indigo-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-indigo-500">
-                                            <span>Upload a SCORM package</span>
-                                            <input id="scorm-file-input" name="content_file" type="file" accept=".zip,application/zip" class="file-input sr-only">
-                                        </label>
-                                        <p class="pl-1">or drag and drop</p>
-                                    </div>
-                                    <p class="text-xs text-gray-500">ZIP files (SCORM 1.2 or 2004) up to 600MB</p>
-                                </div>
-                            </div>
-                            <div class="selected-filename mt-2 text-sm text-gray-600 hidden"></div>
-                            <div class="file-preview mt-4 hidden"></div>
-                            {% endif %}
-                        </div>
-                    </div>
                     
                     <!-- Assignment Selection -->
                     <div id="assignment-content" class="content-type-field">
@@ -2244,7 +2192,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (selectedRadio) {
             const selectedType = selectedRadio.value;
             const learningTypes = ['Text', 'Audio', 'Video', 'Web', 'Document', 'EmbedVideo'];
-            const assessmentTypes = ['Quiz', 'Assignment', 'SCORM', 'Conference', 'Discussion'];
+            const assessmentTypes = ['Quiz', 'Assignment', 'Conference', 'Discussion'];
             
             // Show the appropriate tab
             if (assessmentTypes.includes(selectedType)) {
@@ -2319,8 +2267,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // SCORM file selection - now handled like video uploads (no direct S3 upload needed)
-    // File will be uploaded with form submission
 
     // Function to toggle description field visibility based on content type
     function toggleDescriptionVisibility(contentType) {
@@ -2399,7 +2345,6 @@ document.addEventListener('DOMContentLoaded', function() {
             toggleDescriptionVisibility(selectedRadio.value);
         }
         
-        // SCORM file input now uses standard file upload (no special handler needed)
     });
 </script>
 
@@ -3526,7 +3471,7 @@ if (typeof formHasUnsavedChanges === 'undefined') {
         // Function to show/hide content type fields
         function showContentTypeField(contentType) {
             // Define content types that should hide the Instructions field
-            const hideInstructionsTypes = ['video', 'document', 'text', 'audio', 'web', 'embedvideo', 'scorm', 'quiz', 'assignment', 'conference', 'discussion'];
+            const hideInstructionsTypes = ['video', 'document', 'text', 'audio', 'web', 'embedvideo', 'quiz', 'assignment', 'conference', 'discussion'];
             
             console.log('showContentTypeField called with:', contentType);
             console.log('contentType type:', typeof contentType);
@@ -3790,7 +3735,7 @@ if (typeof formHasUnsavedChanges === 'undefined') {
             const checkedRadio = document.querySelector('input[name="content_type"]:checked');
             if (checkedRadio) {
                 const contentType = checkedRadio.value.toLowerCase();
-                const hideInstructionsTypes = ['video', 'document', 'text', 'audio', 'web', 'embedvideo', 'scorm', 'quiz', 'assignment', 'conference', 'discussion'];
+                const hideInstructionsTypes = ['video', 'document', 'text', 'audio', 'web', 'embedvideo', 'quiz', 'assignment', 'conference', 'discussion'];
                 
                 if (hideInstructionsTypes.includes(contentType)) {
                     console.log('🎯 Force hiding instructions for:', contentType);
@@ -3802,7 +3747,7 @@ if (typeof formHasUnsavedChanges === 'undefined') {
             }
         }, 2000);
         
-        // Handle file input changes for audio, video, document, and SCORM uploads
+        // File upload functionality removed - no longer supported
         function setupFileInputHandlers() {
             const fileInputs = document.querySelectorAll('.file-input');
             
@@ -3947,454 +3892,6 @@ if (typeof formHasUnsavedChanges === 'undefined') {
             });
         });
         
-        // SCORM Upload Progress Monitoring
-        function setupSCORMUploadProgress() {
-            const topicForm = document.getElementById('topicForm');
-            if (!topicForm) return;
-            
-            let isUploadInProgress = false;
-            
-            // Create progress container (initially hidden)
-            const progressContainer = document.createElement('div');
-            progressContainer.id = 'scormUploadProgress';
-            progressContainer.className = 'mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg';
-            progressContainer.style.display = 'none';
-            progressContainer.innerHTML = `
-                <div class="text-center">
-                    <div class="text-lg font-semibold text-blue-800 mb-2">
-                        <i class="fas fa-cloud-upload-alt mr-2"></i>
-                        SCORM Upload in Progress
-                    </div>
-                    <div class="progress-bar-container mb-4">
-                        <div class="w-full bg-blue-200 rounded-full h-6">
-                            <div id="scormProgressBar" class="bg-primary-600 h-6 rounded-full transition-all duration-300 relative overflow-hidden" style="width: 10%">
-                                <div class="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent opacity-30 animate-pulse"></div>
-                            </div>
-                        </div>
-                    </div>
-                    <div id="scormProgressMessage" class="text-blue-700 mb-2">
-                        <span class="inline-block animate-spin mr-2"></span>
-                        Initializing upload...
-                    </div>
-                    <div class="text-sm text-blue-600">
-                        <i class="fas fa-info-circle mr-1"></i>
-                        Please keep this page open while the upload completes
-                    </div>
-                </div>
-            `;
-            
-            // Insert progress container after form title
-            const formTitle = document.querySelector('h1');
-            if (formTitle) {
-                formTitle.parentNode.insertBefore(progressContainer, formTitle.nextSibling);
-            }
-            
-            // Override form submission for SCORM topics
-            topicForm.addEventListener('submit', function(e) {
-                const contentTypeRadio = document.querySelector('input[name="content_type"]:checked');
-                const scormFile = document.querySelector('input[name="content_file"]');
-                
-                // SCORM now uses standard file upload like video - no special handling needed
-                console.log(' Standard form submission for all content types');
-            });
-            
-            function handleSCORMUpload() {
-                // Show progress container
-                progressContainer.style.display = 'block';
-                
-                // Disable form elements
-                const submitBtn = topicForm.querySelector('button[type="submit"]');
-                const formElements = topicForm.querySelectorAll('input, select, textarea, button');
-                formElements.forEach(el => el.disabled = true);
-                
-                if (submitBtn) {
-                    submitBtn.innerHTML = '<span class="animate-spin mr-2"></span> Uploading...';
-                }
-                
-                // Prepare form data
-                const formData = new FormData(topicForm);
-                
-                // IMPORTANT: Do NOT set Content-Type header when uploading files
-                // The browser will automatically set it to multipart/form-data with boundary
-                
-                // Log what we're sending
-                console.log('📤 Submitting SCORM form via AJAX');
-                console.log('Files in FormData:');
-                for (let pair of formData.entries()) {
-                    if (pair[1] instanceof File) {
-                        console.log(`  - ${pair[0]}: ${pair[1].name} (${pair[1].size} bytes)`);
-                    }
-                }
-                
-                // Submit via AJAX - CSRF token is already in FormData from form
-                fetch(topicForm.action, {
-                    method: 'POST',
-                    body: formData,
-                    // Do NOT include any headers - let browser handle it for file uploads
-                })
-                .then(response => {
-                    if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        return response.json();
-    })
-                .then(data => {
-                    if (data.success && data.is_scorm) {
-                        // Start progress monitoring
-                        monitorSCORMUpload(data.topic_id, data.upload_status_url, data.redirect_url);
-                    } else if (data.success) {
-                        // Non-SCORM topic, redirect immediately
-                        window.location.href = data.redirect_url;
-                    } else {
-                        throw new Error(data.error || 'Upload failed');
-                    }
-                })
-                .catch(error => {
-                    console.error('Upload error:', error);
-                    let errorMessage = 'Upload failed. Please try again.';
-                    
-                    // Check for specific error types
-                    if (error.message) {
-                        if (error.message.includes('disk space') || error.message.includes('storage')) {
-                            errorMessage = 'Server storage is full. Please try again later or contact support.';
-                        } else if (error.message.includes('size')) {
-                            errorMessage = 'File is too large. Please upload a smaller file.';
-                        } else {
-                            errorMessage = error.message;
-                        }
-                    }
-                    
-                    showUploadError(errorMessage);
-                    resetForm();
-                });
-            }
-            
-            function handleSCORMDirectUpload() {
-                // Create topic first without file
-                const formData = new FormData(topicForm);
-                
-                // Submit via AJAX to create topic
-                fetch(topicForm.action, {
-                    method: 'POST',
-                    body: formData,
-                    headers: {
-                        'X-Requested-With': 'XMLHttpRequest',
-                        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
-                    }
-                })
-                .then(response => {
-                    if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        return response.json();
-    })
-                .then(data => {
-                    if (data.success && data.is_scorm_direct) {
-                        // Topic created successfully, now prompt for file upload
-                        showDirectUploadInterface(data.topic_id, data.direct_upload_url, data.redirect_url);
-                    } else if (data.success) {
-                        // Non-SCORM topic, redirect immediately
-                        window.location.href = data.redirect_url;
-                    } else {
-                        throw new Error(data.error || 'Topic creation failed');
-                    }
-                })
-                .catch(error => {
-                    console.error('Topic creation error:', error);
-                    let errorMessage = 'Failed to create topic. Please try again.';
-                    
-                    if (error.message) {
-                        errorMessage = error.message;
-                    }
-                    
-                    // Check if it's a system error (Redis/connection issues)
-                    if (errorMessage.includes('System temporarily unavailable') || 
-                        errorMessage.includes('connection') || 
-                        errorMessage.includes('redis')) {
-                        errorMessage = ' System temporarily unavailable. Please try again in a few moments.';
-                    } else if (errorMessage.includes('SCORM integration is not configured')) {
-                        errorMessage = ' SCORM integration is not configured. Please contact your administrator.';
-                    }
-                    
-                    showUploadError(errorMessage);
-                    resetForm();
-                });
-            }
-            
-            function showDirectUploadInterface(topicId, uploadUrl, redirectUrl) {
-                // Show progress container with file upload interface
-                progressContainer.style.display = 'block';
-                
-                // Create direct upload interface
-                const directUploadHtml = `
-                    <div class="text-center p-6 bg-white rounded-lg shadow-md">
-                        <h3 class="text-lg font-semibold text-gray-800 mb-4">
-                            <i class="fas fa-upload text-blue-600 mr-2"></i>SCORM Topic Created
-                        </h3>
-                        <p class="text-gray-600 mb-4">Now upload your SCORM package:</p>
-                        
-                        <div class="mb-4">
-                            <input type="file" id="directScormFile" accept=".zip" 
-                                   class="hidden" onchange="handleDirectFileSelection(event)">
-                            <label for="directScormFile" 
-                                   class="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 cursor-pointer">
-                                <i class="fas fa-file-archive mr-2"></i>Choose SCORM Package
-                            </label>
-                        </div>
-                        
-                        <div id="selectedFileInfo" class="mb-4 text-sm text-gray-600 hidden"></div>
-                        
-                        <div class="space-x-4">
-                            <button id="uploadDirectBtn" onclick="uploadDirectSCORM('${topicId}', '${uploadUrl}', '${redirectUrl}')" 
-                                    class="px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:bg-gray-400" 
-                                    disabled>
-                                <i class="fas fa-cloud-upload-alt mr-2"></i>Upload to Cloud
-                            </button>
-                            <button onclick="cancelDirectUpload('${redirectUrl}')" 
-                                    class="px-6 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700">
-                                <i class="fas fa-times mr-2"></i>Skip for Now
-                            </button>
-                        </div>
-                        
-                        <div id="directUploadProgress" class="mt-6 hidden">
-                            <div class="bg-gray-200 rounded-full h-2 mb-2">
-                                <div id="directProgressBar" class="bg-primary-600 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
-                            </div>
-                            <div id="directProgressMessage" class="text-sm text-gray-600">Uploading...</div>
-                        </div>
-                    </div>
-                `;
-                
-                progressContainer.innerHTML = directUploadHtml;
-            }
-            
-            function handleDirectFileSelection(e) {
-                const input = e.target || e;
-                const file = input.files[0];
-                const fileInfo = document.getElementById('selectedFileInfo');
-                const uploadBtn = document.getElementById('uploadDirectBtn');
-                
-                if (file) {
-                    if (!file.name.toLowerCase().endsWith('.zip')) {
-                        alert('Please select a ZIP file.');
-                        input.value = '';
-                        return;
-                    }
-                    
-                    const sizeInMB = (file.size / 1024 / 1024).toFixed(2);
-                    fileInfo.innerHTML = `
-                        <i class="fas fa-file-archive text-blue-600 mr-2"></i>
-                        Selected: ${file.name} (${sizeInMB} MB)
-                    `;
-                    fileInfo.classList.remove('hidden');
-                    uploadBtn.disabled = false;
-                } else {
-                    fileInfo.classList.add('hidden');
-                    uploadBtn.disabled = true;
-                }
-            }
-            
-            function uploadDirectSCORM(topicId, uploadUrl, redirectUrl) {
-                const fileInput = document.getElementById('directScormFile');
-                const file = fileInput.files[0];
-                
-                if (!file) {
-                    alert('Please select a SCORM package first.');
-                    return;
-                }
-                
-                const progressDiv = document.getElementById('directUploadProgress');
-                const progressBar = document.getElementById('directProgressBar');
-                const progressMessage = document.getElementById('directProgressMessage');
-                const uploadBtn = document.getElementById('uploadDirectBtn');
-                
-                // Show progress and disable button
-                progressDiv.classList.remove('hidden');
-                uploadBtn.disabled = true;
-                uploadBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Uploading...';
-                
-                // Prepare form data
-                const formData = new FormData();
-                formData.append('scorm_file', file);
-                formData.append('topic_title', document.querySelector('[name="title"]').value);
-                formData.append('topic_id', topicId);
-                
-                // Upload SCORM package
-                fetch(uploadUrl, {
-                    method: 'POST',
-                    body: formData,
-                    headers: {
-                        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
-                    }
-                })
-                .then(response => {
-                    if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        return response.json();
-    })
-                .then(data => {
-                    if (data.status === 'success') {
-                        progressBar.style.width = '100%';
-                        progressMessage.innerHTML = '<i class="fas fa-check-circle text-green-600 mr-2"></i>Upload completed successfully!';
-                        
-                        // Add success parameters to redirect URL
-                        const redirectUrlObj = new URL(redirectUrl);
-                        redirectUrlObj.searchParams.set('scorm_success', 'true');
-                        redirectUrlObj.searchParams.set('topic_title', document.querySelector('[name="title"]').value || 'SCORM Topic');
-                        redirectUrlObj.searchParams.set('package_title', data.package_title || 'SCORM Package');
-                        
-                        setTimeout(() => {
-                            window.location.href = redirectUrlObj.toString();
-                        }, 2000);
-                    } else {
-                        throw new Error(data.message || 'Upload failed');
-                    }
-                })
-                .catch(error => {
-                    console.error('Direct upload error:', error);
-                    let errorMessage = error.message;
-                    
-                    // Check if it's a system error (Redis/connection issues)
-                    if (errorMessage.includes('System temporarily unavailable') || 
-                        errorMessage.includes('connection') || 
-                        errorMessage.includes('redis')) {
-                        errorMessage = ' System temporarily unavailable. Please try again in a few moments.';
-                    } else if (errorMessage.includes('SCORM integration is not configured')) {
-                        errorMessage = ' SCORM integration is not configured. Please contact your administrator.';
-                    } else if (errorMessage.includes('timeout')) {
-                        errorMessage = ' Upload timed out. Please try with a smaller file or check your internet connection.';
-                    }
-                    
-                    progressMessage.innerHTML = `<i class="fas fa-exclamation-triangle text-red-600 mr-2"></i>${errorMessage}`;
-                    uploadBtn.disabled = false;
-                    uploadBtn.innerHTML = '<i class="fas fa-cloud-upload-alt mr-2"></i>Retry Upload';
-                });
-            }
-            
-            function cancelDirectUpload(redirectUrl) {
-                if (confirm('Are you sure you want to skip the SCORM upload? You can upload it later from the course edit page.')) {
-                    window.location.href = redirectUrl;
-                }
-            }
-            
-            function monitorSCORMUpload(topicId, statusUrl, redirectUrl) {
-                let pollCount = 0;
-                const maxPolls = 900; // 30 minutes at 2-second intervals
-                let progressValue = 10;
-                
-                function updateProgress(percentage, message) {
-                    const progressBar = document.getElementById('scormProgressBar');
-                    const progressMessage = document.getElementById('scormProgressMessage');
-                    
-                    if (progressBar) progressBar.style.width = percentage + '%';
-                    if (progressMessage) progressMessage.innerHTML = message;
-                }
-                
-                function checkStatus() {
-                    fetch(statusUrl)
-                        .then(response => {
-                            if (!response.ok) {
-                                throw new Error(`HTTP error! status: ${response.status}`);
-                            }
-                            return response.json();
-                        })
-                        .then(data => {
-                            pollCount++;
-                            
-                            if (data.status === 'completed') {
-                                // Upload successful
-                                updateProgress(100, '<i class="fas fa-check-circle text-green-600 mr-2"></i>Upload completed successfully!');
-                                
-                                // Add success parameters to redirect URL
-                                const redirectUrlObj = new URL(redirectUrl);
-                                redirectUrlObj.searchParams.set('scorm_success', 'true');
-                                redirectUrlObj.searchParams.set('topic_title', data.topic_title || 'SCORM Topic');
-                                redirectUrlObj.searchParams.set('package_title', data.package_title || 'SCORM Package');
-                                
-                                setTimeout(() => {
-                                    window.location.href = redirectUrlObj.toString();
-                                }, 2000);
-                                
-                            } else if (data.status === 'error') {
-                                // Upload failed
-                                showUploadError(data.message || 'SCORM upload failed');
-                                resetForm();
-                                
-                            } else if (data.status === 'processing') {
-                                // Still processing
-                                progressValue = Math.min(90, 10 + (pollCount * 0.5)); // Gradually increase to 90%
-                                let message = data.message || 'Processing SCORM package...';
-                                
-                                if (data.file_size_mb) {
-                                    const estimatedMinutes = Math.ceil(data.file_size_mb / 10);
-                                    message += ` (Est. ${estimatedMinutes} min)`;
-                                }
-                                
-                                updateProgress(progressValue, `<span class="inline-block animate-spin mr-2"></span>${message}`);
-                                
-                                // Continue polling
-                                if (pollCount < maxPolls) {
-                                    setTimeout(checkStatus, 2000);
-                                } else {
-                                    showUploadError('Upload timeout. Large files may take up to 30 minutes.');
-                                }
-                            } else {
-                                // Unknown status, continue polling
-                                setTimeout(checkStatus, 2000);
-                            }
-                        })
-                        .catch(error => {
-                            console.error('Status check error:', error);
-                            updateProgress(progressValue, '<i class="fas fa-exclamation-triangle text-yellow-600 mr-2"></i>Connection error, retrying...');
-                            
-                            // Retry after delay
-                            if (pollCount < maxPolls) {
-                                setTimeout(checkStatus, 5000);
-                            }
-                        });
-                }
-                
-                // Start status checking
-                updateProgress(10, '<span class="inline-block animate-spin mr-2"></span>Starting upload...');
-                setTimeout(checkStatus, 2000);
-            }
-            
-            function showUploadError(message) {
-                const progressContainer = document.getElementById('scormUploadProgress');
-                if (progressContainer) {
-                    progressContainer.className = 'mt-6 p-4 bg-red-50 border border-red-200 rounded-lg';
-                    progressContainer.innerHTML = `
-                        <div class="text-center">
-                            <div class="text-lg font-semibold text-red-800 mb-2">
-                                <i class="fas fa-exclamation-triangle mr-2"></i>
-                                Upload Failed
-                            </div>
-                            <div class="text-red-700 mb-4">${message}</div>
-                            <button type="button" onclick="location.reload()" class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700">
-                                Try Again
-                            </button>
-                        </div>
-                    `;
-                }
-            }
-            
-            function resetForm() {
-                isUploadInProgress = false;
-                
-                // Re-enable form elements
-                const formElements = topicForm.querySelectorAll('input, select, textarea, button');
-                formElements.forEach(el => el.disabled = false);
-                
-                const submitBtn = topicForm.querySelector('button[type="submit"]');
-                if (submitBtn) {
-                    submitBtn.innerHTML = 'Create Topic';
-                }
-            }
-        }
-        
-        // Initialize SCORM upload progress monitoring
-        setupSCORMUploadProgress();
     });
 </script>
 

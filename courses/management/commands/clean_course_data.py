@@ -1,6 +1,5 @@
 from django.core.management.base import BaseCommand
 from courses.models import *
-from scorm_cloud.models import *
 from django.db import transaction
 
 class Command(BaseCommand):
@@ -21,10 +20,8 @@ class Command(BaseCommand):
                 return
 
         with transaction.atomic():
-            # Clean SCORM related data
             self.stdout.write('Cleaning SCORM data...')
             try:
-                # Use new SCORM implementation - clean TopicProgress instead
                 from courses.models import TopicProgress
                 TopicProgress.objects.all().delete()
                 self.stdout.write('Cleaned TopicProgress data (new SCORM implementation)')

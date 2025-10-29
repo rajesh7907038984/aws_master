@@ -9,6 +9,12 @@ class Command(BaseCommand):
     help = 'Ensures all necessary media directories exist with proper permissions'
 
     def handle(self, *args, **options):
+        # Check if using S3 storage (MEDIA_ROOT is None)
+        if settings.MEDIA_ROOT is None:
+            self.stdout.write(self.style.SUCCESS('☁️  Using S3 storage (MEDIA_ROOT is None)'))
+            self.stdout.write(self.style.SUCCESS('✓ No local media directories needed'))
+            return
+        
         # List of directories to ensure exist
         directories = [
             os.path.join(settings.MEDIA_ROOT),

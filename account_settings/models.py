@@ -343,7 +343,7 @@ class GlobalAdminSettings(models.Model):
 
     
     def save(self, *args, **kwargs):
-        """Override save to update Django settings when OAuth/SCORM credentials are changed"""
+        """Override save to update Django settings when OAuth credentials are changed"""
         super().save(*args, **kwargs)
         
         # Update Django settings for backward compatibility
@@ -360,8 +360,6 @@ class GlobalAdminSettings(models.Model):
                 django_settings.GOOGLE_OAUTH_CLIENT_ID = os.getenv('GOOGLE_OAUTH_CLIENT_ID', '')
                 django_settings.GOOGLE_OAUTH_CLIENT_SECRET = os.getenv('GOOGLE_OAUTH_CLIENT_SECRET', '')
             
-            # SCORM Cloud settings are now handled by global settings
-            # SCORM settings are now branch-specific
                     
         except Exception:
             # Silently fail if settings update doesn't work

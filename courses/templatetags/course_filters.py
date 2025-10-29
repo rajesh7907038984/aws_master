@@ -415,103 +415,7 @@ def get_topic_progress(topic, user):
         except Exception as e:
             logger.error(f"Error creating topic progress: {str(e)}")
             return None
-    
-    # For SCORM topics, check if completion status is out of sync
-    if topic.content_type == 'SCORM' and progress:
-        # Check if progress_data indicates completion but completed field is False
-        if (not progress.completed and 
-            isinstance(progress.progress_data, dict) and 
-            progress.progress_data.get('completion_status') in ['completed', 'passed']):
-            
-            # Sync the completion status (restored for real-time sync)
-            progress.completed = True
-            progress.completion_method = 'scorm'
-            if not progress.completed_at:
-                progress.completed_at = timezone.now()
-            progress.save()
-            logger.info(f"Auto-fixed SCORM completion status for topic {topic.id}, user {user.username}")
-            
-        # Enhanced SCORM sync with latest attempt
-        from scorm.models import ScormAttempt
-        latest_attempt = ScormAttempt.objects.filter(
-            user=user,
-            scorm_package__topic=topic
-        ).order_by('-id').first()
-        
-        if latest_attempt:
-            # Sync completion status from latest attempt - use ONLY CMI data
-            from scorm.models import ScormPackage
-            scorm_package = ScormPackage.objects.get(topic=topic)
-            
-            # Use ONLY SCORM CMI data for completion determination (CMI-only approach)
-            is_completed = (
-                # PRIMARY: Trust CMI completion status (proper SCORM standard)
-                latest_attempt.completion_status in ['completed', 'passed'] or
-                latest_attempt.lesson_status in ['completed', 'passed'] or
-                latest_attempt.success_status in ['passed']
-            )
-            
-            if is_completed and not progress.completed:
-                progress.completed = True
-                progress.completion_method = 'scorm'
-                progress.last_score = latest_attempt.score_raw
-                if not progress.completed_at:
-                    progress.completed_at = timezone.now()
-                progress.save()
-                logger.info(f"🔄 TEMPLATE SYNC: Fixed SCORM completion for topic {topic.id}, user {user.username}")
-            
-            # Update progress_data with latest SCORM data
-            if not isinstance(progress.progress_data, dict):
-                progress.progress_data = {}
-            
-            progress.progress_data.update({
-                'scorm_attempt_id': latest_attempt.id,
-                'lesson_status': latest_attempt.lesson_status,
-                'completion_status': latest_attempt.completion_status,
-                'success_status': latest_attempt.success_status,
-                'score_raw': float(latest_attempt.score_raw) if latest_attempt.score_raw else None,
-                'last_updated': timezone.now().isoformat(),
-                'scorm_sync': True,
-            })
-            
-            # Update scores
-            if latest_attempt.score_raw is not None:
-                progress.last_score = latest_attempt.score_raw
-                if progress.best_score is None or latest_attempt.score_raw > progress.best_score:
-                    progress.best_score = latest_attempt.score_raw
-            
-            progress.save()
-        elif not progress.completed:
-            try:
-                from scorm.models import ScormAttempt, ScormPackage
-                # Check if this topic has a SCORM package
-                try:
-                    scorm_package = ScormPackage.objects.get(topic=topic)
-                    # Get the user's latest attempt
-                    latest_attempt = ScormAttempt.objects.filter(
-                        user=user,
-                        scorm_package=scorm_package
-                    ).order_by('-attempt_number').first()
-                    
-                    if latest_attempt:
-                        # Check completion based on SCORM version
-                        is_completed = False
-                        if scorm_package.version == '1.2':
-                            is_completed = latest_attempt.lesson_status in ['completed', 'passed']
-                        else:  # SCORM 2004
-                            is_completed = latest_attempt.completion_status == 'completed'
-                        
-                        if is_completed:
-                            progress.completed = True
-                            progress.completion_method = 'scorm'
-                            if not progress.completed_at:
-                                progress.completed_at = timezone.now()
-                            progress.save()
-                            logger.info(f"Auto-synced SCORM completion from native attempt for topic {topic.id}, user {user.username}")
-                except ScormPackage.DoesNotExist:
-                    pass  # Topic doesn't have a SCORM package
-            except Exception as e:
-                logger.error(f"Error checking SCORM attempt for topic {topic.id}, user {user.username}: {str(e)}")
+ 
     
     # For quiz topics, check if there's a passing attempt
     elif topic.content_type == 'Quiz' and progress:
@@ -555,21 +459,6 @@ def uncompleted_count(topics, user):
             count += 1
     return count
 
-@register.filter
-def get_scorm_status(topic, user):
-    """Get SCORM completion status for a topic"""
-    if topic.content_type == 'SCORM':
-        tracking = TopicProgress.objects.filter(
-            topic=topic,
-            user=user
-        ).first()
-        if tracking:
-            return {
-                'status': tracking.completed,
-                'progress': tracking.progress_data.get('completion_percent', 0) if tracking.progress_data else 0,
-                'score': tracking.last_score
-            }
-    return None
 
 @register.filter
 def get_item(dictionary, key):
@@ -711,61 +600,6 @@ def is_completed(topic, user):
     try:
         progress = TopicProgress.objects.get(topic=topic, user=user)
         
-        # For SCORM content, use different logic based on package type
-        if topic.content_type == 'SCORM':
-            # PRIORITY 1: Check main completed field
-            if progress.completed:
-                return True
-            
-            # PRIORITY 2: Check SCORM attempt data
-            try:
-                from scorm.models import ScormAttempt, ScormPackage
-                scorm_package = ScormPackage.objects.get(topic=topic)
-                latest_attempt = ScormAttempt.objects.filter(
-                    user=user,
-                    scorm_package=scorm_package
-                ).order_by('-last_accessed').first()
-                
-                if latest_attempt:
-                    # DIFFERENT LOGIC FOR QUIZ vs SLIDE-BASED
-                    if scorm_package.is_quiz_based():
-                        # QUIZ-BASED: Use standard SCORM completion logic
-                        if latest_attempt.lesson_status in ['completed', 'passed']:
-                            progress.completed = True
-                            progress.completion_method = 'scorm'
-                            if not progress.completed_at:
-                                progress.completed_at = timezone.now()
-                            progress.save()
-                            logger.info(f"Quiz SCORM completion synced for topic {topic.id}, user {user.username}")
-                            return True
-                    
-                    elif scorm_package.is_slide_based():
-                        # SLIDE-BASED: Use ONLY CMI completion status (proper SCORM standard)
-                        if (latest_attempt.lesson_status in ['completed', 'passed'] or
-                            latest_attempt.completion_status in ['completed', 'passed'] or
-                            latest_attempt.success_status in ['passed']):
-                            progress.completed = True
-                            progress.completion_method = 'scorm'
-                            if not progress.completed_at:
-                                progress.completed_at = timezone.now()
-                            progress.save()
-                            logger.info(f"Slide SCORM completion synced for topic {topic.id}, user {user.username}")
-                            return True
-                    
-                    else:
-                        # UNKNOWN TYPE: Use conservative approach
-                        if latest_attempt.lesson_status in ['completed', 'passed']:
-                            progress.completed = True
-                            progress.completion_method = 'scorm'
-                            if not progress.completed_at:
-                                progress.completed_at = timezone.now()
-                            progress.save()
-                            logger.info(f"Unknown SCORM completion synced for topic {topic.id}, user {user.username}")
-                            return True
-                            
-            except Exception as e:
-                logger.error(f"Error checking SCORM completion for topic {topic.id}: {str(e)}")
-        
         return progress.completed
     except TopicProgress.DoesNotExist:
         return False
@@ -851,16 +685,6 @@ def can_delete_topic(user, topic):
     from courses.views import check_topic_edit_permission
     return check_topic_edit_permission(user, topic, course, check_for='delete')
 
-@register.filter
-def scorm_cloud_content_exists(topic_id):
-    """Check if SCORM content exists for topic (native SCORM implementation)"""
-    try:
-        from scorm.models import ScormPackage
-        from courses.models import Topic
-        topic = Topic.objects.get(id=topic_id)
-        return hasattr(topic, 'scorm_package')
-    except:
-        return False
 
 @register.filter
 def contains_id(queryset, id_to_check):
@@ -970,57 +794,4 @@ def contains(queryset, user):
     try:
         return queryset.filter(id=user.id).exists()
     except (AttributeError, TypeError):
-        return False
-
-@register.filter
-def has_scorm_resume(topic, user):
-    """
-    Check if a user has started a SCORM course but hasn't completed it
-    This is used to show "Resume" button instead of "Start" button
-    
-    Usage: {{ topic|has_scorm_resume:user }}
-    """
-    if not user or not user.is_authenticated:
-        return False
-    
-    if topic.content_type != 'SCORM':
-        return False
-    
-    try:
-        from scorm.models import ScormAttempt, ScormPackage
-        scorm_package = ScormPackage.objects.get(topic=topic)
-        
-        # Check if user has any attempt (started the course)
-        has_attempt = ScormAttempt.objects.filter(
-            user=user,
-            scorm_package=scorm_package
-        ).exists()
-        
-        if has_attempt:
-            # Check if the attempt is incomplete (not completed/passed)
-            latest_attempt = ScormAttempt.objects.filter(
-                user=user,
-                scorm_package=scorm_package
-            ).order_by('-attempt_number').first()
-            
-            if latest_attempt and latest_attempt.lesson_status in ['incomplete', 'not_attempted']:
-                # ENHANCED: Only show resume if there's actual progress or legitimate resume scenario
-                # This prevents showing "Resume" for attempts that never actually started
-                has_progress = (
-                    latest_attempt.lesson_location or 
-                    latest_attempt.suspend_data or 
-                    latest_attempt.lesson_status == 'incomplete' or
-                    latest_attempt.entry == 'resume'
-                )
-                
-                if has_progress:
-                    return True
-                else:
-                    # No actual progress - this is likely a failed start, show "Start" instead
-                    logger.info(f"SCORM Resume Check: No progress found for user {user.username}, topic {topic.id}")
-                    return False
-        
-        return False
-    except Exception as e:
-        logger.warning(f"Error checking SCORM resume for topic {topic.id}: {str(e)}")
         return False

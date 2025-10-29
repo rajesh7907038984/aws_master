@@ -592,7 +592,6 @@ def edit_branch(request, branch_id):
     description = request.POST.get('description', '').strip()
     sharepoint_integration = request.POST.get('sharepoint_integration_enabled') == 'on'
     order_management = request.POST.get('order_management_enabled') == 'on'
-    scorm_integration = request.POST.get('scorm_integration_enabled') == 'on'
     
     if not branch_name:
         messages.error(request, 'Branch name is required.')
@@ -604,7 +603,6 @@ def edit_branch(request, branch_id):
             branch.description = description
             branch.sharepoint_integration_enabled = sharepoint_integration
             branch.order_management_enabled = order_management
-            branch.scorm_integration_enabled = scorm_integration
             branch.save()
             
             logger.info(f"Branch '{branch.name}' updated by {request.user.username}")

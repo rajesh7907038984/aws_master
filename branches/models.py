@@ -40,11 +40,6 @@ class Branch(models.Model):
         help_text="Enable order management features for this branch. Global admin can control this setting."
     )
     
-    # SCORM Integration Control
-    scorm_integration_enabled = models.BooleanField(
-        default=False,
-        help_text="Enable SCORM integration for this branch. Admin can control this setting."
-    )
 
     def __str__(self):
         if self.business:

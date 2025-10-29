@@ -162,8 +162,9 @@ case "$1" in
         fi
         
         # Check if domain is accessible
-        if curl -f -s -I https://lms.nexsy.io/ > /dev/null 2>&1; then
-            echo " Domain https://lms.nexsy.io is accessible"
+        DOMAIN_CHECK="${PRIMARY_DOMAIN:-${NGINX_SERVER_NAME:-localhost}}"
+        if curl -f -s -I "https://${DOMAIN_CHECK}/" > /dev/null 2>&1; then
+            echo " Domain https://${DOMAIN_CHECK} is accessible"
         else
             echo "  Domain may not be accessible or responding"
         fi

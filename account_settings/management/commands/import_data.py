@@ -112,10 +112,15 @@ class Command(BaseCommand):
 
     def prepare_import_directory(self, file_path):
         """Prepare the import directory by extracting ZIP if needed"""
+        import tempfile
         if file_path.endswith('.zip'):
-            # Extract ZIP file to temp directory
-            extract_dir = os.path.join(settings.MEDIA_ROOT, 'temp_imports', datetime.now().strftime('%Y%m%d_%H%M%S'))
-            os.makedirs(extract_dir, exist_ok=True)
+            # Extract ZIP file to temp directory (use temp if S3, otherwise use MEDIA_ROOT)
+            if settings.MEDIA_ROOT:
+                extract_dir = os.path.join(settings.MEDIA_ROOT, 'temp_imports', datetime.now().strftime('%Y%m%d_%H%M%S'))
+                os.makedirs(extract_dir, exist_ok=True)
+            else:
+                # Using S3 - create temp directory for extraction
+                extract_dir = tempfile.mkdtemp(prefix='import_extract_')
             
             with zipfile.ZipFile(file_path, 'r') as zipf:
                 zipf.extractall(extract_dir)
@@ -786,20 +791,28 @@ class Command(BaseCommand):
 
     def _copy_user_file(self, import_dir, file_path, user, field_name):
         """Copy user file from import directory to proper location"""
+        from django.core.files.storage import default_storage
+        from django.core.files.base import ContentFile
         try:
             src_path = os.path.join(import_dir, file_path)
             if os.path.exists(src_path):
-                # Create destination directory
-                dst_dir = os.path.join(settings.MEDIA_ROOT, 'user_files', field_name.replace('_file', ''), str(user.id))
-                os.makedirs(dst_dir, exist_ok=True)
-                
-                # Copy file
                 filename = os.path.basename(file_path)
-                dst_path = os.path.join(dst_dir, filename)
-                shutil.copy2(src_path, dst_path)
+                # Determine destination path based on storage type
+                if settings.MEDIA_ROOT:
+                    # Local storage
+                    dst_dir = os.path.join(settings.MEDIA_ROOT, 'user_files', field_name.replace('_file', ''), str(user.id))
+                    os.makedirs(dst_dir, exist_ok=True)
+                    dst_path = os.path.join(dst_dir, filename)
+                    shutil.copy2(src_path, dst_path)
+                    relative_path = os.path.relpath(dst_path, settings.MEDIA_ROOT)
+                else:
+                    # S3 storage
+                    s3_key = f'user_files/{field_name.replace("_file", "")}/{user.id}/{filename}'
+                    with open(src_path, 'rb') as f:
+                        default_storage.save(s3_key, ContentFile(f.read()))
+                    relative_path = s3_key
                 
                 # Update user field
-                relative_path = os.path.relpath(dst_path, settings.MEDIA_ROOT)
                 setattr(user, field_name, relative_path)
                 user.save(update_fields=[field_name])
         except Exception as e:
@@ -807,20 +820,28 @@ class Command(BaseCommand):
 
     def _copy_course_file(self, import_dir, file_path, course, field_name):
         """Copy course file from import directory to proper location"""
+        from django.core.files.storage import default_storage
+        from django.core.files.base import ContentFile
         try:
             src_path = os.path.join(import_dir, file_path)
             if os.path.exists(src_path):
-                # Create destination directory
-                dst_dir = os.path.join(settings.MEDIA_ROOT, f'course_{course.id}')
-                os.makedirs(dst_dir, exist_ok=True)
-                
-                # Copy file
                 filename = os.path.basename(file_path)
-                dst_path = os.path.join(dst_dir, filename)
-                shutil.copy2(src_path, dst_path)
+                # Determine destination path based on storage type
+                if settings.MEDIA_ROOT:
+                    # Local storage
+                    dst_dir = os.path.join(settings.MEDIA_ROOT, f'course_{course.id}')
+                    os.makedirs(dst_dir, exist_ok=True)
+                    dst_path = os.path.join(dst_dir, filename)
+                    shutil.copy2(src_path, dst_path)
+                    relative_path = os.path.relpath(dst_path, settings.MEDIA_ROOT)
+                else:
+                    # S3 storage
+                    s3_key = f'course_{course.id}/{filename}'
+                    with open(src_path, 'rb') as f:
+                        default_storage.save(s3_key, ContentFile(f.read()))
+                    relative_path = s3_key
                 
                 # Update course field
-                relative_path = os.path.relpath(dst_path, settings.MEDIA_ROOT)
                 setattr(course, field_name, relative_path)
                 course.save(update_fields=[field_name])
         except Exception as e:
@@ -828,20 +849,28 @@ class Command(BaseCommand):
 
     def _copy_topic_file(self, import_dir, file_path, topic):
         """Copy topic file from import directory to proper location"""
+        from django.core.files.storage import default_storage
+        from django.core.files.base import ContentFile
         try:
             src_path = os.path.join(import_dir, file_path)
             if os.path.exists(src_path):
-                # Create destination directory
-                dst_dir = os.path.join(settings.MEDIA_ROOT, f'topic_uploads', str(topic.id))
-                os.makedirs(dst_dir, exist_ok=True)
-                
-                # Copy file
                 filename = os.path.basename(file_path)
-                dst_path = os.path.join(dst_dir, filename)
-                shutil.copy2(src_path, dst_path)
+                # Determine destination path based on storage type
+                if settings.MEDIA_ROOT:
+                    # Local storage
+                    dst_dir = os.path.join(settings.MEDIA_ROOT, f'topic_uploads', str(topic.id))
+                    os.makedirs(dst_dir, exist_ok=True)
+                    dst_path = os.path.join(dst_dir, filename)
+                    shutil.copy2(src_path, dst_path)
+                    relative_path = os.path.relpath(dst_path, settings.MEDIA_ROOT)
+                else:
+                    # S3 storage
+                    s3_key = f'topic_uploads/{topic.id}/{filename}'
+                    with open(src_path, 'rb') as f:
+                        default_storage.save(s3_key, ContentFile(f.read()))
+                    relative_path = s3_key
                 
                 # Update topic field
-                relative_path = os.path.relpath(dst_path, settings.MEDIA_ROOT)
                 topic.content_file = relative_path
                 topic.save(update_fields=['content_file'])
         except Exception as e:

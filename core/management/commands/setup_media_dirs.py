@@ -28,6 +28,14 @@ class Command(BaseCommand):
         self.stdout.write("LMS Media Directory Setup")
         self.stdout.write("=" * 60)
         
+        # Check if using S3 storage (MEDIA_ROOT is None)
+        if settings.MEDIA_ROOT is None:
+            self.stdout.write("\n" + "=" * 50)
+            self.stdout.write(self.style.SUCCESS("☁️  Using S3 storage (MEDIA_ROOT is None)"))
+            self.stdout.write(self.style.SUCCESS("✓ No local media directories needed"))
+            self.stdout.write("=" * 50)
+            return
+        
         # Check media root accessibility
         is_accessible, can_write = self.check_media_root_access()
         
@@ -68,7 +76,6 @@ class Command(BaseCommand):
             os.path.join(settings.MEDIA_ROOT, 'editor_uploads'),
             os.path.join(settings.MEDIA_ROOT, 'messages', 'uploads'),
             os.path.join(settings.MEDIA_ROOT, 'assignment_content'),
-            # REMOVED: os.path.join(settings.MEDIA_ROOT, 'scorm_uploads') - SCORM now uses temporary files
             os.path.join(settings.MEDIA_ROOT, 'temp_uploads'),
             os.path.join(settings.MEDIA_ROOT, 'exports'),
             os.path.join(settings.MEDIA_ROOT, 'backups'),
@@ -119,6 +126,10 @@ class Command(BaseCommand):
     def check_media_root_access(self):
         """Check if MEDIA_ROOT exists and is writable"""
         media_root = settings.MEDIA_ROOT
+        
+        if media_root is None:
+            # Using S3 storage
+            return True, True
         
         self.stdout.write(f"Checking media root: {media_root}")
         

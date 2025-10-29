@@ -41,10 +41,6 @@ SESSION_COOKIE_SAMESITE = 'Lax'
 
 # CSRF configuration - production overrides only
 CSRF_COOKIE_SECURE = True  # Enable secure CSRF cookies for production HTTPS
-CSRF_TRUSTED_ORIGINS = [
-    'https://staging.nexsy.io',
-    'https://*.nexsy.io',
-]
 
 # Disable session corruption warnings
 import logging
@@ -152,7 +148,7 @@ DATABASES = {
         'HOST': AWS_DB_HOST,
         'PORT': get_env('AWS_DB_PORT', '5432'),
         'OPTIONS': {
-            'connect_timeout': 120,  # Increased from 60 to 120 seconds for SCORM time tracking
+            'connect_timeout': 60,  # Standard timeout
             'sslmode': 'prefer',
             'application_name': 'LMS_Production',
             'keepalives_idle': 600,  # Keep connections alive
@@ -162,7 +158,7 @@ DATABASES = {
         'CONN_MAX_AGE': 180,  # Reduced to 3 minutes for better reliability
         'CONN_HEALTH_CHECKS': True,  # Enable connection health checks
         'ATOMIC_REQUESTS': False,  # Disable atomic requests for better performance
-        # Connection pool settings for SCORM time tracking
+        # Connection pool settings
         'CONN_POOL_SIZE': 10,  # Reduced pool size for stability
         'CONN_POOL_OVERFLOW': 5,  # Reduced overflow for stability
         'CONN_POOL_TIMEOUT': 30,  # Timeout for getting connection from pool
@@ -200,9 +196,6 @@ SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 SECURE_HSTS_SECONDS = 31536000
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True
-
-# Exempt SCORM content from SSL redirect to prevent iframe resource loading issues
-SECURE_REDIRECT_EXEMPT = [r'^scorm/content/']
 
 # ==============================================
 # PRODUCTION MEDIA FILES CONFIGURATION
@@ -370,8 +363,6 @@ ENABLE_EXTERNAL_NOTIFICATIONS = True
 ENABLE_PAYMENT_PROCESSING = True
 ENABLE_EXTERNAL_ANALYTICS = True
 
-# Enable SCORM worker auto-start for production
-SCORM_WORKER_AUTO_START = True
 
 # Set DEBUG for production - CRITICAL: Must be False in production
 DEBUG = False

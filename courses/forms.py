@@ -1263,8 +1263,6 @@ class TopicForm(BaseModelFormWithTinyMCE):
             'discussion': None
         }
         
-        # SCORM is handled same as video/audio/document - no special validation needed here
-        # ZIP validation is done in the main validation section below
         
         # Don't reset text_content as it might contain valid content
         # Also don't reset the field we're actually using
@@ -1282,7 +1280,7 @@ class TopicForm(BaseModelFormWithTinyMCE):
                 continue
             elif content_type_lower == 'discussion' and field == 'discussion':
                 continue
-            elif content_type_lower in ['video', 'audio', 'document', 'scorm'] and field == 'content_file':
+            elif content_type_lower in ['video', 'audio', 'document'] and field == 'content_file':
                 continue
                 
             if field in cleaned_data:
@@ -1301,36 +1299,20 @@ class TopicForm(BaseModelFormWithTinyMCE):
         elif content_type_lower == 'embedvideo':
             if not cleaned_data.get('embed_code'):
                 self.add_error('embed_code', 'Embed code is required for embedded video topics.')
-        elif content_type_lower in ['audio', 'video', 'document', 'scorm']:
-            # Check if we're editing an existing topic with a file already
-            if self.instance and self.instance.pk and self.instance.content_file:
-                # File already exists, no need to upload a new one unless one was provided
-                pass
-            elif content_type_lower == 'scorm':
-                # SCORM now uses standard file upload like video
-                # Check if editing existing topic with file
+            elif content_type_lower in ['audio', 'video', 'document']:
+                # Check if we're editing an existing topic with a file already
                 if self.instance and self.instance.pk and self.instance.content_file:
-                    logger.info(f"SCORM validation - editing existing topic with file: {self.instance.content_file}")
-                    # Existing file, no validation needed
+                    # File already exists, no need to upload a new one unless one was provided
                     pass
                 elif 'content_file' not in self.files:
-                    logger.error("SCORM validation failed - no file uploaded")
-                    self.add_error('content_file', 'SCORM package upload is required.')
+                    file_type = content_type_lower
+                    self.add_error('content_file', f'File upload is required for {file_type} topics.')
                 else:
-                    # File upload - validate ZIP
+                    # File upload validation
                     content_file = self.files.get('content_file')
-                    logger.info(f"SCORM validation - file provided: {content_file.name if content_file else 'None'}")
-                    if content_file and not content_file.name.lower().endswith('.zip'):
-                        self.add_error('content_file', 'SCORM package must be a ZIP file.')
-            elif 'content_file' not in self.files:
-                file_type = content_type_lower
-                self.add_error('content_file', f'File upload is required for {file_type} topics.')
-            else:
-                # File upload validation
-                content_file = self.files.get('content_file')
-                if content_file:
-                    # Basic file validation is handled by the form field
-                    pass
+                    if content_file:
+                        # Basic file validation is handled by the form field
+                        pass
             # If no file is provided, that's OK - direct upload to cloud is supported
         elif content_type_lower == 'quiz':
             quiz = cleaned_data.get('quiz')
@@ -1409,12 +1391,7 @@ class TopicForm(BaseModelFormWithTinyMCE):
         content_type = self.cleaned_data.get('content_type')
         content_type_lower = content_type.lower() if content_type else ''
         
-        if content_type_lower == 'scorm':
-            # Handle SCORM package upload (standard file upload like video)
-            if 'content_file' in self.files:
-                instance.content_file = self.files['content_file']
-                logger.info(f"Saving SCORM topic with file: {instance.content_file.name}")
-        elif content_type_lower == 'text':
+        if content_type_lower == 'text':
             text_content = self.cleaned_data.get('text_content')
             # Check if the content is in JSON format
             if text_content and isinstance(text_content, str) and text_content.startswith('{') and text_content.endswith('}'):
@@ -1435,7 +1412,7 @@ class TopicForm(BaseModelFormWithTinyMCE):
             instance.web_url = self.cleaned_data.get('web_url')
         elif content_type_lower == 'embedvideo':
             instance.embed_code = self.cleaned_data.get('embed_code')
-        elif content_type_lower in ['video', 'audio', 'document', 'scorm']:
+        elif content_type_lower in ['video', 'audio', 'document']:
             if 'content_file' in self.files:
                 instance.content_file = self.files['content_file']
         elif content_type_lower == 'quiz':
@@ -1451,9 +1428,6 @@ class TopicForm(BaseModelFormWithTinyMCE):
         if commit:
             instance.save()
             self.save_m2m()
-            
-            # SCORM ZIP files are stored like videos - no processing needed
-            # The file is already uploaded to S3 via content_file field
             
             # Handle course association for assignment topics
             if content_type_lower == 'assignment' and instance.assignment:
