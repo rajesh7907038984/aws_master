@@ -99,7 +99,9 @@ def update_scorm_progress_with_enrollment(request, topic_id):
                 else:
                     # Resume existing attempt, update session_id
                     attempt.session_id = session_uuid
-                    attempt.save()
+                    # Reset idempotency for new session so seq starts fresh
+                    attempt.last_sequence_number = 0
+                    attempt.save(update_fields=['session_id', 'last_sequence_number'])
             
             # 3. Idempotency check
             if seq <= attempt.last_sequence_number:

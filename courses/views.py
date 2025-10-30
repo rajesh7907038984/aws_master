@@ -5680,6 +5680,7 @@ def get_course_progress(request, course_id):
             return JsonResponse(result)
             
         # Get or create enrollment for this user
+        from core.utils.enrollment import EnrollmentService
         enrollment, created, message = EnrollmentService.create_or_get_enrollment(
             user=request.user,
             course=course,

@@ -442,6 +442,75 @@
             loadContent();
         }
     </script>
+    
+    <!-- Rise SCORM 1.2 specific fixes: enforce resume, robust exit, and value fallbacks -->
+    <script>
+        (function fixRiseSCORM12() {
+            function onceReady(cb) {
+                if (window.API && typeof window.API === 'object') return cb();
+                setTimeout(function() { onceReady(cb); }, 100);
+            }
+
+            onceReady(function () {
+                try {
+                    // Ensure aliasing for themes that probe both objects
+                    if (window.API && !window.API_1484_11) {
+                        window.API_1484_11 = window.API;
+                    }
+
+                    // Cache resume data from launcher config
+                    var pd = (window.scormConfig && window.scormConfig.progressData) || {};
+                    var entryVal = pd.entry || ((pd.lessonLocation || pd.suspendData) ? 'resume' : 'ab-initio');
+                    var locationVal = pd.lessonLocation || '';
+                    var suspendVal = pd.suspendData || '';
+
+                    // Wrap LMSFinish to ensure final commit and exit navigation
+                    if (typeof window.API.LMSFinish === 'function' && !window.API.__wrappedFinish) {
+                        var originalFinish = window.API.LMSFinish.bind(window.API);
+                        window.API.LMSFinish = function (arg) {
+                            try {
+                                if (typeof window.API.LMSCommit === 'function') {
+                                    try { window.API.LMSCommit(''); } catch (e) {}
+                                }
+                            } catch (e) {}
+                            var result = originalFinish(arg);
+                            try {
+                                if (window.scormConfig && window.scormConfig.autoExitOnTerminate && window.scormConfig.exitUrl) {
+                                    setTimeout(function () { window.location.href = window.scormConfig.exitUrl; }, 100);
+                                }
+                            } catch (e) {}
+                            return result;
+                        };
+                        window.API.__wrappedFinish = true;
+                    }
+
+                    // Guard LMSGetValue to provide resume and bookmark fallbacks for Rise
+                    if (typeof window.API.LMSGetValue === 'function' && !window.API.__wrappedGetValue) {
+                        var originalGet = window.API.LMSGetValue.bind(window.API);
+                        window.API.LMSGetValue = function (element) {
+                            var v;
+                            try { v = originalGet(element); } catch (e) { v = ''; }
+                            if (v !== undefined && v !== null && String(v).length) return v;
+                            if (element === 'cmi.core.entry') return entryVal;
+                            if (element === 'cmi.core.lesson_location') return locationVal;
+                            if (element === 'cmi.suspend_data') return suspendVal;
+                            return v;
+                        };
+                        window.API.__wrappedGetValue = true;
+                    }
+
+                    // Re-assert auto-commit interval for reliability
+                    if (!window.__riseAutoCommit && typeof window.API.LMSCommit === 'function') {
+                        window.__riseAutoCommit = setInterval(function () {
+                            try { window.API.LMSCommit(''); } catch (e) {}
+                        }, (window.scormConfig && window.scormConfig.autoCommitDelay) || 30000);
+                    }
+                } catch (e) {
+                    console.warn('Rise SCORM 1.2 fix encountered an error:', e);
+                }
+            });
+        })();
+    </script>
 </body>
 </html>
 

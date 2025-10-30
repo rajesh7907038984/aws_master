@@ -2,6 +2,7 @@
 Views for SCORM package handling
 """
 import json
+import re
 import logging
 import hashlib
 from datetime import timedelta
@@ -64,8 +65,13 @@ def scorm_launcher(request, topic_id):
         progress_dict = progress.progress_data if progress.progress_data else {}
         bookmark_dict = progress.bookmark if progress.bookmark else {}
         
+        # Compute entry mode for resume behavior
+        has_bookmark = bool(bookmark_dict.get('lesson_location') or bookmark_dict.get('suspend_data'))
+        entry_mode = progress_dict.get('scorm_entry', 'resume' if has_bookmark else 'ab-initio')
+
         # Use camelCase keys to match JavaScript expectations
         progress_data = {
+            'entry': entry_mode,
             'lessonLocation': bookmark_dict.get('lesson_location', ''),
             'suspendData': bookmark_dict.get('suspend_data', ''),
             'lessonStatus': progress_dict.get('scorm_completion_status', 'not attempted'),
@@ -146,6 +152,11 @@ def scorm_player(request, package_id, file_path):
         
         file_path = normalized_path
         
+        # Gracefully handle missing source maps to avoid noisy 404s in devtools
+        # Returning an empty JSON response satisfies browsers without altering package assets
+        if file_path.endswith('.css.map') or file_path.endswith('.js.map'):
+            return HttpResponse("{}", content_type='application/json')
+        
         # Feature flag
         if not getattr(settings, 'ENABLE_SCORM_FEATURES', True):
             return HttpResponse("SCORM features are disabled", status=503)
@@ -181,7 +192,7 @@ def scorm_player(request, package_id, file_path):
         bucket_name = settings.AWS_STORAGE_BUCKET_NAME
         
         try:
-            # Get object from S3
+            # Get object from S3 (initial fetch; may be replaced for range requests)
             response = s3_client.get_object(Bucket=bucket_name, Key=s3_key)
             
             # Determine content type
@@ -202,7 +213,7 @@ def scorm_player(request, package_id, file_path):
                 # For HTML files, inject SCORM API script
                 file_content = response['Body'].read().decode('utf-8', errors='ignore')
                 
-                # Inject SCORM API script before closing </head> or at the end if no </head>
+                # Sanitize package HTML for Safari quirks and inject SCORM API script
                 scorm_api_url = f"{request.scheme}://{request.get_host()}/static/scorm/js/scorm-api.js"
                 topic_id_param = request.GET.get('topic_id', None)
                 topic_id = int(topic_id_param) if topic_id_param and topic_id_param.isdigit() else None
@@ -237,6 +248,33 @@ def scorm_player(request, package_id, file_path):
                 location_value = request.GET.get("location", progress_data.get("lesson_location", "")).replace("'", "\\'")
                 suspend_value = request.GET.get("suspend_data", progress_data.get("suspend_data", "")).replace("'", "\\'")
                 
+                # 1) Remove deprecated 'minimal-ui' from viewport meta and ensure viewport-fit=cover
+                try:
+                    def _sanitize_viewport(html: str) -> str:
+                        viewport_meta_regex = re.compile(r"<meta[^>]*name=[\"']viewport[\"'][^>]*>", re.IGNORECASE)
+                        match = viewport_meta_regex.search(html)
+                        if not match:
+                            return html
+                        tag = match.group(0)
+                        # Extract content attribute
+                        content_match = re.search(r"content=([\"'])(.*?)\1", tag, re.IGNORECASE)
+                        if not content_match:
+                            return html
+                        content_val = content_match.group(2)
+                        # Remove minimal-ui token and normalize commas/spaces
+                        tokens = [t.strip() for t in re.split(r",\s*", content_val) if t.strip()]
+                        tokens = [t for t in tokens if not re.match(r"^minimal-ui$", t, re.IGNORECASE)]
+                        # Ensure viewport-fit=cover exists on iOS
+                        if not any(t.lower().startswith("viewport-fit=") for t in tokens):
+                            tokens.append("viewport-fit=cover")
+                        new_content = ", ".join(tokens)
+                        new_tag = re.sub(r"content=([\"'])(.*?)\1", f"content=\"{new_content}\"", tag)
+                        return html.replace(tag, new_tag, 1)
+                    file_content = _sanitize_viewport(file_content)
+                except Exception as _:
+                    # Fail open: do not block content if sanitization fails
+                    pass
+
                 scorm_init_script = f"""
 <meta name="csrf-token" content="{csrf_token}">
 <script>
@@ -321,6 +359,55 @@ def scorm_player(request, package_id, file_path):
                             break
                         yield chunk
                 http_response = StreamingHttpResponse(stream_file(), content_type=content_type)
+            elif file_path.lower().endswith(('.mp4', '.m4v', '.webm', '.ogv', '.ogg', '.mp3', '.wav', '.m4a')):
+                # Media files: implement byte-range support required by Safari
+                # Determine total size
+                head = s3_client.head_object(Bucket=bucket_name, Key=s3_key)
+                total_size = int(head['ContentLength'])
+                content_type = head.get('ContentType', 'application/octet-stream')
+
+                range_header = request.META.get('HTTP_RANGE')
+                if range_header and range_header.startswith('bytes='):
+                    # Parse Range header: bytes=start-end
+                    range_spec = range_header.split('=')[1]
+                    start_str, _, end_str = range_spec.partition('-')
+                    try:
+                        start = int(start_str) if start_str else 0
+                    except ValueError:
+                        start = 0
+                    try:
+                        end = int(end_str) if end_str else min(start + 1024 * 1024 - 1, total_size - 1)
+                    except ValueError:
+                        end = min(start + 1024 * 1024 - 1, total_size - 1)
+                    if end >= total_size:
+                        end = total_size - 1
+                    byte_range = f"bytes={start}-{end}"
+                    ranged = s3_client.get_object(Bucket=bucket_name, Key=s3_key, Range=byte_range)
+                    content_length = end - start + 1
+
+                    def stream_range():
+                        while True:
+                            chunk = ranged['Body'].read(8192)
+                            if not chunk:
+                                break
+                            yield chunk
+                    http_response = StreamingHttpResponse(stream_range(), status=206, content_type=content_type)
+                    http_response['Content-Range'] = f"bytes {start}-{end}/{total_size}"
+                    http_response['Content-Length'] = str(content_length)
+                else:
+                    # No range requested; send full content with Content-Length
+                    full = s3_client.get_object(Bucket=bucket_name, Key=s3_key)
+                    def stream_full():
+                        while True:
+                            chunk = full['Body'].read(8192)
+                            if not chunk:
+                                break
+                            yield chunk
+                    http_response = StreamingHttpResponse(stream_full(), content_type=content_type)
+                    http_response['Content-Length'] = str(total_size)
+
+                http_response['Accept-Ranges'] = 'bytes'
+                http_response['Content-Disposition'] = 'inline'
             else:
                 # Stream other files
                 def stream_file():
@@ -339,7 +426,7 @@ def scorm_player(request, package_id, file_path):
                 f"style-src 'self' 'unsafe-inline'; "
                 f"img-src 'self' data: blob: https:; "
                 f"font-src 'self' data:; "
-                f"connect-src 'self' https://{host}; "
+                f"connect-src 'self' https://{host} https://metrics.articulate.com; "
                 f"media-src 'self' blob: data:; "
                 f"object-src 'none'; "
                 f"frame-ancestors 'self'; "
