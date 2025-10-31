@@ -87,17 +87,23 @@ class ScormEnrollment(models.Model):
     def __str__(self):
         return f"{self.user.username} - {self.topic.title} ({self.enrollment_status})"
     
-    def create_new_attempt(self):
+    def create_new_attempt(self, session_id=None):
         """Create a new attempt for this enrollment"""
+        import uuid
         self.total_attempts += 1
         self.save()
+        
+        # Generate session_id if not provided
+        if session_id is None:
+            session_id = uuid.uuid4()
         
         return ScormAttempt.objects.create(
             enrollment=self,
             user=self.user,
             topic=self.topic,
             package=self.package,
-            attempt_number=self.total_attempts
+            attempt_number=self.total_attempts,
+            session_id=session_id
         )
     
     def get_current_attempt(self):
@@ -219,6 +225,16 @@ class ScormAttempt(models.Model):
         default=0,
         help_text="Total time in seconds for easier querying"
     )
+    session_time = models.CharField(
+        max_length=50,
+        null=True,
+        blank=True,
+        help_text="Session time for this attempt (HH:MM:SS or PTnHnMnS)"
+    )
+    session_time_seconds = models.IntegerField(
+        default=0,
+        help_text="Session time in seconds for easier querying"
+    )
     
     # Location/bookmark
     lesson_location = models.TextField(
@@ -331,6 +347,7 @@ class ScormAttempt(models.Model):
             self.completion_status = safe_get_string(cmi_data_dict, 'cmi.core.lesson_status')
             self.success_status = safe_get_string(cmi_data_dict, 'cmi.core.success_status')
             self.total_time = safe_get_string(cmi_data_dict, 'cmi.core.total_time')
+            self.session_time = safe_get_string(cmi_data_dict, 'cmi.core.session_time')
             self.lesson_location = safe_get_string(cmi_data_dict, 'cmi.core.lesson_location')
             self.suspend_data = safe_get_string(cmi_data_dict, 'cmi.suspend_data')
             self.entry_mode = safe_get_string(cmi_data_dict, 'cmi.core.entry')
@@ -343,6 +360,7 @@ class ScormAttempt(models.Model):
             self.completion_status = safe_get_string(cmi_data_dict, 'cmi.completion_status')
             self.success_status = safe_get_string(cmi_data_dict, 'cmi.success_status')
             self.total_time = safe_get_string(cmi_data_dict, 'cmi.total_time')
+            self.session_time = safe_get_string(cmi_data_dict, 'cmi.session_time')
             self.lesson_location = safe_get_string(cmi_data_dict, 'cmi.location')
             self.suspend_data = safe_get_string(cmi_data_dict, 'cmi.suspend_data')
             self.entry_mode = safe_get_string(cmi_data_dict, 'cmi.entry')
@@ -351,6 +369,8 @@ class ScormAttempt(models.Model):
         # Parse time to seconds
         if self.total_time:
             self.total_time_seconds = int(parse_scorm_time(self.total_time, scorm_version))
+        if self.session_time:
+            self.session_time_seconds = int(parse_scorm_time(self.session_time, scorm_version))
         
         # Extract interactions, objectives, comments
         self.interactions_data = self._extract_interactions(cmi_data_dict, scorm_version)

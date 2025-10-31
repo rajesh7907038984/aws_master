@@ -164,6 +164,11 @@ def update_scorm_progress_with_enrollment(request, topic_id):
                 'scorm_success_status': attempt.success_status,
                 'scorm_score': float(attempt.score_raw) if attempt.score_raw else None,
                 'scorm_total_time': attempt.total_time,
+                'scorm_max_score': float(attempt.score_max) if attempt.score_max else None,
+                'scorm_min_score': float(attempt.score_min) if attempt.score_min else None,
+                'scorm_entry': attempt.entry_mode,
+                'scorm_exit': attempt.exit_mode,
+                'scorm_lesson_location': attempt.lesson_location,
             })
             
             # Update bookmark for resume

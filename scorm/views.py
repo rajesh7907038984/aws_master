@@ -60,25 +60,70 @@ def scorm_launcher(request, topic_id):
         import uuid
         session_id = str(uuid.uuid4())
         
-        # Prepare progress data for SCORM API
-        # Safely extract progress data with None checks
-        progress_dict = progress.progress_data if progress.progress_data else {}
-        bookmark_dict = progress.bookmark if progress.bookmark else {}
+        # CRITICAL FIX: Check for existing ScormAttempt for proper resume support
+        # This is especially important for Rise SCORM packages
+        from scorm.models import ScormEnrollment
+        existing_attempt = None
+        try:
+            enrollment = ScormEnrollment.objects.filter(
+                user=request.user,
+                topic=topic
+            ).first()
+            
+            if enrollment:
+                # Get the most recent incomplete attempt for resume
+                existing_attempt = enrollment.get_current_attempt()
+                logger.info(
+                    f"Found existing attempt for resume: attempt_id={existing_attempt.id if existing_attempt else None}, "
+                    f"user={request.user.username}, topic_id={topic_id}"
+                )
+        except Exception as e:
+            logger.warning(f"Could not check for existing attempt: {e}")
         
-        # Compute entry mode for resume behavior
-        has_bookmark = bool(bookmark_dict.get('lesson_location') or bookmark_dict.get('suspend_data'))
-        entry_mode = progress_dict.get('scorm_entry', 'resume' if has_bookmark else 'ab-initio')
+        # Prepare progress data for SCORM API
+        # Priority: existing_attempt > TopicProgress.bookmark > TopicProgress.progress_data
+        if existing_attempt:
+            # Load from most recent incomplete attempt (PRIMARY SOURCE)
+            entry_mode = 'resume' if (existing_attempt.lesson_location or existing_attempt.suspend_data) else 'ab-initio'
+            progress_data = {
+                'entry': entry_mode,
+                'lessonLocation': existing_attempt.lesson_location or '',
+                'suspendData': existing_attempt.suspend_data or '',
+                'lessonStatus': existing_attempt.completion_status or 'incomplete',
+                'scoreRaw': float(existing_attempt.score_raw) if existing_attempt.score_raw else '',
+                'scoreMax': float(existing_attempt.score_max) if existing_attempt.score_max else '',
+                'totalTime': existing_attempt.total_time or '00:00:00',
+                'sessionTime': existing_attempt.session_time or '00:00:00',
+            }
+            logger.info(
+                f"Loading resume data from ScormAttempt: entry={entry_mode}, "
+                f"suspend_data_length={len(existing_attempt.suspend_data) if existing_attempt.suspend_data else 0}, "
+                f"lesson_location={existing_attempt.lesson_location or '(empty)'}"
+            )
+        else:
+            # Fallback to TopicProgress (backwards compatibility)
+            progress_dict = progress.progress_data if progress.progress_data else {}
+            bookmark_dict = progress.bookmark if progress.bookmark else {}
+            
+            # Compute entry mode for resume behavior
+            has_bookmark = bool(bookmark_dict.get('lesson_location') or bookmark_dict.get('suspend_data'))
+            entry_mode = progress_dict.get('scorm_entry', 'resume' if has_bookmark else 'ab-initio')
 
-        # Use camelCase keys to match JavaScript expectations
-        progress_data = {
-            'entry': entry_mode,
-            'lessonLocation': bookmark_dict.get('lesson_location', ''),
-            'suspendData': bookmark_dict.get('suspend_data', ''),
-            'lessonStatus': progress_dict.get('scorm_completion_status', 'not attempted'),
-            'scoreRaw': progress_dict.get('scorm_score', ''),
-            'scoreMax': progress_dict.get('scorm_max_score', ''),
-            'totalTime': progress_dict.get('scorm_total_time', '00:00:00'),
-        }
+            # Use camelCase keys to match JavaScript expectations
+            progress_data = {
+                'entry': entry_mode,
+                'lessonLocation': bookmark_dict.get('lesson_location', ''),
+                'suspendData': bookmark_dict.get('suspend_data', ''),
+                'lessonStatus': progress_dict.get('scorm_completion_status', 'not attempted'),
+                'scoreRaw': progress_dict.get('scorm_score', ''),
+                'scoreMax': progress_dict.get('scorm_max_score', ''),
+                'totalTime': progress_dict.get('scorm_total_time', '00:00:00'),
+                'sessionTime': progress_dict.get('scorm_session_time', '00:00:00'),
+            }
+            logger.info(
+                f"Loading resume data from TopicProgress: entry={entry_mode}, "
+                f"has_bookmark={has_bookmark}"
+            )
         
         context = {
             'topic': topic,

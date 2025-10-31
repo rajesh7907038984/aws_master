@@ -75,6 +75,27 @@ class ScormPackage(models.Model):
         help_text="Authoring tool used to create this SCORM package"
     )
     
+    # SCORM package metadata from manifest
+    mastery_score = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Mastery score from manifest (cmi.student_data.mastery_score) - percentage 0-100"
+    )
+    max_time_allowed = models.CharField(
+        max_length=50,
+        null=True,
+        blank=True,
+        help_text="Maximum time allowed from manifest (cmi.student_data.max_time_allowed)"
+    )
+    time_limit_action = models.CharField(
+        max_length=50,
+        null=True,
+        blank=True,
+        help_text="Time limit action from manifest (exit,message / exit,no message / continue,message / continue,no message)"
+    )
+    
     # File storage
     package_zip = models.FileField(
         upload_to='scorm_packages/zips/',
@@ -193,9 +214,27 @@ class ScormPackage(models.Model):
             str: Always returns a valid entry point path (never None or empty)
         """
         try:
-            # FIRST: Special handling for Rise packages
+            # FIRST: Check if we have primary_resource_href stored (most reliable)
+            # This is the correct href value extracted from the manifest resource during processing
+            # This should always be respected as it's the authoritative source
+            if self.primary_resource_href and self.primary_resource_href.strip():
+                normalized_href = self._normalize_entry_point(self.primary_resource_href)
+                if normalized_href and normalized_href.strip():
+                    # Verify the file exists in S3 if we have extracted_path
+                    if self.extracted_path:
+                        if self._verify_entry_point_file_exists(normalized_href):
+                            logger.debug(f"SCORM package {self.id}: Using verified primary_resource_href: {normalized_href}")
+                            return normalized_href
+                        else:
+                            logger.warning(f"SCORM package {self.id}: primary_resource_href '{normalized_href}' not found in S3, will try fallbacks")
+                            # Continue to fallback logic below
+                    else:
+                        # No extracted_path yet, trust the manifest value
+                        logger.debug(f"SCORM package {self.id}: Using primary_resource_href: {normalized_href}")
+                        return normalized_href
+            
+            # SECOND: Special handling for Rise packages (ONLY if primary_resource_href failed)
             # Rise often exports both SCORM 1.2 and 2004 versions
-            # Prefer SCORM 1.2 (scormcontent/index.html) for better compatibility
             # Check for Rise indicators in manifest data (avoid calling detect_authoring_tool to prevent recursion)
             is_rise = False
             if self.manifest_data and isinstance(self.manifest_data, dict):
@@ -203,25 +242,39 @@ class ScormPackage(models.Model):
                 is_rise = 'rise' in manifest_str or 'articulate rise' in manifest_str
             
             if is_rise and self.extracted_path:
-                rise_entry_points = [
-                    'scormcontent/index.html',  # Rise SCORM 1.2 (preferred)
-                    'index.html',                # Rise alternative
-                    'lib/index.html',            # Rise variation
-                ]
+                # Respect the SCORM version - try version-specific paths first
+                rise_entry_points = []
+                
+                if self.version == '1.2':
+                    # SCORM 1.2 specific paths first
+                    rise_entry_points = [
+                        'scormcontent/index.html',  # Rise SCORM 1.2
+                        'index.html',                # Rise alternative
+                        'lib/index.html',            # Rise variation
+                        'scormdriver/indexAPI.html', # Fallback to 2004
+                    ]
+                elif self.version == '2004':
+                    # SCORM 2004 specific paths first
+                    rise_entry_points = [
+                        'scormdriver/indexAPI.html', # Rise SCORM 2004
+                        'scormdriver/indexAPI_lms.html', # Captivate variant
+                        'indexAPI.html',              # Alternative
+                        'scormcontent/index.html',   # Fallback to 1.2
+                        'index.html',                 # Generic fallback
+                    ]
+                else:
+                    # Unknown version - try both
+                    rise_entry_points = [
+                        'scormcontent/index.html',   # Rise SCORM 1.2
+                        'scormdriver/indexAPI.html', # Rise SCORM 2004
+                        'index.html',                 # Generic
+                        'lib/index.html',             # Rise variation
+                    ]
+                
                 for entry in rise_entry_points:
                     if self._verify_entry_point_file_exists(entry):
                         logger.info(f"SCORM package {self.id}: Using Rise-specific entry point: {entry}")
                         return entry
-            
-            # SECOND: Check if we have primary_resource_href stored (most reliable)
-            # This is the correct href value from the manifest resource
-            if self.primary_resource_href and self.primary_resource_href.strip():
-                normalized_href = self._normalize_entry_point(self.primary_resource_href)
-                if normalized_href and normalized_href.strip():
-                    # Use the stored href directly (it was validated during processing)
-                    # We can optionally verify it exists, but for performance, trust it if set
-                    logger.debug(f"SCORM package {self.id}: Using primary_resource_href: {normalized_href}")
-                    return normalized_href
             
             # THIRD: Check if manifest_data exists and is valid
             if not self.manifest_data or not isinstance(self.manifest_data, dict):
@@ -349,27 +402,62 @@ class ScormPackage(models.Model):
         """
         Return common entry points in order of preference
         Verifies file exists if extracted_path is set
+        Respects SCORM version to prioritize version-specific entry points
         
         Returns:
             str: Always returns a valid entry point (default: "index_lms.html")
         """
-        # Common entry points for SCORM 1.2 and 2004, ordered by frequency
-        common_entry_points = [
-            "index_lms.html",              # Adobe Captivate (most common)
-            "index.html",                   # Articulate Rise, iSpring, Adapt, DominKnow, Lectora
-            "scormcontent/index.html",     # Articulate Rise (nested structure)
-            "story.html",                   # Articulate Storyline
-            "story_html5.html",            # Articulate Storyline (HTML5 output)
-            "index_lms_html5.html",        # Captivate HTML5
-            "launch.html",                  # Elucidat
-            "indexAPI.html",                # SCORM 2004 variant
-            "scormdriver/indexAPI.html",   # Captivate SCORM 2004
-            "scormdriver/indexAPI_lms.html", # Captivate variant
-            "a001index.html",               # Lectora specific
-            "presentation.html",            # Generic presentation
-            "res/index.html",               # Nested structure (various tools)
-            "lib/index.html",               # Some Rise variations
-        ]
+        # Order entry points based on SCORM version
+        if self.version == '1.2':
+            # SCORM 1.2 specific entry points first
+            common_entry_points = [
+                "index_lms.html",              # Adobe Captivate SCORM 1.2
+                "scormcontent/index.html",     # Articulate Rise SCORM 1.2
+                "index.html",                   # Generic SCORM 1.2
+                "story.html",                   # Articulate Storyline
+                "story_html5.html",            # Articulate Storyline (HTML5)
+                "index_lms_html5.html",        # Captivate HTML5
+                "launch.html",                  # Elucidat
+                "a001index.html",               # Lectora
+                "presentation.html",            # Generic
+                "res/index.html",               # Nested structure
+                "lib/index.html",               # Rise variations
+                "indexAPI.html",                # Fallback to SCORM 2004
+                "scormdriver/indexAPI.html",   # Fallback to SCORM 2004
+            ]
+        elif self.version == '2004':
+            # SCORM 2004 specific entry points first
+            common_entry_points = [
+                "scormdriver/indexAPI.html",   # Captivate/Rise SCORM 2004
+                "scormdriver/indexAPI_lms.html", # Captivate variant
+                "indexAPI.html",                # Generic SCORM 2004
+                "index.html",                   # Generic
+                "index_lms.html",              # Captivate fallback
+                "story.html",                   # Storyline
+                "launch.html",                  # Elucidat
+                "scormcontent/index.html",     # Fallback to SCORM 1.2
+                "lib/index.html",               # Rise variations
+                "res/index.html",               # Nested structure
+                "presentation.html",            # Generic
+            ]
+        else:
+            # Unknown version - try both, prioritize more common patterns
+            common_entry_points = [
+                "index_lms.html",              # Adobe Captivate
+                "index.html",                   # Generic (most common)
+                "scormcontent/index.html",     # Articulate Rise SCORM 1.2
+                "scormdriver/indexAPI.html",   # Captivate/Rise SCORM 2004
+                "story.html",                   # Articulate Storyline
+                "story_html5.html",            # Storyline HTML5
+                "index_lms_html5.html",        # Captivate HTML5
+                "launch.html",                  # Elucidat
+                "indexAPI.html",                # SCORM 2004
+                "scormdriver/indexAPI_lms.html", # Captivate variant
+                "a001index.html",               # Lectora
+                "presentation.html",            # Generic
+                "res/index.html",               # Nested structure
+                "lib/index.html",               # Rise variations
+            ]
         
         # If we have extracted_path, try to verify which one exists
         if self.extracted_path:
@@ -1029,6 +1117,16 @@ class ScormAttempt(models.Model):
         default=0,
         help_text="Total time in seconds for easier querying"
     )
+    session_time = models.CharField(
+        max_length=50,
+        null=True,
+        blank=True,
+        help_text="Session time for this attempt (HH:MM:SS or PTnHnMnS)"
+    )
+    session_time_seconds = models.IntegerField(
+        default=0,
+        help_text="Session time in seconds for easier querying"
+    )
     
     # Location/bookmark
     lesson_location = models.TextField(
@@ -1141,6 +1239,7 @@ class ScormAttempt(models.Model):
             self.completion_status = safe_get_string(cmi_data_dict, 'cmi.core.lesson_status')
             self.success_status = safe_get_string(cmi_data_dict, 'cmi.core.success_status')
             self.total_time = safe_get_string(cmi_data_dict, 'cmi.core.total_time')
+            self.session_time = safe_get_string(cmi_data_dict, 'cmi.core.session_time')
             self.lesson_location = safe_get_string(cmi_data_dict, 'cmi.core.lesson_location')
             self.suspend_data = safe_get_string(cmi_data_dict, 'cmi.suspend_data')
             self.entry_mode = safe_get_string(cmi_data_dict, 'cmi.core.entry')
@@ -1153,6 +1252,7 @@ class ScormAttempt(models.Model):
             self.completion_status = safe_get_string(cmi_data_dict, 'cmi.completion_status')
             self.success_status = safe_get_string(cmi_data_dict, 'cmi.success_status')
             self.total_time = safe_get_string(cmi_data_dict, 'cmi.total_time')
+            self.session_time = safe_get_string(cmi_data_dict, 'cmi.session_time')
             self.lesson_location = safe_get_string(cmi_data_dict, 'cmi.location')
             self.suspend_data = safe_get_string(cmi_data_dict, 'cmi.suspend_data')
             self.entry_mode = safe_get_string(cmi_data_dict, 'cmi.entry')
@@ -1161,6 +1261,8 @@ class ScormAttempt(models.Model):
         # Parse time to seconds
         if self.total_time:
             self.total_time_seconds = int(parse_scorm_time(self.total_time, scorm_version))
+        if self.session_time:
+            self.session_time_seconds = int(parse_scorm_time(self.session_time, scorm_version))
         
         # Extract interactions, objectives, comments
         self.interactions_data = self._extract_interactions(cmi_data_dict, scorm_version)
