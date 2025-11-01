@@ -25,6 +25,7 @@ from django.contrib.staticfiles.storage import staticfiles_storage
 from .models import CertificateTemplate, CertificateElement, IssuedCertificate
 from users.models import CustomUser
 from core.utils.business_filtering import get_superadmin_business_filter
+from core.utils.pdf_processor import get_weasyprint
 from role_management.utils import require_capability, require_any_capability, PermissionManager
 
 logger = logging.getLogger(__name__)
@@ -260,8 +261,10 @@ def view_certificate(request, certificate_id):
                 html = render_to_string('certificates/view_certificate.html', context)
                 
                 # Generate PDF using weasyprint with landscape orientation
-                from weasyprint import HTML, CSS
-                from weasyprint.document import DocumentMetadata
+                HTML, CSS = get_weasyprint()
+                if HTML is None or CSS is None:
+                    messages.error(request, "PDF generation is not available. Please contact your administrator.")
+                    return redirect('certificates:view_certificate', certificate_id=certificate_id)
                 
                 # Create CSS for landscape orientation - always use A4 landscape
                 page_css = CSS(string='''
@@ -855,8 +858,10 @@ def regenerate_certificate_file(request, certificate_id):
         html = render_to_string('certificates/view_certificate.html', context)
         
         # Generate PDF using weasyprint with landscape orientation
-        from weasyprint import HTML, CSS
-        from weasyprint.document import DocumentMetadata
+        HTML, CSS = get_weasyprint()
+        if HTML is None or CSS is None:
+            messages.error(request, "PDF generation is not available. Please contact your administrator.")
+            return redirect('certificates:certificates')
         
         # Create CSS for landscape orientation - always use A4 landscape
         page_css = CSS(string='''

@@ -320,7 +320,9 @@ def pre_calculate_student_scores(students, activities, grades, quiz_attempts, sc
                                             'date': progress.completed_at or progress.last_accessed,
                                             'type': 'scorm',
                                             'completed': progress.completed,
-                                            'can_resume': False
+                                            'can_resume': False,
+                                            'completion_status': progress_data.get('scorm_completion_status'),
+                                            'success_status': progress_data.get('scorm_success_status')
                                         }
                                     elif progress.completed or progress_data.get('scorm_completion_status') in ['completed', 'passed']:
                                         # Content-only SCORM but completed - show completion without score
@@ -331,7 +333,9 @@ def pre_calculate_student_scores(students, activities, grades, quiz_attempts, sc
                                             'type': 'scorm',
                                             'completed': True,
                                             'status': 'completed',
-                                            'can_resume': False
+                                            'can_resume': False,
+                                            'completion_status': progress_data.get('scorm_completion_status'),
+                                            'success_status': progress_data.get('scorm_success_status')
                                         }
                                     elif progress.last_accessed:
                                         # In-progress SCORM - show resume option
@@ -345,19 +349,25 @@ def pre_calculate_student_scores(students, activities, grades, quiz_attempts, sc
                                             'type': 'scorm',
                                             'completed': False,
                                             'status': 'in_progress',
-                                            'can_resume': has_resume_data
+                                            'can_resume': has_resume_data,
+                                            'completion_status': progress_data.get('scorm_completion_status'),
+                                            'success_status': progress_data.get('scorm_success_status')
                                         }
                                     # else: not started - don't add to student_scores
                                 else:
                                     # Determine if learner has an in-progress attempt that can be resumed
                                     can_resume = False
+                                    fallback_completion_status = None
+                                    fallback_success_status = None
                                     if progress:
                                         bookmark = progress.bookmark or {}
                                         has_location = bool(bookmark.get('lesson_location'))
                                         has_suspend = bool(bookmark.get('suspend_data'))
                                         # Consider incomplete status as resumable as well
-                                        progress_data = progress.progress_data or {}
-                                        completion_status = (progress_data.get('scorm_completion_status') or '').lower()
+                                        fallback_progress_data = progress.progress_data or {}
+                                        fallback_completion_status = fallback_progress_data.get('scorm_completion_status')
+                                        fallback_success_status = fallback_progress_data.get('scorm_success_status')
+                                        completion_status = (fallback_completion_status or '').lower()
                                         is_incomplete = completion_status in ['incomplete', 'unknown', 'not attempted'] and (has_location or has_suspend)
                                         can_resume = has_location or has_suspend or is_incomplete
                                     
@@ -365,7 +375,9 @@ def pre_calculate_student_scores(students, activities, grades, quiz_attempts, sc
                                         'score': None,
                                         'max_score': activity.get('max_score', 100),
                                         'type': 'scorm',
-                                        'can_resume': can_resume
+                                        'can_resume': can_resume,
+                                        'completion_status': fallback_completion_status,
+                                        'success_status': fallback_success_status
                                     }
                             except Exception as e:
                                 logger.error(f"Error processing SCORM activity {activity_id} for student {student.id}: {str(e)}")
@@ -373,7 +385,9 @@ def pre_calculate_student_scores(students, activities, grades, quiz_attempts, sc
                                     'score': None,
                                     'max_score': activity.get('max_score', 100),
                                     'type': 'scorm',
-                                    'can_resume': False
+                                    'can_resume': False,
+                                    'completion_status': None,
+                                    'success_status': None
                                 }
                         
                     

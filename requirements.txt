@@ -95,3 +95,6 @@ django-import-export==3.3.1
 
 # Type Checking and Static Analysis
 djangorestframework-stubs==3.14.5
+
+# PDF Generation
+weasyprint>=60.0
