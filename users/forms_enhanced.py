@@ -339,11 +339,12 @@ class EnhancedUserChangeForm(CustomUserChangeForm):
 
 
     def __init__(self, *args, **kwargs):
-        self.request = kwargs.pop('request', None)
+        # Don't pop 'request' here - let the parent class handle it
+        # The parent class (CustomUserChangeForm) will pop it and set self.request
         super().__init__(*args, **kwargs)
         
-        
-        # Determine if this is a self-edit scenario
+        # Note: self.request and self.is_self_edit are already set by parent CustomUserChangeForm.__init__
+        # Re-confirm self-edit scenario (already set by parent, but kept for clarity)
         self.is_self_edit = (self.request and self.instance and self.instance.pk and 
                             self.request.user.id == self.instance.pk)
         

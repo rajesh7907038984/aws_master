@@ -1186,7 +1186,7 @@ class CustomUserChangeForm(forms.ModelForm):
     
     timezone = forms.ChoiceField(
         choices=[(tz, tz) for tz in pytz.common_timezones],
-        required=True,
+        required=False,
         widget=forms.Select(attrs={'class': 'form-select'}),
         help_text="Select your preferred timezone"
     )
@@ -1443,10 +1443,27 @@ class CustomUserChangeForm(forms.ModelForm):
         elif self.request and self.request.user.role == 'superadmin':
             # Super Admin can assign to businesses they manage
             if hasattr(self.request.user, 'business_assignments'):
-                assigned_businesses = self.request.user.business_assignments.filter(is_active=True).values_list('business', flat=True)
-                self.fields['business'].queryset = Business.objects.filter(id__in=assigned_businesses, is_active=True).order_by('name')
+                assigned_businesses_list = list(self.request.user.business_assignments.filter(is_active=True).values_list('business', flat=True))
+                
+                # For self-edit scenarios, ensure the current business is in the queryset
+                if self.is_self_edit and self.instance.pk:
+                    business_assignment = self.instance.business_assignments.filter(is_active=True).first()
+                    if business_assignment and business_assignment.business.id not in assigned_businesses_list:
+                        # Include the current business even if it's not in assigned businesses
+                        assigned_businesses_list.append(business_assignment.business.id)
+                
+                business_queryset = Business.objects.filter(id__in=assigned_businesses_list, is_active=True).order_by('name')
+                self.fields['business'].queryset = business_queryset
             else:
-                self.fields['business'].queryset = Business.objects.none()
+                # For self-edit scenarios, include current business even if no assignments found
+                if self.is_self_edit and self.instance.pk:
+                    business_assignment = self.instance.business_assignments.filter(is_active=True).first()
+                    if business_assignment:
+                        self.fields['business'].queryset = Business.objects.filter(id=business_assignment.business.id)
+                    else:
+                        self.fields['business'].queryset = Business.objects.none()
+                else:
+                    self.fields['business'].queryset = Business.objects.none()
         else:
             # Other users don't see business field
             self.fields['business'].queryset = Business.objects.none()
@@ -1459,6 +1476,10 @@ class CustomUserChangeForm(forms.ModelForm):
         # Branch requirement depends on role - Super Admins don't need branches
         self.fields['branch'].required = False
         self.fields['business'].required = False
+        
+        # For self-edit scenarios, ensure business field won't fail validation
+        if self.is_self_edit and self.instance.role == 'superadmin':
+            self.fields['business'].required = False
 
         # Add help text
         self.fields['username'].help_text = "Required. 150 characters or fewer. Letters, digits and @/./+/-/_ only."
@@ -1781,8 +1802,15 @@ class CustomUserChangeForm(forms.ModelForm):
         # Validate business field for Super Admin users
         business = cleaned_data.get('business')
         if role == 'superadmin':
-            if not business:
+            # Skip business validation for self-edit scenarios
+            if not self.is_self_edit and not business:
                 raise forms.ValidationError("Business selection is required for Super Admin users.")
+            # For self-edit, preserve the current business assignment
+            elif self.is_self_edit and self.instance.pk:
+                # Keep the current business from database, don't validate the submitted value
+                business_assignment = self.instance.business_assignments.filter(is_active=True).first()
+                if business_assignment:
+                    cleaned_data['business'] = business_assignment.business
         elif role != 'superadmin' and business:
             # Clear business for non-Super Admin users
             cleaned_data['business'] = None
