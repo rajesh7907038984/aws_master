@@ -97,4 +97,6 @@ django-import-export==3.3.1
 djangorestframework-stubs==3.14.5
 
 # PDF Generation
-weasyprint>=60.0
+# Using WeasyPrint 44 and cairocffi 0.9.0 for compatibility with Pango 1.42 on Amazon Linux 2
+weasyprint==44
+cairocffi==0.9.0

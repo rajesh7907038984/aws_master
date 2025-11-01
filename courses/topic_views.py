@@ -64,20 +64,30 @@ def topic_view(request, topic_id):
         
         if request.user.is_authenticated:
             try:
-                # Use get_or_create to automatically create progress record when learner views topic
-                topic_progress, created = TopicProgress.objects.get_or_create(
-                    user=request.user,
-                    topic=topic,
-                    defaults={
-                        'completed': False,
-                        'completion_method': 'auto'
-                    }
-                )
-                is_completed = topic_progress.completed
-                
-                # Log creation for debugging
-                if created:
-                    logger.info(f"Created TopicProgress for user {request.user.username} on topic {topic.id} - {topic.title}")
+                # Only create progress records for learners
+                # Instructors, admins, etc. should be able to view topics without tracking progress
+                if hasattr(request.user, 'role') and request.user.role == 'learner':
+                    # Use get_or_create to automatically create progress record when learner views topic
+                    topic_progress, created = TopicProgress.objects.get_or_create(
+                        user=request.user,
+                        topic=topic,
+                        defaults={
+                            'completed': False,
+                            'completion_method': 'auto'
+                        }
+                    )
+                    is_completed = topic_progress.completed
+                    
+                    # Log creation for debugging
+                    if created:
+                        logger.info(f"Created TopicProgress for user {request.user.username} on topic {topic.id} - {topic.title}")
+                else:
+                    # For non-learners (instructors, admins), just check if progress exists but don't create
+                    topic_progress = TopicProgress.objects.filter(
+                        user=request.user,
+                        topic=topic
+                    ).first()
+                    is_completed = topic_progress.completed if topic_progress else False
             except Exception as e:
                 logger.error(f"Error creating/getting TopicProgress: {str(e)}")
                 topic_progress = None

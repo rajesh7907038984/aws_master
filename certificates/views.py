@@ -273,6 +273,20 @@ def view_certificate(request, certificate_id):
                         margin: 0; 
                     }
                     
+                    /* Color correction for WeasyPrint 44 - preserve exact colors */
+                    * {
+                        -webkit-print-color-adjust: exact !important;
+                        print-color-adjust: exact !important;
+                        color-adjust: exact !important;
+                    }
+                    
+                    img {
+                        -webkit-print-color-adjust: exact !important;
+                        print-color-adjust: exact !important;
+                        color-rendering: optimizeQuality !important;
+                        image-rendering: -webkit-optimize-contrast !important;
+                    }
+                    
                     .field-placeholder {
                         position: absolute !important;
                         background: transparent !important;
@@ -868,6 +882,20 @@ def regenerate_certificate_file(request, certificate_id):
             @page { 
                 size: A4 landscape; 
                 margin: 0; 
+            }
+            
+            /* Color correction for WeasyPrint 44 - preserve exact colors */
+            * {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+                color-adjust: exact !important;
+            }
+            
+            img {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+                color-rendering: optimizeQuality !important;
+                image-rendering: -webkit-optimize-contrast !important;
             }
             
             .field-placeholder {

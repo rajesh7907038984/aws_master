@@ -597,6 +597,7 @@
                                 {% with entry_point=topic.scorm.primary_resource_href %}
                                     {% if entry_point and entry_point|length > 0 %}
                                         <!-- Launch or Resume Button with Completion Check -->
+                                        {% if progress %}
                                         {% with bookmark=progress.bookmark %}
                                         {% with has_location=bookmark.lesson_location|default:''|length %}
                                         {% with has_suspend=bookmark.suspend_data|default:''|length %}
@@ -613,13 +614,13 @@
                                                             {% endif %}
                                                         </div>
                                                     </div>
-                                                    <div>
+                                                    <!-- <div>
                                                         <a href="{% url 'scorm:launcher' topic.id %}"
                                                            class="btn btn-outline-primary px-6 py-2 text-sm rounded-lg flex items-center gap-2 inline-flex">
                                                             <i class="fas fa-redo"></i>
                                                             Review Content
                                                         </a>
-                                                    </div>
+                                                    </div> -->
                                                 </div>
                                             {% else %}
                                                 <!-- Not Completed - Show Launch/Resume -->
@@ -633,6 +634,16 @@
                                         {% endwith %}
                                         {% endwith %}
                                         {% endwith %}
+                                        {% else %}
+                                        <!-- No progress record (non-learner or first-time view) -->
+                                        <div class="flex justify-center items-center py-12">
+                                            <a href="{% url 'scorm:launcher' topic.id %}"
+                                               class="btn btn-primary px-8 py-4 text-white rounded-lg shadow-md hover:shadow-lg transition-shadow duration-200 flex items-center gap-2 text-lg">
+                                                <i class="fas fa-play-circle"></i>
+                                                Launch SCORM Player
+                                            </a>
+                                        </div>
+                                        {% endif %}
                                     {% else %}
                                         <div class="text-center p-8 bg-yellow-50 rounded-lg">
                                             <i class="fas fa-exclamation-triangle text-yellow-600 text-3xl mb-4"></i>

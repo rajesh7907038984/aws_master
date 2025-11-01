@@ -345,7 +345,8 @@ class ScormAttempt(models.Model):
             self.score_min = safe_get_float(cmi_data_dict, 'cmi.core.score.min')
             self.score_max = safe_get_float(cmi_data_dict, 'cmi.core.score.max')
             self.completion_status = safe_get_string(cmi_data_dict, 'cmi.core.lesson_status')
-            self.success_status = safe_get_string(cmi_data_dict, 'cmi.core.success_status')
+            # SCORM 1.2 doesn't have separate success_status - it uses lesson_status values (passed/completed/failed)
+            self.success_status = None
             self.total_time = safe_get_string(cmi_data_dict, 'cmi.core.total_time')
             self.session_time = safe_get_string(cmi_data_dict, 'cmi.core.session_time')
             self.lesson_location = safe_get_string(cmi_data_dict, 'cmi.core.lesson_location')

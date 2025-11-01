@@ -56,199 +56,155 @@ def parse_imsmanifest(zip_path, manifest_path=None) -> Dict:
     try:
         with zipfile.ZipFile(zip_path, 'r') as z:
             with z.open(manifest_path) as f:
-                tree = ET.parse(f)
-                root = tree.getroot()
+                # Read raw XML first to extract namespaces (ElementTree doesn't expose xmlns: attributes)
+                manifest_xml = f.read().decode('utf-8')
+            
+            # Extract namespace declarations from raw XML using regex
+            # This is critical for correct version detection
+            import re
+            namespaces = {}
+            
+            # Extract default namespace from xmlns="..."
+            default_ns_match = re.search(r'<manifest[^>]*xmlns="([^"]+)"', manifest_xml)
+            if default_ns_match:
+                namespaces['default'] = default_ns_match.group(1)
+            
+            # Extract all xmlns:prefix="..." declarations
+            xmlns_pattern = r'xmlns:(\w+)="([^"]+)"'
+            for match in re.finditer(xmlns_pattern, manifest_xml[:3000]):  # Check first 3000 chars
+                prefix = match.group(1)
+                uri = match.group(2)
+                namespaces[prefix] = uri
+            
+            # Add helper mappings for XPath queries
+            if 'default' in namespaces:
+                default_uri = namespaces['default']
+                # Map default to specific known types for easier XPath queries
+                if 'imscp_v1p1' in default_uri or 'imsglobal' in default_uri:
+                    namespaces['ims'] = default_uri
+                    namespaces['ims1p1'] = default_uri
+                elif 'imscp_rootv1p1p2' in default_uri or 'imsproject' in default_uri:
+                    namespaces['ims'] = default_uri
+                    namespaces['ims1p2'] = default_uri
+            
+            # Now parse the XML with ElementTree
+            root = ET.fromstring(manifest_xml)
+            
+            result = {
+                'organizations': [],
+                'resources': [],
+                'metadata': {},
+                'version': None
+            }
+            
+            # Detect SCORM version
+            version = detect_scorm_version(root, namespaces)
+            result['version'] = version
+            
+            # Get default namespace for XPath queries
+            default_ns = namespaces.get('default', '')
+            
+            # Parse metadata - find by iterating (Python 3.7 compatible)
+            metadata_elem = None
+            for elem in root.iter():
+                if elem.tag.endswith('metadata'):
+                    metadata_elem = elem
+                    break
+            
+            if metadata_elem is not None:
+                for child in metadata_elem.iter():
+                    if child.tag.endswith('schema') and child.text:
+                        result['metadata']['schema'] = child.text
+                    elif child.tag.endswith('schemaversion') and child.text:
+                        result['metadata']['schemaversion'] = child.text
+                    elif child.tag.endswith('title') and child.text:
+                        result['metadata']['title'] = child.text
+            
+            # Parse organizations - find by iterating through root children
+            orgs_elem = None
+            for child in root:
+                if child.tag.endswith('organizations'):
+                    orgs_elem = child
+                    break
+            
+            if orgs_elem is not None:
+                # Find direct children organization elements
+                orgs = [child for child in orgs_elem if child.tag.endswith('organization')]
                 
-                # Parse namespaces (SCORM uses ADL namespaces)
-                # Auto-detect default namespace from root element
-                default_ns = root.tag.split('}')[0].strip('{') if '}' in root.tag else ''
-                
-                namespaces = {
-                    'default': default_ns,
-                    # IMS namespace variants
-                    'ims': 'http://www.imsproject.org/xsd/imscp_rootv1p1p2',
-                    'ims1p1': 'http://www.imsglobal.org/xsd/imscp_v1p1',
-                    'ims1p2': 'http://www.imsproject.org/xsd/imscp_rootv1p1p2',
-                    # ADL namespace variants (SCORM 1.2 and 2004)
-                    'adlcp': 'http://www.adlnet.org/xsd/adlcp_rootv1p2',
-                    'adlcp1p3': 'http://www.adlnet.org/xsd/adlcp_v1p3',
-                    'adlseq': 'http://www.adlnet.org/xsd/adlseq_v1p3',
-                    'adlnav': 'http://www.adlnet.org/xsd/adlnav_v1p3',
-                    'imsss': 'http://www.imsglobal.org/xsd/imsss',
-                    'xsi': 'http://www.w3.org/2001/XMLSchema-instance'
-                }
-                
-                # Use the auto-detected namespace if present
-                if default_ns:
-                    # Map the default namespace to the correct variant
-                    if 'imscp_v1p1' in default_ns or 'imsglobal' in default_ns:
-                        namespaces['ims'] = default_ns
-                        namespaces['ims1p1'] = default_ns
-                    elif 'imscp_rootv1p1p2' in default_ns or 'imsproject' in default_ns:
-                        namespaces['ims'] = default_ns
-                        namespaces['ims1p2'] = default_ns
-                
-                result = {
-                    'organizations': [],
-                    'resources': [],
-                    'metadata': {},
-                    'version': None
-                }
-                
-                # Detect SCORM version
-                version = detect_scorm_version(root, namespaces)
-                result['version'] = version
-                
-                # Parse metadata
-                metadata_elem = root.find('.//metadata', namespaces)
-                if metadata_elem is not None:
-                    schema_elem = metadata_elem.find('.//schema', namespaces)
-                    if schema_elem is not None:
-                        result['metadata']['schema'] = schema_elem.text
+                for org in orgs:
+                    org_data = {
+                        'identifier': org.get('identifier', ''),
+                        'title': '',
+                        'items': []
+                    }
                     
-                    schemaversion_elem = metadata_elem.find('.//schemaversion', namespaces)
-                    if schemaversion_elem is not None:
-                        result['metadata']['schemaversion'] = schemaversion_elem.text
+                    # Get title - find by iterating
+                    for elem in org.iter():
+                        if elem.tag.endswith('title') and elem.text:
+                            org_data['title'] = elem.text
+                            break
                     
-                    # Title
-                    title_elem = metadata_elem.find('.//title', namespaces)
-                    if title_elem is None:
-                        title_elem = metadata_elem.find('.//{*}title')  # Try without namespace
-                    if title_elem is not None:
-                        result['metadata']['title'] = title_elem.text
-                
-                # Parse organizations - try with detected default namespace
-                orgs_elem = None
-                if default_ns:
-                    orgs_elem = root.find(f'{{{default_ns}}}organizations')
-                if orgs_elem is None:
-                    orgs_elem = root.find('.//organizations', namespaces)
-                if orgs_elem is None:
-                    # Try without namespace
-                    orgs_elem = root.find('.//{*}organizations')
-                
-                if orgs_elem is not None:
-                    # Find organization elements
-                    orgs = []
-                    if default_ns:
-                        orgs = orgs_elem.findall(f'{{{default_ns}}}organization')
-                    if not orgs:
-                        orgs = orgs_elem.findall('.//organization', namespaces) or []
-                    if not orgs:
-                        orgs = orgs_elem.findall('.//{*}organization') or []
+                    # Parse items - find direct children only
+                    items = [item for item in org if item.tag.endswith('item')]
+                    for item_elem in items:
+                        item_data = parse_item(item_elem, namespaces, default_ns)
+                        org_data['items'].append(item_data)
                     
-                    for org in orgs:
-                        org_data = {
-                            'identifier': org.get('identifier', ''),
-                            'title': '',
-                            'items': []
-                        }
-                        
-                        # Get title - try multiple methods
-                        title_elem = None
-                        if default_ns:
-                            title_elem = org.find(f'{{{default_ns}}}title')
-                        if title_elem is None:
-                            title_elem = org.find('.//title', namespaces)
-                        if title_elem is None:
-                            title_elem = org.find('.//{*}title')
-                        if title_elem is not None:
-                            org_data['title'] = title_elem.text or ''
-                        
-                        # Parse items - find direct children only
-                        items = []
-                        if default_ns:
-                            items = org.findall(f'{{{default_ns}}}item')
-                        if not items:
-                            items = org.findall('./item', namespaces) or []
-                        if not items:
-                            items = [item for item in org if item.tag.endswith('item')]
-                        
-                        for item_elem in items:
-                            item_data = parse_item(item_elem, namespaces, default_ns)
-                            org_data['items'].append(item_data)
-                        
-                        result['organizations'].append(org_data)
+                    result['organizations'].append(org_data)
+            
+            # Parse resources - find by iterating through root children
+            resources_elem = None
+            for child in root:
+                if child.tag.endswith('resources'):
+                    resources_elem = child
+                    break
+            
+            if resources_elem is not None:
+                # Find direct children resource elements
+                resources = [child for child in resources_elem if child.tag.endswith('resource')]
                 
-                # Parse resources - try with detected default namespace
-                resources_elem = None
-                if default_ns:
-                    resources_elem = root.find(f'{{{default_ns}}}resources')
-                if resources_elem is None:
-                    resources_elem = root.find('.//resources', namespaces)
-                if resources_elem is None:
-                    resources_elem = root.find('.//{*}resources')
-                
-                if resources_elem is not None:
-                    # Find resource elements
-                    resources = []
-                    if default_ns:
-                        resources = resources_elem.findall(f'{{{default_ns}}}resource')
-                    if not resources:
-                        resources = resources_elem.findall('.//resource', namespaces) or []
-                    if not resources:
-                        resources = resources_elem.findall('.//{*}resource') or []
+                for resource in resources:
+                    resource_data = {
+                        'identifier': resource.get('identifier', ''),
+                        'type': resource.get('type', ''),
+                        'href': resource.get('href', ''),
+                        'base': resource.get('base', ''),
+                    }
                     
-                    for resource in resources:
-                        resource_data = {
-                            'identifier': resource.get('identifier', ''),
-                            'type': resource.get('type', ''),
-                            'href': resource.get('href', ''),
-                            'base': resource.get('base', ''),
-                        }
-                        
-                        # Extract SCORM-specific attributes (adlcp:scormType)
-                        # Try different namespace variants and attribute patterns
-                        scorm_type = None
-                        
-                        # Method 1: Try with known namespace prefixes
-                        for ns_prefix in ['adlcp', 'adlcp1p3', 'adl']:
-                            ns_uri = namespaces.get(ns_prefix, '')
-                            if ns_uri:
-                                scorm_type = resource.get(f'{{{ns_uri}}}scormType')
-                                if scorm_type:
-                                    break
-                        
-                        # Method 2: Try without namespace
-                        if not scorm_type:
-                            scorm_type = resource.get('scormType')
-                        
-                        # Method 3: Check all attributes for scormtype pattern (case-insensitive)
-                        if not scorm_type:
-                            for attr_name, attr_value in resource.attrib.items():
-                                attr_lower = attr_name.lower()
-                                if 'scormtype' in attr_lower or attr_name.endswith('scormType'):
-                                    scorm_type = attr_value
-                                    logger.debug(f"Found scormType via attribute scan: {attr_name}={attr_value}")
-                                    break
-                        
-                        # Method 4: Look in namespace-prefixed attributes
-                        if not scorm_type:
-                            for attr_name, attr_value in resource.attrib.items():
-                                if attr_name.endswith('}scormType'):
-                                    scorm_type = attr_value
-                                    logger.debug(f"Found scormType via namespace prefix: {attr_value}")
-                                    break
-                        
-                        if scorm_type:
-                            resource_data['scormType'] = scorm_type
-                        else:
-                            logger.debug(f"No scormType found for resource {resource.get('identifier')}")
-                        
-                        # Get title if available
-                        title_elem = None
-                        if default_ns:
-                            title_elem = resource.find(f'{{{default_ns}}}title')
-                        if title_elem is None:
-                            title_elem = resource.find('.//title', namespaces)
-                        if title_elem is None:
-                            title_elem = resource.find('.//{*}title')
-                        if title_elem is not None:
-                            resource_data['title'] = title_elem.text
-                        
-                        result['resources'].append(resource_data)
-                
-                return result
+                    # Extract SCORM-specific attributes (adlcp:scormType)
+                    scorm_type = None
+                    
+                    # Method 1: Try with known namespace prefixes
+                    for ns_prefix in ['adlcp', 'adlcp1p3', 'adl']:
+                        ns_uri = namespaces.get(ns_prefix, '')
+                        if ns_uri:
+                            scorm_type = resource.get(f'{{{ns_uri}}}scormType')
+                            if scorm_type:
+                                break
+                    
+                    # Method 2: Try without namespace
+                    if not scorm_type:
+                        scorm_type = resource.get('scormType')
+                    
+                    # Method 3: Check all attributes for scormtype pattern
+                    if not scorm_type:
+                        for attr_name, attr_value in resource.attrib.items():
+                            if 'scormtype' in attr_name.lower() or attr_name.endswith('scormType'):
+                                scorm_type = attr_value
+                                break
+                    
+                    if scorm_type:
+                        resource_data['scormType'] = scorm_type
+                    
+                    # Get title if available - find by iterating
+                    for elem in resource.iter():
+                        if elem.tag.endswith('title') and elem.text:
+                            resource_data['title'] = elem.text
+                            break
+                    
+                    result['resources'].append(resource_data)
+            
+            return result
                 
     except Exception as e:
         logger.error(f"Error parsing manifest {manifest_path}: {e}")
@@ -256,7 +212,7 @@ def parse_imsmanifest(zip_path, manifest_path=None) -> Dict:
 
 
 def parse_item(item_elem, namespaces, default_ns=None):
-    """Parse an item element from manifest"""
+    """Parse an item element from manifest - Python 3.7 compatible"""
     item_data = {
         'identifier': item_elem.get('identifier', ''),
         'identifierref': item_elem.get('identifierref', ''),
@@ -264,26 +220,14 @@ def parse_item(item_elem, namespaces, default_ns=None):
         'items': []
     }
     
-    # Get title
-    title_elem = None
-    if default_ns:
-        title_elem = item_elem.find(f'{{{default_ns}}}title')
-    if title_elem is None:
-        title_elem = item_elem.find('.//title', namespaces)
-    if title_elem is None:
-        title_elem = item_elem.find('.//{*}title')
-    if title_elem is not None:
-        item_data['title'] = title_elem.text or ''
+    # Get title - find by iterating
+    for elem in item_elem.iter():
+        if elem.tag.endswith('title') and elem.text:
+            item_data['title'] = elem.text
+            break
     
-    # Recursively parse child items
-    child_items = []
-    if default_ns:
-        child_items = item_elem.findall(f'{{{default_ns}}}item')
-    if not child_items:
-        child_items = item_elem.findall('.//item', namespaces) or []
-    if not child_items:
-        child_items = [child for child in item_elem if child.tag.endswith('item')]
-    
+    # Recursively parse child items - find direct children only
+    child_items = [child for child in item_elem if child.tag.endswith('item')]
     for child_item in child_items:
         child_data = parse_item(child_item, namespaces, default_ns)
         item_data['items'].append(child_data)
@@ -293,31 +237,61 @@ def parse_item(item_elem, namespaces, default_ns=None):
 
 def detect_scorm_version(root, namespaces) -> Optional[str]:
     """
-    Detect SCORM version from manifest root
+    Detect SCORM version from manifest root - Python 3.7 compatible
+    
+    Priority order:
+    1. schemaversion element (most reliable)
+    2. schema element 
+    3. ADL namespaces
+    4. Default to 1.2
     """
-    # Check metadata/schema for SCORM version indicators
-    metadata_elem = root.find('.//metadata', namespaces)
+    # Find metadata element by iterating
+    metadata_elem = None
+    for elem in root.iter():
+        if elem.tag.endswith('metadata'):
+            metadata_elem = elem
+            break
+    
     if metadata_elem is not None:
-        schema_elem = metadata_elem.find('.//schema', namespaces)
-        if schema_elem is not None:
-            schema_text = schema_elem.text or ''
+        # PRIORITY 1: Check schemaversion first (most explicit)
+        schemaversion_text = None
+        schema_text = None
+        
+        for elem in metadata_elem.iter():
+            if elem.tag.endswith('schemaversion') and elem.text:
+                schemaversion_text = elem.text.strip()
+            elif elem.tag.endswith('schema') and elem.text:
+                schema_text = elem.text.strip()
+        
+        if schemaversion_text:
+            # Be explicit with version checks to avoid false matches
+            if schemaversion_text == '1.2':
+                return '1.2'
+            elif schemaversion_text in ['2004', '2004 3rd Edition', '2004 4th Edition', 'CAM 1.3']:
+                return '2004'
+            # Check for partial matches
+            elif '1.2' in schemaversion_text:
+                return '1.2'
+            elif '2004' in schemaversion_text:
+                return '2004'
+        
+        # PRIORITY 2: Check schema element
+        if schema_text:
             if '2004' in schema_text or 'CAM' in schema_text:
                 return '2004'
             elif '1.2' in schema_text or 'CP' in schema_text:
                 return '1.2'
-        
-        schemaversion_elem = metadata_elem.find('.//schemaversion', namespaces)
-        if schemaversion_elem is not None:
-            version_text = schemaversion_elem.text or ''
-            if '2004' in version_text or '4' in version_text:
-                return '2004'
-            elif '1.2' in version_text:
-                return '1.2'
     
-    # Check for ADL namespaces that indicate SCORM 2004
+    # PRIORITY 3: Check for ADL namespaces that indicate SCORM 2004
+    # Only trust namespaces if metadata didn't give us an answer
     if any('2004' in ns or 'adlseq' in ns.lower() or 'adlnav' in ns.lower() 
            for ns in namespaces.values()):
         return '2004'
+    
+    # Check for SCORM 1.2 specific namespace
+    if any('adlcp_rootv1p2' in ns or 'imscp_rootv1p1p2' in ns 
+           for ns in namespaces.values()):
+        return '1.2'
     
     # Default to 1.2 if can't determine
     return '1.2'

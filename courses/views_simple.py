@@ -21,10 +21,9 @@ def simple_section_delete(request, section_id):
         section = get_object_or_404(Section, id=section_id)
         course = section.course
         
-        # Simple permission check
-        if not (request.user.is_superuser or 
-                request.user == course.instructor or
-                request.user.role in ['admin', 'superadmin', 'globaladmin']):
+        # Proper permission check using the course model's permission method
+        if not course.user_can_modify(request.user):
+            logger.warning(f"Permission denied for user {request.user.id} ({request.user.role}) to delete section {section_id}")
             return JsonResponse({
                 'success': False,
                 'error': 'Permission denied'

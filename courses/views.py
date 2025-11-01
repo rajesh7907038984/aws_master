@@ -2342,6 +2342,15 @@ def mark_topic_complete(request, topic_id):
         messages.error(request, "You don't have permission to access this course.")
         return redirect('users:role_based_redirect')
     
+    # Only learners should have progress tracked
+    # Instructors/admins can view content without tracking their progress
+    if hasattr(request.user, 'role') and request.user.role != 'learner':
+        return JsonResponse({
+            'success': False,
+            'message': 'Progress tracking is only available for learners',
+            'title': topic.title
+        })
+    
     # Get or create progress record
     progress, created = TopicProgress.objects.get_or_create(
         user=request.user,
@@ -2641,6 +2650,14 @@ def mark_topic_incomplete(request, topic_id):
         messages.error(request, "You don't have permission to access this course.")
         return redirect('users:role_based_redirect')
     
+    # Only learners should have progress tracked
+    if hasattr(request.user, 'role') and request.user.role != 'learner':
+        return JsonResponse({
+            'success': False,
+            'message': 'Progress tracking is only available for learners',
+            'title': topic.title
+        })
+    
     # Get the progress record
     try:
         progress = TopicProgress.objects.get(user=request.user, topic=topic)
@@ -2785,6 +2802,13 @@ def update_audio_progress(request, topic_id):
         if current_time is None or duration is None:
             return JsonResponse({'error': 'Missing required fields'}, status=400)
         
+        # Only learners should have progress tracked
+        if hasattr(request.user, 'role') and request.user.role != 'learner':
+            return JsonResponse({
+                'success': False,
+                'message': 'Progress tracking is only available for learners'
+            })
+        
         # Get or create progress
         progress, created = TopicProgress.objects.get_or_create(
             user=request.user,
@@ -2861,6 +2885,14 @@ def update_video_progress(request, topic_id):
         if progress is None and duration > 0:
             progress = (current_time / duration) * 100
             logger.info(f"Calculated progress for topic_id={topic_id}: {progress}%")
+        
+        # Only learners should have progress tracked
+        if hasattr(request.user, 'role') and request.user.role != 'learner':
+            logger.info(f"Skipping progress tracking for non-learner user: {request.user.username} (role: {request.user.role})")
+            return JsonResponse({
+                'success': False,
+                'message': 'Progress tracking is only available for learners'
+            })
         
         # Get or create progress
         topic_progress, created = TopicProgress.objects.get_or_create(
@@ -2988,6 +3020,15 @@ def update_scorm_progress(request, topic_id):
         scorm_version = safe_get_string(data, 'scorm_version', '1.2')
         raw_data = data.get('raw', {})
         
+        # Only learners should have progress tracked
+        if hasattr(request.user, 'role') and request.user.role != 'learner':
+            logger.info(f"Skipping SCORM progress tracking for non-learner user: {request.user.username} (role: {request.user.role})")
+            return JsonResponse({
+                'ok': True,
+                'saved_at': timezone.now().isoformat(),
+                'message': 'SCORM progress tracking is only available for learners'
+            })
+        
         # Get or create progress
         topic_progress, created = TopicProgress.objects.get_or_create(
             user=request.user,
@@ -3044,7 +3085,8 @@ def update_scorm_progress(request, topic_id):
             max_score = safe_get_float(raw_data, 'cmi.core.score.max')
             min_score = safe_get_float(raw_data, 'cmi.core.score.min')
             completion_status = safe_get_string(raw_data, 'cmi.core.lesson_status')
-            success_status = safe_get_string(raw_data, 'cmi.core.success_status')
+            # SCORM 1.2 doesn't have separate success_status - it uses lesson_status values (passed/completed/failed)
+            success_status = None
             total_time_str = safe_get_string(raw_data, 'cmi.core.total_time')
             lesson_location = safe_get_string(raw_data, 'cmi.core.lesson_location')
             suspend_data = safe_get_string(raw_data, 'cmi.suspend_data')

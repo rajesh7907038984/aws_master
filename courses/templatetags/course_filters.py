@@ -407,13 +407,18 @@ def get_topic_progress(topic, user):
         
     progress = TopicProgress.objects.filter(topic=topic, user=user).first()
     
-    # Initialize progress if it doesn't exist
+    # Initialize progress if it doesn't exist - ONLY for learners
+    # Instructors, admins, etc. should not have progress auto-created
     if not progress:
-        try:
-            progress = TopicProgress.objects.create(topic=topic, user=user, completed=False)
-            progress.init_progress_data()
-        except Exception as e:
-            logger.error(f"Error creating topic progress: {str(e)}")
+        if hasattr(user, 'role') and user.role == 'learner':
+            try:
+                progress = TopicProgress.objects.create(topic=topic, user=user, completed=False)
+                progress.init_progress_data()
+            except Exception as e:
+                logger.error(f"Error creating topic progress: {str(e)}")
+                return None
+        else:
+            # For non-learners, just return None if no progress exists
             return None
  
     
