@@ -150,6 +150,10 @@ def update_scorm_progress_with_enrollment(request, topic_id):
             
             # Use enrollment's cumulative time across all attempts, not just current attempt
             topic_progress.total_time_spent = enrollment.total_time_seconds
+            
+            # Sync attempts count from SCORM enrollment
+            topic_progress.attempts = enrollment.total_attempts
+            
             topic_progress.completed = attempt.completed
             
             # Set completion method and timestamp if newly completed

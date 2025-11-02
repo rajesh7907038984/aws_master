@@ -176,12 +176,47 @@ For user krishnan who already completed SCORM courses with 0 time:
 4. **Future Sessions**: All new learning sessions will track time correctly
 5. **Historical Data**: Completed sessions with 0 time cannot be retroactively fixed unless session logs exist
 
+## Additional Issue Found: Attempts Not Syncing
+
+### Problem
+SCORM attempts were tracked in `ScormEnrollment.total_attempts` but NOT synced to `TopicProgress.attempts`, causing the Attempts column to show 0 even when users had completed attempts.
+
+### Fix 5: Sync SCORM Attempts
+**File**: `/home/ec2-user/lms/scorm/views_enrollment.py` (line ~155)
+
+**Change**:
+```python
+# Sync attempts count from SCORM enrollment
+topic_progress.attempts = enrollment.total_attempts
+```
+
+**Impact**: Attempts column in reports now shows accurate data.
+
+### Fix 6: Historical Attempts Sync Command
+**File**: `/home/ec2-user/lms/scorm/management/commands/sync_scorm_attempts.py`
+
+**Purpose**: Backfill attempts for existing SCORM progress records.
+
+**Usage**:
+```bash
+# Sync all SCORM attempts
+python3 manage.py sync_scorm_attempts --dry-run
+python3 manage.py sync_scorm_attempts
+
+# For specific user
+python3 manage.py sync_scorm_attempts --user-id=238
+```
+
+**Applied to krishnan**: ✅ All 7 SCORM topics now show correct attempts (1 each)
+
 ## Files Modified
 
 1. `/home/ec2-user/lms/courses/models.py` - TopicProgress time tracking
 2. `/home/ec2-user/lms/scorm/models.py` - SCORM time fallback logic  
 3. `/home/ec2-user/lms/scorm/models_tracking.py` - SCORM time fallback logic (duplicate model)
-4. `/home/ec2-user/lms/courses/management/commands/sync_time_spent.py` - New command for historical data
+4. `/home/ec2-user/lms/scorm/views_enrollment.py` - SCORM attempts sync
+5. `/home/ec2-user/lms/courses/management/commands/sync_time_spent.py` - New command for historical data
+6. `/home/ec2-user/lms/scorm/management/commands/sync_scorm_attempts.py` - New command for attempts sync
 
 ## Verification
 
@@ -193,7 +228,54 @@ After deployment, verify with user "krishnan":
 
 ---
 
+## Database Analysis for User "krishnan"
+
+After checking the database directly for user krishnan (ID: 238):
+
+### Raw Database Values
+
+| Field | Database Value | Status |
+|-------|---------------|--------|
+| TopicProgress.total_time_spent | 0 seconds | ❌ No time data |
+| TopicProgress.attempts | 0 → 1 (fixed) | ✅ Now synced |
+| ScormAttempt.total_time | "00:00:00" | ❌ No time tracked by package |
+| ScormAttempt.session_time | "" (empty) | ❌ No session time tracked |
+| ScormEnrollment.total_attempts | 1 | ✅ Correctly tracked |
+
+### Critical Discovery
+
+**The SCORM packages themselves are NOT tracking ANY time data.**
+
+Both `total_time` and `session_time` fields in the database are 0 or empty, which means:
+
+1. ❌ **Historical time data CANNOT be recovered** - the SCORM content never sent time tracking data to the LMS
+2. ✅ **Attempts data HAS BEEN FIXED** - ran `sync_scorm_attempts` command, all 7 topics now show correct attempts (1 each)
+3. ✅ **Future tracking is improved** - code fixes will help if packages start sending `session_time`
+4. ⚠️ **Time tracking depends on SCORM package quality** - if the package doesn't track time internally, LMS cannot report it
+
+### What Was Fixed for krishnan
+
+✅ **Attempts Column**: 
+- **Before**: Showed 0 attempts
+- **After**: Now shows 1 attempt for each completed SCORM topic
+- **Command Used**: `python3 manage.py sync_scorm_attempts --user-id=238`
+
+❌ **Time Spent Column**: 
+- **Before**: Shows 0h 0m 0s
+- **After**: Still shows 0h 0m 0s (because SCORM packages didn't track any time)
+- **Reason**: No time data exists in the database to sync
+
+### Recommendations
+
+1. **Test SCORM Packages**: Verify that the SCORM content actually tracks time during playback
+2. **Consider Package Alternatives**: Use SCORM packages that properly implement time tracking
+3. **Monitor New Sessions**: Have krishnan complete a new SCORM topic and check if time is tracked
+4. **Future Content**: Ensure all new SCORM packages properly track `session_time` or `total_time`
+
+---
+
 **Date**: November 2, 2025  
-**Status**: ✅ Fixes Implemented, Ready for Testing  
-**Affected Users**: All learners using video, audio, or SCORM content
+**Status**: ✅ Fixes Implemented & Applied to krishnan, Ready for Testing  
+**Affected Users**: All learners using video, audio, or SCORM content  
+**krishnan Status**: ✅ Attempts fixed, ❌ Time cannot be recovered (no data in packages)
 
