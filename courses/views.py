@@ -3745,26 +3745,29 @@ def topic_edit(request, topic_id, section_id=None):
             # Process text content - directly use the content from TinyMCE
             text_content = form_data.get('text_content', '')
             topic.text_content = text_content
-            content_file = files['content_file']
             
-            # Check file size for all content types - maximum 600MB
-            max_size = 600 * 1024 * 1024  # 600MB in bytes
-            if content_file.size > max_size:
-                error_msg = f" File size limit exceeded! Your file size: {(content_file.size / (1024 * 1024)):.2f}MB. Maximum allowed: 600MB. Please upload a smaller file."
-                logger.warning(f"File size exceeded limit: {error_msg}")
+            # Check if content_file exists before processing
+            if 'content_file' in files:
+                content_file = files['content_file']
                 
-                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                    return JsonResponse({
-                        'success': False,
-                        'error': error_msg,
-                        'details': {'content_file': [error_msg]}
-                    }, status=400)
-                
-                messages.error(request, error_msg)
-                if course:
-                    return redirect('courses:course_edit', course_id=course.id)
-                else:
-                    return redirect('courses:course_list')
+                # Check file size for all content types - maximum 600MB
+                max_size = 600 * 1024 * 1024  # 600MB in bytes
+                if content_file.size > max_size:
+                    error_msg = f" File size limit exceeded! Your file size: {(content_file.size / (1024 * 1024)):.2f}MB. Maximum allowed: 600MB. Please upload a smaller file."
+                    logger.warning(f"File size exceeded limit: {error_msg}")
+                    
+                    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                        return JsonResponse({
+                            'success': False,
+                            'error': error_msg,
+                            'details': {'content_file': [error_msg]}
+                        }, status=400)
+                    
+                    messages.error(request, error_msg)
+                    if course:
+                        return redirect('courses:course_edit', course_id=course.id)
+                    else:
+                        return redirect('courses:course_list')
             
         elif content_type == 'web':
             # Handle web content
@@ -3883,20 +3886,20 @@ def topic_edit(request, topic_id, section_id=None):
     
     # Define breadcrumbs for this view
     if course:
-            breadcrumbs = [
+        breadcrumbs = [
             {'url': reverse('users:role_based_redirect'), 'label': 'Dashboard', 'icon': 'fa-home'},
             {'url': reverse('courses:course_list'), 'label': 'Course Catalog', 'icon': 'fa-book'},
             {'url': reverse('courses:course_edit', kwargs={'course_id': course.id}), 'label': course.title, 'icon': 'fa-edit'},
         ]
+        
+        # Add section to breadcrumbs if it exists
+        if section:
+            breadcrumbs.append({
+                'label': section.name, 
+                'icon': 'fa-folder'
+            })
             
-            # Add section to breadcrumbs if it exists
-            if section:
-                breadcrumbs.append({
-                    'label': section.name, 
-                    'icon': 'fa-folder'
-                })
-                
-            breadcrumbs.append({'label': f"Edit {topic.title}", 'icon': 'fa-edit'})
+        breadcrumbs.append({'label': f"Edit {topic.title}", 'icon': 'fa-edit'})
     else:
         breadcrumbs = [
             {'url': reverse('users:role_based_redirect'), 'label': 'Dashboard', 'icon': 'fa-home'},
