@@ -700,13 +700,20 @@ def sync_device_time(request):
             try:
                 # Validate timezone
                 pytz.timezone(timezone_name)
-                # Store user timezone preference
-                request.user.timezone = timezone_name
-                request.user.save(update_fields=['timezone'])
+                # Store user timezone preference (only if field exists)
+                if hasattr(request.user, 'timezone'):
+                    request.user.timezone = timezone_name
+                    request.user.save(update_fields=['timezone'])
+                else:
+                    # Store in session if User model doesn't have timezone field
+                    request.session['user_timezone'] = timezone_name
             except pytz.exceptions.UnknownTimeZoneError:
                 return JsonResponse({
                     'error': 'Invalid timezone'
                 }, status=400)
+            except Exception as e:
+                logger.warning(f"Could not save timezone preference: {e}")
+                # Continue anyway - not a critical error
         
         return JsonResponse({
             'success': True,

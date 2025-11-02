@@ -33,63 +33,72 @@ def update_topic_progress(sender, instance, **kwargs):
         return
     
     try:
+        # Import CourseTopic to get course context
+        from courses.models import CourseTopic
+        
         for topic_assignment in topic_assignments:
             topic = topic_assignment.topic
             
-            # Get or create the topic progress for this user and topic
-            topic_progress, created = TopicProgress.objects.get_or_create(
-                user=instance.user,
-                topic=topic,
-                defaults={
-                    'completed': False,
-                    'progress_data': {}
-                }
-            )
+            # Get all courses this topic belongs to
+            course_topics = CourseTopic.objects.filter(topic=topic).select_related('course')
             
-            # Update the progress data with the submission info
-            topic_progress.progress_data.update({
-                'submission_id': instance.id,
-                'submission_status': instance.status,
-                'submitted_at': timezone.now().isoformat(),
-            })
-            
-            # Add grade information if available
-            if instance.grade is not None:
-                topic_progress.progress_data.update({
-                    'grade': float(instance.grade),
-                    'max_score': float(instance.assignment.max_score),
-                    'percentage': float(instance.grade) / float(instance.assignment.max_score) * 100
-                })
-                topic_progress.last_score = instance.grade
+            # Update progress for each course-topic combination
+            for course_topic in course_topics:
+                # Get or create the topic progress for this user and topic
+                topic_progress, created = TopicProgress.objects.get_or_create(
+                    user=instance.user,
+                    topic=topic,
+                    course=course_topic.course,
+                    defaults={
+                        'completed': False,
+                        'progress_data': {}
+                    }
+                )
                 
-                # Update best score if this is better
-                if topic_progress.best_score is None or instance.grade > topic_progress.best_score:
-                    topic_progress.best_score = instance.grade
-            
-            # Mark as completed when submitted or graded
-            if instance.status in ['submitted', 'graded']:
-                if not topic_progress.completed:
-                    # Use the centralized mark_complete method for consistency
-                    topic_progress.mark_complete('auto')
-                    
-                    # Add assignment-specific completion info to progress data
+                # Update the progress data with the submission info
+                topic_progress.progress_data.update({
+                    'submission_id': instance.id,
+                    'submission_status': instance.status,
+                    'submitted_at': timezone.now().isoformat(),
+                })
+                
+                # Add grade information if available
+                if instance.grade is not None:
                     topic_progress.progress_data.update({
-                        'assignment_submission_id': instance.id,
-                        'assignment_status': instance.status,
-                        'assignment_completed_at': timezone.now().isoformat()
+                        'grade': float(instance.grade),
+                        'max_score': float(instance.assignment.max_score),
+                        'percentage': float(instance.grade) / float(instance.assignment.max_score) * 100
                     })
+                    topic_progress.last_score = instance.grade
                     
-                    topic_progress.save()
-                    
-                    # Check if course is now completed as a result of this topic completion
-                    topic_progress._check_course_completion()
-                else:
-                    # Already completed, just update the progress data
-                    topic_progress.progress_data.update({
-                        'assignment_submission_id': instance.id,
-                        'assignment_status': instance.status
-                    })
-                    topic_progress.save()
+                    # Update best score if this is better
+                    if topic_progress.best_score is None or instance.grade > topic_progress.best_score:
+                        topic_progress.best_score = instance.grade
+                
+                # Mark as completed when submitted or graded
+                if instance.status in ['submitted', 'graded']:
+                    if not topic_progress.completed:
+                        # Use the centralized mark_complete method for consistency
+                        topic_progress.mark_complete('auto')
+                        
+                        # Add assignment-specific completion info to progress data
+                        topic_progress.progress_data.update({
+                            'assignment_submission_id': instance.id,
+                            'assignment_status': instance.status,
+                            'assignment_completed_at': timezone.now().isoformat()
+                        })
+                        
+                        topic_progress.save()
+                        
+                        # Check if course is now completed as a result of this topic completion
+                        topic_progress._check_course_completion()
+                    else:
+                        # Already completed, just update the progress data
+                        topic_progress.progress_data.update({
+                            'assignment_submission_id': instance.id,
+                            'assignment_status': instance.status
+                        })
+                        topic_progress.save()
             
     except Exception as e:
         # Log error but don't fail the save operation

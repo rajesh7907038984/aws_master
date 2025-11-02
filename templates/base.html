@@ -1212,6 +1212,11 @@
                     // Mobile: toggle mobile menu
                     const mobileMenu = document.getElementById('mobile-menu');
                     if (mobileMenu) {
+                        // Load sidebar content into mobile menu if not already loaded
+                        if (typeof loadSidebarContentToMobileMenu === 'function') {
+                            loadSidebarContentToMobileMenu();
+                        }
+                        
                         mobileMenu.classList.toggle('open');
                         document.body.classList.toggle('overflow-hidden');
                     }

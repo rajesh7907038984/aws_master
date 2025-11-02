@@ -2414,7 +2414,8 @@ def mark_topic_complete(request, topic_id):
     # Get or create progress record
     progress, created = TopicProgress.objects.get_or_create(
         user=request.user,
-        topic=topic
+        topic=topic,
+        course=course
     )
     
     # Always initialize progress_data to ensure consistent structure
@@ -2720,10 +2721,10 @@ def mark_topic_incomplete(request, topic_id):
     
     # Get the progress record
     try:
-        progress = TopicProgress.objects.get(user=request.user, topic=topic)
+        progress = TopicProgress.objects.get(user=request.user, topic=topic, course=course)
     except TopicProgress.DoesNotExist:
         # If no progress exists, create one that's incomplete by default
-        progress = TopicProgress.objects.create(user=request.user, topic=topic)
+        progress = TopicProgress.objects.create(user=request.user, topic=topic, course=course)
         progress.init_progress_data()
     
     # Determine if the request body is JSON
@@ -2906,7 +2907,8 @@ def update_audio_progress(request, topic_id):
         # Get or create progress
         progress, created = TopicProgress.objects.get_or_create(
             user=request.user,
-            topic=topic
+            topic=topic,
+            course=course
         )
         
         # Use the model's method to update audio progress
@@ -2991,7 +2993,8 @@ def update_video_progress(request, topic_id):
         # Get or create progress
         topic_progress, created = TopicProgress.objects.get_or_create(
             user=request.user,
-            topic=topic
+            topic=topic,
+            course=course
         )
         
         logger.info(f"TopicProgress record {'created' if created else 'retrieved'}: id={topic_progress.id}")
@@ -3126,7 +3129,8 @@ def update_scorm_progress(request, topic_id):
         # Get or create progress
         topic_progress, created = TopicProgress.objects.get_or_create(
             user=request.user,
-            topic=topic
+            topic=topic,
+            course=course
         )
         
         # Initialize progress_data if needed

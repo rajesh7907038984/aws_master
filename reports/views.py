@@ -3836,11 +3836,19 @@ def _get_user_report_data(request, user_id):
         # Calculate progress percentage
         enrollment.calculated_progress = enrollment.progress_percentage
         
-        # Get all topic progress for this course
+        # Get all topic progress for this course (using course-aware filtering)
         course_topic_progress = TopicProgress.objects.filter(
             user=user,
-            topic__courses=enrollment.course
+            course=enrollment.course
         )
+        
+        # Fallback: include legacy records without course field
+        if not course_topic_progress.exists():
+            course_topic_progress = TopicProgress.objects.filter(
+                user=user,
+                topic__coursetopic__course=enrollment.course,
+                course__isnull=True
+            )
         
         # Calculate average score from completed topics
         completed_topic_progress = course_topic_progress.filter(

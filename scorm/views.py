@@ -333,7 +333,7 @@ def scorm_player(request, package_id, file_path):
         function initScormAPI() {{
             if (typeof SCORM !== 'undefined' && SCORM.configure) {{
                 var topicId = {topic_id if topic_id else 'null'};
-                var progressUrl = topicId ? '/courses/api/update_scorm_progress/' + topicId + '/' : null;
+                var progressUrl = topicId ? '/scorm/progress/' + topicId + '/' : null;
                 console.log('SCORM API Configuration:', {{ topicId: topicId, progressUpdateUrl: progressUrl }});
                 
                 // Get resume data

@@ -9,6 +9,11 @@
     // Track loaded content to prevent duplicates
     const loadedContent = new Set();
     
+    // Debounce initialization to prevent excessive re-initialization
+    let initializationTimeout = null;
+    let isInitializing = false;
+    let hasInitialized = false;
+    
     /**
      * Enhanced TinyMCE content loading with proper timing
      */
@@ -154,51 +159,91 @@
     }
     
     /**
-     * Initialize all existing content on page load
+     * Initialize all existing content on page load (debounced)
      */
     function initializeExistingContent() {
+        // Prevent excessive re-initialization
+        if (isInitializing || hasInitialized) {
+            return;
+        }
+        
+        // Debounce rapid initialization calls
+        if (initializationTimeout) {
+            clearTimeout(initializationTimeout);
+        }
+        
+        initializationTimeout = setTimeout(() => {
+            initializeExistingContentInternal();
+        }, 300);
+    }
+    
+    /**
+     * Internal initialization function
+     */
+    function initializeExistingContentInternal() {
+        // Prevent multiple initializations
+        if (isInitializing || hasInitialized) {
+            return;
+        }
+        
+        isInitializing = true;
         console.log('Initializing existing content for edit forms...');
         
         // Wait for DOM to be ready
         if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', initializeExistingContent);
+            isInitializing = false;
+            document.addEventListener('DOMContentLoaded', () => {
+                hasInitialized = false;
+                initializeExistingContent();
+            }, { once: true });
             return;
         }
         
         // Wait for TinyMCE to be available
         if (typeof tinymce === 'undefined') {
-            setTimeout(initializeExistingContent, 500);
+            isInitializing = false;
+            setTimeout(() => {
+                hasInitialized = false;
+                initializeExistingContent();
+            }, 500);
             return;
         }
         
-        // Find all elements with existing content data
-        const contentElements = document.querySelectorAll('[data-existing-content]');
-        contentElements.forEach(element => {
-            const content = element.getAttribute('data-existing-content');
-            const editorId = element.id;
+        try {
+            // Find all elements with existing content data
+            const contentElements = document.querySelectorAll('[data-existing-content]');
+            contentElements.forEach(element => {
+                const content = element.getAttribute('data-existing-content');
+                const editorId = element.id;
+                
+                if (content && editorId) {
+                    loadTinyMCEContent(editorId, content);
+                }
+            });
             
-            if (content && editorId) {
-                loadTinyMCEContent(editorId, content);
-            }
-        });
-        
-        // Find all image previews that should be visible
-        const imagePreviews = document.querySelectorAll('[data-existing-image]');
-        imagePreviews.forEach(img => {
-            const imageId = img.id;
-            const containerId = img.getAttribute('data-container-id');
-            ensureImagePreviewVisible(imageId, containerId);
-        });
-        
-        // Find all video previews that should be visible
-        const videoPreviews = document.querySelectorAll('[data-existing-video]');
-        videoPreviews.forEach(video => {
-            const videoId = video.id;
-            const containerId = video.getAttribute('data-container-id');
-            ensureVideoPreviewVisible(videoId, containerId);
-        });
-        
-        console.log('Existing content initialization complete');
+            // Find all image previews that should be visible
+            const imagePreviews = document.querySelectorAll('[data-existing-image]');
+            imagePreviews.forEach(img => {
+                const imageId = img.id;
+                const containerId = img.getAttribute('data-container-id');
+                ensureImagePreviewVisible(imageId, containerId);
+            });
+            
+            // Find all video previews that should be visible
+            const videoPreviews = document.querySelectorAll('[data-existing-video]');
+            videoPreviews.forEach(video => {
+                const videoId = video.id;
+                const containerId = video.getAttribute('data-container-id');
+                ensureVideoPreviewVisible(videoId, containerId);
+            });
+            
+            hasInitialized = true;
+            console.log('Existing content initialization complete');
+        } catch (error) {
+            console.error('Error initializing existing content:', error);
+        } finally {
+            isInitializing = false;
+        }
     }
     
     // Expose functions globally

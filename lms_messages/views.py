@@ -705,23 +705,34 @@ def message_count_api(request):
             'total_count': 0,
         })
     
-    # Get unread messages count for the user
-    unread_count = Message.objects.filter(
-        Q(recipients=request.user) & ~Q(sender=request.user)
-    ).exclude(
-        read_statuses__user=request.user,
-        read_statuses__is_read=True
-    ).distinct().count()
-    
-    # Get total messages count for the user
-    total_count = Message.objects.filter(
-        Q(sender=request.user) | Q(recipients=request.user)
-    ).distinct().count()
-    
-    return JsonResponse({
-        'unread_count': unread_count,
-        'total_count': total_count,
-    })
+    try:
+        # Get unread messages count for the user
+        unread_count = Message.objects.filter(
+            Q(recipients=request.user) & ~Q(sender=request.user)
+        ).exclude(
+            read_statuses__user=request.user,
+            read_statuses__is_read=True
+        ).distinct().count()
+        
+        # Get total messages count for the user
+        total_count = Message.objects.filter(
+            Q(sender=request.user) | Q(recipients=request.user)
+        ).distinct().count()
+        
+        return JsonResponse({
+            'unread_count': unread_count,
+            'total_count': total_count,
+        })
+    except Exception as e:
+        # Log the error and return safe defaults
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error fetching message counts for user {request.user.id}: {str(e)}")
+        return JsonResponse({
+            'unread_count': 0,
+            'total_count': 0,
+            'error': 'Failed to fetch message counts'
+        })
 
 @login_required
 @require_POST

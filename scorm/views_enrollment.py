@@ -133,9 +133,14 @@ def update_scorm_progress_with_enrollment(request, topic_id):
             enrollment.save(update_fields=['total_time_seconds'])
             
             # 5. Update TopicProgress for backward compatibility
+            # Get course context from topic
+            from courses.views import get_topic_course
+            course = get_topic_course(topic)
+            
             topic_progress, _ = TopicProgress.objects.get_or_create(
                 user=request.user,
-                topic=topic
+                topic=topic,
+                course=course
             )
             
             # Sync key fields to TopicProgress

@@ -203,10 +203,19 @@ class CourseEnrollment(models.Model):
         from django.db.models import Sum
         
         # Sum time from all topic progress entries for this user and course
+        # First try to filter by course field (new method)
         total_seconds = TopicProgress.objects.filter(
             user=self.user,
-            topic__coursetopic__course=self.course
+            course=self.course
         ).aggregate(total=Sum('total_time_spent', default=0))['total'] or 0
+        
+        # Fallback for legacy records without course field
+        if total_seconds == 0:
+            total_seconds = TopicProgress.objects.filter(
+                user=self.user,
+                topic__coursetopic__course=self.course,
+                course__isnull=True  # Only count legacy records
+            ).aggregate(total=Sum('total_time_spent', default=0))['total'] or 0
         
         hours = total_seconds // 3600
         minutes = (total_seconds % 3600) // 60
@@ -220,11 +229,21 @@ class CourseEnrollment(models.Model):
         from django.db.models import Avg
         
         # Get average score from all graded topic progress entries
+        # First try course-aware filtering (new method)
         avg_score = TopicProgress.objects.filter(
             user=self.user,
-            topic__coursetopic__course=self.course,
+            course=self.course,
             last_score__isnull=False
         ).aggregate(avg=Avg('last_score'))['avg']
+        
+        # Fallback for legacy records without course field
+        if avg_score is None:
+            avg_score = TopicProgress.objects.filter(
+                user=self.user,
+                topic__coursetopic__course=self.course,
+                course__isnull=True,
+                last_score__isnull=False
+            ).aggregate(avg=Avg('last_score'))['avg']
         
         return round(avg_score) if avg_score is not None else None
 
@@ -1981,7 +2000,14 @@ class TopicProgress(models.Model):
         on_delete=models.CASCADE,
         related_name='user_progress'
     )
-    
+    course = models.ForeignKey(
+        Course,
+        on_delete=models.CASCADE,
+        related_name='topic_progress',
+        null=True,
+        blank=True,
+        help_text="The course context for this progress tracking"
+    )
     
     # Progress tracking
     progress_data = models.JSONField(
@@ -2042,6 +2068,7 @@ class TopicProgress(models.Model):
 
     class Meta:
         indexes = [
+            models.Index(fields=['user', 'topic', 'course']),
             models.Index(fields=['user', 'topic']),
             # Dashboard performance indexes
             models.Index(fields=['user', 'completed']),
@@ -2050,8 +2077,9 @@ class TopicProgress(models.Model):
             models.Index(fields=['user', 'last_accessed']),
             models.Index(fields=['user', 'completed', 'last_score']),
             models.Index(fields=['topic', 'user', 'completed']),
+            models.Index(fields=['course', 'user']),
         ]
-        unique_together = ['user', 'topic']
+        unique_together = ['user', 'topic', 'course']
         ordering = ['-last_accessed']
         
     def __str__(self):

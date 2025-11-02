@@ -28,7 +28,9 @@
         isMobile: false,
         hoverTooltip: null,
         hoverTimeout: null,
-        currentMenuItem: null
+        currentMenuItem: null,
+        submenuSetupTimeout: null,
+        isSettingUpSubmenus: false
     };
 
     // DOM elements cache
@@ -367,15 +369,36 @@
     }
 
     /**
-     * Setup submenu toggle functionality
+     * Setup submenu toggle functionality (debounced)
      */
     function setupSubmenuToggles() {
-        if (!elements.sidebar) return;
+        // Prevent excessive re-initialization
+        if (state.isSettingUpSubmenus) {
+            return;
+        }
         
+        // Debounce rapid setup calls
+        if (state.submenuSetupTimeout) {
+            clearTimeout(state.submenuSetupTimeout);
+        }
+        
+        state.submenuSetupTimeout = setTimeout(() => {
+            setupSubmenutogglesInternal();
+        }, 300);
+    }
+    
+    /**
+     * Internal submenu setup function
+     */
+    function setupSubmenutogglesInternal() {
+        if (!elements.sidebar || state.isSettingUpSubmenus) return;
+        
+        state.isSettingUpSubmenus = true;
         console.log(' Setting up submenu toggles...');
         
-        // Remove existing event listeners and reinitialize
-        document.querySelectorAll('.menu-item.has-submenu, [data-submenu]').forEach(button => {
+        try {
+            // Remove existing event listeners and reinitialize
+            document.querySelectorAll('.menu-item.has-submenu, [data-submenu]').forEach(button => {
             const submenuId = button.getAttribute('data-submenu');
             if (!submenuId) return;
             
@@ -469,6 +492,11 @@
         
         // Check for active items in submenus and expand them
         checkActiveSubmenus();
+        } catch (error) {
+            console.error('Error setting up submenu toggles:', error);
+        } finally {
+            state.isSettingUpSubmenus = false;
+        }
     }
 
     /**

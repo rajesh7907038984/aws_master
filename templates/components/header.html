@@ -1401,6 +1401,10 @@ document.addEventListener('DOMContentLoaded', function() {
             // Calculate exponential backoff with jitter
             const delay = Math.min(baseDelay * Math.pow(2, retryCount) + Math.random() * 1000, maxDelay);
 
+            // Create AbortController with timeout (browser-compatible)
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 seconds timeout
+
             return fetch(url, {
                 method: 'GET',
                 headers: {
@@ -1410,9 +1414,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     'Pragma': 'no-cache'
                 },
                 credentials: 'same-origin',
-                signal: AbortSignal.timeout(30000) // Increased to 30 seconds for production
+                signal: controller.signal
             })
             .then(response => {
+                clearTimeout(timeoutId); // Clear timeout on success
                 if (!response.ok) {
                     // Log specific error details for debugging
                     console.error(`API call failed with status ${response.status}: ${response.statusText}`);
@@ -1429,6 +1434,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 return response.json();
             })
             .catch(error => {
+                clearTimeout(timeoutId); // Clear timeout on error
                 // Enhanced error handling with better status detection
                 const isRetryableError = (
                     error.name === 'TypeError' || 

@@ -20,51 +20,60 @@ def update_topic_progress_on_discussion_participation(sender, instance, **kwargs
     # Only process when comment is created (not updated)
     if kwargs.get('created', False):
         try:
+            # Import CourseTopic to get course context
+            from courses.models import CourseTopic
+            
             # Find topics that contain this discussion
             topics = Topic.objects.filter(discussion=instance.discussion)
             
             for topic in topics:
-                # Get or create topic progress
-                topic_progress, created = TopicProgress.objects.get_or_create(
-                    user=instance.user,
-                    topic=topic,
-                    defaults={
-                        'completed': False,
-                        'progress_data': {}
-                    }
-                )
+                # Get all courses this topic belongs to
+                course_topics = CourseTopic.objects.filter(topic=topic).select_related('course')
                 
-                # Initialize progress_data if not exists
-                if not topic_progress.progress_data:
-                    topic_progress.progress_data = {}
-                
-                # Update progress data with discussion info
-                topic_progress.progress_data.update({
-                    'discussion_comment_id': instance.id,
-                    'discussion_participated_at': timezone.now().isoformat(),
-                    'discussion_title': instance.discussion.title,
-                    'comment_text': instance.content[:100] + '...' if len(instance.content) > 100 else instance.content
-                })
-                
-                # Mark as completed when user participates in discussion
-                if not topic_progress.completed:
-                    topic_progress.mark_complete('auto')
+                # Update progress for each course-topic combination
+                for course_topic in course_topics:
+                    # Get or create topic progress
+                    topic_progress, created = TopicProgress.objects.get_or_create(
+                        user=instance.user,
+                        topic=topic,
+                        course=course_topic.course,
+                        defaults={
+                            'completed': False,
+                            'progress_data': {}
+                        }
+                    )
                     
-                    # Add discussion-specific completion info to progress data
+                    # Initialize progress_data if not exists
+                    if not topic_progress.progress_data:
+                        topic_progress.progress_data = {}
+                    
+                    # Update progress data with discussion info
                     topic_progress.progress_data.update({
-                        'discussion_completed': True,
-                        'discussion_completed_at': timezone.now().isoformat(),
-                        'discussion_completion_method': 'auto'
+                        'discussion_comment_id': instance.id,
+                        'discussion_participated_at': timezone.now().isoformat(),
+                        'discussion_title': instance.discussion.title,
+                        'comment_text': instance.content[:100] + '...' if len(instance.content) > 100 else instance.content
                     })
                     
-                    # Log the completion
-                    logger.info(f"Discussion participation auto-marked topic {topic.id} as complete for user {instance.user.username}")
-                
-                topic_progress.save()
-                
-                # Check if course is now completed as a result of this topic completion
-                if topic_progress.completed:
-                    topic_progress._check_course_completion()
+                    # Mark as completed when user participates in discussion
+                    if not topic_progress.completed:
+                        topic_progress.mark_complete('auto')
+                        
+                        # Add discussion-specific completion info to progress data
+                        topic_progress.progress_data.update({
+                            'discussion_completed': True,
+                            'discussion_completed_at': timezone.now().isoformat(),
+                            'discussion_completion_method': 'auto'
+                        })
+                        
+                        # Log the completion
+                        logger.info(f"Discussion participation auto-marked topic {topic.id} as complete for user {instance.user.username}")
+                    
+                    topic_progress.save()
+                    
+                    # Check if course is now completed as a result of this topic completion
+                    if topic_progress.completed:
+                        topic_progress._check_course_completion()
                     
         except Exception as e:
             # Log error but don't fail the save operation
