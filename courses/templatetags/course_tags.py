@@ -131,11 +131,4 @@ def get_outcomes_for_course(course):
     except Exception:
         return []
 
-@register.filter
-def get_topic_progress(topic, user):
-    """Get topic progress for a user."""
-    from courses.models import TopicProgress
-    try:
-        return TopicProgress.objects.get(topic=topic, user=user)
-    except TopicProgress.DoesNotExist:
-        return None 
+# Note: get_topic_progress filter is defined in course_filters.py to avoid duplication 

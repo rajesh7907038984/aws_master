@@ -420,29 +420,10 @@ def get_topic_progress(topic, user):
         else:
             # For non-learners, just return None if no progress exists
             return None
- 
     
-    # For quiz topics, check if there's a passing attempt
-    elif topic.content_type == 'Quiz' and progress:
-        # Get the quiz associated with this topic
-        quiz = Quiz.objects.filter(topics=topic).first()
-        if quiz:
-            # Check if there's a passing attempt
-            passing_attempt = QuizAttempt.objects.filter(
-                quiz=quiz,
-                user=user,
-                end_time__isnull=False,
-                score__gte=quiz.passing_score
-            ).exists()
-            
-            # Update progress status based on quiz attempts
-            if passing_attempt:
-                progress.completed = True
-            else:
-                progress.completed = False
-                
-            # Save the updated progress
-            progress.save()
+    # Note: Quiz completion logic is handled in quiz/signals.py via the 
+    # update_topic_progress_on_quiz_completion signal. We don't modify 
+    # the database in template filters as it's inefficient and against best practices.
     
     return progress
 

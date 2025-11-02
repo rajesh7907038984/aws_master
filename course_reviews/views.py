@@ -9,11 +9,14 @@ from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.utils import timezone
 from django.urls import reverse
 from decimal import Decimal
+import logging
 
 from .models import Survey, SurveyField, SurveyResponse, CourseReview
 from .forms import SurveyForm, SurveyFieldForm, SurveyFieldFormSet, SurveyResponseForm
 from courses.models import Course, CourseEnrollment
 from role_management.utils import require_capability, require_any_capability
+
+logger = logging.getLogger(__name__)
 
 
 # ============================================
@@ -276,102 +279,125 @@ def survey_field_delete(request, survey_id, field_id):
 @login_required
 def submit_course_survey(request, course_id):
     """Submit a survey for a completed course"""
-    course = get_object_or_404(Course, id=course_id)
-    user = request.user
-    
-    # Check if user has completed the course
     try:
-        enrollment = CourseEnrollment.objects.get(user=user, course=course)
-        if not enrollment.completed:
-            messages.error(request, 'You must complete the course before submitting a review.')
-            return redirect('courses:course_details', course_id=course.id)
-    except CourseEnrollment.DoesNotExist:
-        messages.error(request, 'You are not enrolled in this course.')
-        return redirect('courses:course_details', course_id=course.id)
-    
-    # Check if course has a survey
-    if not hasattr(course, 'survey') or not course.survey:
-        messages.error(request, 'This course does not have a survey.')
-        return redirect('courses:course_details', course_id=course.id)
-    
-    survey = course.survey
-    
-    # Check if user has already submitted a review
-    existing_review = CourseReview.objects.filter(
-        user=user,
-        course=course,
-        survey=survey
-    ).first()
-    
-    if request.method == 'POST':
-        form = SurveyResponseForm(request.POST, survey=survey)
-        if form.is_valid():
-            with transaction.atomic():
-                # Save all responses
-                for field in survey.fields.all():
-                    field_name = f'field_{field.id}'
-                    response_value = form.cleaned_data.get(field_name)
-                    
-                    if response_value is not None and response_value != '':
-                        # Delete existing response if any
-                        SurveyResponse.objects.filter(
-                            survey_field=field,
-                            user=user,
-                            course=course
-                        ).delete()
-                        
-                        # Create new response
-                        response = SurveyResponse(
-                            survey_field=field,
-                            user=user,
-                            course=course
-                        )
-                        
-                        if field.field_type == 'rating':
-                            response.rating_response = int(response_value)
-                        else:
-                            response.text_response = str(response_value)
-                        
-                        response.save()
-                
-                # Create or update CourseReview
-                CourseReview.create_from_responses(user, course, survey)
-            
-            messages.success(request, 'Thank you for your feedback! Your review has been submitted.')
-            return redirect('courses:course_details', course_id=course.id)
-    else:
-        # Pre-populate form if editing existing review
-        initial_data = {}
-        if existing_review:
-            responses = SurveyResponse.objects.filter(
-                user=user,
-                course=course,
-                survey_field__survey=survey
-            )
-            for response in responses:
-                field_name = f'field_{response.survey_field.id}'
-                if response.survey_field.field_type == 'rating':
-                    initial_data[field_name] = response.rating_response
-                else:
-                    initial_data[field_name] = response.text_response
+        logger.info(f"User {request.user.username} accessing survey for course {course_id}")
         
-        form = SurveyResponseForm(survey=survey, initial=initial_data)
+        try:
+            course = get_object_or_404(Course, id=course_id)
+        except Http404:
+            logger.warning(f"Course {course_id} not found for user {request.user.username}")
+            messages.error(request, 'Course not found.')
+            return redirect('home')
+        
+        user = request.user
+        
+        # Check if user has completed the course
+        try:
+            enrollment = CourseEnrollment.objects.get(user=user, course=course)
+            if not enrollment.completed:
+                logger.info(f"User {user.username} attempted to access survey without completing course {course_id}")
+                messages.error(request, 'You must complete the course before submitting a review.')
+                return redirect('courses:course_details', course_id=course.id)
+        except CourseEnrollment.DoesNotExist:
+            logger.warning(f"User {user.username} not enrolled in course {course_id}")
+            messages.error(request, 'You are not enrolled in this course.')
+            return redirect('courses:course_details', course_id=course.id)
+        
+        # Check if course has a survey
+        if not hasattr(course, 'survey') or not course.survey:
+            logger.warning(f"Course {course_id} has no survey assigned")
+            messages.error(request, 'This course does not have a survey.')
+            return redirect('courses:course_details', course_id=course.id)
+        
+        survey = course.survey
+        
+        # Check if survey has fields
+        if not survey.fields.exists():
+            logger.warning(f"Survey {survey.id} for course {course_id} has no fields")
+            messages.error(request, 'This survey has no questions configured.')
+            return redirect('courses:course_details', course_id=course.id)
+        
+        # Check if user has already submitted a review
+        existing_review = CourseReview.objects.filter(
+            user=user,
+            course=course,
+            survey=survey
+        ).first()
+        
+        if request.method == 'POST':
+            form = SurveyResponseForm(request.POST, survey=survey)
+            if form.is_valid():
+                with transaction.atomic():
+                    # Save all responses
+                    for field in survey.fields.all():
+                        field_name = f'field_{field.id}'
+                        response_value = form.cleaned_data.get(field_name)
+                        
+                        if response_value is not None and response_value != '':
+                            # Delete existing response if any
+                            SurveyResponse.objects.filter(
+                                survey_field=field,
+                                user=user,
+                                course=course
+                            ).delete()
+                            
+                            # Create new response
+                            response = SurveyResponse(
+                                survey_field=field,
+                                user=user,
+                                course=course
+                            )
+                            
+                            if field.field_type == 'rating':
+                                response.rating_response = int(response_value)
+                            else:
+                                response.text_response = str(response_value)
+                            
+                            response.save()
+                    
+                    # Create or update CourseReview
+                    CourseReview.create_from_responses(user, course, survey)
+                
+                messages.success(request, 'Thank you for your feedback! Your review has been submitted.')
+                return redirect('courses:course_details', course_id=course.id)
+        else:
+            # Pre-populate form if editing existing review
+            initial_data = {}
+            if existing_review:
+                responses = SurveyResponse.objects.filter(
+                    user=user,
+                    course=course,
+                    survey_field__survey=survey
+                )
+                for response in responses:
+                    field_name = f'field_{response.survey_field.id}'
+                    if response.survey_field.field_type == 'rating':
+                        initial_data[field_name] = response.rating_response
+                    else:
+                        initial_data[field_name] = response.text_response
+            
+            form = SurveyResponseForm(survey=survey, initial=initial_data)
+        
+        # Breadcrumbs
+        breadcrumbs = [
+            {'url': reverse('home'), 'label': 'Dashboard', 'icon': 'fa-home'},
+            {'url': reverse('courses:course_details', kwargs={'course_id': course.id}), 'label': course.title, 'icon': 'fa-book'},
+            {'label': 'Submit Review', 'icon': 'fa-star'}
+        ]
+        
+        context = {
+            'form': form,
+            'survey': survey,
+            'course': course,
+            'is_editing': existing_review is not None,
+            'breadcrumbs': breadcrumbs,
+        }
+        return render(request, 'course_reviews/submit_survey.html', context)
     
-    # Breadcrumbs
-    breadcrumbs = [
-        {'url': reverse('home'), 'label': 'Dashboard', 'icon': 'fa-home'},
-        {'url': reverse('courses:course_details', kwargs={'course_id': course.id}), 'label': course.title, 'icon': 'fa-book'},
-        {'label': 'Submit Review', 'icon': 'fa-star'}
-    ]
-    
-    context = {
-        'form': form,
-        'survey': survey,
-        'course': course,
-        'is_editing': existing_review is not None,
-        'breadcrumbs': breadcrumbs,
-    }
-    return render(request, 'course_reviews/submit_survey.html', context)
+    except Exception as e:
+        logger.error(f"Unexpected error in submit_course_survey for course {course_id}: {str(e)}", exc_info=True)
+        messages.error(request, 'An unexpected error occurred. Please try again later.')
+        return redirect('home')
 
 
 # ============================================

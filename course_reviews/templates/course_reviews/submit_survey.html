@@ -115,9 +115,8 @@
                                 <!-- Star Rating Display -->
                                 <div class="star-rating-wrapper">
                                     <div class="star-rating" data-field-name="{{ field.name }}">
-                                        {% with max_rating=field.field.widget.attrs.data-max|default:5 %}
                                         {% for i in "12345678910"|make_list %}
-                                            {% if forloop.counter <= max_rating|add:0 %}
+                                            {% if forloop.counter <= field.field.max_value %}
                                             <input type="radio" 
                                                    id="star-{{ field.name }}-{{ forloop.counter }}" 
                                                    name="{{ field.name }}" 
@@ -126,7 +125,6 @@
                                             <label for="star-{{ field.name }}-{{ forloop.counter }}" title="{{ forloop.counter }} star{{ forloop.counter|pluralize }}">★</label>
                                             {% endif %}
                                         {% endfor %}
-                                        {% endwith %}
                                     </div>
                                     <span class="rating-value" data-rating-display="{{ field.name }}">
                                         {% if field.value %}{{ field.value }} star{{ field.value|pluralize }}{% else %}Not rated{% endif %}

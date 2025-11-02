@@ -602,7 +602,7 @@
                                         {% with has_location=bookmark.lesson_location|default:''|length %}
                                         {% with has_suspend=bookmark.suspend_data|default:''|length %}
                                         <div class="flex justify-center items-center py-12">
-                                            {% if progress.completed or progress.progress_data.scorm_completion_status|default:''|lower in 'completed,passed' or progress.progress_data.scorm_success_status|default:''|lower == 'passed' %}
+                                            {% if progress.completed or progress.progress_data.scorm_completion_status and progress.progress_data.scorm_completion_status|lower == 'completed' or progress.progress_data.scorm_completion_status and progress.progress_data.scorm_completion_status|lower == 'passed' or progress.progress_data.scorm_success_status and progress.progress_data.scorm_success_status|lower == 'passed' %}
                                                 <!-- SCORM Completed -->
                                                 <div class="text-center">
                                                     <div class="inline-flex items-center gap-3 bg-green-50 border-2 border-green-500 text-green-700 px-8 py-4 rounded-lg shadow-md mb-4">
@@ -790,7 +790,7 @@
                                             <div class="mr-3">
                                                 {% with progress=topic_item|get_topic_progress:user %}
                                                 {% if progress %}
-                                                    {% if progress.completed or progress.progress_data.scorm_completion_status|default:''|lower in 'completed,passed' or progress.progress_data.scorm_success_status|default:''|lower == 'passed' %}
+                                                    {% if progress.completed or progress.progress_data.scorm_completion_status and progress.progress_data.scorm_completion_status|lower == 'completed' or progress.progress_data.scorm_completion_status and progress.progress_data.scorm_completion_status|lower == 'passed' or progress.progress_data.scorm_success_status and progress.progress_data.scorm_success_status|lower == 'passed' %}
                                                     <div class="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center text-white">
                                                         <svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
@@ -831,7 +831,7 @@
                                             <div class="mr-3">
                                                 {% with progress=topic_item|get_topic_progress:user %}
                                                 {% if progress %}
-                                                    {% if progress.completed or progress.progress_data.scorm_completion_status|default:''|lower in 'completed,passed' or progress.progress_data.scorm_success_status|default:''|lower == 'passed' %}
+                                                    {% if progress.completed or progress.progress_data.scorm_completion_status and progress.progress_data.scorm_completion_status|lower == 'completed' or progress.progress_data.scorm_completion_status and progress.progress_data.scorm_completion_status|lower == 'passed' or progress.progress_data.scorm_success_status and progress.progress_data.scorm_success_status|lower == 'passed' %}
                                                     <div class="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center text-white">
                                                         <svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>

@@ -1130,6 +1130,10 @@ def course_details(request, course_id):
                     user=request.user,
                     course=course,
                     survey=course.survey
+                ).select_related('survey').prefetch_related(
+                    'survey__fields',
+                    'survey__fields__responses',
+                    'survey__fields__responses__survey_field'
                 ).first()
                 
                 if existing_review:
@@ -1138,14 +1142,18 @@ def course_details(request, course_id):
         except CourseEnrollment.DoesNotExist:
             pass
 
-    # Get course reviews for instructors/admins
+    # Get course reviews for all users (instructors, admins, and learners)
     course_reviews = []
-    if user.role in ['instructor', 'admin', 'superadmin', 'globaladmin'] and has_survey:
+    if has_survey:
         from course_reviews.models import CourseReview
         course_reviews = CourseReview.objects.filter(
             course=course,
             is_published=True
-        ).select_related('user', 'survey').order_by('-submitted_at')
+        ).select_related('user', 'survey').prefetch_related(
+            'survey__fields',
+            'survey__fields__responses',
+            'survey__fields__responses__survey_field'
+        ).order_by('-submitted_at')
 
     context = {
         'course': course,
@@ -1173,7 +1181,7 @@ def course_details(request, course_id):
         'user_has_submitted_survey': user_has_submitted_survey,
         'user_can_submit_survey': user_can_submit_survey,
         'user_review': user_review,
-        'course_reviews': course_reviews
+        'course_reviews': course_reviews,
     }
 
     return render(request, 'courses/course_details.html', context)
@@ -1358,6 +1366,51 @@ def course_view(request, course_id):
         except Exception:
             pass
 
+    # Check survey-related context
+    has_survey = course.survey is not None
+    user_has_submitted_survey = False
+    user_can_submit_survey = False
+    user_review = None
+    
+    if course.survey and request.user.is_authenticated:
+        from course_reviews.models import CourseReview, SurveyResponse
+        
+        # Check if user has completed the course
+        try:
+            enrollment = CourseEnrollment.objects.get(user=request.user, course=course)
+            if enrollment.completed:
+                user_can_submit_survey = True
+                
+                # Check if user has already submitted survey
+                existing_review = CourseReview.objects.filter(
+                    user=request.user,
+                    course=course,
+                    survey=course.survey
+                ).select_related('survey').prefetch_related(
+                    'survey__fields',
+                    'survey__fields__responses',
+                    'survey__fields__responses__survey_field'
+                ).first()
+                
+                if existing_review:
+                    user_has_submitted_survey = True
+                    user_review = existing_review
+        except CourseEnrollment.DoesNotExist:
+            pass
+
+    # Get course reviews for all users (instructors, admins, and learners)
+    course_reviews = []
+    if has_survey:
+        from course_reviews.models import CourseReview
+        course_reviews = CourseReview.objects.filter(
+            course=course,
+            is_published=True
+        ).select_related('user', 'survey').prefetch_related(
+            'survey__fields',
+            'survey__fields__responses',
+            'survey__fields__responses__survey_field'
+        ).order_by('-submitted_at')
+
     # Log debug information
     logger.info(f"Course view: User {request.user.username} (role: {request.user.role}) - is_enrolled: {is_enrolled}, progress: {progress}")
 
@@ -1376,7 +1429,14 @@ def course_view(request, course_id):
         'total_topics_count': total_topics_count,
         'completed_topics_count': completed_topics_count,
         'user_certificate': user_certificate,
-        'prerequisite_check': prerequisite_check
+        'prerequisite_check': prerequisite_check,
+        # Survey-related context
+        'has_survey': has_survey,
+        'survey': course.survey,
+        'user_has_submitted_survey': user_has_submitted_survey,
+        'user_can_submit_survey': user_can_submit_survey,
+        'user_review': user_review,
+        'course_reviews': course_reviews
     }
     
     return render(request, 'courses/course_details.html', context)
@@ -2669,7 +2729,7 @@ def mark_topic_incomplete(request, topic_id):
     # Determine if the request body is JSON
     is_json_request = request.content_type == 'application/json'
     
-    # Mark as incomplete
+    # Mark as incomplete - FORCE UPDATE ALL FIELDS
     progress.completed = False
     progress.manually_completed = False
     progress.completion_method = 'manual'  # Since user manually marked as incomplete
@@ -2679,25 +2739,59 @@ def mark_topic_incomplete(request, topic_id):
     if not progress.progress_data:
         progress.progress_data = {}
     
+    # For ALL content types, ensure completion flags are reset
+    progress.progress_data['completed'] = False
+    if 'completed_at' in progress.progress_data:
+        del progress.progress_data['completed_at']
+    if 'completion_method' in progress.progress_data:
+        del progress.progress_data['completion_method']
+    
     # For video or audio content, reset progress 
     if topic.content_type in ['Video', 'EmbedVideo', 'Audio']:
         progress.progress_data['progress'] = 0.0
-        progress.progress_data['completed'] = False
-        if 'completed_at' in progress.progress_data:
-            del progress.progress_data['completed_at']
+    
+    # For SCORM content, reset SCORM completion status
+    if topic.content_type == 'SCORM':
+        progress.progress_data['scorm_completion_status'] = 'incomplete'
+        progress.progress_data['scorm_success_status'] = 'unknown'
     
     # Update completion_data to reflect incomplete status
-    if progress.completion_data:
-        progress.completion_data.update({
-            'marked_incomplete_at': timezone.now().isoformat(),
-            'completion_method': 'manual',
-            'manually_completed': False
-        })
+    if not progress.completion_data:
+        progress.completion_data = {}
     
-    progress.save()
+    progress.completion_data.update({
+        'marked_incomplete_at': timezone.now().isoformat(),
+        'completion_method': 'manual',
+        'manually_completed': False,
+        'reset_by': request.user.username
+    })
     
-    # Log the action
+    # FORCE SAVE with explicit field updates
+    progress.save(update_fields=[
+        'completed', 
+        'manually_completed', 
+        'completion_method', 
+        'completed_at', 
+        'progress_data', 
+        'completion_data'
+    ])
+    
+    # VERIFY: Refresh from database to ensure save persisted
+    progress.refresh_from_db()
+    
+    # Clear any caches that might store stale data
+    from django.core.cache import cache
+    cache_keys = [
+        f'topic_progress_{request.user.id}_{topic_id}',
+        f'course_progress_{request.user.id}_{course.id}',
+        f'user_progress_{request.user.id}'
+    ]
+    for key in cache_keys:
+        cache.delete(key)
+    
+    # Log the action with verification
     logger.info(f"Topic '{topic.title}' (ID: {topic_id}) marked as incomplete by user {request.user.username}")
+    logger.info(f"VERIFY: After save - completed={progress.completed}, progress_data={progress.progress_data}")
     
     # Update course enrollment and sync progress
     try:
