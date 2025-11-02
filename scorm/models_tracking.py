@@ -370,8 +370,38 @@ class ScormAttempt(models.Model):
         # Parse time to seconds
         if self.total_time:
             self.total_time_seconds = int(parse_scorm_time(self.total_time, scorm_version))
+        
+        # Handle session time
+        # For many SCORM packages, session_time is the primary time tracking field
+        # If total_time is 0 or not provided, use session_time as the time for this attempt
         if self.session_time:
             self.session_time_seconds = int(parse_scorm_time(self.session_time, scorm_version))
+            
+            # If total_time is 0 but session_time has a value, use session_time
+            # This handles packages that only track session time
+            if self.total_time_seconds == 0 and self.session_time_seconds > 0:
+                self.total_time_seconds = self.session_time_seconds
+                
+                # Update the total_time string to reflect session time
+                if scorm_version == '1.2':
+                    # Format as HH:MM:SS for SCORM 1.2
+                    hours = self.session_time_seconds // 3600
+                    minutes = (self.session_time_seconds % 3600) // 60
+                    seconds = self.session_time_seconds % 60
+                    self.total_time = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+                else:
+                    # Format as PT#H#M#S for SCORM 2004
+                    hours = self.session_time_seconds // 3600
+                    minutes = (self.session_time_seconds % 3600) // 60
+                    seconds = self.session_time_seconds % 60
+                    parts = []
+                    if hours > 0:
+                        parts.append(f"{hours}H")
+                    if minutes > 0:
+                        parts.append(f"{minutes}M")
+                    if seconds > 0 or not parts:  # Always include seconds if no other parts
+                        parts.append(f"{seconds}S")
+                    self.total_time = "PT" + "".join(parts)
         
         # Extract interactions, objectives, comments
         self.interactions_data = self._extract_interactions(cmi_data_dict, scorm_version)

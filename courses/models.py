@@ -2356,6 +2356,9 @@ class TopicProgress(models.Model):
             if time_watched > 0 and time_watched < 3600:  # Limit to 1 hour max per update
                 total_time = self.progress_data.get('total_viewing_time', 0) + time_watched
                 self.progress_data['total_viewing_time'] = total_time
+                
+                # Update the total_time_spent field (used for reporting)
+                self.total_time_spent += int(time_watched)
         
         # Track viewing sessions
         viewing_sessions = self.progress_data.get('viewing_sessions', [])
@@ -2567,6 +2570,17 @@ class TopicProgress(models.Model):
     def update_audio_progress(self, current_time, duration):
         """Update audio progress and handle completion"""
         if duration > 0:
+            # Calculate time listened since last update
+            time_listened = 0
+            if self.last_audio_position is not None:
+                # Only count forward progress to prevent rewinding from inflating time
+                if current_time > self.last_audio_position:
+                    time_listened = current_time - self.last_audio_position
+                    
+                    # Add to total time spent (protect against unrealistic values)
+                    if time_listened > 0 and time_listened < 3600:  # Limit to 1 hour max per update
+                        self.total_time_spent += int(time_listened)
+            
             self.last_audio_position = current_time
             self.audio_progress = round((current_time / duration) * 100)
             
