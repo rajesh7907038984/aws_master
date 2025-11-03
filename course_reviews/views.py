@@ -282,13 +282,8 @@ def submit_course_survey(request, course_id):
     try:
         logger.info(f"User {request.user.username} accessing survey for course {course_id}")
         
-        try:
-            course = get_object_or_404(Course, id=course_id)
-        except Http404:
-            logger.warning(f"Course {course_id} not found for user {request.user.username}")
-            messages.error(request, 'Course not found.')
-            return redirect('home')
-        
+        # Get course or return 404
+        course = get_object_or_404(Course, id=course_id)
         user = request.user
         
         # Check if user has completed the course
@@ -304,12 +299,14 @@ def submit_course_survey(request, course_id):
             return redirect('courses:course_details', course_id=course.id)
         
         # Check if course has a survey
-        if not hasattr(course, 'survey') or not course.survey:
+        try:
+            survey = course.survey
+            if not survey:
+                raise AttributeError("No survey assigned")
+        except (AttributeError, Survey.DoesNotExist):
             logger.warning(f"Course {course_id} has no survey assigned")
             messages.error(request, 'This course does not have a survey.')
             return redirect('courses:course_details', course_id=course.id)
-        
-        survey = course.survey
         
         # Check if survey has fields
         if not survey.fields.exists():
@@ -360,6 +357,9 @@ def submit_course_survey(request, course_id):
                 
                 messages.success(request, 'Thank you for your feedback! Your review has been submitted.')
                 return redirect('courses:course_details', course_id=course.id)
+            else:
+                # Log form validation errors
+                logger.warning(f"Form validation errors for user {user.username} in survey {survey.id}: {form.errors}")
         else:
             # Pre-populate form if editing existing review
             initial_data = {}
@@ -394,9 +394,13 @@ def submit_course_survey(request, course_id):
         }
         return render(request, 'course_reviews/submit_survey.html', context)
     
+    except Http404:
+        logger.warning(f"Course {course_id} not found for user {request.user.username}")
+        messages.error(request, 'Course not found.')
+        return redirect('home')
     except Exception as e:
         logger.error(f"Unexpected error in submit_course_survey for course {course_id}: {str(e)}", exc_info=True)
-        messages.error(request, 'An unexpected error occurred. Please try again later.')
+        messages.error(request, f'An unexpected error occurred: {str(e)}. Please try again later.')
         return redirect('home')
 
 
