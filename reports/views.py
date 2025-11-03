@@ -2738,6 +2738,10 @@ def export_user_report_to_excel(request, user):
     overview_sheet.write(4, 0, 'Email:', xlwt.easyxf('font: bold on'))
     overview_sheet.write(4, 1, user.email)
     
+    # Get enrolled courses first (needed for accurate time calculation)
+    user_courses = CourseEnrollment.objects.filter(user=user).select_related('course')
+    enrolled_course_ids = list(user_courses.values_list('course_id', flat=True))
+    
     # Get user statistics
     user_stats = User.objects.filter(id=user.id).annotate(
         assigned_count=Count('courseenrollment'),
@@ -2754,7 +2758,13 @@ def export_user_report_to_excel(request, user):
             courseenrollment__completed=False,
             courseenrollment__last_accessed__isnull=True
         )),
-        total_time_spent=Sum('topic_progress__total_time_spent', default=0)
+        # Calculate total time spent only for enrolled courses
+        # Filter by course field first (new records), then fallback to topic relationship (legacy records)
+        total_time_spent=Sum('topic_progress__total_time_spent', 
+            filter=Q(topic_progress__course_id__in=enrolled_course_ids) | 
+                   Q(topic_progress__course__isnull=True, topic_progress__topic__coursetopic__course_id__in=enrolled_course_ids),
+            default=0
+        )
     ).first()
     
     # Handle case when user has no stats
@@ -3388,6 +3398,10 @@ def user_detail_report(request, user_id):
     # Use UTC for consistent date calculations
     thirty_days_ago = timezone.now() - timedelta(days=30)
     
+    # Get user enrolled courses first (needed for accurate time calculation)
+    user_courses = CourseEnrollment.objects.filter(user=user).select_related('course').order_by('-enrolled_at')
+    enrolled_course_ids = list(user_courses.values_list('course_id', flat=True))
+    
     user_stats = User.objects.filter(id=user_id).annotate(
         assigned_count=Count('courseenrollment', distinct=True),
         completed_count=Count('courseenrollment', filter=Q(courseenrollment__completed=True), distinct=True),
@@ -3404,7 +3418,13 @@ def user_detail_report(request, user_id):
             courseenrollment__last_accessed__isnull=True
         ), distinct=True),
         
-        total_time_spent=Sum('topic_progress__total_time_spent', default=0)
+        # Calculate total time spent only for enrolled courses
+        # Filter by course field first (new records), then fallback to topic relationship (legacy records)
+        total_time_spent=Sum('topic_progress__total_time_spent', 
+            filter=Q(topic_progress__course_id__in=enrolled_course_ids) | 
+                   Q(topic_progress__course__isnull=True, topic_progress__topic__coursetopic__course_id__in=enrolled_course_ids),
+            default=0
+        )
     ).first()
     
     # Handle user with no stats
@@ -3432,9 +3452,6 @@ def user_detail_report(request, user_id):
     seconds = total_seconds % 60
     training_time = f"{hours}h {minutes}m {seconds}s"
     
-    # Get user enrolled courses with detailed information and calculated fields
-    user_courses = CourseEnrollment.objects.filter(user=user).select_related('course').order_by('-enrolled_at')
-    
     # Add calculated fields for each enrollment
     for enrollment in user_courses:
         # Ensure completion status is accurate
@@ -3459,6 +3476,17 @@ def user_detail_report(request, user_id):
             
         # Format time spent
         enrollment.formatted_time_spent = enrollment.total_time_spent
+    
+    # Get Learning Activities data (TopicProgress) with data consistency checks
+    # Note: CourseEnrollment, TopicProgress, Topic, CourseTopic are already imported at top of file
+    
+    # Ensure data consistency: create missing TopicProgress records for enrolled courses only
+    # Optimize with bulk operations to avoid N+1 queries
+    enrolled_courses = CourseEnrollment.objects.filter(user=user).select_related('course')
+    
+    # Get all topics for enrolled courses in one query
+    from courses.models import CourseTopic
+    course_ids = [enrollment.course_id for enrollment in enrolled_courses]
     
     # Recalculate user stats after syncing completion status
     thirty_days_ago = timezone.now() - timedelta(days=30)
@@ -3486,7 +3514,13 @@ def user_detail_report(request, user_id):
             courseenrollment__last_accessed__isnull=True
         ), distinct=True),
         
-        total_time_spent=Sum('topic_progress__total_time_spent', default=0)
+        # Calculate total time spent only for enrolled courses
+        # Filter by course field first (new records), then fallback to topic relationship (legacy records)
+        total_time_spent=Sum('topic_progress__total_time_spent', 
+            filter=Q(topic_progress__course_id__in=course_ids) | 
+                   Q(topic_progress__course__isnull=True, topic_progress__topic__coursetopic__course_id__in=course_ids),
+            default=0
+        )
     ).first()
     
     # Handle user with no stats
@@ -3504,17 +3538,6 @@ def user_detail_report(request, user_id):
         completion_rate = round((user_stats.completed_count / user_stats.assigned_count) * 100, 1)
     else:
         completion_rate = 0.0
-    
-    # Get Learning Activities data (TopicProgress) with data consistency checks
-    # Note: CourseEnrollment, TopicProgress, Topic, CourseTopic are already imported at top of file
-    
-    # Ensure data consistency: create missing TopicProgress records for enrolled courses only
-    # Optimize with bulk operations to avoid N+1 queries
-    enrolled_courses = CourseEnrollment.objects.filter(user=user).select_related('course')
-    
-    # Get all topics for enrolled courses in one query
-    from courses.models import CourseTopic
-    course_ids = [enrollment.course_id for enrollment in enrolled_courses]
     course_topics = CourseTopic.objects.filter(course_id__in=course_ids).select_related('topic')
     
     # Get existing topic progress records for enrolled courses only
@@ -3790,6 +3813,10 @@ def _get_user_report_data(request, user_id):
     # Use UTC for consistent date calculations
     thirty_days_ago = timezone.now() - timedelta(days=30)
     
+    # Get user enrolled courses first (needed for accurate time calculation)
+    user_courses = CourseEnrollment.objects.filter(user=user).select_related('course').order_by('-enrolled_at')
+    enrolled_course_ids = list(user_courses.values_list('course_id', flat=True))
+    
     user_stats = User.objects.filter(id=user_id).annotate(
         assigned_count=Count('courseenrollment', distinct=True),
         completed_count=Count('courseenrollment', filter=Q(courseenrollment__completed=True), distinct=True),
@@ -3806,7 +3833,13 @@ def _get_user_report_data(request, user_id):
             courseenrollment__last_accessed__isnull=True
         ), distinct=True),
         
-        total_time_spent=Sum('topic_progress__total_time_spent', default=0)
+        # Calculate total time spent only for enrolled courses
+        # Filter by course field first (new records), then fallback to topic relationship (legacy records)
+        total_time_spent=Sum('topic_progress__total_time_spent', 
+            filter=Q(topic_progress__course_id__in=enrolled_course_ids) | 
+                   Q(topic_progress__course__isnull=True, topic_progress__topic__coursetopic__course_id__in=enrolled_course_ids),
+            default=0
+        )
     ).first()
     
     # Handle user with no stats
@@ -3824,9 +3857,6 @@ def _get_user_report_data(request, user_id):
         completion_rate = round((user_stats.completed_count / user_stats.assigned_count) * 100, 1)
     else:
         completion_rate = 0.0
-    
-    # Get user enrolled courses with detailed information and calculated fields
-    user_courses = CourseEnrollment.objects.filter(user=user).select_related('course').order_by('-enrolled_at')
     
     # Add calculated fields for each enrollment
     for enrollment in user_courses:
@@ -3880,6 +3910,10 @@ def _get_user_report_data(request, user_id):
     
     # Recalculate user stats after syncing completion status
     thirty_days_ago = timezone.now() - timedelta(days=30)
+    
+    # Get list of course IDs the user is enrolled in
+    enrolled_course_ids = list(user_courses.values_list('course_id', flat=True))
+    
     user_stats = User.objects.filter(id=user_id).annotate(
         assigned_count=Count('courseenrollment', distinct=True),
         completed_count=Count('courseenrollment', filter=Q(courseenrollment__completed=True), distinct=True),
@@ -3904,7 +3938,13 @@ def _get_user_report_data(request, user_id):
             courseenrollment__last_accessed__isnull=True
         ), distinct=True),
         
-        total_time_spent=Sum('topic_progress__total_time_spent', default=0)
+        # Calculate total time spent only for enrolled courses
+        # Filter by course field first (new records), then fallback to topic relationship (legacy records)
+        total_time_spent=Sum('topic_progress__total_time_spent', 
+            filter=Q(topic_progress__course_id__in=enrolled_course_ids) | 
+                   Q(topic_progress__course__isnull=True, topic_progress__topic__coursetopic__course_id__in=enrolled_course_ids),
+            default=0
+        )
     ).first()
     
     # Handle user with no stats
@@ -4905,7 +4945,33 @@ def course_detail(request, course_id):
         enrollment = CourseEnrollment.objects.filter(course=course, user=learner).first()
         if enrollment:
             learner.progress_percentage = enrollment.progress_percentage if hasattr(enrollment, 'progress_percentage') else 0
-            learner.time_spent_formatted = getattr(enrollment, 'total_time_spent', "0h 0m 0s")
+            
+            # Get all topic progress for this course (using course-aware filtering)
+            course_topic_progress = TopicProgress.objects.filter(
+                user=learner,
+                course=course
+            )
+            
+            # Fallback: include legacy records without course field
+            if not course_topic_progress.exists():
+                course_topic_progress = TopicProgress.objects.filter(
+                    user=learner,
+                    topic__coursetopic__course=course,
+                    course__isnull=True
+                )
+            
+            # Calculate total time spent on course (sum of all topic time)
+            course_stats = course_topic_progress.aggregate(
+                total_time=Sum('total_time_spent', default=0)
+            )
+            
+            # Format time spent for display
+            total_seconds = course_stats['total_time'] or 0
+            hours = total_seconds // 3600
+            minutes = (total_seconds % 3600) // 60
+            seconds = total_seconds % 60
+            learner.time_spent_formatted = f"{hours}h {minutes}m {seconds}s"
+            
             raw_score = getattr(enrollment, 'score', None)
             # Use normalized score to handle both percentage and basis points formats
             learner.score = normalize_score(raw_score)
@@ -5233,7 +5299,33 @@ def _get_course_report_data(request, course_id):
         enrollment = CourseEnrollment.objects.filter(course=course, user=learner).first()
         if enrollment:
             learner.progress_percentage = enrollment.progress_percentage if hasattr(enrollment, 'progress_percentage') else 0
-            learner.time_spent_formatted = getattr(enrollment, 'total_time_spent', "0h 0m 0s")
+            
+            # Get all topic progress for this course (using course-aware filtering)
+            course_topic_progress = TopicProgress.objects.filter(
+                user=learner,
+                course=course
+            )
+            
+            # Fallback: include legacy records without course field
+            if not course_topic_progress.exists():
+                course_topic_progress = TopicProgress.objects.filter(
+                    user=learner,
+                    topic__coursetopic__course=course,
+                    course__isnull=True
+                )
+            
+            # Calculate total time spent on course (sum of all topic time)
+            course_stats = course_topic_progress.aggregate(
+                total_time=Sum('total_time_spent', default=0)
+            )
+            
+            # Format time spent for display
+            total_seconds = course_stats['total_time'] or 0
+            hours = total_seconds // 3600
+            minutes = (total_seconds % 3600) // 60
+            seconds = total_seconds % 60
+            learner.time_spent_formatted = f"{hours}h {minutes}m {seconds}s"
+            
             raw_score = getattr(enrollment, 'score', None)
             # Use normalized score to handle both percentage and basis points formats
             learner.score = normalize_score(raw_score)

@@ -55,6 +55,16 @@ def update_topic_progress_on_discussion_participation(sender, instance, **kwargs
                         'comment_text': instance.content[:100] + '...' if len(instance.content) > 100 else instance.content
                     })
                     
+                    # Add estimated time for discussion participation
+                    # Estimate: 2 minutes (120 seconds) per comment as base time
+                    # Add additional time based on comment length (1 second per 10 characters, max 5 minutes)
+                    base_time = 120  # 2 minutes in seconds
+                    content_length_time = min(len(instance.content) // 10, 300)  # Max 5 additional minutes
+                    estimated_time = base_time + content_length_time
+                    
+                    topic_progress.total_time_spent += estimated_time
+                    topic_progress.progress_data['discussion_estimated_time_seconds'] = estimated_time
+                    
                     # Mark as completed when user participates in discussion
                     if not topic_progress.completed:
                         topic_progress.mark_complete('auto')

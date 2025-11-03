@@ -56,6 +56,23 @@ def update_topic_progress_on_conference_participation(sender, instance, **kwargs
                     'conference_title': instance.conference.title
                 })
                 
+                # Sync conference attendance time to topic progress
+                try:
+                    from conferences.models import ConferenceAttendance
+                    attendance = ConferenceAttendance.objects.filter(
+                        conference=instance.conference,
+                        user=instance.user
+                    ).first()
+                    
+                    if attendance and attendance.duration_minutes > 0:
+                        # Convert minutes to seconds and add to total_time_spent
+                        attendance_seconds = attendance.duration_minutes * 60
+                        topic_progress.total_time_spent += attendance_seconds
+                        topic_progress.progress_data['conference_duration_minutes'] = attendance.duration_minutes
+                        topic_progress.progress_data['conference_duration_seconds'] = attendance_seconds
+                except Exception as e:
+                    logger.error(f"Error syncing conference time: {e}")
+                
                 # Mark as completed when user has joined the meeting or is active
                 if instance.participation_status in ['joined_meeting', 'active_in_meeting', 'meeting_ended', 'sync_completed']:
                     if not topic_progress.completed:

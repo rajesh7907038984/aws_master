@@ -61,6 +61,12 @@ def update_topic_progress_on_quiz_completion(sender, instance, **kwargs):
                 if topic_progress.best_score is None or instance.score > topic_progress.best_score:
                     topic_progress.best_score = instance.score
                 
+                # Sync quiz active time to topic progress
+                if instance.active_time_seconds > 0:
+                    # Add quiz time to total_time_spent
+                    topic_progress.total_time_spent += instance.active_time_seconds
+                    topic_progress.progress_data['quiz_active_time_seconds'] = instance.active_time_seconds
+                
                 # Mark as completed if quiz passed
                 if instance.passed:
                     if not topic_progress.completed:

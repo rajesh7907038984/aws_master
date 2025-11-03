@@ -348,7 +348,9 @@ class ScormAttempt(models.Model):
             # SCORM 1.2 doesn't have separate success_status - it uses lesson_status values (passed/completed/failed)
             self.success_status = None
             self.total_time = safe_get_string(cmi_data_dict, 'cmi.core.total_time')
-            self.session_time = safe_get_string(cmi_data_dict, 'cmi.core.session_time')
+            # Handle both snake_case and camelCase for session_time (different SCORM players use different conventions)
+            self.session_time = (safe_get_string(cmi_data_dict, 'cmi.core.session_time') or 
+                                safe_get_string(cmi_data_dict, 'cmi.core.sessionTime'))
             self.lesson_location = safe_get_string(cmi_data_dict, 'cmi.core.lesson_location')
             self.suspend_data = safe_get_string(cmi_data_dict, 'cmi.suspend_data')
             self.entry_mode = safe_get_string(cmi_data_dict, 'cmi.core.entry')
@@ -361,7 +363,9 @@ class ScormAttempt(models.Model):
             self.completion_status = safe_get_string(cmi_data_dict, 'cmi.completion_status')
             self.success_status = safe_get_string(cmi_data_dict, 'cmi.success_status')
             self.total_time = safe_get_string(cmi_data_dict, 'cmi.total_time')
-            self.session_time = safe_get_string(cmi_data_dict, 'cmi.session_time')
+            # Handle both snake_case and camelCase for session_time
+            self.session_time = (safe_get_string(cmi_data_dict, 'cmi.session_time') or 
+                                safe_get_string(cmi_data_dict, 'cmi.sessionTime'))
             self.lesson_location = safe_get_string(cmi_data_dict, 'cmi.location')
             self.suspend_data = safe_get_string(cmi_data_dict, 'cmi.suspend_data')
             self.entry_mode = safe_get_string(cmi_data_dict, 'cmi.entry')

@@ -2787,10 +2787,9 @@ def mark_topic_incomplete(request, topic_id):
             'title': topic.title
         })
     
-    # Get the progress record
-    try:
-        progress = TopicProgress.objects.get(user=request.user, topic=topic, course=course)
-    except TopicProgress.DoesNotExist:
+    # Get the progress record (use filter().first() to handle race conditions)
+    progress = TopicProgress.objects.filter(user=request.user, topic=topic, course=course).first()
+    if not progress:
         # If no progress exists, create one that's incomplete by default
         progress = TopicProgress.objects.create(user=request.user, topic=topic, course=course)
         progress.init_progress_data()

@@ -608,9 +608,9 @@ def is_completed(topic, user):
         return False
         
     try:
-        progress = TopicProgress.objects.get(topic=topic, user=user)
+        progress = TopicProgress.objects.filter(topic=topic, user=user).first()
         
-        return progress.completed
+        return progress.completed if progress else False
     except TopicProgress.DoesNotExist:
         return False
 
@@ -621,8 +621,8 @@ def has_completed_topic(user, topic):
         return False
         
     try:
-        progress = TopicProgress.objects.get(topic=topic, user=user)
-        return progress.completed
+        progress = TopicProgress.objects.filter(topic=topic, user=user).first()
+        return progress.completed if progress else False
     except TopicProgress.DoesNotExist:
         return False
 

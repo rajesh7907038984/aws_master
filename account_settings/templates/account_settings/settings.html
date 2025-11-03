@@ -3141,6 +3141,7 @@
                                     <option value="quizzes">Quizzes</option>
                                     <option value="discussions">Discussions</option>
                                     <option value="conferences">Conferences</option>
+                                    <option value="all">All Data</option>
                                 </select>
                             </div>
                             <div class="flex items-end">
@@ -3217,6 +3218,30 @@
                         <h5 class="text-md font-medium text-gray-800 mb-3">Existing Backups</h5>
                         <div id="backup_list" class="space-y-2 max-h-60 overflow-y-auto">
                             <!-- Backups will be loaded here -->
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Error Details Modal -->
+                <div id="errorDetailsModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+                    <div class="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-lg font-semibold text-gray-900">
+                                <i class="fas fa-exclamation-triangle text-red-600 mr-2"></i>Import Error Details
+                            </h3>
+                            <button onclick="closeErrorModal()" class="text-gray-400 hover:text-gray-600">
+                                <i class="fas fa-times text-xl"></i>
+                            </button>
+                        </div>
+                        <div class="max-h-96 overflow-y-auto">
+                            <ul id="errorDetailsList" class="space-y-2">
+                                <!-- Error items will be populated here -->
+                            </ul>
+                        </div>
+                        <div class="mt-4 flex justify-end">
+                            <button onclick="closeErrorModal()" class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-md">
+                                Close
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -6474,19 +6499,69 @@ function createJobElement(job, type) {
                 </a>
             </div>
         `;
-    } else if (type === 'import' && job.status === 'completed') {
+    } else if (type === 'import' && (job.status === 'completed' || job.status === 'partial')) {
         content += `
             <div class="text-xs text-gray-500">
-                Created: ${job.records_created}, Updated: ${job.records_updated}
-                ${job.records_failed > 0 ? `, Failed: ${job.records_failed}` : ''}
+                <div class="mb-1">
+                    Created: ${job.records_created}, Updated: ${job.records_updated}
+                    ${job.records_failed > 0 ? `, <span class="text-red-600 font-medium">Failed: ${job.records_failed}</span>` : ''}
+                </div>
+        `;
+        
+        // Add view errors button if there are validation errors
+        if (job.validation_errors && job.validation_errors.errors && job.validation_errors.errors.length > 0) {
+            content += `
+                <button onclick="showImportErrors(${job.id}, ${JSON.stringify(job.validation_errors.errors).replace(/"/g, '&quot;')})" 
+                        class="text-blue-600 hover:text-blue-800 text-xs font-medium mt-1">
+                    <i class="fas fa-exclamation-circle mr-1"></i>View ${job.validation_errors.errors.length} Error(s)
+                </button>
+            `;
+        }
+        content += `</div>`;
+    } else if (job.status === 'failed' && job.error_message) {
+        content += `
+            <div class="text-xs text-red-600 mt-2 p-2 bg-red-50 rounded border border-red-200">
+                <div class="font-medium mb-1">Error:</div>
+                <div class="whitespace-pre-wrap">${escapeHtml(job.error_message)}</div>
             </div>
         `;
-    } else if (job.status === 'failed' && job.error_message) {
-        content += `<p class="text-xs text-red-600 mt-1">${job.error_message}</p>`;
     }
     
     div.innerHTML = content;
     return div;
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function showImportErrors(jobId, errors) {
+    const modal = document.getElementById('errorDetailsModal');
+    const errorList = document.getElementById('errorDetailsList');
+    
+    // Clear previous errors
+    errorList.innerHTML = '';
+    
+    // Add errors to the list
+    errors.forEach((error, index) => {
+        const errorItem = document.createElement('li');
+        errorItem.className = 'mb-2 pb-2 border-b border-gray-200 last:border-0';
+        errorItem.innerHTML = `
+            <span class="text-xs text-gray-500">#${index + 1}</span>
+            <div class="text-sm text-gray-800 mt-1">${escapeHtml(error)}</div>
+        `;
+        errorList.appendChild(errorItem);
+    });
+    
+    // Show modal
+    modal.classList.remove('hidden');
+}
+
+function closeErrorModal() {
+    const modal = document.getElementById('errorDetailsModal');
+    modal.classList.add('hidden');
 }
 
 function pollJobStatus(jobId, type) {
@@ -6516,7 +6591,8 @@ function pollJobStatus(jobId, type) {
                     } else if (data.status === 'failed') {
                         alert(`${type.charAt(0).toUpperCase() + type.slice(1)} failed: ${data.error_message || 'Unknown error'}`);
                     } else if (data.status === 'partial') {
-                        alert(`${type.charAt(0).toUpperCase() + type.slice(1)} completed with some errors. Check the job details for more information.`);
+                        const errorCount = data.records_failed || 0;
+                        alert(`${type.charAt(0).toUpperCase() + type.slice(1)} completed with ${errorCount} error(s).\n\nSuccessfully created: ${data.records_created || 0}\nSuccessfully updated: ${data.records_updated || 0}\nFailed: ${errorCount}\n\nClick "View Error(s)" button in the job list to see details.`);
                     }
                 }
             }

@@ -459,11 +459,11 @@ class CalendarService:
                 # Check if user has completed this topic
                 if self.user.role == 'learner':
                     try:
-                        progress = TopicProgress.objects.get(
+                        progress = TopicProgress.objects.filter(
                             user=self.user,
                             topic=topic
-                        )
-                        if progress.completed:
+                        ).first()
+                        if progress and progress.completed:
                             continue  # Don't show completed topics
                     except TopicProgress.DoesNotExist:
                         pass  # Topic not started yet

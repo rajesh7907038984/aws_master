@@ -20,6 +20,7 @@ from botocore.exceptions import ClientError
 
 from .models import ScormPackage
 from courses.models import Topic, TopicProgress
+from courses.views import get_topic_course
 
 logger = logging.getLogger(__name__)
 
@@ -50,10 +51,14 @@ def scorm_launcher(request, topic_id):
         if not entry_point:
             return HttpResponse("Package entry point not found", status=404)
         
-        # Get or create progress
+        # Get the course for this topic
+        course = get_topic_course(topic)
+        
+        # Get or create progress (include course to prevent duplicates due to unique_together constraint)
         progress, created = TopicProgress.objects.get_or_create(
             user=request.user,
-            topic=topic
+            topic=topic,
+            course=course
         )
         
         # Generate session ID

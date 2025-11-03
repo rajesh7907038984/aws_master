@@ -25,7 +25,7 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument('--type', type=str, required=True, 
-                          choices=['users', 'courses', 'topics', 'assignments', 'quizzes', 'discussions', 'conferences'],
+                          choices=['users', 'courses', 'topics', 'assignments', 'quizzes', 'discussions', 'conferences', 'all'],
                           help='Type of data to import')
         parser.add_argument('--file', type=str, required=True, help='Path to import file (ZIP or directory)')
         parser.add_argument('--replace', action='store_true', help='Replace existing records')
@@ -58,22 +58,62 @@ class Command(BaseCommand):
             records_failed = 0
             validation_errors = []
             
-            if import_type == 'users':
+            # Handle 'all' type by importing all data types in order
+            if import_type == 'users' or import_type == 'all':
                 stats = self.import_users(import_dir, replace_existing)
-            elif import_type == 'courses':
-                stats = self.import_courses(import_dir, replace_existing)
-            elif import_type == 'topics':
-                stats = self.import_topics(import_dir, replace_existing)
-            elif import_type == 'assignments':
-                stats = self.import_assignments(import_dir, replace_existing)
-            elif import_type == 'quizzes':
-                stats = self.import_quizzes(import_dir, replace_existing)
-            elif import_type == 'discussions':
-                stats = self.import_discussions(import_dir, replace_existing)
-            elif import_type == 'conferences':
-                stats = self.import_conferences(import_dir, replace_existing)
+                records_processed += stats[0]
+                records_created += stats[1]
+                records_updated += stats[2]
+                records_failed += stats[3]
+                validation_errors.extend(stats[4])
             
-            records_processed, records_created, records_updated, records_failed, validation_errors = stats
+            if import_type == 'courses' or import_type == 'all':
+                stats = self.import_courses(import_dir, replace_existing)
+                records_processed += stats[0]
+                records_created += stats[1]
+                records_updated += stats[2]
+                records_failed += stats[3]
+                validation_errors.extend(stats[4])
+                
+            if import_type == 'topics' or import_type == 'all':
+                stats = self.import_topics(import_dir, replace_existing)
+                records_processed += stats[0]
+                records_created += stats[1]
+                records_updated += stats[2]
+                records_failed += stats[3]
+                validation_errors.extend(stats[4])
+                
+            if import_type == 'assignments' or import_type == 'all':
+                stats = self.import_assignments(import_dir, replace_existing)
+                records_processed += stats[0]
+                records_created += stats[1]
+                records_updated += stats[2]
+                records_failed += stats[3]
+                validation_errors.extend(stats[4])
+                
+            if import_type == 'quizzes' or import_type == 'all':
+                stats = self.import_quizzes(import_dir, replace_existing)
+                records_processed += stats[0]
+                records_created += stats[1]
+                records_updated += stats[2]
+                records_failed += stats[3]
+                validation_errors.extend(stats[4])
+                
+            if import_type == 'discussions' or import_type == 'all':
+                stats = self.import_discussions(import_dir, replace_existing)
+                records_processed += stats[0]
+                records_created += stats[1]
+                records_updated += stats[2]
+                records_failed += stats[3]
+                validation_errors.extend(stats[4])
+                
+            if import_type == 'conferences' or import_type == 'all':
+                stats = self.import_conferences(import_dir, replace_existing)
+                records_processed += stats[0]
+                records_created += stats[1]
+                records_updated += stats[2]
+                records_failed += stats[3]
+                validation_errors.extend(stats[4])
             
             # Update job status
             if job:
