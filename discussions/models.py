@@ -197,7 +197,8 @@ class Comment(models.Model):
     class Meta:
         ordering = ['created_at']
 
-class Attachment(models.Model):
+class DiscussionAttachment(models.Model):
+    """Attachments for standalone discussions - Fixed Bug #5: Renamed from Attachment for clarity"""
     ATTACHMENT_TYPES = (
         ('document', 'Document'),
         ('image', 'Image'),
@@ -212,5 +213,44 @@ class Attachment(models.Model):
     uploaded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     uploaded_at = models.DateTimeField(auto_now_add=True)
     
+    class Meta:
+        db_table = 'discussions_attachment'  # Keep same table name for backward compatibility
+        verbose_name = 'Discussion Attachment'
+        verbose_name_plural = 'Discussion Attachments'
+        constraints = [
+            # Fixed Bug #4: Ensure attachment belongs to exactly one parent (discussion OR comment, not both)
+            models.CheckConstraint(
+                check=(
+                    models.Q(discussion__isnull=False, comment__isnull=True) |
+                    models.Q(discussion__isnull=True, comment__isnull=False)
+                ),
+                name='discussions_attachment_exclusive_parent'
+            )
+        ]
+        indexes = [
+            models.Index(fields=['discussion']),
+            models.Index(fields=['comment']),
+            models.Index(fields=['uploaded_by', '-uploaded_at']),
+        ]
+    
+    def clean(self):
+        """Validate that attachment belongs to either discussion or comment, not both"""
+        from django.core.exceptions import ValidationError
+        super().clean()
+        
+        if self.discussion and self.comment:
+            raise ValidationError('Attachment cannot belong to both a discussion and a comment')
+        
+        if not self.discussion and not self.comment:
+            raise ValidationError('Attachment must belong to either a discussion or a comment')
+    
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+    
     def __str__(self):
-        return f"Attachment for {self.discussion or self.comment}"
+        if self.discussion:
+            return f"Attachment for discussion: {self.discussion.title}"
+        elif self.comment:
+            return f"Attachment for comment"
+        return "Orphaned attachment"

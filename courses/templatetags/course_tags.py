@@ -70,7 +70,7 @@ def get_topics_for_rubric(rubric):
         from courses.models import Topic
         topics = []
         # Get all assignments associated with this rubric
-        for assignment in rubric.assignments.all():
+        for assignment in rubric.rubric_assignments.all():
             # Find topics that reference this assignment
             assignment_topics = Topic.objects.filter(assignment=assignment)
             topics.extend(assignment_topics)

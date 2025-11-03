@@ -4,7 +4,8 @@ import pytz
 
 class IntegrationCredential(models.Model):
     """Base model for storing integration credentials"""
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, null=True, blank=True)
+    # Fixed Bug #2: Use SET_NULL instead of CASCADE with null=True
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
     name = models.CharField(max_length=255, help_text="Name for this integration configuration")
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -42,7 +43,8 @@ class TeamsIntegration(IntegrationCredential):
     tenant_id = models.CharField(max_length=255)
     access_token = models.TextField(blank=True, null=True)
     token_expiry = models.DateTimeField(blank=True, null=True)
-    branch = models.ForeignKey('branches.Branch', on_delete=models.CASCADE, null=True, blank=True, help_text="The branch this integration belongs to")
+    # Fixed Bug #2: Use SET_NULL instead of CASCADE with null=True
+    branch = models.ForeignKey('branches.Branch', on_delete=models.SET_NULL, null=True, blank=True, help_text="The branch this integration belongs to")
     
     def __str__(self):
         return f"Teams - {self.name}"
@@ -54,7 +56,8 @@ class ZoomIntegration(IntegrationCredential):
     oauth_token = models.TextField(blank=True, null=True)
     token_expiry = models.DateTimeField(blank=True, null=True)
     account_id = models.CharField(max_length=255, blank=True, null=True)
-    branch = models.ForeignKey('branches.Branch', on_delete=models.CASCADE, null=True, blank=True, help_text="The branch this integration belongs to")
+    # Fixed Bug #2: Use SET_NULL instead of CASCADE with null=True
+    branch = models.ForeignKey('branches.Branch', on_delete=models.SET_NULL, null=True, blank=True, help_text="The branch this integration belongs to")
     
     def __str__(self):
         return f"Zoom - {self.name}"
@@ -64,7 +67,8 @@ class StripeIntegration(IntegrationCredential):
     publishable_key = models.CharField(max_length=255)
     secret_key = models.CharField(max_length=255)
     webhook_secret = models.CharField(max_length=255, blank=True, null=True)
-    branch = models.ForeignKey('branches.Branch', on_delete=models.CASCADE, null=True, blank=True, 
+    # Fixed Bug #2: Use SET_NULL instead of CASCADE with null=True
+    branch = models.ForeignKey('branches.Branch', on_delete=models.SET_NULL, null=True, blank=True, 
                               help_text="The branch this payment integration belongs to")
     is_test_mode = models.BooleanField(default=True, help_text="Whether to use test mode or live mode")
     
@@ -75,7 +79,8 @@ class PayPalIntegration(IntegrationCredential):
     """Model for storing PayPal payment gateway credentials"""
     client_id = models.CharField(max_length=255)
     client_secret = models.CharField(max_length=255)
-    branch = models.ForeignKey('branches.Branch', on_delete=models.CASCADE, null=True, blank=True,
+    # Fixed Bug #2: Use SET_NULL instead of CASCADE with null=True
+    branch = models.ForeignKey('branches.Branch', on_delete=models.SET_NULL, null=True, blank=True,
                               help_text="The branch this payment integration belongs to")
     is_sandbox = models.BooleanField(default=True, help_text="Whether to use sandbox or live mode")
     
@@ -124,7 +129,8 @@ class SharePointIntegration(IntegrationCredential):
     total_synced_enrollments = models.PositiveIntegerField(default=0, help_text="Total enrollments synchronized")
     
     # Branch Association
-    branch = models.ForeignKey('branches.Branch', on_delete=models.CASCADE, null=True, blank=True,
+    # Fixed Bug #2: Use SET_NULL instead of CASCADE with null=True
+    branch = models.ForeignKey('branches.Branch', on_delete=models.SET_NULL, null=True, blank=True,
                               help_text="The branch this SharePoint integration belongs to")
     
     class Meta:
@@ -181,7 +187,8 @@ class ExportJob(models.Model):
         ('failed', 'Failed'),
     ]
     
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='export_jobs', null=True, blank=True)
+    # Fixed Bug #2: Use SET_NULL instead of CASCADE with null=True
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, related_name='export_jobs', null=True, blank=True)
     export_type = models.CharField(max_length=20, choices=EXPORT_TYPE_CHOICES)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     file_path = models.CharField(max_length=500, null=True, blank=True)
@@ -218,7 +225,8 @@ class ImportJob(models.Model):
         ('partial', 'Partially Completed'),
     ]
     
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='import_jobs', null=True, blank=True)
+    # Fixed Bug #2: Use SET_NULL instead of CASCADE with null=True
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, related_name='import_jobs', null=True, blank=True)
     import_type = models.CharField(max_length=20, choices=IMPORT_TYPE_CHOICES)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     file_path = models.CharField(max_length=500)

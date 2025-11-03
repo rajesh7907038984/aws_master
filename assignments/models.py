@@ -94,7 +94,7 @@ class Assignment(models.Model):
     rubric = models.ForeignKey(
         'lms_rubrics.Rubric',
         on_delete=models.SET_NULL,
-        related_name='assignments',
+        related_name='rubric_assignments',  # Fixed Bug #7: More specific related_name
         null=True,
         blank=True,
         help_text="Rubric used for grading this assignment"
@@ -102,14 +102,8 @@ class Assignment(models.Model):
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    course = models.ForeignKey(
-        'courses.Course',
-        on_delete=models.CASCADE,
-        related_name='assignments',
-        null=True,
-        blank=True
-    )
-    # Add many-to-many relationship with Course through AssignmentCourse
+    # Fixed Bug #1: Removed single course ForeignKey, use only ManyToMany relationship
+    # Use many-to-many relationship with Course through AssignmentCourse
     courses = models.ManyToManyField(
         'courses.Course',
         through='AssignmentCourse',
@@ -128,11 +122,29 @@ class Assignment(models.Model):
         app_label = 'assignments'
         ordering = ['-created_at']
         indexes = [
-            models.Index(fields=['course', '-created_at']),
+            # Bug #1 fix: Removed index on 'course' field (now accessed via M2M relationship)
+            models.Index(fields=['-created_at']),
         ]
 
     def __str__(self):
         return self.title
+
+    @property
+    def course(self):
+        """
+        Get primary course for backward compatibility (Bug #1 fix).
+        Returns the course marked as primary in AssignmentCourse, or first course if none is primary.
+        """
+        primary_ac = self.assignmentcourse_set.filter(is_primary=True).first()
+        if primary_ac:
+            return primary_ac.course
+        # Fallback to first course if no primary is set
+        return self.courses.first()
+    
+    @property
+    def all_courses(self):
+        """Get all courses this assignment belongs to"""
+        return self.courses.all()
 
     @property
     def is_overdue(self):
@@ -149,12 +161,15 @@ class Assignment(models.Model):
         return timezone.now() + timezone.timedelta(hours=24) > self.due_date > timezone.now()
 
     def get_course_info(self):
-        """Get course information for this assignment, checking both direct and topic relationships"""
-        # First check if assignment has a direct course relationship
+        """
+        Get course information for this assignment.
+        Bug #1 fix: Now uses M2M courses relationship (via @property) and topic relationships.
+        """
+        # Check M2M course relationship (primary course via @property)
         if self.course:
             return self.course
         
-        # If no direct course, check through topics
+        # If no M2M course, check through topics
         # Get the first topic that this assignment is associated with
         topic = self.topics.first()
         if topic:
@@ -1026,13 +1041,12 @@ def create_or_update_grade(sender, instance, **kwargs):
                     # Update the existing grade
                     grade = existing_grades.first()
                     grade.score = instance.grade
-                    grade.course = course  # Ensure course is set correctly
+                    # Bug #3 fix: Removed grade.course (no longer a field, accessed via assignment)
                     grade.save()
                 else:
-                    # Create a new grade
+                    # Create a new grade (Bug #3 fix: removed course parameter)
                     Grade.objects.create(
                         student=instance.user,
-                        course=course,
                         assignment=instance.assignment,
                         score=instance.grade
                     )

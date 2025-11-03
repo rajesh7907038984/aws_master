@@ -484,16 +484,35 @@ def course_list(request):
         logger.info(f"Instructor {request.user.username} (ID: {request.user.id}) has access to {len(list(course_ids))} courses")
         logger.info(f"Course IDs found: {list(course_ids)}")
     elif request.user.role == 'admin':
-        # Admins can see all visible courses in their branch plus any they have direct access to
-        course_ids = Course.objects.filter(
-            is_active=True
-        ).filter(
-            Q(branch=request.user.branch, catalog_visibility='visible') |
-            Q(accessible_groups__memberships__user=request.user,
-              accessible_groups__memberships__is_active=True) |
-            # Add direct enrollment check
-            Q(enrolled_users=request.user)
-        ).values_list('id', flat=True).distinct()
+        # Admins can see ALL courses in their branch (regardless of visibility) plus any they have direct access to
+        # Use effective branch to support branch switching
+        from core.branch_filters import BranchFilterManager
+        effective_branch = BranchFilterManager.get_effective_branch(request.user, request)
+        logger.info(f"Admin {request.user.username} (ID: {request.user.id}) effective branch: {effective_branch}")
+        
+        if effective_branch:
+            course_ids = Course.objects.filter(
+                is_active=True
+            ).filter(
+                Q(branch=effective_branch) |  # All courses in their effective branch
+                Q(instructor__branch=effective_branch) |  # Courses by instructors in their branch (even if course.branch is null)
+                Q(accessible_groups__memberships__user=request.user,
+                  accessible_groups__memberships__is_active=True) |
+                # Add direct enrollment check
+                Q(enrolled_users=request.user)
+            ).values_list('id', flat=True).distinct()
+        else:
+            # No branch assigned, only show courses with direct access
+            course_ids = Course.objects.filter(
+                is_active=True
+            ).filter(
+                Q(accessible_groups__memberships__user=request.user,
+                  accessible_groups__memberships__is_active=True) |
+                Q(enrolled_users=request.user)
+            ).values_list('id', flat=True).distinct()
+        
+        # Log for debugging
+        logger.info(f"Admin {request.user.username} can see {len(list(course_ids))} courses in branch {effective_branch}")
     elif request.user.role == 'globaladmin' or request.user.is_superuser:
         # Global Admin sees all courses
         course_ids = Course.objects.filter(
@@ -1939,21 +1958,34 @@ def course_edit(request, course_id):
 
 @login_required
 def course_delete(request, course_id):
-    """Delete a course."""
+    """Delete a course with capability-based permission checking."""
     course = get_object_or_404(Course, id=course_id)
     logger = logging.getLogger(__name__)
     
-    # Check permissions - RBAC v0.1 Compliant
-    can_delete = (
-        request.user.is_superuser or 
-        request.user.role == 'globaladmin' or
-        (request.user.role == 'superadmin' and hasattr(course, 'branch') and course.branch and
-         request.user.business_assignments.filter(business=course.branch.business, is_active=True).exists()) or
-        (request.user.role == 'admin' and course.branch == request.user.branch) or
-        (request.user.role == 'instructor' and course.instructor == request.user)
-    )
+    # Check permissions - RBAC v0.1 Compliant with capability checks
+    from role_management.utils import PermissionManager
+    
+    can_delete = False
+    
+    # Superuser and global admin always can delete
+    if request.user.is_superuser or request.user.role == 'globaladmin':
+        can_delete = True
+    # Super Admin: check business access
+    elif request.user.role == 'superadmin':
+        if hasattr(course, 'branch') and course.branch:
+            can_delete = request.user.business_assignments.filter(
+                business=course.branch.business, 
+                is_active=True
+            ).exists()
+    # Admin: check branch access and delete_courses capability
+    elif request.user.role == 'admin' and course.branch == request.user.branch:
+        can_delete = PermissionManager.user_has_capability(request.user, 'delete_courses')
+    # Instructor: check if they own the course and have delete_courses capability
+    elif request.user.role == 'instructor' and course.instructor == request.user:
+        can_delete = PermissionManager.user_has_capability(request.user, 'delete_courses')
     
     if not can_delete:
+        logger.warning(f"User {request.user.username} (role: {request.user.role}) denied permission to delete course {course_id}")
         return HttpResponseForbidden("You don't have permission to delete this course.")
 
     if request.method == 'POST':

@@ -191,7 +191,8 @@ def get_related_data_counts(obj):
                 counts['gradebook_entries'] = 0
                 try:
                     from gradebook.models import Grade
-                    counts['gradebook_entries'] = Grade.objects.filter(course=obj).count()
+                    # Bug #3 fix: use assignment__course instead of course
+                    counts['gradebook_entries'] = Grade.objects.filter(assignment__course=obj).count()
                 except:
                     pass
                 counts['report_templates'] = 0

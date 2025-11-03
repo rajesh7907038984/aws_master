@@ -7,9 +7,9 @@ from decimal import Decimal
 
 
 class Grade(models.Model):
-    student = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
-    course = models.ForeignKey(Course, on_delete=models.CASCADE)
-    assignment = models.ForeignKey(Assignment, on_delete=models.CASCADE, related_name='grades')
+    student = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='gradebook_entries')
+    # Fixed Bug #3: Removed redundant course field (access via assignment.course)
+    assignment = models.ForeignKey(Assignment, on_delete=models.CASCADE, related_name='grades', db_index=True)
     submission = models.ForeignKey('assignments.AssignmentSubmission', on_delete=models.CASCADE, related_name='grade_record', null=True, blank=True)
     score = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
     excused = models.BooleanField(default=False)
@@ -19,6 +19,10 @@ class Grade(models.Model):
 
     class Meta:
         unique_together = ['student', 'assignment']
+        indexes = [
+            models.Index(fields=['student', 'assignment']),
+            models.Index(fields=['assignment', '-created_at']),
+        ]
 
     def clean(self):
         """Validate the grade model"""
@@ -35,16 +39,18 @@ class Grade(models.Model):
         if self.excused and self.score is not None:
             raise ValidationError({'score': 'Excused grades should not have a score'})
     
+    @property
+    def course(self):
+        """Get course through assignment (Bug #3 fix: removed redundant course field)"""
+        return self.assignment.course if self.assignment else None
+    
     def __str__(self):
-        return f"{self.student.username} - {self.assignment.title} - {self.score if self.score else 'Excused' if self.excused else 'Not graded'}"
+        course_name = self.course.title if self.course else 'Unknown Course'
+        return f"{self.student.username} - {course_name} - {self.assignment.title} - {self.score if self.score else 'Excused' if self.excused else 'Not graded'}"
 
     def save(self, *args, **kwargs):
         # Validate before saving
         self.full_clean()
-        
-        # Ensure course is always consistent with assignment's course
-        if self.assignment and self.assignment.course:
-            self.course = self.assignment.course
         
         # Auto-link submission if not already linked
         if not self.submission and self.assignment and self.student:

@@ -23,6 +23,11 @@
     padding: 12px 24px !important;
     height: 48px !important;
     min-height: 48px !important;
+    border: none !important;
+    border-top: none !important;
+    border-right: none !important;
+    border-bottom: none !important;
+    border-left: none !important;
 }
 
 #sidebar a.menu-item svg,
@@ -47,6 +52,10 @@
     background-color: #191f56 !important;
     color: white !important;
     border-radius: 0 !important;
+    border: none !important;
+    border-top: none !important;
+    border-right: none !important;
+    border-bottom: none !important;
     border-left: 4px solid #02f711 !important;
 }
 
@@ -70,6 +79,10 @@
     background-color: #191f56 !important;
     color: white !important;
     border-radius: 0 !important;
+    border: none !important;
+    border-top: none !important;
+    border-right: none !important;
+    border-bottom: none !important;
     border-left: 4px solid #02f711 !important;
 }
 
@@ -113,6 +126,11 @@
 #sidebar .submenu button.menu-item:hover {
     background-color: #191f56 !important;
     opacity: 1;
+    border: none !important;
+    border-top: none !important;
+    border-right: none !important;
+    border-bottom: none !important;
+    border-left: 4px solid #02f711 !important;
 }
 
 /* Parent menu item with submenu */
@@ -172,6 +190,10 @@ html body #sidebar a.menu-item.active,
 html body #sidebar button.menu-item.active {
     color: white !important;
     background-color: #191f56 !important;
+    border: none !important;
+    border-top: none !important;
+    border-right: none !important;
+    border-bottom: none !important;
     border-left: 4px solid #02f711 !important;
 }
 
@@ -189,6 +211,10 @@ html body #sidebar a.menu-item:hover,
 html body #sidebar button.menu-item:hover {
     color: white !important;
     background-color: #191f56 !important;
+    border: none !important;
+    border-top: none !important;
+    border-right: none !important;
+    border-bottom: none !important;
     border-left: 4px solid #02f711 !important;
 }
 

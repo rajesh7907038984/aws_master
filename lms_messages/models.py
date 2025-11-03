@@ -18,7 +18,7 @@ class Message(models.Model):
     )
     subject = models.CharField(max_length=255)
     content = TinyMCEField()
-    is_read = models.BooleanField(default=False)
+    # Fixed Bug #6: Removed deprecated is_read field (use MessageReadStatus instead)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     # Reply threading
@@ -98,6 +98,10 @@ class Message(models.Model):
             status.read_at = timezone.now()
             status.save()
         return status
+    
+    def is_read_by(self, user):
+        """Check if message is read by specific user"""
+        return self.read_statuses.filter(user=user, is_read=True).exists()
     
     @property
     def read_count(self):

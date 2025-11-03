@@ -206,18 +206,32 @@ def has_manage_courses_capability(user):
 
 @register.filter
 def can_edit_course(user, course):
-    """Check if user can edit this course - RBAC v0.1 Compliant
+    """Check if user can edit this course - RBAC v0.1 Compliant with capability checks
     
     Note: This excludes invited instructors from having edit permissions on course list page.
     Only primary instructors, admins, super admins, and global admins can edit courses.
+    Additionally checks for manage_courses capability.
     """
     # Import the secure permission function
     from courses.views import check_course_edit_permission
+    from role_management.utils import PermissionManager
     
     try:
-        result = check_course_edit_permission(user, course)
-        logger.info(f"Template can_edit_course check: user {user.id} -> {result}")
-        return result
+        # First check role-based permissions
+        has_role_permission = check_course_edit_permission(user, course)
+        
+        if not has_role_permission:
+            return False
+        
+        # For non-superuser/globaladmin roles, also check capability
+        if not (user.is_superuser or user.role == 'globaladmin'):
+            has_capability = PermissionManager.user_has_capability(user, 'manage_courses')
+            result = has_role_permission and has_capability
+            logger.info(f"Template can_edit_course check: user {user.id} role_perm={has_role_permission}, capability={has_capability} -> {result}")
+            return result
+        
+        logger.info(f"Template can_edit_course check: user {user.id} -> {has_role_permission}")
+        return has_role_permission
     except Exception as e:
         logger.error(f"Error in can_edit_course template filter: {str(e)}")
         return False
@@ -276,7 +290,7 @@ def can_modify(user, course):
 
 @register.filter
 def can_delete(user, course):
-    """Check if user can delete course - includes group-based instructor permissions"""
+    """Check if user can delete course - includes group-based instructor permissions and capability checks"""
     # Super Admin, Global Admin, and regular superusers have delete access
     if user.is_superuser or user.role == 'globaladmin':
         return True
@@ -292,15 +306,25 @@ def can_delete(user, course):
         
     # Branch Admin users (only within their branch)
     if user.role == 'admin' and user.branch == course.branch:
-        return True
+        # Check if admin has delete_courses capability
+        from role_management.utils import PermissionManager
+        return PermissionManager.user_has_capability(user, 'delete_courses')
         
     # Primary Instructor users (only for courses they are assigned to)
     if user.role == 'instructor' and course.instructor == user:
-        return True
+        # Check if instructor has delete_courses capability
+        from role_management.utils import PermissionManager
+        return PermissionManager.user_has_capability(user, 'delete_courses')
         
     # Group-assigned instructors with content management permissions can delete
     if user.role == 'instructor':
         from groups.models import CourseGroupAccess
+        from role_management.utils import PermissionManager
+        
+        # Check if they have delete_courses capability first
+        if not PermissionManager.user_has_capability(user, 'delete_courses'):
+            return False
+            
         can_delete_group = CourseGroupAccess.objects.filter(
             course=course,
             group__memberships__user=user,

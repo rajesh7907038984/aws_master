@@ -283,11 +283,11 @@ class CalendarService:
             
             # Get assignments in the date range
             assignments = Assignment.objects.filter(
-                course__in=course_ids,
+                courses__in=course_ids,
                 due_date__gte=start_datetime,
                 due_date__lte=end_datetime,
                 is_active=True
-            ).select_related('course')
+            ).prefetch_related('courses').distinct()
             
             for assignment in assignments:
                 # Validate user has permission to see this assignment

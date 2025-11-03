@@ -30,6 +30,9 @@
         width: 100%;
         height: 100%;
         object-fit: contain;
+        /* Preserve original image quality without browser optimization */
+        image-rendering: auto;
+        image-rendering: high-quality;
     }
     
     .field-placeholder {
@@ -121,6 +124,9 @@
             height: 100%;
             object-fit: contain;
             display: block !important;
+            /* Preserve original image quality without browser optimization */
+            image-rendering: auto;
+            image-rendering: high-quality;
         }
         
         .field-placeholder {
@@ -187,11 +193,14 @@
         color: #333;
     }
     
-    /* Certificate preview should maintain aspect ratio */
+    /* Certificate preview should maintain aspect ratio and preserve original quality */
     .certificate-preview img {
         width: 100%;
         height: 100%;
         object-fit: contain;
+        /* Preserve original image quality without browser optimization */
+        image-rendering: auto;
+        image-rendering: high-quality;
     }
     
     .certificate-container {
@@ -286,7 +295,7 @@
 <!-- PDF Generation Mode - Only show the certificate content -->
 <div class="a4-container" id="pdfCertificate">
     <div class="certificate-preview">
-        <img src="{{ certificate.template.image.url }}" alt="Certificate Template" />
+        <img src="{{ certificate.template.get_image_url }}" alt="Certificate Template" />
         
         {% for element in elements %}
         <div class="field-placeholder" 
@@ -447,7 +456,7 @@
         <!-- A4 sized certificate display -->
         <div class="a4-container" id="printableArea">
             <div class="certificate-preview">
-                <img src="{{ certificate.template.image.url }}" alt="Certificate Template" />
+                <img src="{{ certificate.template.get_image_url }}" alt="Certificate Template" />
                 
                 {% for element in elements %}
                 <div class="field-placeholder" 
@@ -616,6 +625,9 @@
                             width: 100%;
                             height: 100%;
                             object-fit: contain;
+                            /* Preserve original image quality without browser optimization */
+                            image-rendering: auto;
+                            image-rendering: high-quality;
                         }
                         .field-placeholder {
                             position: absolute;

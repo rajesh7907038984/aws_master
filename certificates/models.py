@@ -22,6 +22,20 @@ class CertificateTemplate(models.Model):
 
     def __str__(self):
         return self.name
+    
+    def get_image_url(self):
+        """
+        Get the certificate background image URL without any modifications.
+        Returns the original uploaded image URL exactly as-is.
+        """
+        if self.image:
+            try:
+                return self.image.url
+            except Exception:
+                # If URL generation fails, construct it manually
+                media_url = getattr(settings, 'MEDIA_URL', '/media/')
+                return f"{media_url.rstrip('/')}/{self.image.name}"
+        return None
 
 class CertificateElement(models.Model):
     """Model for storing certificate design elements"""

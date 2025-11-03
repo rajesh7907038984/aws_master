@@ -87,8 +87,9 @@ class Event(models.Model):
         ('CUSTOM', 'Custom Event'),
     ]
 
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, null=True, blank=True)
-    course = models.ForeignKey('courses.Course', on_delete=models.CASCADE, null=True, blank=True)
+    # Fixed Bug #2: Use SET_NULL instead of CASCADE with null=True to preserve events
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
+    course = models.ForeignKey('courses.Course', on_delete=models.SET_NULL, null=True, blank=True)
     type = models.CharField(max_length=50, choices=EVENT_TYPES)
     description = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)

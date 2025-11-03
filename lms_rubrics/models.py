@@ -142,14 +142,15 @@ class RubricRating(models.Model):
 
 class RubricEvaluation(models.Model):
     """Model for storing how a submission was evaluated against rubric criteria"""
-    submission = models.ForeignKey('assignments.AssignmentSubmission', on_delete=models.CASCADE, related_name='rubric_evaluations', null=True, blank=True)
-    discussion = models.ForeignKey('discussions.Discussion', on_delete=models.CASCADE, related_name='rubric_evaluations', null=True, blank=True)
+    # Fixed Bug #2: Changed CASCADE to SET_NULL where null=True to prevent unintended deletions
+    submission = models.ForeignKey('assignments.AssignmentSubmission', on_delete=models.SET_NULL, related_name='rubric_evaluations', null=True, blank=True)
+    discussion = models.ForeignKey('discussions.Discussion', on_delete=models.SET_NULL, related_name='rubric_evaluations', null=True, blank=True)
     criterion = models.ForeignKey(RubricCriterion, on_delete=models.CASCADE, related_name='evaluations')
     rating = models.ForeignKey(RubricRating, on_delete=models.SET_NULL, null=True, blank=True, related_name='evaluations')
     points = models.FloatField(default=0)
     comments = models.TextField(blank=True)
     evaluated_by = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True, related_name='rubric_evaluations')
-    student = models.ForeignKey(CustomUser, on_delete=models.CASCADE, null=True, blank=True, related_name='received_evaluations')
+    student = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True, blank=True, related_name='received_evaluations')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     

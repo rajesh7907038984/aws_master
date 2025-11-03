@@ -2,7 +2,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse, HttpResponseForbidden
 from django.contrib import messages
-from .models import Discussion, Comment, Attachment
+from .models import Discussion, Comment, DiscussionAttachment
 from courses.models import Course
 from lms_rubrics.models import Rubric, RubricEvaluation, RubricCriterion, RubricRating, RubricOverallFeedback
 from django.urls import reverse
@@ -202,7 +202,7 @@ def new_discussion(request, course_id=None):
             
             # Handle file attachments
             for file in files:
-                Attachment.objects.create(
+                DiscussionAttachment.objects.create(
                     discussion=discussion,
                     file=file,
                     file_type=get_file_type(file.name),
@@ -571,7 +571,7 @@ def add_reply(request, discussion_id, comment_id):
             # Handle attachments
             for file in files:
                 file_type = get_file_type(file.name)
-                Attachment.objects.create(
+                DiscussionAttachment.objects.create(
                     comment=reply,
                     file=file,
                     file_type=file_type,
@@ -626,7 +626,7 @@ def add_comment(request, discussion_id):
             # Handle attachments
             for file in files:
                 file_type = get_file_type(file.name)
-                Attachment.objects.create(
+                DiscussionAttachment.objects.create(
                     comment=comment,
                     file=file,
                     file_type=file_type,
@@ -967,7 +967,7 @@ def discussion_detailed_report(request, discussion_id):
         })
     
     # Get attachments uploaded by this student
-    student_attachments = Attachment.objects.filter(
+    student_attachments = DiscussionAttachment.objects.filter(
         Q(discussion=discussion, uploaded_by=student) |
         Q(comment__discussion=discussion, uploaded_by=student)
     ).select_related('uploaded_by', 'discussion', 'comment').order_by('uploaded_at')
@@ -1234,7 +1234,7 @@ def discussion_detailed_report_print(request, discussion_id):
         })
     
     # Get attachments uploaded by this student
-    student_attachments = Attachment.objects.filter(
+    student_attachments = DiscussionAttachment.objects.filter(
         Q(discussion=discussion, uploaded_by=student) |
         Q(comment__discussion=discussion, uploaded_by=student)
     ).select_related('uploaded_by', 'discussion', 'comment').order_by('uploaded_at')

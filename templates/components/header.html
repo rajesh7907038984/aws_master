@@ -5,7 +5,7 @@
         <!-- Left Section: Logo and Sidebar Toggle -->
         <div class="flex items-center gap-1 sm:gap-2 md:gap-4 flex-shrink-0">
             <a href="{% url 'users:role_based_redirect' %}" class="flex items-center transition-transform hover:scale-105 flex-shrink-0">
-                <img src="{% static 'core/img/logo-light.png' %}" alt="Nexsy LMS" class="h-6 sm:h-7 md:h-9 w-auto">
+                <img src="{% static 'core/img/logo-light.png' %}" alt="Nexsy LMS" class="h-10 w-auto">
             </a>
             
             <!-- Sidebar Toggle Button (works for both mobile and desktop) -->
@@ -235,11 +235,15 @@
     <div class="absolute top-0 left-0 w-64 h-full bg-[#1C2260] shadow-lg transform transition-all duration-300 ease-in-out">
         <div class="flex items-center justify-between p-4 border-b border-gray-200" style="background-color: #191f56;">
             <a href="{% url 'users:role_based_redirect' %}" class="flex items-center">
-                <img src="{% static 'img/logo-dark.png' %}" alt="Nexsy LMS" class="h-8" style="display: block !important; visibility: visible !important; opacity: 1 !important;">
+                <img src="{% static 'img/logo-dark.png' %}" alt="Nexsy LMS" style="height: 2.5rem; display: block !important; visibility: visible !important; opacity: 1 !important;">
             </a>
-            <button id="close-mobile-menu" class="flex items-center justify-center w-10 h-10 rounded-lg hover:bg-red-500 text-white transition-all" style="min-width: 40px; min-height: 40px;" aria-label="Close menu">
-                <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="color: white;">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+            <button id="close-mobile-menu" 
+                    class="flex items-center justify-center w-9 h-9 rounded-lg hover:bg-red-500 text-white transition-all" 
+                    style="min-width: 36px; min-height: 36px; display: flex !important; visibility: visible !important; opacity: 1 !important; background-color: rgba(255, 255, 255, 0.15); z-index: 100; border: 1px solid rgba(255, 255, 255, 0.2);" 
+                    aria-label="Close menu"
+                    type="button">
+                <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" xmlns="http://www.w3.org/2000/svg" style="display: block !important; visibility: visible !important; opacity: 1 !important; color: white;">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12" style="stroke: #ffffff !important;"></path>
                 </svg>
             </button>
         </div>
@@ -361,6 +365,57 @@
     /* Mobile menu styles to match sidebar */
     #mobile-menu .py-4 {
         background-color: #1C2260 !important;
+    }
+    
+    /* Ensure close button is always visible */
+    #close-mobile-menu {
+        display: flex !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        position: relative !important;
+        z-index: 100 !important;
+        cursor: pointer !important;
+        flex-shrink: 0 !important;
+    }
+    
+    #close-mobile-menu:hover {
+        background-color: #ef4444 !important;
+        transform: scale(1.1) !important;
+    }
+    
+    #close-mobile-menu:active {
+        transform: scale(0.95) !important;
+    }
+    
+    #close-mobile-menu svg {
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        color: #ffffff !important;
+        stroke: #ffffff !important;
+        fill: none !important;
+        pointer-events: none !important;
+        min-width: 20px !important;
+        min-height: 20px !important;
+        width: 20px !important;
+        height: 20px !important;
+    }
+    
+    #close-mobile-menu svg path,
+    #close-mobile-menu svg line {
+        stroke: #ffffff !important;
+        stroke-width: 2.5 !important;
+        fill: none !important;
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+    }
+    
+    /* Ensure mobile menu header doesn't clip the close button */
+    #mobile-menu .flex.items-center.justify-between {
+        overflow: visible !important;
+        position: relative !important;
+        z-index: 60 !important;
     }
 
     #mobile-menu .menu-item {
@@ -1023,7 +1078,8 @@ document.addEventListener('DOMContentLoaded', function() {
         const container = document.getElementById('branch-options');
         if (!container || !branchData) return;
         
-        let html = '';
+        // Clear existing content
+        container.innerHTML = '';
         
         branchData.branches.forEach(branch => {
             const isCurrentClass = branch.is_current ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-50';
@@ -1031,24 +1087,53 @@ document.addEventListener('DOMContentLoaded', function() {
                 '<svg class="w-4 h-4 ml-auto text-blue-600" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>' : 
                 '';
             
-            html += `
-                <button 
-                    onclick="switchToBranch(${branch.id}, '${branch.name.replace(/'/g, "\\'")}')"
-                    class="flex items-center w-full px-4 py-2 text-sm ${isCurrentClass} transition-colors"
-                    ${branch.is_current ? 'disabled' : ''}
-                >
-                    <div class="flex-1 text-left">
-                        <div class="font-medium">${branch.name}</div>
-                        ${branch.business_name ? `<div class="text-xs text-gray-500">${branch.business_name}</div>` : ''}
-                        ${branch.is_primary ? '<div class="text-xs text-blue-600 mt-1">Primary Branch</div>' : ''}
-                    </div>
-                    ${currentIndicator}
-                </button>
-            `;
+            // Create button element
+            const button = document.createElement('button');
+            button.className = `flex items-center w-full px-4 py-2 text-sm ${isCurrentClass} transition-colors`;
+            if (branch.is_current) {
+                button.disabled = true;
+            }
+            
+            // Create button content
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'flex-1 text-left';
+            
+            const nameDiv = document.createElement('div');
+            nameDiv.className = 'font-medium';
+            nameDiv.textContent = branch.name;
+            contentDiv.appendChild(nameDiv);
+            
+            if (branch.business_name) {
+                const businessDiv = document.createElement('div');
+                businessDiv.className = 'text-xs text-gray-500';
+                businessDiv.textContent = branch.business_name;
+                contentDiv.appendChild(businessDiv);
+            }
+            
+            if (branch.is_primary) {
+                const primaryDiv = document.createElement('div');
+                primaryDiv.className = 'text-xs text-blue-600 mt-1';
+                primaryDiv.textContent = 'Primary Branch';
+                contentDiv.appendChild(primaryDiv);
+            }
+            
+            button.appendChild(contentDiv);
+            
+            if (currentIndicator) {
+                const indicatorDiv = document.createElement('div');
+                indicatorDiv.innerHTML = currentIndicator;
+                button.appendChild(indicatorDiv.firstChild);
+            }
+            
+            // Add click event listener
+            if (!branch.is_current) {
+                button.addEventListener('click', function() {
+                    window.switchToBranch(branch.id, branch.name);
+                });
+            }
+            
+            container.appendChild(button);
         });
-
-        
-        container.innerHTML = html;
     }
     
     function renderBranchError() {
@@ -1162,8 +1247,8 @@ document.addEventListener('DOMContentLoaded', function() {
     // Flag to track if content has been loaded to mobile menu
     let mobileMenuContentLoaded = false;
     
-    // Function to load sidebar content to mobile menu only once
-    function loadSidebarContentToMobileMenu() {
+    // Function to load sidebar content to mobile menu only once - Make it global
+    window.loadSidebarContentToMobileMenu = function() {
         if (mobileMenuContentLoaded) return;
         
         const sidebarContent = document.querySelector('#sidebar nav .flex.flex-col');
@@ -1298,7 +1383,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             });
         }
-    }
+    };
     
     if (mobileMenuToggle && mobileMenu) {
         // Check if event listener already exists to prevent duplicates
@@ -1309,6 +1394,11 @@ document.addEventListener('DOMContentLoaded', function() {
         // Mark as having listener to prevent duplicates
         mobileMenuToggle.setAttribute('data-listener-added', 'true');
         
+        // Load mobile menu content on page load for mobile devices
+        if (window.innerWidth < 768) {
+            window.loadSidebarContentToMobileMenu();
+        }
+        
         // Toggle functionality is now handled by sidebar-unified.js to avoid conflicts
         // The unified sidebar system manages both mobile and desktop toggle behavior
         
@@ -1316,6 +1406,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (closeMobileMenu && mobileMenuOverlay) {
             const closeMenu = function() {
                 mobileMenu.classList.remove('open');
+                mobileMenu.classList.add('hidden');
                 document.body.classList.remove('overflow-hidden');
             };
             

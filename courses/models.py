@@ -90,8 +90,9 @@ def content_file_path(instance: Any, filename: str) -> str:
 
 class CourseEnrollment(models.Model):
     """Model to track course enrollments with additional metadata"""
-    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, null=True, blank=True)
-    course = models.ForeignKey('Course', on_delete=models.CASCADE, null=True, blank=True)
+    # Fixed: Removed null=True as enrollment must have both user and course
+    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
+    course = models.ForeignKey('Course', on_delete=models.CASCADE)
     enrolled_at = models.DateTimeField(auto_now_add=True)
     completed = models.BooleanField(default=False)
     completion_date = models.DateTimeField(null=True, blank=True)
@@ -115,7 +116,7 @@ class CourseEnrollment(models.Model):
     # Track which course caused the auto-enrollment (for prerequisite tracking)
     source_course = models.ForeignKey(
         'Course',
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,  # Fixed: Use SET_NULL instead of CASCADE with null=True
         null=True,
         blank=True,
         related_name='caused_enrollments',
@@ -1245,8 +1246,8 @@ class Course(models.Model):
             try:
                 from gradebook.models import Grade
                 
-                # Delete all grades related to this course
-                grades = Grade.objects.filter(course=self)
+                # Delete all grades related to this course (Bug #3 fix: use assignment__course)
+                grades = Grade.objects.filter(assignment__course=self)
                 grade_count = grades.count()
                 if grade_count > 0:
                     logger.info(f"Deleting {grade_count} gradebook entries for this course")
@@ -1753,7 +1754,7 @@ class Topic(models.Model):
             
             # 4. DELETE ALL DISCUSSION DATA
             try:
-                from courses.models import Discussion, Comment, Attachment
+                from courses.models import Discussion, Comment, TopicDiscussionAttachment
                 
                 # Delete discussion and all related data
                 if hasattr(self, 'topic_discussion') and self.topic_discussion:
@@ -1768,9 +1769,9 @@ class Topic(models.Model):
                         
                         # Delete all attachments for these comments
                         for comment in comments:
-                            attachment_count = Attachment.objects.filter(comment=comment).count()
+                            attachment_count = TopicDiscussionAttachment.objects.filter(comment=comment).count()
                             if attachment_count > 0:
-                                Attachment.objects.filter(comment=comment).delete()
+                                TopicDiscussionAttachment.objects.filter(comment=comment).delete()
                                 logger.info(f"Deleted {attachment_count} attachments for comment {comment.id}")
                         
                         # Delete all comments
@@ -1778,7 +1779,7 @@ class Topic(models.Model):
                         logger.info(f"Deleted {comment_count} discussion comments")
                     
                     # Delete discussion attachments
-                    discussion_attachments = Attachment.objects.filter(discussion=discussion)
+                    discussion_attachments = TopicDiscussionAttachment.objects.filter(discussion=discussion)
                     discussion_attachment_count = discussion_attachments.count()
                     if discussion_attachment_count > 0:
                         discussion_attachments.delete()
@@ -2676,10 +2677,10 @@ class Comment(models.Model):
     def __str__(self):
         return f"Comment by {self.created_by.username} on {self.discussion.title}"
 
-class Attachment(models.Model):
-    """Model for discussion attachments"""
-    discussion = models.ForeignKey(Discussion, on_delete=models.CASCADE, related_name='attachments', null=True, blank=True)
-    comment = models.ForeignKey(Comment, on_delete=models.CASCADE, related_name='attachments', null=True, blank=True)
+class TopicDiscussionAttachment(models.Model):
+    """Attachments for topic-based discussions - Fixed Bug #5: Renamed from Attachment for clarity"""
+    discussion = models.ForeignKey(Discussion, on_delete=models.CASCADE, related_name='topic_attachments', null=True, blank=True)
+    comment = models.ForeignKey(Comment, on_delete=models.CASCADE, related_name='topic_comment_attachments', null=True, blank=True)
     file = models.FileField(upload_to='discussion_attachments/')
     file_type = models.CharField(max_length=10, choices=[
         ('image', 'Image'),
@@ -2687,9 +2688,48 @@ class Attachment(models.Model):
         ('document', 'Document')
     ])
     uploaded_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        db_table = 'courses_attachment'  # Keep same table name for backward compatibility
+        verbose_name = 'Topic Discussion Attachment'
+        verbose_name_plural = 'Topic Discussion Attachments'
+        constraints = [
+            # Fixed Bug #4: Ensure attachment belongs to exactly one parent (discussion OR comment, not both)
+            models.CheckConstraint(
+                check=(
+                    models.Q(discussion__isnull=False, comment__isnull=True) |
+                    models.Q(discussion__isnull=True, comment__isnull=False)
+                ),
+                name='courses_attachment_exclusive_parent'
+            )
+        ]
+        indexes = [
+            models.Index(fields=['discussion']),
+            models.Index(fields=['comment']),
+            models.Index(fields=['-uploaded_at']),
+        ]
+    
+    def clean(self):
+        """Validate that attachment belongs to either discussion or comment, not both"""
+        from django.core.exceptions import ValidationError
+        super().clean()
+        
+        if self.discussion and self.comment:
+            raise ValidationError('Attachment cannot belong to both a discussion and a comment')
+        
+        if not self.discussion and not self.comment:
+            raise ValidationError('Attachment must belong to either a discussion or a comment')
+    
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
 
     def __str__(self):
-        return f"Attachment for {self.discussion.title if self.discussion else self.comment.discussion.title}"
+        if self.discussion:
+            return f"Attachment for discussion: {self.discussion.title}"
+        elif self.comment:
+            return f"Attachment for comment on: {self.comment.discussion.title}"
+        return "Orphaned attachment"
 
 # Add a signal to enforce branch assignment for paid courses
 @receiver(models.signals.pre_save, sender=Course)

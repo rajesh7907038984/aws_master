@@ -107,7 +107,11 @@
     #sidebar a, #sidebar button {
         color: white !important;
         width: 100%;
-        border: none;
+        border: none !important;
+        border-top: none !important;
+        border-right: none !important;
+        border-bottom: none !important;
+        border-left: none !important;
         background: transparent;
         text-align: left;
         outline: none;
@@ -129,11 +133,19 @@
     #sidebar button[class*="bg-[#232a75]"] {
         color: white !important;
         background-color: rgba(255, 255, 255, 0.1);
+        border: none !important;
+        border-top: none !important;
+        border-right: none !important;
+        border-bottom: none !important;
     }
 
     /* Simple hover styles */
     #sidebar .menu-item:hover {
         background-color: rgba(255, 255, 255, 0.95);
+        border: none !important;
+        border-top: none !important;
+        border-right: none !important;
+        border-bottom: none !important;
     }
 
     #sidebar .menu-item:hover svg {

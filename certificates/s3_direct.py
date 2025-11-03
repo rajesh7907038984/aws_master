@@ -1,6 +1,15 @@
 """
 Direct S3 Upload Utility for Certificate Templates
-Completely bypasses Django file validation to avoid HeadObject permission issues
+
+This module uploads certificate background images directly to S3 storage without any modifications.
+Key features:
+- No image optimization, compression, or enhancement
+- No PIL/Pillow processing
+- Bypasses Django ImageField validation
+- Stores user-uploaded images exactly as-is
+- Avoids HeadObject permission issues with S3
+
+The uploaded images are used as certificate backgrounds without any alterations.
 """
 
 import boto3
@@ -16,8 +25,20 @@ logger = logging.getLogger(__name__)
 
 def upload_certificate_image_direct(image_file, template_id):
     """
-    Upload certificate image directly to S3, completely bypassing Django file validation
-    Returns: (success: bool, file_path: str, error_message: str)
+    Upload certificate background image directly to S3 without any modifications.
+    
+    This function:
+    - Reads the raw file content without any processing
+    - Uploads directly to S3 without PIL/Pillow or Django ImageField processing
+    - Preserves the exact image quality, format, and dimensions uploaded by the user
+    - Does not apply any optimization, compression, or enhancement
+    
+    Args:
+        image_file: The uploaded image file (InMemoryUploadedFile or TemporaryUploadedFile)
+        template_id: The ID of the certificate template
+    
+    Returns:
+        tuple: (success: bool, file_path: str, error_message: str)
     """
     try:
         # S3 configuration

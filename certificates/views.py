@@ -27,6 +27,7 @@ from users.models import CustomUser
 from core.utils.business_filtering import get_superadmin_business_filter
 from core.utils.pdf_processor import get_weasyprint
 from role_management.utils import require_capability, require_any_capability, PermissionManager
+from .s3_direct import upload_certificate_image_direct, update_template_image_path_direct
 
 logger = logging.getLogger(__name__)
 
@@ -454,18 +455,31 @@ def save_template(request):
         except (ValueError, TypeError):
             validity_days = 0
         
-        # Create template record
+        # Create template record (without image initially)
         template = CertificateTemplate.objects.create(
             name=name,
             created_by=request.user,
             validity_days=validity_days
         )
         
-        # Process image upload
+        # Process image upload - use direct S3 upload to avoid any PIL/Django optimizations
+        # This ensures the user-uploaded image is stored exactly as-is without modifications
         if 'image' in request.FILES:
             image = request.FILES['image']
-            template.image = image
-            template.save()
+            
+            # Upload directly to S3 without any image processing
+            success, image_path, error_msg = upload_certificate_image_direct(image, template.id)
+            
+            if success:
+                # Update the template with the image path using direct database update
+                # This bypasses Django's ImageField validation and any potential image processing
+                update_template_image_path_direct(template.id, image_path)
+                template.refresh_from_db()
+            else:
+                messages.error(request, f'Error uploading image: {error_msg}')
+                # Delete the template if image upload failed
+                template.delete()
+                return redirect('certificates:certificates')
         
         # Create elements for each field
         for field in fields:
@@ -498,7 +512,7 @@ def get_template_data(request, template_id):
         template_data = {
             'id': template.id,
             'name': template.name,
-            'image': template.image.url if template.image else None,
+            'image': template.get_image_url(),  # Use get_image_url() to get original image URL without modifications
             'created_by': template.created_by.id,
             'validity_days': template.validity_days,
             'is_active': template.is_active,
@@ -595,27 +609,24 @@ def update_template(request, template_id):
         # Update template data
         template.name = name
         template.validity_days = validity_days
-        
-        # Process image upload if new image provided
-        if 'image' in request.FILES:
-            # Delete old image
-            if template.image:
-                # Delete old file
-                try:
-                    try:
-                        old_image_path = template.image.path
-                        if os.path.exists(old_image_path):
-                            os.remove(old_image_path)
-                    except NotImplementedError:
-                        # Cloud storage doesn't support absolute paths, skip local file deletion
-                        pass
-                except:
-                    pass  # Ignore any errors with file deletion
-            
-            # Save new image
-            template.image = request.FILES['image']
-        
         template.save()
+        
+        # Process image upload if new image provided - use direct S3 upload
+        # This ensures the user-uploaded image is stored exactly as-is without modifications
+        if 'image' in request.FILES:
+            image = request.FILES['image']
+            
+            # Upload directly to S3 without any image processing
+            success, image_path, error_msg = upload_certificate_image_direct(image, template.id)
+            
+            if success:
+                # Update the template with the new image path using direct database update
+                # This bypasses Django's ImageField validation and any potential image processing
+                update_template_image_path_direct(template.id, image_path)
+                template.refresh_from_db()
+            else:
+                messages.error(request, f'Error uploading image: {error_msg}')
+                return redirect('certificates:certificates')
         
         # Delete existing elements
         CertificateElement.objects.filter(template=template).delete()

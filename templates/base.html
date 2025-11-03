@@ -1119,15 +1119,26 @@
                     console.log('📱 Mobile menu element:', mobileMenu);
                     
                     if (mobileMenu) {
-                        const wasOpen = mobileMenu.classList.contains('open');
-                        mobileMenu.classList.toggle('open');
+                        // Load sidebar content into mobile menu if not already loaded
+                        if (typeof window.loadSidebarContentToMobileMenu === 'function') {
+                            window.loadSidebarContentToMobileMenu();
+                        }
                         
-                        if (!wasOpen) {
-                            document.body.classList.add('overflow-hidden');
-                            console.log('📱 Mobile menu opened via fallback');
-                        } else {
+                        const wasOpen = mobileMenu.classList.contains('open');
+                        
+                        // Properly manage both 'hidden' and 'open' classes
+                        if (wasOpen) {
+                            // Close menu
+                            mobileMenu.classList.remove('open');
+                            mobileMenu.classList.add('hidden');
                             document.body.classList.remove('overflow-hidden');
                             console.log('📱 Mobile menu closed via fallback');
+                        } else {
+                            // Open menu
+                            mobileMenu.classList.remove('hidden');
+                            mobileMenu.classList.add('open');
+                            document.body.classList.add('overflow-hidden');
+                            console.log('📱 Mobile menu opened via fallback');
                         }
                     } else {
                         console.error(' Mobile menu element not found');
@@ -1213,12 +1224,24 @@
                     const mobileMenu = document.getElementById('mobile-menu');
                     if (mobileMenu) {
                         // Load sidebar content into mobile menu if not already loaded
-                        if (typeof loadSidebarContentToMobileMenu === 'function') {
-                            loadSidebarContentToMobileMenu();
+                        if (typeof window.loadSidebarContentToMobileMenu === 'function') {
+                            window.loadSidebarContentToMobileMenu();
                         }
                         
-                        mobileMenu.classList.toggle('open');
-                        document.body.classList.toggle('overflow-hidden');
+                        // Properly manage both 'hidden' and 'open' classes
+                        if (mobileMenu.classList.contains('open')) {
+                            // Close menu
+                            mobileMenu.classList.remove('open');
+                            mobileMenu.classList.add('hidden');
+                            document.body.classList.remove('overflow-hidden');
+                            console.log('Mobile menu closed');
+                        } else {
+                            // Open menu
+                            mobileMenu.classList.remove('hidden');
+                            mobileMenu.classList.add('open');
+                            document.body.classList.add('overflow-hidden');
+                            console.log('Mobile menu opened');
+                        }
                     }
                 }
             });

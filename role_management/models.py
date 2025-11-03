@@ -116,7 +116,8 @@ class RoleManager(models.Manager):
                 'view_users', 'manage_users', 'create_users', 'delete_users',
                 'view_courses', 'manage_courses', 'create_courses', 'delete_courses',
                 'view_assignments', 'manage_assignments', 'grade_assignments', 'create_assignments', 'delete_assignments',
-                # Role management capabilities removed - only Global Admin can manage roles
+                # Role management capabilities for admins
+                'manage_roles', 'view_roles', 'create_roles', 'delete_roles',
                 'view_groups', 'manage_groups', 'manage_group_members', 'create_groups', 'delete_groups',
                 'view_branches', 'manage_branches', 'create_branches', 'delete_branches',
                 'view_topics', 'manage_topics', 'create_topics', 'delete_topics',

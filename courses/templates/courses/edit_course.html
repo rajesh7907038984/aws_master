@@ -3607,8 +3607,8 @@
                                                 
                                                 <!-- Check if outcome is linked via rubric criteria -->
                                                 {% for connection in outcome.criterion_connections.all %}
-                                                    {% if connection.criterion.rubric.assignments.all %}
-                                                        {% for assignment in connection.criterion.rubric.assignments.all %}
+                                                    {% if connection.criterion.rubric.rubric_assignments.all %}
+                                                        {% for assignment in connection.criterion.rubric.rubric_assignments.all %}
                                                             {% if assignment in course.assignments.all or assignment in course.course_assignments.all %}
                                                                 {% get_topic_for_assignment assignment.id as topic %}
                                                                 {% if topic %}
