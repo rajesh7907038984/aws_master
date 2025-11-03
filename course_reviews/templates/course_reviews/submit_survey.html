@@ -32,7 +32,6 @@
     }
     .star-rating {
         display: inline-flex;
-        flex-direction: row-reverse;
         gap: 0.25rem;
     }
     .star-rating input {
@@ -44,13 +43,11 @@
         color: #d1d5db;
         transition: all 0.2s;
     }
-    .star-rating label:hover,
-    .star-rating label:hover ~ label {
+    .star-rating label.filled {
         color: #fbbf24;
-        transform: scale(1.1);
     }
-    .star-rating input:checked ~ label {
-        color: #fbbf24;
+    .star-rating label:hover {
+        transform: scale(1.1);
     }
     .rating-value {
         font-size: 1.25rem;
@@ -166,17 +163,75 @@
 {% block extra_js %}
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // Update rating display text when stars are clicked
+        // Function to update star highlighting
+        function updateStars(container, rating) {
+            const labels = container.querySelectorAll('label');
+            labels.forEach((label, index) => {
+                if (index < rating) {
+                    label.classList.add('filled');
+                } else {
+                    label.classList.remove('filled');
+                }
+            });
+        }
+        
+        // Initialize stars based on checked inputs
+        document.querySelectorAll('.star-rating').forEach(container => {
+            const checkedInput = container.querySelector('input:checked');
+            if (checkedInput) {
+                const rating = parseInt(checkedInput.value);
+                updateStars(container, rating);
+            }
+        });
+        
+        // Handle star clicks
         const ratingInputs = document.querySelectorAll('.star-rating input[type="radio"]');
         
         ratingInputs.forEach(input => {
             input.addEventListener('change', function() {
+                const container = this.closest('.star-rating');
                 const fieldName = this.name;
-                const value = this.value;
+                const value = parseInt(this.value);
+                
+                // Update star highlighting
+                updateStars(container, value);
+                
+                // Update rating text
                 const display = document.querySelector(`[data-rating-display="${fieldName}"]`);
                 if (display) {
                     const plural = value > 1 ? 's' : '';
                     display.textContent = `${value} star${plural}`;
+                }
+            });
+        });
+        
+        // Handle star hover effects
+        const starLabels = document.querySelectorAll('.star-rating label');
+        starLabels.forEach((label, labelIndex) => {
+            label.addEventListener('mouseenter', function() {
+                const container = this.closest('.star-rating');
+                const labels = container.querySelectorAll('label');
+                const input = this.previousElementSibling || this.nextElementSibling;
+                if (input && input.tagName === 'INPUT') {
+                    const hoverValue = parseInt(input.value);
+                    labels.forEach((l, i) => {
+                        if (i < hoverValue) {
+                            l.classList.add('filled');
+                        } else {
+                            l.classList.remove('filled');
+                        }
+                    });
+                }
+            });
+            
+            label.addEventListener('mouseleave', function() {
+                const container = this.closest('.star-rating');
+                const checkedInput = container.querySelector('input:checked');
+                if (checkedInput) {
+                    const rating = parseInt(checkedInput.value);
+                    updateStars(container, rating);
+                } else {
+                    updateStars(container, 0);
                 }
             });
         });

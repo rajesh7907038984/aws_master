@@ -4992,12 +4992,12 @@ def course_detail(request, course_id):
                 )
             
             # Calculate total time spent on course (sum of all topic time)
-            course_stats = course_topic_progress.aggregate(
+            time_stats = course_topic_progress.aggregate(
                 total_time=Sum('total_time_spent', default=0)
             )
             
             # Format time spent for display
-            total_seconds = course_stats['total_time'] or 0
+            total_seconds = time_stats['total_time'] or 0
             hours = total_seconds // 3600
             minutes = (total_seconds % 3600) // 60
             seconds = total_seconds % 60
@@ -5050,7 +5050,6 @@ def course_detail(request, course_id):
             topic.average_score = normalize_score(topic.average_score)
     
     # Prepare unit matrix data - a matrix of learners vs topics with their progress status
-    from courses.models import TopicProgress
     matrix_data = []
     
     # Get all enrolled learners for the matrix
@@ -5236,6 +5235,8 @@ def course_detail(request, course_id):
 
 def _get_course_report_data(request, course_id):
     """Helper function to get course report data - shared across all course section views"""
+    from courses.models import TopicProgress
+    
     course = get_object_or_404(Course, id=course_id)
     
     # Session check: Ensure user has access to this course data
@@ -5346,12 +5347,12 @@ def _get_course_report_data(request, course_id):
                 )
             
             # Calculate total time spent on course (sum of all topic time)
-            course_stats = course_topic_progress.aggregate(
+            time_stats = course_topic_progress.aggregate(
                 total_time=Sum('total_time_spent', default=0)
             )
             
             # Format time spent for display
-            total_seconds = course_stats['total_time'] or 0
+            total_seconds = time_stats['total_time'] or 0
             hours = total_seconds // 3600
             minutes = (total_seconds % 3600) // 60
             seconds = total_seconds % 60
@@ -5404,7 +5405,6 @@ def _get_course_report_data(request, course_id):
             topic.average_score = normalize_score(topic.average_score)
     
     # Prepare unit matrix data - a matrix of learners vs topics with their progress status
-    from courses.models import TopicProgress
     matrix_data = []
     
     # Get all enrolled learners for the matrix

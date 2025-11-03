@@ -54,6 +54,12 @@ def topic_view(request, topic_id):
             if not topic.user_has_access(request.user):
                 messages.error(request, "You don't have permission to access this content. Please enroll in the course first.")
                 return redirect('courses:course_view', course_id=course.id)
+            
+            # Check sequential progression for learners only
+            if hasattr(request.user, 'role') and request.user.role == 'learner':
+                if not course.can_access_topic(request.user, topic):
+                    messages.warning(request, "You must complete previous topics before accessing this one. Please complete the topics in order.")
+                    return redirect('courses:course_details', course_id=course.id)
         
         # Simple access - just show the topic content
         logger.info(f"DEBUG: Showing topic {topic_id} - {topic.title}")

@@ -426,7 +426,7 @@
                             <h2 class="text-lg font-medium mb-4">Progression & Completion Settings</h2>
                             <div class="space-y-4">
                                 <div class="flex items-center">
-                                    <input type="checkbox" id="sequential_progression" name="sequential_progression" class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded" {% if course.sequential_progression %}checked{% endif %}>
+                                    <input type="checkbox" id="sequential_progression" name="sequential_progression" class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded" {% if course.sequential_progression or course.enforce_sequence %}checked{% endif %}>
                                     <label for="sequential_progression" class="ml-2 block text-sm text-gray-700">Require sequential progression through topics</label>
                                 </div>
                                 <div>

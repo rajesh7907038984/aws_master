@@ -977,18 +977,31 @@ class Course(models.Model):
         """Check if user can access specific topic based on sequence"""
         if not self.enforce_sequence:
             return True
-            
-        previous_topics = self.topics.filter(
-            order__lt=topic.order
-        ).values_list('id', flat=True)
         
+        # Get the CourseTopic for this topic to find its order
+        try:
+            course_topic = CourseTopic.objects.get(course=self, topic=topic)
+            current_order = course_topic.order
+        except CourseTopic.DoesNotExist:
+            # If topic is not in this course, deny access
+            return False
+            
+        # Get all topics that come before this one in the course
+        previous_course_topics = CourseTopic.objects.filter(
+            course=self,
+            order__lt=current_order
+        ).values_list('topic_id', flat=True)
+        
+        # Check how many of those topics have been completed
         completed_count = TopicProgress.objects.filter(
             user=user,
-            topic_id__in=previous_topics,
+            topic_id__in=previous_course_topics,
+            course=self,
             completed=True
         ).count()
         
-        return completed_count == len(previous_topics)
+        # User can access if all previous topics are completed
+        return completed_count == len(previous_course_topics)
 
     def get_group_permissions(self, group: 'groups.models.BranchGroup') -> Dict[str, bool]:
         """Get permissions for a specific group"""

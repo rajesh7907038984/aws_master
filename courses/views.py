@@ -4866,6 +4866,7 @@ def course_settings(request, course_id):
         
         # Course Completion        
         course.sequential_progression = sequential_progression
+        course.enforce_sequence = sequential_progression  # Sync both fields for sequential progression
         
         # Map completion_criteria to the corresponding model fields
         if completion_criteria == 'all_content':
