@@ -454,6 +454,26 @@
     .course-list .course-description {
         display: none;
     }
+    
+    /* Star rating styles */
+    .star-rating-compact {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .course-grid .star-rating-compact {
+        margin-bottom: 0.75rem;
+    }
+    
+    .course-list .star-rating-compact {
+        margin-bottom: 0.5rem;
+    }
+    
+    /* Ensure rating stars are visible */
+    .star-rating-compact i {
+        line-height: 1;
+    }
 </style>
 {% endblock %}
 

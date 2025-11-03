@@ -36,6 +36,28 @@ class CertificateTemplate(models.Model):
                 media_url = getattr(settings, 'MEDIA_URL', '/media/')
                 return f"{media_url.rstrip('/')}/{self.image.name}"
         return None
+    
+    def delete(self, *args, **kwargs):
+        """
+        Override delete to clean up template image when deleted.
+        """
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        try:
+            # Delete the template image if it exists
+            if self.image:
+                try:
+                    self.image.delete(save=False)
+                    logger.info(f"Deleted certificate template image for template: {self.name}")
+                except Exception as e:
+                    logger.error(f"Error deleting certificate template image: {str(e)}")
+                    
+        except Exception as e:
+            logger.error(f"Error in CertificateTemplate.delete(): {str(e)}")
+        
+        # Call the parent delete method
+        super().delete(*args, **kwargs)
 
 class CertificateElement(models.Model):
     """Model for storing certificate design elements"""
@@ -86,3 +108,25 @@ class IssuedCertificate(models.Model):
 
     def __str__(self):
         return f"Certificate #{self.certificate_number} for {self.recipient.username}"
+    
+    def delete(self, *args, **kwargs):
+        """
+        Override delete to clean up certificate PDF file when deleted.
+        """
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        try:
+            # Delete the certificate file if it exists
+            if self.certificate_file:
+                try:
+                    self.certificate_file.delete(save=False)
+                    logger.info(f"Deleted certificate file for certificate #{self.certificate_number}")
+                except Exception as e:
+                    logger.error(f"Error deleting certificate file: {str(e)}")
+                    
+        except Exception as e:
+            logger.error(f"Error in IssuedCertificate.delete(): {str(e)}")
+        
+        # Call the parent delete method
+        super().delete(*args, **kwargs)

@@ -4984,6 +4984,20 @@ def upload_editor_image(request):
     if request.method == 'POST' and request.FILES.get('image'):
         image = request.FILES['image']
         
+        # Check storage permission before upload
+        from core.utils.storage_manager import StorageManager
+        can_upload, error_message = StorageManager.check_upload_permission(
+            request.user, 
+            image.size
+        )
+        
+        if not can_upload:
+            return JsonResponse({
+                'success': False,
+                'error': error_message,
+                'storage_limit_exceeded': True
+            }, status=403)
+        
         # Use Django's default storage (works with both local and S3)
         from django.core.files.storage import default_storage
         import os
@@ -5015,6 +5029,23 @@ def upload_editor_image(request):
             logger = logging.getLogger(__name__)
             logger.error(f"Error registering assignment editor image in media database: {str(e)}")
         
+        # Register file in storage tracking system
+        try:
+            StorageManager.register_file_upload(
+                user=request.user,
+                file_path=saved_path,
+                original_filename=image.name,
+                file_size_bytes=image.size,
+                content_type=image.content_type,
+                source_app='assignments',
+                source_model='Assignment',
+            )
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error registering file in storage tracking: {str(e)}")
+            # Continue with upload even if registration fails
+        
         return JsonResponse({
             'success': True,
             'url': uploaded_file_url,
@@ -5035,6 +5066,20 @@ def upload_editor_video(request):
     """Handle video uploads from the rich text editor for assignments."""
     if request.method == 'POST' and request.FILES.get('video'):
         video = request.FILES['video']
+        
+        # Check storage permission before upload
+        from core.utils.storage_manager import StorageManager
+        can_upload, error_message = StorageManager.check_upload_permission(
+            request.user, 
+            video.size
+        )
+        
+        if not can_upload:
+            return JsonResponse({
+                'success': False,
+                'error': error_message,
+                'storage_limit_exceeded': True
+            }, status=403)
         
         # Use Django's default storage (works with both local and S3)
         from django.core.files.storage import default_storage
@@ -5066,6 +5111,23 @@ def upload_editor_video(request):
             import logging
             logger = logging.getLogger(__name__)
             logger.error(f"Error registering assignment editor video in media database: {str(e)}")
+        
+        # Register file in storage tracking system
+        try:
+            StorageManager.register_file_upload(
+                user=request.user,
+                file_path=saved_path,
+                original_filename=video.name,
+                file_size_bytes=video.size,
+                content_type=video.content_type,
+                source_app='assignments',
+                source_model='Assignment',
+            )
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error registering file in storage tracking: {str(e)}")
+            # Continue with upload even if registration fails
         
         return JsonResponse({
             'success': True,

@@ -100,6 +100,24 @@
         font-size: 0.875rem;
     }
     
+    /* Star rating display styles */
+    .star-rating-display {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+    }
+    
+    .star-rating-display i {
+        font-size: 1.25rem;
+    }
+    
+    .course-rating-display {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+    
     /* Gradebook button styles */
     .course-gradebook-button {
         background-color: #10B981;
@@ -1152,6 +1170,19 @@
             {% endif %}
             
             <h1 class="course-title">{{ course.title|format_course_title }}</h1>
+            
+            <!-- Course Rating Display -->
+            {% if course.total_reviews > 0 %}
+            <div class="course-rating-display mb-4" style="display: flex; align-items: center; gap: 1rem;">
+                {% star_rating_display course.average_rating 5 False %}
+                <span style="font-size: 1.125rem; font-weight: 600; color: #1f2937;">{{ course.average_rating|floatformat:1 }}</span>
+                <span style="font-size: 0.875rem; color: #6b7280;">({{ course.total_reviews }} review{{ course.total_reviews|pluralize }})</span>
+                <a href="javascript:void(0)" onclick="showReviewsTab()" style="font-size: 0.875rem; color: #4262FF; text-decoration: none; margin-left: 0.5rem;">
+                    View all reviews
+                </a>
+            </div>
+            {% endif %}
+            
             <div class="course-meta">
                 <div class="course-meta-item">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4">

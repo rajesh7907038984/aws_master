@@ -1240,6 +1240,22 @@ def upload_attachment(request):
 
         upload = request.FILES['upload']
         
+        # Check storage permission before upload
+        from core.utils.storage_manager import StorageManager
+        can_upload, error_message = StorageManager.check_upload_permission(
+            request.user, 
+            upload.size
+        )
+        
+        if not can_upload:
+            return JsonResponse({
+                'uploaded': 0,
+                'error': {
+                    'message': error_message
+                },
+                'storage_limit_exceeded': True
+            }, status=403)
+        
         # Session validation: File size limit (10MB)
         max_file_size = 10 * 1024 * 1024  # 10MB
         if upload.size > max_file_size:
@@ -1285,6 +1301,21 @@ def upload_attachment(request):
             )
         except Exception as e:
             logger.error(f"Error registering report attachment in media database: {str(e)}")
+        
+        # Register file in storage tracking system
+        try:
+            StorageManager.register_file_upload(
+                user=request.user,
+                file_path=saved_path,
+                original_filename=upload.name,
+                file_size_bytes=upload.size,
+                content_type=upload.content_type,
+                source_app='reports',
+                source_model='Report',
+            )
+        except Exception as e:
+            logger.error(f"Error registering file in storage tracking: {str(e)}")
+            # Continue with upload even if registration fails
         
         # Return the URL for the uploaded file using default storage
         file_url = default_storage.url(saved_path)

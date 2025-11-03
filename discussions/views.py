@@ -1648,6 +1648,19 @@ def upload_image(request):
     # Get the uploaded file
     file = request.FILES['file']
     
+    # Check storage permission before upload
+    from core.utils.storage_manager import StorageManager
+    can_upload, error_message = StorageManager.check_upload_permission(
+        request.user, 
+        file.size
+    )
+    
+    if not can_upload:
+        return JsonResponse({
+            'error': error_message,
+            'storage_limit_exceeded': True
+        }, status=403)
+    
     # Validate file type
     allowed_types = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
     if file.content_type not in allowed_types:
@@ -1666,6 +1679,23 @@ def upload_image(request):
     
     # Generate the URL using default storage
     file_url = default_storage.url(saved_path)
+    
+    # Register file in storage tracking system
+    try:
+        StorageManager.register_file_upload(
+            user=request.user,
+            file_path=saved_path,
+            original_filename=file.name,
+            file_size_bytes=file.size,
+            content_type=file.content_type,
+            source_app='discussions',
+            source_model='Discussion',
+        )
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error registering file in storage tracking: {str(e)}")
+        # Continue with upload even if registration fails
     
     # Return the response in TinyMCE expected format
     return JsonResponse({

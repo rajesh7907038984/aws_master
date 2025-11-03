@@ -224,6 +224,44 @@ class Assignment(models.Model):
             return linked_to_enrolled_course
         
         return False
+    
+    def delete(self, *args, **kwargs):
+        """
+        Override delete to clean up S3 files when assignment is deleted.
+        This ensures all assignment files, submissions, and attachments are properly removed.
+        """
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        try:
+            logger.info(f"Starting deletion for Assignment: {self.title} (ID: {self.id})")
+            
+            # Delete the attachment file if it exists
+            if self.attachment:
+                try:
+                    self.attachment.delete(save=False)
+                    logger.info(f"Deleted assignment attachment file")
+                except Exception as e:
+                    logger.error(f"Error deleting assignment attachment: {str(e)}")
+            
+            # S3 cleanup for assignment files and submissions
+            try:
+                from core.utils.s3_cleanup import cleanup_assignment_s3_files
+                s3_results = cleanup_assignment_s3_files(self.id)
+                successful_s3_deletions = sum(1 for success in s3_results.values() if success)
+                total_s3_files = len(s3_results)
+                if total_s3_files > 0:
+                    logger.info(f"S3 cleanup: {successful_s3_deletions}/{total_s3_files} files deleted successfully")
+            except Exception as e:
+                logger.error(f"Error during S3 cleanup for assignment {self.id}: {str(e)}")
+            
+            logger.info(f"Successfully completed deletion for Assignment: {self.title} (ID: {self.id})")
+            
+        except Exception as e:
+            logger.error(f"Error in Assignment.delete(): {str(e)}")
+        
+        # Call the parent delete method
+        super().delete(*args, **kwargs)
 
 class TopicAssignment(models.Model):
     """Through model for Topic-Assignment relationship"""
@@ -441,6 +479,36 @@ class AssignmentFeedback(models.Model):
         if self.video_feedback:
             types.append('video')
         return types
+    
+    def delete(self, *args, **kwargs):
+        """
+        Override delete to clean up audio/video feedback files when deleted.
+        """
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        try:
+            # Delete audio feedback file if it exists
+            if self.audio_feedback:
+                try:
+                    self.audio_feedback.delete(save=False)
+                    logger.info(f"Deleted audio feedback file for feedback {self.id}")
+                except Exception as e:
+                    logger.error(f"Error deleting audio feedback file: {str(e)}")
+            
+            # Delete video feedback file if it exists
+            if self.video_feedback:
+                try:
+                    self.video_feedback.delete(save=False)
+                    logger.info(f"Deleted video feedback file for feedback {self.id}")
+                except Exception as e:
+                    logger.error(f"Error deleting video feedback file: {str(e)}")
+                    
+        except Exception as e:
+            logger.error(f"Error in AssignmentFeedback.delete(): {str(e)}")
+        
+        # Call the parent delete method
+        super().delete(*args, **kwargs)
 
 class TextQuestion(models.Model):
     """Model for text-based questions in assignments"""
@@ -852,6 +920,28 @@ class FileSubmissionIteration(models.Model):
                 logger.warning(f"Error accessing file name for content type: {e}")
                 self.content_type = 'application/octet-stream'
         super().save(*args, **kwargs)
+    
+    def delete(self, *args, **kwargs):
+        """
+        Override delete to clean up the uploaded file when iteration is deleted.
+        """
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        try:
+            # Delete the file if it exists
+            if self.file:
+                try:
+                    self.file.delete(save=False)
+                    logger.info(f"Deleted file for iteration {self.iteration_number} of submission {self.submission_id}")
+                except Exception as e:
+                    logger.error(f"Error deleting file iteration file: {str(e)}")
+                    
+        except Exception as e:
+            logger.error(f"Error in FileSubmissionIteration.delete(): {str(e)}")
+        
+        # Call the parent delete method
+        super().delete(*args, **kwargs)
 
 class FileSubmissionIterationFeedback(models.Model):
     """Model for instructor feedback on individual file submission iterations"""
@@ -941,6 +1031,28 @@ class AssignmentAttachment(models.Model):
                 logger.warning(f"Error accessing file name for content type: {e}")
                 self.content_type = 'application/octet-stream'
         super().save(*args, **kwargs)
+    
+    def delete(self, *args, **kwargs):
+        """
+        Override delete to clean up the attachment file when deleted.
+        """
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        try:
+            # Delete the file if it exists
+            if self.file:
+                try:
+                    self.file.delete(save=False)
+                    logger.info(f"Deleted attachment file for assignment {self.assignment_id}")
+                except Exception as e:
+                    logger.error(f"Error deleting assignment attachment file: {str(e)}")
+                    
+        except Exception as e:
+            logger.error(f"Error in AssignmentAttachment.delete(): {str(e)}")
+        
+        # Call the parent delete method
+        super().delete(*args, **kwargs)
 
 class SupportingDocQuestion(models.Model):
     """Model for questions and answers in the Supporting Documents section"""

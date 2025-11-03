@@ -366,6 +366,36 @@ class Quiz(models.Model):
         if self.randomize_questions:
             return self.questions.order_by('?')
         return self.questions.order_by('order')
+    
+    def delete(self, *args, **kwargs):
+        """
+        Override delete to clean up S3 files when quiz is deleted.
+        This ensures all quiz media files and attachments are properly removed.
+        """
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        try:
+            logger.info(f"Starting deletion for Quiz: {self.title} (ID: {self.id})")
+            
+            # S3 cleanup for quiz files
+            try:
+                from core.utils.s3_cleanup import cleanup_quiz_s3_files
+                s3_results = cleanup_quiz_s3_files(self.id)
+                successful_s3_deletions = sum(1 for success in s3_results.values() if success)
+                total_s3_files = len(s3_results)
+                if total_s3_files > 0:
+                    logger.info(f"S3 cleanup: {successful_s3_deletions}/{total_s3_files} files deleted successfully")
+            except Exception as e:
+                logger.error(f"Error during S3 cleanup for quiz {self.id}: {str(e)}")
+            
+            logger.info(f"Successfully completed deletion for Quiz: {self.title} (ID: {self.id})")
+            
+        except Exception as e:
+            logger.error(f"Error in Quiz.delete(): {str(e)}")
+        
+        # Call the parent delete method
+        super().delete(*args, **kwargs)
 
 class Question(models.Model):
     """Model for storing quiz questions"""

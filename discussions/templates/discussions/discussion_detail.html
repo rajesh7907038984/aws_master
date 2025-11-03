@@ -300,6 +300,61 @@
     .position-relative {
         position: relative;
     }
+
+    /* Fullscreen Editor Positioning - Fixed for sidebar/header overlap */
+    .tox-fullscreen {
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        bottom: 0 !important;
+        width: 100vw !important;
+        height: 100vh !important;
+        z-index: 999999 !important;
+        background-color: white !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    
+    body:has(.tox-fullscreen) #sidebar {
+        visibility: hidden !important;
+        opacity: 0 !important;
+        z-index: -1 !important;
+    }
+    
+    body:has(.tox-fullscreen) header {
+        visibility: hidden !important;
+        opacity: 0 !important;
+        z-index: -1 !important;
+    }
+    
+    body:has(.tox-fullscreen) nav {
+        visibility: hidden !important;
+        opacity: 0 !important;
+        z-index: -1 !important;
+    }
+    
+    .tox-fullscreen .tox-editor-container {
+        height: 100vh !important;
+        width: 100vw !important;
+    }
+    
+    .tox-fullscreen .tox-edit-area {
+        height: calc(100vh - 80px) !important;
+    }
+    
+    .tox-fullscreen .tox-edit-area__iframe {
+        height: 100% !important;
+        width: 100% !important;
+    }
+    
+    .tox-fullscreen .tox-tinymce {
+        height: 100vh !important;
+        width: 100vw !important;
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+    }
 </style>
 {% endblock %}
 

@@ -73,6 +73,29 @@ class ReportAttachment(models.Model):
 
     def __str__(self):
         return f"{self.filename} ({self.report.title})"
+    
+    def delete(self, *args, **kwargs):
+        """
+        Override delete to clean up attachment file when deleted.
+        This ensures report attachment files are properly removed from storage.
+        """
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        try:
+            # Delete the attachment file if it exists
+            if self.file:
+                try:
+                    self.file.delete(save=False)
+                    logger.info(f"Deleted report attachment file: {self.filename}")
+                except Exception as e:
+                    logger.error(f"Error deleting report attachment file: {str(e)}")
+                    
+        except Exception as e:
+            logger.error(f"Error in ReportAttachment.delete(): {str(e)}")
+        
+        # Call the parent delete method
+        super().delete(*args, **kwargs)
 
 class Event(models.Model):
     """Model for tracking user events in the system"""
