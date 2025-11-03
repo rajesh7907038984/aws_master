@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% load static %}
+{% load review_tags %}
 
 {% block title %}Review Detail - {{ course.title }}{% endblock %}
 
@@ -89,16 +90,8 @@
                         <h3>{{ review.user.get_full_name|default:review.user.username }}</h3>
                         <div class="text-muted mb-2">Reviewed on {{ review.submitted_at|date:"F d, Y" }}</div>
                         <div class="star-display-large">
-                            {% with rating_int=review.average_rating|floatformat:0 %}
-                            {% for i in "12345"|make_list %}
-                                {% if forloop.counter <= rating_int|add:0 %}
-                                    ★
-                                {% else %}
-                                    ☆
-                                {% endif %}
-                            {% endfor %}
-                            {% endwith %}
-                            <span class="text-dark">{{ review.average_rating|floatformat:2 }}/5</span>
+                            {% rating_stars_simple review.average_rating %}
+                            <span class="text-dark">{% widthratio review.average_rating 2 1 %}/5</span>
                         </div>
                     </div>
                 </div>

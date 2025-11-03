@@ -413,16 +413,22 @@ def course_reviews_list(request, course_id):
         is_published=True
     ).select_related('user', 'survey').order_by('-submitted_at')
     
-    # Calculate average rating
+    # Calculate average rating (stored in 0-10 scale)
     avg_rating = reviews.aggregate(avg=Avg('average_rating'))['avg'] or 0
     total_reviews = reviews.count()
     
-    # Rating distribution
+    # Rating distribution - normalize from 0-10 to 1-5 scale
     rating_distribution = {i: 0 for i in range(1, 6)}
     for review in reviews:
-        rating_rounded = round(review.average_rating)
-        if 1 <= rating_rounded <= 5:
-            rating_distribution[rating_rounded] += 1
+        # Convert from 0-10 scale to 1-5 scale
+        rating_normalized = (review.average_rating / 10) * 5
+        rating_rounded = round(rating_normalized)
+        # Ensure it's in valid range
+        if rating_rounded < 1:
+            rating_rounded = 1
+        if rating_rounded > 5:
+            rating_rounded = 5
+        rating_distribution[rating_rounded] += 1
     
     # Pagination
     paginator = Paginator(reviews, 10)
@@ -444,7 +450,7 @@ def course_reviews_list(request, course_id):
     context = {
         'course': course,
         'reviews': reviews_page,
-        'avg_rating': round(avg_rating, 2),
+        'avg_rating': round(avg_rating, 2),  # Keep in 0-10 scale, template will convert
         'total_reviews': total_reviews,
         'rating_distribution': rating_distribution,
         'breadcrumbs': breadcrumbs,

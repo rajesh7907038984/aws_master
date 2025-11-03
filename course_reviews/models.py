@@ -167,12 +167,12 @@ class CourseReview(models.Model):
         help_text="Survey this review is based on"
     )
     
-    # Aggregated rating (average of all rating fields)
+    # Aggregated rating (average of all rating fields, normalized to 0-10 scale)
     average_rating = models.DecimalField(
         max_digits=3,
         decimal_places=2,
         validators=[MinValueValidator(0), MaxValueValidator(10)],
-        help_text="Average rating from all rating fields"
+        help_text="Average rating from all rating fields (normalized to 0-10 scale)"
     )
     
     # Optional text review (from textarea fields)
@@ -208,10 +208,17 @@ class CourseReview(models.Model):
         if not responses.exists():
             return None
         
-        # Calculate average rating from rating fields
-        rating_responses = [r.rating_response for r in responses if r.rating_response is not None]
-        if rating_responses:
-            avg_rating = sum(rating_responses) / len(rating_responses)
+        # Calculate average rating from rating fields - normalize all to 0-10 scale
+        normalized_ratings = []
+        for r in responses:
+            if r.rating_response is not None and r.survey_field.field_type == 'rating':
+                # Normalize rating to 0-10 scale based on the field's max_rating
+                max_rating = r.survey_field.max_rating
+                normalized_rating = (r.rating_response / max_rating) * 10
+                normalized_ratings.append(normalized_rating)
+        
+        if normalized_ratings:
+            avg_rating = sum(normalized_ratings) / len(normalized_ratings)
         else:
             avg_rating = 0
         

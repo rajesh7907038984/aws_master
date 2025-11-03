@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% load static %}
+{% load review_tags %}
 
 {% block title %}Reviews - {{ course.title }}{% endblock %}
 
@@ -95,17 +96,10 @@
         <div class="col-lg-4 mb-4">
             <div class="rating-summary">
                 <div class="text-center mb-3">
-                    <div class="rating-summary-large">{{ avg_rating|floatformat:1 }}</div>
+                    {% comment %}Convert from 0-10 scale to 0-5 scale for display{% endcomment %}
+                    <div class="rating-summary-large">{% widthratio avg_rating 2 1 %}</div>
                     <div class="star-display mb-2">
-                        {% with avg_rating_int=avg_rating|floatformat:0 %}
-                        {% for i in "12345"|make_list %}
-                            {% if forloop.counter <= avg_rating_int|add:0 %}
-                                ★
-                            {% else %}
-                                ☆
-                            {% endif %}
-                        {% endfor %}
-                        {% endwith %}
+                        {% rating_stars_simple avg_rating %}
                     </div>
                     <div>Based on {{ total_reviews }} review{{ total_reviews|pluralize }}</div>
                 </div>
@@ -148,16 +142,8 @@
                             </div>
                         </div>
                         <div class="star-display">
-                            {% with rating_int=review.average_rating|floatformat:0 %}
-                            {% for i in "12345"|make_list %}
-                                {% if forloop.counter <= rating_int|add:0 %}
-                                    ★
-                                {% else %}
-                                    ☆
-                                {% endif %}
-                            {% endfor %}
-                            {% endwith %}
-                            <span class="text-dark ms-1">{{ review.average_rating|floatformat:1 }}</span>
+                            {% rating_stars_simple review.average_rating %}
+                            <span class="text-dark ms-1">{% widthratio review.average_rating 2 1 %}/5</span>
                         </div>
                     </div>
                     
