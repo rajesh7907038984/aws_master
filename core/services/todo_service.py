@@ -68,8 +68,8 @@ class TodoService:
         unread_messages = Message.objects.filter(
             recipients=self.user
         ).exclude(
-            messagereadstatus__user=self.user,
-            messagereadstatus__is_read=True
+            read_statuses__user=self.user,
+            read_statuses__is_read=True
         ).select_related('sender').order_by('-created_at')[:10]
         
         for message in unread_messages:
@@ -147,22 +147,22 @@ class TodoService:
             return []
         
         # 1. HIGH PRIORITY: Overdue assignments
+        # Note: Assignment has ManyToMany relationship with Course through 'courses'
         overdue_assignments = Assignment.objects.filter(
-            Q(course__in=enrolled_course_ids) |
             Q(courses__in=enrolled_course_ids),
             due_date__lt=self.now,
             is_active=True
         ).exclude(
             submissions__user=self.user,
             submissions__status__in=['submitted', 'graded']
-        ).distinct().select_related('course')[:5]
+        ).distinct()[:5]
         
         for assignment in overdue_assignments:
             days_overdue = (self.now.date() - assignment.due_date.date()).days
             todos.append({
                 'id': f'assignment_overdue_{assignment.id}',
                 'title': f'OVERDUE: {assignment.title}',
-                'description': f'{assignment.course.title if assignment.course else "General"} - {days_overdue} days overdue',
+                'description': f'{assignment.courses.first().title if assignment.courses.first() else "General"} - {days_overdue} days overdue',
                 'due_date': f'{days_overdue} days overdue',
                 'sort_date': assignment.due_date - timedelta(days=1000),  # Highest priority
                 'type': 'assignment',
@@ -171,15 +171,15 @@ class TodoService:
                 'url': f'/assignments/{assignment.id}/',
                 'metadata': {
                     'assignment_id': assignment.id,
-                    'course_id': assignment.course.id if assignment.course else None,
+                    'course_id': assignment.courses.first().id if assignment.courses.first() else None,
                     'points': getattr(assignment, 'points', None),
                     'days_overdue': days_overdue
                 }
             })
         
         # 2. HIGH PRIORITY: Due today/tomorrow assignments
+        # Note: Assignment has ManyToMany relationship with Course through 'courses'
         urgent_assignments = Assignment.objects.filter(
-            Q(course__in=enrolled_course_ids) |
             Q(courses__in=enrolled_course_ids),
             due_date__gte=self.now,
             due_date__date__lte=self.tomorrow,
@@ -196,7 +196,7 @@ class TodoService:
             todos.append({
                 'id': f'assignment_urgent_{assignment.id}',
                 'title': assignment.title,
-                'description': f'{assignment.course.title if assignment.course else "General"}',
+                'description': f'{assignment.courses.first().title if assignment.courses.first() else "General"}',
                 'due_date': due_text,
                 'sort_date': assignment.due_date,
                 'type': 'assignment',
@@ -205,14 +205,14 @@ class TodoService:
                 'url': f'/assignments/{assignment.id}/',
                 'metadata': {
                     'assignment_id': assignment.id,
-                    'course_id': assignment.course.id if assignment.course else None,
+                    'course_id': assignment.courses.first().id if assignment.courses.first() else None,
                     'points': getattr(assignment, 'points', None)
                 }
             })
         
         # 3. MEDIUM PRIORITY: Upcoming assignments (within week)
+        # Note: Assignment has ManyToMany relationship with Course through 'courses'
         upcoming_assignments = Assignment.objects.filter(
-            Q(course__in=enrolled_course_ids) |
             Q(courses__in=enrolled_course_ids),
             due_date__gt=self.tomorrow,
             due_date__date__lte=self.next_week,
@@ -227,7 +227,7 @@ class TodoService:
             todos.append({
                 'id': f'assignment_upcoming_{assignment.id}',
                 'title': assignment.title,
-                'description': f'{assignment.course.title if assignment.course else "General"}',
+                'description': f'{assignment.courses.first().title if assignment.courses.first() else "General"}',
                 'due_date': due_text,
                 'sort_date': assignment.due_date,
                 'type': 'assignment',
@@ -236,7 +236,7 @@ class TodoService:
                 'url': f'/assignments/{assignment.id}/',
                 'metadata': {
                     'assignment_id': assignment.id,
-                    'course_id': assignment.course.id if assignment.course else None,
+                    'course_id': assignment.courses.first().id if assignment.courses.first() else None,
                     'points': getattr(assignment, 'points', None)
                 }
             })
@@ -343,8 +343,8 @@ class TodoService:
         unread_messages = Message.objects.filter(
             recipients=self.user
         ).exclude(
-            messagereadstatus__user=self.user,
-            messagereadstatus__is_read=True
+            read_statuses__user=self.user,
+            read_statuses__is_read=True
         ).select_related('sender').order_by('-created_at')[:10]
         
         for message in unread_messages:
@@ -391,10 +391,11 @@ class TodoService:
         accessible_course_ids = list(accessible_courses.values_list('id', flat=True))
         
         # 1. HIGH PRIORITY: Submissions pending grading
+        # Note: Assignment has ManyToMany relationship with Course through 'courses'
         pending_submissions = AssignmentSubmission.objects.filter(
-            assignment__course__in=accessible_course_ids,
+            assignment__courses__id__in=accessible_course_ids,
             status='submitted'
-        ).select_related('assignment', 'assignment__course', 'user').order_by('submitted_at')[:15]
+        ).select_related('assignment', 'user').distinct().order_by('submitted_at')[:15]
         
         for submission in pending_submissions:
             days_since = (self.now.date() - submission.submitted_at.date()).days

@@ -127,9 +127,9 @@ def _generate_sidebar_context(user):
                 ).select_related('instructor')
 
                 # Get pending assignments with optimized query [[memory:3584318]]
+                # Note: Assignment has ManyToMany relationship with Course through 'courses'
                 try:
                     pending_assignments = Assignment.objects.filter(
-                        Q(course__in=enrolled_courses_ids) |
                         Q(courses__in=enrolled_courses_ids) |
                         Q(topics__courses__in=enrolled_courses_ids),
                         is_active=True,
@@ -137,7 +137,7 @@ def _generate_sidebar_context(user):
                     ).exclude(
                         submissions__user=user,
                         submissions__status__in=['submitted', 'graded', 'not_graded']
-                    ).distinct().select_related('course').order_by('due_date')[:5]  # Limit to 5
+                    ).distinct().order_by('due_date')[:5]  # Limit to 5
                 except Exception as e:
                     logger.error(f"Error getting pending assignments for user {user.id}: {e}")
                     pending_assignments = []
@@ -157,7 +157,9 @@ def _generate_sidebar_context(user):
                     else:
                         due_text, priority = "No due date", 'low'
 
-                    course_name = assignment.course.title if assignment.course else 'General Assignment'
+                    # Get first course from ManyToMany relationship
+                    first_course = assignment.courses.first()
+                    course_name = first_course.title if first_course else 'General Assignment'
 
                     task = {
                         'title': assignment.title,
@@ -216,15 +218,16 @@ def _generate_sidebar_context(user):
                     course_tasks.append(task)
 
                 # Calendar events - limit queries
+                # Note: Assignment has ManyToMany relationship with Course through 'courses'
                 assignments_due = Assignment.objects.filter(
-                    Q(course__in=enrolled_courses_ids),
+                    Q(courses__in=enrolled_courses_ids),
                     is_active=True,
                     due_date__gte=month_start,
                     due_date__lt=month_end
                 ).exclude(
                     submissions__user=user,
                     submissions__status__in=['submitted', 'graded', 'not_graded']
-                ).distinct().select_related('course')[:10]  # Limit calendar events
+                ).distinct()[:10]  # Limit calendar events
 
                 for assignment in assignments_due:
                     calendar_events.append({
@@ -232,7 +235,7 @@ def _generate_sidebar_context(user):
                         'title': assignment.title,
                         'type': 'assignment',
                         'color': '#ef4444',
-                        'course': assignment.course.title if assignment.course else 'General',
+                        'course': assignment.courses.first().title if assignment.courses.first() else 'General',
                         'date': assignment.due_date,
                         'url': f'/assignments/{assignment.id}/'
                     })
@@ -261,10 +264,11 @@ def _generate_sidebar_context(user):
 
             if accessible_courses_ids:
                 # Get submissions pending grading [[memory:3584318]]
+                # Note: Assignment has ManyToMany relationship with Course through 'courses'
                 pending_submissions = AssignmentSubmission.objects.filter(
-                    assignment__course__in=accessible_courses_ids,
+                    assignment__courses__id__in=accessible_courses_ids,
                     status='submitted'
-                ).select_related('assignment', 'assignment__course', 'user').order_by('submitted_at')[:5]  # Limit to 5
+                ).select_related('assignment', 'user').distinct().order_by('submitted_at')[:5]  # Limit to 5
 
                 for submission in pending_submissions:
                     days_since = (now.date() - submission.submitted_at.date()).days
@@ -275,7 +279,9 @@ def _generate_sidebar_context(user):
                     else:
                         due_text, priority = f"{days_since} days ago", 'medium'
 
-                    course_name = submission.assignment.course.title if submission.assignment.course else 'Assignment'
+                    # Get first course from ManyToMany relationship
+                    first_course = submission.assignment.courses.first()
+                    course_name = first_course.title if first_course else 'Assignment'
                     
                     task = {
                         'title': f'Grade: {submission.assignment.title}',

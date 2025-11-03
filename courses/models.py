@@ -744,6 +744,9 @@ class Course(models.Model):
                     logger.info(f"Auto-enrolled instructor {self.instructor.username} in course {self.title}")
                 except Exception as e:
                     logger.error(f"Error auto-enrolling instructor: {str(e)}")
+            
+            # Auto-enroll branch admins and business super admins
+            self._auto_enroll_admins()
         
         # Return the saved instance
         return self
@@ -772,6 +775,55 @@ class Course(models.Model):
                     logger.info(f"Created directory: {directory}")
                 except Exception as e:
                     logger.error(f"Error creating directory {directory}: {str(e)}")
+
+    def _auto_enroll_admins(self):
+        """
+        Automatically enroll branch admins and business super admins when a course is created.
+        This ensures that all relevant administrative users have access to the course.
+        """
+        if not self.pk or not self.branch:
+            return
+        
+        try:
+            from core.utils.enrollment import EnrollmentService
+            enrolled_count = 0
+            
+            # Auto-enroll branch admins from the course's branch
+            branch_admins = self.branch.get_branch_admins()
+            for admin in branch_admins:
+                try:
+                    _, created, _ = EnrollmentService.create_or_get_enrollment(
+                        user=admin,
+                        course=self,
+                        source='auto_admin'
+                    )
+                    if created:
+                        enrolled_count += 1
+                        logger.info(f"Auto-enrolled branch admin {admin.username} in course {self.title}")
+                except Exception as e:
+                    logger.error(f"Error auto-enrolling branch admin {admin.username}: {str(e)}")
+            
+            # Auto-enroll business super admins if branch has a business
+            if self.branch.business:
+                business_super_admins = self.branch.business.get_business_super_admins()
+                for super_admin in business_super_admins:
+                    try:
+                        _, created, _ = EnrollmentService.create_or_get_enrollment(
+                            user=super_admin,
+                            course=self,
+                            source='auto_admin'
+                        )
+                        if created:
+                            enrolled_count += 1
+                            logger.info(f"Auto-enrolled business super admin {super_admin.username} in course {self.title}")
+                    except Exception as e:
+                        logger.error(f"Error auto-enrolling business super admin {super_admin.username}: {str(e)}")
+            
+            if enrolled_count > 0:
+                logger.info(f"Successfully auto-enrolled {enrolled_count} admin users in course {self.title}")
+                
+        except Exception as e:
+            logger.error(f"Error in _auto_enroll_admins for course {self.title}: {str(e)}")
 
     def clean(self):
         """Validate course fields with improved error handling"""

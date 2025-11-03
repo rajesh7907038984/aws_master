@@ -6282,10 +6282,11 @@ def admin_dashboard(request):
     #     logger.error(f"Error checking branch limits: {e}")
     
     # 5. Assignments pending instructor grading (admin oversight)
+    # Note: Assignment has ManyToMany relationship with Course through 'courses'
     pending_submissions_count = AssignmentSubmission.objects.filter(
-        assignment__course__branch=effective_branch,
+        assignment__courses__branch=effective_branch,
         status='submitted'
-    ).count()
+    ).distinct().count()
     
     if pending_submissions_count > 10:  # Many pending submissions
         recent_activities.append({
@@ -6840,11 +6841,16 @@ def instructor_dashboard(request):
     from django.utils import timezone
     from datetime import timedelta
     
+    # Get all course IDs for filtering (convert union QuerySet to list)
+    # Note: all_instructor_courses is a union QuerySet and can't be used in __in lookups
+    all_course_ids = list(assigned_courses.values_list('id', flat=True)) + list(enrolled_as_instructor_courses.values_list('id', flat=True))
+    
     # 1. Assignments pending grading (high priority)
+    # Note: Assignment has ManyToMany relationship with Course through 'courses'
     pending_submissions = AssignmentSubmission.objects.filter(
-        assignment__course__in=assigned_courses,
+        assignment__courses__id__in=all_course_ids,
         status='submitted'
-    ).select_related('assignment', 'assignment__course', 'user').order_by('submitted_at')[:5]
+    ).select_related('assignment', 'user').distinct().order_by('submitted_at')[:5]
     
     for submission in pending_submissions:
         days_since = (timezone.now().date() - submission.submitted_at.date()).days
@@ -6901,12 +6907,13 @@ def instructor_dashboard(request):
                 })
     
     # 3. Upcoming assignment deadlines (instructor needs to prepare)
+    # Note: Assignment has ManyToMany relationship with Course through 'courses'
     upcoming_deadlines = Assignment.objects.filter(
-        course__in=assigned_courses,
+        courses__id__in=all_course_ids,
         due_date__gte=now,
         due_date__lte=now + timedelta(days=7),
         is_active=True
-    ).select_related('course').order_by('due_date')[:3]
+    ).distinct().order_by('due_date')[:3]
     
     for assignment in upcoming_deadlines:
         days_until = (assignment.due_date.date() - now.date()).days
@@ -7150,8 +7157,9 @@ def learner_dashboard(request):
     
     # Get all assignments available to this learner through their enrolled courses
     enrolled_course_ids = enrolled_courses.values_list('course_id', flat=True)
+    # Note: Assignment has ManyToMany relationship with Course through 'courses'
     available_assignments = Assignment.objects.filter(
-        course__in=enrolled_course_ids,
+        courses__in=enrolled_course_ids,
         is_active=True
     ).distinct()
     
@@ -7212,8 +7220,9 @@ def learner_dashboard(request):
     calendar_events = []
     
     # 1. Assignment due dates
+    # Note: Assignment has ManyToMany relationship with Course through 'courses'
     assignments_due = Assignment.objects.filter(
-        course__in=enrolled_course_ids,
+        courses__in=enrolled_course_ids,
         due_date__gte=month_start,
         due_date__lt=month_end,
         is_active=True
@@ -7221,15 +7230,16 @@ def learner_dashboard(request):
         # Exclude already submitted assignments
         submissions__user=request.user,
         submissions__status__in=['submitted', 'graded']
-    ).select_related('course')
+    ).distinct()
     
     for assignment in assignments_due:
+        first_course = assignment.courses.first()
         calendar_events.append({
             'day': assignment.due_date.day,
             'title': f"{assignment.title}",
             'type': 'assignment',
             'color': 'red',
-            'course': assignment.course.title if assignment.course else 'General',
+            'course': first_course.title if first_course else 'General',
             'date': assignment.due_date,
             'url': f'/assignments/{assignment.id}/'
         })
@@ -7330,14 +7340,15 @@ def learner_dashboard(request):
     conference_tasks = [item for item in todo_items if item['type'] == 'conference']
     
     # For assignment tab - get actual assignment objects
+    # Note: Assignment has ManyToMany relationship with Course through 'courses'
     pending_assignments_for_template = Assignment.objects.filter(
-        course__in=enrolled_course_ids,
+        courses__in=enrolled_course_ids,
         due_date__gte=now,
         is_active=True
     ).exclude(
         submissions__user=request.user,
         submissions__status__in=['submitted', 'graded']
-    ).select_related('course').order_by('due_date')[:10]
+    ).distinct().order_by('due_date')[:10]
     
     # For conference tab - get actual conference objects  
     upcoming_conferences_for_template = Conference.objects.filter(
