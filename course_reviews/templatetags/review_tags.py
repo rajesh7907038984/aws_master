@@ -27,19 +27,19 @@ def star_rating_display(rating, max_rating=5, show_number=True, input_scale=10):
     half_star = (normalized_rating - full_stars) >= 0.5
     empty_stars = max_rating - full_stars - (1 if half_star else 0)
     
-    html = '<span class="star-rating-display">'
+    html = '<span class="star-rating-display" style="display: inline-flex; align-items: center; gap: 0.125rem;">'
     
     # Full stars
     for i in range(full_stars):
-        html += '<i class="fas fa-star text-warning"></i>'
+        html += '<i class="fas fa-star" style="color: #fbbf24;"></i>'
     
     # Half star
     if half_star:
-        html += '<i class="fas fa-star-half-alt text-warning"></i>'
+        html += '<i class="fas fa-star-half-alt" style="color: #fbbf24;"></i>'
     
     # Empty stars
     for i in range(empty_stars):
-        html += '<i class="far fa-star text-warning"></i>'
+        html += '<i class="far fa-star" style="color: #d1d5db;"></i>'
     
     if show_number:
         html += f' <span class="rating-number">({normalized_rating:.1f}/5)</span>'
