@@ -595,9 +595,8 @@ def gradebook_index(request):
     activities_data = []
     
     if courses.exists():
-        # Get assignments with course associations only - optimized with select_related
+        # Get assignments with course associations only - optimized with prefetch_related
         assignments = Assignment.objects.filter(
-            Q(course__in=courses) |  # Direct course relationship
             Q(courses__in=courses) |  # M2M course relationship
             Q(topics__courses__in=courses)  # Topic-based course relationship
         ).filter(
@@ -606,7 +605,7 @@ def gradebook_index(request):
             # Either have active topics OR have no topics at all (direct course assignments)
             Q(topics__status='active') |  # Has active topics
             Q(topics__isnull=True)  # Has no topics (direct course assignment)
-        ).distinct().select_related('course').prefetch_related(
+        ).distinct().prefetch_related(
             'courses', 
             'topics__courses',
             'attachments'

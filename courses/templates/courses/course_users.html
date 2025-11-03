@@ -126,7 +126,8 @@
             <div class="flex items-center justify-between mb-6">
                 <div>
                     <h1 class="text-2xl font-bold text-gray-900">{{ course.title }} - Users</h1>
-                    <!-- Enhanced Role-based User Summary -->
+                    <p class="text-sm text-gray-500 mt-1">Showing learner and instructor enrollments only</p>
+                    <!-- Enhanced Role-based User Summary - Only Learners and Instructors -->
                     <div class="mt-2 flex flex-wrap gap-4 text-sm text-gray-600">
                         <span class="flex items-center">
                             <i class="fas fa-graduation-cap text-blue-500 mr-1"></i>
@@ -134,20 +135,8 @@
                         </span>
                         <span class="flex items-center">
                             <i class="fas fa-chalkboard-teacher text-green-500 mr-1"></i>
-                            {{ total_instructors }} Instructors
+                            <strong>{{ total_instructors }} Instructors</strong>
                         </span>
-                        {% if request.user.is_superuser or request.user.role == 'admin' %}
-                        <span class="flex items-center">
-                            <i class="fas fa-user-cog text-purple-500 mr-1"></i>
-                            {{ total_admins }} Admins
-                        </span>
-                        {% endif %}
-                        {% if total_others > 0 %}
-                        <span class="flex items-center">
-                            <i class="fas fa-users text-gray-500 mr-1"></i>
-                            {{ total_others }} Others
-                        </span>
-                        {% endif %}
                     </div>
                 </div>
                 <div class="flex gap-2">
@@ -233,7 +222,7 @@
                         {% empty %}
                         <tr>
                             <td colspan="6" class="text-center py-8">
-                                <div class="text-gray-500">No users found</div>
+                                <div class="text-gray-500">No learners or instructors enrolled in this course</div>
                             </td>
                         </tr>
                         {% endfor %}
@@ -311,7 +300,7 @@
                     </div>
                     {% empty %}
                     <div class="text-center py-8">
-                        <div class="text-gray-500">No users found</div>
+                        <div class="text-gray-500">No learners or instructors enrolled in this course</div>
                     </div>
                     {% endfor %}
                 </div>

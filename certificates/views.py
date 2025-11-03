@@ -75,9 +75,13 @@ def certificates_view(request):
             created_by__in=branch_users,
             is_active=True
         )
-    # Instructors have no certificate template access (per role management capabilities)
-    elif request.user.role == 'instructor':
-        templates = CertificateTemplate.objects.none()
+    # Instructors can view templates from their branch (needed for course certificate selection)
+    elif request.user.role == 'instructor' and request.user.branch:
+        branch_users = CustomUser.objects.filter(branch=request.user.branch)
+        templates = CertificateTemplate.objects.filter(
+            created_by__in=branch_users,
+            is_active=True
+        )
     # Regular users can only see their own templates
     else:
         templates = CertificateTemplate.objects.filter(
@@ -133,9 +137,13 @@ def templates_view(request):
             created_by__in=branch_users,
             is_active=True
         ).order_by('-created_at')
-    # Instructors have no certificate template access (per role management capabilities)
-    elif request.user.role == 'instructor':
-        templates = CertificateTemplate.objects.none()
+    # Instructors can view templates from their branch (needed for course certificate selection)
+    elif request.user.role == 'instructor' and request.user.branch:
+        branch_users = CustomUser.objects.filter(branch=request.user.branch)
+        templates = CertificateTemplate.objects.filter(
+            created_by__in=branch_users,
+            is_active=True
+        ).order_by('-created_at')
     # Regular users can only see their own templates
     else:
         templates = CertificateTemplate.objects.filter(

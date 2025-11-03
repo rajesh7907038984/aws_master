@@ -1219,15 +1219,29 @@
                 </span>
             {% elif is_enrolled %}
                 <!-- Show Start/Resume button for enrolled users -->
-                <a href="{% if first_topic %}{% url 'courses:topic_view' first_topic.id %}?manual=True{% else %}{% url 'courses:course_view' course.id %}{% endif %}" 
-                   class="start-button {% if progress > 0 %}resume-button{% endif %}"
-                   id="progress-button"
-                   data-progress="{{ progress|default:0 }}">
-                    <span class="button-text">{% if progress > 0 %}Resume Course{% else %}Start Course{% endif %}</span>
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                        <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
-                    </svg>
-                </a>
+                {% if progress > 0 and next_incomplete_topic %}
+                    <!-- Resume: Go to next incomplete topic -->
+                    <a href="{% url 'courses:topic_view' next_incomplete_topic.id %}?manual=True" 
+                       class="start-button resume-button"
+                       id="progress-button"
+                       data-progress="{{ progress|default:0 }}">
+                        <span class="button-text">Resume Course</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+                        </svg>
+                    </a>
+                {% else %}
+                    <!-- Start or all completed: Go to first topic -->
+                    <a href="{% if first_topic %}{% url 'courses:topic_view' first_topic.id %}?manual=True{% else %}{% url 'courses:course_view' course.id %}{% endif %}" 
+                       class="start-button {% if progress > 0 %}resume-button{% endif %}"
+                       id="progress-button"
+                       data-progress="{{ progress|default:0 }}">
+                        <span class="button-text">{% if progress > 0 %}Resume Course{% else %}Start Course{% endif %}</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+                        </svg>
+                    </a>
+                {% endif %}
             {% elif user.role == 'learner' %}
                 <!-- Enrollment required for learners -->
                 <span class="start-button cursor-default bg-gray-400 hover:bg-gray-400" data-progress="0">
@@ -2009,10 +2023,18 @@
                         dataProgress: 100
                     };
                 } else if (isEnrolled) {
+                    // Determine the target topic for resume/start
+                    const hasIncomplete = {% if next_incomplete_topic %}true{% else %}false{% endif %};
+                    const nextIncompleteTopic = '{% if next_incomplete_topic %}{% url 'courses:topic_view' next_incomplete_topic.id %}?manual=True{% endif %}';
+                    const firstTopicUrl = `{% if first_topic %}{% url 'courses:topic_view' first_topic.id %}?manual=True{% else %}{% url 'courses:course_view' course.id %}{% endif %}`;
+                    
+                    // If progress > 0 and there's an incomplete topic, use it; otherwise use first topic
+                    const targetUrl = (progress > 0 && hasIncomplete) ? nextIncompleteTopic : firstTopicUrl;
+                    
                     return {
                         text: progress > 0 ? 'Resume Course' : 'Start Course',
                         classes: progress > 0 ? 'resume-button' : '',
-                        href: `{% if first_topic %}{% url 'courses:topic_view' first_topic.id %}?manual=True{% else %}{% url 'courses:course_view' course.id %}{% endif %}`,
+                        href: targetUrl,
                         dataProgress: progress
                     };
                 } else if (userRole === 'learner') {

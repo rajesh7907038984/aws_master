@@ -21,18 +21,23 @@ class TextQuestionAnswerInline(admin.TabularInline):
 
 @admin.register(Assignment)
 class AssignmentAdmin(admin.ModelAdmin):
-    list_display = ['title', 'course', 'due_date', 'is_active', 'created_at']
-    list_filter = ['is_active', 'due_date', 'created_at', 'course__branch']
+    list_display = ['title', 'get_courses', 'due_date', 'is_active', 'created_at']
+    list_filter = ['is_active', 'due_date', 'created_at', 'courses__branch']
     search_fields = ['title', 'description']
     inlines = [TextQuestionInline, AssignmentSubmissionInline]
     fieldsets = (
         (None, {
-            'fields': ('title', 'description', 'instructions', 'course')
+            'fields': ('title', 'description', 'instructions')
         }),
         ('Settings', {
             'fields': ('due_date', 'max_score', 'submission_type', 'allowed_file_types', 'max_file_size', 'rubric', 'is_active')
         }),
     )
+
+    def get_courses(self, obj):
+        """Display courses as comma-separated list"""
+        return ", ".join([course.title for course in obj.courses.all()[:3]]) if obj.courses.exists() else "No courses"
+    get_courses.short_description = 'Courses'
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)
@@ -43,20 +48,20 @@ class AssignmentAdmin(admin.ModelAdmin):
             from core.branch_filters import BranchFilterManager
             effective_branch = BranchFilterManager.get_effective_branch(request.user, request)
             if effective_branch:
-                return qs.filter(course__branch=effective_branch)
+                return qs.filter(courses__branch=effective_branch).distinct()
         # Instructors can see assignments they created or from courses they teach
         elif request.user.role == 'instructor' and request.user.branch:
             return qs.filter(
                 models.Q(user=request.user) |
-                models.Q(course__instructor=request.user) |
-                models.Q(course__branch=request.user.branch)
-            )
+                models.Q(courses__instructor=request.user) |
+                models.Q(courses__branch=request.user.branch)
+            ).distinct()
         return qs.none()
 
 @admin.register(AssignmentSubmission)
 class AssignmentSubmissionAdmin(admin.ModelAdmin):
     list_display = ['assignment', 'user', 'status', 'grade', 'submitted_at']
-    list_filter = ['status', 'submitted_at', 'graded_at', 'assignment__course__branch']
+    list_filter = ['status', 'submitted_at', 'graded_at', 'assignment__courses__branch']
     search_fields = ['user__username', 'user__email', 'assignment__title']
     readonly_fields = ['assignment', 'user', 'submitted_at', 'last_modified']
     inlines = [TextQuestionAnswerInline]
@@ -81,20 +86,20 @@ class AssignmentSubmissionAdmin(admin.ModelAdmin):
             from core.branch_filters import BranchFilterManager
             effective_branch = BranchFilterManager.get_effective_branch(request.user, request)
             if effective_branch:
-                return qs.filter(assignment__course__branch=effective_branch)
+                return qs.filter(assignment__courses__branch=effective_branch).distinct()
         # Instructors can see submissions for courses they teach
         elif request.user.role == 'instructor' and request.user.branch:
             return qs.filter(
                 models.Q(assignment__user=request.user) |
-                models.Q(assignment__course__instructor=request.user) |
-                models.Q(assignment__course__branch=request.user.branch)
-            )
+                models.Q(assignment__courses__instructor=request.user) |
+                models.Q(assignment__courses__branch=request.user.branch)
+            ).distinct()
         return qs.none()
 
 @admin.register(AssignmentFeedback)
 class AssignmentFeedbackAdmin(admin.ModelAdmin):
     list_display = ['submission', 'created_by', 'created_at', 'is_private', 'has_multimedia']
-    list_filter = ['is_private', 'created_at', 'submission__assignment__course__branch']
+    list_filter = ['is_private', 'created_at', 'submission__assignment__courses__branch']
     search_fields = ['feedback', 'created_by__username', 'submission__user__username']
     readonly_fields = ['created_at']
     fieldsets = (
@@ -132,20 +137,20 @@ class AssignmentFeedbackAdmin(admin.ModelAdmin):
             from core.branch_filters import BranchFilterManager
             effective_branch = BranchFilterManager.get_effective_branch(request.user, request)
             if effective_branch:
-                return qs.filter(submission__assignment__course__branch=effective_branch)
+                return qs.filter(submission__assignment__courses__branch=effective_branch).distinct()
         # Instructors can see feedback they created or for courses they teach
         elif request.user.role == 'instructor' and request.user.branch:
             return qs.filter(
                 models.Q(created_by=request.user) |
-                models.Q(submission__assignment__course__instructor=request.user) |
-                models.Q(submission__assignment__course__branch=request.user.branch)
-            )
+                models.Q(submission__assignment__courses__instructor=request.user) |
+                models.Q(submission__assignment__courses__branch=request.user.branch)
+            ).distinct()
         return qs.none()
 
 @admin.register(TextQuestion)
 class TextQuestionAdmin(admin.ModelAdmin):
     list_display = ['assignment', 'question_text', 'order', 'created_at']
-    list_filter = ['created_at', 'assignment__course__branch']
+    list_filter = ['created_at', 'assignment__courses__branch']
     search_fields = ['question_text', 'assignment__title']
     ordering = ['assignment', 'order']
 
@@ -158,19 +163,19 @@ class TextQuestionAdmin(admin.ModelAdmin):
             from core.branch_filters import BranchFilterManager
             effective_branch = BranchFilterManager.get_effective_branch(request.user, request)
             if effective_branch:
-                return qs.filter(assignment__course__branch=effective_branch)
+                return qs.filter(assignment__courses__branch=effective_branch).distinct()
         elif request.user.role == 'instructor' and request.user.branch:
             return qs.filter(
                 models.Q(assignment__user=request.user) |
-                models.Q(assignment__course__instructor=request.user) |
-                models.Q(assignment__course__branch=request.user.branch)
-            )
+                models.Q(assignment__courses__instructor=request.user) |
+                models.Q(assignment__courses__branch=request.user.branch)
+            ).distinct()
         return qs.none()
 
 @admin.register(TextQuestionAnswer)
 class TextQuestionAnswerAdmin(admin.ModelAdmin):
     list_display = ['question', 'submission', 'created_at']
-    list_filter = ['created_at', 'submission__assignment__course__branch']
+    list_filter = ['created_at', 'submission__assignment__courses__branch']
     search_fields = ['answer_text', 'question__question_text', 'submission__user__username']
     readonly_fields = ['created_at', 'updated_at']
 
@@ -183,19 +188,19 @@ class TextQuestionAnswerAdmin(admin.ModelAdmin):
             from core.branch_filters import BranchFilterManager
             effective_branch = BranchFilterManager.get_effective_branch(request.user, request)
             if effective_branch:
-                return qs.filter(submission__assignment__course__branch=effective_branch)
+                return qs.filter(submission__assignment__courses__branch=effective_branch).distinct()
         elif request.user.role == 'instructor' and request.user.branch:
             return qs.filter(
                 models.Q(submission__assignment__user=request.user) |
-                models.Q(submission__assignment__course__instructor=request.user) |
-                models.Q(submission__assignment__course__branch=request.user.branch)
-            )
+                models.Q(submission__assignment__courses__instructor=request.user) |
+                models.Q(submission__assignment__courses__branch=request.user.branch)
+            ).distinct()
         return qs.none()
 
 @admin.register(TextQuestionAnswerIteration)
 class TextQuestionAnswerIterationAdmin(admin.ModelAdmin):
     list_display = ['question', 'submission', 'iteration_number', 'is_submitted', 'submitted_at']
-    list_filter = ['is_submitted', 'iteration_number', 'created_at', 'submission__assignment__course__branch']
+    list_filter = ['is_submitted', 'iteration_number', 'created_at', 'submission__assignment__courses__branch']
     search_fields = ['answer_text', 'question__question_text', 'submission__user__username']
     readonly_fields = ['created_at', 'updated_at']
     fieldsets = (
@@ -219,20 +224,20 @@ class TextQuestionAnswerIterationAdmin(admin.ModelAdmin):
             from core.branch_filters import BranchFilterManager
             effective_branch = BranchFilterManager.get_effective_branch(request.user, request)
             if effective_branch:
-                return qs.filter(submission__assignment__course__branch=effective_branch)
+                return qs.filter(submission__assignment__courses__branch=effective_branch).distinct()
         elif request.user.role == 'instructor' and request.user.branch:
             return qs.filter(
                 models.Q(submission__assignment__user=request.user) |
-                models.Q(submission__assignment__course__instructor=request.user) |
-                models.Q(submission__assignment__course__branch=request.user.branch)
-            )
+                models.Q(submission__assignment__courses__instructor=request.user) |
+                models.Q(submission__assignment__courses__branch=request.user.branch)
+            ).distinct()
         return qs.none()
 
 
 @admin.register(TextQuestionIterationFeedback)
 class TextQuestionIterationFeedbackAdmin(admin.ModelAdmin):
     list_display = ['iteration', 'created_by', 'allows_new_iteration', 'created_at', 'feedback_preview']
-    list_filter = ['allows_new_iteration', 'created_at', 'iteration__submission__assignment__course__branch']
+    list_filter = ['allows_new_iteration', 'created_at', 'iteration__submission__assignment__courses__branch']
     search_fields = ['feedback_text', 'created_by__username', 'iteration__submission__user__username']
     readonly_fields = ['created_at']
     fieldsets = (
@@ -261,20 +266,20 @@ class TextQuestionIterationFeedbackAdmin(admin.ModelAdmin):
             from core.branch_filters import BranchFilterManager
             effective_branch = BranchFilterManager.get_effective_branch(request.user, request)
             if effective_branch:
-                return qs.filter(iteration__submission__assignment__course__branch=effective_branch)
+                return qs.filter(iteration__submission__assignment__courses__branch=effective_branch).distinct()
         elif request.user.role == 'instructor' and request.user.branch:
             return qs.filter(
                 models.Q(created_by=request.user) |
-                models.Q(iteration__submission__assignment__course__instructor=request.user) |
-                models.Q(iteration__submission__assignment__course__branch=request.user.branch)
-            )
+                models.Q(iteration__submission__assignment__courses__instructor=request.user) |
+                models.Q(iteration__submission__assignment__courses__branch=request.user.branch)
+            ).distinct()
         return qs.none()
 
 
 @admin.register(TextSubmissionAnswerIteration)
 class TextSubmissionAnswerIterationAdmin(admin.ModelAdmin):
     list_display = ['field', 'submission', 'iteration_number', 'is_submitted', 'submitted_at']
-    list_filter = ['is_submitted', 'iteration_number', 'created_at', 'submission__assignment__course__branch']
+    list_filter = ['is_submitted', 'iteration_number', 'created_at', 'submission__assignment__courses__branch']
     search_fields = ['answer_text', 'field__label', 'submission__user__username']
     readonly_fields = ['created_at', 'updated_at']
     fieldsets = (
@@ -298,20 +303,20 @@ class TextSubmissionAnswerIterationAdmin(admin.ModelAdmin):
             from core.branch_filters import BranchFilterManager
             effective_branch = BranchFilterManager.get_effective_branch(request.user, request)
             if effective_branch:
-                return qs.filter(submission__assignment__course__branch=effective_branch)
+                return qs.filter(submission__assignment__courses__branch=effective_branch).distinct()
         elif request.user.role == 'instructor' and request.user.branch:
             return qs.filter(
                 models.Q(submission__assignment__user=request.user) |
-                models.Q(submission__assignment__course__instructor=request.user) |
-                models.Q(submission__assignment__course__branch=request.user.branch)
-            )
+                models.Q(submission__assignment__courses__instructor=request.user) |
+                models.Q(submission__assignment__courses__branch=request.user.branch)
+            ).distinct()
         return qs.none()
 
 
 @admin.register(TextSubmissionIterationFeedback)
 class TextSubmissionIterationFeedbackAdmin(admin.ModelAdmin):
     list_display = ['iteration', 'created_by', 'allows_new_iteration', 'created_at', 'feedback_preview']
-    list_filter = ['allows_new_iteration', 'created_at', 'iteration__submission__assignment__course__branch']
+    list_filter = ['allows_new_iteration', 'created_at', 'iteration__submission__assignment__courses__branch']
     search_fields = ['feedback_text', 'created_by__username', 'iteration__submission__user__username']
     readonly_fields = ['created_at']
     fieldsets = (
@@ -340,13 +345,13 @@ class TextSubmissionIterationFeedbackAdmin(admin.ModelAdmin):
             from core.branch_filters import BranchFilterManager
             effective_branch = BranchFilterManager.get_effective_branch(request.user, request)
             if effective_branch:
-                return qs.filter(iteration__submission__assignment__course__branch=effective_branch)
+                return qs.filter(iteration__submission__assignment__courses__branch=effective_branch).distinct()
         elif request.user.role == 'instructor' and request.user.branch:
             return qs.filter(
                 models.Q(created_by=request.user) |
-                models.Q(iteration__submission__assignment__course__instructor=request.user) |
-                models.Q(iteration__submission__assignment__course__branch=request.user.branch)
-            )
+                models.Q(iteration__submission__assignment__courses__instructor=request.user) |
+                models.Q(iteration__submission__assignment__courses__branch=request.user.branch)
+            ).distinct()
         return qs.none()
 
 @admin.register(AssignmentInteractionLog)

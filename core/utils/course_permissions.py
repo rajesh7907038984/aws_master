@@ -186,6 +186,14 @@ class CourseAccessManager:
                     'course_role': 'Branch Admin',
                     'can_modify': True
                 })
+            elif role_in_course == 'superuser':
+                # Superusers (superadmins, globaladmins) go to admins category
+                categorized_users['admins'].append({
+                    'user': user,
+                    'enrollment': enrollment,
+                    'course_role': user.get_role_display(),
+                    'can_modify': True
+                })
             else:
                 categorized_users['others'].append({
                     'user': user,

@@ -1110,6 +1110,41 @@ def course_details(request, course_id):
                 if abs(progress - enrollment_progress) > 5:  # Reduced tolerance for logging
                     logger.warning(f"Progress calculation discrepancy: calculated={progress}, enrollment={enrollment_progress} for user {request.user.username}")
     
+    # Find the next incomplete topic for Resume button (after progress records are initialized)
+    next_incomplete_topic = None
+    if request.user.is_authenticated and is_enrolled:
+        try:
+            # Get all topic IDs in order
+            all_topics_ordered = []
+            
+            # First add topics from sections in order
+            for section in sections:
+                section_topics = topics.filter(section=section).order_by('coursetopic__order', 'created_at')
+                all_topics_ordered.extend(list(section_topics))
+            
+            # Then add standalone topics
+            if hasattr(topics_without_section, 'exists'):
+                standalone_topics = topics_without_section.order_by('coursetopic__order', 'created_at')
+                all_topics_ordered.extend(list(standalone_topics))
+            elif topics_without_section:
+                all_topics_ordered.extend(list(topics_without_section))
+            
+            # Find the first topic that is not completed
+            for topic in all_topics_ordered:
+                topic_progress = TopicProgress.objects.filter(
+                    user=request.user,
+                    topic=topic,
+                    course=course,
+                    completed=True
+                ).exists()
+                
+                if not topic_progress:
+                    next_incomplete_topic = topic
+                    break
+        except Exception as e:
+            logger.error(f"Error finding next incomplete topic: {str(e)}")
+            next_incomplete_topic = None
+    
     # Determine permissions using proper permission functions
     can_edit = check_course_edit_permission(request.user, course)
     
@@ -1180,6 +1215,7 @@ def course_details(request, course_id):
         'topics': topics,
         'topics_without_section': topics_without_section,
         'first_topic': first_topic,
+        'next_incomplete_topic': next_incomplete_topic,
         'progress': progress,
         'can_edit': can_edit,
         'can_delete': can_delete,
@@ -4652,6 +4688,13 @@ def course_settings(request, course_id):
             created_by__in=branch_users,
             is_active=True
         )
+    elif request.user.role == 'instructor' and request.user.branch:
+        # Instructors can see templates from users in their branch
+        branch_users = CustomUser.objects.filter(branch=request.user.branch)
+        certificate_templates = CertificateTemplate.objects.filter(
+            created_by__in=branch_users,
+            is_active=True
+        )
     else:
         # Other roles (learners, etc.) cannot see certificate templates in course settings
         certificate_templates = CertificateTemplate.objects.none()
@@ -4858,20 +4901,23 @@ def course_settings(request, course_id):
         if course_rubrics:
             course.course_rubrics = course_rubrics
         
-        # Set certificate settings (only for non-instructor users)
+        # Set certificate settings
+        # Instructors can only set certificate template, not other certificate settings
         if request.user.role != 'instructor':
             course.issue_certificate = issue_certificate
             if certificate_type:
                 course.certificate_type = certificate_type
-            
-            # Set certificate template
-            if certificate_template_id:
-                try:
-                    certificate_template = CertificateTemplate.objects.get(id=certificate_template_id)
-                    course.certificate_template = certificate_template
-                except CertificateTemplate.DoesNotExist:
-                    messages.error(request, "Selected certificate template does not exist.")
-            else:
+        
+        # Set certificate template (allowed for instructors and admins)
+        if certificate_template_id:
+            try:
+                certificate_template = CertificateTemplate.objects.get(id=certificate_template_id)
+                course.certificate_template = certificate_template
+            except CertificateTemplate.DoesNotExist:
+                messages.error(request, "Selected certificate template does not exist.")
+        else:
+            # Only allow clearing template for non-instructors
+            if request.user.role != 'instructor':
                 course.certificate_template = None
                 
         try:
@@ -5515,8 +5561,15 @@ def course_users(request, course_id):
     categorized_users = CourseAccessManager.categorize_course_users(course)
     
     # Extract enrollment objects for backward compatibility with template
-    learner_enrollments = [item['enrollment'] for item in categorized_users['learners']]
-    instructor_enrollments = [item['enrollment'] for item in categorized_users['instructors']]
+    # Explicitly filter out superadmin and globaladmin roles
+    learner_enrollments = [
+        item['enrollment'] for item in categorized_users['learners']
+        if item['user'].role not in ['superadmin', 'globaladmin']
+    ]
+    instructor_enrollments = [
+        item['enrollment'] for item in categorized_users['instructors']
+        if item['user'].role not in ['superadmin', 'globaladmin']
+    ]
     
     # Only show admin enrollments to superusers and admins, not to instructors
     if request.user.is_superuser or request.user.role == 'admin':
@@ -5535,17 +5588,18 @@ def course_users(request, course_id):
                        Q(user__last_name__icontains=search_query)
         
         # Apply search filter to the enrollment QuerySets
+        # Also exclude superadmin and globaladmin roles from search results
         if learner_enrollments:
             learner_enrollments = CourseEnrollment.objects.filter(
                 id__in=[e.id for e in learner_enrollments]
-            ).filter(search_filter)
+            ).filter(search_filter).exclude(user__role__in=['superadmin', 'globaladmin'])
         else:
             learner_enrollments = CourseEnrollment.objects.none()
             
         if instructor_enrollments:
             instructor_enrollments = CourseEnrollment.objects.filter(
                 id__in=[e.id for e in instructor_enrollments]
-            ).filter(search_filter)
+            ).filter(search_filter).exclude(user__role__in=['superadmin', 'globaladmin'])
         else:
             instructor_enrollments = CourseEnrollment.objects.none()
             
@@ -5563,8 +5617,9 @@ def course_users(request, course_id):
         else:
             other_enrollments = CourseEnrollment.objects.none()
     
-    # Combine all enrollments for pagination but maintain categorization
-    all_enrollments = list(learner_enrollments) + list(instructor_enrollments) + list(admin_enrollments) + list(other_enrollments)
+    # Combine only learner and instructor enrollments for pagination
+    # Only show learner and instructor role user details as per requirement
+    all_enrollments = list(learner_enrollments) + list(instructor_enrollments)
     enrollments = all_enrollments
     
     # Get user roles from group memberships
@@ -7492,9 +7547,9 @@ def get_user_filtered_content(user, course=None, request=None):
                 Q(course=None, creator__branch__business__in=assigned_businesses)
             ).order_by('title')
             assignments = Assignment.objects.filter(
-                Q(course__branch__business__in=assigned_businesses) |
-                Q(course=None, user__branch__business__in=assigned_businesses)
-            ).order_by('title')
+                Q(courses__branch__business__in=assigned_businesses) |
+                Q(courses__isnull=True, user__branch__business__in=assigned_businesses)
+            ).distinct().order_by('title')
             conferences = Conference.objects.filter(
                 Q(course__branch__business__in=assigned_businesses, status='published') |
                 Q(course=None, created_by__branch__business__in=assigned_businesses, status='published')
@@ -7513,10 +7568,10 @@ def get_user_filtered_content(user, course=None, request=None):
                     Q(creator=user)
                 ).order_by('title')
                 assignments = Assignment.objects.filter(
-                    Q(course__branch=default_branch) |
-                    Q(course=None, user__branch=default_branch) |
+                    Q(courses__branch=default_branch) |
+                    Q(courses__isnull=True, user__branch=default_branch) |
                     Q(user=user)
-                ).order_by('title')
+                ).distinct().order_by('title')
                 conferences = Conference.objects.filter(
                     Q(course__branch=default_branch, status='published') |
                     Q(course=None, created_by__branch=default_branch, status='published') |
@@ -7545,9 +7600,9 @@ def get_user_filtered_content(user, course=None, request=None):
                 Q(course=None, creator__branch=effective_branch)
             ).order_by('title')
             assignments = Assignment.objects.filter(
-                Q(course__branch=effective_branch) |
-                Q(course=None, user__branch=effective_branch)
-            ).order_by('title')
+                Q(courses__branch=effective_branch) |
+                Q(courses__isnull=True, user__branch=effective_branch)
+            ).distinct().order_by('title')
             conferences = Conference.objects.filter(
                 Q(course__branch=effective_branch, status='published') |
                 Q(course=None, created_by__branch=effective_branch, status='published')
@@ -7572,10 +7627,10 @@ def get_user_filtered_content(user, course=None, request=None):
                 Q(creator=user)  # Include their own content regardless of branch
             ).order_by('title')
             assignments = Assignment.objects.filter(
-                Q(course__branch=user_branch) |
-                Q(course=None, user__branch=user_branch) |
+                Q(courses__branch=user_branch) |
+                Q(courses__isnull=True, user__branch=user_branch) |
                 Q(user=user)  # Include their own content regardless of branch
-            ).order_by('title')
+            ).distinct().order_by('title')
             conferences = Conference.objects.filter(
                 Q(course__branch=user_branch, status='published') |
                 Q(course=None, created_by__branch=user_branch, status='published') |
@@ -7597,7 +7652,7 @@ def get_user_filtered_content(user, course=None, request=None):
         user_branch = user.branch if hasattr(user, 'branch') and user.branch else get_default_branch()
         if user_branch:
             quizzes = Quiz.objects.filter(course__branch=user_branch).order_by('title')
-            assignments = Assignment.objects.filter(course__branch=user_branch).order_by('title')
+            assignments = Assignment.objects.filter(courses__branch=user_branch).distinct().order_by('title')
             conferences = Conference.objects.filter(course__branch=user_branch, status='published')
             discussions = Discussion.objects.filter(course__branch=user_branch)
         else:
@@ -7616,7 +7671,7 @@ def get_user_filtered_content(user, course=None, request=None):
     # If course is provided, also include content specific to that course
     if course:
         quizzes = quizzes | Quiz.objects.filter(course=course)
-        assignments = assignments | Assignment.objects.filter(course=course)
+        assignments = assignments | Assignment.objects.filter(courses=course).distinct()
         conferences = conferences | Conference.objects.filter(course=course, status='published')
         discussions = discussions | Discussion.objects.filter(course=course)
 
