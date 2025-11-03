@@ -2825,6 +2825,31 @@ class CourseCompletionRequirement(models.Model):
     def __str__(self):
         return f"{self.course.title} - {self.requirement_type}"
 
+    @property
+    def topic(self):
+        """Extract and return the topic object from requirement_value"""
+        try:
+            if self.requirement_type == 'topic_score' and 'topic_id:' in self.requirement_value:
+                # Parse 'topic_id:123,score:80'
+                topic_id_str = self.requirement_value.split('topic_id:')[1].split(',')[0]
+                topic_id = int(topic_id_str)
+                return Topic.objects.filter(id=topic_id).first()
+        except (ValueError, IndexError, AttributeError):
+            pass
+        return None
+
+    @property
+    def required_score(self):
+        """Extract and return the required score from requirement_value"""
+        try:
+            if 'score:' in self.requirement_value:
+                # Parse 'topic_id:123,score:80'
+                score_str = self.requirement_value.split('score:')[1].split(',')[0]
+                return int(score_str)
+        except (ValueError, IndexError, AttributeError):
+            pass
+        return 0
+
     def is_met_by_user(self, user):
         """Check if this requirement is met by the given user"""
         # This is a simplified implementation - you may need to expand based on requirement_type

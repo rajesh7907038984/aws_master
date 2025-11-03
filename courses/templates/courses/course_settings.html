@@ -244,7 +244,7 @@
                                     <select name="category" class="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
                                         <option value="">-- Select Category --</option>
                                         {% for category in categories %}
-                                            <option value="{{ category.id }}" {% if course.category.id == category.id %}selected{% endif %}>{{ category.name }}</option>
+                                            <option value="{{ category.id }}" {% if course.category and course.category.id == category.id %}selected{% endif %}>{{ category.name }}</option>
                                         {% endfor %}
                                     </select>
                                 </div>
@@ -253,7 +253,7 @@
                                     <select name="instructor" class="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
                                         <option value="">-- Select Instructor --</option>
                                         {% for instructor in instructors %}
-                                            <option value="{{ instructor.id }}" {% if course.instructor.id == instructor.id %}selected{% endif %}>{{ instructor.get_full_name }}</option>
+                                            <option value="{{ instructor.id }}" {% if course.instructor and course.instructor.id == instructor.id %}selected{% endif %}>{{ instructor.get_full_name }}</option>
                                         {% endfor %}
                                     </select>
                                 </div>
@@ -455,7 +455,7 @@
                                                                        class="topic-checkbox h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                                                                        data-content-type="{{ topic.content_type }}"
                                                                        {% for req in course.completion_requirements.all %}
-                                                                           {% if req.topic.id == topic.id %}checked{% endif %}
+                                                                           {% if req.topic and req.topic.id == topic.id %}checked{% endif %}
                                                                        {% endfor %}>
                                                                 <label for="topic_{{ topic.id }}" class="ml-2 text-sm text-gray-700">
                                                                     {{ topic.title }}
@@ -465,15 +465,15 @@
                                                             <div class="ml-4 flex items-center">
                                                                 {% if topic.content_type == 'Quiz' or topic.content_type == 'Assignment' %}
                                                                     <label class="text-sm text-gray-600 mr-2">Required Score:</label>
-                                                                    <input type="number" 
-                                                                           name="topic_score_{{ topic.id }}" 
-                                                                           id="score_{{ topic.id }}"
-                                                                           class="topic-score w-20 px-2 py-1 border border-gray-300 rounded-md text-sm"
-                                                                           min="0" 
-                                                                           max="100" 
-                                                                           value="{% for req in course.completion_requirements.all %}{% if req.topic.id == topic.id %}{{ req.required_score }}{% endif %}{% endfor %}"
-                                                                           placeholder="0"
-                                                                           disabled>
+                                                                <input type="number" 
+                                                                       name="topic_score_{{ topic.id }}" 
+                                                                       id="score_{{ topic.id }}"
+                                                                       class="topic-score w-20 px-2 py-1 border border-gray-300 rounded-md text-sm"
+                                                                       min="0" 
+                                                                       max="100" 
+                                                                       value="{% for req in course.completion_requirements.all %}{% if req.topic and req.topic.id == topic.id %}{{ req.required_score }}{% endif %}{% endfor %}"
+                                                                       placeholder="0"
+                                                                       disabled>
                                                                     <span class="ml-1 text-sm text-gray-600">%</span>
                                                                 {% else %}
                                                                     <label class="text-sm text-gray-600 mr-2">Completion:</label>
@@ -481,10 +481,10 @@
                                                                             id="completion_{{ topic.id }}"
                                                                             class="topic-completion w-24 px-2 py-1 border border-gray-300 rounded-md text-sm"
                                                                             disabled>
-                                                                        <option value="100" {% for req in course.completion_requirements.all %}{% if req.topic.id == topic.id and req.required_score == 100 %}selected{% endif %}{% endfor %}>100%</option>
-                                                                        <option value="80" {% for req in course.completion_requirements.all %}{% if req.topic.id == topic.id and req.required_score == 80 %}selected{% endif %}{% endfor %}>80%</option>
-                                                                        <option value="60" {% for req in course.completion_requirements.all %}{% if req.topic.id == topic.id and req.required_score == 60 %}selected{% endif %}{% endfor %}>60%</option>
-                                                                        <option value="0" {% for req in course.completion_requirements.all %}{% if req.topic.id == topic.id and req.required_score == 0 %}selected{% endif %}{% endfor %}>View Only</option>
+                                                                    <option value="100" {% for req in course.completion_requirements.all %}{% if req.topic and req.topic.id == topic.id and req.required_score == 100 %}selected{% endif %}{% endfor %}>100%</option>
+                                                                    <option value="80" {% for req in course.completion_requirements.all %}{% if req.topic and req.topic.id == topic.id and req.required_score == 80 %}selected{% endif %}{% endfor %}>80%</option>
+                                                                    <option value="60" {% for req in course.completion_requirements.all %}{% if req.topic and req.topic.id == topic.id and req.required_score == 60 %}selected{% endif %}{% endfor %}>60%</option>
+                                                                    <option value="0" {% for req in course.completion_requirements.all %}{% if req.topic and req.topic.id == topic.id and req.required_score == 0 %}selected{% endif %}{% endfor %}>View Only</option>
                                                                     </select>
                                                                 {% endif %}
                                                             </div>
@@ -507,7 +507,7 @@
                                                                    class="topic-checkbox h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                                                                    data-content-type="{{ ct.topic.content_type }}"
                                                                    {% for req in course.completion_requirements.all %}
-                                                                       {% if req.topic.id == ct.topic.id %}checked{% endif %}
+                                                                       {% if req.topic and req.topic.id == ct.topic.id %}checked{% endif %}
                                                                    {% endfor %}>
                                                             <label for="topic_{{ ct.topic.id }}" class="ml-2 text-sm text-gray-700">
                                                                 {{ ct.topic.title }}
@@ -523,7 +523,7 @@
                                                                        class="topic-score w-20 px-2 py-1 border border-gray-300 rounded-md text-sm"
                                                                        min="0" 
                                                                        max="100" 
-                                                                       value="{% for req in course.completion_requirements.all %}{% if req.topic.id == ct.topic.id %}{{ req.required_score }}{% endif %}{% endfor %}"
+                                                                       value="{% for req in course.completion_requirements.all %}{% if req.topic and req.topic.id == ct.topic.id %}{{ req.required_score }}{% endif %}{% endfor %}"
                                                                        placeholder="0"
                                                                        disabled>
                                                                 <span class="ml-1 text-sm text-gray-600">%</span>
@@ -533,10 +533,10 @@
                                                                         id="completion_{{ ct.topic.id }}"
                                                                         class="topic-completion w-24 px-2 py-1 border border-gray-300 rounded-md text-sm"
                                                                         disabled>
-                                                                    <option value="100" {% for req in course.completion_requirements.all %}{% if req.topic.id == ct.topic.id and req.required_score == 100 %}selected{% elif req.topic.id == ct.topic.id and req.required_score == 0 %}{% else %}{% if req.topic.id == ct.topic.id %}{% else %}selected{% endif %}{% endif %}{% endfor %}>100%</option>
-                                                                    <option value="80" {% for req in course.completion_requirements.all %}{% if req.topic.id == ct.topic.id and req.required_score == 80 %}selected{% endif %}{% endfor %}>80%</option>
-                                                                    <option value="60" {% for req in course.completion_requirements.all %}{% if req.topic.id == ct.topic.id and req.required_score == 60 %}selected{% endif %}{% endfor %}>60%</option>
-                                                                    <option value="0" {% for req in course.completion_requirements.all %}{% if req.topic.id == ct.topic.id and req.required_score == 0 %}selected{% endif %}{% endfor %}>View Only</option>
+                                                                    <option value="100" {% for req in course.completion_requirements.all %}{% if req.topic and req.topic.id == ct.topic.id and req.required_score == 100 %}selected{% endif %}{% endfor %}>100%</option>
+                                                                    <option value="80" {% for req in course.completion_requirements.all %}{% if req.topic and req.topic.id == ct.topic.id and req.required_score == 80 %}selected{% endif %}{% endfor %}>80%</option>
+                                                                    <option value="60" {% for req in course.completion_requirements.all %}{% if req.topic and req.topic.id == ct.topic.id and req.required_score == 60 %}selected{% endif %}{% endfor %}>60%</option>
+                                                                    <option value="0" {% for req in course.completion_requirements.all %}{% if req.topic and req.topic.id == ct.topic.id and req.required_score == 0 %}selected{% endif %}{% endfor %}>View Only</option>
                                                                 </select>
                                                             {% endif %}
                                                         </div>
