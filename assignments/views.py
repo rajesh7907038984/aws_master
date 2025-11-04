@@ -298,7 +298,6 @@ def assignment_list(request):
             try:
                 course_filter_id = int(course_filter_id)
                 assignments_list = assignments_list.filter(
-                    Q(course_id=course_filter_id) | 
                     Q(courses__id=course_filter_id) |
                     Q(topicassignment__topic__courses__id=course_filter_id)
                 ).distinct()
@@ -326,7 +325,6 @@ def assignment_list(request):
             try:
                 course_filter_id = int(course_filter_id)
                 assignments_list = assignments_list.filter(
-                    Q(course_id=course_filter_id) | 
                     Q(courses__id=course_filter_id) |
                     Q(topicassignment__topic__courses__id=course_filter_id)
                 ).distinct()
@@ -355,7 +353,6 @@ def assignment_list(request):
             try:
                 course_filter_id = int(course_filter_id)
                 assignments_list = assignments_list.filter(
-                    Q(course_id=course_filter_id) | 
                     Q(courses__id=course_filter_id) |
                     Q(topicassignment__topic__courses__id=course_filter_id)
                 ).distinct()
@@ -372,7 +369,7 @@ def assignment_list(request):
             # Assignments from directly assigned courses
             assigned_courses = Course.objects.filter(instructor=request.user)
             course_assignments = Assignment.objects.filter(
-                Q(course__in=assigned_courses) | Q(courses__in=assigned_courses)
+                Q(courses__in=assigned_courses)
             )
             
             # Assignments from group-assigned courses
@@ -382,7 +379,7 @@ def assignment_list(request):
                 accessible_groups__memberships__custom_role__name__icontains='instructor'
             )
             group_course_assignments = Assignment.objects.filter(
-                Q(course__in=group_assigned_courses) | Q(courses__in=group_assigned_courses)
+                Q(courses__in=group_assigned_courses)
             )
             
             # Also include assignments from courses where they are enrolled as instructor
@@ -390,7 +387,7 @@ def assignment_list(request):
                 enrolled_users=request.user
             )
             enrolled_course_assignments = Assignment.objects.filter(
-                Q(course__in=enrolled_courses) | Q(courses__in=enrolled_courses)
+                Q(courses__in=enrolled_courses)
             )
             
             # Combine all assignment sources
@@ -413,7 +410,6 @@ def assignment_list(request):
                 # Verify this is one of the instructor's accessible courses
                 if available_courses.filter(id=course_filter_id).exists():
                     assignments_list = assignments_list.filter(
-                        Q(course_id=course_filter_id) |
                         Q(courses__id=course_filter_id) |
                         Q(topicassignment__topic__courses__id=course_filter_id)
                     ).distinct()
@@ -433,7 +429,6 @@ def assignment_list(request):
             is_active=True
         ).filter(
             # Must be linked to enrolled courses through any relationship
-            Q(course__in=enrolled_courses) |  # Direct course relationship
             Q(courses__in=enrolled_courses) |  # M2M course relationship
             Q(topics__courses__in=enrolled_courses)  # Topic-based course relationship
         ).filter(
@@ -449,7 +444,6 @@ def assignment_list(request):
                 course_filter_id = int(course_filter_id)
                 if course_filter_id in enrolled_courses:
                     assignments_list = assignments_list.filter(
-                        Q(course_id=course_filter_id) |
                         Q(courses__id=course_filter_id) |
                         Q(topics__courses__id=course_filter_id)
                     ).distinct()
