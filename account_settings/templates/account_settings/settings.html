@@ -542,7 +542,7 @@
                                 <div class="bg-white shadow-sm rounded-lg overflow-hidden border border-gray-200 p-6">
                                     <p class="text-gray-600 mb-4">Configure your platform integrations including video conferencing, data synchronization, and external services.</p>
                                     
-                                                                    <!-- Integration type tabs -->
+                                    <!-- Integration type tabs -->
                                 <div class="border-b border-gray-200 mb-6">
                                     <nav class="flex space-x-8">
                                         {% if is_branch_admin %}
@@ -709,8 +709,8 @@
                                                 {% endif %}
                                             </div>
                                         </div>
+                                        {% endif %}
                                     </div>
-                                    {% endif %}
                                     {% endif %}
                                     
                                     <!-- Zoom Integration Content -->
@@ -848,10 +848,10 @@
                                                                         <path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clip-rule="evenodd" />
                                                                     </svg>
                                                                     Save Integration
-                                                                                                                </button>
-                                            </div>
-                                        </div>
-                                    </form>
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    </form>
                                 {% endif %}
                             </div>
                         </div>
@@ -875,7 +875,7 @@
                                     <p class="mt-1 text-sm text-blue-700">As a global administrator, you can configure SharePoint integration system-wide and manage branch-level access. Use the SharePoint System Configuration section below to manage all branches.</p>
                                     
                                     <div class="mt-3">
-                                        <a href="#sharepoint_system" onclick="toggleSection('sharepoint_system')" class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-blue-700 bg-blue-100 hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                                        <a href="#sharepoint_system" @click.prevent="toggleSection('sharepoint_system')" class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-blue-700 bg-blue-100 hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 cursor-pointer">
                                             <i class="fas fa-cog mr-2"></i>
                                             Configure SharePoint System-Wide
                                         </a>
