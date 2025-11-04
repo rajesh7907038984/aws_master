@@ -1529,7 +1529,8 @@
                                             {% if type in 'Text,Audio,Video,Web,Document,EmbedVideo'|split:',' %}
                                             <div class="content-type-option">
                                                 <input type="radio" id="type_{{ type }}" name="content_type" value="{{ type }}"
-                                                       {% if topic.content_type == type or not topic and forloop.first %}checked{% endif %}>
+                                                       {% if topic.content_type == type or not topic and forloop.first %}checked{% endif %}
+                                                       {% if topic.id %}disabled{% endif %}>
                                                 <label for="type_{{ type }}">
                                                     {% if type == 'Text' %}<i class="fas fa-font"></i>
                                                     {% elif type == 'Audio' %}<i class="fas fa-volume-up"></i>
@@ -1555,7 +1556,8 @@
                                                 {# Quiz topics are now unlimited per course - no restriction notice needed #}
                                                 {# Assignment topics are now unlimited per course - no restriction notice needed #}
                                                 <input type="radio" id="type_{{ type }}" name="content_type" value="{{ type }}"
-                                                       {% if topic.content_type == type %}checked{% endif %}>
+                                                       {% if topic.content_type == type %}checked{% endif %}
+                                                       {% if topic.id %}disabled{% endif %}>
                                                 <label for="type_{{ type }}">
                                                     {% if type == 'Quiz' %}<i class="fas fa-question-circle"></i>
                                                     {% elif type == 'Assignment' %}<i class="fas fa-tasks"></i>
@@ -1569,7 +1571,8 @@
                                             {% if type == 'SCORM' and ENABLE_SCORM_FEATURES %}
                                             <div class="content-type-option">
                                                 <input type="radio" id="type_{{ type }}" name="content_type" value="{{ type }}"
-                                                       {% if topic.content_type == type %}checked{% endif %}>
+                                                       {% if topic.content_type == type %}checked{% endif %}
+                                                       {% if topic.id %}disabled{% endif %}>
                                                 <label for="type_{{ type }}">
                                                     <i class="fas fa-graduation-cap"></i>
                                                     {{ label }}
@@ -1873,7 +1876,7 @@
                                         <ul class="mt-1 list-disc list-inside space-y-1">
                                             <li>Upload a ZIP file containing SCORM 1.2 or SCORM 2004 package</li>
                                             <li>Maximum file size: 600MB</li>
-                                            <li>Packages from Articulate, Captivate, iSpring, Lectora, etc. are supported</li>
+                                
                                             <li>Package will be processed in the background after upload</li>
                                         </ul>
                                     </div>
