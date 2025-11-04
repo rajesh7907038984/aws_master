@@ -511,11 +511,13 @@ def assignment_list(request):
 def assignment_detail(request, assignment_id):
     """View to display assignment details"""
     assignment = get_object_or_404(
-        Assignment.objects.select_related('rubric', 'course').prefetch_related(
+        Assignment.objects.select_related('rubric').prefetch_related(
             'rubric__criteria__ratings',
             'text_fields',
             'text_fields__answers__submission__user',
-            'attachments'
+            'attachments',
+            'courses',
+            'assignmentcourse_set__course'
         ), 
         id=assignment_id
     )
@@ -699,8 +701,7 @@ def assignment_detail(request, assignment_id):
             assignment=assignment
         ).select_related(
             'user__branch', 
-            'graded_by',
-            'assignment__course'
+            'graded_by'
         ).prefetch_related(
             'grade_history__changed_by',
             'feedback_entries__created_by',
@@ -708,7 +709,9 @@ def assignment_detail(request, assignment_id):
             'rubric_evaluations__rating',
             'text_answer_iterations__question',
             'field_answer_iterations__field',
-            'assignment__rubric__criteria__ratings'
+            'assignment__rubric__criteria__ratings',
+            'assignment__courses',
+            'assignment__assignmentcourse_set__course'
         ).order_by('-submitted_at')
         
         # Enhanced submission data for the table
