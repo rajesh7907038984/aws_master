@@ -510,6 +510,9 @@ USE_TZ = True
 # Primary domain for the application
 PRIMARY_DOMAIN = get_env('PRIMARY_DOMAIN', 'localhost:8000')
 
+# Normalize domain: strip trailing dots to prevent URL issues
+PRIMARY_DOMAIN = PRIMARY_DOMAIN.rstrip('.') if PRIMARY_DOMAIN else 'localhost:8000'
+
 # Base URL for the application (used for email links, etc.)
 # Auto-constructs HTTPS URL if not explicitly provided
 BASE_URL = get_env('BASE_URL', f'http{"s" if ENVIRONMENT == "production" else ""}://{PRIMARY_DOMAIN}')

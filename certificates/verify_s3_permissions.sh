@@ -174,7 +174,7 @@ echo "Next Steps:"
 echo "========================================"
 echo "1. If HeadObject permission is denied, update IAM role/user permissions"
 echo "2. The code-level fixes provide graceful degradation"
-echo "3. Test by accessing: http://vle.nexsy.io./certificates/templates/1/update/"
+echo "3. Test by accessing: http://vle.nexsy.io/certificates/templates/1/update/"
 echo "4. Monitor logs: tail -f /home/ec2-user/lmslogs/production.log"
 echo ""
 
