@@ -428,8 +428,12 @@ def get_topic_progress(topic, user):
     """Get topic progress for a user"""
     if not user or not user.is_authenticated:
         return None
-        
-    progress = TopicProgress.objects.filter(topic=topic, user=user).first()
+    
+    # Prefer completed progress first, then progress with course context, then any progress
+    progress = TopicProgress.objects.filter(topic=topic, user=user).order_by(
+        '-completed',  # Completed progress first
+        '-course__id'  # Progress with course context preferred
+    ).first()
     
     # Initialize progress if it doesn't exist - ONLY for learners
     # Instructors, admins, etc. should not have progress auto-created
@@ -450,6 +454,27 @@ def get_topic_progress(topic, user):
     # the database in template filters as it's inefficient and against best practices.
     
     return progress
+
+@register.filter
+def has_completed_quiz_attempt(topic, user):
+    """Check if user has completed a quiz attempt for this topic (especially for initial assessments)"""
+    if not user or not user.is_authenticated:
+        return False
+    
+    if topic.content_type != 'Quiz' or not topic.quiz:
+        return False
+    
+    try:
+        # Check if there's a completed quiz attempt
+        completed_attempt = QuizAttempt.objects.filter(
+            quiz=topic.quiz,
+            user=user,
+            is_completed=True
+        ).exists()
+        return completed_attempt
+    except Exception as e:
+        logger.error(f"Error checking quiz attempt completion: {str(e)}")
+        return False
 
 @register.filter
 def subtract(value, arg):

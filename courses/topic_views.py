@@ -4,6 +4,7 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.urls import reverse
+from django.db.models import Q
 
 from .models import Topic, Course, Section
 from .views import get_topic_course
@@ -153,9 +154,13 @@ def topic_view(request, topic_id):
         
         if request.user.is_authenticated and request.user.role == 'learner':
             # Get all progress for this user and course
+            # Include both progress with course context and without (for backward compatibility)
             progress_data = TopicProgress.objects.filter(
                 user=request.user,
-                topic__in=all_course_topics,
+                topic__in=all_course_topics
+            ).filter(
+                Q(course=course) | Q(course__isnull=True)
+            ).filter(
                 completed=True
             )
             
@@ -163,7 +168,37 @@ def topic_view(request, topic_id):
             for progress in progress_data:
                 all_progress[progress.topic.id] = progress
             
-            completed_topics_count = progress_data.count()
+            # Also check for completed quiz attempts (especially for initial assessments)
+            # that might not have TopicProgress marked as completed yet
+            completed_quiz_topics = set()
+            try:
+                from quiz.models import QuizAttempt
+                quiz_topics = all_course_topics.filter(content_type='Quiz', quiz__isnull=False)
+                for topic in quiz_topics:
+                    if topic.id not in all_progress:
+                        # Check if there's a completed quiz attempt
+                        completed_attempt = QuizAttempt.objects.filter(
+                            quiz=topic.quiz,
+                            user=request.user,
+                            is_completed=True
+                        ).exists()
+                        if completed_attempt:
+                            completed_quiz_topics.add(topic.id)
+                            # Try to get progress for consistency
+                            topic_progress = TopicProgress.objects.filter(
+                                user=request.user,
+                                topic=topic,
+                                course=course
+                            ).first()
+                            if topic_progress:
+                                all_progress[topic.id] = topic_progress
+            except ImportError:
+                pass
+            except Exception as e:
+                logger.error(f"Error checking quiz attempts for progress: {str(e)}")
+            
+            # Count completed topics: from progress data + completed quiz attempts
+            completed_topics_count = len(all_progress) + len(completed_quiz_topics - set(all_progress.keys()))
         
         # Find previous and next topics for navigation
         # Build a section-aware ordered list: section topics first (by section order), then standalone topics
@@ -202,6 +237,24 @@ def topic_view(request, topic_id):
             can_access_interactive_content = False
             access_warning = "Your account type does not have access to interactive content."
         
+        # Check if quiz is an initial assessment and if user has completed it
+        has_completed_initial_assessment = False
+        if topic.content_type == 'Quiz' and topic.quiz and request.user.is_authenticated:
+            try:
+                from quiz.models import QuizAttempt
+                if topic.quiz.is_initial_assessment:
+                    # Check if user has a completed attempt for this initial assessment
+                    completed_attempt = QuizAttempt.objects.filter(
+                        quiz=topic.quiz,
+                        user=request.user,
+                        is_completed=True
+                    ).order_by('-end_time').first()
+                    has_completed_initial_assessment = completed_attempt is not None
+            except ImportError:
+                logger.warning("QuizAttempt model not found")
+            except Exception as e:
+                logger.error(f"Error checking initial assessment completion: {str(e)}")
+        
         context = {
             'topic': topic,
             'course': course,
@@ -221,7 +274,8 @@ def topic_view(request, topic_id):
             'total_topics_count': total_topics_count,
             'completed_topics_count': completed_topics_count,
             'can_access_interactive_content': can_access_interactive_content,
-            'access_warning': access_warning
+            'access_warning': access_warning,
+            'has_completed_initial_assessment': has_completed_initial_assessment
         }
         
         

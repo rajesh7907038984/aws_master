@@ -494,7 +494,18 @@
                                 </div>
                             {% endif %}
                         </div>
-                        {% if not can_access_interactive_content %}
+                        {% if topic.quiz.is_initial_assessment and has_completed_initial_assessment %}
+                            <!-- Initial Assessment Completed - Show Green Tick -->
+                            <div class="w-full max-w-md">
+                                <div class="inline-flex items-center gap-3 bg-green-50 border-2 border-green-500 text-green-700 px-8 py-4 rounded-lg shadow-md mb-4">
+                                    <i class="fas fa-check-circle text-3xl"></i>
+                                    <div class="text-left">
+                                        <div class="font-bold text-lg">Completed</div>
+                                        <div class="text-sm text-green-600">Initial Assessment Submitted</div>
+                                    </div>
+                                </div>
+                            </div>
+                        {% elif not can_access_interactive_content %}
                             <!-- Warning for non-learner users -->
                             <div class="w-full max-w-md mb-6">
                                 <div class="p-4 bg-yellow-100 border border-yellow-400 text-yellow-800 rounded-lg">
@@ -790,7 +801,7 @@
                                             <div class="mr-3">
                                                 {% with progress=topic_item|get_topic_progress:user %}
                                                 {% if progress %}
-                                                    {% if progress.completed or progress.progress_data.scorm_completion_status and progress.progress_data.scorm_completion_status|lower == 'completed' or progress.progress_data.scorm_completion_status and progress.progress_data.scorm_completion_status|lower == 'passed' or progress.progress_data.scorm_success_status and progress.progress_data.scorm_success_status|lower == 'passed' %}
+                                                    {% if progress.completed or progress.progress_data.scorm_completion_status and progress.progress_data.scorm_completion_status|lower == 'completed' or progress.progress_data.scorm_completion_status and progress.progress_data.scorm_completion_status|lower == 'passed' or progress.progress_data.scorm_success_status and progress.progress_data.scorm_success_status|lower == 'passed' or topic_item|has_completed_quiz_attempt:user %}
                                                     <div class="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center text-white">
                                                         <svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
@@ -800,7 +811,15 @@
                                                     <div class="w-5 h-5 rounded-full border-2 border-gray-300"></div>
                                                     {% endif %}
                                                 {% else %}
+                                                    {% if topic_item|has_completed_quiz_attempt:user %}
+                                                    <div class="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center text-white">
+                                                        <svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                                        </svg>
+                                                    </div>
+                                                    {% else %}
                                                     <div class="w-5 h-5 rounded-full border-2 border-gray-300"></div>
+                                                    {% endif %}
                                                 {% endif %}
                                                 {% endwith %}
                                             </div>
@@ -831,7 +850,7 @@
                                             <div class="mr-3">
                                                 {% with progress=topic_item|get_topic_progress:user %}
                                                 {% if progress %}
-                                                    {% if progress.completed or progress.progress_data.scorm_completion_status and progress.progress_data.scorm_completion_status|lower == 'completed' or progress.progress_data.scorm_completion_status and progress.progress_data.scorm_completion_status|lower == 'passed' or progress.progress_data.scorm_success_status and progress.progress_data.scorm_success_status|lower == 'passed' %}
+                                                    {% if progress.completed or progress.progress_data.scorm_completion_status and progress.progress_data.scorm_completion_status|lower == 'completed' or progress.progress_data.scorm_completion_status and progress.progress_data.scorm_completion_status|lower == 'passed' or progress.progress_data.scorm_success_status and progress.progress_data.scorm_success_status|lower == 'passed' or topic_item|has_completed_quiz_attempt:user %}
                                                     <div class="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center text-white">
                                                         <svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
@@ -841,7 +860,15 @@
                                                     <div class="w-5 h-5 rounded-full border-2 border-gray-300"></div>
                                                     {% endif %}
                                                 {% else %}
+                                                    {% if topic_item|has_completed_quiz_attempt:user %}
+                                                    <div class="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center text-white">
+                                                        <svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                                        </svg>
+                                                    </div>
+                                                    {% else %}
                                                     <div class="w-5 h-5 rounded-full border-2 border-gray-300"></div>
+                                                    {% endif %}
                                                 {% endif %}
                                                 {% endwith %}
                                             </div>
