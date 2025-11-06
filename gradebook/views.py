@@ -1235,9 +1235,31 @@ def course_gradebook_detail(request, course_id):
         user__in=all_students,
         quiz__in=quizzes,
         is_completed=True
-    ).select_related('quiz', 'user', 'quiz__rubric').order_by('-end_time')
+    ).select_related('quiz', 'user', 'quiz__rubric').prefetch_related(
+        'quiz__questions',  # Prefetch questions for initial assessment classification
+        'user_answers__question'  # Prefetch user answers with their questions for classification
+    ).order_by('-end_time')
 
-    # Initial assessment attempts are now included in the main quiz_attempts query above
+    # BUGFIX: Also query Initial Assessment attempts separately to ensure they're included
+    # Initial Assessments are branch-wide and attempts might not be found in the main query
+    initial_assessment_attempts = None
+    if course.branch:
+        initial_assessment_quizzes = Quiz.objects.filter(
+            is_initial_assessment=True,
+            is_active=True,
+            creator__branch=course.branch,
+            creator__role__in=['admin', 'instructor']
+        )
+        
+        if initial_assessment_quizzes.exists():
+            initial_assessment_attempts = QuizAttempt.objects.filter(
+                user__in=all_students,
+                quiz__in=initial_assessment_quizzes,
+                is_completed=True
+            ).select_related('quiz', 'user', 'quiz__rubric').prefetch_related(
+                'quiz__questions',
+                'user_answers__question'
+            ).order_by('-end_time')
     
     
     # Calculate total possible activity instances (students × activities)
@@ -1448,10 +1470,13 @@ def course_gradebook_detail(request, course_id):
             'quiz__rubric',
             'user'
         ).prefetch_related(
-            'quiz__topics__courses'
-            # 'useranswer_set__question',  # Commented out - invalid prefetch_related parameter
-            # 'useranswer_set__answer'  # Commented out - invalid prefetch_related parameter
+            'quiz__topics__courses',
+            'quiz__questions',  # Prefetch questions for initial assessment classification
+            'user_answers__question'  # Prefetch user answers with their questions for classification
         ).order_by('-end_time')
+        
+        # NOTE: initial_assessment_attempts is already defined earlier (line 1245)
+        # Don't redefine it here to avoid overwriting the first query
         
         
         # Get conference rubric evaluations for this course with optimized queries
@@ -1465,6 +1490,8 @@ def course_gradebook_detail(request, course_id):
         # Initialize empty lists/querysets as fallback
         grades = []
         quiz_attempts = QuizAttempt.objects.none()
+        # Don't reset initial_assessment_attempts - it's already defined earlier (line 1245)
+        # and should be preserved even if this try block fails
         conference_evaluations = ConferenceRubricEvaluation.objects.none()
     
     # Define breadcrumbs for this view
@@ -1487,10 +1514,10 @@ def course_gradebook_detail(request, course_id):
         
         if student_scores is None:
             # Not in cache, calculate and cache for ALL students (not just paginated)
-            # Note: initial_assessment_attempts are included in quiz_attempts now
+            # Pass initial_assessment_attempts separately to ensure they're included
             student_scores = pre_calculate_student_scores(
                 all_students, activities, grades, quiz_attempts, 
-                None, conference_evaluations, None
+                None, conference_evaluations, initial_assessment_attempts
             )
             # Cache for 5 minutes (reduced for more frequent updates)
             cache.set(cache_key, student_scores, timeout=300)
@@ -2690,7 +2717,10 @@ def export_gradebook_csv(request, course_id):
             user__in=students,
             quiz__in=quizzes,
             is_completed=True
-        ).select_related('quiz', 'user', 'quiz__rubric').order_by('-end_time')
+        ).select_related('quiz', 'user', 'quiz__rubric').prefetch_related(
+            'quiz__questions',  # Prefetch questions for initial assessment classification
+            'user_answers__question'  # Prefetch user answers with their questions for classification
+        ).order_by('-end_time')
         
         
         # Write data rows

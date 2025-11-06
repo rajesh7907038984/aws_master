@@ -3686,6 +3686,9 @@ def user_detail_report(request, user_id):
                 quiz=quiz,
                 user=user,
                 is_completed=True
+            ).select_related('quiz', 'user').prefetch_related(
+                'quiz__questions',  # Prefetch questions for initial assessment classification
+                'user_answers__question'  # Prefetch user answers with their questions for classification
             ).order_by('-end_time').first()
             
             if latest_attempt:
@@ -4116,6 +4119,9 @@ def _get_user_report_data(request, user_id):
                 quiz=quiz,
                 user=user,
                 is_completed=True
+            ).select_related('quiz', 'user').prefetch_related(
+                'quiz__questions',  # Prefetch questions for initial assessment classification
+                'user_answers__question'  # Prefetch user answers with their questions for classification
             ).order_by('-end_time').first()
             
             if latest_attempt:

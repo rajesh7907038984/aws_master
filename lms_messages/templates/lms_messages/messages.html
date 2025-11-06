@@ -673,6 +673,10 @@
             $('.message-tab').removeClass('active');
             $(this).addClass('active');
             
+            // Reset filters to "All" when switching tabs
+            $('.filter-btn').removeClass('active');
+            $('.filter-btn[data-filter="all"]').addClass('active');
+            
             // Filter messages based on tab
             if ($(this).text().trim() === 'Inbox') {
                 $('.message-card[data-is-sent="false"]').show();
@@ -697,26 +701,50 @@
             $(this).addClass('active');
             
             const filter = $(this).data('filter');
+            const activeTab = $('.message-tab.active').text().trim();
             
             $('.message-card').hide();
             
             if (filter === 'all') {
                 // Show all messages but respect the current tab
-                if ($('.message-tab.active').text().trim() === 'Inbox') {
+                if (activeTab === 'Inbox') {
                     $('.message-card[data-is-sent="false"]').show();
                 } else {
                     $('.message-card[data-is-sent="true"]').show();
                 }
             } else if (filter === 'unread') {
-                $('.message-card.unread').show();
+                // Show unread messages respecting the current tab
+                if (activeTab === 'Inbox') {
+                    $('.message-card.unread[data-is-sent="false"]').show();
+                } else {
+                    $('.message-card.unread[data-is-sent="true"]').show();
+                }
             } else if (filter === 'sent') {
+                // This filter overrides tab - show all sent messages
                 $('.message-card[data-is-sent="true"]').show();
+                // Also switch to Sent tab
+                $('.message-tab').removeClass('active');
+                $('.message-tab:contains("Sent")').addClass('active');
             } else if (filter === 'received') {
+                // This filter overrides tab - show all received messages
                 $('.message-card[data-is-sent="false"]').show();
+                // Also switch to Inbox tab
+                $('.message-tab').removeClass('active');
+                $('.message-tab:contains("Inbox")').addClass('active');
             } else if (filter === 'group') {
-                $('.message-card[data-is-group="true"]').show();
+                // Show group messages respecting the current tab
+                if (activeTab === 'Inbox') {
+                    $('.message-card[data-is-group="true"][data-is-sent="false"]').show();
+                } else {
+                    $('.message-card[data-is-group="true"][data-is-sent="true"]').show();
+                }
             } else if (filter === 'course') {
-                $('.message-card[data-is-course="true"]').show();
+                // Show course messages respecting the current tab
+                if (activeTab === 'Inbox') {
+                    $('.message-card[data-is-course="true"][data-is-sent="false"]').show();
+                } else {
+                    $('.message-card[data-is-course="true"][data-is-sent="true"]').show();
+                }
             }
         });
         

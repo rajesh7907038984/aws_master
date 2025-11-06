@@ -1755,11 +1755,6 @@
                               VIEW DETAILS
                             </a>
                           {% endif %}
-                          {% if user.role != 'learner' %}
-                            <a href="{% url 'users:edit_user' student.id %}#ilp-tab-assessment" class="view-btn assignment-view-btn mt-1" style="font-size: 0.65rem;" title="View in student profile">
-                              PROFILE
-                            </a>
-                          {% endif %}
                         {% else %}
                           <span class="grade-score grade-none">Not Taken</span>
                           {% if user.role == 'learner' %}
