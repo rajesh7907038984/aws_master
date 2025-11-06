@@ -1377,13 +1377,25 @@ def save_quiz_progress(request, attempt_id):
         saved_count = process_quiz_answers(request, attempt)
         logger.info(f"Saved {saved_count} answers for progress save, attempt {attempt_id}")
         
+        # Get and save active time if provided (from periodic updates)
+        active_time_seconds = request.POST.get('active_time_seconds')
+        if active_time_seconds:
+            try:
+                active_time = int(active_time_seconds)
+                if active_time > 0 and active_time > attempt.active_time_seconds:
+                    attempt.active_time_seconds = active_time
+                    logger.debug(f"Updated active_time_seconds to {active_time} during progress save, attempt {attempt_id}")
+            except (ValueError, TypeError):
+                pass  # Ignore invalid values during progress save
+        
         # Update last activity
         attempt.update_last_activity()
         
         return JsonResponse({
             'status': 'success', 
             'message': 'Progress saved successfully',
-            'saved_count': saved_count
+            'saved_count': saved_count,
+            'active_time_seconds': attempt.active_time_seconds
         })
         
     except Exception as e:
@@ -1415,6 +1427,22 @@ def submit_quiz(request, attempt_id):
         saved_count = process_quiz_answers(request, attempt)
         logger.info(f"Saved {saved_count} answers for attempt {attempt_id}")
         
+        # Get and save active time from form submission
+        active_time_seconds = request.POST.get('active_time_seconds')
+        if active_time_seconds:
+            try:
+                active_time = int(active_time_seconds)
+                if active_time > 0:
+                    # Update active time - ensure we don't lose any time
+                    # If the form value is greater than current, use it (includes current session)
+                    if active_time > attempt.active_time_seconds:
+                        attempt.active_time_seconds = active_time
+                        logger.info(f"Updated active_time_seconds to {active_time} for attempt {attempt_id}")
+                    # Also ensure page is unfocused when submitting
+                    attempt.set_page_focus(is_focused=False)
+            except (ValueError, TypeError):
+                logger.warning(f"Invalid active_time_seconds value: {active_time_seconds}")
+        
         # Mark the attempt as completed
         attempt.is_completed = True
         attempt.end_time = timezone.now()
@@ -1433,11 +1461,19 @@ def submit_quiz(request, attempt_id):
         
         attempt.save()
         
+        # Ensure time is synced to TopicProgress (safety check in case signal was missed)
+        if hasattr(attempt, 'sync_time_to_topic_progress'):
+            try:
+                attempt.sync_time_to_topic_progress()
+                logger.info(f"Ensured time sync for attempt {attempt_id} after submission")
+            except Exception as e:
+                logger.warning(f"Failed to sync time for attempt {attempt_id} after submission: {e}")
+        
         # Log the final attempt details
         user_answers_count = attempt.user_answers.count()
         logger.info(f"Quiz submission completed for attempt {attempt_id}: "
                    f"Score: {attempt.score}%, User answers: {user_answers_count}, "
-                   f"Total questions: {total_questions}")
+                   f"Total questions: {total_questions}, Active time: {attempt.active_time_seconds}s")
         
         messages.success(request, f"Quiz submitted successfully! Your score: {attempt.score:.1f}%")
         return redirect('quiz:view_attempt', attempt_id=attempt.id)
@@ -2005,6 +2041,48 @@ def get_remaining_time(request, attempt_id):
     except Exception as e:
         logger.error(f"Error getting remaining time for attempt {attempt_id}: {str(e)}")
         return JsonResponse({'remaining_time': None, 'error': str(e)})
+
+@login_required
+@require_POST
+def update_active_time(request, attempt_id):
+    """Update active time for a quiz attempt"""
+    try:
+        attempt = get_object_or_404(QuizAttempt, id=attempt_id, user=request.user)
+        
+        # Check if attempt is completed
+        if attempt.is_completed:
+            return JsonResponse({'success': False, 'error': 'Quiz already completed'})
+        
+        # Get additional seconds from request
+        data = json.loads(request.body) if request.body else {}
+        additional_seconds = data.get('additional_seconds', 0)
+        is_focused = data.get('is_focused', True)
+        
+        # Update active time
+        if is_focused:
+            # Set page focus
+            attempt.set_page_focus(is_focused=True)
+        else:
+            # Unfocus - calculate time since last focus
+            attempt.set_page_focus(is_focused=False)
+        
+        # If additional seconds provided, add them
+        if additional_seconds > 0:
+            attempt.update_active_time(additional_seconds=additional_seconds)
+        
+        # Get current active time (including current session)
+        current_active_time = attempt.total_active_time_with_current_session
+        
+        return JsonResponse({
+            'success': True,
+            'active_time_seconds': attempt.active_time_seconds,
+            'total_active_time_seconds': current_active_time,
+            'is_currently_active': attempt.is_currently_active
+        })
+        
+    except Exception as e:
+        logger.error(f"Error updating active time for attempt {attempt_id}: {str(e)}")
+        return JsonResponse({'success': False, 'error': str(e)})
 
 @login_required
 def get_answer_texts(request, question_id):

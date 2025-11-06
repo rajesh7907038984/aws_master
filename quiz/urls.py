@@ -32,6 +32,7 @@ urlpatterns = [
     path('attempt/<int:attempt_id>/view/', views.view_attempt, name='view_attempt'),
     # Active time tracking endpoints
     path('attempt/<int:attempt_id>/remaining-time/', views.get_remaining_time, name='get_remaining_time'),
+    path('attempt/<int:attempt_id>/update-active-time/', views.update_active_time, name='update_active_time'),
     path('api/get_answer_texts/<int:question_id>/', views.get_answer_texts, name='get_answer_texts'),
     # Debug endpoint
     path('debug-answers/<int:attempt_id>/', views.debug_user_answer, name='debug_user_answer'),

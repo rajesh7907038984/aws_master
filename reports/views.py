@@ -1,5 +1,5 @@
 from django.contrib.auth import get_user_model
-from django.db.models import Count, Q, Prefetch, F, ExpressionWrapper, FloatField, Sum, Avg, fields, Case, When, Value, IntegerField, Subquery, OuterRef
+from django.db.models import Count, Q, Prefetch, F, ExpressionWrapper, FloatField, Sum, Avg, Max, fields, Case, When, Value, IntegerField, Subquery, OuterRef
 from django.urls import reverse
 from django.db.models.functions import TruncDate, Cast, ExtractMonth, ExtractYear
 from django.utils import timezone
@@ -3605,17 +3605,31 @@ def user_detail_report(request, user_id):
     # Get topic progress only for courses the user is enrolled in
     # Include course information for each topic
     enrolled_course_ids = CourseEnrollment.objects.filter(user=user).values_list('course_id', flat=True)
+    # Filter by course field directly to avoid duplicates from many-to-many join
+    # Also handle legacy records where course might be null
+    # Get the latest progress ID for each topic to avoid duplicates
+    latest_progress_ids = TopicProgress.objects.filter(
+        user=user
+    ).filter(
+        Q(course__in=enrolled_course_ids) |
+        Q(course__isnull=True, topic__coursetopic__course__in=enrolled_course_ids)
+    ).values('topic_id').annotate(
+        latest_id=Max('id')
+    ).values_list('latest_id', flat=True)
+    
     topic_progress = TopicProgress.objects.filter(
-        user=user,
-        topic__courses__in=enrolled_course_ids
-    ).select_related('topic').annotate(
-        course_title=Subquery(
-            CourseTopic.objects.filter(
-                topic=OuterRef('topic'),
-                course__in=enrolled_course_ids
-            ).values('course__title')[:1]
+        id__in=latest_progress_ids
+    ).select_related('topic', 'course').annotate(
+        course_title=Case(
+            When(course__isnull=False, then=F('course__title')),
+            default=Subquery(
+                CourseTopic.objects.filter(
+                    topic=OuterRef('topic'),
+                    course__in=enrolled_course_ids
+                ).values('course__title')[:1]
+            )
         )
-    ).distinct().order_by('-last_accessed')
+    ).order_by('-last_accessed')
     
     
     # Calculate learning activities statistics with improved logic
@@ -4045,17 +4059,31 @@ def _get_user_report_data(request, user_id):
     
     # Get topic progress only for courses the user is enrolled in
     enrolled_course_ids = CourseEnrollment.objects.filter(user=user).values_list('course_id', flat=True)
+    # Filter by course field directly to avoid duplicates from many-to-many join
+    # Also handle legacy records where course might be null
+    # Get the latest progress ID for each topic to avoid duplicates
+    latest_progress_ids = TopicProgress.objects.filter(
+        user=user
+    ).filter(
+        Q(course__in=enrolled_course_ids) |
+        Q(course__isnull=True, topic__coursetopic__course__in=enrolled_course_ids)
+    ).values('topic_id').annotate(
+        latest_id=Max('id')
+    ).values_list('latest_id', flat=True)
+    
     topic_progress = TopicProgress.objects.filter(
-        user=user,
-        topic__courses__in=enrolled_course_ids
-    ).select_related('topic').annotate(
-        course_title=Subquery(
-            CourseTopic.objects.filter(
-                topic=OuterRef('topic'),
-                course__in=enrolled_course_ids
-            ).values('course__title')[:1]
+        id__in=latest_progress_ids
+    ).select_related('topic', 'course', 'topic__quiz').annotate(
+        course_title=Case(
+            When(course__isnull=False, then=F('course__title')),
+            default=Subquery(
+                CourseTopic.objects.filter(
+                    topic=OuterRef('topic'),
+                    course__in=enrolled_course_ids
+                ).values('course__title')[:1]
+            )
         )
-    ).distinct().order_by('-last_accessed')
+    ).order_by('-last_accessed')
     
     # Calculate learning activities statistics
     total_activities = topic_progress.count()
@@ -4394,6 +4422,54 @@ def my_report_courses(request):
     data = _get_user_report_data(request, request.user.id)
     if data is None:
         return redirect('users:dashboard')
+    
+    # Note: Initial Assessments are now included in time spent calculation
+    # Previously excluded, but now included per user request
+    
+    # Recalculate course-level statistics for each enrollment (including Initial Assessments)
+    user_courses = data.get('user_courses', [])
+    for enrollment in user_courses:
+        # Get topic progress for this course (including Initial Assessments)
+        course_topic_progress = TopicProgress.objects.filter(
+            user=request.user,
+            course=enrollment.course
+        )
+        
+        # Fallback: include legacy records without course field
+        if not course_topic_progress.exists():
+            course_topic_progress = TopicProgress.objects.filter(
+                user=request.user,
+                topic__coursetopic__course=enrollment.course,
+                course__isnull=True
+            )
+        
+        # Recalculate average score from completed topics (including Initial Assessments)
+        completed_topic_progress = course_topic_progress.filter(
+            completed=True,
+            last_score__isnull=False
+        )
+        if completed_topic_progress.exists():
+            enrollment.calculated_score = round(completed_topic_progress.aggregate(
+                avg_score=Avg('last_score')
+            )['avg_score'] or 0)
+        else:
+            enrollment.calculated_score = None
+        
+        # Recalculate total time spent on course (sum of all topic time, including Initial Assessments)
+        course_stats = course_topic_progress.aggregate(
+            total_time=Sum('total_time_spent', default=0),
+            total_attempts=Sum('attempts', default=0)
+        )
+        
+        enrollment.course_time_spent = course_stats['total_time'] or 0
+        enrollment.course_attempts = course_stats['total_attempts'] or 0
+        
+        # Format time spent for display
+        total_seconds = enrollment.course_time_spent
+        hours = total_seconds // 3600
+        minutes = (total_seconds % 3600) // 60
+        seconds = total_seconds % 60
+        enrollment.formatted_time_spent = f"{hours}h {minutes}m {seconds}s"
         
     # Add navigation context for my reports
     data.update({
@@ -4413,6 +4489,49 @@ def my_report_activities(request):
     data = _get_user_report_data(request, request.user.id)
     if data is None:
         return redirect('users:dashboard')
+    
+    # Filter out Initial Assessments related topics from topic_progress
+    # Exclude topics where the quiz is an initial assessment
+    if 'topic_progress' in data:
+        data['topic_progress'] = data['topic_progress'].exclude(
+            Q(topic__quiz__is_initial_assessment=True)
+        )
+        
+        # Recalculate learning activities statistics excluding Initial Assessments
+        topic_progress = data['topic_progress']
+        data['total_activities'] = topic_progress.count()
+        data['completed_activities'] = topic_progress.filter(completed=True).count()
+        data['activities_in_progress'] = topic_progress.filter(
+            completed=False
+        ).filter(
+            Q(first_accessed__isnull=False) | Q(total_time_spent__gt=0) | Q(last_score__gt=0)
+        ).count()
+        data['activities_not_started'] = topic_progress.filter(
+            completed=False,
+            first_accessed__isnull=True,
+            total_time_spent=0,
+            last_score__isnull=True
+        ).count()
+        
+        # Recalculate average activity score excluding Initial Assessments
+        from core.utils.scoring import ScoreCalculationService
+        
+        scored_progress = topic_progress.filter(last_score__isnull=False, last_score__gte=0)
+        scored_activities_count = scored_progress.count()
+        
+        if scored_activities_count > 0:
+            # Calculate properly normalized scores
+            normalized_scores = []
+            for progress in scored_progress:
+                normalized_score = ScoreCalculationService.normalize_score(progress.last_score)
+                if normalized_score is not None:
+                    normalized_scores.append(float(normalized_score))
+            
+            data['avg_activity_score'] = round(sum(normalized_scores) / len(normalized_scores)) if normalized_scores else 0
+            data['scored_activities_count'] = scored_activities_count
+        else:
+            data['avg_activity_score'] = 0
+            data['scored_activities_count'] = 0
         
     # Add navigation context for my reports
     data.update({

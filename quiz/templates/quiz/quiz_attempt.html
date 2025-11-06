@@ -1103,6 +1103,210 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize progress tracking
     trackAnsweredQuestions();
     
+    // ===== Active Time Tracking =====
+    let activeTimeTracking = {
+        startTime: Date.now(),
+        lastUpdateTime: Date.now(),
+        isPageFocused: !document.hidden,
+        updateInterval: null,
+        pingInterval: null,
+        attemptId: {{ attempt.id }},
+        totalActiveSeconds: {{ attempt.active_time_seconds|default:0 }},
+        
+        init: function() {
+            // Set initial focus state
+            this.updateFocusState(this.isPageFocused);
+            
+            // Track page visibility changes
+            document.addEventListener('visibilitychange', () => {
+                this.isPageFocused = !document.hidden;
+                this.updateFocusState(this.isPageFocused);
+            });
+            
+            // Track window focus/blur
+            window.addEventListener('focus', () => {
+                this.isPageFocused = true;
+                this.updateFocusState(true);
+            });
+            
+            window.addEventListener('blur', () => {
+                this.isPageFocused = false;
+                this.updateFocusState(false);
+            });
+            
+            // Update active time every 30 seconds
+            this.updateInterval = setInterval(() => {
+                this.sendActiveTimeUpdate();
+            }, 30000); // 30 seconds
+            
+            // Ping server every 60 seconds to keep session alive
+            this.pingInterval = setInterval(() => {
+                this.pingServer();
+            }, 60000); // 60 seconds
+            
+            // Update display every second
+            setInterval(() => {
+                this.updateDisplay();
+            }, 1000);
+            
+            // Send initial update
+            this.sendActiveTimeUpdate();
+            
+            // Send final update on page unload
+            window.addEventListener('beforeunload', () => {
+                this.sendActiveTimeUpdate(true); // Final update
+            });
+        },
+        
+        updateFocusState: function(isFocused) {
+            const url = `/quiz/attempt/${this.attemptId}/update-active-time/`;
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+            
+            fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken,
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify({
+                    is_focused: isFocused,
+                    additional_seconds: 0
+                }),
+                credentials: 'same-origin'
+            }).catch(error => {
+                console.warn('Failed to update focus state:', error);
+            });
+        },
+        
+        sendActiveTimeUpdate: function(isFinal = false) {
+            if (isSubmitting && !isFinal) return;
+            
+            const now = Date.now();
+            const elapsedSeconds = Math.floor((now - this.lastUpdateTime) / 1000);
+            
+            // Only count time when page is focused
+            if (this.isPageFocused && elapsedSeconds > 0 && elapsedSeconds < 300) { // Max 5 minutes per update
+                const url = `/quiz/attempt/${this.attemptId}/update-active-time/`;
+                const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+                
+                fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken,
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: JSON.stringify({
+                        is_focused: this.isPageFocused,
+                        additional_seconds: elapsedSeconds
+                    }),
+                    credentials: 'same-origin'
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        this.totalActiveSeconds = data.active_time_seconds || this.totalActiveSeconds;
+                        this.lastUpdateTime = now;
+                        this.updateDisplay();
+                    }
+                })
+                .catch(error => {
+                    console.warn('Failed to update active time:', error);
+                });
+            } else {
+                this.lastUpdateTime = now;
+            }
+        },
+        
+        pingServer: function() {
+            // Just update focus state to keep session alive
+            this.updateFocusState(this.isPageFocused);
+        },
+        
+        updateDisplay: function() {
+            const displayEl = document.getElementById('active-time-display');
+            if (!displayEl) return;
+            
+            // Calculate current session time if focused
+            let currentSessionTime = 0;
+            if (this.isPageFocused) {
+                const now = Date.now();
+                const elapsedSinceLastUpdate = Math.floor((now - this.lastUpdateTime) / 1000);
+                currentSessionTime = Math.min(elapsedSinceLastUpdate, 300); // Cap at 5 minutes
+            }
+            
+            const totalSeconds = this.totalActiveSeconds + currentSessionTime;
+            const hours = Math.floor(totalSeconds / 3600);
+            const minutes = Math.floor((totalSeconds % 3600) / 60);
+            const seconds = totalSeconds % 60;
+            
+            let timeString = '';
+            if (hours > 0) {
+                timeString = `${hours}h ${minutes}m ${seconds}s`;
+            } else if (minutes > 0) {
+                timeString = `${minutes}m ${seconds}s`;
+            } else {
+                timeString = `${seconds}s`;
+            }
+            
+            displayEl.textContent = timeString;
+        },
+        
+        getTotalActiveTime: function() {
+            // Calculate current session time if focused
+            let currentSessionTime = 0;
+            if (this.isPageFocused) {
+                const now = Date.now();
+                const elapsedSinceLastUpdate = Math.floor((now - this.lastUpdateTime) / 1000);
+                currentSessionTime = Math.min(elapsedSinceLastUpdate, 300); // Cap at 5 minutes
+            }
+            return this.totalActiveSeconds + currentSessionTime;
+        },
+        
+        cleanup: function() {
+            if (this.updateInterval) clearInterval(this.updateInterval);
+            if (this.pingInterval) clearInterval(this.pingInterval);
+        }
+    };
+    
+    // Initialize active time tracking
+    activeTimeTracking.init();
+    
+    // Override submit function to include active time
+    const originalSubmitQuiz = window.submitQuiz || submitQuiz;
+    window.submitQuiz = function(skipValidation = false) {
+        // Send final active time update before submitting
+        activeTimeTracking.sendActiveTimeUpdate(true);
+        
+        // Add active time to form
+        const activeTimeInput = document.createElement('input');
+        activeTimeInput.type = 'hidden';
+        activeTimeInput.name = 'active_time_seconds';
+        activeTimeInput.value = activeTimeTracking.getTotalActiveTime();
+        form.appendChild(activeTimeInput);
+        
+        // Cleanup tracking
+        activeTimeTracking.cleanup();
+        
+        // Call original submit function
+        return originalSubmitQuiz(skipValidation);
+    };
+    
+    // Also update the form submit handler to include active time
+    form.addEventListener('submit', function(e) {
+        // Ensure active time is included
+        if (!form.querySelector('input[name="active_time_seconds"]')) {
+            const activeTimeInput = document.createElement('input');
+            activeTimeInput.type = 'hidden';
+            activeTimeInput.name = 'active_time_seconds';
+            activeTimeInput.value = activeTimeTracking.getTotalActiveTime();
+            form.appendChild(activeTimeInput);
+        }
+        activeTimeTracking.sendActiveTimeUpdate(true);
+        activeTimeTracking.cleanup();
+    }, true); // Use capture phase to run before other handlers
+    
 });
 </script>
 {% endblock %}

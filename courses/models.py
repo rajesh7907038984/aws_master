@@ -143,17 +143,54 @@ class CourseEnrollment(models.Model):
         return f"{user_name} - {course_title}"
 
     def get_progress(self) -> int:
+        """
+        Calculate course progress based on topic progress percentages.
+        For quiz-based topics, this uses the actual quiz scores, not just completion status.
+        """
         if not self.course or not self.user:
             return 0
-        total_topics = CourseTopic.objects.filter(course=self.course).count()
+        
+        # Get all active topics in the course
+        course_topics = CourseTopic.objects.filter(course=self.course).select_related('topic')
+        total_topics = course_topics.count()
         if total_topics == 0:
             return 0
-        completed_topics = TopicProgress.objects.filter(
+        
+        # Get all topic progress records for this course
+        # First try to filter by course field (new method)
+        topic_progress_records = TopicProgress.objects.filter(
             user=self.user,
-            topic__coursetopic__course=self.course,
-            completed=True
-        ).count()
-        return round((completed_topics / total_topics) * 100)
+            course=self.course
+        ).select_related('topic')
+        
+        # Fallback: include legacy records without course field
+        if not topic_progress_records.exists():
+            topic_progress_records = TopicProgress.objects.filter(
+                user=self.user,
+                topic__coursetopic__course=self.course,
+                course__isnull=True
+            ).select_related('topic')
+        
+        # Create a dictionary for quick lookup
+        progress_by_topic_id = {tp.topic_id: tp for tp in topic_progress_records}
+        
+        # Calculate total progress by summing individual topic progress percentages
+        total_progress = 0.0
+        for course_topic in course_topics:
+            topic = course_topic.topic
+            progress = progress_by_topic_id.get(topic.id)
+            
+            if progress:
+                # Use get_progress_percentage() which properly handles quiz scores
+                topic_progress_pct = progress.get_progress_percentage()
+                total_progress += topic_progress_pct
+            else:
+                # No progress record means 0% progress
+                total_progress += 0.0
+        
+        # Calculate average progress across all topics
+        average_progress = total_progress / total_topics if total_topics > 0 else 0.0
+        return round(average_progress)
         
     @property
     def progress_percentage(self) -> int:
@@ -2221,6 +2258,27 @@ class TopicProgress(models.Model):
                 
                 # If nothing SCORM-specific is usable, fall through to generic handling
             
+            # Quiz-specific handling
+            if getattr(self.topic, 'content_type', None) == 'Quiz':
+                # Check for quiz score in progress_data (stored by quiz completion signal)
+                quiz_score = normalized_data.get('quiz_score')
+                if quiz_score is not None:
+                    try:
+                        score = float(quiz_score)
+                        # Quiz score is already a percentage (0-100)
+                        # Use the score as progress percentage
+                        return max(0, min(100, round(score)))
+                    except (TypeError, ValueError):
+                        pass
+                
+                # Fallback: use last_score if available (also stored by quiz signal)
+                if self.last_score is not None:
+                    try:
+                        score = float(self.last_score)
+                        return max(0, min(100, round(score)))
+                    except (TypeError, ValueError):
+                        pass
+            
             # Generic handling via 'progress' field (supports 0..1 or 0..100)
             progress = safe_get_float(normalized_data, 'progress')
             if progress is not None:
@@ -2228,6 +2286,17 @@ class TopicProgress(models.Model):
                     return round(progress * 100)
                 else:
                     return round(min(progress, 100))
+        
+        # Check for Quiz content type even if no progress_data (use last_score as fallback)
+        if getattr(self.topic, 'content_type', None) == 'Quiz':
+            if self.last_score is not None:
+                try:
+                    score = float(self.last_score)
+                    # Quiz score is already a percentage (0-100)
+                    # Use the score as progress percentage
+                    return max(0, min(100, round(score)))
+                except (TypeError, ValueError):
+                    pass
         
         # Minimal signal of engagement without reliable progress data
         if self.attempts > 0 or self.total_time_spent > 0 or self.first_accessed is not None:

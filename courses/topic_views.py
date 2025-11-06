@@ -239,6 +239,8 @@ def topic_view(request, topic_id):
         
         # Check if quiz is an initial assessment and if user has completed it
         has_completed_initial_assessment = False
+        can_retake_initial_assessment = False
+        remaining_attempts = 0
         if topic.content_type == 'Quiz' and topic.quiz and request.user.is_authenticated:
             try:
                 from quiz.models import QuizAttempt
@@ -250,6 +252,15 @@ def topic_view(request, topic_id):
                         is_completed=True
                     ).order_by('-end_time').first()
                     has_completed_initial_assessment = completed_attempt is not None
+                    
+                    # Check if user can retake the initial assessment (if attempts are available)
+                    if has_completed_initial_assessment:
+                        remaining_attempts = topic.quiz.get_remaining_attempts(request.user)
+                        can_retake_initial_assessment = (
+                            topic.quiz.is_available_for_user(request.user) and
+                            (remaining_attempts > 0 or remaining_attempts == -1) and
+                            topic.quiz.can_start_new_attempt(request.user)
+                        )
             except ImportError:
                 logger.warning("QuizAttempt model not found")
             except Exception as e:
@@ -275,7 +286,9 @@ def topic_view(request, topic_id):
             'completed_topics_count': completed_topics_count,
             'can_access_interactive_content': can_access_interactive_content,
             'access_warning': access_warning,
-            'has_completed_initial_assessment': has_completed_initial_assessment
+            'has_completed_initial_assessment': has_completed_initial_assessment,
+            'can_retake_initial_assessment': can_retake_initial_assessment,
+            'remaining_attempts': remaining_attempts
         }
         
         

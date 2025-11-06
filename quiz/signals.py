@@ -70,11 +70,45 @@ def update_topic_progress_on_quiz_completion(sender, instance, **kwargs):
                 if topic_progress.best_score is None or instance.score > topic_progress.best_score:
                     topic_progress.best_score = instance.score
                 
-                # Sync quiz active time to topic progress
-                if instance.active_time_seconds > 0:
-                    # Add quiz time to total_time_spent
-                    topic_progress.total_time_spent += instance.active_time_seconds
-                    topic_progress.progress_data['quiz_active_time_seconds'] = instance.active_time_seconds
+                # Sync quiz active time to topic progress using the model method
+                # This ensures consistent logic and can be called manually if needed
+                if hasattr(instance, 'sync_time_to_topic_progress'):
+                    synced = instance.sync_time_to_topic_progress()
+                    if synced:
+                        # Reload topic_progress to get updated values
+                        topic_progress.refresh_from_db()
+                        logger.info(f"Synced quiz time from attempt {instance.id} to topic {topic.id} for user {instance.user.username}")
+                else:
+                    # Fallback to inline logic if method doesn't exist
+                    quiz_time_seconds = 0
+                    
+                    # First, try to use active_time_seconds (preferred method - tracks actual active time)
+                    if instance.active_time_seconds > 0:
+                        quiz_time_seconds = instance.active_time_seconds
+                    # Fallback: calculate time from start_time and end_time if active_time_seconds is 0
+                    elif instance.start_time and instance.end_time:
+                        time_diff = instance.end_time - instance.start_time
+                        quiz_time_seconds = int(time_diff.total_seconds())
+                        logger.info(f"Using fallback time calculation for quiz {instance.quiz.id}: {quiz_time_seconds}s (from start_time/end_time, active_time_seconds was 0)")
+                    
+                    # Only add time if we have a valid time value
+                    if quiz_time_seconds > 0:
+                        # Check if this attempt's time was already added to avoid double-counting
+                        synced_attempts = topic_progress.progress_data.get('synced_quiz_attempts', [])
+                        if instance.id not in synced_attempts:
+                            # Add quiz time to total_time_spent
+                            topic_progress.total_time_spent += quiz_time_seconds
+                            topic_progress.progress_data['quiz_active_time_seconds'] = quiz_time_seconds
+                            
+                            # Track that this attempt has been synced
+                            synced_attempts.append(instance.id)
+                            topic_progress.progress_data['synced_quiz_attempts'] = synced_attempts
+                            
+                            logger.info(f"Synced {quiz_time_seconds}s from quiz attempt {instance.id} to topic {topic.id} for user {instance.user.username}")
+                        else:
+                            logger.info(f"Quiz attempt {instance.id} time already synced for topic {topic.id}, skipping to avoid double-counting")
+                    else:
+                        logger.warning(f"No valid time found for quiz attempt {instance.id} (active_time_seconds={instance.active_time_seconds}, start_time={instance.start_time}, end_time={instance.end_time})")
                 
                 # Determine if topic should be auto-completed
                 # VAK Tests and Initial Assessments complete on any attempt (for classification purposes)

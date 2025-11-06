@@ -888,6 +888,73 @@ class QuizAttempt(models.Model):
         """Get total active time including current session"""
         return self.active_time_seconds + self.get_current_active_session_time()
     
+    def sync_time_to_topic_progress(self):
+        """
+        Manually sync quiz time to TopicProgress.
+        This can be called to ensure time is synced even if the signal was missed.
+        Returns True if sync was successful, False otherwise.
+        """
+        if not self.is_completed or not self.end_time:
+            return False
+        
+        try:
+            from courses.models import Topic, TopicProgress, CourseTopic
+            
+            # Find topics that contain this quiz
+            topics = Topic.objects.filter(quiz=self.quiz)
+            
+            if not topics.exists():
+                return False
+            
+            synced = False
+            for topic in topics:
+                # Get all courses this topic belongs to
+                course_topics = CourseTopic.objects.filter(topic=topic).select_related('course')
+                
+                for course_topic in course_topics:
+                    # Get or create topic progress
+                    topic_progress, created = TopicProgress.objects.get_or_create(
+                        user=self.user,
+                        topic=topic,
+                        course=course_topic.course,
+                        defaults={
+                            'completed': False,
+                            'progress_data': {}
+                        }
+                    )
+                    
+                    # Initialize progress_data if not exists
+                    if not topic_progress.progress_data:
+                        topic_progress.progress_data = {}
+                    
+                    # Calculate quiz time
+                    quiz_time_seconds = 0
+                    if self.active_time_seconds > 0:
+                        quiz_time_seconds = self.active_time_seconds
+                    elif self.start_time and self.end_time:
+                        time_diff = self.end_time - self.start_time
+                        quiz_time_seconds = int(time_diff.total_seconds())
+                    
+                    # Check if this attempt's time was already added
+                    synced_attempts = topic_progress.progress_data.get('synced_quiz_attempts', [])
+                    if self.id not in synced_attempts and quiz_time_seconds > 0:
+                        # Add quiz time to total_time_spent
+                        topic_progress.total_time_spent += quiz_time_seconds
+                        topic_progress.progress_data['quiz_active_time_seconds'] = quiz_time_seconds
+                        
+                        # Track that this attempt has been synced
+                        synced_attempts.append(self.id)
+                        topic_progress.progress_data['synced_quiz_attempts'] = synced_attempts
+                        topic_progress.save()
+                        synced = True
+            
+            return synced
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error syncing time to topic progress for attempt {self.id}: {e}")
+            return False
+    
     @property
     def responses(self):
         """Get user responses for this attempt"""

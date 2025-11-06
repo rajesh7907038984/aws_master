@@ -505,6 +505,21 @@
                                     </div>
                                 </div>
                             </div>
+                            {% if can_retake_initial_assessment %}
+                                <!-- Show Take Quiz button if attempts are available -->
+                                <div class="w-full max-w-md mt-4">
+                                    <a href="{% url 'quiz:attempt_quiz' topic.quiz.id %}?start=true" class="btn btn-primary text-lg px-6 py-3 w-full flex items-center justify-center" target="_blank">
+                                        <i class="fas fa-edit mr-2"></i>Take Quiz
+                                    </a>
+                                    <div class="mt-3 text-sm text-gray-500 text-center">
+                                        {% if remaining_attempts == -1 %}
+                                            Unlimited attempts allowed
+                                        {% elif remaining_attempts > 0 %}
+                                            Attempts remaining: {{ remaining_attempts }}
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            {% endif %}
                         {% elif not can_access_interactive_content %}
                             <!-- Warning for non-learner users -->
                             <div class="w-full max-w-md mb-6">
