@@ -441,8 +441,10 @@ def prepare_activity_display_data(activities, user_role):
             'type_label': {
                 'assignment': 'ASG',
                 'quiz': 'QUZ',
+                'initial_assessment': 'IA',
                 'discussion': 'DSC',
-                'conference': 'CNF'
+                'conference': 'CNF',
+                'scorm': 'SCORM'
             }.get(activity['type'], 'UNK'),
             
             'type_class': f"activity-type-{activity['type']}",
@@ -452,6 +454,10 @@ def prepare_activity_display_data(activities, user_role):
         if activity['type'] == 'quiz':
             activity_data['is_inactive'] = not getattr(activity['object'], 'is_active', True)
             activity_data['passing_score'] = getattr(activity['object'], 'passing_score', 70)
+        
+        elif activity['type'] == 'initial_assessment':
+            activity_data['is_inactive'] = not getattr(activity['object'], 'is_active', True)
+            activity_data['is_informational'] = True  # Initial assessments are informational
             
         elif activity['type'] == 'discussion':
             activity_data['is_participation'] = activity['max_score'] == 0
@@ -611,16 +617,42 @@ def gradebook_index(request):
             'attachments'
         ).order_by('created_at')
 
-        # Get regular quizzes (exclude initial assessments and VAK tests from grading) - optimized
+        # Get regular quizzes (exclude only VAK tests, include initial assessments) - optimized
+        # Build the query to include:
+        # 1. Regular quizzes linked to courses
+        # 2. Branch-wide Initial Assessments (even if not directly linked to courses)
+        
+        # Regular quizzes (non-Initial Assessment) with topic validation
+        regular_quiz_query = Q(
+            Q(course__in=courses) | Q(topics__courses__in=courses)
+        ) & Q(is_initial_assessment=False) & Q(
+            Q(topics__status='active') | Q(topics__isnull=True)
+        )
+        
+        # Initial Assessments from accessible branches (bypass topic requirements)
+        # Get unique branches from all accessible courses
+        course_branches = courses.values_list('branch', flat=True).distinct()
+        course_branches = [b for b in course_branches if b is not None]
+        
+        initial_assessment_query = Q(is_initial_assessment=True)
+        if course_branches:
+            initial_assessment_query &= Q(
+                creator__branch__in=course_branches,
+                creator__role__in=['admin', 'instructor']
+            )
+        else:
+            # If no branches, only include Initial Assessments directly linked to courses
+            initial_assessment_query &= Q(
+                Q(course__in=courses) | Q(topics__courses__in=courses)
+            )
+        
+        # Combine queries with OR
+        combined_quiz_query = regular_quiz_query | initial_assessment_query
+        
         quizzes = Quiz.objects.filter(
-            Q(course__in=courses) |  # Direct course relationship
-            Q(topics__courses__in=courses)  # Topic-based course relationship
+            combined_quiz_query
         ).filter(
             is_active=True  # Only active quizzes
-        ).filter(
-            # Either have active topics OR have no topics at all
-            Q(topics__status='active') |
-            Q(topics__isnull=True)
         ).exclude(
             # Exclude only VAK tests from gradebook grading (include initial assessments)
             Q(is_vak_test=True)
@@ -668,13 +700,22 @@ def gradebook_index(request):
                     topic = activity.topics.first()
                     if hasattr(topic, 'courses') and topic.courses.exists():
                         course_info = topic.courses.first()
-            elif activity_type in ['quiz', 'discussion', 'conference']:
+            elif activity_type in ['quiz', 'discussion', 'conference', 'initial_assessment']:
                 if hasattr(activity, 'course') and activity.course:
                     course_info = activity.course
                 elif hasattr(activity, 'topics') and activity.topics.exists():
                     topic = activity.topics.first()
                     if hasattr(topic, 'courses') and topic.courses.exists():
                         course_info = topic.courses.first()
+                # For Initial Assessments without direct course link, 
+                # find any course from their branch in the accessible courses list
+                if not course_info and activity_type == 'initial_assessment':
+                    if hasattr(activity, 'creator') and hasattr(activity.creator, 'branch') and activity.creator.branch:
+                        # Find first accessible course from the same branch
+                        for course in courses:
+                            if course.branch == activity.creator.branch:
+                                course_info = course
+                                break
             elif activity_type == 'scorm':
                 # SCORM topics are Topic objects themselves
                 if hasattr(activity, 'courses') and activity.courses.exists():
@@ -704,7 +745,10 @@ def gradebook_index(request):
 
         if activity_filter == 'all' or activity_filter == 'quiz' or activity_filter == 'initial_assessment':
             for quiz in quizzes:
-                course_info = get_activity_course_info(quiz, 'quiz')
+                # Determine activity type for proper course info resolution
+                activity_type = 'initial_assessment' if quiz.is_initial_assessment else 'quiz'
+                course_info = get_activity_course_info(quiz, activity_type)
+                
                 # Only include if has course association AND course is in user's accessible courses
                 if course_info and course_info.id in accessible_course_ids:
                     # Use rubric total_points if quiz has rubric, otherwise use quiz total_points
@@ -1061,6 +1105,9 @@ def course_gradebook_detail(request, course_id):
         # Get total count before pagination
         total_students = students.count()
         
+        # Keep original student list for queries
+        all_students = students
+        
         # Apply pagination
         paginator = Paginator(students, page_size)
         try:
@@ -1070,7 +1117,7 @@ def course_gradebook_detail(request, course_id):
         except EmptyPage:
             students_page = paginator.page(paginator.num_pages)
         
-        # Use paginated students for the rest of the view
+        # Use paginated students for display
         students = students_page.object_list
         
     except Exception as e:
@@ -1084,9 +1131,8 @@ def course_gradebook_detail(request, course_id):
     # Also filter for active/published status where applicable
     
     try:
-        # Assignments: Check direct course, M2M courses, and topic-based relationships
+        # Assignments: Check M2M courses and topic-based relationships
         assignments = Assignment.objects.filter(
-            Q(course=course) |  # Direct course relationship
             Q(courses=course) |  # M2M course relationship
             Q(topics__courses=course)  # Topic-based course relationship
         ).filter(
@@ -1095,18 +1141,40 @@ def course_gradebook_detail(request, course_id):
             # Either have active topics OR have no topics at all (direct course assignments)
             Q(topics__status='active') |  # Has active topics
             Q(topics__isnull=True)  # Has no topics (direct course assignment)
-        ).distinct().select_related('course', 'user', 'rubric').prefetch_related('courses', 'topics').order_by('created_at')
+        ).distinct().select_related('user', 'rubric').prefetch_related('courses', 'topics').order_by('created_at')
         
         # Quizzes: Check direct course and topic relationships (include initial assessments, exclude only VAK tests)
+        # Build the query to include:
+        # 1. Regular quizzes linked to the course
+        # 2. Branch-wide Initial Assessments (even if not directly linked to the course)
+        
+        # Regular quizzes (non-Initial Assessment) with topic validation
+        regular_quiz_query = Q(
+            Q(course=course) | Q(topics__courses=course)
+        ) & Q(is_initial_assessment=False) & Q(
+            Q(topics__status='active') | Q(topics__isnull=True)
+        )
+        
+        # Initial Assessments from the same branch (bypass topic requirements)
+        initial_assessment_query = Q(is_initial_assessment=True)
+        if course.branch:
+            initial_assessment_query &= Q(
+                creator__branch=course.branch,
+                creator__role__in=['admin', 'instructor']
+            )
+        else:
+            # If course has no branch, only include Initial Assessments directly linked to course
+            initial_assessment_query &= Q(
+                Q(course=course) | Q(topics__courses=course)
+            )
+        
+        # Combine queries with OR
+        combined_quiz_query = regular_quiz_query | initial_assessment_query
+        
         quizzes = Quiz.objects.filter(
-            Q(course=course) |  # Direct course relationship
-            Q(topics__courses=course)  # Topic-based course relationship
+            combined_quiz_query
         ).filter(
             is_active=True  # Only active quizzes
-        ).filter(
-            # Either have active topics OR have no topics at all
-            Q(topics__status='active') |
-            Q(topics__isnull=True)
         ).exclude(
             # Exclude only VAK tests from gradebook grading (include initial assessments)
             Q(is_vak_test=True)
@@ -1158,24 +1226,15 @@ def course_gradebook_detail(request, course_id):
     # Get all submissions and attempts with optimized queries
     all_submissions = AssignmentSubmission.objects.filter(
         assignment__in=assignments,
-        user__in=students
+        user__in=all_students
     ).select_related('assignment', 'user', 'graded_by').order_by('-submitted_at')
     
     # Get quiz attempts for this course (ordered by end time) with optimized queries
-    # Only get the latest attempt per student-quiz pair
-    
-    # Get the latest attempt time for each student-quiz pair
-    latest_attempts = QuizAttempt.objects.filter(
-        quiz=OuterRef('quiz'),
-        user=OuterRef('user'),
-        is_completed=True
-    ).order_by('-end_time')
-    
+    # Get all completed attempts - deduplication is handled by pre_calculate_student_scores
     quiz_attempts = QuizAttempt.objects.filter(
-        user__in=students,
+        user__in=all_students,
         quiz__in=quizzes,
-        is_completed=True,
-        end_time__in=Subquery(latest_attempts.values('end_time')[:1])
+        is_completed=True
     ).select_related('quiz', 'user', 'quiz__rubric').order_by('-end_time')
 
     # Initial assessment attempts are now included in the main quiz_attempts query above
@@ -1350,7 +1409,7 @@ def course_gradebook_detail(request, course_id):
     try:
         # Get grades for all assignments in this course with optimized queries
         all_grades = Grade.objects.filter(
-            student__in=students,
+            student__in=all_students,
             assignment__in=assignments
         ).select_related(
             'student', 
@@ -1381,7 +1440,7 @@ def course_gradebook_detail(request, course_id):
         
         # Get quiz attempts for this course (ordered by end time) with optimized queries
         quiz_attempts = QuizAttempt.objects.filter(
-            user__in=students,
+            user__in=all_students,
             quiz__in=quizzes,
             is_completed=True
         ).select_related(
@@ -1398,7 +1457,7 @@ def course_gradebook_detail(request, course_id):
         # Get conference rubric evaluations for this course with optimized queries
         conference_evaluations = ConferenceRubricEvaluation.objects.filter(
             conference__in=conferences,
-            attendance__user__in=students
+            attendance__user__in=all_students
         ).select_related('conference', 'attendance__user', 'criterion', 'evaluated_by', 'conference__rubric').order_by('-created_at')
         
     except Exception as e:
@@ -1420,17 +1479,17 @@ def course_gradebook_detail(request, course_id):
         # Generate cache key for student scores with proper invalidation support
         from core.utils.cache_invalidation import CacheInvalidationManager
         
-        students_hash = hashlib.md5(str(sorted([s.id for s in students])).encode()).hexdigest()[:8]
+        students_hash = hashlib.md5(str(sorted([s.id for s in all_students])).encode()).hexdigest()[:8]
         cache_key = f"gradebook:scores:course:{course_id}:students:{students_hash}"
         
         # Try to get from cache first
         student_scores = cache.get(cache_key)
         
         if student_scores is None:
-            # Not in cache, calculate and cache
+            # Not in cache, calculate and cache for ALL students (not just paginated)
             # Note: initial_assessment_attempts are included in quiz_attempts now
             student_scores = pre_calculate_student_scores(
-                students, activities, grades, quiz_attempts, 
+                all_students, activities, grades, quiz_attempts, 
                 None, conference_evaluations, None
             )
             # Cache for 5 minutes (reduced for more frequent updates)
@@ -1449,6 +1508,22 @@ def course_gradebook_detail(request, course_id):
     
     # Enhance scores with display data
     enhanced_student_scores = enhance_student_scores_with_display_data(student_scores, activities)
+    
+    # DEBUG: Print to stderr for immediate visibility
+    import sys
+    print(f"\n{'='*80}", file=sys.stderr)
+    print(f"DEBUG GRADEBOOK - Course {course_id}", file=sys.stderr)
+    print(f"  - all_students count: {all_students.count()}", file=sys.stderr)
+    print(f"  - paginated students count: {len(students)}", file=sys.stderr)
+    print(f"  - activities count: {len(activities)}", file=sys.stderr)
+    print(f"  - quiz_attempts count: {quiz_attempts.count()}", file=sys.stderr)
+    print(f"  - student_scores keys: {list(student_scores.keys())}", file=sys.stderr)
+    for student_id in list(student_scores.keys())[:2]:  # First 2 students
+        scores = student_scores[student_id]
+        print(f"  - Student {student_id} has {len(scores)} activity scores", file=sys.stderr)
+        for activity_id, score_data in list(scores.items())[:3]:  # First 3 activities
+            print(f"    - Activity {activity_id}: type={score_data.get('type')}, score={score_data.get('score')}", file=sys.stderr)
+    print(f"{'='*80}\n", file=sys.stderr)
     
     # Get outcome evaluations for students in this course
     outcome_evaluations = {}
@@ -2529,12 +2604,12 @@ def export_gradebook_csv(request, course_id):
         
         # Get all activities for this course (same logic as course_gradebook_detail)
         assignments = Assignment.objects.filter(
-            Q(course=course) | Q(courses=course) | Q(topics__courses=course)
+            Q(courses=course) | Q(topics__courses=course)
         ).filter(
             is_active=True
         ).filter(
             Q(topics__status='active') | Q(topics__isnull=True)
-        ).distinct().select_related('course', 'user', 'rubric').prefetch_related('courses', 'topics').order_by('created_at')
+        ).distinct().select_related('user', 'rubric').prefetch_related('courses', 'topics').order_by('created_at')
         
         quizzes = Quiz.objects.filter(
             Q(course=course) | Q(topics__courses=course)
@@ -2562,10 +2637,19 @@ def export_gradebook_csv(request, course_id):
             Q(topics__status='active') | Q(topics__isnull=True)
         ).distinct().select_related('course', 'created_by', 'rubric').prefetch_related('topics').order_by('created_at')
         
+        # Filter discussions and conferences with rubrics first
+        discussions_with_rubrics = list(discussions.filter(rubric__isnull=False))
+        conferences_with_rubrics = list(conferences.filter(rubric__isnull=False))
         
         # Create CSV response
-        response = HttpResponse(content_type='text/csv')
-        response['Content-Disposition'] = f'attachment; filename="gradebook_{course.title}_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv"'
+        response = HttpResponse(content_type='text/csv; charset=utf-8')
+        # Sanitize course title for filename
+        import re
+        safe_course_title = re.sub(r'[^\w\s-]', '', str(course.title))[:50]  # Remove special chars and limit length
+        safe_course_title = safe_course_title.strip().replace(' ', '_')
+        if not safe_course_title:
+            safe_course_title = f"course_{course_id}"
+        response['Content-Disposition'] = f'attachment; filename="gradebook_{safe_course_title}_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv"'
         
         writer = csv.writer(response)
         
@@ -2581,11 +2665,11 @@ def export_gradebook_csv(request, course_id):
             headers.append(f'Quiz: {quiz.title}')
         
         # Add discussion columns (only those with rubrics)
-        for discussion in discussions.filter(rubric__isnull=False):
+        for discussion in discussions_with_rubrics:
             headers.append(f'Discussion: {discussion.title}')
         
         # Add conference columns (only those with rubrics)
-        for conference in conferences.filter(rubric__isnull=False):
+        for conference in conferences_with_rubrics:
             headers.append(f'Conference: {conference.title}')
         
         
@@ -2601,69 +2685,80 @@ def export_gradebook_csv(request, course_id):
         ).select_related('assignment', 'user', 'graded_by')
         
         # Get quiz attempts
-        latest_attempts = QuizAttempt.objects.filter(
-            quiz=OuterRef('quiz'),
-            user=OuterRef('user'),
-            is_completed=True
-        ).order_by('-end_time')
-        
+        # Get all completed attempts - deduplication is handled in the export logic
         quiz_attempts = QuizAttempt.objects.filter(
             user__in=students,
             quiz__in=quizzes,
-            is_completed=True,
-            end_time__in=Subquery(latest_attempts.values('end_time')[:1])
-        ).select_related('quiz', 'user', 'quiz__rubric')
+            is_completed=True
+        ).select_related('quiz', 'user', 'quiz__rubric').order_by('-end_time')
         
         
         # Write data rows
         for student in students:
-            row = [
-                student.get_full_name() or student.username,
-                student.email,
-                student.id,
-                student.branch.name if student.branch else 'N/A'
-            ]
+            try:
+                student_name = student.get_full_name() or student.username or 'N/A'
+                student_email = student.email or 'N/A'
+                student_id = str(student.id)
+                branch_name = student.branch.name if (student.branch and hasattr(student.branch, 'name')) else 'N/A'
+                
+                row = [
+                    student_name,
+                    student_email,
+                    student_id,
+                    branch_name
+                ]
+            except Exception as e:
+                logger.warning(f"Error processing student {student.id}: {str(e)}")
+                row = ['Error', 'Error', str(student.id), 'N/A']
             
             # Add assignment grades
             for assignment in assignments:
-                submission = all_submissions.filter(
-                    assignment=assignment,
-                    user=student
-                ).first()
-                
-                if submission:
-                    if submission.status == 'graded' and submission.grade is not None:
-                        row.append(f"{submission.grade}/{assignment.max_points}")
-                    elif submission.status in ['submitted', 'not_graded']:
-                        row.append('Submitted')
+                try:
+                    submission = all_submissions.filter(
+                        assignment=assignment,
+                        user=student
+                    ).first()
+                    
+                    if submission:
+                        if submission.status == 'graded' and submission.grade is not None:
+                            row.append(f"{submission.grade}/{assignment.max_points}")
+                        elif submission.status in ['submitted', 'not_graded']:
+                            row.append('Submitted')
+                        else:
+                            row.append(submission.status.title())
                     else:
-                        row.append(submission.status.title())
-                else:
-                    row.append('Not Started')
+                        row.append('Not Started')
+                except Exception as e:
+                    logger.warning(f"Error processing assignment {assignment.id} for student {student.id}: {str(e)}")
+                    row.append('Error')
             
             # Add quiz grades
             for quiz in quizzes:
-                attempt = quiz_attempts.filter(
-                    quiz=quiz,
-                    user=student
-                ).first()
-                
-                if attempt:
-                    if attempt.score is not None:
-                        row.append(f"{attempt.score}/{quiz.max_points}")
+                try:
+                    attempt = quiz_attempts.filter(
+                        quiz=quiz,
+                        user=student
+                    ).first()
+                    
+                    if attempt:
+                        if attempt.score is not None:
+                            row.append(f"{attempt.score}/{quiz.max_points}")
+                        else:
+                            row.append('Completed')
                     else:
-                        row.append('Completed')
-                else:
-                    row.append('Not Started')
+                        row.append('Not Started')
+                except Exception as e:
+                    logger.warning(f"Error processing quiz {quiz.id} for student {student.id}: {str(e)}")
+                    row.append('Error')
             
             # Add discussion grades (only those with rubrics)
-            for discussion in discussions.filter(rubric__isnull=False):
+            for discussion in discussions_with_rubrics:
                 # For discussions, we would need to check rubric evaluations
                 # This is a simplified version - you might want to add more detailed grading logic
                 row.append('N/A')  # Placeholder for discussion grades
             
             # Add conference grades (only those with rubrics)
-            for conference in conferences.filter(rubric__isnull=False):
+            for conference in conferences_with_rubrics:
                 # For conferences, we would need to check rubric evaluations
                 # This is a simplified version - you might want to add more detailed grading logic
                 row.append('N/A')  # Placeholder for conference grades
@@ -2678,7 +2773,9 @@ def export_gradebook_csv(request, course_id):
         return response
         
     except Exception as e:
-        logger.error(f"Error exporting gradebook for course {course_id}: {str(e)}")
+        import traceback
+        error_details = traceback.format_exc()
+        logger.error(f"Error exporting gradebook for course {course_id}: {str(e)}\n{error_details}")
         from django.contrib import messages
-        messages.error(request, "An error occurred while exporting the gradebook. Please try again.")
+        messages.error(request, f"An error occurred while exporting the gradebook: {str(e)}")
         return redirect('gradebook:course_detail', course_id=course_id)

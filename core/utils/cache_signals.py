@@ -269,10 +269,14 @@ def invalidate_quiz_cache(sender, instance, **kwargs):
         from django.core.cache import cache
         
         # Clear cache when quiz attempt is completed or scored
-        if instance.is_completed and instance.quiz and instance.quiz.course:
-            cache.clear()  # Clear all cache to ensure consistency
+        # Include initial assessments (which may not have a direct course assignment)
+        if instance.is_completed and instance.quiz:
+            # Clear cache for regular quizzes with course assignments
+            # AND for initial assessments (which are branch-wide and may not have direct course link)
+            if instance.quiz.course or instance.quiz.is_initial_assessment:
+                cache.clear()  # Clear all cache to ensure consistency
+                logger.info(f"Quiz cache cleared for completed attempt {instance.id} (is_initial_assessment={instance.quiz.is_initial_assessment})")
             
-        logger.info(f"Quiz cache invalidated for attempt {instance.id}")
     except Exception as e:
         logger.error(f"Error invalidating quiz cache on attempt: {e}")
 

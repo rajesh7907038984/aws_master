@@ -213,6 +213,7 @@ INSTALLED_APPS = [
 # ==============================================
 
 MIDDLEWARE = [
+    'core.middleware.domain_fix_middleware.DomainFixMiddleware',  # Fix URLs with trailing dots
     'django.middleware.gzip.GZipMiddleware',  # Enable GZIP compression
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',

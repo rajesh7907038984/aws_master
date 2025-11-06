@@ -659,6 +659,9 @@ class QuizAttempt(models.Model):
     @property
     def passed(self):
         """Check if the attempt passed the quiz based on passing score"""
+        # Handle None passing_score (e.g., for VAK tests)
+        if self.quiz.passing_score is None:
+            return False
         return self.score >= self.quiz.passing_score
         
     def calculate_score(self):

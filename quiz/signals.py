@@ -15,13 +15,22 @@ from quiz.models import Quiz
 @receiver(post_save, sender=QuizAttempt)
 def update_topic_progress_on_quiz_completion(sender, instance, **kwargs):
     """Update topic progress when quiz attempt is completed"""
+    import logging
+    logger = logging.getLogger(__name__)
+    
     # Only process when quiz is completed
     if not instance.is_completed or not instance.end_time:
         return
     
+    # Log quiz completion details
+    logger.info(f"Processing quiz completion signal - Quiz: {instance.quiz.title}, User: {instance.user.username}, Score: {instance.score}%, Passed: {instance.passed}")
+    
     try:
         # Find topics that contain this quiz
         topics = Topic.objects.filter(quiz=instance.quiz)
+        
+        if not topics.exists():
+            logger.warning(f"No topics found for quiz {instance.quiz.id} ({instance.quiz.title})")
         
         # Import CourseTopic to get course context
         from courses.models import CourseTopic
@@ -67,8 +76,26 @@ def update_topic_progress_on_quiz_completion(sender, instance, **kwargs):
                     topic_progress.total_time_spent += instance.active_time_seconds
                     topic_progress.progress_data['quiz_active_time_seconds'] = instance.active_time_seconds
                 
-                # Mark as completed if quiz passed
-                if instance.passed:
+                # Determine if topic should be auto-completed
+                # VAK Tests and Initial Assessments complete on any attempt (for classification purposes)
+                # Regular quizzes only complete if passed
+                should_complete = False
+                completion_reason = ""
+                
+                if instance.quiz.is_vak_test:
+                    should_complete = True
+                    completion_reason = "VAK test completed (classification quiz)"
+                elif instance.quiz.is_initial_assessment:
+                    should_complete = True
+                    completion_reason = "Initial assessment completed (classification quiz)"
+                elif instance.passed:
+                    should_complete = True
+                    completion_reason = f"Quiz passed with {instance.score}%"
+                else:
+                    completion_reason = f"Quiz not passed (score: {instance.score}%, required: {instance.quiz.passing_score}%)"
+                
+                # Mark as completed if conditions met
+                if should_complete:
                     if not topic_progress.completed:
                         topic_progress.completed = True
                         topic_progress.completed_at = instance.end_time
@@ -80,9 +107,11 @@ def update_topic_progress_on_quiz_completion(sender, instance, **kwargs):
                         topic_progress.progress_data['completion_method'] = 'auto'
                         
                         # Log the completion
-                        import logging
-                        logger = logging.getLogger(__name__)
-                        logger.info(f"Quiz completion auto-marked topic {topic.id} as complete for user {instance.user.username}")
+                        logger.info(f"✓ Quiz completion auto-marked topic {topic.id} ({topic.title}) as complete for user {instance.user.username} - Reason: {completion_reason}")
+                    else:
+                        logger.info(f"Topic {topic.id} ({topic.title}) already marked as completed for user {instance.user.username}")
+                else:
+                    logger.info(f"Topic {topic.id} not auto-completed for user {instance.user.username} - Reason: {completion_reason}")
                 
                 topic_progress.save()
                 

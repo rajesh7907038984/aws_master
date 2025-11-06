@@ -1428,6 +1428,7 @@
               <option value="">All Types</option>
               <option value="assignment">Assignments</option>
               <option value="quiz">Quizzes</option>
+              <option value="initial_assessment">Initial Assessments</option>
               <option value="scorm">SCORM</option>
               <option value="discussion">Discussions</option>
               <option value="conference">Conferences</option>
@@ -2070,7 +2071,7 @@
       {% if user.role != 'learner' %}
       <div class="mt-4 flex justify-end items-center">
         <div class="flex space-x-2">
-          <button onclick="exportGradebook()" class="text-white px-3 py-1.5 rounded text-sm transition duration-200" style="background-color: #1c2260;" onmouseover="this.style.backgroundColor='#181f56'" onmouseout="this.style.backgroundColor='#1c2260'">
+          <button onclick="exportGradebook(event)" class="text-white px-3 py-1.5 rounded text-sm transition duration-200" style="background-color: #1c2260;" onmouseover="this.style.backgroundColor='#181f56'" onmouseout="this.style.backgroundColor='#1c2260'">
             <i class="fas fa-download mr-1"></i>Export CSV
           </button>
           <a href="{% url 'gradebook:index' %}" class="bg-gray-600 hover:bg-gray-700 text-white px-3 py-1.5 rounded text-sm transition duration-200">
@@ -2271,6 +2272,7 @@ function applyFilters() {
             const labelText = activityTypeLabels[0].textContent.toLowerCase();
             if (labelText.includes('asg')) activityType = 'assignment';
             else if (labelText.includes('quz')) activityType = 'quiz';
+            else if (labelText.includes('ia ')) activityType = 'initial_assessment';
             else if (labelText.includes('scorm')) activityType = 'scorm';
             else if (labelText.includes('dsc')) activityType = 'discussion';
             else if (labelText.includes('cnf')) activityType = 'conference';
@@ -3175,10 +3177,33 @@ function showToast(message, type) {
 }
 
 // Export gradebook functionality
-window.exportGradebook = function() {
+window.exportGradebook = function(event) {
     const currentUrl = window.location.href;
     const exportUrl = currentUrl.replace('/gradebook/course/', '/gradebook/export/');
-    window.open(exportUrl, '_blank');
+    
+    // Show loading indicator
+    const exportButton = event.target.closest('button');
+    if (!exportButton) return;
+    
+    const originalHTML = exportButton.innerHTML;
+    exportButton.disabled = true;
+    exportButton.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Exporting...';
+    
+    // Create a hidden iframe to trigger download
+    const iframe = document.createElement('iframe');
+    iframe.style.display = 'none';
+    iframe.src = exportUrl;
+    document.body.appendChild(iframe);
+    
+    // Reset button after a delay
+    setTimeout(() => {
+        exportButton.disabled = false;
+        exportButton.innerHTML = originalHTML;
+        // Remove iframe after download starts
+        setTimeout(() => {
+            document.body.removeChild(iframe);
+        }, 1000);
+    }, 2000);
 };
 
 // Initialize everything when page loads

@@ -7662,7 +7662,7 @@ def get_user_filtered_content(user, course=None, request=None):
             assignments = Assignment.objects.filter(
                 Q(courses__branch=effective_branch) |
                 Q(courses__isnull=True, user__branch=effective_branch)
-            ).distinct().order_by('title')
+            ).order_by('title')
             conferences = Conference.objects.filter(
                 Q(course__branch=effective_branch, status='published') |
                 Q(course=None, created_by__branch=effective_branch, status='published')
@@ -7690,7 +7690,7 @@ def get_user_filtered_content(user, course=None, request=None):
                 Q(courses__branch=user_branch) |
                 Q(courses__isnull=True, user__branch=user_branch) |
                 Q(user=user)  # Include their own content regardless of branch
-            ).distinct().order_by('title')
+            ).order_by('title')
             conferences = Conference.objects.filter(
                 Q(course__branch=user_branch, status='published') |
                 Q(course=None, created_by__branch=user_branch, status='published') |
@@ -7712,7 +7712,7 @@ def get_user_filtered_content(user, course=None, request=None):
         user_branch = user.branch if hasattr(user, 'branch') and user.branch else get_default_branch()
         if user_branch:
             quizzes = Quiz.objects.filter(course__branch=user_branch).order_by('title')
-            assignments = Assignment.objects.filter(courses__branch=user_branch).distinct().order_by('title')
+            assignments = Assignment.objects.filter(courses__branch=user_branch).order_by('title')
             conferences = Conference.objects.filter(course__branch=user_branch, status='published')
             discussions = Discussion.objects.filter(course__branch=user_branch)
         else:
@@ -7731,7 +7731,7 @@ def get_user_filtered_content(user, course=None, request=None):
     # If course is provided, also include content specific to that course
     if course:
         quizzes = quizzes | Quiz.objects.filter(course=course)
-        assignments = assignments | Assignment.objects.filter(courses=course).distinct()
+        assignments = assignments | Assignment.objects.filter(courses=course)
         conferences = conferences | Conference.objects.filter(course=course, status='published')
         discussions = discussions | Discussion.objects.filter(course=course)
 
