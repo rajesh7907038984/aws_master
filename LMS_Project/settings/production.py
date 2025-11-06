@@ -156,13 +156,13 @@ DATABASES = {
         'PORT': get_env('AWS_DB_PORT', '5432'),
         'OPTIONS': {
             'connect_timeout': 60,  # Standard timeout
-            'sslmode': 'prefer',
+            'sslmode': 'prefer',  # Prefer SSL but allow fallback
             'application_name': 'LMS_Production',
-            'keepalives_idle': 600,  # Keep connections alive
+            'keepalives_idle': 300,  # Keep connections alive for 5 minutes (reduced from 10)
             'keepalives_interval': 30,
             'keepalives_count': 3,
         },
-        'CONN_MAX_AGE': 180,  # Reduced to 3 minutes for better reliability
+        'CONN_MAX_AGE': 120,  # Reduced to 2 minutes to prevent stale connections
         'CONN_HEALTH_CHECKS': True,  # Enable connection health checks
         'ATOMIC_REQUESTS': False,  # Disable atomic requests for better performance
         # Connection pool settings

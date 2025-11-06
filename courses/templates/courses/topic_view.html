@@ -624,14 +624,11 @@
                                     {% if entry_point and entry_point|length > 0 %}
                                         <!-- Launch or Resume Button with Completion Check -->
                                         {% if progress %}
-                                        {% with bookmark=progress.bookmark %}
-                                        {% with has_location=bookmark.lesson_location|default:''|length %}
-                                        {% with has_suspend=bookmark.suspend_data|default:''|length %}
                                         <div class="flex justify-center items-center py-12">
-                                            {% if progress.completed or progress.progress_data.scorm_completion_status and progress.progress_data.scorm_completion_status|lower == 'completed' or progress.progress_data.scorm_completion_status and progress.progress_data.scorm_completion_status|lower == 'passed' or progress.progress_data.scorm_success_status and progress.progress_data.scorm_success_status|lower == 'passed' %}
-                                                <!-- SCORM Completed -->
-                                                <div class="text-center">
-                                                    <div class="inline-flex items-center gap-3 bg-green-50 border-2 border-green-500 text-green-700 px-8 py-4 rounded-lg shadow-md mb-4">
+                                            {% if scorm_is_passed or progress.completed or progress.progress_data.scorm_completion_status and progress.progress_data.scorm_completion_status|lower == 'completed' or progress.progress_data.scorm_completion_status and progress.progress_data.scorm_completion_status|lower == 'passed' or progress.progress_data.scorm_success_status and progress.progress_data.scorm_success_status|lower == 'passed' %}
+                                                <!-- SCORM Completed/Passed - Show Review and Restart Options -->
+                                                <div class="text-center w-full max-w-2xl">
+                                                    <div class="inline-flex items-center gap-3 bg-green-50 border-2 border-green-500 text-green-700 px-8 py-4 rounded-lg shadow-md mb-6">
                                                         <i class="fas fa-check-circle text-3xl"></i>
                                                         <div class="text-left">
                                                             <div class="font-bold text-lg">Completed</div>
@@ -640,26 +637,28 @@
                                                             {% endif %}
                                                         </div>
                                                     </div>
-                                                    <!-- <div>
-                                                        <a href="{% url 'scorm:launcher' topic.id %}"
-                                                           class="btn btn-outline-primary px-6 py-2 text-sm rounded-lg flex items-center gap-2 inline-flex">
-                                                            <i class="fas fa-redo"></i>
-                                                            Review Content
+                                                    <div class="flex flex-col sm:flex-row gap-4 justify-center items-center">
+                                                        <a href="{% url 'scorm:review' topic.id %}"
+                                                           class="btn btn-outline-primary px-6 py-3 text-base rounded-lg flex items-center gap-2 inline-flex hover:bg-blue-50 transition-colors">
+                                                            <i class="fas fa-eye"></i>
+                                                            Review
                                                         </a>
-                                                    </div> -->
+                                                        <button onclick="showRestartWarning({{ topic.id }})"
+                                                                class="btn btn-outline-warning px-6 py-3 text-base rounded-lg flex items-center gap-2 inline-flex hover:bg-yellow-50 transition-colors">
+                                                            <i class="fas fa-redo"></i>
+                                                            Restart
+                                                        </button>
+                                                    </div>
                                                 </div>
                                             {% else %}
                                                 <!-- Not Completed - Show Launch/Resume -->
                                                 <a href="{% url 'scorm:launcher' topic.id %}"
                                                    class="btn btn-primary px-8 py-4 text-white rounded-lg shadow-md hover:shadow-lg transition-shadow duration-200 flex items-center gap-2 text-lg">
                                                     <i class="fas fa-play-circle"></i>
-                                                    {% if has_location or has_suspend %}Resume{% else %}Launch SCORM Player{% endif %}
+                                                    {% if can_resume_scorm %}Resume{% else %}Launch SCORM Player{% endif %}
                                                 </a>
                                             {% endif %}
                                         </div>
-                                        {% endwith %}
-                                        {% endwith %}
-                                        {% endwith %}
                                         {% else %}
                                         <!-- No progress record (non-learner or first-time view) -->
                                         <div class="flex justify-center items-center py-12">
@@ -1421,6 +1420,91 @@
                     }, 20000); // Complete after 20 seconds of iframe being loaded
                 });
             });
+        }
+    });
+    
+    // SCORM Restart Warning Modal
+    function showRestartWarning(topicId) {
+        // Create modal if it doesn't exist
+        let modal = document.getElementById('restart-warning-modal');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'restart-warning-modal';
+            modal.className = 'fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4';
+            modal.innerHTML = `
+                <div class="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+                    <div class="flex items-center gap-3 mb-4">
+                        <i class="fas fa-exclamation-triangle text-yellow-600 text-3xl"></i>
+                        <h3 class="text-xl font-bold text-gray-800">Warning: Restart SCORM</h3>
+                    </div>
+                    <p class="text-gray-700 mb-6">
+                        Are you sure you want to restart this SCORM content? 
+                        <strong class="text-red-600">All your previous SCORM tracking data will be cleared, including your score.</strong>
+                        You will need to complete the content again from the beginning.
+                    </p>
+                    <div class="flex gap-3 justify-end">
+                        <button onclick="closeRestartWarning()" 
+                                class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors">
+                            Cancel
+                        </button>
+                        <button onclick="confirmRestart(${topicId})" 
+                                class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
+                            Yes, Clear All Data
+                        </button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+        modal.style.display = 'flex';
+    }
+    
+    function closeRestartWarning() {
+        const modal = document.getElementById('restart-warning-modal');
+        if (modal) {
+            modal.style.display = 'none';
+        }
+    }
+    
+    function confirmRestart(topicId) {
+        // Create a form and submit POST request to restart
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = `/scorm/restart/${topicId}/`;
+        
+        // Add CSRF token
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]');
+        if (csrfToken) {
+            const csrfInput = document.createElement('input');
+            csrfInput.type = 'hidden';
+            csrfInput.name = 'csrfmiddlewaretoken';
+            csrfInput.value = csrfToken.value;
+            form.appendChild(csrfInput);
+        } else {
+            // Try to get CSRF token from cookies
+            const cookies = document.cookie.split(';');
+            for (let cookie of cookies) {
+                const [name, value] = cookie.trim().split('=');
+                if (name === 'csrftoken') {
+                    const csrfInput = document.createElement('input');
+                    csrfInput.type = 'hidden';
+                    csrfInput.name = 'csrfmiddlewaretoken';
+                    csrfInput.value = value;
+                    form.appendChild(csrfInput);
+                    break;
+                }
+            }
+        }
+        
+        document.body.appendChild(form);
+        form.submit();
+    }
+    
+    // Close modal when clicking outside
+    document.addEventListener('click', function(event) {
+        const modal = document.getElementById('restart-warning-modal');
+        if (modal && event.target === modal) {
+            closeRestartWarning();
         }
     });
 </script>

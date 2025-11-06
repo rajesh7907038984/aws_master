@@ -9,6 +9,7 @@ from datetime import timedelta
 from django.http import HttpResponse, JsonResponse, Http404, StreamingHttpResponse
 from django.views.decorators.http import require_http_methods
 from django.contrib.auth.decorators import login_required
+from django.contrib import messages
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
 from django.conf import settings
@@ -146,6 +147,198 @@ def scorm_launcher(request, topic_id):
     except Exception as e:
         logger.error(f"Error in SCORM launcher: {e}", exc_info=True)
         return HttpResponse(f"Error loading SCORM content: {str(e)}", status=500)
+
+
+@login_required
+@require_http_methods(["GET"])
+def scorm_review(request, topic_id):
+    """
+    Review view for completed/passed SCORM content
+    Shows the SCORM content in read-only mode with submitted values
+    """
+    try:
+        # Get topic and package
+        topic = get_object_or_404(Topic, id=topic_id)
+        package = topic.scorm
+        
+        if not package:
+            messages.error(request, "No SCORM package associated with this topic")
+            return redirect('courses:topic_view', topic_id=topic_id)
+        
+        if package.processing_status != 'ready':
+            messages.error(request, f"Package is not ready. Status: {package.get_processing_status_display()}")
+            return redirect('courses:topic_view', topic_id=topic_id)
+        
+        # Get entry point
+        entry_point = package.get_entry_point()
+        if not entry_point:
+            messages.error(request, "Package entry point not found")
+            return redirect('courses:topic_view', topic_id=topic_id)
+        
+        # Check if user has passed/completed this SCORM
+        from scorm.models import ScormEnrollment, ScormAttempt
+        enrollment = ScormEnrollment.objects.filter(
+            user=request.user,
+            topic=topic
+        ).first()
+        
+        if not enrollment or enrollment.enrollment_status not in ['passed', 'completed']:
+            messages.warning(request, "You must complete this SCORM content before you can review it")
+            return redirect('courses:topic_view', topic_id=topic_id)
+        
+        # Get the most recent completed attempt for review
+        latest_attempt = enrollment.attempts.filter(
+            completed=True
+        ).order_by('-completed_at').first()
+        
+        if not latest_attempt:
+            messages.warning(request, "No completed attempt found for review")
+            return redirect('courses:topic_view', topic_id=topic_id)
+        
+        # Get the course for this topic
+        course = get_topic_course(topic)
+        
+        # Prepare progress data from the completed attempt (read-only)
+        progress_data = {
+            'entry': 'review',  # Special entry mode for review
+            'lessonLocation': latest_attempt.lesson_location or '',
+            'suspendData': latest_attempt.suspend_data or '',
+            'lessonStatus': latest_attempt.completion_status or 'completed',
+            'scoreRaw': float(latest_attempt.score_raw) if latest_attempt.score_raw else '',
+            'scoreMax': float(latest_attempt.score_max) if latest_attempt.score_max else '',
+            'totalTime': latest_attempt.total_time or '00:00:00',
+            'sessionTime': latest_attempt.session_time or '00:00:00',
+        }
+        
+        # Generate session ID for review session
+        import uuid
+        session_id = str(uuid.uuid4())
+        
+        context = {
+            'topic': topic,
+            'package': package,
+            'entry_point': entry_point,
+            'scorm_version': package.version or '1.2',
+            'session_id': session_id,
+            'progress_data': json.dumps(progress_data),
+            'review_mode': True,
+            'attempt': latest_attempt,
+            'enrollment': enrollment,
+        }
+        
+        from django.template.loader import render_to_string
+        html = render_to_string('scorm/launcher.html', context, request=request)
+        return HttpResponse(html)
+        
+    except Exception as e:
+        logger.error(f"Error in SCORM review: {e}", exc_info=True)
+        messages.error(request, f"Error loading SCORM review: {str(e)}")
+        return redirect('courses:topic_view', topic_id=topic_id)
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def scorm_restart(request, topic_id):
+    """
+    Restart view for SCORM content
+    Clears all SCORM tracking data and allows user to start fresh
+    """
+    try:
+        # Get topic and package
+        topic = get_object_or_404(Topic, id=topic_id)
+        package = topic.scorm
+        
+        if not package:
+            messages.error(request, "No SCORM package associated with this topic")
+            return redirect('courses:topic_view', topic_id=topic_id)
+        
+        if package.processing_status != 'ready':
+            messages.error(request, f"Package is not ready. Status: {package.get_processing_status_display()}")
+            return redirect('courses:topic_view', topic_id=topic_id)
+        
+        # Check if user has passed/completed this SCORM
+        from scorm.models import ScormEnrollment, ScormAttempt
+        from django.db import transaction
+        
+        enrollment = ScormEnrollment.objects.filter(
+            user=request.user,
+            topic=topic
+        ).first()
+        
+        if not enrollment or enrollment.enrollment_status not in ['passed', 'completed']:
+            messages.warning(request, "You must complete this SCORM content before you can restart it")
+            return redirect('courses:topic_view', topic_id=topic_id)
+        
+        if request.method == 'POST':
+            # Clear all SCORM tracking data
+            with transaction.atomic():
+                # Delete all attempts
+                ScormAttempt.objects.filter(enrollment=enrollment).delete()
+                
+                # Reset enrollment
+                enrollment.total_attempts = 0
+                enrollment.best_score = None
+                enrollment.first_completion_date = None
+                enrollment.last_completion_date = None
+                enrollment.enrollment_status = 'enrolled'
+                enrollment.total_time_seconds = 0
+                enrollment.save()
+                
+                # Clear TopicProgress SCORM data
+                from courses.views import get_topic_course
+                course = get_topic_course(topic)
+                topic_progress = TopicProgress.objects.filter(
+                    user=request.user,
+                    topic=topic,
+                    course=course
+                ).first()
+                
+                if topic_progress:
+                    topic_progress.completed = False
+                    topic_progress.completed_at = None
+                    topic_progress.last_score = None
+                    topic_progress.best_score = None
+                    topic_progress.total_time_spent = 0
+                    topic_progress.attempts = 0
+                    
+                    # Clear SCORM-specific progress data
+                    if topic_progress.progress_data:
+                        topic_progress.progress_data.pop('scorm_enrollment_id', None)
+                        topic_progress.progress_data.pop('scorm_attempt_id', None)
+                        topic_progress.progress_data.pop('scorm_attempt_number', None)
+                        topic_progress.progress_data.pop('scorm_completion_status', None)
+                        topic_progress.progress_data.pop('scorm_success_status', None)
+                        topic_progress.progress_data.pop('scorm_score', None)
+                        topic_progress.progress_data.pop('scorm_total_time', None)
+                        topic_progress.progress_data.pop('scorm_max_score', None)
+                        topic_progress.progress_data.pop('scorm_min_score', None)
+                        topic_progress.progress_data.pop('scorm_entry', None)
+                        topic_progress.progress_data.pop('scorm_exit', None)
+                        topic_progress.progress_data.pop('scorm_lesson_location', None)
+                    
+                    # Clear bookmark
+                    if topic_progress.bookmark:
+                        topic_progress.bookmark.pop('lesson_location', None)
+                        topic_progress.bookmark.pop('suspend_data', None)
+                    
+                    topic_progress.save()
+                
+                logger.info(
+                    f"SCORM restart: Cleared all tracking data for user={request.user.username}, "
+                    f"topic_id={topic_id}"
+                )
+            
+            messages.success(request, "All SCORM tracking data has been cleared. You can now start fresh.")
+            return redirect('scorm:launcher', topic_id=topic_id)
+        
+        # GET request - show confirmation page (though we already show modal in template)
+        # This is a fallback in case JavaScript is disabled
+        return redirect('courses:topic_view', topic_id=topic_id)
+        
+    except Exception as e:
+        logger.error(f"Error in SCORM restart: {e}", exc_info=True)
+        messages.error(request, f"Error restarting SCORM: {str(e)}")
+        return redirect('courses:topic_view', topic_id=topic_id)
 
 
 def validate_scorm_file_path(file_path):

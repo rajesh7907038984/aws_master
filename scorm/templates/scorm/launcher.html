@@ -167,7 +167,14 @@
 <body>
     <!-- Header with Title and Back Button -->
     <div id="scorm-header">
-        <h1>{{ topic.title }}</h1>
+        <div style="flex: 1; display: flex; align-items: center; gap: 12px;">
+            <h1>{{ topic.title }}</h1>
+            {% if review_mode %}
+            <span style="background: rgba(255, 255, 255, 0.2); padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 500; white-space: nowrap;">
+                <i class="fas fa-eye" style="margin-right: 4px;"></i>Review Mode
+            </span>
+            {% endif %}
+        </div>
         <a href="{% url 'courses:topic_view' topic.id %}" id="back-button" onclick="return handleBackButton(event);">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M10 12L6 8L10 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -190,6 +197,9 @@
     <script src="{% static 'scorm/js/scorm-api.js' %}" onerror="handleScriptError()"></script>
     
     <script>
+        // Check if we're in review mode
+        const isReviewMode = {% if review_mode %}true{% else %}false{% endif %};
+        
         // Handle "Back to Topic" button click - save progress before navigating
         function handleBackButton(event) {
             event.preventDefault();
@@ -198,39 +208,44 @@
             // Store the href before async operations (event.currentTarget becomes null in setTimeout)
             const targetUrl = event.currentTarget.href;
             
-            // Force save SCORM data
-            if (window.SCORM && typeof window.SCORM.forceSave === 'function') {
-                window.SCORM.forceSave();
-            }
-            
-            // Commit SCORM data before leaving
-            try {
-                if (window.API && window.API.LMSCommit) {
-                    window.API.LMSCommit('');
-                    console.log('✓ Progress committed (SCORM 1.2)');
-                } else if (window.API_1484_11 && window.API_1484_11.Commit) {
-                    window.API_1484_11.Commit('');
-                    console.log('✓ Progress committed (SCORM 2004)');
+            // Don't save in review mode
+            if (!isReviewMode) {
+                // Force save SCORM data
+                if (window.SCORM && typeof window.SCORM.forceSave === 'function') {
+                    window.SCORM.forceSave();
                 }
-            } catch(err) {
-                console.error('Error committing progress:', err);
+                
+                // Commit SCORM data before leaving
+                try {
+                    if (window.API && window.API.LMSCommit) {
+                        window.API.LMSCommit('');
+                        console.log('✓ Progress committed (SCORM 1.2)');
+                    } else if (window.API_1484_11 && window.API_1484_11.Commit) {
+                        window.API_1484_11.Commit('');
+                        console.log('✓ Progress committed (SCORM 2004)');
+                    }
+                } catch(err) {
+                    console.error('Error committing progress:', err);
+                }
             }
             
-            // Small delay to ensure save completes, then navigate
+            // Small delay to ensure save completes (if not in review mode), then navigate
             setTimeout(function() {
                 window.location.href = targetUrl;
-            }, 100);
+            }, isReviewMode ? 0 : 100);
             
             return false;
         }
         
         // Save progress before page unload (tab close, browser close, navigation)
         window.addEventListener('beforeunload', function(event) {
-            console.log('Page unloading - saving SCORM progress...');
-            
-            // Force save SCORM data synchronously
-            if (window.SCORM && typeof window.SCORM.forceSave === 'function') {
-                window.SCORM.forceSave();
+            if (!isReviewMode) {
+                console.log('Page unloading - saving SCORM progress...');
+                
+                // Force save SCORM data synchronously
+                if (window.SCORM && typeof window.SCORM.forceSave === 'function') {
+                    window.SCORM.forceSave();
+                }
             }
             
             // Don't show confirmation dialog (removed to avoid annoying users)
@@ -272,7 +287,8 @@
             autoCommitDelay: 30000,  // 30 seconds
             exitUrl: '{% url "courses:topic_view" topic.id %}',  // URL to navigate to on exit
             autoExitOnTerminate: true,  // Automatically navigate on LMSFinish/Terminate
-            progressData: {{ progress_data|safe }}
+            progressData: {{ progress_data|safe }},
+            reviewMode: {% if review_mode %}true{% else %}false{% endif %}  // Prevent commits in review mode
         };
 
         // Wait for SCORM API to initialize
@@ -439,12 +455,14 @@
             iframe.src = fullUrl;
         }
 
-        // Auto-save on page unload
+        // Auto-save on page unload (only if not in review mode)
         window.addEventListener('beforeunload', function(e) {
-            if (window.API && window.API.LMSCommit) {
-                window.API.LMSCommit('');
-            } else if (window.API_1484_11 && window.API_1484_11.Commit) {
-                window.API_1484_11.Commit('');
+            if (!isReviewMode) {
+                if (window.API && window.API.LMSCommit) {
+                    window.API.LMSCommit('');
+                } else if (window.API_1484_11 && window.API_1484_11.Commit) {
+                    window.API_1484_11.Commit('');
+                }
             }
         });
 
@@ -512,10 +530,12 @@
                         window.API.__wrappedGetValue = true;
                     }
 
-                    // Re-assert auto-commit interval for reliability
-                    if (!window.__riseAutoCommit && typeof window.API.LMSCommit === 'function') {
+                    // Re-assert auto-commit interval for reliability (only if not in review mode)
+                    if (!window.__riseAutoCommit && typeof window.API.LMSCommit === 'function' && !isReviewMode) {
                         window.__riseAutoCommit = setInterval(function () {
-                            try { window.API.LMSCommit(''); } catch (e) {}
+                            if (!isReviewMode) {
+                                try { window.API.LMSCommit(''); } catch (e) {}
+                            }
                         }, (window.scormConfig && window.scormConfig.autoCommitDelay) || 30000);
                     }
                 } catch (e) {

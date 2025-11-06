@@ -5,9 +5,11 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.urls import reverse
 from django.db.models import Q
+from django.db import OperationalError, DatabaseError, InterfaceError
 
 from .models import Topic, Course, Section
 from .views import get_topic_course
+from core.utils.db_retry import retry_db_operation, safe_db_query
 
 # Import TopicProgress and CourseTopic dynamically
 try:
@@ -22,12 +24,17 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
+@retry_db_operation(max_attempts=3, delay=1.0)
 def topic_view(request, topic_id):
     """View for displaying a topic and its content"""
     try:
-        # Get the topic with better error handling
+        # Get the topic with better error handling and retry logic
         try:
-            topic = Topic.objects.get(id=topic_id)
+            topic = safe_db_query(
+                lambda: Topic.objects.get(id=topic_id),
+                max_attempts=3,
+                delay=1.0
+            )
         except Topic.DoesNotExist:
             logger.error(f"Topic with id {topic_id} does not exist")
             messages.error(request, f"Topic with ID {topic_id} not found")
@@ -36,6 +43,14 @@ def topic_view(request, topic_id):
             logger.error(f"Invalid topic_id format: {topic_id}")
             messages.error(request, "Invalid topic ID format")
             return redirect('courses:course_list')
+        except (OperationalError, DatabaseError, InterfaceError) as e:
+            # Check if it's a connection error
+            error_str = str(e).lower()
+            if any(indicator in error_str for indicator in ['ssl', 'connection', 'eof', 'timeout']):
+                logger.error(f"Database connection error loading topic {topic_id}: {e}")
+                messages.error(request, "Unable to connect to the database. Please try again in a moment.")
+                return redirect('courses:course_list')
+            raise
         
         # For Document types, show the PDF in the template instead of redirecting
         # This allows for better error handling and fallback options
@@ -43,8 +58,21 @@ def topic_view(request, topic_id):
             logger.info(f"DEBUG: Showing PDF for topic {topic_id} - {topic.title}")
             # Don't redirect, let the template handle the PDF display
         
-        # Get the course the topic belongs to
-        course = get_topic_course(topic)
+        # Get the course the topic belongs to with retry logic
+        try:
+            course = safe_db_query(
+                lambda: get_topic_course(topic),
+                max_attempts=3,
+                delay=1.0
+            )
+        except (OperationalError, DatabaseError, InterfaceError) as e:
+            error_str = str(e).lower()
+            if any(indicator in error_str for indicator in ['ssl', 'connection', 'eof', 'timeout']):
+                logger.error(f"Database connection error getting course for topic {topic_id}: {e}")
+                messages.error(request, "Unable to connect to the database. Please try again in a moment.")
+                return redirect('courses:course_list')
+            raise
+        
         if not course:
             messages.error(request, 'Topic is not associated with any course')
             return redirect('courses:course_list')
@@ -68,6 +96,8 @@ def topic_view(request, topic_id):
         # Simple progress tracking for authenticated users only
         topic_progress = None
         is_completed = False
+        scorm_enrollment = None
+        scorm_is_passed = False
         
         if request.user.is_authenticated:
             try:
@@ -95,6 +125,56 @@ def topic_view(request, topic_id):
                         topic=topic
                     ).first()
                     is_completed = topic_progress.completed if topic_progress else False
+                
+                # Check SCORM enrollment status if this is a SCORM topic
+                # Do this AFTER getting topic_progress so we can sync bookmark data
+                if topic.content_type == 'SCORM' and topic.scorm:
+                    try:
+                        from scorm.models import ScormEnrollment, ScormAttempt
+                        scorm_enrollment = ScormEnrollment.objects.filter(
+                            user=request.user,
+                            topic=topic
+                        ).first()
+                        if scorm_enrollment:
+                            # Check if passed or completed
+                            scorm_is_passed = scorm_enrollment.enrollment_status in ['passed', 'completed']
+                            
+                            # Check for incomplete attempt with resume data
+                            # This helps show "Resume" button even if TopicProgress.bookmark isn't synced
+                            incomplete_attempt = scorm_enrollment.get_current_attempt()
+                            if incomplete_attempt and not scorm_is_passed and topic_progress:
+                                # If there's an incomplete attempt with resume data, ensure bookmark is synced
+                                if incomplete_attempt.lesson_location or incomplete_attempt.suspend_data:
+                                    bookmark_updated = False
+                                    if not topic_progress.bookmark:
+                                        topic_progress.bookmark = {}
+                                    
+                                    # Sync lesson_location if it exists in attempt but not in bookmark
+                                    if incomplete_attempt.lesson_location and (
+                                        not topic_progress.bookmark.get('lesson_location') or 
+                                        topic_progress.bookmark.get('lesson_location') != incomplete_attempt.lesson_location
+                                    ):
+                                        topic_progress.bookmark['lesson_location'] = incomplete_attempt.lesson_location
+                                        bookmark_updated = True
+                                    
+                                    # Sync suspend_data if it exists in attempt but not in bookmark
+                                    if incomplete_attempt.suspend_data and (
+                                        not topic_progress.bookmark.get('suspend_data') or 
+                                        topic_progress.bookmark.get('suspend_data') != incomplete_attempt.suspend_data
+                                    ):
+                                        topic_progress.bookmark['suspend_data'] = incomplete_attempt.suspend_data
+                                        bookmark_updated = True
+                                    
+                                    if bookmark_updated:
+                                        topic_progress.save(update_fields=['bookmark'])
+                                        logger.info(
+                                            f"Synced bookmark data from ScormAttempt to TopicProgress: "
+                                            f"user={request.user.username}, topic_id={topic.id}"
+                                        )
+                    except ImportError:
+                        logger.warning("ScormEnrollment model not found")
+                    except Exception as e:
+                        logger.error(f"Error checking SCORM enrollment: {str(e)}")
             except Exception as e:
                 logger.error(f"Error creating/getting TopicProgress: {str(e)}")
                 topic_progress = None
@@ -266,6 +346,67 @@ def topic_view(request, topic_id):
             except Exception as e:
                 logger.error(f"Error checking initial assessment completion: {str(e)}")
         
+        # Get incomplete SCORM attempt for resume button check
+        scorm_incomplete_attempt = None
+        has_scorm_resume_data = False
+        if topic.content_type == 'SCORM' and topic.scorm and not scorm_is_passed:
+            try:
+                from scorm.models import ScormAttempt
+                # First try to get attempt through enrollment if it exists
+                if scorm_enrollment:
+                    scorm_incomplete_attempt = scorm_enrollment.get_current_attempt()
+                else:
+                    # If no enrollment, check for incomplete attempts directly
+                    scorm_incomplete_attempt = ScormAttempt.objects.filter(
+                        user=request.user,
+                        topic=topic,
+                        completed=False
+                    ).order_by('-started_at').first()
+                
+                if scorm_incomplete_attempt:
+                    has_scorm_resume_data = bool(
+                        scorm_incomplete_attempt.lesson_location or 
+                        scorm_incomplete_attempt.suspend_data
+                    )
+                    logger.info(
+                        f"Found incomplete SCORM attempt for resume check: "
+                        f"user={request.user.username}, topic_id={topic.id}, "
+                        f"has_location={bool(scorm_incomplete_attempt.lesson_location)}, "
+                        f"has_suspend={bool(scorm_incomplete_attempt.suspend_data)}, "
+                        f"has_resume_data={has_scorm_resume_data}"
+                    )
+            except Exception as e:
+                logger.error(f"Error getting incomplete SCORM attempt: {str(e)}")
+        
+        # Also check TopicProgress bookmark as fallback
+        has_bookmark_resume_data = False
+        if topic_progress and topic_progress.bookmark:
+            bookmark = topic_progress.bookmark
+            has_bookmark_resume_data = bool(
+                bookmark.get('lesson_location') or 
+                bookmark.get('suspend_data')
+            )
+            logger.info(
+                f"Checked TopicProgress bookmark for resume: "
+                f"user={request.user.username}, topic_id={topic.id}, "
+                f"has_bookmark_resume_data={has_bookmark_resume_data}"
+            )
+        
+        # Combined resume check - ensure it's always set
+        can_resume_scorm = has_scorm_resume_data or has_bookmark_resume_data
+        
+        # Log the resume check for debugging
+        if topic.content_type == 'SCORM' and topic.scorm:
+            logger.info(
+                f"SCORM Resume Check: user={request.user.username}, topic_id={topic.id}, "
+                f"can_resume_scorm={can_resume_scorm}, "
+                f"has_scorm_resume_data={has_scorm_resume_data}, "
+                f"has_bookmark_resume_data={has_bookmark_resume_data}, "
+                f"scorm_is_passed={scorm_is_passed}, "
+                f"scorm_enrollment={scorm_enrollment.id if scorm_enrollment else None}, "
+                f"incomplete_attempt={scorm_incomplete_attempt.id if scorm_incomplete_attempt else None}"
+            )
+        
         context = {
             'topic': topic,
             'course': course,
@@ -288,15 +429,30 @@ def topic_view(request, topic_id):
             'access_warning': access_warning,
             'has_completed_initial_assessment': has_completed_initial_assessment,
             'can_retake_initial_assessment': can_retake_initial_assessment,
-            'remaining_attempts': remaining_attempts
+            'remaining_attempts': remaining_attempts,
+            'scorm_enrollment': scorm_enrollment,
+            'scorm_is_passed': scorm_is_passed,
+            'scorm_incomplete_attempt': scorm_incomplete_attempt,
+            'can_resume_scorm': can_resume_scorm  # Always include this, defaults to False if not SCORM
         }
         
         
         return render(request, 'courses/topic_view.html', context)
     
+    except (OperationalError, DatabaseError, InterfaceError) as e:
+        # Handle database connection errors with user-friendly message
+        error_str = str(e).lower()
+        if any(indicator in error_str for indicator in ['ssl', 'connection', 'eof', 'timeout', 'syscall']):
+            logger.error(f"Database connection error viewing topic {topic_id}: {e}", exc_info=True)
+            messages.error(request, "Unable to connect to the database. Please try again in a moment.")
+        else:
+            logger.error(f"Database error viewing topic {topic_id}: {e}", exc_info=True)
+            messages.error(request, "A database error occurred. Please try again later.")
+        return redirect('courses:course_list')
     except Exception as e:
-        logger.error(f"Error viewing topic: {str(e)}")
-        messages.error(request, f"Error loading topic: {str(e)}")
+        logger.error(f"Error viewing topic {topic_id}: {str(e)}", exc_info=True)
+        # Don't expose internal error details to users
+        messages.error(request, "An error occurred while loading the topic. Please try again later.")
         return redirect('courses:course_list')
 
 @login_required
