@@ -33,10 +33,14 @@ from django.shortcuts import redirect
 
 logger = logging.getLogger(__name__)
 
-def pre_calculate_student_scores(students, activities, grades, quiz_attempts, scorm_attempts, conference_evaluations, initial_assessment_attempts=None):
+def pre_calculate_student_scores(students, activities, grades, quiz_attempts, scorm_attempts, conference_evaluations, initial_assessment_attempts=None, course=None):
     """
     Pre-calculate all student scores for activities to reduce template computation.
     Returns a dictionary structure: {student_id: {activity_id: score_data}}
+    
+    For quiz-type activities, this function now uses TopicProgress (same as Learning Activities Report)
+    which provides real-time updates via signals and eliminates cache issues.
+    Falls back to QuizAttempt for legacy data if TopicProgress doesn't exist.
     """
     # Initialize score data structure
     score_data = {}
@@ -47,6 +51,29 @@ def pre_calculate_student_scores(students, activities, grades, quiz_attempts, sc
         for grade in grades:
             key = (grade.student_id, grade.assignment_id)
             grade_lookup[key] = grade
+        
+        # Build TopicProgress lookup for quiz-type topics (same logic as Learning Activities Report)
+        from courses.models import Topic, TopicProgress
+        topic_progress_lookup = {}
+        if course:
+            # Get all quiz-type topics for the course
+            quiz_topics = Topic.objects.filter(
+                content_type='Quiz',
+                coursetopic__course=course
+            ).distinct()
+            
+            # Pre-fetch TopicProgress for all students and quiz topics
+            topic_progress_records = TopicProgress.objects.filter(
+                user__in=students,
+                topic__in=quiz_topics,
+                course=course
+            ).select_related('topic', 'topic__quiz')
+            
+            # Create lookup: (user_id, quiz_id) -> TopicProgress
+            for tp in topic_progress_records:
+                if tp.topic.quiz:
+                    key = (tp.user_id, tp.topic.quiz.id)
+                    topic_progress_lookup[key] = tp
         
         quiz_attempt_lookup = {}
         for attempt in quiz_attempts:
@@ -152,13 +179,58 @@ def pre_calculate_student_scores(students, activities, grades, quiz_attempts, sc
                         
                         elif activity_type == 'quiz':
                             key = (student.id, activity_id)
-                            if key in quiz_attempt_lookup:
+                            quiz = activity['object']
+                            
+                            # NEW LOGIC: Try TopicProgress first (same as Learning Activities Report)
+                            # This provides real-time updates via signals without cache issues
+                            if key in topic_progress_lookup:
+                                topic_progress = topic_progress_lookup[key]
+                                
+                                if topic_progress.last_score is not None:
+                                    final_score = float(topic_progress.last_score)
+                                    max_score = 100  # Quiz scores in TopicProgress are percentages
+                                    
+                                    # Get the associated attempt for additional data
+                                    attempt = quiz_attempt_lookup.get(key)
+                                    
+                                    # Check for rubric evaluation if quiz has rubric
+                                    if quiz.rubric and attempt:
+                                        try:
+                                            from quiz.models import QuizRubricEvaluation
+                                            rubric_evaluations = QuizRubricEvaluation.objects.filter(
+                                                quiz_attempt=attempt
+                                            )
+                                            if rubric_evaluations.exists():
+                                                final_score = sum(evaluation.points for evaluation in rubric_evaluations)
+                                                max_score = quiz.rubric.total_points
+                                        except Exception as e:
+                                            logger.error(f"Error processing quiz rubric evaluation for student {student.id}, quiz {activity_id}: {str(e)}")
+                                            pass
+                                    
+                                    student_scores[activity_id] = {
+                                        'score': final_score,
+                                        'max_score': max_score,
+                                        'date': topic_progress.last_accessed,
+                                        'type': 'quiz',
+                                        'attempt': attempt,
+                                        'source': 'topic_progress'  # Track data source
+                                    }
+                                else:
+                                    # TopicProgress exists but no score
+                                    student_scores[activity_id] = {
+                                        'score': None,
+                                        'max_score': activity['max_score'],
+                                        'type': 'quiz',
+                                        'attempt': None,
+                                        'source': 'topic_progress'
+                                    }
+                            # FALLBACK: Use QuizAttempt for legacy data (old attempts before signal was added)
+                            elif key in quiz_attempt_lookup:
                                 attempt = quiz_attempt_lookup[key]
                                 final_score = attempt.score
                                 max_score = activity['max_score']
                                 
                                 # Check for rubric evaluation
-                                quiz = activity['object']
                                 if quiz.rubric:
                                     try:
                                         from quiz.models import QuizRubricEvaluation
@@ -182,14 +254,17 @@ def pre_calculate_student_scores(students, activities, grades, quiz_attempts, sc
                                     'max_score': max_score,
                                     'date': attempt.end_time or attempt.start_time,
                                     'type': 'quiz',
-                                    'attempt': attempt
+                                    'attempt': attempt,
+                                    'source': 'quiz_attempt'  # Track data source for debugging
                                 }
                             else:
+                                # No TopicProgress and no QuizAttempt - not attempted
                                 student_scores[activity_id] = {
                                     'score': None,
                                     'max_score': activity['max_score'],
                                     'type': 'quiz',
-                                    'attempt': None
+                                    'attempt': None,
+                                    'source': 'none'
                                 }
                         
                         elif activity_type == 'initial_assessment':
@@ -1514,10 +1589,10 @@ def course_gradebook_detail(request, course_id):
         
         if student_scores is None:
             # Not in cache, calculate and cache for ALL students (not just paginated)
-            # Pass initial_assessment_attempts separately to ensure they're included
+            # Pass course parameter to enable TopicProgress lookup (same logic as Learning Activities Report)
             student_scores = pre_calculate_student_scores(
                 all_students, activities, grades, quiz_attempts, 
-                None, conference_evaluations, initial_assessment_attempts
+                None, conference_evaluations, initial_assessment_attempts, course=course
             )
             # Cache for 5 minutes (reduced for more frequent updates)
             cache.set(cache_key, student_scores, timeout=300)

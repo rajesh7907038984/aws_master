@@ -2264,13 +2264,14 @@ function applyFilters() {
         let activityType = '';
         
         if (activityTypeLabels.length > 0) {
-            const labelText = activityTypeLabels[0].textContent.toLowerCase();
-            if (labelText.includes('asg')) activityType = 'assignment';
-            else if (labelText.includes('quz')) activityType = 'quiz';
-            else if (labelText.includes('ia ')) activityType = 'initial_assessment';
-            else if (labelText.includes('scorm')) activityType = 'scorm';
-            else if (labelText.includes('dsc')) activityType = 'discussion';
-            else if (labelText.includes('cnf')) activityType = 'conference';
+            const labelText = activityTypeLabels[0].textContent.toLowerCase().trim();
+            // Use startsWith for more precise matching to avoid false positives
+            if (labelText.startsWith('asg')) activityType = 'assignment';
+            else if (labelText.startsWith('quz')) activityType = 'quiz';
+            else if (labelText.startsWith('ia')) activityType = 'initial_assessment';
+            else if (labelText.startsWith('scorm')) activityType = 'scorm';
+            else if (labelText.startsWith('dsc')) activityType = 'discussion';
+            else if (labelText.startsWith('cnf')) activityType = 'conference';
         }
         
         let columnVisible = true;
@@ -2766,7 +2767,8 @@ window.loadGradingContent = function(activityType, activityId, studentId, submis
         if (submissionId) {
             url += `?submission_id=${submissionId}`;
         }
-    } else if (activityType === 'quiz') {
+    } else if (activityType === 'quiz' || activityType === 'initial_assessment') {
+        // Both quiz and initial_assessment use the same quiz grading interface
         url = `/gradebook/grade-sidebar/quiz/${activityId}/${studentId}/`;
         if (submissionId) {
             url += `?attempt_id=${submissionId}`;
