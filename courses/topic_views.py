@@ -85,10 +85,68 @@ def topic_view(request, topic_id):
                 return redirect('courses:course_view', course_id=course.id)
             
             # Check sequential progression for learners only
+            # Only check if sequential progression is enabled
             if hasattr(request.user, 'role') and request.user.role == 'learner':
-                if not course.can_access_topic(request.user, topic):
-                    messages.warning(request, "You must complete previous topics before accessing this one. Please complete the topics in order.")
-                    return redirect('courses:course_details', course_id=course.id)
+                # Skip sequential progression check if it's disabled
+                if course.enforce_sequence or course.sequential_progression:
+                    if not course.can_access_topic(request.user, topic):
+                        # If manual=True, redirect to next available topic instead of course details
+                        manual_navigation = request.GET.get('manual', '').lower() == 'true'
+                        if manual_navigation:
+                            # Find the next available topic the learner can access using the same ordering
+                            next_available_topic = None
+                            try:
+                                # Build the same ordered list used for display (will be built later in the function)
+                                # But we need sections here, so get them now
+                                from courses.models import Section
+                                sections = Section.objects.filter(course=course).order_by('order')
+                                
+                                # Get all topics for this course that the user can access
+                                if request.user.is_authenticated and request.user.role == 'learner':
+                                    all_course_topics = Topic.objects.filter(
+                                        coursetopic__course=course
+                                    ).exclude(
+                                        status='draft'
+                                    ).exclude(
+                                        restrict_to_learners=True,
+                                        restricted_learners=request.user
+                                    ).order_by('order', 'coursetopic__order', 'created_at')
+                                else:
+                                    all_course_topics = Topic.objects.filter(
+                                        coursetopic__course=course
+                                    ).order_by('order', 'coursetopic__order', 'created_at')
+                                
+                                # Build the same ordered list used for display
+                                all_topics_ordered = []
+                                
+                                # Add topics from each section in order
+                                for section in sections:
+                                    section_topics_list = all_course_topics.filter(section=section).order_by('order', 'coursetopic__order', 'created_at')
+                                    all_topics_ordered.extend(list(section_topics_list))
+                                
+                                # Add standalone topics (without section) at the end
+                                standalone_topics_list = all_course_topics.filter(section__isnull=True).order_by('order', 'coursetopic__order', 'created_at')
+                                all_topics_ordered.extend(list(standalone_topics_list))
+                                
+                                # Find the first topic the learner can access
+                                for topic_item in all_topics_ordered:
+                                    if course.can_access_topic(request.user, topic_item):
+                                        next_available_topic = topic_item
+                                        break
+                            except Exception as e:
+                                logger.error(f"Error finding next available topic: {str(e)}")
+                            
+                            if next_available_topic:
+                                messages.warning(request, f"You must complete previous topics before accessing '{topic.title}'. Redirecting to the next available topic.")
+                                return redirect('courses:topic_view', topic_id=next_available_topic.id)
+                            else:
+                                # Fallback: no accessible topic found, go to course details
+                                messages.warning(request, "You must complete previous topics before accessing this one. Please complete the topics in order.")
+                                return redirect('courses:course_details', course_id=course.id)
+                        else:
+                            # Not manual navigation, redirect to course details
+                            messages.warning(request, "You must complete previous topics before accessing this one. Please complete the topics in order.")
+                            return redirect('courses:course_details', course_id=course.id)
         
         # Simple access - just show the topic content
         logger.info(f"DEBUG: Showing topic {topic_id} - {topic.title}")
@@ -104,10 +162,11 @@ def topic_view(request, topic_id):
                 # Only create progress records for learners
                 # Instructors, admins, etc. should be able to view topics without tracking progress
                 if hasattr(request.user, 'role') and request.user.role == 'learner':
-                    # Use get_or_create to automatically create progress record when learner views topic
+                    # Use get_or_create with course context to ensure consistency with sidebar
                     topic_progress, created = TopicProgress.objects.get_or_create(
                         user=request.user,
                         topic=topic,
+                        course=course,  # Add course filter to match sidebar logic
                         defaults={
                             'completed': False,
                             'completion_method': 'auto'
@@ -120,9 +179,12 @@ def topic_view(request, topic_id):
                         logger.info(f"Created TopicProgress for user {request.user.username} on topic {topic.id} - {topic.title}")
                 else:
                     # For non-learners (instructors, admins), just check if progress exists but don't create
+                    # Prefer progress with course context to match sidebar logic
                     topic_progress = TopicProgress.objects.filter(
                         user=request.user,
                         topic=topic
+                    ).order_by(
+                        '-course__id'  # Prefer progress with course context
                     ).first()
                     is_completed = topic_progress.completed if topic_progress else False
                 

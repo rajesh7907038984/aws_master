@@ -1019,30 +1019,42 @@ def course_details(request, course_id):
     sections = visible_sections
     
     # Get the first topic for the Start/Resume button
-    # Find the actual first topic based on course structure
+    # Find the actual first topic based on course structure (including ALL topic types)
     first_topic = None
     
     # First check if there are topics in sections
     first_section = sections[0] if sections else None
     if first_section:
-        # Get the first topic from the first section
-        first_topic = topics.filter(section=first_section).order_by('coursetopic__order', 'created_at').first()
+        # Get the first topic from the first section (including ALL topics)
+        section_topics = topics.filter(section=first_section).order_by('coursetopic__order', 'created_at')
+        for topic in section_topics:
+            first_topic = topic
+            break
     
-    # If no topics in sections, get the first standalone topic
+    # If no topics in sections, get the first standalone topic (including ALL topics)
     if not first_topic and hasattr(topics_without_section, 'exists'):
         if topics_without_section.exists():
-            first_topic = topics_without_section.order_by('coursetopic__order', 'created_at').first()
+            standalone_topics = topics_without_section.order_by('coursetopic__order', 'created_at')
+            for topic in standalone_topics:
+                first_topic = topic
+                break
     elif not first_topic and topics_without_section:
         # If topics_without_section is a list
-        if topics_without_section:
-            first_topic = topics_without_section[0]
+        for topic in topics_without_section:
+            first_topic = topic
+            break
     
-    # If still no topic found, fall back to just the first topic overall
+    # If still no topic found, fall back to just the first topic overall (including ALL topics)
     if not first_topic:
-        if hasattr(topics, 'first'):
-            first_topic = topics.first()
+        if hasattr(topics, 'all'):
+            all_topics = topics.all()
+            for topic in all_topics:
+                first_topic = topic
+                break
         elif topics:
-            first_topic = topics[0]
+            for topic in topics:
+                first_topic = topic
+                break
 
     # Calculate user's progress
     progress = 0
@@ -1111,10 +1123,15 @@ def course_details(request, course_id):
                     logger.warning(f"Progress calculation discrepancy: calculated={progress}, enrollment={enrollment_progress} for user {request.user.username}")
     
     # Find the next incomplete topic for Resume button (after progress records are initialized)
+    # This includes ALL topic types: Video, Document, Text, Audio, Web, Quiz, Assignment, 
+    # EmbedVideo, Conference, Discussion, SCORM - including initial assessment quizzes
     next_incomplete_topic = None
     if request.user.is_authenticated and is_enrolled:
         try:
             # Get all topic IDs in order
+            # Note: The 'topics' queryset is already filtered based on user role:
+            # - For learners: excludes draft topics and restricted topics
+            # - For instructors/admins: includes all topics
             all_topics_ordered = []
             
             # First add topics from sections in order
@@ -1129,8 +1146,33 @@ def course_details(request, course_id):
             elif topics_without_section:
                 all_topics_ordered.extend(list(topics_without_section))
             
-            # Find the first topic that is not completed
-            for topic in all_topics_ordered:
+            # Find the first incomplete topic after the last completed topic
+            # IMPORTANT: Resume from the first incomplete topic AFTER the last completed topic
+            # This prevents newly added topics from interrupting the user's progress sequence
+            # ALL topic types are included: Video, Document, Text, Audio, Web, Quiz (including initial), 
+            # Assignment, EmbedVideo, Conference, Discussion, SCORM
+            last_completed_index = -1
+            
+            # First pass: find the index of the last completed topic
+            # Include ALL topics - no skipping
+            for index, topic in enumerate(all_topics_ordered):
+                topic_progress = TopicProgress.objects.filter(
+                    user=request.user,
+                    topic=topic,
+                    course=course,
+                    completed=True
+                ).exists()
+                
+                if topic_progress:
+                    last_completed_index = index
+            
+            # Second pass: find the first incomplete topic after the last completed one
+            # Start from the topic immediately after the last completed topic
+            # Include ALL topics - no skipping
+            start_index = last_completed_index + 1
+            for index in range(start_index, len(all_topics_ordered)):
+                topic = all_topics_ordered[index]
+                
                 topic_progress = TopicProgress.objects.filter(
                     user=request.user,
                     topic=topic,
@@ -7390,6 +7432,7 @@ def topic_create(request, course_id):
             'can_create_assignment': course.can_create_assignment(),
             'quiz_count': course.get_quiz_count(),
             'assignment_count': course.get_assignment_count(),
+            'new_section_selected': False,  # Default to False for GET requests
         }
         
         return render(request, 'courses/add_topic.html', context)
@@ -7421,15 +7464,81 @@ def topic_create(request, course_id):
             if new_topic.content_type == 'Text':
                 logger.info(f"Saving text topic - Content saved length: {len(str(new_topic.text_content or ''))}")
                 
-            # Set section if specified
-            if section:
-                new_topic.section = section
-            elif request.POST.get('section') and request.POST.get('section') != 'new_section' and request.POST.get('section') != 'standalone':
+            # Handle section assignment
+            new_section_name = request.POST.get('new_section_name', '').strip()
+            section_id_from_form = request.POST.get('section')
+            
+            # Use section from URL parameter if available, otherwise use form data
+            target_section_id = section.id if section else section_id_from_form
+            
+            # Validate: if "Create New Section" is selected, a name must be provided
+            if target_section_id == 'new_section' and not new_section_name:
+                messages.error(request, "Please provide a section name when creating a new section.")
+                # Re-render the form with error
+                filtered_content = get_user_filtered_content(request.user, course, request)
+                form = TopicForm(request.POST, request.FILES, course=course, filtered_content=filtered_content)
+                sections = Section.objects.filter(course=course).order_by('order')
+                content_types = Topic.TOPIC_TYPE_CHOICES
+                categories = get_user_accessible_categories(request.user)
+                breadcrumbs = [
+                    {'url': reverse('users:role_based_redirect'), 'label': 'Dashboard', 'icon': 'fa-home'},
+                    {'url': reverse('courses:course_list'), 'label': 'Course Catalog', 'icon': 'fa-book'},
+                    {'url': reverse('courses:course_edit', kwargs={'course_id': course.id}), 'label': course.title, 'icon': 'fa-edit'},
+                    {'label': 'Create Topic', 'icon': 'fa-plus-circle'}
+                ]
+                # Preserve section selection from POST data for re-rendering
+                preserved_section_id = section.id if section else (section_id_from_form if section_id_from_form != 'new_section' else None)
+                context = {
+                    'action': 'Create',
+                    'course': course,
+                    'course_id': course_id,
+                    'sections': sections,
+                    'content_types': content_types,
+                    'quizzes': filtered_content['quizzes'],
+                    'assignments': filtered_content['assignments'],
+                    'conferences': filtered_content['conferences'],
+                    'discussions': filtered_content['discussions'],
+                    'breadcrumbs': breadcrumbs,
+                    'section_id': preserved_section_id,
+                    'forum_content_type': request.GET.get('forum_content_type', 'text'),
+                    'assessment_type': request.GET.get('assessment_type', 'discussion'),
+                    'categories': categories,
+                    'form': form,
+                    'can_create_quiz': course.can_create_quiz(),
+                    'can_create_assignment': course.can_create_assignment(),
+                    'quiz_count': course.get_quiz_count(),
+                    'assignment_count': course.get_assignment_count(),
+                    'new_section_selected': section_id_from_form == 'new_section',  # Flag to show input field
+                }
+                return render(request, 'courses/add_topic.html', context)
+            
+            if new_section_name:
+                # Create new section
                 try:
-                    selected_section = Section.objects.get(id=request.POST.get('section'), course=course)
-                    new_topic.section = selected_section
+                    highest_order = Section.objects.filter(course=course).aggregate(Max('order')).get('order__max') or 0
+                    new_section = Section.objects.create(
+                        name=new_section_name,
+                        course=course,
+                        order=highest_order + 1
+                    )
+                    new_topic.section = new_section
+                    logger.info(f"Created new section '{new_section_name}' and assigned topic to it")
+                except Exception as e:
+                    logger.error(f"Error creating new section: {str(e)}")
+                    messages.error(request, f"Error creating new section: {str(e)}")
+            elif target_section_id and target_section_id != 'new_section' and target_section_id != 'standalone' and str(target_section_id) != '':
+                # Assign to existing section
+                try:
+                    target_section = Section.objects.get(id=target_section_id, course=course)
+                    new_topic.section = target_section
+                    logger.info(f"Assigned topic to existing section {target_section.name}")
                 except Section.DoesNotExist:
-                    pass
+                    logger.warning(f"Section {target_section_id} not found for course {course.id}")
+                    new_topic.section = None
+            else:
+                # No section (standalone topic)
+                new_topic.section = None
+                logger.info(f"Topic set as standalone (no section)")
             
             try:
                 # Save the topic to get an ID

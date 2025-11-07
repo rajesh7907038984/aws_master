@@ -30,7 +30,7 @@ class Quiz(models.Model):
         default=0
     )
     passing_score = models.PositiveIntegerField(
-        help_text="Passing score in percentage (not required for VAK Test)",
+        help_text="Passing score in percentage (required for all quiz types including VAK Test and Initial Assessment)",
         default=70,
         null=True,
         blank=True,
@@ -137,9 +137,9 @@ class Quiz(models.Model):
         if self.is_initial_assessment or self.is_vak_test:
             self.rubric = None
         
-        # Set passing score to None only for VAK Test (Initial Assessment uses passing scores)
-        if self.is_vak_test:
-            self.passing_score = None
+        # VAK Test and Initial Assessment now work like normal quizzes
+        # They can have passing scores and require passing to complete
+        # No special handling needed - use default passing_score if not set
         
         # Validate percentage configuration for Initial Assessment
         if self.is_initial_assessment:
@@ -177,44 +177,39 @@ class Quiz(models.Model):
         
         # For learner role, apply strict filtering
         if user.role == 'learner':
-            # VAK Test and Initial Assessment quizzes are accessible to all learners without course requirements
-            if self.is_vak_test or self.is_initial_assessment:
-                # Skip course enrollment and topic checks for these special quiz types
-                # But still check attempt limits
-                pass  # Continue to attempt limit check below
-            else:
-                # Check topic status only if quiz is linked to topics
-                if self.topics.exists():
-                    # Check if this quiz is linked to any published topics
-                    # Learners can only access quizzes that are linked to active/published topics
-                    if not self.topics.filter(status='active').exists():
-                        return False  # No published topics linked to this quiz
-                    
-                    # Check if this quiz is linked to any draft topics
-                    # Learners cannot access quizzes that have any draft topics
-                    if self.topics.filter(status='draft').exists():
-                        return False  # Quiz has draft topics, not available to learners
+            # All quiz types (Normal, VAK Test, Initial Assessment) now follow the same access rules
+            # Check topic status only if quiz is linked to topics
+            if self.topics.exists():
+                # Check if this quiz is linked to any published topics
+                # Learners can only access quizzes that are linked to active/published topics
+                if not self.topics.filter(status='active').exists():
+                    return False  # No published topics linked to this quiz
                 
-                # Check if user is enrolled in any courses linked to this quiz
-                # Quiz can be linked to courses through direct, M2M, or topic relationships
-                from courses.models import Course, CourseEnrollment
-                
-                # Get all courses that the user is enrolled in as a learner
-                enrolled_course_ids = CourseEnrollment.objects.filter(user=user, user__role='learner').values_list('course_id', flat=True)
-                
-                # Check if quiz is linked to any enrolled courses through any relationship
-                linked_to_enrolled_course = (
-                    # Direct course relationship
-                    (self.course and self.course.id in enrolled_course_ids) or
-                    # Topic-based course relationship
-                    Course.objects.filter(
-                        id__in=enrolled_course_ids,
-                        coursetopic__topic__quiz=self
-                    ).exists()
-                )
-                
-                if not linked_to_enrolled_course:
-                    return False
+                # Check if this quiz is linked to any draft topics
+                # Learners cannot access quizzes that have any draft topics
+                if self.topics.filter(status='draft').exists():
+                    return False  # Quiz has draft topics, not available to learners
+            
+            # Check if user is enrolled in any courses linked to this quiz
+            # Quiz can be linked to courses through direct, M2M, or topic relationships
+            from courses.models import Course, CourseEnrollment
+            
+            # Get all courses that the user is enrolled in as a learner
+            enrolled_course_ids = CourseEnrollment.objects.filter(user=user, user__role='learner').values_list('course_id', flat=True)
+            
+            # Check if quiz is linked to any enrolled courses through any relationship
+            linked_to_enrolled_course = (
+                # Direct course relationship
+                (self.course and self.course.id in enrolled_course_ids) or
+                # Topic-based course relationship
+                Course.objects.filter(
+                    id__in=enrolled_course_ids,
+                    coursetopic__topic__quiz=self
+                ).exists()
+            )
+            
+            if not linked_to_enrolled_course:
+                return False
         
         # Handle unlimited attempts
         if self.attempts_allowed == -1:  # -1 represents unlimited attempts
@@ -244,6 +239,86 @@ class Quiz(models.Model):
             is_completed=False,
             start_time__gte=recent_time
         ).count()
+
+    def can_view_quiz(self, user):
+        """
+        Check if user can VIEW the quiz (different from attempting).
+        Users who have completed attempts should be able to view the quiz
+        even if they can't start a new attempt.
+        """
+        # Always allow superusers
+        if user.is_superuser:
+            return True
+        
+        # For non-learner roles, check edit permissions
+        if user.role != 'learner':
+            # Allow quiz creator
+            if self.creator == user:
+                return True
+            
+            # For admins: check branch access through course or creator
+            if user.role == 'admin':
+                if self.course and self.course.branch == user.branch:
+                    return True
+                elif not self.course and self.creator.branch == user.branch:
+                    return True
+            
+            # For instructors: check if they're the course instructor or quiz creator
+            if user.role == 'instructor':
+                if self.course and self.course.instructor == user:
+                    return True
+                # Also check if instructor has access through course groups
+                if self.course and self.course.accessible_groups.filter(
+                    memberships__user=user,
+                    memberships__is_active=True,
+                    course_access__can_modify=True
+                ).exists():
+                    return True
+            
+            # For superadmin and globaladmin, allow access
+            if user.role in ['superadmin', 'globaladmin']:
+                return True
+            
+            return False
+        
+        # For learners: check if they have completed attempts (can view their results)
+        completed_attempts = self.get_completed_attempts(user)
+        if completed_attempts > 0:
+            return True
+        
+        # If no completed attempts, check if they can attempt (enrolled, active, etc.)
+        # This checks enrollment and quiz status without checking attempt limits
+        if not self.is_active:
+            return False
+        
+        if self.expires_at and timezone.now() > self.expires_at:
+            return False
+        
+        # All quiz types (Normal, VAK Test, Initial Assessment) now follow the same access rules
+        # Check topic status only if quiz is linked to topics
+        if self.topics.exists():
+            if not self.topics.filter(status='active').exists():
+                return False
+            if self.topics.filter(status='draft').exists():
+                return False
+        
+        # Check if user is enrolled in any courses linked to this quiz
+        from courses.models import Course, CourseEnrollment
+        
+        enrolled_course_ids = CourseEnrollment.objects.filter(
+            user=user, 
+            user__role='learner'
+        ).values_list('course_id', flat=True)
+        
+        linked_to_enrolled_course = (
+            (self.course and self.course.id in enrolled_course_ids) or
+            Course.objects.filter(
+                id__in=enrolled_course_ids,
+                coursetopic__topic__quiz=self
+            ).exists()
+        )
+        
+        return linked_to_enrolled_course
 
     def get_course_info(self):
         """Get course information for this quiz, checking both direct and topic relationships"""

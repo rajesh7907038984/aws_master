@@ -1012,33 +1012,75 @@ class Course(models.Model):
 
     def can_access_topic(self, user: CustomUser, topic: 'Topic') -> bool:
         """Check if user can access specific topic based on sequence"""
-        if not self.enforce_sequence:
+        # If sequential progression is disabled, always allow access
+        # Check both fields to ensure compatibility (if either is False, sequential progression is disabled)
+        if not self.enforce_sequence or not self.sequential_progression:
             return True
         
-        # Get the CourseTopic for this topic to find its order
+        # Build ordered list of topics respecting section order and Topic.order
+        # This matches the ordering used in topic_views.py and course_details
+        # Get all topics for this course (excluding drafts and restricted for learners)
+        if user.role == 'learner':
+            all_topics = Topic.objects.filter(
+                coursetopic__course=self
+            ).exclude(
+                status='draft'
+            ).exclude(
+                restrict_to_learners=True,
+                restricted_learners=user
+            ).order_by('order', 'coursetopic__order', 'created_at')
+        else:
+            all_topics = Topic.objects.filter(
+                coursetopic__course=self
+            ).order_by('order', 'coursetopic__order', 'created_at')
+        
+        # Build section-aware ordered list: section topics first (by section order), then standalone topics
+        sections = Section.objects.filter(course=self).order_by('order')
+        all_topics_ordered = []
+        
+        # Add topics from each section in order
+        for section in sections:
+            section_topics = all_topics.filter(section=section)
+            all_topics_ordered.extend(list(section_topics))
+        
+        # Add standalone topics (without section) at the end
+        standalone_topics = all_topics.filter(section__isnull=True)
+        all_topics_ordered.extend(list(standalone_topics))
+        
+        # Find the current topic's position in the ordered list
         try:
-            course_topic = CourseTopic.objects.get(course=self, topic=topic)
-            current_order = course_topic.order
-        except CourseTopic.DoesNotExist:
-            # If topic is not in this course, deny access
+            current_index = all_topics_ordered.index(topic)
+        except ValueError:
+            # Topic not found in ordered list, deny access
             return False
-            
-        # Get all topics that come before this one in the course
-        previous_course_topics = CourseTopic.objects.filter(
-            course=self,
-            order__lt=current_order
-        ).values_list('topic_id', flat=True)
+        
+        # Get all topics that come before this one in the ordered list
+        # Include ALL topic types in sequential progression (Quiz, SCORM, Text, Assignment, Video, etc.)
+        # All topics must be completed before accessing subsequent topics
+        # This includes ALL quiz types: normal quizzes, VAK Test quizzes, and Initial Assessment quizzes
+        previous_topics = all_topics_ordered[:current_index]
+        previous_topic_ids = []
+        
+        for prev_topic in previous_topics:
+            # Include ALL topic types in sequential progression
+            # Quiz topics (normal, VAK Test, Initial Assessment) should block access 
+            # like SCORM, Text, Assignment, and other topics
+            previous_topic_ids.append(prev_topic.id)
+        
+        # If no previous topics, allow access
+        if not previous_topic_ids:
+            return True
         
         # Check how many of those topics have been completed
         completed_count = TopicProgress.objects.filter(
             user=user,
-            topic_id__in=previous_course_topics,
+            topic_id__in=previous_topic_ids,
             course=self,
             completed=True
         ).count()
         
-        # User can access if all previous topics are completed
-        return completed_count == len(previous_course_topics)
+        # User can access if all previous topics (including all quiz types: normal, VAK Test, Initial Assessment) are completed
+        return completed_count == len(previous_topic_ids)
 
     def get_group_permissions(self, group: 'groups.models.BranchGroup') -> Dict[str, bool]:
         """Get permissions for a specific group"""
@@ -1299,50 +1341,22 @@ class Course(models.Model):
             except Exception as e:
                 logger.error(f"Error deleting completion requirements: {str(e)}")
             
-            # 5. DELETE ALL ASSIGNMENT RELATIONSHIPS
+            # 5. REMOVE ASSIGNMENT RELATIONSHIPS (PRESERVE ASSIGNMENTS)
             try:
-                from assignments.models import AssignmentCourse, AssignmentSubmission, AssignmentFeedback
+                from assignments.models import AssignmentCourse
                 
                 # Get all assignments linked to this course
                 course_assignments = AssignmentCourse.objects.filter(course=self)
                 assignment_count = course_assignments.count()
                 
                 if assignment_count > 0:
-                    logger.info(f"Found {assignment_count} assignments linked to this course")
+                    logger.info(f"Found {assignment_count} assignments linked to this course - preserving assignments, removing relationships only")
                     
-                    # Delete all submissions and feedback for these assignments
-                    for course_assignment in course_assignments:
-                        assignment = course_assignment.assignment
-                        
-                        # Delete all submissions for this assignment
-                        submissions = AssignmentSubmission.objects.filter(assignment=assignment)
-                        submission_count = submissions.count()
-                        if submission_count > 0:
-                            logger.info(f"Deleting {submission_count} submissions for assignment: {assignment.title}")
-                            
-                            # Delete all feedback for these submissions
-                            for submission in submissions:
-                                feedback_count = AssignmentFeedback.objects.filter(submission=submission).count()
-                                if feedback_count > 0:
-                                    AssignmentFeedback.objects.filter(submission=submission).delete()
-                                    logger.info(f"Deleted {feedback_count} feedback records for submission {submission.id}")
-                            
-                            # Delete all submissions
-                            submissions.delete()
-                            logger.info(f"Deleted {submission_count} submissions for assignment: {assignment.title}")
-                        
-                        # Delete the assignment itself if it's only linked to this course
-                        if assignment.courses.count() <= 1:  # Only linked to this course
-                            logger.info(f"Deleting assignment: {assignment.title} (only linked to this course)")
-                            assignment.delete()
-                        else:
-                            logger.info(f"Keeping assignment: {assignment.title} (linked to other courses)")
-                    
-                    # Delete the course-assignment relationships
+                    # Only delete the course-assignment relationships, preserve the assignments
                     course_assignments.delete()
-                    logger.info(f"Deleted {assignment_count} course-assignment relationships")
+                    logger.info(f"Removed {assignment_count} course-assignment relationships (assignments preserved)")
             except Exception as e:
-                logger.error(f"Error deleting assignment relationships: {str(e)}")
+                logger.error(f"Error removing assignment relationships: {str(e)}")
             
             # 6. DELETE ALL GRADEBOOK DATA
             try:
@@ -1774,124 +1788,51 @@ class Topic(models.Model):
             except Exception as e:
                 logger.error(f"Error deleting topic progress: {str(e)}")
             
-            # 2. DELETE ALL ASSIGNMENT RELATIONSHIPS
+            # 2. REMOVE ASSIGNMENT RELATIONSHIPS (PRESERVE ASSIGNMENTS)
             try:
-                from assignments.models import TopicAssignment, AssignmentSubmission, AssignmentFeedback
+                from assignments.models import TopicAssignment
                 
                 # Get all assignments linked to this topic
                 topic_assignments = TopicAssignment.objects.filter(topic=self)
                 assignment_count = topic_assignments.count()
                 
                 if assignment_count > 0:
-                    logger.info(f"Found {assignment_count} assignments linked to this topic")
+                    logger.info(f"Found {assignment_count} assignments linked to this topic - preserving assignments, removing relationships only")
                     
-                    # Delete all submissions and feedback for these assignments
-                    for topic_assignment in topic_assignments:
-                        assignment = topic_assignment.assignment
-                        
-                        # Delete all submissions for this assignment
-                        submissions = AssignmentSubmission.objects.filter(assignment=assignment)
-                        submission_count = submissions.count()
-                        if submission_count > 0:
-                            logger.info(f"Deleting {submission_count} submissions for assignment: {assignment.title}")
-                            
-                            # Delete all feedback for these submissions
-                            for submission in submissions:
-                                feedback_count = AssignmentFeedback.objects.filter(submission=submission).count()
-                                if feedback_count > 0:
-                                    AssignmentFeedback.objects.filter(submission=submission).delete()
-                                    logger.info(f"Deleted {feedback_count} feedback records for submission {submission.id}")
-                            
-                            # Delete all submissions
-                            submissions.delete()
-                            logger.info(f"Deleted {submission_count} submissions for assignment: {assignment.title}")
-                        
-                        # Delete the assignment itself if it's only linked to this topic
-                        if assignment.topics.count() <= 1:  # Only linked to this topic
-                            logger.info(f"Deleting assignment: {assignment.title} (only linked to this topic)")
-                            assignment.delete()
-                        else:
-                            logger.info(f"Keeping assignment: {assignment.title} (linked to other topics)")
-                    
-                    # Delete the topic-assignment relationships
+                    # Only delete the topic-assignment relationships, preserve the assignments
                     topic_assignments.delete()
-                    logger.info(f"Deleted {assignment_count} topic-assignment relationships")
+                    logger.info(f"Removed {assignment_count} topic-assignment relationships (assignments preserved)")
             except Exception as e:
-                logger.error(f"Error deleting assignment relationships: {str(e)}")
+                logger.error(f"Error removing assignment relationships: {str(e)}")
             
-            # 3. DELETE ALL QUIZ RELATIONSHIPS
+            # 3. PRESERVE QUIZ (DO NOT DELETE)
             try:
-                from quiz.models import Quiz, QuizAttempt, UserAnswer
+                from quiz.models import Quiz
                 
-                # Delete quiz attempts and answers for this topic's quiz
+                # Preserve quiz and all its data - database will handle SET_NULL automatically
                 if hasattr(self, 'quiz') and self.quiz:
                     quiz = self.quiz
-                    logger.info(f"Deleting quiz data for quiz: {quiz.title}")
-                    
-                    # Delete all quiz attempts and answers
-                    attempts = QuizAttempt.objects.filter(quiz=quiz)
-                    attempt_count = attempts.count()
-                    if attempt_count > 0:
-                        logger.info(f"Deleting {attempt_count} quiz attempts")
-                        
-                        # Delete all user answers for these attempts
-                        for attempt in attempts:
-                            answer_count = UserAnswer.objects.filter(attempt=attempt).count()
-                            if answer_count > 0:
-                                UserAnswer.objects.filter(attempt=attempt).delete()
-                                logger.info(f"Deleted {answer_count} user answers for attempt {attempt.id}")
-                        
-                        # Delete all attempts
-                        attempts.delete()
-                        logger.info(f"Deleted {attempt_count} quiz attempts")
-                    
-                    # Delete the quiz if it's only linked to this topic
-                    if not hasattr(quiz, 'topics') or quiz.topics.count() <= 1:
-                        logger.info(f"Deleting quiz: {quiz.title}")
-                        quiz.delete()
-                    else:
-                        logger.info(f"Keeping quiz: {quiz.title} (linked to other topics)")
+                    logger.info(f"Preserving quiz: {quiz.title} (quiz field has SET_NULL, will be preserved automatically)")
+                    # Note: The quiz field has on_delete=models.SET_NULL, so the quiz will be preserved
+                    # and the relationship will be automatically set to NULL when topic is deleted
             except Exception as e:
-                logger.error(f"Error deleting quiz relationships: {str(e)}")
+                logger.error(f"Error checking quiz relationship: {str(e)}")
             
-            # 4. DELETE ALL DISCUSSION DATA
+            # 4. PRESERVE DISCUSSION (DO NOT DELETE)
             try:
-                from courses.models import Discussion, Comment, TopicDiscussionAttachment
+                from courses.models import Discussion
                 
-                # Delete discussion and all related data
+                # Preserve discussion and all its data - set topic to None to break relationship
                 if hasattr(self, 'topic_discussion') and self.topic_discussion:
                     discussion = self.topic_discussion
-                    logger.info(f"Deleting discussion: {discussion.title}")
+                    logger.info(f"Preserving discussion: {discussion.title} - removing topic relationship")
                     
-                    # Delete all comments and their attachments
-                    comments = Comment.objects.filter(discussion=discussion)
-                    comment_count = comments.count()
-                    if comment_count > 0:
-                        logger.info(f"Deleting {comment_count} discussion comments")
-                        
-                        # Delete all attachments for these comments
-                        for comment in comments:
-                            attachment_count = TopicDiscussionAttachment.objects.filter(comment=comment).count()
-                            if attachment_count > 0:
-                                TopicDiscussionAttachment.objects.filter(comment=comment).delete()
-                                logger.info(f"Deleted {attachment_count} attachments for comment {comment.id}")
-                        
-                        # Delete all comments
-                        comments.delete()
-                        logger.info(f"Deleted {comment_count} discussion comments")
-                    
-                    # Delete discussion attachments
-                    discussion_attachments = TopicDiscussionAttachment.objects.filter(discussion=discussion)
-                    discussion_attachment_count = discussion_attachments.count()
-                    if discussion_attachment_count > 0:
-                        discussion_attachments.delete()
-                        logger.info(f"Deleted {discussion_attachment_count} discussion attachments")
-                    
-                    # Delete the discussion
-                    discussion.delete()
-                    logger.info(f"Deleted discussion: {discussion.title}")
+                    # Set topic to None to preserve the discussion (model now allows null)
+                    discussion.topic = None
+                    discussion.save(update_fields=['topic'])
+                    logger.info(f"Preserved discussion: {discussion.title} (topic relationship removed, discussion and all data preserved)")
             except Exception as e:
-                logger.error(f"Error deleting discussion data: {str(e)}")
+                logger.error(f"Error preserving discussion: {str(e)}")
             
             # 5. DELETE ALL GRADEBOOK DATA
             try:
@@ -2598,14 +2539,37 @@ class TopicProgress(models.Model):
                 # Will continue to mark course as completed below
             else:
                 # Use standard completion logic
-                total_topics = course.topics.count()
+                # Get all topics for the course, including ALL types (Quiz, Assignment, Video, Text, Audio, Document, SCORM, etc.)
+                # This ensures proper completion calculation regardless of Progression & Completion Settings
+                # For learners, exclude draft topics, inactive topics, and restricted topics
+                # For other roles, include all active topics
+                if hasattr(self.user, 'role') and self.user.role == 'learner':
+                    # For learners, exclude draft/inactive topics and restricted topics
+                    all_course_topics = Topic.objects.filter(
+                        coursetopic__course=course,
+                        status='active'  # Only include active topics (excludes draft, inactive, archived)
+                    ).exclude(
+                        restrict_to_learners=True,
+                        restricted_learners=self.user  # Exclude topics where learner is restricted
+                    )
+                else:
+                    # For instructors, admins, and other roles, include all active topics
+                    all_course_topics = Topic.objects.filter(
+                        coursetopic__course=course,
+                        status='active'  # Only include active topics (excludes draft, inactive, archived)
+                    )
+                
+                total_topics = all_course_topics.count()
                 
                 if total_topics == 0:
                     continue  # Skip if course has no topics
                     
+                # Count completed topics - include ALL topic types (Video, Quiz, Assignment, Text, Audio, Document, SCORM, etc.)
+                # This ensures quizzes and all other topic types are properly included in completion
                 completed_topics = TopicProgress.objects.filter(
                     user=self.user,
-                    topic__coursetopic__course=course,
+                    topic__in=all_course_topics,
+                    course=course,
                     completed=True
                 ).count()
                 
@@ -2615,7 +2579,7 @@ class TopicProgress(models.Model):
                 
                 # Log the completion progress for debugging
                 logger.info(f"Course completion check: User {self.user.username}, Course '{course.title}'")
-                logger.info(f"Completed topics: {completed_topics}/{total_topics}, Rate: {completion_rate:.1f}%, Threshold: {completion_threshold}%")
+                logger.info(f"Total topics (all types including Quiz): {total_topics}, Completed: {completed_topics}, Rate: {completion_rate:.1f}%, Threshold: {completion_threshold}%")
                 
                 # Check if completion threshold is met
                 if completion_rate < completion_threshold:
@@ -2784,7 +2748,7 @@ class CourseFeature(models.Model):
 
 class Discussion(models.Model):
     """Model for topic discussions"""
-    topic = models.OneToOneField(Topic, on_delete=models.CASCADE, related_name='topic_discussion')
+    topic = models.OneToOneField(Topic, on_delete=models.SET_NULL, related_name='topic_discussion', null=True, blank=True)
     title = models.CharField(max_length=200)
     content = models.TextField()
     created_by = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
@@ -2935,4 +2899,5 @@ class CourseCompletionRequirement(models.Model):
     def is_met_by_user(self, user):
         """Check if this requirement is met by the given user"""
         # This is a simplified implementation - you may need to expand based on requirement_type
+        return True
         return True

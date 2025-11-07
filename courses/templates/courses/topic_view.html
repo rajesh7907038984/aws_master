@@ -494,33 +494,7 @@
                                 </div>
                             {% endif %}
                         </div>
-                        {% if topic.quiz.is_initial_assessment and has_completed_initial_assessment %}
-                            <!-- Initial Assessment Completed - Show Green Tick -->
-                            <div class="w-full max-w-md">
-                                <div class="inline-flex items-center gap-3 bg-green-50 border-2 border-green-500 text-green-700 px-8 py-4 rounded-lg shadow-md mb-4">
-                                    <i class="fas fa-check-circle text-3xl"></i>
-                                    <div class="text-left">
-                                        <div class="font-bold text-lg">Completed</div>
-                                        <div class="text-sm text-green-600">Initial Assessment Submitted</div>
-                                    </div>
-                                </div>
-                            </div>
-                            {% if can_retake_initial_assessment %}
-                                <!-- Show Take Quiz button if attempts are available -->
-                                <div class="w-full max-w-md mt-4">
-                                    <a href="{% url 'quiz:attempt_quiz' topic.quiz.id %}?start=true" class="btn btn-primary text-lg px-6 py-3 w-full flex items-center justify-center" target="_blank">
-                                        <i class="fas fa-edit mr-2"></i>Take Quiz
-                                    </a>
-                                    <div class="mt-3 text-sm text-gray-500 text-center">
-                                        {% if remaining_attempts == -1 %}
-                                            Unlimited attempts allowed
-                                        {% elif remaining_attempts > 0 %}
-                                            Attempts remaining: {{ remaining_attempts }}
-                                        {% endif %}
-                                    </div>
-                                </div>
-                            {% endif %}
-                        {% elif not can_access_interactive_content %}
+                        {% if not can_access_interactive_content %}
                             <!-- Warning for non-learner users -->
                             <div class="w-full max-w-md mb-6">
                                 <div class="p-4 bg-yellow-100 border border-yellow-400 text-yellow-800 rounded-lg">
@@ -540,7 +514,7 @@
                                 </button>
                             </div>
                         {% else %}
-                            <!-- Normal access for learners -->
+                            <!-- Same display for all quiz types -->
                             <div class="w-full max-w-md">
                                 <a href="{% url 'quiz:attempt_quiz' topic.quiz.id %}" class="btn btn-primary text-lg px-6 py-3 w-full flex items-center justify-center" target="_blank">
                                     <i class="fas fa-edit mr-2"></i>Start Quiz
@@ -554,6 +528,17 @@
                                 </div>
                             </div>
                         {% endif %}
+                    </div>
+                {% elif topic.content_type == 'Quiz' and not topic.quiz %}
+                    <div class="w-full flex flex-col items-center justify-center py-8">
+                        <div class="text-center mb-6">
+                            <div class="p-4 bg-yellow-100 text-yellow-800 rounded-lg">
+                                <p><i class="fas fa-exclamation-triangle mr-2"></i>This topic is set as a Quiz but no quiz has been linked to it.</p>
+                                {% if user.is_staff or user.is_instructor %}
+                                    <p class="mt-2">Please edit this topic to select a quiz or create a new one.</p>
+                                {% endif %}
+                            </div>
+                        </div>
                     </div>
                 {% elif topic.content_type == 'Assignment' and topic.assignment %}
                     <div class="w-full py-8 assignment-content" data-content-type="Assignment">

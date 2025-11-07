@@ -174,16 +174,8 @@ def can_user_access_quiz(user, quiz):
     Check if the user can access a quiz (for viewing, not editing).
     This is different from edit permissions - learners can view quizzes they're enrolled in.
     """
-    # Always allow superusers
-    if user.is_superuser:
-        return True
-    
-    # For learners: check if they can access the quiz
-    if user.role == 'learner':
-        return quiz.is_available_for_user(user)
-    
-    # For other roles: check edit permissions
-    return check_quiz_edit_permission(user, quiz)
+    # Use the new can_view_quiz method from the Quiz model
+    return quiz.can_view_quiz(user)
 
 def get_client_ip(request):
     """Get client IP address from request"""
@@ -897,9 +889,19 @@ def attempt_quiz(request, quiz_id):
     """View to attempt a quiz"""
     quiz = get_object_or_404(Quiz, id=quiz_id)
     
-    # Check permissions and availability
-    if not quiz.is_available_for_user(request.user):
+    # Check if user can view the quiz first
+    if not quiz.can_view_quiz(request.user):
         messages.error(request, "You don't have permission to access this quiz.")
+        return redirect('quiz:quiz_list')
+    
+    # Check if user can start a new attempt
+    if not quiz.is_available_for_user(request.user):
+        # Check if it's because attempts are exhausted
+        completed_attempts = quiz.get_completed_attempts(request.user)
+        if quiz.attempts_allowed != -1 and completed_attempts >= quiz.attempts_allowed:
+            messages.info(request, "You have reached the maximum number of attempts for this quiz.")
+        else:
+            messages.error(request, "You cannot start a new attempt at this time.")
         return redirect('quiz:quiz_view', quiz_id=quiz.id)
 
     # Handle GET request with start=true parameter (from Start Quiz button)
@@ -1019,6 +1021,11 @@ def attempt_quiz(request, quiz_id):
 def quiz_view(request, quiz_id):
     """View quiz details"""
     quiz = get_object_or_404(Quiz, id=quiz_id)
+    
+    # Check if user can view the quiz
+    if not quiz.can_view_quiz(request.user):
+        messages.error(request, "You don't have permission to access this quiz.")
+        return redirect('quiz:quiz_list')
     
     # Get user's attempts
     user_attempts = quiz.attempts.filter(user=request.user).order_by('-start_time')

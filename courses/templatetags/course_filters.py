@@ -605,13 +605,14 @@ def user_course_progress(course, user):
 
 @register.filter
 def next_incomplete_topic(course, user):
-    """Return the next topic that needs to be completed"""
+    """Return the next topic that needs to be completed (including ALL topic types)"""
     if not user.is_authenticated:
         return None
         
     topics = Topic.objects.filter(coursetopic__course=course).order_by('order', 'coursetopic__order', 'created_at')
     
     for topic in topics:
+        # Include ALL topics - no skipping
         # Get progress for this topic
         progress, created = TopicProgress.objects.get_or_create(
             topic=topic,

@@ -111,17 +111,17 @@ def update_topic_progress_on_quiz_completion(sender, instance, **kwargs):
                         logger.warning(f"No valid time found for quiz attempt {instance.id} (active_time_seconds={instance.active_time_seconds}, start_time={instance.start_time}, end_time={instance.end_time})")
                 
                 # Determine if topic should be auto-completed
-                # VAK Tests and Initial Assessments complete on any attempt (for classification purposes)
-                # Regular quizzes only complete if passed
+                # VAK Test and Initial Assessment auto-complete on any attempt (for classification purposes)
+                # Normal quizzes only complete if passed
                 should_complete = False
                 completion_reason = ""
                 
                 if instance.quiz.is_vak_test:
                     should_complete = True
-                    completion_reason = "VAK test completed (classification quiz)"
+                    completion_reason = f"VAK test completed (classification quiz) - Score: {instance.score}%"
                 elif instance.quiz.is_initial_assessment:
                     should_complete = True
-                    completion_reason = "Initial assessment completed (classification quiz)"
+                    completion_reason = f"Initial assessment completed (classification quiz) - Score: {instance.score}%"
                 elif instance.passed:
                     should_complete = True
                     completion_reason = f"Quiz passed with {instance.score}%"
