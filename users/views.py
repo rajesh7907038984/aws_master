@@ -5816,8 +5816,9 @@ def global_admin_dashboard(request):
         # Convert TodoService format to existing template format for backward compatibility
         todo_items = []
         for todo in all_todo_items:
-            # Map new format to existing format
+            # Map new format to existing format - PRESERVE metadata structure
             todo_item = {
+                'id': todo.get('id', ''),
                 'task': todo['title'],
                 'title': todo['title'],
                 'description': todo['description'],
@@ -5827,10 +5828,11 @@ def global_admin_dashboard(request):
                 'icon': todo['icon'],
                 'type': todo['type'],
                 'priority': todo['priority'],
-                'url': todo['url']
+                'url': todo['url'],
+                'metadata': todo.get('metadata', {})  # KEEP METADATA for enhanced_todo_item.html
             }
             
-            # Add type-specific metadata
+            # Add type-specific metadata for backward compatibility (direct access)
             if todo['type'] == 'business_review':
                 todo_item['business_name'] = todo.get('metadata', {}).get('business_name', '')
                 
@@ -6352,8 +6354,9 @@ def admin_dashboard(request):
     # Convert TodoService format to existing template format for backward compatibility
     todo_items = []
     for todo in all_todo_items:
-        # Map new format to existing format
+        # Map new format to existing format - PRESERVE metadata structure
         todo_item = {
+            'id': todo.get('id', ''),
             'task': todo['title'],
             'title': todo['title'],
             'description': todo['description'],
@@ -6363,10 +6366,11 @@ def admin_dashboard(request):
             'icon': todo['icon'],
             'type': todo['type'],
             'priority': todo['priority'],
-            'url': todo['url']
+            'url': todo['url'],
+            'metadata': todo.get('metadata', {})  # KEEP METADATA for enhanced_todo_item.html
         }
         
-        # Add type-specific metadata
+        # Add type-specific metadata for backward compatibility (direct access)
         if todo['type'] == 'user_management':
             todo_item['user_name'] = todo.get('metadata', {}).get('user_name', '')
         elif todo['type'] == 'course_review':
@@ -6989,8 +6993,9 @@ def instructor_dashboard(request):
     # Convert TodoService format to existing template format for backward compatibility
     todo_items = []
     for todo in all_todo_items:
-        # Map new format to existing format
+        # Map new format to existing format - PRESERVE metadata structure
         todo_item = {
+            'id': todo.get('id', ''),
             'task': todo['title'],
             'title': todo['title'],
             'description': todo['description'],
@@ -7000,10 +7005,11 @@ def instructor_dashboard(request):
             'icon': todo['icon'],
             'type': todo['type'],
             'priority': todo['priority'],
-            'url': todo['url']
+            'url': todo['url'],
+            'metadata': todo.get('metadata', {})  # KEEP METADATA for enhanced_todo_item.html
         }
         
-        # Add type-specific metadata
+        # Add type-specific metadata for backward compatibility (direct access)
         if todo['type'] == 'grading':
             todo_item['student_name'] = todo.get('metadata', {}).get('student_name', '')
         elif todo['type'] == 'assignment':
@@ -7309,8 +7315,9 @@ def learner_dashboard(request):
     # Convert TodoService format to existing template format for backward compatibility
     todo_items = []
     for todo in all_todo_items:
-        # Map new format to existing format
+        # Map new format to existing format - PRESERVE metadata structure
         todo_item = {
+            'id': todo.get('id', ''),
             'course': todo.get('metadata', {}).get('course_name', ''),
             'task': todo['title'],
             'title': todo['title'],
@@ -7321,10 +7328,11 @@ def learner_dashboard(request):
             'icon': todo['icon'],
             'type': todo['type'],
             'priority': todo['priority'],
-            'url': todo['url']
+            'url': todo['url'],
+            'metadata': todo.get('metadata', {})  # KEEP METADATA for enhanced_todo_item.html
         }
         
-        # Add type-specific metadata
+        # Add type-specific metadata for backward compatibility (direct access)
         if todo['type'] == 'assignment':
             todo_item['assignment_points'] = todo.get('metadata', {}).get('points')
         elif todo['type'] == 'course':

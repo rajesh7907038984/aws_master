@@ -173,6 +173,7 @@ class TodoService:
                     'assignment_id': assignment.id,
                     'course_id': assignment.courses.first().id if assignment.courses.first() else None,
                     'points': getattr(assignment, 'points', None),
+                    'assignment_points': getattr(assignment, 'points', None),  # For template compatibility
                     'days_overdue': days_overdue
                 }
             })
@@ -206,7 +207,8 @@ class TodoService:
                 'metadata': {
                     'assignment_id': assignment.id,
                     'course_id': assignment.courses.first().id if assignment.courses.first() else None,
-                    'points': getattr(assignment, 'points', None)
+                    'points': getattr(assignment, 'points', None),
+                    'assignment_points': getattr(assignment, 'points', None)  # For template compatibility
                 }
             })
         
@@ -237,7 +239,8 @@ class TodoService:
                 'metadata': {
                     'assignment_id': assignment.id,
                     'course_id': assignment.courses.first().id if assignment.courses.first() else None,
-                    'points': getattr(assignment, 'points', None)
+                    'points': getattr(assignment, 'points', None),
+                    'assignment_points': getattr(assignment, 'points', None)  # For template compatibility
                 }
             })
         

@@ -1548,7 +1548,7 @@
                                         </div>
                                         <div class="prose max-w-none text-gray-700 bg-blue-50 p-3 rounded border-l-4 border-blue-400">
                                             <!-- Safe content rendering -->
-                                            {{ feedback_entry.feedback|linebreaks }}
+                                            {{ feedback_entry.feedback|safe }}
                                         </div>
                                     </div>
                                     {% endif %}
