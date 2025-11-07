@@ -2617,6 +2617,24 @@ def submit_assignment(request, assignment_id):
                         messages.error(request, 'Either a file or text submission (or both) is required for this assignment.')
                         return redirect('assignments:submit_assignment', assignment_id=assignment_id)
                 
+                # Validate file type and size if file is uploaded
+                if uploaded_file:
+                    # Validate file type
+                    allowed_file_types = assignment.allowed_file_types.split(',')
+                    allowed_file_types = [ext.strip().lower() for ext in allowed_file_types]
+                    file_extension = '.' + uploaded_file.name.split('.')[-1].lower() if '.' in uploaded_file.name else ''
+                    
+                    if file_extension not in allowed_file_types:
+                        messages.error(request, f'File type not allowed. Allowed types: {assignment.allowed_file_types}')
+                        return redirect('assignments:submit_assignment', assignment_id=assignment_id)
+                    
+                    # Validate file size
+                    max_file_size = assignment.max_file_size or 629145600  # Default 600MB
+                    if uploaded_file.size > max_file_size:
+                        max_size_mb = max_file_size / (1024 * 1024)
+                        messages.error(request, f'File size exceeds the maximum allowed size ({max_size_mb:.1f}MB)')
+                        return redirect('assignments:submit_assignment', assignment_id=assignment_id)
+                
                 # Log file upload if provided
                 if uploaded_file:
                     AssignmentInteractionLog.log_interaction(

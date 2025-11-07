@@ -25,7 +25,7 @@ def secure_filename(filename):
     name = re.sub(r'[^\w\-]', '_', name)
     
     # Limit length while preserving extension
-    max_length = 100
+    max_length = 500
     if len(name) + len(ext) > max_length:
         name = name[:max_length - len(ext)]
     
@@ -58,6 +58,7 @@ class Assignment(models.Model):
     due_date = models.DateTimeField(null=True, blank=True)
     attachment = models.FileField(
         upload_to=assignment_file_path,
+        max_length=500,
         null=True,
         blank=True,
         help_text="Supporting documents for the assignment (Use AssignmentAttachment for new documents)"
@@ -296,6 +297,7 @@ class AssignmentSubmission(models.Model):
     )
     submission_file = models.FileField(
         upload_to=assignment_file_path,
+        max_length=500,
         null=True,
         blank=True
     )
@@ -437,12 +439,14 @@ class AssignmentFeedback(models.Model):
     feedback = models.TextField(blank=True, help_text="Text feedback from instructor")
     audio_feedback = models.FileField(
         upload_to=assignment_file_path,
+        max_length=500,
         null=True,
         blank=True,
         help_text="Audio feedback file (mp3, wav, m4a, etc.)"
     )
     video_feedback = models.FileField(
         upload_to=assignment_file_path,
+        max_length=500,
         null=True,
         blank=True,
         help_text="Video feedback file (mp4, mov, avi, etc.)"
@@ -825,6 +829,7 @@ class FileSubmissionIteration(models.Model):
     )
     file = models.FileField(
         upload_to=assignment_file_path,
+        max_length=500,
         help_text="The uploaded file for this iteration"
     )
     file_name = models.CharField(
@@ -991,6 +996,7 @@ class AssignmentAttachment(models.Model):
     )
     file = models.FileField(
         upload_to=assignment_file_path,
+        max_length=500,
         help_text="Supporting document for the assignment"
     )
     file_name = models.CharField(
