@@ -8,7 +8,7 @@ from django.db.models import Q
 from django.db import OperationalError, DatabaseError, InterfaceError
 
 from .models import Topic, Course, Section
-from .views import get_topic_course
+from .views import get_topic_course, check_course_permission
 from core.utils.db_retry import retry_db_operation, safe_db_query
 
 # Import TopicProgress and CourseTopic dynamically
@@ -76,6 +76,26 @@ def topic_view(request, topic_id):
         if not course:
             messages.error(request, 'Topic is not associated with any course')
             return redirect('courses:course_list')
+        
+        # Check branch access for learners - ensure topic belongs to a course in learner's branch
+        if request.user.is_authenticated and request.user.role == 'learner':
+            from core.branch_filters import BranchFilterManager
+            branch_manager = BranchFilterManager()
+            effective_branch = branch_manager.get_effective_branch(request.user, request)
+            
+            # Check if the course belongs to the learner's branch
+            # Block access if:
+            # 1. Learner has a branch AND course has a different branch, OR
+            # 2. Learner has a branch AND course has no branch (courses should have branches)
+            if effective_branch:
+                if not course.branch or course.branch != effective_branch:
+                    logger.warning(
+                        f"Learner {request.user.username} (branch: {effective_branch}) "
+                        f"attempted to access topic {topic_id} from course {course.id} "
+                        f"(branch: {course.branch})"
+                    )
+                    messages.error(request, "You don't have permission to access this content. This content belongs to a different branch.")
+                    return redirect('courses:course_list')
         
         # Check if user has permission to access this topic's course (enrollment check)
         # Only enforce for authenticated users; anonymous users handled by course visibility
@@ -159,34 +179,15 @@ def topic_view(request, topic_id):
         
         if request.user.is_authenticated:
             try:
-                # Only create progress records for learners
-                # Instructors, admins, etc. should be able to view topics without tracking progress
-                if hasattr(request.user, 'role') and request.user.role == 'learner':
-                    # Use get_or_create with course context to ensure consistency with sidebar
-                    topic_progress, created = TopicProgress.objects.get_or_create(
-                        user=request.user,
-                        topic=topic,
-                        course=course,  # Add course filter to match sidebar logic
-                        defaults={
-                            'completed': False,
-                            'completion_method': 'auto'
-                        }
-                    )
-                    is_completed = topic_progress.completed
-                    
-                    # Log creation for debugging
-                    if created:
-                        logger.info(f"Created TopicProgress for user {request.user.username} on topic {topic.id} - {topic.title}")
-                else:
-                    # For non-learners (instructors, admins), just check if progress exists but don't create
-                    # Prefer progress with course context to match sidebar logic
-                    topic_progress = TopicProgress.objects.filter(
-                        user=request.user,
-                        topic=topic
-                    ).order_by(
-                        '-course__id'  # Prefer progress with course context
-                    ).first()
-                    is_completed = topic_progress.completed if topic_progress else False
+                # Check if progress exists for any user role, but don't auto-create
+                # Prefer progress with course context to match sidebar logic
+                topic_progress = TopicProgress.objects.filter(
+                    user=request.user,
+                    topic=topic
+                ).order_by(
+                    '-course__id'  # Prefer progress with course context
+                ).first()
+                is_completed = topic_progress.completed if topic_progress else False
                 
                 # Check SCORM enrollment status if this is a SCORM topic
                 # Do this AFTER getting topic_progress so we can sync bookmark data

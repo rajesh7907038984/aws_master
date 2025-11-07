@@ -494,7 +494,33 @@
                                 </div>
                             {% endif %}
                         </div>
-                        {% if not can_access_interactive_content %}
+                        {% if topic.quiz.is_initial_assessment and has_completed_initial_assessment %}
+                            <!-- Initial Assessment Completed - Show Green Tick -->
+                            <div class="w-full max-w-md">
+                                <div class="inline-flex items-center gap-3 bg-green-50 border-2 border-green-500 text-green-700 px-8 py-4 rounded-lg shadow-md mb-4">
+                                    <i class="fas fa-check-circle text-3xl"></i>
+                                    <div class="text-left">
+                                        <div class="font-bold text-lg">Completed</div>
+                                        <div class="text-sm text-green-600">Initial Assessment Submitted</div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% if can_retake_initial_assessment %}
+                                <!-- Show Take Quiz button if attempts are available -->
+                                <div class="w-full max-w-md mt-4">
+                                    <a href="{% url 'quiz:attempt_quiz' topic.quiz.id %}?start=true" class="btn btn-primary text-lg px-6 py-3 w-full flex items-center justify-center" target="_blank">
+                                        <i class="fas fa-edit mr-2"></i>Take Quiz
+                                    </a>
+                                    <div class="mt-3 text-sm text-gray-500 text-center">
+                                        {% if remaining_attempts == -1 %}
+                                            Unlimited attempts allowed
+                                        {% elif remaining_attempts > 0 %}
+                                            Attempts remaining: {{ remaining_attempts }}
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            {% endif %}
+                        {% elif not can_access_interactive_content %}
                             <!-- Warning for non-learner users -->
                             <div class="w-full max-w-md mb-6">
                                 <div class="p-4 bg-yellow-100 border border-yellow-400 text-yellow-800 rounded-lg">
@@ -514,7 +540,7 @@
                                 </button>
                             </div>
                         {% else %}
-                            <!-- Same display for all quiz types -->
+                            <!-- Normal access for learners -->
                             <div class="w-full max-w-md">
                                 <a href="{% url 'quiz:attempt_quiz' topic.quiz.id %}" class="btn btn-primary text-lg px-6 py-3 w-full flex items-center justify-center" target="_blank">
                                     <i class="fas fa-edit mr-2"></i>Start Quiz
@@ -528,17 +554,6 @@
                                 </div>
                             </div>
                         {% endif %}
-                    </div>
-                {% elif topic.content_type == 'Quiz' and not topic.quiz %}
-                    <div class="w-full flex flex-col items-center justify-center py-8">
-                        <div class="text-center mb-6">
-                            <div class="p-4 bg-yellow-100 text-yellow-800 rounded-lg">
-                                <p><i class="fas fa-exclamation-triangle mr-2"></i>This topic is set as a Quiz but no quiz has been linked to it.</p>
-                                {% if user.is_staff or user.is_instructor %}
-                                    <p class="mt-2">Please edit this topic to select a quiz or create a new one.</p>
-                                {% endif %}
-                            </div>
-                        </div>
                     </div>
                 {% elif topic.content_type == 'Assignment' and topic.assignment %}
                     <div class="w-full py-8 assignment-content" data-content-type="Assignment">
@@ -785,105 +800,105 @@
             <div class="accordion">
                 <!-- Render each section with its topics -->
                 {% for section_item in section_topics %}
-                    {% if section_item.section %}
-                        <div class="section {% if section_item.topics|contains_id:topic.id %}active{% endif %}">
-                            <div class="section-header">
-                                <h3 class="section-name">{{ section_item.section.name }}</h3>
-                                <span class="section-toggle">
-                                    <i class="fas fa-chevron-down"></i>
-                                </span>
-                            </div>
-                            <div class="section-topics" {% if section_item.topics|contains_id:topic.id %}style="display: block;"{% endif %}>
-                                {% for topic_item in section_item.topics %}
-                                    <a href="{% url 'courses:topic_view' topic_item.id %}?manual=True" class="topic-item {% if topic_item.id == topic.id %}active{% endif %}" data-topic-id="{{ topic_item.id }}">
-                                        <div class="topic-info flex items-center">
-                                            <div class="mr-3">
-                                                {% with progress=topic_item|get_topic_progress:user %}
-                                                {% if progress %}
-                                                    {% if progress.completed or progress.progress_data.scorm_completion_status and progress.progress_data.scorm_completion_status|lower == 'completed' or progress.progress_data.scorm_completion_status and progress.progress_data.scorm_completion_status|lower == 'passed' or progress.progress_data.scorm_success_status and progress.progress_data.scorm_success_status|lower == 'passed' or topic_item|has_completed_quiz_attempt:user %}
-                                                    <div class="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center text-white">
-                                                        <svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                                                        </svg>
-                                                    </div>
-                                                    {% else %}
-                                                    <div class="w-5 h-5 rounded-full border-2 border-gray-300"></div>
-                                                    {% endif %}
-                                                {% else %}
-                                                    {% if topic_item|has_completed_quiz_attempt:user %}
-                                                    <div class="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center text-white">
-                                                        <svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                                                        </svg>
-                                                    </div>
-                                                    {% else %}
-                                                    <div class="w-5 h-5 rounded-full border-2 border-gray-300"></div>
-                                                    {% endif %}
-                                                {% endif %}
-                                                {% endwith %}
-                                            </div>
-                                            <div class="topic-name truncate max-w-[150px] inline-block" title="{{ topic_item.title }}">{{ topic_item.title }}</div>
-                                            {% if topic_item.content_type %}
-                                            <span class="topic-type text-xs {% if topic_item.content_type in 'Quiz,Assignment' and not can_access_interactive_content %}text-yellow-600 bg-yellow-100 px-2 py-1 rounded{% else %}text-gray-500{% endif %} ml-2">
-                                                {{ topic_item.get_content_type_display }}{% if topic_item.content_type in 'Quiz,Assignment' and not can_access_interactive_content %} <i class="fas fa-lock text-xs"></i>{% endif %}
-                                            </span>
-                                            {% endif %}
-                                        </div>
-                                    </a>
-                                {% endfor %}
-                            </div>
+                    <div class="section {% if section_item.topics|contains_id:topic.id %}active{% endif %}">
+                        <div class="section-header">
+                            <h3 class="section-name">{{ section_item.section.name }}</h3>
+                            <span class="section-toggle">
+                                <i class="fas fa-chevron-down"></i>
+                            </span>
                         </div>
-                    {% else %}
-                        <!-- Topics without a section -->
-                        <div class="section standalone-topics {% if topics_without_section|contains_id:topic.id %}active{% endif %}">
-                            <div class="section-header">
-                                <h3 class="section-name">Other Topics</h3>
-                                <span class="section-toggle">
-                                    <i class="fas fa-chevron-down"></i>
-                                </span>
-                            </div>
-                            <div class="section-topics" {% if topics_without_section|contains_id:topic.id %}style="display: block;"{% endif %}>
-                                {% for topic_item in topics_without_section %}
-                                    <a href="{% url 'courses:topic_view' topic_item.id %}?manual=True" class="topic-item {% if topic_item.id == topic.id %}active{% endif %}" data-topic-id="{{ topic_item.id }}">
-                                        <div class="topic-info flex items-center">
-                                            <div class="mr-3">
-                                                {% with progress=topic_item|get_topic_progress:user %}
-                                                {% if progress %}
-                                                    {% if progress.completed or progress.progress_data.scorm_completion_status and progress.progress_data.scorm_completion_status|lower == 'completed' or progress.progress_data.scorm_completion_status and progress.progress_data.scorm_completion_status|lower == 'passed' or progress.progress_data.scorm_success_status and progress.progress_data.scorm_success_status|lower == 'passed' or topic_item|has_completed_quiz_attempt:user %}
-                                                    <div class="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center text-white">
-                                                        <svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                                                        </svg>
-                                                    </div>
-                                                    {% else %}
-                                                    <div class="w-5 h-5 rounded-full border-2 border-gray-300"></div>
-                                                    {% endif %}
+                        <div class="section-topics" {% if section_item.topics|contains_id:topic.id %}style="display: block;"{% endif %}>
+                            {% for topic_item in section_item.topics %}
+                                <a href="{% url 'courses:topic_view' topic_item.id %}?manual=True" class="topic-item {% if topic_item.id == topic.id %}active{% endif %}" data-topic-id="{{ topic_item.id }}">
+                                    <div class="topic-info flex items-center">
+                                        <div class="mr-3">
+                                            {% with progress=topic_item|get_topic_progress:user %}
+                                            {% if progress %}
+                                                {% if progress.completed or progress.progress_data.scorm_completion_status and progress.progress_data.scorm_completion_status|lower == 'completed' or progress.progress_data.scorm_completion_status and progress.progress_data.scorm_completion_status|lower == 'passed' or progress.progress_data.scorm_success_status and progress.progress_data.scorm_success_status|lower == 'passed' or topic_item|has_completed_quiz_attempt:user %}
+                                                <div class="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center text-white">
+                                                    <svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                                    </svg>
+                                                </div>
                                                 {% else %}
-                                                    {% if topic_item|has_completed_quiz_attempt:user %}
-                                                    <div class="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center text-white">
-                                                        <svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                                                        </svg>
-                                                    </div>
-                                                    {% else %}
-                                                    <div class="w-5 h-5 rounded-full border-2 border-gray-300"></div>
-                                                    {% endif %}
+                                                <div class="w-5 h-5 rounded-full border-2 border-gray-300"></div>
                                                 {% endif %}
-                                                {% endwith %}
-                                            </div>
-                                            <div class="topic-name truncate max-w-[150px] inline-block" title="{{ topic_item.title }}">{{ topic_item.title }}</div>
-                                            {% if topic_item.content_type %}
-                                            <span class="topic-type text-xs {% if topic_item.content_type in 'Quiz,Assignment' and not can_access_interactive_content %}text-yellow-600 bg-yellow-100 px-2 py-1 rounded{% else %}text-gray-500{% endif %} ml-2">
-                                                {{ topic_item.get_content_type_display }}{% if topic_item.content_type in 'Quiz,Assignment' and not can_access_interactive_content %} <i class="fas fa-lock text-xs"></i>{% endif %}
-                                            </span>
+                                            {% else %}
+                                                {% if topic_item|has_completed_quiz_attempt:user %}
+                                                <div class="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center text-white">
+                                                    <svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                                    </svg>
+                                                </div>
+                                                {% else %}
+                                                <div class="w-5 h-5 rounded-full border-2 border-gray-300"></div>
+                                                {% endif %}
                                             {% endif %}
+                                            {% endwith %}
                                         </div>
-                                    </a>
-                                {% endfor %}
-                            </div>
+                                        <div class="topic-name truncate max-w-[150px] inline-block" title="{{ topic_item.title }}">{{ topic_item.title }}</div>
+                                        {% if topic_item.content_type %}
+                                        <span class="topic-type text-xs {% if topic_item.content_type in 'Quiz,Assignment' and not can_access_interactive_content %}text-yellow-600 bg-yellow-100 px-2 py-1 rounded{% else %}text-gray-500{% endif %} ml-2">
+                                            {{ topic_item.get_content_type_display }}{% if topic_item.content_type in 'Quiz,Assignment' and not can_access_interactive_content %} <i class="fas fa-lock text-xs"></i>{% endif %}
+                                        </span>
+                                        {% endif %}
+                                    </div>
+                                </a>
+                            {% endfor %}
                         </div>
-                    {% endif %}
+                    </div>
                 {% endfor %}
+                
+                <!-- Topics without a section (rendered after all sections) -->
+                {% if topics_without_section %}
+                    <div class="section standalone-topics {% if topics_without_section|contains_id:topic.id %}active{% endif %}">
+                        <div class="section-header">
+                            <h3 class="section-name">Other Topics</h3>
+                            <span class="section-toggle">
+                                <i class="fas fa-chevron-down"></i>
+                            </span>
+                        </div>
+                        <div class="section-topics" {% if topics_without_section|contains_id:topic.id %}style="display: block;"{% endif %}>
+                            {% for topic_item in topics_without_section %}
+                                <a href="{% url 'courses:topic_view' topic_item.id %}?manual=True" class="topic-item {% if topic_item.id == topic.id %}active{% endif %}" data-topic-id="{{ topic_item.id }}">
+                                    <div class="topic-info flex items-center">
+                                        <div class="mr-3">
+                                            {% with progress=topic_item|get_topic_progress:user %}
+                                            {% if progress %}
+                                                {% if progress.completed or progress.progress_data.scorm_completion_status and progress.progress_data.scorm_completion_status|lower == 'completed' or progress.progress_data.scorm_completion_status and progress.progress_data.scorm_completion_status|lower == 'passed' or progress.progress_data.scorm_success_status and progress.progress_data.scorm_success_status|lower == 'passed' or topic_item|has_completed_quiz_attempt:user %}
+                                                <div class="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center text-white">
+                                                    <svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                                    </svg>
+                                                </div>
+                                                {% else %}
+                                                <div class="w-5 h-5 rounded-full border-2 border-gray-300"></div>
+                                                {% endif %}
+                                            {% else %}
+                                                {% if topic_item|has_completed_quiz_attempt:user %}
+                                                <div class="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center text-white">
+                                                    <svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                                    </svg>
+                                                </div>
+                                                {% else %}
+                                                <div class="w-5 h-5 rounded-full border-2 border-gray-300"></div>
+                                                {% endif %}
+                                            {% endif %}
+                                            {% endwith %}
+                                        </div>
+                                        <div class="topic-name truncate max-w-[150px] inline-block" title="{{ topic_item.title }}">{{ topic_item.title }}</div>
+                                        {% if topic_item.content_type %}
+                                        <span class="topic-type text-xs {% if topic_item.content_type in 'Quiz,Assignment' and not can_access_interactive_content %}text-yellow-600 bg-yellow-100 px-2 py-1 rounded{% else %}text-gray-500{% endif %} ml-2">
+                                            {{ topic_item.get_content_type_display }}{% if topic_item.content_type in 'Quiz,Assignment' and not can_access_interactive_content %} <i class="fas fa-lock text-xs"></i>{% endif %}
+                                        </span>
+                                        {% endif %}
+                                    </div>
+                                </a>
+                            {% endfor %}
+                        </div>
+                    </div>
+                {% endif %}
             </div>
         </div>
     </div>
