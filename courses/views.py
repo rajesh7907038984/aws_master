@@ -4003,6 +4003,21 @@ def topic_edit(request, topic_id, section_id=None):
         try:
             topic.save()
             
+            # If topic has an assignment, ensure it's linked to the course via AssignmentCourse
+            if content_type == 'assignment' and topic.assignment:
+                from assignments.models import AssignmentCourse
+                from courses.models import CourseTopic
+                
+                # Find the course this topic belongs to
+                course_topic = CourseTopic.objects.filter(topic=topic).first()
+                if course_topic and course_topic.course:
+                    AssignmentCourse.objects.get_or_create(
+                        assignment=topic.assignment,
+                        course=course_topic.course,
+                        defaults={'is_primary': True}
+                    )
+                    logger.info(f"Linked assignment {topic.assignment.id} to course {course_topic.course.id}")
+            
             # Handle restricted learners (many-to-many field must be set after topic is saved)
             if restrict_to_learners:
                 restricted_learner_ids = request.POST.getlist('restricted_learners')
@@ -7706,6 +7721,16 @@ def topic_create(request, course_id):
                     topic=new_topic,
                     order=CourseTopic.objects.filter(course=course).count() + 1
                 )
+                
+                # If topic has an assignment, link it to the course via AssignmentCourse
+                if new_topic.content_type.lower() == 'assignment' and new_topic.assignment:
+                    from assignments.models import AssignmentCourse
+                    AssignmentCourse.objects.get_or_create(
+                        assignment=new_topic.assignment,
+                        course=course,
+                        defaults={'is_primary': True}
+                    )
+                    logger.info(f"Linked assignment {new_topic.assignment.id} to course {course.id}")
                 
             except Exception as e:
                 logger.error(f"Error creating topic: {str(e)}")

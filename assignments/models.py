@@ -205,8 +205,8 @@ class Assignment(models.Model):
             # Assignment can be linked to courses through direct, M2M, or topic relationships
             from courses.models import Course, CourseEnrollment
             
-            # Get all courses that the user is enrolled in as a learner
-            enrolled_course_ids = CourseEnrollment.objects.filter(user=user).filter(user__role='learner').values_list('course_id', flat=True)
+            # Get all courses that the user is enrolled in
+            enrolled_course_ids = CourseEnrollment.objects.filter(user=user).values_list('course_id', flat=True)
             
             # Check if assignment is linked to any enrolled courses through any relationship
             linked_to_enrolled_course = (

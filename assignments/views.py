@@ -423,18 +423,16 @@ def assignment_list(request):
         
         # Get assignments that are:
         # 1. Active
-        # 2. Linked to enrolled courses (through any relationship)
-        # 3. Either have active/published topics OR have no topics (direct course assignments)
+        # 2. Linked to enrolled courses through any relationship
+        # 3. For topic-linked assignments, topics must be active
+        # 4. For direct course-linked assignments, show regardless of topic status
         assignments_list = Assignment.objects.filter(
             is_active=True
         ).filter(
-            # Must be linked to enrolled courses through any relationship
-            Q(courses__in=enrolled_courses) |  # M2M course relationship
-            Q(topics__courses__in=enrolled_courses)  # Topic-based course relationship
-        ).filter(
-            # Either have active topics OR have no topics at all
-            Q(topics__status='active') |  # Has active topics
-            Q(topics__isnull=True)  # Has no topics (direct course assignment)
+            # Case 1: Direct M2M course assignment (show regardless of topics)
+            Q(courses__in=enrolled_courses) |
+            # Case 2: Topic-based assignment with active topics
+            Q(topics__courses__in=enrolled_courses, topics__status='active')
         ).distinct().order_by('-created_at')
         
         # Filter by course if specified
@@ -5322,10 +5320,9 @@ def assignment_api_list(request):
             ).values_list('course_id', flat=True)
             
             assignments_queryset = Assignment.objects.filter(
-                Q(course_id__in=enrolled_courses) |
                 Q(courses__id__in=enrolled_courses) |
                 Q(topics__courses__id__in=enrolled_courses)
-            ).distinct()
+            ).filter(is_active=True).distinct()
         
         # Convert to list with id and title
         assignments_data = []
