@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% load course_filters %}
+{% load json_filters %}
 {% load static %}
 
 {% block title %}Messages - Nexsy{% endblock %}
@@ -621,7 +622,7 @@
                                                     </div>
                                                 </div>
                                                 <div class="message-preview">
-                                                    {{ message.content|striptags|truncatechars:150 }}
+                                                    {{ message.content|striptags|unescape_html|truncatechars:150 }}
                                                 </div>
                                             </a>
                                             <div class="message-actions">
