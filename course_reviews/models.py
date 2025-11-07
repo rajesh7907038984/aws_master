@@ -169,7 +169,7 @@ class CourseReview(models.Model):
     
     # Aggregated rating (average of all rating fields, normalized to 0-10 scale)
     average_rating = models.DecimalField(
-        max_digits=3,
+        max_digits=4,
         decimal_places=2,
         validators=[MinValueValidator(0), MaxValueValidator(10)],
         help_text="Average rating from all rating fields (normalized to 0-10 scale)"
@@ -219,6 +219,8 @@ class CourseReview(models.Model):
         
         if normalized_ratings:
             avg_rating = sum(normalized_ratings) / len(normalized_ratings)
+            # Ensure rating doesn't exceed 10.00 due to rounding or calculation errors
+            avg_rating = min(avg_rating, 10.0)
         else:
             avg_rating = 0
         
