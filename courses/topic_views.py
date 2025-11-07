@@ -27,14 +27,23 @@ logger = logging.getLogger(__name__)
 @retry_db_operation(max_attempts=3, delay=1.0)
 def topic_view(request, topic_id):
     """View for displaying a topic and its content"""
+    logger.error(f"=== DEBUG START === topic_view called with topic_id={topic_id}, URL={request.path}, GET params={request.GET}")
     try:
         # Get the topic with better error handling and retry logic
         try:
             topic = safe_db_query(
-                lambda: Topic.objects.get(id=topic_id),
+                lambda: Topic.objects.select_related(
+                    'quiz', 
+                    'assignment', 
+                    'discussion', 
+                    'conference', 
+                    'scorm', 
+                    'section'
+                ).get(id=topic_id),
                 max_attempts=3,
                 delay=1.0
             )
+            logger.info(f"DEBUG: Retrieved topic - ID={topic.id}, Title={topic.title}, Type={topic.content_type}, Quiz={topic.quiz_id}")
         except Topic.DoesNotExist:
             logger.error(f"Topic with id {topic_id} does not exist")
             messages.error(request, f"Topic with ID {topic_id} not found")
@@ -123,7 +132,14 @@ def topic_view(request, topic_id):
                                 
                                 # Get all topics for this course that the user can access
                                 if request.user.is_authenticated and request.user.role == 'learner':
-                                    all_course_topics = Topic.objects.filter(
+                                    all_course_topics = Topic.objects.select_related(
+                                        'quiz', 
+                                        'assignment', 
+                                        'discussion', 
+                                        'conference', 
+                                        'scorm', 
+                                        'section'
+                                    ).filter(
                                         coursetopic__course=course
                                     ).exclude(
                                         status='draft'
@@ -132,7 +148,14 @@ def topic_view(request, topic_id):
                                         restricted_learners=request.user
                                     ).order_by('order', 'coursetopic__order', 'created_at')
                                 else:
-                                    all_course_topics = Topic.objects.filter(
+                                    all_course_topics = Topic.objects.select_related(
+                                        'quiz', 
+                                        'assignment', 
+                                        'discussion', 
+                                        'conference', 
+                                        'scorm', 
+                                        'section'
+                                    ).filter(
                                         coursetopic__course=course
                                     ).order_by('order', 'coursetopic__order', 'created_at')
                                 
@@ -148,15 +171,27 @@ def topic_view(request, topic_id):
                                 standalone_topics_list = all_course_topics.filter(section__isnull=True).order_by('order', 'coursetopic__order', 'created_at')
                                 all_topics_ordered.extend(list(standalone_topics_list))
                                 
-                                # Find the first topic the learner can access
+                                # Find the first INCOMPLETE topic the learner can access
+                                # This prevents redirecting to completed topics
                                 for topic_item in all_topics_ordered:
                                     if course.can_access_topic(request.user, topic_item):
-                                        next_available_topic = topic_item
-                                        break
+                                        # Check if this topic is incomplete
+                                        # Quiz topics are checked the same way as other topics - just TopicProgress.completed
+                                        topic_progress = TopicProgress.objects.filter(
+                                            user=request.user,
+                                            topic=topic_item,
+                                            course=course
+                                        ).first()
+                                        
+                                        # Only select if incomplete (no progress or progress not completed)
+                                        if not topic_progress or not topic_progress.completed:
+                                            next_available_topic = topic_item
+                                            break
                             except Exception as e:
                                 logger.error(f"Error finding next available topic: {str(e)}")
                             
                             if next_available_topic:
+                                logger.info(f"Manual navigation redirect: User {request.user.username} trying to access topic {topic.id} ('{topic.title}', type: {topic.content_type}), redirecting to topic {next_available_topic.id} ('{next_available_topic.title}', type: {next_available_topic.content_type})")
                                 messages.warning(request, f"You must complete previous topics before accessing '{topic.title}'. Redirecting to the next available topic.")
                                 return redirect('courses:topic_view', topic_id=next_available_topic.id)
                             else:
@@ -259,7 +294,14 @@ def topic_view(request, topic_id):
         # Get all topics for this course that the user can access
         if request.user.is_authenticated and request.user.role == 'learner':
             # For learners, exclude draft topics and restricted topics
-            all_course_topics = Topic.objects.filter(
+            all_course_topics = Topic.objects.select_related(
+                'quiz', 
+                'assignment', 
+                'discussion', 
+                'conference', 
+                'scorm', 
+                'section'
+            ).filter(
                 coursetopic__course=course
             ).exclude(
                 status='draft'
@@ -269,7 +311,14 @@ def topic_view(request, topic_id):
             ).order_by('order', 'coursetopic__order', 'created_at')
         else:
             # For other users, show all topics
-            all_course_topics = Topic.objects.filter(
+            all_course_topics = Topic.objects.select_related(
+                'quiz', 
+                'assignment', 
+                'discussion', 
+                'conference', 
+                'scorm', 
+                'section'
+            ).filter(
                 coursetopic__course=course
             ).order_by('order', 'coursetopic__order', 'created_at')
         
@@ -311,37 +360,9 @@ def topic_view(request, topic_id):
             for progress in progress_data:
                 all_progress[progress.topic.id] = progress
             
-            # Also check for completed quiz attempts (especially for initial assessments)
-            # that might not have TopicProgress marked as completed yet
-            completed_quiz_topics = set()
-            try:
-                from quiz.models import QuizAttempt
-                quiz_topics = all_course_topics.filter(content_type='Quiz', quiz__isnull=False)
-                for topic in quiz_topics:
-                    if topic.id not in all_progress:
-                        # Check if there's a completed quiz attempt
-                        completed_attempt = QuizAttempt.objects.filter(
-                            quiz=topic.quiz,
-                            user=request.user,
-                            is_completed=True
-                        ).exists()
-                        if completed_attempt:
-                            completed_quiz_topics.add(topic.id)
-                            # Try to get progress for consistency
-                            topic_progress = TopicProgress.objects.filter(
-                                user=request.user,
-                                topic=topic,
-                                course=course
-                            ).first()
-                            if topic_progress:
-                                all_progress[topic.id] = topic_progress
-            except ImportError:
-                pass
-            except Exception as e:
-                logger.error(f"Error checking quiz attempts for progress: {str(e)}")
-            
-            # Count completed topics: from progress data + completed quiz attempts
-            completed_topics_count = len(all_progress) + len(completed_quiz_topics - set(all_progress.keys()))
+            # Count completed topics from TopicProgress only
+            # Quiz topics are treated the same as all other topics - no special handling
+            completed_topics_count = len(all_progress)
         
         # Find previous and next topics for navigation
         # Build a section-aware ordered list: section topics first (by section order), then standalone topics
@@ -469,6 +490,11 @@ def topic_view(request, topic_id):
                 f"scorm_enrollment={scorm_enrollment.id if scorm_enrollment else None}, "
                 f"incomplete_attempt={scorm_incomplete_attempt.id if scorm_incomplete_attempt else None}"
             )
+        
+        # Debug logging before sending to template
+        logger.info(f"DEBUG topic_view context - Topic ID: {topic.id}, Title: {topic.title}, Content Type: {topic.content_type}")
+        logger.info(f"DEBUG topic_view context - Has quiz: {bool(topic.quiz_id)}, Quiz ID: {topic.quiz_id if topic.quiz_id else 'None'}")
+        logger.info(f"DEBUG topic_view context - Has text content: {bool(topic.text_content)}, Text length: {len(topic.text_content) if topic.text_content else 0}")
         
         context = {
             'topic': topic,

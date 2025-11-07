@@ -1056,18 +1056,11 @@ class Course(models.Model):
         
         # Get all topics that come before this one in the ordered list
         # Include ALL topic types in sequential progression (Quiz, SCORM, Text, Assignment, Video, etc.)
-        # All topics must be completed before accessing subsequent topics
-        # This includes ALL quiz types: normal quizzes, VAK Test quizzes, and Initial Assessment quizzes
+        # All topics will block access until completed
         previous_topics = all_topics_ordered[:current_index]
-        previous_topic_ids = []
+        previous_topic_ids = [prev_topic.id for prev_topic in previous_topics]
         
-        for prev_topic in previous_topics:
-            # Include ALL topic types in sequential progression
-            # Quiz topics (normal, VAK Test, Initial Assessment) should block access 
-            # like SCORM, Text, Assignment, and other topics
-            previous_topic_ids.append(prev_topic.id)
-        
-        # If no previous topics, allow access
+        # If no previous topics need to be completed, allow access
         if not previous_topic_ids:
             return True
         
@@ -1079,7 +1072,7 @@ class Course(models.Model):
             completed=True
         ).count()
         
-        # User can access if all previous topics (including all quiz types: normal, VAK Test, Initial Assessment) are completed
+        # User can access if all previous topics (including quizzes) are completed
         return completed_count == len(previous_topic_ids)
 
     def get_group_permissions(self, group: 'groups.models.BranchGroup') -> Dict[str, bool]:

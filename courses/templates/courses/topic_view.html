@@ -309,10 +309,14 @@
             {% endif %}
             
             <!-- Topic Content Display -->
+            <!-- DEBUG INFO: Topic ID: {{ topic.id }}, Title: {{ topic.title }}, Content Type: {{ topic.content_type }} -->
+            <!-- DEBUG: Has text content: {{ topic.text_content|yesno:"Yes,No" }}, Text content: {{ topic.text_content|truncatechars:50 }} -->
+            <!-- DEBUG: Has quiz: {{ topic.quiz|yesno:"Yes,No" }}, Quiz ID: {{ topic.quiz.id|default:"None" }} -->
             <div class="mb-6">
                 {% if topic.content_type == 'Text' and topic.text_content %}
                     {% load json_filters %}
                     <div class="prose max-w-none text-content" data-content-type="Text">
+                        <!-- DEBUG: Inside Text content block -->
                         {{ topic.text_content|render_rich_content }}
                     </div>
                 {% elif topic.content_type == 'Video' and topic.content_file %}
@@ -484,6 +488,7 @@
                         </div>
                     </div>
                 {% elif topic.content_type == 'Quiz' and topic.quiz %}
+                    <!-- DEBUG: Quiz section - Topic ID: {{ topic.id }}, Quiz ID: {{ topic.quiz.id }}, Quiz Title: {{ topic.quiz.title }} -->
                     <div class="w-full flex flex-col items-center justify-center py-8 quiz-content" data-content-type="Quiz">
                         <div class="text-center mb-6">
                             <h3 class="text-xl font-semibold mb-2">{{ topic.quiz.title }}</h3>
@@ -555,6 +560,17 @@
                             </div>
                         {% endif %}
                     </div>
+                {% elif topic.content_type == 'Quiz' and not topic.quiz %}
+                    <div class="w-full flex flex-col items-center justify-center py-8">
+                        <div class="text-center mb-6">
+                            <div class="p-4 bg-yellow-100 text-yellow-800 rounded-lg">
+                                <p><i class="fas fa-exclamation-triangle mr-2"></i>This topic is set as a Quiz but no quiz has been linked to it.</p>
+                                {% if user.is_staff or user.is_instructor %}
+                                    <p class="mt-2">Please edit this topic to select a quiz or create a new one.</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
                 {% elif topic.content_type == 'Assignment' and topic.assignment %}
                     <div class="w-full py-8 assignment-content" data-content-type="Assignment">
                         <div class="mb-6">
@@ -594,6 +610,17 @@
                             </div>
                         {% endif %}
                     </div>
+                {% elif topic.content_type == 'Assignment' and not topic.assignment %}
+                    <div class="w-full flex flex-col items-center justify-center py-8">
+                        <div class="text-center mb-6">
+                            <div class="p-4 bg-yellow-100 text-yellow-800 rounded-lg">
+                                <p><i class="fas fa-exclamation-triangle mr-2"></i>This topic is set as an Assignment but no assignment has been linked to it.</p>
+                                {% if user.is_staff or user.is_instructor %}
+                                    <p class="mt-2">Please edit this topic to select an assignment or create a new one.</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
                 {% elif topic.content_type == 'Conference' and topic.conference %}
                     <div class="w-full flex flex-col items-center justify-center py-8 conference-content" data-content-type="Conference">
                         <div class="text-center mb-6">
@@ -614,6 +641,17 @@
                             <a href="{% url 'conferences:join_conference' topic.conference.id %}" class="btn btn-primary text-lg px-6 py-3 w-full flex items-center justify-center" target="_blank">
                                 <i class="fas fa-video mr-2"></i>Join Conference
                             </a>
+                        </div>
+                    </div>
+                {% elif topic.content_type == 'Conference' and not topic.conference %}
+                    <div class="w-full flex flex-col items-center justify-center py-8">
+                        <div class="text-center mb-6">
+                            <div class="p-4 bg-yellow-100 text-yellow-800 rounded-lg">
+                                <p><i class="fas fa-exclamation-triangle mr-2"></i>This topic is set as a Conference but no conference has been linked to it.</p>
+                                {% if user.is_staff or user.is_instructor %}
+                                    <p class="mt-2">Please edit this topic to select a conference or create a new one.</p>
+                                {% endif %}
+                            </div>
                         </div>
                     </div>
                 {% elif topic.content_type == 'SCORM' and topic.scorm %}
@@ -814,7 +852,7 @@
                                         <div class="mr-3">
                                             {% with progress=topic_item|get_topic_progress:user %}
                                             {% if progress %}
-                                                {% if progress.completed or progress.progress_data.scorm_completion_status and progress.progress_data.scorm_completion_status|lower == 'completed' or progress.progress_data.scorm_completion_status and progress.progress_data.scorm_completion_status|lower == 'passed' or progress.progress_data.scorm_success_status and progress.progress_data.scorm_success_status|lower == 'passed' or topic_item|has_completed_quiz_attempt:user %}
+                                                {% if progress.completed or progress.progress_data.scorm_completion_status and progress.progress_data.scorm_completion_status|lower == 'completed' or progress.progress_data.scorm_completion_status and progress.progress_data.scorm_completion_status|lower == 'passed' or progress.progress_data.scorm_success_status and progress.progress_data.scorm_success_status|lower == 'passed' %}
                                                 <div class="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center text-white">
                                                     <svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
@@ -824,15 +862,7 @@
                                                 <div class="w-5 h-5 rounded-full border-2 border-gray-300"></div>
                                                 {% endif %}
                                             {% else %}
-                                                {% if topic_item|has_completed_quiz_attempt:user %}
-                                                <div class="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center text-white">
-                                                    <svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                                                    </svg>
-                                                </div>
-                                                {% else %}
                                                 <div class="w-5 h-5 rounded-full border-2 border-gray-300"></div>
-                                                {% endif %}
                                             {% endif %}
                                             {% endwith %}
                                         </div>
@@ -865,7 +895,7 @@
                                         <div class="mr-3">
                                             {% with progress=topic_item|get_topic_progress:user %}
                                             {% if progress %}
-                                                {% if progress.completed or progress.progress_data.scorm_completion_status and progress.progress_data.scorm_completion_status|lower == 'completed' or progress.progress_data.scorm_completion_status and progress.progress_data.scorm_completion_status|lower == 'passed' or progress.progress_data.scorm_success_status and progress.progress_data.scorm_success_status|lower == 'passed' or topic_item|has_completed_quiz_attempt:user %}
+                                                {% if progress.completed or progress.progress_data.scorm_completion_status and progress.progress_data.scorm_completion_status|lower == 'completed' or progress.progress_data.scorm_completion_status and progress.progress_data.scorm_completion_status|lower == 'passed' or progress.progress_data.scorm_success_status and progress.progress_data.scorm_success_status|lower == 'passed' %}
                                                 <div class="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center text-white">
                                                     <svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
@@ -875,15 +905,7 @@
                                                 <div class="w-5 h-5 rounded-full border-2 border-gray-300"></div>
                                                 {% endif %}
                                             {% else %}
-                                                {% if topic_item|has_completed_quiz_attempt:user %}
-                                                <div class="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center text-white">
-                                                    <svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                                                    </svg>
-                                                </div>
-                                                {% else %}
                                                 <div class="w-5 h-5 rounded-full border-2 border-gray-300"></div>
-                                                {% endif %}
                                             {% endif %}
                                             {% endwith %}
                                         </div>

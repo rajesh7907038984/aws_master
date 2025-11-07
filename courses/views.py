@@ -1136,12 +1136,12 @@ def course_details(request, course_id):
             
             # First add topics from sections in order
             for section in sections:
-                section_topics = topics.filter(section=section).order_by('coursetopic__order', 'created_at')
+                section_topics = topics.filter(section=section).order_by('order', 'coursetopic__order', 'created_at')
                 all_topics_ordered.extend(list(section_topics))
             
             # Then add standalone topics
             if hasattr(topics_without_section, 'exists'):
-                standalone_topics = topics_without_section.order_by('coursetopic__order', 'created_at')
+                standalone_topics = topics_without_section.order_by('order', 'coursetopic__order', 'created_at')
                 all_topics_ordered.extend(list(standalone_topics))
             elif topics_without_section:
                 all_topics_ordered.extend(list(topics_without_section))
@@ -1153,9 +1153,9 @@ def course_details(request, course_id):
             # Assignment, EmbedVideo, Conference, Discussion, SCORM
             last_completed_index = -1
             
-            # First pass: find the index of the last completed topic
-            # Include ALL topics - no skipping
-            for index, topic in enumerate(all_topics_ordered):
+            # Helper function to check if a topic is completed
+            def is_topic_completed(topic):
+                # Check TopicProgress first
                 topic_progress = TopicProgress.objects.filter(
                     user=request.user,
                     topic=topic,
@@ -1164,6 +1164,35 @@ def course_details(request, course_id):
                 ).exists()
                 
                 if topic_progress:
+                    return True
+                
+                # For quiz topics, also check if there's a passing QuizAttempt
+                # This handles cases where TopicProgress might not be updated yet
+                if topic.content_type == 'Quiz' and topic.quiz:
+                    try:
+                        from quiz.models import QuizAttempt
+                        # Check for passing quiz attempt or VAK/Initial Assessment completion
+                        quiz_completed = QuizAttempt.objects.filter(
+                            quiz=topic.quiz,
+                            user=request.user,
+                            is_completed=True
+                        ).filter(
+                            Q(passed=True) | 
+                            Q(quiz__is_vak_test=True) | 
+                            Q(quiz__is_initial_assessment=True)
+                        ).exists()
+                        
+                        if quiz_completed:
+                            return True
+                    except Exception as e:
+                        logger.error(f"Error checking quiz completion for topic {topic.id}: {str(e)}")
+                
+                return False
+            
+            # First pass: find the index of the last completed topic
+            # Include ALL topics - no skipping
+            for index, topic in enumerate(all_topics_ordered):
+                if is_topic_completed(topic):
                     last_completed_index = index
             
             # Second pass: find the first incomplete topic after the last completed one
@@ -1173,14 +1202,7 @@ def course_details(request, course_id):
             for index in range(start_index, len(all_topics_ordered)):
                 topic = all_topics_ordered[index]
                 
-                topic_progress = TopicProgress.objects.filter(
-                    user=request.user,
-                    topic=topic,
-                    course=course,
-                    completed=True
-                ).exists()
-                
-                if not topic_progress:
+                if not is_topic_completed(topic):
                     next_incomplete_topic = topic
                     break
         except Exception as e:
@@ -3887,19 +3909,63 @@ def topic_edit(request, topic_id, section_id=None):
         elif content_type == 'quiz':
             quiz_id = form_data.get('quiz')
             if quiz_id:
-                topic.quiz_id = quiz_id
+                try:
+                    # Import Quiz model
+                    from quiz.models import Quiz
+                    # Ensure quiz_id is converted to int and validate the quiz exists
+                    quiz = Quiz.objects.get(id=int(quiz_id))
+                    topic.quiz = quiz
+                    logger.info(f"Assigned quiz {quiz.id} ({quiz.title}) to topic {topic.id}")
+                except (Quiz.DoesNotExist, ValueError, TypeError) as e:
+                    logger.error(f"Error assigning quiz {quiz_id} to topic {topic.id}: {str(e)}")
+                    topic.quiz = None
+            else:
+                topic.quiz = None
         elif content_type == 'assignment':
             assignment_id = form_data.get('assignment')
             if assignment_id:
-                topic.assignment_id = assignment_id
+                try:
+                    # Import Assignment model
+                    from assignments.models import Assignment
+                    # Ensure assignment_id is converted to int and validate the assignment exists
+                    assignment = Assignment.objects.get(id=int(assignment_id))
+                    topic.assignment = assignment
+                    logger.info(f"Assigned assignment {assignment.id} ({assignment.title}) to topic {topic.id}")
+                except (Assignment.DoesNotExist, ValueError, TypeError) as e:
+                    logger.error(f"Error assigning assignment {assignment_id} to topic {topic.id}: {str(e)}")
+                    topic.assignment = None
+            else:
+                topic.assignment = None
         elif content_type == 'conference':
             conference_id = form_data.get('conference')
             if conference_id:
-                topic.conference_id = conference_id
+                try:
+                    # Import Conference model
+                    from conferences.models import Conference
+                    # Ensure conference_id is converted to int and validate the conference exists
+                    conference = Conference.objects.get(id=int(conference_id))
+                    topic.conference = conference
+                    logger.info(f"Assigned conference {conference.id} ({conference.title}) to topic {topic.id}")
+                except (Conference.DoesNotExist, ValueError, TypeError) as e:
+                    logger.error(f"Error assigning conference {conference_id} to topic {topic.id}: {str(e)}")
+                    topic.conference = None
+            else:
+                topic.conference = None
         elif content_type == 'discussion':
             discussion_id = form_data.get('discussion')
             if discussion_id:
-                topic.discussion_id = discussion_id
+                try:
+                    # Import Discussion model
+                    from discussions.models import Discussion
+                    # Ensure discussion_id is converted to int and validate the discussion exists
+                    discussion = Discussion.objects.get(id=int(discussion_id))
+                    topic.discussion = discussion
+                    logger.info(f"Assigned discussion {discussion.id} ({discussion.title}) to topic {topic.id}")
+                except (Discussion.DoesNotExist, ValueError, TypeError) as e:
+                    logger.error(f"Error assigning discussion {discussion_id} to topic {topic.id}: {str(e)}")
+                    topic.discussion = None
+            else:
+                topic.discussion = None
         # Handle section assignment
         new_section_name = form_data.get('new_section_name')
         section_id_from_form = form_data.get('section')
