@@ -199,6 +199,7 @@ INSTALLED_APPS = [
     'individual_learning_plan',
     'lms_notifications',
     'course_reviews',
+    'lms_media',
     
     # Management & Integration
     'role_management',

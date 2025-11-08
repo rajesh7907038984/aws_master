@@ -213,10 +213,12 @@
         </svg>
     </button>
     <div id="mediaLibrarySubmenu" class="submenu hidden">
-        <!-- Media Library links commented out - lms_media module not available -->
-        <div class="menu-item flex items-center px-4 py-1 w-full text-gray-500">
-            <span class="menu-text text-sm font-medium">Media Library (Coming Soon)</span>
-        </div>
+        <a href="{% url 'lms_media:media_library' %}" class="menu-item flex items-center px-4 py-1 w-full">
+            <span class="menu-text text-sm font-medium">Media Files</span>
+        </a>
+        <a href="{% url 'lms_media:statistics' %}" class="menu-item flex items-center px-4 py-1 w-full">
+            <span class="menu-text text-sm font-medium">Statistics</span>
+        </a>
     </div>
 </div>
 

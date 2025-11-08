@@ -126,7 +126,7 @@ urlpatterns = [
     path('individual-learning-plan/', include('individual_learning_plan.urls', namespace='individual_learning_plan')),
     path('role-management/', include('role_management.urls', namespace='role_management')),
     path('course-reviews/', include('course_reviews.urls', namespace='course_reviews')),
-    # path('media/', include('lms_media.urls', namespace='lms_media')),  # Commented out - lms_media module doesn't exist
+    path('media-library/', include('lms_media.urls', namespace='lms_media')),  # Media management interface
     path('tinymce/', include('tinymce_editor.urls')),
     path('accounts/login/', redirect_accounts_login, name='accounts_login_redirect'),
     
