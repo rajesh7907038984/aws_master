@@ -1,0 +1,26 @@
+email,email_lower,user_id,username,full_name,role,branch,is_active,date_joined,last_login,duplicate_count
+rajesh7907038984@gmail.com,rajesh7907038984@gmail.com,288,art_le1,trg fdf,learner,,True,2025-09-29T09:52:58.463194+00:00,,4
+rajesh7907038984@gmail.com,rajesh7907038984@gmail.com,290,art_in1,fdfsf fdf,instructor,,True,2025-09-29T09:38:19.953782+00:00,,4
+rajesh7907038984@gmail.com,rajesh7907038984@gmail.com,293,art_ad1,sds dc,admin,,True,2025-09-29T08:52:07.082462+00:00,,4
+rajesh7907038984@gmail.com,rajesh7907038984@gmail.com,295,learner_test,Given Name learner test Family Name learner_test,learner,,True,2025-09-28T07:25:52.842299+00:00,,4
+jerin121@gmail.com,jerin121@gmail.com,255,jerin.j,Jerin Joy,instructor,,True,2025-10-07T10:55:00.981914+00:00,,3
+jerin121@gmail.com,jerin121@gmail.com,315,jerinjoy,Jerin Joy,instructor,Nexsy Qualifications,True,2025-11-05T16:50:25.731312+00:00,2025-11-05T20:01:00.628415+00:00,3
+jerin121@gmail.com,jerin121@gmail.com,316,Isaac,Isaac Joy,learner,Nexsy Qualifications,True,2025-11-05T19:26:43.329569+00:00,2025-11-06T16:24:44.954840+00:00,3
+admin@example.com,admin@example.com,292,art_ad2,grend dsdcf,admin,,True,2025-09-29T08:58:07.910615+00:00,,2
+admin@example.com,admin@example.com,297,anime-in2,rtyrt tgry,instructor,,True,2025-09-27T13:51:36.961062+00:00,,2
+eudenesukwah7@yahoo.co.uk,eudenesukwah7@yahoo.co.uk,244,eudene,Eudene Sukwah,learner,,True,2025-10-21T10:26:04.676276+00:00,,2
+eudenesukwah7@yahoo.co.uk,eudenesukwah7@yahoo.co.uk,346,eudene0,Eudene Sukwah,instructor,Nexsy Qualifications,True,2025-11-06T14:47:41.975096+00:00,2025-11-08T11:29:46.945976+00:00,2
+hari2987@gmail.com,hari2987@gmail.com,232,susmitha,Susmitha Soman,instructor,Nexsy CPD,True,2025-10-28T11:40:11.553096+00:00,2025-11-06T18:32:37.304706+00:00,2
+hari2987@gmail.com,hari2987@gmail.com,311,aarsh,Aarsh Hari,learner,Nexsy CPD,True,2025-11-03T12:23:30.558654+00:00,2025-11-06T18:41:29.843099+00:00,2
+hari2987@yahoo.com,hari2987@yahoo.com,256,hari.k,Hari Krishnan,admin,,True,2025-10-07T10:48:05.844337+00:00,,2
+hari2987@yahoo.com,hari2987@yahoo.com,310,hari2987@yahoo.com,Hari Admin,globaladmin,,True,2025-08-27T01:20:04.767804+00:00,,2
+hari@nexsy.co.uk,hari@nexsy.co.uk,223,hari,Hari Krishnan,superadmin,Nexsy Academy - Default Branch,True,2025-10-28T10:30:02.545118+00:00,2025-11-07T19:30:18.453594+00:00,2
+hari@nexsy.co.uk,hari@nexsy.co.uk,309,harik,Hari Krishnan,superadmin,,True,2025-08-27T09:28:29.455350+00:00,,2
+hari@nexsy.io,hari@nexsy.io,352,nexsy,Nexsy Support,learner,Nexsy Qualifications,True,2025-11-07T13:30:36.106098+00:00,2025-11-08T09:24:11.114529+00:00,2
+hari@nexsy.io,hari@nexsy.io,353,support,Nexsy Support,admin,Forsters LLP,True,2025-11-07T20:50:34.576943+00:00,2025-11-07T21:18:14.216644+00:00,2
+hi@nexsy.io,hi@nexsy.io,350,rajesh.r,Rajesh R,learner,Nexsy Qualifications,True,2025-11-07T11:41:21.486552+00:00,2025-11-07T14:00:38.685140+00:00,2
+hi@nexsy.io,hi@nexsy.io,354,hari.krishnan,Hari Krishnan,instructor,Forsters LLP,True,2025-11-07T20:55:31.316566+00:00,2025-11-07T21:24:21.143772+00:00,2
+jerin@nexsy.co.uk,jerin@nexsy.co.uk,231,jerin,Jerin Joy,admin,Nexsy CPD,True,2025-10-28T11:31:38.880738+00:00,2025-11-03T15:32:19.751653+00:00,2
+jerin@nexsy.co.uk,jerin@nexsy.co.uk,308,jerinj,Jerin Joy,admin,,True,2025-08-27T09:35:38.876193+00:00,,2
+test@example.com,test@example.com,302,testuser,Test User,learner,,True,2025-09-18T12:12:43.140920+00:00,,2
+test@example.com,test@example.com,307,test_storage_user,Test User,learner,,True,2025-09-07T05:21:05.971478+00:00,,2

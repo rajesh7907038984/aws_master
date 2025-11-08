@@ -174,6 +174,14 @@ class CustomUser(AbstractUser):
         ('Level 2', 'Level 2'),
     ]
 
+    # Override email field to make it unique and required
+    email = models.EmailField(
+        unique=True,
+        blank=False,
+        null=False,
+        help_text="Email address - must be unique across all users"
+    )
+
     # Basic fields
     role = models.CharField(
         max_length=20,
@@ -914,51 +922,26 @@ class CustomUser(AbstractUser):
             if self.assigned_instructor.branch != self.branch:
                 raise ValidationError('Instructor must be from the same branch')
         
-        # Validate duplicate user role accounts
-        if self.email and self.role:
-            # Check for existing user with same email and role combination
+        # Validate email uniqueness across all users
+        if self.email:
+            # Normalize email to lowercase for case-insensitive comparison
+            self.email = self.email.lower()
+            
+            # Check for existing user with same email
             existing_user_query = CustomUser.objects.filter(
-                email=self.email,
-                role=self.role,
-                is_active=True
+                email__iexact=self.email
             )
             
-            # If branch is provided, include it in the uniqueness check
-            if self.branch:
-                existing_user_query = existing_user_query.filter(branch=self.branch)
-                
             # Exclude current user if editing
             if self.pk:
                 existing_user_query = existing_user_query.exclude(pk=self.pk)
-                
-            if existing_user_query.exists():
-                if self.branch:
-                    raise ValidationError(
-                        f"A user with the same email ({self.email}) and role ({self.get_role_display()}) "
-                        f"already exists in branch '{self.branch.name}'. User role accounts must be unique."
-                    )
-                else:
-                    raise ValidationError(
-                        f"A user with the same email ({self.email}) and role ({self.get_role_display()}) "
-                        f"already exists. User role accounts must be unique."
-                    )
-        
-        # For Global Admin role users, ensure no other user has the same email with Global Admin role
-        if self.role == 'globaladmin' and self.email:
-            existing_globaladmin = CustomUser.objects.filter(
-                email=self.email,
-                role='globaladmin',
-                is_active=True
-            )
             
-            # Exclude current user if editing  
-            if self.pk:
-                existing_globaladmin = existing_globaladmin.exclude(pk=self.pk)
-                
-            if existing_globaladmin.exists():
+            if existing_user_query.exists():
+                existing_user = existing_user_query.first()
                 raise ValidationError(
-                    f"A Global Admin user with email '{self.email}' already exists. "
-                    f"Cannot create duplicate Global Admin accounts."
+                    f"A user with email address '{self.email}' already exists. "
+                    f"Each email address can only be used for one account. "
+                    f"Please use a different email address or contact support if you need help accessing your existing account."
                 )
 
     def delete(self, *args: Any, **kwargs: Any) -> Tuple[int, Dict[str, int]]:

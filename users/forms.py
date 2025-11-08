@@ -215,6 +215,29 @@ class CustomUserCreationForm(UserCreationForm):
                 raise forms.ValidationError("Please confirm your new password.")
         
         return cleaned_data
+    
+    def clean_email(self):
+        """Validate email uniqueness across all users"""
+        email = self.cleaned_data.get('email', '').lower().strip()
+        
+        if not email:
+            raise forms.ValidationError("Email address is required.")
+        
+        # Check if email already exists (case-insensitive)
+        existing_user = CustomUser.objects.filter(email__iexact=email)
+        
+        # If this is an edit operation (instance exists), exclude current user
+        if self.instance and self.instance.pk:
+            existing_user = existing_user.exclude(pk=self.instance.pk)
+        
+        if existing_user.exists():
+            raise forms.ValidationError(
+                "This email address is already registered. "
+                "Each email can only be used for one account. "
+                "Please use a different email or log in to your existing account."
+            )
+        
+        return email
 
     def save(self, commit=True):
         user = super().save(commit=False)
@@ -1009,6 +1032,29 @@ class TabbedUserCreationForm(UserCreationForm):
                 self.add_error('role', 'Admin users are not allowed to assign super admin or global admin roles.')
 
         return cleaned_data
+    
+    def clean_email(self):
+        """Validate email uniqueness across all users"""
+        email = self.cleaned_data.get('email', '').lower().strip()
+        
+        if not email:
+            raise forms.ValidationError("Email address is required.")
+        
+        # Check if email already exists (case-insensitive)
+        existing_user = CustomUser.objects.filter(email__iexact=email)
+        
+        # If this is an edit operation (instance exists), exclude current user
+        if self.instance and self.instance.pk:
+            existing_user = existing_user.exclude(pk=self.instance.pk)
+        
+        if existing_user.exists():
+            raise forms.ValidationError(
+                "This email address is already registered. "
+                "Each email can only be used for one account. "
+                "Please use a different email or log in to your existing account."
+            )
+        
+        return email
 
     def save(self, commit=True):
         user = super().save(commit=False)
@@ -2018,6 +2064,29 @@ class SimpleRegistrationForm(UserCreationForm):
         for field_name in ['password1', 'password2']:
             if field_name in self.fields:
                 self.fields[field_name].widget.attrs.update({'class': 'form-input'})
+    
+    def clean_email(self):
+        """Validate email uniqueness across all users"""
+        email = self.cleaned_data.get('email', '').lower().strip()
+        
+        if not email:
+            raise forms.ValidationError("Email address is required.")
+        
+        # Check if email already exists (case-insensitive)
+        existing_user = CustomUser.objects.filter(email__iexact=email)
+        
+        # If this is an edit operation (instance exists), exclude current user
+        if self.instance and self.instance.pk:
+            existing_user = existing_user.exclude(pk=self.instance.pk)
+        
+        if existing_user.exists():
+            raise forms.ValidationError(
+                "This email address is already registered. "
+                "Each email can only be used for one account. "
+                "Please use a different email or log in to your existing account."
+            )
+        
+        return email
 
     def save(self, commit=True):
         user = super().save(commit=False)

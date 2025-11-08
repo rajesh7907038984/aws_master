@@ -9765,15 +9765,25 @@ def google_callback(request):
                 username = f"{original_username}{counter}"
                 counter += 1
             
-            # Create user
-            user = CustomUser.objects.create_user(
-                username=username,
-                email=email,
-                first_name=first_name,
-                last_name=last_name,
-                role='learner',  # Always create as learner for public registration
-                is_active=True
-            )
+            # Create user with email uniqueness check
+            try:
+                user = CustomUser.objects.create_user(
+                    username=username,
+                    email=email,
+                    first_name=first_name,
+                    last_name=last_name,
+                    role='learner',  # Always create as learner for public registration
+                    is_active=True
+                )
+            except Exception as e:
+                # Handle email uniqueness constraint violation
+                if 'email' in str(e).lower() and 'unique' in str(e).lower():
+                    messages.error(request, f"An account with email {email} already exists. Please log in instead.")
+                    return redirect('login')
+                else:
+                    logger.error(f"Error creating user from Google OAuth: {str(e)}")
+                    messages.error(request, "Error creating account. Please try again or contact support.")
+                    return redirect('users:register')
             
             # Assign to branch
             if branch:
@@ -10212,15 +10222,25 @@ def microsoft_callback(request):
                 return redirect('users:register')
             
             # Create user with branch assignment to avoid validation errors
-            user = CustomUser.objects.create_user(
-                username=username,
-                email=email,
-                first_name=first_name,
-                last_name=last_name,
-                role='learner',  # Always create as learner for public registration
-                is_active=True,
-                branch=user_branch  # Assign branch during creation
-            )
+            try:
+                user = CustomUser.objects.create_user(
+                    username=username,
+                    email=email,
+                    first_name=first_name,
+                    last_name=last_name,
+                    role='learner',  # Always create as learner for public registration
+                    is_active=True,
+                    branch=user_branch  # Assign branch during creation
+                )
+            except Exception as e:
+                # Handle email uniqueness constraint violation
+                if 'email' in str(e).lower() and 'unique' in str(e).lower():
+                    messages.error(request, f"An account with email {email} already exists. Please log in instead.")
+                    return redirect('login')
+                else:
+                    logger.error(f"Error creating user from Microsoft OAuth: {str(e)}")
+                    messages.error(request, "Error creating account. Please try again or contact support.")
+                    return redirect('users:register')
             
             # Set success message based on branch assignment
             if branch:
