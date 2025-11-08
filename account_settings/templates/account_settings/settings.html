@@ -680,20 +680,176 @@
                                                         </div>
                                                     </div>
                                                     
-                                                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                                                    <!-- Step-by-Step Setup Guide -->
+                                                    <div class="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-5 mb-6">
                                                         <div class="flex items-start">
                                                             <div class="flex-shrink-0">
-                                                                <i class="fas fa-info-circle text-blue-500 mt-1"></i>
+                                                                <i class="fas fa-book-open text-blue-600 text-lg mt-1"></i>
                                                             </div>
-                                                            <div class="ml-3">
-                                                                <h4 class="text-sm font-medium text-blue-800">Setup Prerequisites</h4>
-                                                                <div class="mt-2 text-sm text-blue-700">
-                                                                    <p class="mb-2">Before configuring Teams integration, ensure you have:</p>
-                                                                    <ul class="list-disc list-inside space-y-1">
-                                                                        <li>Azure AD App Registration with Microsoft Graph API permissions</li>
-                                                                        <li>Client ID, Client Secret, and Tenant ID from your Azure app</li>
-                                                                        <li>Admin consent for the required permissions</li>
-                                                                    </ul>
+                                                            <div class="ml-3 flex-1">
+                                                                <h4 class="text-base font-semibold text-blue-900 mb-3">
+                                                                    <i class="fas fa-graduation-cap mr-1"></i>
+                                                                    Step-by-Step Setup Guide
+                                                                </h4>
+                                                                
+                                                                <div class="space-y-4 text-sm">
+                                                                    <!-- Step 1 -->
+                                                                    <div class="bg-white rounded-lg p-4 shadow-sm">
+                                                                        <div class="flex items-start">
+                                                                            <div class="flex-shrink-0 w-7 h-7 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold text-xs">
+                                                                                1
+                                                                            </div>
+                                                                            <div class="ml-3 flex-1">
+                                                                                <h5 class="font-semibold text-gray-900 mb-2">Create Azure AD App Registration</h5>
+                                                                                <ol class="list-decimal list-inside space-y-1 text-gray-700">
+                                                                                    <li>Go to <a href="https://portal.azure.com" target="_blank" class="text-blue-600 hover:underline">Azure Portal</a></li>
+                                                                                    <li>Navigate to <strong>Azure Active Directory</strong> → <strong>App registrations</strong></li>
+                                                                                    <li>Click <strong>"New registration"</strong></li>
+                                                                                    <li>Enter a name (e.g., "LMS Teams Integration")</li>
+                                                                                    <li>Select account type: <strong>"Accounts in this organizational directory only"</strong></li>
+                                                                                    <li>Leave Redirect URI blank for now</li>
+                                                                                    <li>Click <strong>"Register"</strong></li>
+                                                                                </ol>
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+
+                                                                    <!-- Step 2 -->
+                                                                    <div class="bg-white rounded-lg p-4 shadow-sm">
+                                                                        <div class="flex items-start">
+                                                                            <div class="flex-shrink-0 w-7 h-7 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold text-xs">
+                                                                                2
+                                                                            </div>
+                                                                            <div class="ml-3 flex-1">
+                                                                                <h5 class="font-semibold text-gray-900 mb-2">Copy Required Credentials</h5>
+                                                                                <p class="text-gray-700 mb-2">From your app registration Overview page:</p>
+                                                                                <ul class="list-disc list-inside space-y-1 text-gray-700">
+                                                                                    <li><strong>Application (client) ID</strong> - Copy this as your <span class="bg-yellow-100 px-1 rounded">Client ID</span></li>
+                                                                                    <li><strong>Directory (tenant) ID</strong> - Copy this as your <span class="bg-yellow-100 px-1 rounded">Tenant ID</span></li>
+                                                                                </ul>
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+
+                                                                    <!-- Step 3 -->
+                                                                    <div class="bg-white rounded-lg p-4 shadow-sm">
+                                                                        <div class="flex items-start">
+                                                                            <div class="flex-shrink-0 w-7 h-7 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold text-xs">
+                                                                                3
+                                                                            </div>
+                                                                            <div class="ml-3 flex-1">
+                                                                                <h5 class="font-semibold text-gray-900 mb-2">Create Client Secret</h5>
+                                                                                <ol class="list-decimal list-inside space-y-1 text-gray-700">
+                                                                                    <li>In your app registration, go to <strong>"Certificates & secrets"</strong></li>
+                                                                                    <li>Click <strong>"New client secret"</strong></li>
+                                                                                    <li>Add a description (e.g., "LMS Integration Secret")</li>
+                                                                                    <li>Select expiration period (recommended: 24 months)</li>
+                                                                                    <li>Click <strong>"Add"</strong></li>
+                                                                                    <li><strong class="text-red-600">⚠️ Important:</strong> Copy the <strong>Value</strong> immediately - you won't be able to see it again!</li>
+                                                                                    <li>Save this as your <span class="bg-yellow-100 px-1 rounded">Client Secret</span></li>
+                                                                                </ol>
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+
+                                                                    <!-- Step 4 -->
+                                                                    <div class="bg-white rounded-lg p-4 shadow-sm">
+                                                                        <div class="flex items-start">
+                                                                            <div class="flex-shrink-0 w-7 h-7 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold text-xs">
+                                                                                4
+                                                                            </div>
+                                                                            <div class="ml-3 flex-1">
+                                                                                <h5 class="font-semibold text-gray-900 mb-2">Configure API Permissions</h5>
+                                                                                <ol class="list-decimal list-inside space-y-1 text-gray-700">
+                                                                                    <li>Go to <strong>"API permissions"</strong> in your app registration</li>
+                                                                                    <li>Click <strong>"Add a permission"</strong> → <strong>"Microsoft Graph"</strong></li>
+                                                                                    <li>Select <strong>"Application permissions"</strong></li>
+                                                                                    <li>Add the following permissions:</li>
+                                                                                </ol>
+                                                                                <div class="mt-2 ml-6 bg-gray-50 rounded p-3">
+                                                                                    <p class="font-medium text-gray-800 mb-2">Required Permissions:</p>
+                                                                                    <ul class="list-none space-y-1 text-gray-700">
+                                                                                        <li><i class="fas fa-check-circle text-green-600 mr-1"></i> <code class="bg-gray-200 px-1.5 py-0.5 rounded text-xs">Calendars.ReadWrite</code></li>
+                                                                                        <li><i class="fas fa-check-circle text-green-600 mr-1"></i> <code class="bg-gray-200 px-1.5 py-0.5 rounded text-xs">Group.Read.All</code></li>
+                                                                                        <li><i class="fas fa-check-circle text-green-600 mr-1"></i> <code class="bg-gray-200 px-1.5 py-0.5 rounded text-xs">OnlineMeetings.ReadWrite</code></li>
+                                                                                        <li><i class="fas fa-check-circle text-green-600 mr-1"></i> <code class="bg-gray-200 px-1.5 py-0.5 rounded text-xs">User.Read.All</code></li>
+                                                                                    </ul>
+                                                                                </div>
+                                                                                <p class="mt-2 text-gray-700">5. Click <strong>"Add permissions"</strong></p>
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+
+                                                                    <!-- Step 5 -->
+                                                                    <div class="bg-white rounded-lg p-4 shadow-sm">
+                                                                        <div class="flex items-start">
+                                                                            <div class="flex-shrink-0 w-7 h-7 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold text-xs">
+                                                                                5
+                                                                            </div>
+                                                                            <div class="ml-3 flex-1">
+                                                                                <h5 class="font-semibold text-gray-900 mb-2">Grant Admin Consent</h5>
+                                                                                <ol class="list-decimal list-inside space-y-1 text-gray-700">
+                                                                                    <li>In the <strong>"API permissions"</strong> page, locate the button <strong>"Grant admin consent for [Your Organization]"</strong></li>
+                                                                                    <li>Click this button (requires Global Administrator or Privileged Role Administrator)</li>
+                                                                                    <li>Confirm by clicking <strong>"Yes"</strong></li>
+                                                                                    <li>Verify all permissions show a green checkmark under "Status"</li>
+                                                                                </ol>
+                                                                                <div class="mt-2 bg-amber-50 border border-amber-200 rounded p-2">
+                                                                                    <p class="text-xs text-amber-800">
+                                                                                        <i class="fas fa-exclamation-triangle mr-1"></i>
+                                                                                        <strong>Note:</strong> Admin consent is required for application-level permissions to work properly.
+                                                                                    </p>
+                                                                                </div>
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+
+                                                                    <!-- Step 6 -->
+                                                                    <div class="bg-white rounded-lg p-4 shadow-sm border-2 border-green-300">
+                                                                        <div class="flex items-start">
+                                                                            <div class="flex-shrink-0 w-7 h-7 bg-green-600 text-white rounded-full flex items-center justify-center font-bold text-xs">
+                                                                                6
+                                                                            </div>
+                                                                            <div class="ml-3 flex-1">
+                                                                                <h5 class="font-semibold text-gray-900 mb-2">Configure Integration in LMS</h5>
+                                                                                <ol class="list-decimal list-inside space-y-1 text-gray-700">
+                                                                                    <li>Click the <strong>"Add Teams Integration"</strong> button below</li>
+                                                                                    <li>Enter a descriptive name for your integration</li>
+                                                                                    <li>Paste the <strong>Client ID</strong> from Step 2</li>
+                                                                                    <li>Paste the <strong>Client Secret</strong> from Step 3</li>
+                                                                                    <li>Paste the <strong>Tenant ID</strong> from Step 2</li>
+                                                                                    <li>Click <strong>"Add Integration"</strong></li>
+                                                                                    <li>Test the connection using the <strong>"Test Connection"</strong> button</li>
+                                                                                </ol>
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+
+                                                                    <!-- Additional Help -->
+                                                                    <div class="bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg p-4 border border-purple-200">
+                                                                        <h5 class="font-semibold text-purple-900 mb-2 flex items-center">
+                                                                            <i class="fas fa-lightbulb mr-2"></i>
+                                                                            Need Help?
+                                                                        </h5>
+                                                                        <ul class="space-y-2 text-sm text-purple-800">
+                                                                            <li class="flex items-start">
+                                                                                <i class="fas fa-external-link-alt mt-1 mr-2 text-purple-600"></i>
+                                                                                <span>View <a href="https://learn.microsoft.com/en-us/azure/active-directory/develop/quickstart-register-app" target="_blank" class="text-purple-700 hover:underline font-medium">Microsoft's official documentation</a> for app registration</span>
+                                                                            </li>
+                                                                            <li class="flex items-start">
+                                                                                <i class="fas fa-shield-alt mt-1 mr-2 text-purple-600"></i>
+                                                                                <span>Ensure you have <strong>Global Administrator</strong> or <strong>Application Administrator</strong> role in Azure AD</span>
+                                                                            </li>
+                                                                            <li class="flex items-start">
+                                                                                <i class="fas fa-clock mt-1 mr-2 text-purple-600"></i>
+                                                                                <span>Client secrets expire - set a calendar reminder to renew before expiration</span>
+                                                                            </li>
+                                                                            <li class="flex items-start">
+                                                                                <i class="fas fa-life-ring mt-1 mr-2 text-purple-600"></i>
+                                                                                <span>Contact your system administrator if you encounter permission issues</span>
+                                                                            </li>
+                                                                        </ul>
+                                                                    </div>
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -4844,11 +5000,11 @@
                             <span class="text-sm font-medium text-gray-700">Active</span>
                         </label>
                     </div>
-                    <div class="items-center px-4 py-3">
-                        <button type="button" class="modal-close px-4 py-2 bg-gray-200 text-gray-800 text-base font-medium rounded-md w-1/3 shadow-sm hover:bg-gray-300">
+                    <div class="flex items-center justify-center gap-3 px-4 py-3">
+                        <button type="button" class="modal-close px-6 py-2 bg-gray-200 text-gray-800 text-base font-medium rounded-md shadow-sm hover:bg-gray-300">
                             Cancel
                         </button>
-                        <button type="submit" class="px-4 py-2 text-white text-base font-medium rounded-md w-1/3 shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500" style="background-color: #1c2260;" onmouseover="this.style.backgroundColor='#181f56'" onmouseout="this.style.backgroundColor='#1c2260'">
+                        <button type="submit" class="px-6 py-2 text-white text-base font-medium rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500" style="background-color: #1c2260;" onmouseover="this.style.backgroundColor='#181f56'" onmouseout="this.style.backgroundColor='#1c2260'">
                             Save
                         </button>
                     </div>
@@ -4861,40 +5017,140 @@
 
 <!-- Add Teams Integration Modal -->
 <div id="addTeamsIntegrationModal" class="modal hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50" style="display:none;">
-    <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
-        <div class="mt-3 text-center">
-            <h3 class="text-lg leading-6 font-medium text-gray-900">Add Teams Integration</h3>
-            <div class="mt-2 px-7 py-3">
+    <div class="relative top-20 mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white">
+        <div class="mt-3">
+            <div class="flex items-center justify-between px-6 pb-3 border-b">
+                <div class="flex items-center">
+                    <i class="fab fa-microsoft text-blue-600 text-2xl mr-3"></i>
+                    <h3 class="text-xl font-semibold text-gray-900">Add Microsoft Teams Integration</h3>
+                </div>
+                <button type="button" class="modal-close text-gray-400 hover:text-gray-600">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            
+            <div class="px-6 py-4">
+                <!-- Info Banner -->
+                <div class="bg-blue-50 border-l-4 border-blue-400 p-3 mb-5">
+                    <div class="flex">
+                        <div class="flex-shrink-0">
+                            <i class="fas fa-info-circle text-blue-400"></i>
+                        </div>
+                        <div class="ml-3">
+                            <p class="text-xs text-blue-700">
+                                Enter the credentials from your Azure AD App Registration. Refer to the setup guide above if you need help.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Teams Integration Add Form -->
                 <form action="{% url 'account_settings:settings' %}" method="post">
                     {% csrf_token %}
                     <input type="hidden" name="form_type" value="teams_integration">
                     
-                    <div class="mb-4">
-                        <label for="teams-name" class="block text-sm font-medium text-gray-700 text-left">Name</label>
-                        <input type="text" id="teams-name" name="teams_name" required class="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md" placeholder="My Teams Integration">
+                    <div class="mb-5">
+                        <label for="teams-name" class="block text-sm font-semibold text-gray-700 mb-1">
+                            Integration Name
+                            <span class="text-red-500">*</span>
+                        </label>
+                        <input type="text" 
+                               id="teams-name" 
+                               name="teams_name" 
+                               required 
+                               class="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md p-2.5" 
+                               placeholder="e.g., Main Campus Teams Integration">
+                        <p class="mt-1 text-xs text-gray-500">
+                            <i class="fas fa-lightbulb mr-1"></i>
+                            A descriptive name to identify this integration (e.g., "Production Teams" or "Main Campus")
+                        </p>
                     </div>
                     
-                    <div class="mb-4">
-                        <label for="teams-client-id" class="block text-sm font-medium text-gray-700 text-left">Client ID</label>
-                        <input type="text" id="teams-client-id" name="teams_client_id" required class="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md" placeholder="12345678-1234-1234-1234-123456789abc">
+                    <div class="mb-5">
+                        <label for="teams-client-id" class="block text-sm font-semibold text-gray-700 mb-1">
+                            Application (Client) ID
+                            <span class="text-red-500">*</span>
+                        </label>
+                        <input type="text" 
+                               id="teams-client-id" 
+                               name="teams_client_id" 
+                               required 
+                               class="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md p-2.5 font-mono text-xs" 
+                               placeholder="12345678-1234-1234-1234-123456789abc"
+                               pattern="[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}">
+                        <p class="mt-1 text-xs text-gray-500">
+                            <i class="fas fa-map-marker-alt mr-1"></i>
+                            Found in Azure Portal → App Registration → <strong>Overview</strong> → Application (client) ID
+                        </p>
                     </div>
                     
-                    <div class="mb-4">
-                        <label for="teams-client-secret" class="block text-sm font-medium text-gray-700 text-left">Client Secret</label>
-                        <input type="password" id="teams-client-secret" name="teams_client_secret" required class="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md" placeholder="Your client secret">
+                    <div class="mb-5">
+                        <label for="teams-client-secret" class="block text-sm font-semibold text-gray-700 mb-1">
+                            Client Secret Value
+                            <span class="text-red-500">*</span>
+                        </label>
+                        <div class="relative">
+                            <input type="password" 
+                                   id="teams-client-secret" 
+                                   name="teams_client_secret" 
+                                   required 
+                                   class="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md p-2.5 pr-10 font-mono text-xs" 
+                                   placeholder="Enter your client secret value">
+                            <button type="button" 
+                                    onclick="togglePasswordVisibility('teams-client-secret')" 
+                                    class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600">
+                                <i class="fas fa-eye" id="teams-client-secret-icon"></i>
+                            </button>
+                        </div>
+                        <p class="mt-1 text-xs text-gray-500">
+                            <i class="fas fa-map-marker-alt mr-1"></i>
+                            Found in Azure Portal → App Registration → <strong>Certificates & secrets</strong> → Client secrets → Value
+                        </p>
+                        <p class="mt-1 text-xs text-red-600 font-medium">
+                            <i class="fas fa-exclamation-triangle mr-1"></i>
+                            Copy this immediately when creating the secret - it won't be shown again!
+                        </p>
                     </div>
                     
-                    <div class="mb-4">
-                        <label for="teams-tenant-id" class="block text-sm font-medium text-gray-700 text-left">Tenant ID</label>
-                        <input type="text" id="teams-tenant-id" name="teams_tenant_id" required class="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md" placeholder="12345678-1234-1234-1234-123456789abc">
+                    <div class="mb-5">
+                        <label for="teams-tenant-id" class="block text-sm font-semibold text-gray-700 mb-1">
+                            Directory (Tenant) ID
+                            <span class="text-red-500">*</span>
+                        </label>
+                        <input type="text" 
+                               id="teams-tenant-id" 
+                               name="teams_tenant_id" 
+                               required 
+                               class="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md p-2.5 font-mono text-xs" 
+                               placeholder="12345678-1234-1234-1234-123456789abc"
+                               pattern="[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}">
+                        <p class="mt-1 text-xs text-gray-500">
+                            <i class="fas fa-map-marker-alt mr-1"></i>
+                            Found in Azure Portal → App Registration → <strong>Overview</strong> → Directory (tenant) ID
+                        </p>
+                    </div>
+
+                    <!-- Checklist -->
+                    <div class="bg-gray-50 rounded-lg p-4 mb-5">
+                        <h4 class="text-sm font-semibold text-gray-800 mb-2">
+                            <i class="fas fa-tasks mr-1"></i>
+                            Before submitting, ensure you have:
+                        </h4>
+                        <ul class="space-y-1 text-xs text-gray-700">
+                            <li><i class="fas fa-check text-green-600 mr-2"></i>Created an Azure AD App Registration</li>
+                            <li><i class="fas fa-check text-green-600 mr-2"></i>Added required Microsoft Graph API permissions</li>
+                            <li><i class="fas fa-check text-green-600 mr-2"></i>Granted admin consent for all permissions</li>
+                            <li><i class="fas fa-check text-green-600 mr-2"></i>Copied the correct Client Secret VALUE (not ID)</li>
+                        </ul>
                     </div>
                     
-                    <div class="items-center px-4 py-3">
-                        <button type="button" class="modal-close px-4 py-2 bg-gray-200 text-gray-800 text-base font-medium rounded-md w-1/3 shadow-sm hover:bg-gray-300">
+                    <div class="flex items-center justify-end gap-3 pt-4 border-t">
+                        <button type="button" class="modal-close px-6 py-2.5 bg-gray-100 text-gray-700 text-sm font-medium rounded-lg shadow-sm hover:bg-gray-200 transition-colors">
+                            <i class="fas fa-times mr-1"></i>
                             Cancel
                         </button>
-                        <button type="submit" class="px-4 py-2 text-white text-base font-medium rounded-md w-1/3 shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500" style="background-color: #1c2260;" onmouseover="this.style.backgroundColor='#181f56'" onmouseout="this.style.backgroundColor='#1c2260'">
+                        <button type="submit" class="px-6 py-2.5 text-white text-sm font-medium rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors" style="background-color: #1c2260;" onmouseover="this.style.backgroundColor='#181f56'" onmouseout="this.style.backgroundColor='#1c2260'">
+                            <i class="fas fa-plus mr-1"></i>
                             Add Integration
                         </button>
                     </div>
@@ -4903,6 +5159,170 @@
         </div>
     </div>
 </div>
+
+<script>
+function togglePasswordVisibility(fieldId) {
+    const field = document.getElementById(fieldId);
+    const icon = document.getElementById(fieldId + '-icon');
+    if (field.type === 'password') {
+        field.type = 'text';
+        icon.classList.remove('fa-eye');
+        icon.classList.add('fa-eye-slash');
+    } else {
+        field.type = 'password';
+        icon.classList.remove('fa-eye-slash');
+        icon.classList.add('fa-eye');
+    }
+}
+</script>
+
+<!-- Edit Teams Integration Modal -->
+{% if teams_integration and teams_integration.id %}
+<div id="editTeamsIntegrationModal" class="modal hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50" style="display:none;">
+    <div class="relative top-20 mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white">
+        <div class="mt-3">
+            <div class="flex items-center justify-between px-6 pb-3 border-b">
+                <div class="flex items-center">
+                    <i class="fab fa-microsoft text-blue-600 text-2xl mr-3"></i>
+                    <h3 class="text-xl font-semibold text-gray-900">Edit Microsoft Teams Integration</h3>
+                </div>
+                <button type="button" class="modal-close text-gray-400 hover:text-gray-600">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            
+            <div class="px-6 py-4">
+                <!-- Info Banner -->
+                <div class="bg-blue-50 border-l-4 border-blue-400 p-3 mb-5">
+                    <div class="flex">
+                        <div class="flex-shrink-0">
+                            <i class="fas fa-info-circle text-blue-400"></i>
+                        </div>
+                        <div class="ml-3">
+                            <p class="text-xs text-blue-700">
+                                Update your Azure AD App Registration credentials. Leave Client Secret blank to keep the existing secret.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Teams Integration Edit Form -->
+                <form action="{% url 'account_settings:settings' %}" method="post">
+                    {% csrf_token %}
+                    <input type="hidden" name="form_type" value="teams_integration">
+                    
+                    <div class="mb-5">
+                        <label for="teams-name-edit" class="block text-sm font-semibold text-gray-700 mb-1">
+                            Integration Name
+                            <span class="text-red-500">*</span>
+                        </label>
+                        <input type="text" 
+                               id="teams-name-edit" 
+                               name="teams_name" 
+                               value="{{ teams_integration.name }}"
+                               required 
+                               class="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md p-2.5" 
+                               placeholder="e.g., Main Campus Teams Integration">
+                        <p class="mt-1 text-xs text-gray-500">
+                            <i class="fas fa-lightbulb mr-1"></i>
+                            A descriptive name to identify this integration
+                        </p>
+                    </div>
+                    
+                    <div class="mb-5">
+                        <label for="teams-client-id-edit" class="block text-sm font-semibold text-gray-700 mb-1">
+                            Application (Client) ID
+                            <span class="text-red-500">*</span>
+                        </label>
+                        <input type="text" 
+                               id="teams-client-id-edit" 
+                               name="teams_client_id" 
+                               value="{{ teams_integration.client_id }}"
+                               required 
+                               class="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md p-2.5 font-mono text-xs" 
+                               placeholder="12345678-1234-1234-1234-123456789abc"
+                               pattern="[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}">
+                        <p class="mt-1 text-xs text-gray-500">
+                            <i class="fas fa-map-marker-alt mr-1"></i>
+                            Found in Azure Portal → App Registration → <strong>Overview</strong>
+                        </p>
+                    </div>
+                    
+                    <div class="mb-5">
+                        <label for="teams-client-secret-edit" class="block text-sm font-semibold text-gray-700 mb-1">
+                            Client Secret Value
+                            <span class="text-gray-500 text-xs font-normal">(Optional - leave blank to keep existing)</span>
+                        </label>
+                        <div class="relative">
+                            <input type="password" 
+                                   id="teams-client-secret-edit" 
+                                   name="teams_client_secret" 
+                                   class="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md p-2.5 pr-10 font-mono text-xs" 
+                                   placeholder="Leave blank to keep existing secret">
+                            <button type="button" 
+                                    onclick="togglePasswordVisibility('teams-client-secret-edit')" 
+                                    class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600">
+                                <i class="fas fa-eye" id="teams-client-secret-edit-icon"></i>
+                            </button>
+                        </div>
+                        <p class="mt-1 text-xs text-gray-500">
+                            <i class="fas fa-map-marker-alt mr-1"></i>
+                            Found in Azure Portal → App Registration → <strong>Certificates & secrets</strong>
+                        </p>
+                        <p class="mt-1 text-xs text-blue-600">
+                            <i class="fas fa-info-circle mr-1"></i>
+                            Only provide a new secret if you want to update it
+                        </p>
+                    </div>
+                    
+                    <div class="mb-5">
+                        <label for="teams-tenant-id-edit" class="block text-sm font-semibold text-gray-700 mb-1">
+                            Directory (Tenant) ID
+                            <span class="text-red-500">*</span>
+                        </label>
+                        <input type="text" 
+                               id="teams-tenant-id-edit" 
+                               name="teams_tenant_id" 
+                               value="{{ teams_integration.tenant_id }}"
+                               required 
+                               class="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md p-2.5 font-mono text-xs" 
+                               placeholder="12345678-1234-1234-1234-123456789abc"
+                               pattern="[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}">
+                        <p class="mt-1 text-xs text-gray-500">
+                            <i class="fas fa-map-marker-alt mr-1"></i>
+                            Found in Azure Portal → App Registration → <strong>Overview</strong>
+                        </p>
+                    </div>
+
+                    <!-- Current Info -->
+                    <div class="bg-gray-50 rounded-lg p-4 mb-5">
+                        <h4 class="text-sm font-semibold text-gray-800 mb-2">
+                            <i class="fas fa-info-circle mr-1"></i>
+                            Current Integration Info
+                        </h4>
+                        <div class="space-y-1 text-xs text-gray-700">
+                            <p><strong>Status:</strong> <span class="{% if teams_integration.is_active %}text-green-600{% else %}text-red-600{% endif %}">{{ teams_integration.is_active|yesno:"Active,Inactive" }}</span></p>
+                            <p><strong>Created:</strong> {{ teams_integration.created_at|date:"M d, Y g:i A" }}</p>
+                            <p><strong>Last Updated:</strong> {{ teams_integration.updated_at|date:"M d, Y g:i A" }}</p>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center justify-end gap-3 pt-4 border-t">
+                        <button type="button" class="modal-close px-6 py-2.5 bg-gray-100 text-gray-700 text-sm font-medium rounded-lg shadow-sm hover:bg-gray-200 transition-colors">
+                            <i class="fas fa-times mr-1"></i>
+                            Cancel
+                        </button>
+                        <button type="submit" class="px-6 py-2.5 text-white text-sm font-medium rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors" style="background-color: #1c2260;" onmouseover="this.style.backgroundColor='#181f56'" onmouseout="this.style.backgroundColor='#1c2260'">
+                            <i class="fas fa-save mr-1"></i>
+                            Update Integration
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
 
 <script>
 // Inject Django URLs for use by JavaScript
