@@ -132,6 +132,16 @@
                                         <button id="bulkDeleteUserGroups" class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors hidden" onclick="bulkDeleteGroups('user-groups')">
                                             Delete Selected
                                         </button>
+                                        {% if request.user.role == 'admin' or request.user.role == 'superadmin' or request.user.role == 'globaladmin' %}
+                                            {% if request.user.branch and request.user.branch.teams_integration_enabled %}
+                                            <button id="azureSyncBtn" onclick="syncAzureGroups()" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors flex items-center">
+                                                <i class="fas fa-sync-alt mr-2"></i> Sync Azure Groups
+                                            </button>
+                                            <button id="azureImportBtn" onclick="openAzureImportModal()" class="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors flex items-center">
+                                                <i class="fab fa-microsoft mr-2"></i> Import from Azure
+                                            </button>
+                                            {% endif %}
+                                        {% endif %}
                                         {% if can_create %}
                                         <a href="{% url 'groups:group_create' %}?type=user&tab=user-groups" 
                                            class="px-4 py-2 text-white rounded-md transition-colors" style="background-color: #1c2260;" onmouseover="this.style.backgroundColor='#181f56'" onmouseout="this.style.backgroundColor='#1c2260'">
@@ -503,5 +513,371 @@
         setupSelectAll('selectAllCourseGroups', 'course-groups');
         setupSelectAll('selectAllAccessControl', 'access-control');
     });
+
+    // ============ Azure AD Group Import Functions ============
+    
+    let azureGroups = [];
+    let selectedGroups = [];
+    
+    function openAzureImportModal() {
+        // Show loading state
+        document.getElementById('azureImportBtn').disabled = true;
+        document.getElementById('azureImportBtn').innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Loading...';
+        
+        // Fetch Azure AD groups
+        fetch("{% url 'groups:azure_groups_list' %}")
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    azureGroups = data.groups;
+                    displayAzureGroups(data.groups);
+                    document.getElementById('azureImportModal').classList.remove('hidden');
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            })
+            .catch(error => {
+                alert('Error fetching Azure AD groups: ' + error);
+            })
+            .finally(() => {
+                document.getElementById('azureImportBtn').disabled = false;
+                document.getElementById('azureImportBtn').innerHTML = '<i class="fab fa-microsoft mr-2"></i> Import from Azure';
+            });
+    }
+    
+    function displayAzureGroups(groups) {
+        const container = document.getElementById('azureGroupsContainer');
+        container.innerHTML = '';
+        
+        // Display groups by category
+        const categories = [
+            { key: 'security', label: 'Security Groups', icon: 'fa-shield-alt' },
+            { key: 'microsoft365', label: 'Microsoft 365 Groups', icon: 'fa-users' },
+            { key: 'distribution', label: 'Distribution Lists', icon: 'fa-envelope' },
+            { key: 'other', label: 'Other Groups', icon: 'fa-folder' }
+        ];
+        
+        let totalGroups = 0;
+        
+        categories.forEach(category => {
+            const categoryGroups = groups[category.key] || [];
+            if (categoryGroups.length === 0) return;
+            
+            const categoryDiv = document.createElement('div');
+            categoryDiv.className = 'mb-6 azure-category';
+            categoryDiv.setAttribute('data-category', category.key);
+            categoryDiv.innerHTML = `
+                <h4 class="text-lg font-semibold mb-3 text-gray-700 flex items-center">
+                    <i class="fas ${category.icon} mr-2"></i> ${category.label}
+                </h4>
+                <div class="space-y-2" id="${category.key}-groups"></div>
+            `;
+            container.appendChild(categoryDiv);
+            
+            const groupsContainer = document.getElementById(`${category.key}-groups`);
+            categoryGroups.forEach(group => {
+                totalGroups++;
+                const groupDiv = document.createElement('div');
+                groupDiv.className = 'border rounded-lg p-4 hover:bg-gray-50 transition-colors azure-group-item';
+                groupDiv.setAttribute('data-group-name', group.displayName.toLowerCase());
+                groupDiv.setAttribute('data-group-desc', (group.description || '').toLowerCase());
+                groupDiv.setAttribute('data-group-id', group.id);
+                groupDiv.innerHTML = `
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center flex-1">
+                            <input type="checkbox" 
+                                   id="group-${group.id}" 
+                                   ${group.already_imported ? 'disabled checked' : ''}
+                                   class="rounded border-gray-300 text-blue-600 mr-3"
+                                   onchange="toggleGroupSelection('${group.id}', '${group.displayName}', this.checked)">
+                            <div class="flex-1">
+                                <label for="group-${group.id}" class="font-medium text-gray-900 cursor-pointer">
+                                    ${group.displayName}
+                                </label>
+                                ${group.description ? `<p class="text-sm text-gray-500 mt-1">${group.description}</p>` : ''}
+                                ${group.already_imported ? '<span class="text-xs text-blue-600 font-semibold mt-1 block">Already Imported</span>' : ''}
+                            </div>
+                        </div>
+                        <div id="role-selector-${group.id}" class="ml-4 ${group.already_imported ? 'hidden' : ''}" style="min-width: 150px;">
+                            <select class="form-select rounded-md border-gray-300 text-sm" 
+                                    onchange="updateGroupRole('${group.id}', this.value)">
+                                <option value="learner">Learner</option>
+                                <option value="instructor">Instructor</option>
+                            </select>
+                        </div>
+                    </div>
+                `;
+                groupsContainer.appendChild(groupDiv);
+            });
+        });
+        
+        // Update total count
+        updateSearchCount(totalGroups, totalGroups);
+    }
+    
+    function filterAzureGroups(searchTerm) {
+        const term = searchTerm.toLowerCase().trim();
+        const allGroups = document.querySelectorAll('.azure-group-item');
+        const allCategories = document.querySelectorAll('.azure-category');
+        const noResults = document.getElementById('noResultsMessage');
+        const container = document.getElementById('azureGroupsContainer');
+        
+        let visibleCount = 0;
+        let totalCount = allGroups.length;
+        
+        if (term === '') {
+            // Show all groups
+            allGroups.forEach(group => {
+                group.style.display = '';
+                visibleCount++;
+            });
+            allCategories.forEach(cat => cat.style.display = '');
+            container.style.display = '';
+            noResults.classList.add('hidden');
+            updateSearchCount(visibleCount, totalCount);
+            return;
+        }
+        
+        // Filter groups
+        allGroups.forEach(group => {
+            const name = group.getAttribute('data-group-name');
+            const desc = group.getAttribute('data-group-desc');
+            
+            if (name.includes(term) || desc.includes(term)) {
+                group.style.display = '';
+                visibleCount++;
+            } else {
+                group.style.display = 'none';
+            }
+        });
+        
+        // Hide empty categories
+        allCategories.forEach(category => {
+            const categoryKey = category.getAttribute('data-category');
+            const categoryGroups = category.querySelectorAll('.azure-group-item');
+            const visibleInCategory = Array.from(categoryGroups).filter(g => g.style.display !== 'none').length;
+            
+            if (visibleInCategory === 0) {
+                category.style.display = 'none';
+            } else {
+                category.style.display = '';
+            }
+        });
+        
+        // Show/hide no results message
+        if (visibleCount === 0) {
+            container.style.display = 'none';
+            noResults.classList.remove('hidden');
+        } else {
+            container.style.display = '';
+            noResults.classList.add('hidden');
+        }
+        
+        updateSearchCount(visibleCount, totalCount);
+    }
+    
+    function updateSearchCount(visible, total) {
+        const countElement = document.getElementById('searchResultCount');
+        if (visible === total) {
+            countElement.textContent = `${total} group${total !== 1 ? 's' : ''}`;
+        } else {
+            countElement.textContent = `${visible} of ${total} group${total !== 1 ? 's' : ''}`;
+        }
+    }
+    
+    function toggleGroupSelection(groupId, groupName, isChecked) {
+        if (isChecked) {
+            const roleSelector = document.querySelector(`#role-selector-${groupId} select`);
+            const role = roleSelector ? roleSelector.value : 'learner';
+            selectedGroups.push({
+                azure_group_id: groupId,
+                azure_group_name: groupName,
+                assigned_role: role
+            });
+        } else {
+            selectedGroups = selectedGroups.filter(g => g.azure_group_id !== groupId);
+        }
+        
+        // Update import button state
+        const importBtn = document.getElementById('executeImportBtn');
+        importBtn.disabled = selectedGroups.length === 0;
+        importBtn.textContent = selectedGroups.length > 0 
+            ? `Import ${selectedGroups.length} Group(s)` 
+            : 'Select Groups to Import';
+    }
+    
+    function updateGroupRole(groupId, role) {
+        const group = selectedGroups.find(g => g.azure_group_id === groupId);
+        if (group) {
+            group.assigned_role = role;
+        }
+    }
+    
+    function closeAzureImportModal() {
+        document.getElementById('azureImportModal').classList.add('hidden');
+        selectedGroups = [];
+        // Reset search
+        document.getElementById('azureGroupSearch').value = '';
+        filterAzureGroups('');
+    }
+    
+    function executeImport() {
+        if (selectedGroups.length === 0) {
+            alert('Please select at least one group to import');
+            return;
+        }
+        
+        const importBtn = document.getElementById('executeImportBtn');
+        importBtn.disabled = true;
+        importBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Importing...';
+        
+        fetch("{% url 'groups:azure_group_import' %}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({
+                group_mappings: selectedGroups
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                let message = `Successfully imported ${data.imported_groups.length} group(s) with ${data.imported_users_count} user(s).\n\n`;
+                data.imported_groups.forEach(g => {
+                    let detailMsg = `- ${g.azure_name} → ${g.lms_name}\n`;
+                    detailMsg += `  • Found: ${g.members_count} members\n`;
+                    detailMsg += `  • Imported: ${g.imported_count || 0} users\n`;
+                    if (g.skipped_count && g.skipped_count > 0) {
+                        detailMsg += `  • Skipped: ${g.skipped_count} (no email or errors)\n`;
+                    }
+                    detailMsg += `  • Role: ${g.role}\n`;
+                    message += detailMsg;
+                });
+                
+                if (data.errors && data.errors.length > 0) {
+                    message += '\n\nWarnings:\n';
+                    data.errors.forEach(err => {
+                        message += `- ${err}\n`;
+                    });
+                }
+                
+                alert(message);
+                closeAzureImportModal();
+                location.reload();
+            } else {
+                alert('Error: ' + data.error);
+            }
+        })
+        .catch(error => {
+            alert('Error importing groups: ' + error);
+        })
+        .finally(() => {
+            importBtn.disabled = false;
+            importBtn.innerHTML = '<i class="fas fa-download mr-2"></i> Import Selected Groups';
+        });
+    }
+    
+    function syncAzureGroups() {
+        if (!confirm('This will sync all previously imported Azure AD groups and add any new members. Continue?')) {
+            return;
+        }
+        
+        const syncBtn = document.getElementById('azureSyncBtn');
+        syncBtn.disabled = true;
+        syncBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Syncing...';
+        
+        fetch("{% url 'groups:azure_group_sync' %}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                let message = `Successfully synced ${data.synced_groups.length} group(s) with ${data.new_users_count} new user(s).\n\n`;
+                data.synced_groups.forEach(g => {
+                    if (g.new_members > 0) {
+                        message += `- ${g.azure_name} → ${g.lms_name} (+${g.new_members} new members)\n`;
+                    }
+                });
+                
+                if (data.new_users_count === 0) {
+                    message = 'All groups are up to date. No new members found.';
+                }
+                
+                alert(message);
+                location.reload();
+            } else {
+                alert('Error: ' + data.error);
+            }
+        })
+        .catch(error => {
+            alert('Error syncing groups: ' + error);
+        })
+        .finally(() => {
+            syncBtn.disabled = false;
+            syncBtn.innerHTML = '<i class="fas fa-sync-alt mr-2"></i> Sync Azure Groups';
+        });
+    }
 </script>
+
+<!-- Azure Import Modal -->
+<div id="azureImportModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+    <div class="relative top-20 mx-auto p-5 border w-11/12 max-w-6xl shadow-lg rounded-md bg-white">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-2xl font-bold text-gray-900">Import Azure AD Groups</h3>
+            <button onclick="closeAzureImportModal()" class="text-gray-400 hover:text-gray-600">
+                <i class="fas fa-times text-2xl"></i>
+            </button>
+        </div>
+        
+        <div class="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <p class="text-sm text-blue-800">
+                <i class="fas fa-info-circle mr-2"></i>
+                Select Azure AD groups to import. Users from selected groups will be automatically registered in the LMS 
+                with the role you assign. You can assign either "Learner" or "Instructor" role to each group.
+            </p>
+        </div>
+        
+        <!-- Search Box -->
+        <div class="mb-4">
+            <div class="relative">
+                <input type="text" 
+                       id="azureGroupSearch" 
+                       placeholder="Search groups by name or description..." 
+                       class="w-full px-4 py-3 pl-10 pr-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                       onkeyup="filterAzureGroups(this.value)">
+                <i class="fas fa-search absolute left-3 top-4 text-gray-400"></i>
+                <span id="searchResultCount" class="absolute right-3 top-4 text-sm text-gray-500"></span>
+            </div>
+        </div>
+        
+        <div id="azureGroupsContainer" class="max-h-96 overflow-y-auto mb-6 border rounded-lg p-4 bg-gray-50">
+            <!-- Groups will be populated here -->
+        </div>
+        
+        <div id="noResultsMessage" class="hidden text-center py-8 text-gray-500">
+            <i class="fas fa-search text-4xl mb-3"></i>
+            <p class="text-lg">No groups found matching your search</p>
+        </div>
+        
+        <div class="flex justify-end space-x-4">
+            <button onclick="closeAzureImportModal()" 
+                    class="px-6 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 transition-colors">
+                Cancel
+            </button>
+            <button id="executeImportBtn" 
+                    onclick="executeImport()" 
+                    disabled
+                    class="px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed">
+                <i class="fas fa-download mr-2"></i> Select Groups to Import
+            </button>
+        </div>
+    </div>
+</div>
+
 {% endblock %}

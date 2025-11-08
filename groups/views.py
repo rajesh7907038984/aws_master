@@ -1562,3 +1562,452 @@ def group_bulk_delete(request):
         messages.error(request, f"Error deleting groups: {str(e)}")
     
     return redirect(f"{reverse('groups:group_list')}?tab={tab}")
+
+
+# ============ Azure AD Group Import Views ============
+
+from django.http import JsonResponse
+
+@login_required
+def azure_groups_list(request):
+    """Fetch and display Azure AD groups for import mapping"""
+    # Check if user is branch admin with Teams integration enabled
+    if request.user.role not in ['admin', 'superadmin', 'globaladmin']:
+        return JsonResponse({
+            'success': False,
+            'error': 'Only branch admins can import Azure AD groups'
+        }, status=403)
+    
+    if not request.user.branch:
+        return JsonResponse({
+            'success': False,
+            'error': 'User must belong to a branch to import Azure AD groups'
+        }, status=403)
+    
+    # Check if Teams integration is enabled for this branch
+    if not request.user.branch.teams_integration_enabled:
+        return JsonResponse({
+            'success': False,
+            'error': 'Microsoft Teams integration is not enabled for your branch. Please contact your administrator.'
+        }, status=403)
+    
+    try:
+        from .azure_ad_utils import AzureADGroupAPI, AzureADAPIError
+        from .models import AzureADGroupImport
+        
+        # Initialize Azure AD API
+        api = AzureADGroupAPI(request.user.branch)
+        
+        # Get all groups organized by type
+        categorized_groups = api.get_groups_by_type()
+        
+        # Get already imported groups for this branch
+        imported_group_ids = AzureADGroupImport.objects.filter(
+            branch=request.user.branch,
+            is_active=True
+        ).values_list('azure_group_id', flat=True)
+        
+        # Mark already imported groups
+        for category in categorized_groups.values():
+            for group in category:
+                group['already_imported'] = group['id'] in imported_group_ids
+        
+        return JsonResponse({
+            'success': True,
+            'groups': categorized_groups,
+            'branch_name': request.user.branch.name
+        })
+        
+    except AzureADAPIError as e:
+        logger.error(f"Azure AD API error: {str(e)}")
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=400)
+    except Exception as e:
+        logger.error(f"Error fetching Azure AD groups: {str(e)}")
+        return JsonResponse({
+            'success': False,
+            'error': f'An error occurred: {str(e)}'
+        }, status=500)
+
+
+@login_required
+def azure_group_import(request):
+    """Import Azure AD groups and their members to LMS"""
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'Only POST method allowed'}, status=405)
+    
+    # Check permissions
+    if request.user.role not in ['admin', 'superadmin', 'globaladmin']:
+        return JsonResponse({
+            'success': False,
+            'error': 'Only branch admins can import Azure AD groups'
+        }, status=403)
+    
+    if not request.user.branch:
+        return JsonResponse({
+            'success': False,
+            'error': 'User must belong to a branch'
+        }, status=403)
+    
+    try:
+        import json
+        from .azure_ad_utils import AzureADGroupAPI, AzureADAPIError
+        from .models import AzureADGroupImport, AzureADUserMapping
+        from users.models import CustomUser
+        from django.contrib.auth.hashers import make_password
+        import secrets
+        import string
+        
+        # Parse request data
+        data = json.loads(request.body)
+        group_mappings = data.get('group_mappings', [])
+        
+        if not group_mappings:
+            return JsonResponse({
+                'success': False,
+                'error': 'No group mappings provided'
+            }, status=400)
+        
+        # Initialize Azure AD API
+        api = AzureADGroupAPI(request.user.branch)
+        
+        imported_groups = []
+        imported_users_count = 0
+        errors = []
+        
+        with transaction.atomic():
+            for mapping in group_mappings:
+                azure_group_id = mapping.get('azure_group_id')
+                azure_group_name = mapping.get('azure_group_name')
+                assigned_role = mapping.get('assigned_role', 'learner')
+                
+                if not azure_group_id or not azure_group_name:
+                    continue
+                
+                try:
+                    # Check if this Azure group is already imported
+                    existing_import = AzureADGroupImport.objects.filter(
+                        azure_group_id=azure_group_id,
+                        branch=request.user.branch
+                    ).first()
+                    
+                    if existing_import:
+                        errors.append(f"Group '{azure_group_name}' is already imported")
+                        continue
+                    
+                    # Create or get LMS group
+                    lms_group, created = BranchGroup.objects.get_or_create(
+                        name=f"{azure_group_name} (Azure)",
+                        branch=request.user.branch,
+                        defaults={
+                            'description': f'Imported from Azure AD group: {azure_group_name}',
+                            'created_by': request.user,
+                            'group_type': 'user'
+                        }
+                    )
+                    
+                    # Create Azure group import record
+                    azure_import = AzureADGroupImport.objects.create(
+                        azure_group_id=azure_group_id,
+                        azure_group_name=azure_group_name,
+                        lms_group=lms_group,
+                        branch=request.user.branch,
+                        assigned_role=assigned_role,
+                        imported_by=request.user
+                    )
+                    
+                    # Fetch group members from Azure AD
+                    members = api.get_group_members(azure_group_id)
+                    
+                    logger.info(f"Starting to import {len(members)} members from Azure AD group: {azure_group_name}")
+                    
+                    # Import users
+                    skipped_count = 0
+                    for member in members:
+                        try:
+                            azure_user_id = member.get('id')
+                            email = member.get('mail') or member.get('userPrincipalName')
+                            display_name = member.get('displayName', '')
+                            given_name = member.get('givenName', '')
+                            surname = member.get('surname', '')
+                            
+                            if not email:
+                                logger.warning(f"Skipping user without email: {azure_user_id} - {display_name}")
+                                skipped_count += 1
+                                continue
+                            
+                            # Generate username from email
+                            username = email.split('@')[0]
+                            
+                            # Check if user already exists
+                            lms_user = CustomUser.objects.filter(email=email).first()
+                            
+                            if not lms_user:
+                                # Create new user with auto-generated password
+                                alphabet = string.ascii_letters + string.digits + string.punctuation
+                                temp_password = ''.join(secrets.choice(alphabet) for i in range(16))
+                                
+                                # Ensure unique username
+                                base_username = username
+                                counter = 1
+                                while CustomUser.objects.filter(username=username).exists():
+                                    username = f"{base_username}{counter}"
+                                    counter += 1
+                                
+                                lms_user = CustomUser.objects.create(
+                                    username=username,
+                                    email=email,
+                                    first_name=given_name,
+                                    last_name=surname,
+                                    role=assigned_role,
+                                    branch=request.user.branch,
+                                    password=make_password(temp_password),
+                                    is_active=True
+                                )
+                                imported_users_count += 1
+                                logger.info(f"Created new user: {email} with role: {assigned_role}")
+                            else:
+                                # Update existing user's branch and role if needed
+                                if not lms_user.branch:
+                                    lms_user.branch = request.user.branch
+                                if lms_user.role != assigned_role:
+                                    lms_user.role = assigned_role
+                                lms_user.save()
+                                logger.info(f"Updated existing user: {email}")
+                            
+                            # Create Azure user mapping
+                            AzureADUserMapping.objects.get_or_create(
+                                azure_user_id=azure_user_id,
+                                azure_group_import=azure_import,
+                                defaults={
+                                    'azure_email': email,
+                                    'lms_user': lms_user
+                                }
+                            )
+                            
+                            # Add user to LMS group
+                            GroupMembership.objects.get_or_create(
+                                group=lms_group,
+                                user=lms_user,
+                                defaults={
+                                    'invited_by': request.user,
+                                    'is_active': True
+                                }
+                            )
+                            
+                        except Exception as user_error:
+                            logger.error(f"Error importing user {member.get('mail')}: {str(user_error)}")
+                            logger.exception("Full traceback:")
+                            skipped_count += 1
+                            continue
+                    
+                    logger.info(f"Import completed for group {azure_group_name}: {imported_users_count} users imported, {skipped_count} skipped")
+                    
+                    imported_groups.append({
+                        'azure_name': azure_group_name,
+                        'lms_name': lms_group.name,
+                        'members_count': len(members),
+                        'imported_count': imported_users_count,
+                        'skipped_count': skipped_count,
+                        'role': assigned_role
+                    })
+                    
+                except Exception as group_error:
+                    logger.error(f"Error importing group {azure_group_name}: {str(group_error)}")
+                    errors.append(f"Error importing '{azure_group_name}': {str(group_error)}")
+                    continue
+        
+        return JsonResponse({
+            'success': True,
+            'imported_groups': imported_groups,
+            'imported_users_count': imported_users_count,
+            'errors': errors
+        })
+        
+    except AzureADAPIError as e:
+        logger.error(f"Azure AD API error: {str(e)}")
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=400)
+    except Exception as e:
+        logger.error(f"Error importing Azure AD groups: {str(e)}")
+        return JsonResponse({
+            'success': False,
+            'error': f'An error occurred: {str(e)}'
+        }, status=500)
+
+
+@login_required
+def azure_group_sync(request):
+    """Sync Azure AD groups - add new members to existing imported groups"""
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'Only POST method allowed'}, status=405)
+    
+    # Check permissions
+    if request.user.role not in ['admin', 'superadmin', 'globaladmin']:
+        return JsonResponse({
+            'success': False,
+            'error': 'Only branch admins can sync Azure AD groups'
+        }, status=403)
+    
+    if not request.user.branch:
+        return JsonResponse({
+            'success': False,
+            'error': 'User must belong to a branch'
+        }, status=403)
+    
+    try:
+        from .azure_ad_utils import AzureADGroupAPI, AzureADAPIError
+        from .models import AzureADGroupImport, AzureADUserMapping
+        from users.models import CustomUser
+        from django.contrib.auth.hashers import make_password
+        import secrets
+        import string
+        
+        # Initialize Azure AD API
+        api = AzureADGroupAPI(request.user.branch)
+        
+        # Get all active Azure imports for this branch
+        azure_imports = AzureADGroupImport.objects.filter(
+            branch=request.user.branch,
+            is_active=True
+        )
+        
+        if not azure_imports.exists():
+            return JsonResponse({
+                'success': False,
+                'error': 'No Azure AD groups have been imported yet'
+            }, status=400)
+        
+        synced_groups = []
+        new_users_count = 0
+        
+        with transaction.atomic():
+            for azure_import in azure_imports:
+                try:
+                    # Fetch current members from Azure AD
+                    members = api.get_group_members(azure_import.azure_group_id)
+                    
+                    # Get existing Azure user IDs for this import
+                    existing_azure_ids = set(
+                        azure_import.user_mappings.values_list('azure_user_id', flat=True)
+                    )
+                    
+                    new_members_added = 0
+                    skipped_count = 0
+                    
+                    for member in members:
+                        azure_user_id = member.get('id')
+                        
+                        # Skip if user is already mapped
+                        if azure_user_id in existing_azure_ids:
+                            continue
+                        
+                        try:
+                            email = member.get('mail') or member.get('userPrincipalName')
+                            display_name = member.get('displayName', '')
+                            given_name = member.get('givenName', '')
+                            surname = member.get('surname', '')
+                            
+                            if not email:
+                                logger.warning(f"Skipping user without email: {azure_user_id} - {display_name}")
+                                skipped_count += 1
+                                continue
+                            
+                            # Generate username from email
+                            username = email.split('@')[0]
+                            
+                            # Check if user already exists
+                            lms_user = CustomUser.objects.filter(email=email).first()
+                            
+                            if not lms_user:
+                                # Create new user
+                                alphabet = string.ascii_letters + string.digits + string.punctuation
+                                temp_password = ''.join(secrets.choice(alphabet) for i in range(16))
+                                
+                                # Ensure unique username
+                                base_username = username
+                                counter = 1
+                                while CustomUser.objects.filter(username=username).exists():
+                                    username = f"{base_username}{counter}"
+                                    counter += 1
+                                
+                                lms_user = CustomUser.objects.create(
+                                    username=username,
+                                    email=email,
+                                    first_name=given_name,
+                                    last_name=surname,
+                                    role=azure_import.assigned_role,
+                                    branch=request.user.branch,
+                                    password=make_password(temp_password),
+                                    is_active=True
+                                )
+                                new_users_count += 1
+                                logger.info(f"Created new user during sync: {email}")
+                            else:
+                                # Update user's branch if needed
+                                if not lms_user.branch:
+                                    lms_user.branch = request.user.branch
+                                    lms_user.save()
+                            
+                            # Create Azure user mapping
+                            AzureADUserMapping.objects.get_or_create(
+                                azure_user_id=azure_user_id,
+                                azure_group_import=azure_import,
+                                defaults={
+                                    'azure_email': email,
+                                    'lms_user': lms_user
+                                }
+                            )
+                            
+                            # Add user to LMS group
+                            GroupMembership.objects.get_or_create(
+                                group=azure_import.lms_group,
+                                user=lms_user,
+                                defaults={
+                                    'invited_by': request.user,
+                                    'is_active': True
+                                }
+                            )
+                            
+                            new_members_added += 1
+                            
+                        except Exception as user_error:
+                            logger.error(f"Error syncing user {member.get('mail')}: {str(user_error)}")
+                            continue
+                    
+                    # Update last synced time
+                    azure_import.last_synced_at = timezone.now()
+                    azure_import.save()
+                    
+                    synced_groups.append({
+                        'azure_name': azure_import.azure_group_name,
+                        'lms_name': azure_import.lms_group.name,
+                        'new_members': new_members_added
+                    })
+                    
+                except Exception as group_error:
+                    logger.error(f"Error syncing group {azure_import.azure_group_name}: {str(group_error)}")
+                    continue
+        
+        return JsonResponse({
+            'success': True,
+            'synced_groups': synced_groups,
+            'new_users_count': new_users_count
+        })
+        
+    except AzureADAPIError as e:
+        logger.error(f"Azure AD API error: {str(e)}")
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=400)
+    except Exception as e:
+        logger.error(f"Error syncing Azure AD groups: {str(e)}")
+        return JsonResponse({
+            'success': False,
+            'error': f'An error occurred: {str(e)}'
+        }, status=500)

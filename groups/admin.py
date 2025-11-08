@@ -4,7 +4,7 @@ from django.contrib.admin.widgets import FilteredSelectMultiple
 from django.urls import reverse
 from django.http import HttpResponseRedirect
 from django.contrib.auth.models import AnonymousUser
-from .models import BranchGroup, GroupMemberRole, GroupMembership, CourseGroupAccess
+from .models import BranchGroup, GroupMemberRole, GroupMembership, CourseGroupAccess, AzureADGroupImport, AzureADUserMapping
 from courses.models import Course
 from django import forms
 from users.models import CustomUser, Branch
@@ -363,3 +363,67 @@ class CourseGroupAccessAdmin(admin.ModelAdmin):
         if not request.user.is_authenticated:
             return False
         return request.user.is_superuser or getattr(request.user, 'role', None) == 'admin'
+
+
+@admin.register(AzureADGroupImport)
+class AzureADGroupImportAdmin(admin.ModelAdmin):
+    list_display = ['azure_group_name', 'lms_group', 'branch', 'assigned_role', 'imported_by', 'imported_at', 'last_synced_at', 'is_active']
+    list_filter = ['is_active', 'assigned_role', 'branch', 'imported_at']
+    search_fields = ['azure_group_name', 'azure_group_id', 'lms_group__name']
+    readonly_fields = ('imported_at', 'imported_by', 'last_synced_at')
+    
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        if request.user.is_superuser:
+            return qs
+        return qs.filter(branch=request.user.branch)
+    
+    def has_add_permission(self, request):
+        # Prevent manual creation through admin - use the import feature instead
+        return False
+    
+    def has_change_permission(self, request, obj=None):
+        if request.user.is_superuser:
+            return True
+        if obj is None:
+            return True
+        return obj.branch == request.user.branch
+    
+    def has_delete_permission(self, request, obj=None):
+        if request.user.is_superuser:
+            return True
+        if obj is None:
+            return False
+        return obj.branch == request.user.branch
+
+
+@admin.register(AzureADUserMapping)
+class AzureADUserMappingAdmin(admin.ModelAdmin):
+    list_display = ['azure_email', 'lms_user', 'azure_group_import', 'created_at']
+    list_filter = ['azure_group_import__branch', 'created_at']
+    search_fields = ['azure_email', 'azure_user_id', 'lms_user__username', 'lms_user__email']
+    readonly_fields = ('created_at',)
+    
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        if request.user.is_superuser:
+            return qs
+        return qs.filter(azure_group_import__branch=request.user.branch)
+    
+    def has_add_permission(self, request):
+        # Prevent manual creation through admin - managed by import/sync
+        return False
+    
+    def has_change_permission(self, request, obj=None):
+        if request.user.is_superuser:
+            return True
+        if obj is None:
+            return True
+        return obj.azure_group_import.branch == request.user.branch
+    
+    def has_delete_permission(self, request, obj=None):
+        if request.user.is_superuser:
+            return True
+        if obj is None:
+            return False
+        return obj.azure_group_import.branch == request.user.branch

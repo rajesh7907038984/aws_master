@@ -432,3 +432,70 @@ def handle_course_group_access_changes(sender, instance, **kwargs):
     except Exception as e:
         logger.error(f"Error in course group access signal handler: {str(e)}")
         logger.exception("Full traceback:")
+
+
+class AzureADGroupImport(models.Model):
+    """Model to track Azure AD group imports"""
+    azure_group_id = models.CharField(max_length=255, help_text="Azure AD Group ID")
+    azure_group_name = models.CharField(max_length=255, help_text="Azure AD Group Name")
+    lms_group = models.ForeignKey(
+        BranchGroup,
+        on_delete=models.CASCADE,
+        related_name='azure_imports',
+        help_text="Linked LMS Group"
+    )
+    branch = models.ForeignKey(
+        'branches.Branch',
+        on_delete=models.CASCADE,
+        related_name='azure_group_imports',
+        help_text="Branch this import belongs to"
+    )
+    assigned_role = models.CharField(
+        max_length=50,
+        choices=[('learner', 'Learner'), ('instructor', 'Instructor')],
+        default='learner',
+        help_text="Role assigned to imported users"
+    )
+    imported_by = models.ForeignKey(
+        'users.CustomUser',
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='azure_imports',
+        help_text="Branch admin who imported this group"
+    )
+    imported_at = models.DateTimeField(auto_now_add=True)
+    last_synced_at = models.DateTimeField(null=True, blank=True, help_text="Last time this group was synced")
+    is_active = models.BooleanField(default=True, help_text="Whether this import is active for syncing")
+    
+    class Meta:
+        unique_together = ['azure_group_id', 'branch']
+        ordering = ['-imported_at']
+    
+    def __str__(self):
+        return f"{self.azure_group_name} -> {self.lms_group.name} ({self.branch.name})"
+
+
+class AzureADUserMapping(models.Model):
+    """Model to track Azure AD users imported to LMS"""
+    azure_user_id = models.CharField(max_length=255, help_text="Azure AD User ID")
+    azure_email = models.EmailField(help_text="Azure AD User Email")
+    lms_user = models.ForeignKey(
+        'users.CustomUser',
+        on_delete=models.CASCADE,
+        related_name='azure_mappings',
+        help_text="Linked LMS User"
+    )
+    azure_group_import = models.ForeignKey(
+        AzureADGroupImport,
+        on_delete=models.CASCADE,
+        related_name='user_mappings',
+        help_text="The Azure group import this user belongs to"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        unique_together = ['azure_user_id', 'azure_group_import']
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"{self.azure_email} -> {self.lms_user.username}"

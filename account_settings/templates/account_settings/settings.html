@@ -6320,6 +6320,52 @@ document.addEventListener('DOMContentLoaded', function() {
     // Removed old Alpine.js initialization - using simplified accordion controller instead
 });
 
+// Teams Integration Functions
+function testTeamsConnection() {
+    // Show loading state
+    const button = event.target;
+    const originalText = button.textContent;
+    button.textContent = 'Testing...';
+    button.disabled = true;
+    
+    fetch('/account/test-teams-connection/', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            let message = `✅ ${data.message}\n\n`;
+            message += `Tenant ID: ${data.tenant_id}\n`;
+            message += `Status: ${data.connection_status}\n`;
+            message += `Last Tested: ${data.last_tested}`;
+            if (data.token_expires) {
+                message += `\nToken Expires: ${data.token_expires}`;
+            }
+            alert(message);
+        } else {
+            alert(`❌ Connection failed:\n\n${data.error}`);
+        }
+    })
+    .catch(error => {
+        console.error('Error testing Teams connection:', error);
+        alert('❌ An error occurred while testing the connection. Please try again.');
+    })
+    .finally(() => {
+        // Reset button state
+        button.textContent = originalText;
+        button.disabled = false;
+    });
+}
+
 // Zoom Integration Functions
 function testZoomConnection() {
     // Show loading state

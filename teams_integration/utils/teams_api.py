@@ -343,29 +343,58 @@ class TeamsAPIClient:
     
     def test_connection(self):
         """
-        Test the Teams API connection
+        Test the Teams API connection by verifying authentication
         
         Returns:
             dict: Test result
         """
         try:
-            # Try to get user profile to test connection
-            response = self._make_request('GET', '/me')
+            # Test authentication by attempting to get an access token
+            # This validates Client ID, Client Secret, and Tenant ID without requiring API permissions
+            access_token = self.get_access_token(force_refresh=True)
             
-            if response.get('id'):
+            if access_token:
+                # Successfully authenticated - credentials are valid
                 return {
                     'success': True,
-                    'message': 'Teams API connection successful',
-                    'user_info': {
-                        'id': response.get('id'),
-                        'display_name': response.get('displayName'),
-                        'email': response.get('mail')
+                    'message': 'Authentication successful! Your Azure AD app credentials are valid.',
+                    'details': {
+                        'tenant_id': self.integration.tenant_id,
+                        'client_id': self.integration.client_id[:8] + '...',  # Show first 8 chars only
+                        'token_obtained': True,
+                        'token_expires': self.token_expiry.strftime('%Y-%m-%d %H:%M:%S') if self.token_expiry else 'N/A'
                     }
                 }
             else:
                 return {
                     'success': False,
-                    'error': 'Invalid response from Teams API'
+                    'error': 'Failed to obtain access token. Please verify your Client ID, Client Secret, and Tenant ID.'
+                }
+                
+        except TeamsAPIError as e:
+            error_msg = str(e)
+            logger.error(f"Teams API connection test failed: {error_msg}")
+            
+            # Provide helpful error messages
+            if 'invalid_client' in error_msg.lower():
+                return {
+                    'success': False,
+                    'error': 'Invalid Client ID or Client Secret. Please verify your Azure AD app credentials.'
+                }
+            elif 'unauthorized_client' in error_msg.lower():
+                return {
+                    'success': False,
+                    'error': 'Client is not authorized. Ensure your Azure AD app has the correct permissions.'
+                }
+            elif 'invalid_tenant' in error_msg.lower():
+                return {
+                    'success': False,
+                    'error': 'Invalid Tenant ID. Please verify your Azure AD Tenant ID.'
+                }
+            else:
+                return {
+                    'success': False,
+                    'error': f'Authentication failed: {error_msg}'
                 }
                 
         except Exception as e:

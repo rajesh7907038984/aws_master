@@ -21,4 +21,8 @@ urlpatterns = [
     path('access-control/<int:role_id>/edit/', views.role_edit, name='role_edit'),
     path('access-control/<int:role_id>/delete/', views.role_delete, name='role_delete'),
     path('<int:group_id>/access-control/edit/', views.access_control_edit, name='access_control_edit'),
+    # Azure AD Group Import URLs
+    path('azure/list/', views.azure_groups_list, name='azure_groups_list'),
+    path('azure/import/', views.azure_group_import, name='azure_group_import'),
+    path('azure/sync/', views.azure_group_sync, name='azure_group_sync'),
 ]

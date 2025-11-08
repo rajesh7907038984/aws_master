@@ -881,11 +881,52 @@ LMS System''',
         if request.method == 'POST':
             form_type = request.POST.get('form_type')
             
-            # Handle integration forms (zoom, stripe, paypal)
-            if form_type in ['zoom_integration', 'stripe_integration', 'paypal_integration', 'sharepoint_integration', 'enable_branch_sharepoint', 'sharepoint_system_settings', 'teams_system_settings', 'enable_branch_teams', 'order_management_system_settings']:
+            # Handle integration forms (zoom, stripe, paypal, teams)
+            if form_type in ['teams_integration', 'zoom_integration', 'stripe_integration', 'paypal_integration', 'sharepoint_integration', 'enable_branch_sharepoint', 'sharepoint_system_settings', 'teams_system_settings', 'enable_branch_teams', 'order_management_system_settings']:
+                
+                # Teams Integration Form
+                if form_type == 'teams_integration':
+                    if not request.user.branch or request.user.role not in ['admin', 'superadmin', 'globaladmin']:
+                        messages.error(request, 'Permission denied.')
+                        return redirect('account_settings:settings')
+                    
+                    name = request.POST.get('teams_name')
+                    client_id = request.POST.get('teams_client_id')
+                    client_secret = request.POST.get('teams_client_secret')
+                    tenant_id = request.POST.get('teams_tenant_id')
+                    
+                    if not all([name, client_id, client_secret, tenant_id]):
+                        messages.error(request, 'All fields are required for Teams integration.')
+                        return redirect('account_settings:settings?tab=integrations&integration=teams')
+                    
+                    # Get or create Teams integration for this branch
+                    integration, created = TeamsIntegration.objects.get_or_create(
+                        branch=request.user.branch,
+                        defaults={
+                            'name': name,
+                            'client_id': client_id,
+                            'client_secret': client_secret,
+                            'tenant_id': tenant_id,
+                            'user': request.user
+                        }
+                    )
+                    
+                    if not created:
+                        # Update existing integration
+                        integration.name = name
+                        integration.client_id = client_id
+                        if client_secret:  # Only update if new secret provided
+                            integration.client_secret = client_secret
+                        integration.tenant_id = tenant_id
+                        integration.save()
+                        messages.success(request, 'Microsoft Teams integration updated successfully.')
+                    else:
+                        messages.success(request, 'Microsoft Teams integration created successfully.')
+                    
+                    return redirect(reverse('account_settings:settings') + '?tab=integrations&integration=teams')
                 
                 # Zoom Integration Form (only for branch admins)
-                if form_type == 'zoom_integration':
+                elif form_type == 'zoom_integration':
                     if not is_branch_admin:
                         messages.error(request, 'Access denied. Only branch admins can configure Zoom integration.')
                         return redirect('account_settings:settings')
@@ -2825,6 +2866,67 @@ def delete_backup(request, backup_id):
         return JsonResponse({'success': False, 'error': 'Backup not found'})
     except Exception as e:
         return JsonResponse({'success': False, 'error': f'Error deleting backup: {str(e)}'})
+
+
+@login_required
+def test_teams_connection(request):
+    """Test Microsoft Teams integration connection"""
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'Invalid request method'})
+    
+    # Check user permissions
+    if not hasattr(request.user, 'role') or request.user.role not in ['admin', 'superadmin', 'globaladmin']:
+        return JsonResponse({'success': False, 'error': 'Access denied. Only administrators can test Teams integration.'})
+    
+    try:
+        # Get Teams integration for user's branch
+        teams_integration = TeamsIntegration.objects.filter(branch=request.user.branch).first()
+        
+        if not teams_integration:
+            return JsonResponse({'success': False, 'error': 'No Teams integration found for your branch'})
+        
+        if not teams_integration.is_active:
+            return JsonResponse({'success': False, 'error': 'Teams integration is not active'})
+        
+        # Test the connection using Teams API client
+        try:
+            from teams_integration.utils.teams_api import TeamsAPIClient, TeamsAPIError
+            
+            api_client = TeamsAPIClient(teams_integration)
+            test_result = api_client.test_connection()
+            
+            if test_result['success']:
+                # Update integration to mark successful test
+                teams_integration.token_expiry = timezone.now()
+                teams_integration.save(update_fields=['token_expiry'])
+                
+                details = test_result.get('details', {})
+                return JsonResponse({
+                    'success': True,
+                    'message': test_result['message'],
+                    'tenant_id': details.get('tenant_id', teams_integration.tenant_id),
+                    'connection_status': 'Authenticated',
+                    'last_tested': timezone.now().strftime('%Y-%m-%d %H:%M:%S'),
+                    'token_expires': details.get('token_expires', 'N/A')
+                })
+            else:
+                return JsonResponse({
+                    'success': False,
+                    'error': test_result.get('error', 'Connection test failed')
+                })
+                
+        except TeamsAPIError as e:
+            logger.error(f"Teams API error during connection test: {str(e)}")
+            return JsonResponse({'success': False, 'error': f'Teams API Error: {str(e)}'})
+            
+    except ImportError:
+        return JsonResponse({
+            'success': False, 
+            'error': 'Teams integration module not available. Please ensure the teams_integration app is properly configured.'
+        })
+    except Exception as e:
+        logger.error(f"Error testing Teams connection for user {request.user.id}: {str(e)}")
+        return JsonResponse({'success': False, 'error': f'Error testing connection: {str(e)}'})
 
 
 @login_required
