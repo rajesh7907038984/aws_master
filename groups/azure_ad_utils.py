@@ -91,7 +91,7 @@ class AzureADGroupAPI:
             logger.error(f"Error getting Azure AD token: {str(e)}")
             raise AzureADAPIError(f"Token acquisition error: {str(e)}")
     
-    def _make_request(self, method: str, endpoint: str, params: Optional[Dict] = None) -> Dict:
+    def _make_request(self, method: str, endpoint: str, params: Optional[Dict] = None, additional_headers: Optional[Dict] = None) -> Dict:
         """
         Make request to Microsoft Graph API
         
@@ -108,6 +108,10 @@ class AzureADGroupAPI:
             'Authorization': f'Bearer {token}',
             'Content-Type': 'application/json'
         }
+        
+        # Add any additional headers
+        if additional_headers:
+            headers.update(additional_headers)
         
         url = f"{self.base_url}/{endpoint}"
         
@@ -145,10 +149,10 @@ class AzureADGroupAPI:
     
     def get_all_groups(self) -> List[Dict]:
         """
-        Get all Azure AD groups
+        Get all Azure AD groups with member counts
         
         Returns:
-            List[Dict]: List of group objects with id, displayName, description
+            List[Dict]: List of group objects with id, displayName, description, memberCount
         """
         try:
             all_groups = []
@@ -168,11 +172,91 @@ class AzureADGroupAPI:
                 params = None  # Pagination link already contains parameters
             
             logger.info(f"Retrieved {len(all_groups)} groups from Azure AD")
+            
+            # Try to fetch member counts (optional - don't fail if this doesn't work)
+            try:
+                logger.info(f"Fetching member counts for groups...")
+                self._add_member_counts(all_groups)
+            except Exception as count_error:
+                logger.warning(f"Could not fetch member counts, continuing without them: {str(count_error)}")
+                # Set all counts to None if fetching fails
+                for group in all_groups:
+                    if 'memberCount' not in group:
+                        group['memberCount'] = None
+            
             return all_groups
             
         except Exception as e:
             logger.error(f"Error fetching Azure AD groups: {str(e)}")
             raise AzureADAPIError(f"Failed to fetch groups: {str(e)}")
+    
+    def _add_member_counts(self, groups: List[Dict]):
+        """
+        Add member counts to group objects
+        Note: This sets counts to None initially - use get_group_member_count() for specific groups
+        
+        Args:
+            groups: List of group dictionaries to add member counts to
+        """
+        for group in groups:
+            group['memberCount'] = None
+        
+        logger.info(f"Member counts will be fetched on-demand for specific groups")
+    
+    def get_group_member_count(self, group_id: str) -> int:
+        """
+        Get member count for a specific Azure AD group
+        
+        Args:
+            group_id: Azure AD Group ID
+            
+        Returns:
+            int: Number of members in the group
+        """
+        try:
+            # Try using $count endpoint (requires Directory.Read.All permission)
+            endpoint = f"groups/{group_id}/members/$count"
+            params = {}
+            headers = {
+                'ConsistencyLevel': 'eventual'
+            }
+            
+            count = self._make_request('GET', endpoint, params, additional_headers=headers)
+            return int(count) if count else 0
+            
+        except AzureADAPIError as e:
+            # If we get 403 (permission denied), try alternative method
+            if '403' in str(e) or 'Authorization_RequestDenied' in str(e):
+                logger.info(f"$count endpoint not permitted, using alternative method for group {group_id}")
+                try:
+                    # Fallback: Fetch members and count them (less efficient but works with lower permissions)
+                    endpoint = f"groups/{group_id}/members"
+                    params = {'$select': 'id', '$top': 999}
+                    response = self._make_request('GET', endpoint, params)
+                    members = response.get('value', [])
+                    
+                    # Count only users (filter out other member types like groups, contacts)
+                    user_count = sum(1 for m in members if m.get('@odata.type') == '#microsoft.graph.user' or 'mail' in m or 'userPrincipalName' in m)
+                    
+                    # Handle pagination if there are more than 999 members
+                    next_link = response.get('@odata.nextLink')
+                    while next_link and user_count < 1000:  # Limit to prevent long waits
+                        next_endpoint = next_link.replace(self.base_url + '/', '')
+                        response = self._make_request('GET', next_endpoint, None)
+                        members = response.get('value', [])
+                        user_count += sum(1 for m in members if m.get('@odata.type') == '#microsoft.graph.user' or 'mail' in m or 'userPrincipalName' in m)
+                        next_link = response.get('@odata.nextLink')
+                    
+                    return user_count
+                except Exception as fallback_error:
+                    logger.warning(f"Fallback member count also failed for group {group_id}: {str(fallback_error)}")
+                    return 0
+            else:
+                logger.warning(f"Could not fetch member count for group {group_id}: {str(e)}")
+                return 0
+        except Exception as e:
+            logger.warning(f"Could not fetch member count for group {group_id}: {str(e)}")
+            return 0
     
     def get_group_members(self, group_id: str) -> List[Dict]:
         """

@@ -23,6 +23,7 @@ urlpatterns = [
     path('<int:group_id>/access-control/edit/', views.access_control_edit, name='access_control_edit'),
     # Azure AD Group Import URLs
     path('azure/list/', views.azure_groups_list, name='azure_groups_list'),
+    path('azure/member-counts/', views.azure_group_member_counts, name='azure_group_member_counts'),
     path('azure/import/', views.azure_group_import, name='azure_group_import'),
     path('azure/sync/', views.azure_group_sync, name='azure_group_sync'),
 ]

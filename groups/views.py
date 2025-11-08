@@ -1633,6 +1633,62 @@ def azure_groups_list(request):
 
 
 @login_required
+def azure_group_member_counts(request):
+    """Fetch member counts for specific Azure AD groups"""
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'Only POST method allowed'}, status=405)
+    
+    # Check permissions
+    if request.user.role not in ['admin', 'superadmin', 'globaladmin']:
+        return JsonResponse({
+            'success': False,
+            'error': 'Only branch admins can access Azure AD groups'
+        }, status=403)
+    
+    if not request.user.branch or not request.user.branch.teams_integration_enabled:
+        return JsonResponse({
+            'success': False,
+            'error': 'Teams integration not enabled'
+        }, status=403)
+    
+    try:
+        import json
+        from .azure_ad_utils import AzureADGroupAPI, AzureADAPIError
+        
+        # Parse request data
+        data = json.loads(request.body)
+        group_ids = data.get('group_ids', [])
+        
+        if not group_ids:
+            return JsonResponse({'success': True, 'counts': {}})
+        
+        # Initialize Azure AD API
+        api = AzureADGroupAPI(request.user.branch)
+        
+        # Fetch member counts for each group
+        counts = {}
+        for group_id in group_ids:
+            try:
+                count = api.get_group_member_count(group_id)
+                counts[group_id] = count
+            except Exception as e:
+                logger.warning(f"Could not fetch count for group {group_id}: {str(e)}")
+                counts[group_id] = 0
+        
+        return JsonResponse({
+            'success': True,
+            'counts': counts
+        })
+        
+    except Exception as e:
+        logger.error(f"Error fetching member counts: {str(e)}")
+        return JsonResponse({
+            'success': False,
+            'error': f'An error occurred: {str(e)}'
+        }, status=500)
+
+
+@login_required
 def azure_group_import(request):
     """Import Azure AD groups and their members to LMS"""
     if request.method != 'POST':

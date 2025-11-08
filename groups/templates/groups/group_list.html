@@ -591,9 +591,14 @@
                                    class="rounded border-gray-300 text-blue-600 mr-3"
                                    onchange="toggleGroupSelection('${group.id}', '${group.displayName}', this.checked)">
                             <div class="flex-1">
-                                <label for="group-${group.id}" class="font-medium text-gray-900 cursor-pointer">
-                                    ${group.displayName}
-                                </label>
+                                <div class="flex items-center gap-2">
+                                    <label for="group-${group.id}" class="font-medium text-gray-900 cursor-pointer">
+                                        ${group.displayName}
+                                    </label>
+                                    <span id="member-badge-${group.id}" class="px-2 py-0.5 text-xs font-semibold rounded-full bg-gray-100 text-gray-400">
+                                        <i class="fas fa-spinner fa-spin text-xs mr-1"></i>...
+                                    </span>
+                                </div>
                                 ${group.description ? `<p class="text-sm text-gray-500 mt-1">${group.description}</p>` : ''}
                                 ${group.already_imported ? '<span class="text-xs text-blue-600 font-semibold mt-1 block">Already Imported</span>' : ''}
                             </div>
@@ -613,6 +618,70 @@
         
         // Update total count
         updateSearchCount(totalGroups, totalGroups);
+        
+        // Don't fetch member counts on initial load (too many groups)
+        // They will be fetched when user searches/filters
+    }
+    
+    let memberCountTimeout = null;
+    async function fetchMemberCounts() {
+        // Get all visible group IDs (not hidden by filter)
+        const visibleGroups = Array.from(document.querySelectorAll('.azure-group-item'))
+            .filter(el => el.style.display !== 'none');
+        const groupIds = visibleGroups.map(el => el.getAttribute('data-group-id'));
+        
+        if (groupIds.length === 0) return;
+        
+        // Limit to 100 groups max to avoid long API calls
+        if (groupIds.length > 100) {
+            console.warn(`Too many groups (${groupIds.length}) to fetch counts for. Please refine your search.`);
+            return;
+        }
+        
+        try {
+            const response = await fetch('/groups/azure/member-counts/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                },
+                body: JSON.stringify({ group_ids: groupIds })
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                // Update badges with member counts
+                Object.entries(data.counts).forEach(([groupId, count]) => {
+                    const badge = document.getElementById(`member-badge-${groupId}`);
+                    if (badge) {
+                        const memberBadgeColor = count > 0 ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-600';
+                        badge.className = `px-2 py-0.5 text-xs font-semibold rounded-full ${memberBadgeColor}`;
+                        badge.innerHTML = `<i class="fas fa-users text-xs mr-1"></i>${count} member${count !== 1 ? 's' : ''}`;
+                    }
+                });
+            } else {
+                console.error('Failed to fetch member counts:', data.error);
+                // Set all badges to error state
+                groupIds.forEach(groupId => {
+                    const badge = document.getElementById(`member-badge-${groupId}`);
+                    if (badge) {
+                        badge.className = 'px-2 py-0.5 text-xs font-semibold rounded-full bg-gray-100 text-gray-500';
+                        badge.innerHTML = '<i class="fas fa-question text-xs mr-1"></i>?';
+                    }
+                });
+            }
+        } catch (error) {
+            console.error('Error fetching member counts:', error);
+            // Set all badges to error state
+            groupIds.forEach(groupId => {
+                const badge = document.getElementById(`member-badge-${groupId}`);
+                if (badge) {
+                    badge.className = 'px-2 py-0.5 text-xs font-semibold rounded-full bg-gray-100 text-gray-500';
+                    badge.innerHTML = '<i class="fas fa-question text-xs mr-1"></i>?';
+                }
+            });
+        }
     }
     
     function filterAzureGroups(searchTerm) {
@@ -674,6 +743,14 @@
         }
         
         updateSearchCount(visibleCount, totalCount);
+        
+        // Fetch member counts for filtered groups (with debouncing)
+        if (memberCountTimeout) {
+            clearTimeout(memberCountTimeout);
+        }
+        memberCountTimeout = setTimeout(() => {
+            fetchMemberCounts();
+        }, 500); // Wait 500ms after user stops typing
     }
     
     function updateSearchCount(visible, total) {
