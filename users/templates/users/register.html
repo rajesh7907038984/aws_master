@@ -62,7 +62,7 @@
                     {% if microsoft_oauth_enabled %}
                     <!-- Microsoft Sign-In Button -->
                     <a href="{% url 'users:microsoft_login' %}{% if branch_portal %}?branch={{ branch.portal.slug }}{% endif %}" 
-                       class="oauth-button w-full flex justify-center items-center bg-primary-600 text-white text-sm font-medium hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 border-primary-600">
+                       class="oauth-button w-full flex justify-center items-center text-gray-900 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
                         <svg class="w-5 h-5 mr-3" viewBox="0 0 24 24" fill="currentColor">
                             <path d="M11.4 24H0V12.6h11.4V24zM24 24H12.6V12.6H24V24zM11.4 11.4H0V0h11.4v11.4zM24 11.4H12.6V0H24v11.4z"/>
                         </svg>

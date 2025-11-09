@@ -312,6 +312,19 @@ def custom_login(request):
         else:
             return redirect('dashboard_learner')
     
+    # Check if OAuth is configured for template
+    from account_settings.models import GlobalAdminSettings
+    oauth_available = {
+        'google': False,
+        'microsoft': False
+    }
+    try:
+        global_settings = GlobalAdminSettings.get_settings()
+        oauth_available['google'] = bool(global_settings.google_client_id and global_settings.google_client_secret)
+        oauth_available['microsoft'] = bool(global_settings.microsoft_client_id and global_settings.microsoft_client_secret)
+    except:
+        pass
+    
     # SIMPLE SESSION FIX - Force session creation with error handling
     try:
         if hasattr(request, 'session') and not request.session.session_key:
@@ -586,6 +599,7 @@ def custom_login(request):
         'form': None,  # No form for GET requests
         'next': request.GET.get('next', ''),  # Get next parameter from URL
         'security_status': security_status,
+        'oauth_available': oauth_available,
     }
     return render(request, "users/shared/login.html", context)
 
@@ -1478,6 +1492,19 @@ def custom_login(request):
         else:
             return redirect('dashboard_learner')
     
+    # Check if OAuth is configured for template
+    from account_settings.models import GlobalAdminSettings
+    oauth_available = {
+        'google': False,
+        'microsoft': False
+    }
+    try:
+        global_settings = GlobalAdminSettings.get_settings()
+        oauth_available['google'] = bool(global_settings.google_client_id and global_settings.google_client_secret)
+        oauth_available['microsoft'] = bool(global_settings.microsoft_client_id and global_settings.microsoft_client_secret)
+    except:
+        pass
+    
     # SIMPLE SESSION FIX - Force session creation with error handling
     try:
         if hasattr(request, 'session') and not request.session.session_key:
@@ -1751,6 +1778,7 @@ def custom_login(request):
         'form': None,  # No form for GET requests
         'next': request.GET.get('next', ''),  # Get next parameter from URL
         'security_status': security_status,
+        'oauth_available': oauth_available,
     }
     return render(request, "users/shared/login.html", context)
 
@@ -10320,6 +10348,19 @@ def branch_login(request, branch_slug=None):
     branch = None
     branch_portal = None
     
+    # Check if OAuth is configured for template
+    from account_settings.models import GlobalAdminSettings
+    oauth_available = {
+        'google': False,
+        'microsoft': False
+    }
+    try:
+        global_settings = GlobalAdminSettings.get_settings()
+        oauth_available['google'] = bool(global_settings.google_client_id and global_settings.google_client_secret)
+        oauth_available['microsoft'] = bool(global_settings.microsoft_client_id and global_settings.microsoft_client_secret)
+    except:
+        pass
+    
     # Get Session status for display
     def get_client_ip(request):
         x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
@@ -10427,6 +10468,7 @@ def branch_login(request, branch_slug=None):
                         'is_branch_login': branch_slug is not None,
                         'next': request.GET.get('next', ''),
                         'Session_status': Session_status,
+                        'oauth_available': oauth_available,
                     }
                     return render(request, "users/auth/branch_login.html", context)
 
@@ -10453,6 +10495,7 @@ def branch_login(request, branch_slug=None):
         'is_branch_login': branch_slug is not None,
         'next': request.GET.get('next', ''),
         'Session_status': Session_status,
+        'oauth_available': oauth_available,
     }
     
     return render(request, "users/auth/branch_login.html", context)
