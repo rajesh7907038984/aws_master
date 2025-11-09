@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ portal.business_name }} - LMS Learning Platform</title>
     {% load static %}
+    {% load review_tags %}
     
     <!-- Favicon -->
     <link rel="icon" href="{% static 'core/img/favicon.png' %}?v=2" type="image/x-icon">
@@ -468,17 +469,19 @@
                                 {% if course.short_description %}
                                 <p class="course-description">{{ course.short_description|truncatechars:100 }}</p>
                                 {% endif %}
+                                
+                                <!-- Course Rating -->
+                                {% if course.total_reviews > 0 %}
+                                <div class="mb-3">
+                                    {% star_rating_compact course.average_rating course.total_reviews %}
+                                </div>
+                                {% endif %}
+                                
                                 <div class="course-stats">
                                     <div class="course-enrollment">
                                         <i class="fas fa-users"></i>
                                         <span>{{ course.enrolled_users.count }} student{{ course.enrolled_users.count|pluralize }}</span>
                                     </div>
-                                    {% if course.rating %}
-                                    <div class="course-rating">
-                                        <i class="fas fa-star"></i>
-                                        <span>{{ course.rating|floatformat:1 }}</span>
-                                    </div>
-                                    {% endif %}
                                 </div>
                                 <div class="course-footer">
                                     {% if show_pricing %}
