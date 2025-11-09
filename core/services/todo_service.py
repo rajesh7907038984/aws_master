@@ -108,8 +108,8 @@ class TodoService:
             grade__isnull=False,
             graded_at__isnull=False
         ).exclude(
-            Q(feedback='') | Q(feedback__isnull=True)
-        ).select_related('assignment', 'assignment__course').order_by('-graded_at')[:10]
+            Q(rubric_overall_feedback='') | Q(rubric_overall_feedback__isnull=True)
+        ).select_related('assignment').prefetch_related('assignment__courses').order_by('-graded_at')[:10]
         
         for submission in graded_submissions:
             days_ago = (self.now.date() - submission.graded_at.date()).days
@@ -123,10 +123,11 @@ class TodoService:
             # Calculate grade percentage
             grade_pct = (submission.grade / submission.assignment.points * 100) if submission.assignment.points else 0
             
+            first_course = submission.assignment.courses.first()
             todos.append({
                 'id': f'feedback_review_{submission.id}',
                 'title': f'View Feedback: {submission.assignment.title}',
-                'description': f'Grade: {grade_pct:.0f}% - {submission.assignment.course.title if submission.assignment.course else "General"}',
+                'description': f'Grade: {grade_pct:.0f}% - {first_course.title if first_course else "General"}',
                 'due_date': due_text,
                 'sort_date': submission.graded_at,
                 'type': 'feedback',
@@ -159,10 +160,11 @@ class TodoService:
         
         for assignment in overdue_assignments:
             days_overdue = (self.now.date() - assignment.due_date.date()).days
+            first_course = assignment.courses.first()
             todos.append({
                 'id': f'assignment_overdue_{assignment.id}',
                 'title': f'OVERDUE: {assignment.title}',
-                'description': f'{assignment.courses.first().title if assignment.courses.first() else "General"} - {days_overdue} days overdue',
+                'description': f'{first_course.title if first_course else "General"} - {days_overdue} days overdue',
                 'due_date': f'{days_overdue} days overdue',
                 'sort_date': assignment.due_date - timedelta(days=1000),  # Highest priority
                 'type': 'assignment',
@@ -171,7 +173,7 @@ class TodoService:
                 'url': f'/assignments/{assignment.id}/',
                 'metadata': {
                     'assignment_id': assignment.id,
-                    'course_id': assignment.courses.first().id if assignment.courses.first() else None,
+                    'course_id': first_course.id if first_course else None,
                     'points': getattr(assignment, 'points', None),
                     'assignment_points': getattr(assignment, 'points', None),  # For template compatibility
                     'days_overdue': days_overdue
@@ -193,11 +195,12 @@ class TodoService:
         for assignment in urgent_assignments:
             due_text = self._format_due_date(assignment.due_date)
             priority = 'high' if assignment.due_date.date() <= self.tomorrow else 'medium'
+            first_course = assignment.courses.first()
             
             todos.append({
                 'id': f'assignment_urgent_{assignment.id}',
                 'title': assignment.title,
-                'description': f'{assignment.courses.first().title if assignment.courses.first() else "General"}',
+                'description': f'{first_course.title if first_course else "General"}',
                 'due_date': due_text,
                 'sort_date': assignment.due_date,
                 'type': 'assignment',
@@ -206,7 +209,7 @@ class TodoService:
                 'url': f'/assignments/{assignment.id}/',
                 'metadata': {
                     'assignment_id': assignment.id,
-                    'course_id': assignment.courses.first().id if assignment.courses.first() else None,
+                    'course_id': first_course.id if first_course else None,
                     'points': getattr(assignment, 'points', None),
                     'assignment_points': getattr(assignment, 'points', None)  # For template compatibility
                 }
@@ -226,10 +229,11 @@ class TodoService:
         
         for assignment in upcoming_assignments:
             due_text = self._format_due_date(assignment.due_date)
+            first_course = assignment.courses.first()
             todos.append({
                 'id': f'assignment_upcoming_{assignment.id}',
                 'title': assignment.title,
-                'description': f'{assignment.courses.first().title if assignment.courses.first() else "General"}',
+                'description': f'{first_course.title if first_course else "General"}',
                 'due_date': due_text,
                 'sort_date': assignment.due_date,
                 'type': 'assignment',
@@ -238,7 +242,7 @@ class TodoService:
                 'url': f'/assignments/{assignment.id}/',
                 'metadata': {
                     'assignment_id': assignment.id,
-                    'course_id': assignment.courses.first().id if assignment.courses.first() else None,
+                    'course_id': first_course.id if first_course else None,
                     'points': getattr(assignment, 'points', None),
                     'assignment_points': getattr(assignment, 'points', None)  # For template compatibility
                 }
@@ -259,7 +263,7 @@ class TodoService:
             todos.append({
                 'id': f'conference_{conference.id}',
                 'title': f'Join: {conference.title}',
-                'description': f'{conference.course.title} - {conference.date.strftime("%I:%M %p")}',
+                'description': f'{conference.course.title if conference.course else "General"} - {conference.date.strftime("%I:%M %p")}',
                 'due_date': due_text,
                 'sort_date': conference.date,
                 'type': 'conference',
@@ -268,7 +272,7 @@ class TodoService:
                 'url': f'/conferences/{conference.id}/',
                 'metadata': {
                     'conference_id': conference.id,
-                    'course_id': conference.course.id,
+                    'course_id': conference.course.id if conference.course else None,
                     'meeting_time': conference.date.strftime("%I:%M %p")
                 }
             })
@@ -445,7 +449,7 @@ class TodoService:
             todos.append({
                 'id': f'conference_host_{conference.id}',
                 'title': f'Host: {conference.title}',
-                'description': f'{conference.course.title} - {conference.date.strftime("%I:%M %p")}',
+                'description': f'{conference.course.title if conference.course else "General"} - {conference.date.strftime("%I:%M %p")}',
                 'due_date': due_text,
                 'sort_date': conference.date,
                 'type': 'conference',
@@ -454,7 +458,7 @@ class TodoService:
                 'url': f'/conferences/{conference.id}/edit/',
                 'metadata': {
                     'conference_id': conference.id,
-                    'course_id': conference.course.id,
+                    'course_id': conference.course.id if conference.course else None,
                     'meeting_time': conference.date.strftime("%I:%M %p")
                 }
             })

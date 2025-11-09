@@ -9904,6 +9904,9 @@ def microsoft_login(request):
     
     logger = logging.getLogger(__name__)
     
+    # Enhanced logging for diagnostics
+    logger.info(f"Microsoft OAuth login initiated from IP: {request.META.get('REMOTE_ADDR', 'unknown')}")
+    
     # Get Microsoft OAuth credentials from database
     try:
         global_settings = GlobalAdminSettings.get_settings()
@@ -9911,13 +9914,16 @@ def microsoft_login(request):
             microsoft_client_id = global_settings.microsoft_client_id
             microsoft_client_secret = global_settings.microsoft_client_secret
             microsoft_tenant_id = global_settings.microsoft_tenant_id or 'common'  # Default to 'common' for multi-tenant
+            logger.info(f"Microsoft OAuth: Using database credentials, tenant={microsoft_tenant_id}")
         else:
             # Fallback to environment variables
             microsoft_client_id = getattr(settings, 'MICROSOFT_OAUTH_CLIENT_ID', None)
             microsoft_client_secret = getattr(settings, 'MICROSOFT_OAUTH_CLIENT_SECRET', None)
             microsoft_tenant_id = getattr(settings, 'MICROSOFT_OAUTH_TENANT_ID', 'common')
-    except:
+            logger.info("Microsoft OAuth: Using environment variable credentials")
+    except Exception as e:
         # Fallback to environment variables if database check fails
+        logger.warning(f"Microsoft OAuth: Database check failed, using environment variables: {str(e)}")
         microsoft_client_id = getattr(settings, 'MICROSOFT_OAUTH_CLIENT_ID', None)
         microsoft_client_secret = getattr(settings, 'MICROSOFT_OAUTH_CLIENT_SECRET', None)
         microsoft_tenant_id = getattr(settings, 'MICROSOFT_OAUTH_TENANT_ID', 'common')
@@ -9932,6 +9938,7 @@ def microsoft_login(request):
     
     # Build redirect URI
     redirect_uri = request.build_absolute_uri(reverse('users:microsoft_callback'))
+    logger.info(f"Microsoft OAuth: Redirect URI = {redirect_uri}")
     
     # Add branch to state parameter if provided
     state = f"branch={branch_slug}" if branch_slug else ""
@@ -9949,6 +9956,8 @@ def microsoft_login(request):
         f"state={quote(state, safe='')}"
     )
     
+    logger.info(f"Microsoft OAuth: Redirecting to Microsoft login (tenant={microsoft_tenant_id})")
+    
     return redirect(microsoft_auth_url)
 
 def microsoft_callback(request):
@@ -9960,16 +9969,28 @@ def microsoft_callback(request):
     
     logger = logging.getLogger(__name__)
     
+    logger.info(f"Microsoft OAuth callback received from IP: {request.META.get('REMOTE_ADDR', 'unknown')}")
+    
     code = request.GET.get('code')
     state = request.GET.get('state', '')
     error = request.GET.get('error')
+    error_description = request.GET.get('error_description', '')
     
     if error:
-        logger.error(f"Microsoft OAuth error: {error}")
-        messages.error(request, f"Microsoft authentication failed: {error}")
+        logger.error(f"Microsoft OAuth error: {error} - {error_description}")
+        # Provide more detailed error messages based on common error codes
+        if error == 'AADSTS50011' or 'redirect_uri' in error_description.lower():
+            messages.error(request, "Microsoft authentication failed: Redirect URI mismatch. Please contact the administrator to configure the correct redirect URI in Azure AD.")
+        elif error == 'AADSTS7000215' or 'client_secret' in error_description.lower():
+            messages.error(request, "Microsoft authentication failed: Invalid client credentials. Please contact the administrator.")
+        elif error == 'access_denied':
+            messages.error(request, "Microsoft authentication cancelled. You denied permission to access your account.")
+        else:
+            messages.error(request, f"Microsoft authentication failed: {error_description or error}")
         return redirect('users:register')
     
     if not code:
+        logger.warning("Microsoft OAuth callback: No authorization code received")
         messages.error(request, "Microsoft authentication failed. Please try again.")
         return redirect('users:register')
     

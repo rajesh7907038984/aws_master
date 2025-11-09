@@ -1,0 +1,157 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Select Time Slot - {{ conference.title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .selection-card {
+        background: white;
+        border-radius: 12px;
+        padding: 2rem;
+        max-width: 600px;
+        margin: 2rem auto;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    .slot-details {
+        background: #f9fafb;
+        border-radius: 8px;
+        padding: 1.5rem;
+        margin: 1.5rem 0;
+    }
+    .detail-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 0.75rem 0;
+        border-bottom: 1px solid #e5e7eb;
+    }
+    .detail-row:last-child {
+        border-bottom: none;
+    }
+    .detail-label {
+        color: #6b7280;
+        font-weight: 500;
+    }
+    .detail-value {
+        color: #1f2937;
+        font-weight: 600;
+    }
+    .btn-confirm {
+        background: #10b981;
+        color: white;
+        padding: 0.75rem 2rem;
+        border-radius: 8px;
+        border: none;
+        font-weight: 600;
+        cursor: pointer;
+        width: 100%;
+        margin-top: 1rem;
+    }
+    .btn-confirm:hover {
+        background: #059669;
+    }
+    .btn-cancel {
+        background: #6b7280;
+        color: white;
+        padding: 0.75rem 2rem;
+        border-radius: 8px;
+        border: none;
+        font-weight: 600;
+        cursor: pointer;
+        width: 100%;
+        margin-top: 0.5rem;
+    }
+    .btn-cancel:hover {
+        background: #4b5563;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid p-4">
+    {% include 'partials/breadcrumb.html' %}
+    
+    <div class="selection-card">
+        <h2 class="text-center mb-4">
+            <i class="fas fa-clock mr-2"></i>
+            {% if existing_selection %}
+                Change Time Slot
+            {% else %}
+                Select Time Slot
+            {% endif %}
+        </h2>
+
+        {% if existing_selection %}
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle mr-2"></i>
+                You have already selected a time slot. Selecting this new slot will replace your current selection.
+                <div class="mt-2">
+                    <strong>Current Selection:</strong> {{ existing_selection.time_slot.date }} {{ existing_selection.time_slot.start_time|time:"H:i" }} - {{ existing_selection.time_slot.end_time|time:"H:i" }}
+                </div>
+            </div>
+        {% endif %}
+
+        <div class="slot-details">
+            <h4 class="mb-3">Time Slot Details</h4>
+            
+            <div class="detail-row">
+                <span class="detail-label">Conference</span>
+                <span class="detail-value">{{ conference.title }}</span>
+            </div>
+            
+            <div class="detail-row">
+                <span class="detail-label">Date</span>
+                <span class="detail-value">{{ time_slot.date|date:"F d, Y" }}</span>
+            </div>
+            
+            <div class="detail-row">
+                <span class="detail-label">Time</span>
+                <span class="detail-value">
+                    {{ time_slot.start_time|time:"H:i" }} - {{ time_slot.end_time|time:"H:i" }}
+                </span>
+            </div>
+            
+            <div class="detail-row">
+                <span class="detail-label">Timezone</span>
+                <span class="detail-value">{{ time_slot.timezone }}</span>
+            </div>
+            
+            <div class="detail-row">
+                <span class="detail-label">Available Spots</span>
+                <span class="detail-value">
+                    {% if time_slot.max_participants > 0 %}
+                        {{ time_slot.current_participants }} / {{ time_slot.max_participants }}
+                        ({{ time_slot.get_available_spots }} remaining)
+                    {% else %}
+                        Unlimited
+                    {% endif %}
+                </span>
+            </div>
+        </div>
+
+        {% if conference.meeting_platform == 'teams' %}
+            <div class="alert alert-success">
+                <i class="fas fa-calendar-check mr-2"></i>
+                <strong>Outlook Calendar Integration:</strong> This meeting will be automatically added to your Outlook calendar after selection.
+            </div>
+        {% endif %}
+
+        <form method="post">
+            {% csrf_token %}
+            <button type="submit" class="btn-confirm">
+                <i class="fas fa-check mr-2"></i>
+                {% if existing_selection %}
+                    Confirm Change
+                {% else %}
+                    Confirm Selection
+                {% endif %}
+            </button>
+        </form>
+        
+        <a href="{% url 'conferences:conference_detail' conference.id %}" class="btn-cancel d-block text-center text-white text-decoration-none">
+            <i class="fas fa-times mr-2"></i> Cancel
+        </a>
+    </div>
+</div>
+{% endblock %}
+

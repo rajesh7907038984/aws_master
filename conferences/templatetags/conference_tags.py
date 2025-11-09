@@ -401,4 +401,24 @@ def decode_html(value):
         # Import html here to avoid scoping issues
         import html as html_module
         escaped_value = html_module.escape(str(value))
-        return mark_safe(escaped_value) 
+        return mark_safe(escaped_value)
+
+
+@register.filter
+def filter_by_user(queryset, user):
+    """
+    Filter a queryset to get the first object matching a specific user.
+    
+    Args:
+        queryset: QuerySet to filter
+        user: User object to filter by
+    
+    Returns:
+        First matching object or None
+    """
+    if not queryset or not user:
+        return None
+    try:
+        return queryset.filter(user=user).first()
+    except:
+        return None 

@@ -46,7 +46,9 @@ from .models import (
     GuestParticipant,
     ConferenceParticipant,
     ParticipantTrackingData,
-    ConferenceRubricEvaluation
+    ConferenceRubricEvaluation,
+    ConferenceTimeSlot,
+    ConferenceTimeSlotSelection
 )
 
 # Import the form
@@ -5485,6 +5487,349 @@ def sync_status_dashboard(request):
             'error': str(e)
         }, status=500)
 
+
+# ============================================
+# TIME SLOT MANAGEMENT VIEWS
+# ============================================
+
+@login_required
+@csrf_protect
+def select_time_slot(request, conference_id, slot_id):
+    """Allow learners to select a time slot for a conference"""
+    conference = get_object_or_404(Conference, id=conference_id)
+    time_slot = get_object_or_404(ConferenceTimeSlot, id=slot_id, conference=conference)
+    
+    # Check if conference uses time slots
+    if not conference.use_time_slots:
+        messages.error(request, 'This conference does not use time slot selection.')
+        return redirect('conferences:conference_detail', conference_id=conference.id)
+    
+    # Check if user already has a selection
+    existing_selection = ConferenceTimeSlotSelection.objects.filter(
+        conference=conference,
+        user=request.user
+    ).first()
+    
+    if existing_selection and request.method != 'POST':
+        messages.warning(request, f'You have already selected a time slot: {existing_selection.time_slot}')
+        return redirect('conferences:conference_detail', conference_id=conference.id)
+    
+    # Check if slot is full
+    if time_slot.is_full():
+        messages.error(request, 'This time slot is full. Please select another slot.')
+        return redirect('conferences:conference_detail', conference_id=conference.id)
+    
+    if request.method == 'POST':
+        try:
+            # If user has an existing selection, update it
+            if existing_selection:
+                # Decrease participant count on old slot
+                old_slot = existing_selection.time_slot
+                old_slot.current_participants -= 1
+                old_slot.save(update_fields=['current_participants'])
+                
+                # Update selection
+                existing_selection.time_slot = time_slot
+                existing_selection.selected_at = timezone.now()
+                existing_selection.ip_address = request.META.get('REMOTE_ADDR')
+                existing_selection.save()
+            else:
+                # Create new selection
+                existing_selection = ConferenceTimeSlotSelection.objects.create(
+                    conference=conference,
+                    time_slot=time_slot,
+                    user=request.user,
+                    ip_address=request.META.get('REMOTE_ADDR')
+                )
+            
+            # Increase participant count on new slot
+            time_slot.current_participants += 1
+            time_slot.save(update_fields=['current_participants'])
+            
+            # Try to add to Outlook calendar
+            if conference.meeting_platform == 'teams':
+                try:
+                    add_to_outlook_calendar(request.user, time_slot, existing_selection)
+                except Exception as e:
+                    logger.error(f"Failed to add to Outlook calendar: {str(e)}")
+                    # Don't fail the selection if calendar add fails
+                    existing_selection.calendar_error = str(e)
+                    existing_selection.calendar_add_attempted_at = timezone.now()
+                    existing_selection.save()
+            
+            messages.success(request, f'Successfully selected time slot: {time_slot.date} {time_slot.start_time} - {time_slot.end_time}')
+            
+            # Return JSON for AJAX requests
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({
+                    'success': True,
+                    'message': 'Time slot selected successfully',
+                    'slot_id': time_slot.id,
+                    'calendar_added': existing_selection.calendar_added
+                })
+            
+            return redirect('conferences:conference_detail', conference_id=conference.id)
+            
+        except Exception as e:
+            logger.error(f"Error selecting time slot: {str(e)}")
+            messages.error(request, f'Error selecting time slot: {str(e)}')
+            
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({
+                    'success': False,
+                    'error': str(e)
+                }, status=500)
+            
+            return redirect('conferences:conference_detail', conference_id=conference.id)
+    
+    # GET request - show confirmation page
+    context = {
+        'conference': conference,
+        'time_slot': time_slot,
+        'existing_selection': existing_selection,
+        'breadcrumbs': [
+            {'url': reverse('users:role_based_redirect'), 'label': 'Dashboard', 'icon': 'fa-home'},
+            {'url': reverse('conferences:conference_list'), 'label': 'Conferences', 'icon': 'fa-video'},
+            {'url': reverse('conferences:conference_detail', args=[conference.id]), 'label': conference.title, 'icon': 'fa-calendar'},
+            {'label': 'Select Time Slot', 'icon': 'fa-clock'}
+        ]
+    }
+    return render(request, 'conferences/select_time_slot.html', context)
+
+
+def add_to_outlook_calendar(user, time_slot, selection):
+    """Add time slot to user's Outlook calendar using Microsoft Graph API"""
+    try:
+        # Get Teams integration for the user or their branch
+        integration = None
+        if hasattr(user, 'branch') and user.branch:
+            integration = TeamsIntegration.objects.filter(
+                user__branch=user.branch,
+                is_active=True
+            ).first()
+        
+        if not integration:
+            # Try to get user's own integration
+            integration = TeamsIntegration.objects.filter(
+                user=user,
+                is_active=True
+            ).first()
+        
+        if not integration:
+            logger.warning(f"No Teams integration found for user {user.username}")
+            selection.calendar_error = "No Teams integration available"
+            selection.calendar_add_attempted_at = timezone.now()
+            selection.save()
+            return False
+        
+        # Prepare event data
+        from teams_integration.utils.teams_api import TeamsAPIClient
+        
+        # Create datetime objects
+        import datetime
+        start_datetime = datetime.datetime.combine(time_slot.date, time_slot.start_time)
+        end_datetime = datetime.datetime.combine(time_slot.date, time_slot.end_time)
+        
+        # Make timezone aware
+        import pytz
+        tz = pytz.timezone(time_slot.timezone)
+        start_datetime = tz.localize(start_datetime)
+        end_datetime = tz.localize(end_datetime)
+        
+        # Create Teams API client
+        teams_client = TeamsAPIClient(integration)
+        
+        # Create calendar event
+        event_data = {
+            "subject": f"{time_slot.conference.title}",
+            "body": {
+                "contentType": "HTML",
+                "content": f"{time_slot.conference.description or 'Conference meeting'}"
+            },
+            "start": {
+                "dateTime": start_datetime.isoformat(),
+                "timeZone": time_slot.timezone
+            },
+            "end": {
+                "dateTime": end_datetime.isoformat(),
+                "timeZone": time_slot.timezone
+            },
+            "isOnlineMeeting": True,
+            "onlineMeetingProvider": "teamsForBusiness"
+        }
+        
+        # Add meeting link if available
+        if time_slot.meeting_link:
+            event_data["onlineMeeting"] = {
+                "joinUrl": time_slot.meeting_link
+            }
+        
+        # Make API call to create event
+        response = teams_client._make_request('POST', '/me/events', data=event_data)
+        
+        if response and 'id' in response:
+            # Successfully created event
+            selection.outlook_event_id = response['id']
+            selection.calendar_added = True
+            selection.calendar_add_attempted_at = timezone.now()
+            selection.save()
+            
+            logger.info(f"Successfully added time slot to Outlook calendar for user {user.username}")
+            return True
+        else:
+            selection.calendar_error = "Failed to create calendar event"
+            selection.calendar_add_attempted_at = timezone.now()
+            selection.save()
+            return False
+            
+    except Exception as e:
+        logger.error(f"Error adding to Outlook calendar: {str(e)}")
+        selection.calendar_error = str(e)
+        selection.calendar_add_attempted_at = timezone.now()
+        selection.save()
+        return False
+
+
+@login_required
+@csrf_protect
+def manage_time_slots(request, conference_id):
+    """Allow instructors to manage time slots for a conference"""
+    conference = get_object_or_404(Conference, id=conference_id)
+    
+    # Check permissions
+    if request.user.role not in ['instructor', 'admin', 'superadmin', 'globaladmin']:
+        messages.error(request, 'You do not have permission to manage time slots.')
+        return redirect('conferences:conference_detail', conference_id=conference.id)
+    
+    # Check if user owns the conference (or is admin/superadmin)
+    if conference.created_by != request.user and request.user.role not in ['admin', 'superadmin', 'globaladmin']:
+        messages.error(request, 'You can only manage time slots for your own conferences.')
+        return redirect('conferences:conference_detail', conference_id=conference.id)
+    
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        
+        if action == 'create':
+            try:
+                # Create new time slot
+                time_slot = ConferenceTimeSlot.objects.create(
+                    conference=conference,
+                    date=request.POST.get('date'),
+                    start_time=request.POST.get('start_time'),
+                    end_time=request.POST.get('end_time'),
+                    timezone=request.POST.get('timezone', conference.timezone),
+                    max_participants=int(request.POST.get('max_participants', 0)),
+                    meeting_link=request.POST.get('meeting_link', ''),
+                    meeting_id=request.POST.get('meeting_id', ''),
+                    meeting_password=request.POST.get('meeting_password', '')
+                )
+                
+                # If Microsoft Teams is selected, create a meeting for this slot
+                if conference.meeting_platform == 'teams' and request.POST.get('create_teams_meeting') == 'true':
+                    try:
+                        import datetime
+                        start_datetime = datetime.datetime.combine(time_slot.date, time_slot.start_time)
+                        end_datetime = datetime.datetime.combine(time_slot.date, time_slot.end_time)
+                        
+                        # Make timezone aware
+                        import pytz
+                        tz = pytz.timezone(time_slot.timezone)
+                        start_datetime = tz.localize(start_datetime)
+                        end_datetime = tz.localize(end_datetime)
+                        
+                        # Get Teams integration
+                        integration = TeamsIntegration.objects.filter(
+                            Q(user=request.user) | Q(user__branch=request.user.branch),
+                            is_active=True
+                        ).first()
+                        
+                        if integration:
+                            from teams_integration.utils.teams_api import TeamsAPIClient
+                            teams_client = TeamsAPIClient(integration)
+                            
+                            result = teams_client.create_meeting(
+                                title=f"{conference.title} - {time_slot.date} {time_slot.start_time}",
+                                start_time=start_datetime,
+                                end_time=end_datetime,
+                                description=conference.description
+                            )
+                            
+                            if result.get('success'):
+                                time_slot.meeting_link = result.get('meeting_link')
+                                time_slot.meeting_id = result.get('meeting_id')
+                                time_slot.save()
+                                messages.success(request, f'Created time slot with Teams meeting link')
+                            else:
+                                messages.warning(request, f'Time slot created but Teams meeting creation failed: {result.get("error")}')
+                        else:
+                            messages.warning(request, 'Time slot created but no Teams integration available')
+                    except Exception as e:
+                        logger.error(f"Error creating Teams meeting for slot: {str(e)}")
+                        messages.warning(request, f'Time slot created but error creating Teams meeting: {str(e)}')
+                else:
+                    messages.success(request, 'Time slot created successfully')
+                
+                # Enable time slots for the conference if not already enabled
+                if not conference.use_time_slots:
+                    conference.use_time_slots = True
+                    conference.save(update_fields=['use_time_slots'])
+                
+            except Exception as e:
+                logger.error(f"Error creating time slot: {str(e)}")
+                messages.error(request, f'Error creating time slot: {str(e)}')
+        
+        elif action == 'delete':
+            try:
+                slot_id = request.POST.get('slot_id')
+                time_slot = get_object_or_404(ConferenceTimeSlot, id=slot_id, conference=conference)
+                
+                # Check if there are any selections
+                if time_slot.selections.exists():
+                    messages.error(request, 'Cannot delete time slot with existing selections')
+                else:
+                    time_slot.delete()
+                    messages.success(request, 'Time slot deleted successfully')
+            except Exception as e:
+                logger.error(f"Error deleting time slot: {str(e)}")
+                messages.error(request, f'Error deleting time slot: {str(e)}')
+        
+        elif action == 'toggle':
+            try:
+                slot_id = request.POST.get('slot_id')
+                time_slot = get_object_or_404(ConferenceTimeSlot, id=slot_id, conference=conference)
+                time_slot.is_available = not time_slot.is_available
+                time_slot.save(update_fields=['is_available'])
+                status = 'available' if time_slot.is_available else 'unavailable'
+                messages.success(request, f'Time slot marked as {status}')
+            except Exception as e:
+                logger.error(f"Error toggling time slot: {str(e)}")
+                messages.error(request, f'Error toggling time slot: {str(e)}')
+        
+        return redirect('conferences:manage_time_slots', conference_id=conference.id)
+    
+    # GET request - show management page
+    time_slots = conference.time_slots.all().order_by('date', 'start_time')
+    
+    # Get selections for each slot
+    slots_with_selections = []
+    for slot in time_slots:
+        slots_with_selections.append({
+            'slot': slot,
+            'selections': slot.selections.select_related('user').all(),
+            'available_spots': slot.get_available_spots()
+        })
+    
+    context = {
+        'conference': conference,
+        'slots_with_selections': slots_with_selections,
+        'breadcrumbs': [
+            {'url': reverse('users:role_based_redirect'), 'label': 'Dashboard', 'icon': 'fa-home'},
+            {'url': reverse('conferences:conference_list'), 'label': 'Conferences', 'icon': 'fa-video'},
+            {'url': reverse('conferences:conference_detail', args=[conference.id]), 'label': conference.title, 'icon': 'fa-calendar'},
+            {'label': 'Manage Time Slots', 'icon': 'fa-clock'}
+        ]
+    }
+    return render(request, 'conferences/manage_time_slots.html', context)
 
 
 

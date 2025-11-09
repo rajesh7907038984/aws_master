@@ -37,4 +37,8 @@ urlpatterns = [
     path('health-check/<int:conference_id>/', views.health_check_conference_sync, name='health_check_conference'),
     path('auto-recover/<int:conference_id>/', views.auto_recover_conference_api, name='auto_recover_conference'),
     path('sync-status/', views.sync_status_dashboard, name='sync_status_dashboard'),
+    
+    # Time Slot Management
+    path('<int:conference_id>/time-slots/', views.manage_time_slots, name='manage_time_slots'),
+    path('<int:conference_id>/time-slots/<int:slot_id>/select/', views.select_time_slot, name='select_time_slot'),
 ]

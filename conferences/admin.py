@@ -13,7 +13,9 @@ from .models import (
     GuestParticipant,
     ConferenceRubricEvaluation,
     ConferenceParticipant,
-    ParticipantTrackingData
+    ParticipantTrackingData,
+    ConferenceTimeSlot,
+    ConferenceTimeSlotSelection
 )
 from django.db.models import Q
 
@@ -440,6 +442,82 @@ except:
         def participant_count(self, obj):
             return obj.participants.count()
         participant_count.short_description = 'Participants'
+
+
+@admin.register(ConferenceTimeSlot)
+class ConferenceTimeSlotAdmin(admin.ModelAdmin):
+    list_display = ['conference', 'date', 'start_time', 'end_time', 'timezone', 'current_participants', 'max_participants', 'is_available']
+    list_filter = ['is_available', 'date', 'conference']
+    search_fields = ['conference__title']
+    readonly_fields = ['created_at', 'updated_at', 'current_participants']
+    
+    fieldsets = (
+        ('Conference', {
+            'fields': ('conference',)
+        }),
+        ('Time Slot Details', {
+            'fields': ('date', 'start_time', 'end_time', 'timezone')
+        }),
+        ('Capacity', {
+            'fields': ('max_participants', 'current_participants', 'is_available')
+        }),
+        ('Meeting Details', {
+            'fields': ('meeting_link', 'meeting_id', 'meeting_password'),
+            'classes': ['collapse']
+        }),
+        ('Metadata', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ['collapse']
+        })
+    )
+    
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        if request.user.role in ['globaladmin', 'superadmin'] or request.user.is_superuser:
+            return qs
+        elif request.user.role == 'admin':
+            return qs.filter(conference__created_by__branch=request.user.branch)
+        elif request.user.role == 'instructor':
+            return qs.filter(conference__created_by=request.user)
+        else:
+            return qs.none()
+
+
+@admin.register(ConferenceTimeSlotSelection)
+class ConferenceTimeSlotSelectionAdmin(admin.ModelAdmin):
+    list_display = ['user', 'conference', 'time_slot', 'selected_at', 'calendar_added', 'get_slot_details']
+    list_filter = ['calendar_added', 'selected_at', 'time_slot__date']
+    search_fields = ['user__username', 'user__first_name', 'user__last_name', 'conference__title']
+    readonly_fields = ['selected_at', 'ip_address', 'outlook_event_id', 'calendar_add_attempted_at']
+    
+    fieldsets = (
+        ('Selection Details', {
+            'fields': ('conference', 'time_slot', 'user')
+        }),
+        ('Outlook Integration', {
+            'fields': ('outlook_event_id', 'calendar_added', 'calendar_add_attempted_at', 'calendar_error')
+        }),
+        ('Metadata', {
+            'fields': ('selected_at', 'ip_address'),
+            'classes': ['collapse']
+        })
+    )
+    
+    def get_slot_details(self, obj):
+        return f"{obj.time_slot.date} {obj.time_slot.start_time} - {obj.time_slot.end_time}"
+    get_slot_details.short_description = 'Time Slot'
+    
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        if request.user.role in ['globaladmin', 'superadmin'] or request.user.is_superuser:
+            return qs
+        elif request.user.role == 'admin':
+            return qs.filter(conference__created_by__branch=request.user.branch)
+        elif request.user.role == 'instructor':
+            return qs.filter(conference__created_by=request.user)
+        else:
+            # Learners can only see their own selections
+            return qs.filter(user=request.user)
 
 
 

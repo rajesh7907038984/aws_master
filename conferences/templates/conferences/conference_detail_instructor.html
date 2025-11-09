@@ -323,6 +323,19 @@
                     <div id="successMessage" class="text-green-600 text-sm"></div>
                 </div>
                 {% endif %}
+                
+                <!-- Manage Time Slots Button -->
+                {% if conference.meeting_platform == 'teams' %}
+                <a href="{% url 'conferences:manage_time_slots' conference.id %}" 
+                   class="btn-standard btn-secondary">
+                    <i class="fas fa-clock mr-2"></i>
+                    Manage Time Slots
+                    {% if conference.use_time_slots %}
+                        <span class="badge badge-success ml-2">{{ conference.time_slots.count }} slots</span>
+                    {% endif %}
+                </a>
+                {% endif %}
+                
                 {% if can_sync %}
                 <button id="syncDataBtn" 
                         class="btn-standard btn-secondary">
