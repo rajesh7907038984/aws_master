@@ -238,6 +238,7 @@
         {% endif %}
 
         <!-- Group Selection Section -->
+        {% if profile_user.role != 'learner' %}
         <div id="group-selection-section" class="mt-6 border-t pt-6">
             <h4 class="text-lg font-medium text-gray-900 mb-4">Group Assignment</h4>
             <p class="text-sm text-gray-600 mb-4">Select groups to assign the user to. Course groups will automatically enroll the user in associated courses.</p>
@@ -377,6 +378,7 @@
             <!-- Group Conflicts -->
             <div id="group-conflicts" class="mt-4"></div>
         </div>
+        {% endif %}
 
         {% if is_edit_mode %}
         <div class="form-group">
