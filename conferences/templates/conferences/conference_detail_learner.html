@@ -440,17 +440,27 @@
             
             {% with user_selection=conference.time_slot_selections.all|filter_by_user:request.user %}
                 {% if user_selection %}
-                    <div class="alert alert-success">
-                        <i class="fas fa-check-circle mr-2"></i>
-                        <strong>You have selected:</strong> 
-                        {{ user_selection.time_slot.date|date:"F d, Y" }} 
-                        {{ user_selection.time_slot.start_time|time:"H:i" }} - {{ user_selection.time_slot.end_time|time:"H:i" }}
-                        ({{ user_selection.time_slot.timezone }})
-                        {% if user_selection.calendar_added %}
-                            <span class="badge badge-success ml-2">
-                                <i class="fas fa-calendar-check"></i> Added to Outlook
-                            </span>
-                        {% endif %}
+                    <div class="alert alert-success" style="position: relative;">
+                        <div style="margin-bottom: 10px;">
+                            <i class="fas fa-check-circle mr-2"></i>
+                            <strong>You have selected:</strong> 
+                            {{ user_selection.time_slot.date|date:"F d, Y" }} 
+                            {{ user_selection.time_slot.start_time|time:"H:i" }} - {{ user_selection.time_slot.end_time|time:"H:i" }}
+                            ({{ user_selection.time_slot.timezone }})
+                            {% if user_selection.calendar_added %}
+                                <span class="badge badge-success ml-2">
+                                    <i class="fas fa-calendar-check"></i> Added to Outlook
+                                </span>
+                            {% endif %}
+                        </div>
+                        
+                        <form method="POST" action="{% url 'conferences:unselect_time_slot' conference.id %}" style="display: block; margin-top: 10px;" onsubmit="return confirm('Are you sure you want to cancel your time slot selection?');">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-sm btn-danger">
+                                <i class="fas fa-times mr-1"></i>
+                                Cancel Selection
+                            </button>
+                        </form>
                     </div>
                 {% endif %}
             {% endwith %}

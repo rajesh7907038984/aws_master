@@ -147,8 +147,40 @@ class TeamsAPIClient:
             return response.json() if response.content else {}
             
         except requests.exceptions.RequestException as e:
-            logger.error(f"Teams API request failed: {str(e)}")
-            raise TeamsAPIError(f"API request failed: {str(e)}")
+            # Provide detailed error information for troubleshooting
+            error_details = {
+                'url': url,
+                'method': method,
+                'status_code': getattr(response, 'status_code', None),
+                'error': str(e)
+            }
+            
+            # Special handling for common errors
+            if hasattr(response, 'status_code'):
+                if response.status_code == 404:
+                    error_msg = (
+                        f"API request failed: 404 Not Found for endpoint {endpoint}. "
+                        "This usually indicates missing API permissions in Azure AD. "
+                        "Please ensure 'Calendars.ReadWrite' application permission is configured "
+                        "and admin consent is granted. See TEAMS_INTEGRATION_FIX.md for details."
+                    )
+                elif response.status_code == 403:
+                    error_msg = (
+                        f"API request failed: 403 Forbidden for endpoint {endpoint}. "
+                        "This indicates insufficient permissions. Verify API permissions and admin consent."
+                    )
+                elif response.status_code == 401:
+                    error_msg = (
+                        f"API request failed: 401 Unauthorized for endpoint {endpoint}. "
+                        "Token might be invalid or expired."
+                    )
+                else:
+                    error_msg = f"API request failed: {str(e)}"
+            else:
+                error_msg = f"API request failed: {str(e)}"
+            
+            logger.error(f"Teams API request failed: {error_msg}", extra=error_details)
+            raise TeamsAPIError(error_msg)
     
     def create_meeting(self, title, start_time, end_time, description=None, user_email=None):
         """
@@ -194,13 +226,20 @@ class TeamsAPIClient:
             # With client credentials flow, we need to specify the user
             if not user_email and self.integration.user and self.integration.user.email:
                 user_email = self.integration.user.email
+                logger.info(f"Using integration owner email: {user_email}")
             
             if not user_email:
-                raise TeamsAPIError("User email is required for creating calendar events with application permissions")
+                error_msg = (
+                    "User email is required for creating calendar events with application permissions. "
+                    "Please ensure the integration owner or request user has a valid email address configured."
+                )
+                logger.error(error_msg)
+                raise TeamsAPIError(error_msg)
             
             # Use /users/{userPrincipalName}/calendar/events for application permissions
             # instead of /me/events which requires delegated permissions
             endpoint = f'/users/{user_email}/calendar/events'
+            logger.info(f"Creating Teams meeting for user: {user_email}, title: {title}")
             
             # Create the meeting
             response = self._make_request(
@@ -229,24 +268,37 @@ class TeamsAPIClient:
                 'error': str(e)
             }
     
-    def get_meeting_attendance(self, meeting_id):
+    def get_meeting_attendance(self, meeting_id, user_email=None):
         """
         Get meeting attendance data
         
         Args:
-            meeting_id: Teams meeting ID
+            meeting_id: Teams meeting ID (calendar event ID)
+            user_email: User's email address (userPrincipalName) for application permissions.
+                       If None, uses integration owner's email.
             
         Returns:
             dict: Attendance data
         """
         try:
-            # Get meeting participants
+            # Determine user email for application permissions
+            if not user_email and self.integration.user and self.integration.user.email:
+                user_email = self.integration.user.email
+            
+            if not user_email:
+                raise TeamsAPIError("User email is required for accessing calendar events with application permissions")
+            
+            # Get meeting event details
+            # Use /users/{userPrincipalName}/events/{event_id} for application permissions
+            # instead of /me/events/{event_id} which requires delegated permissions
+            endpoint = f'/users/{user_email}/events/{meeting_id}'
             response = self._make_request(
                 'GET',
-                f'/me/events/{meeting_id}/attendees'
+                endpoint
             )
             
-            attendees = response.get('value', [])
+            # Extract attendees from the event object
+            attendees = response.get('attendees', [])
             attendance_data = []
             
             for attendee in attendees:
@@ -413,6 +465,79 @@ class TeamsAPIClient:
                 
         except Exception as e:
             logger.error(f"Teams API connection test failed: {str(e)}")
+            return {
+                'success': False,
+                'error': str(e)
+            }
+    
+    def add_meeting_attendee(self, meeting_id, attendee_email, attendee_name, organizer_email=None):
+        """
+        Add an attendee to a Teams meeting
+        
+        Args:
+            meeting_id: Teams meeting ID (calendar event ID)
+            attendee_email: Attendee's email address
+            attendee_name: Attendee's display name
+            organizer_email: Meeting organizer's email (if None, uses integration owner's email)
+            
+        Returns:
+            dict: Result of adding attendee
+        """
+        try:
+            # Determine organizer email
+            if not organizer_email:
+                if self.integration.user and self.integration.user.email:
+                    organizer_email = self.integration.user.email
+                else:
+                    return {
+                        'success': False,
+                        'error': 'Organizer email required'
+                    }
+            
+            # Get current meeting details
+            endpoint = f'/users/{organizer_email}/calendar/events/{meeting_id}'
+            meeting = self._make_request('GET', endpoint)
+            
+            # Get existing attendees
+            attendees = meeting.get('attendees', [])
+            
+            # Check if attendee already exists
+            existing = any(a.get('emailAddress', {}).get('address', '').lower() == attendee_email.lower() 
+                          for a in attendees)
+            
+            if existing:
+                logger.info(f"Attendee {attendee_email} already in meeting {meeting_id}")
+                return {
+                    'success': True,
+                    'message': 'Attendee already added',
+                    'already_exists': True
+                }
+            
+            # Add new attendee
+            attendees.append({
+                'emailAddress': {
+                    'address': attendee_email,
+                    'name': attendee_name
+                },
+                'type': 'required'
+            })
+            
+            # Update meeting with new attendees
+            update_data = {
+                'attendees': attendees
+            }
+            
+            self._make_request('PATCH', endpoint, data=update_data)
+            
+            logger.info(f"Added attendee {attendee_name} ({attendee_email}) to meeting {meeting_id}")
+            
+            return {
+                'success': True,
+                'message': f'Attendee {attendee_name} added successfully'
+            }
+            
+        except Exception as e:
+            logger.error(f"Error adding attendee to Teams meeting: {str(e)}")
             return {
                 'success': False,
                 'error': str(e)

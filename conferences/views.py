@@ -1,7 +1,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse, HttpResponseForbidden, HttpResponse
 from django.contrib.auth.decorators import login_required
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_POST, require_http_methods
 from django.utils.dateparse import parse_date
 from django.core.paginator import Paginator
 from django.urls import reverse
@@ -4759,7 +4759,68 @@ def auto_register_and_join(request, conference_id):
     
     # Check if meeting platform is Zoom
     if conference.meeting_platform != 'zoom':
-        # For non-Zoom platforms, return the regular meeting link
+        # For Microsoft Teams, build URL with user information AND add user as attendee
+        if conference.meeting_platform == 'teams':
+            teams_join_url = build_direct_teams_url_for_registered_user(conference, user)
+            
+            if teams_join_url:
+                # Try to add user as meeting attendee via Teams API
+                # This ensures they show up with their correct name if logged into Microsoft
+                try:
+                    from teams_integration.models import TeamsIntegration
+                    from teams_integration.utils.teams_api import TeamsAPIClient
+                    
+                    # Get Teams integration for the conference creator or branch
+                    teams_integration = None
+                    if hasattr(conference.created_by, 'teams_integrations'):
+                        teams_integration = conference.created_by.teams_integrations.filter(is_active=True).first()
+                    
+                    if not teams_integration and hasattr(conference.created_by, 'branch') and conference.created_by.branch:
+                        teams_integration = TeamsIntegration.objects.filter(
+                            user__branch=conference.created_by.branch,
+                            is_active=True
+                        ).exclude(user__role='superadmin').first()
+                    
+                    # If we have integration and meeting_id, add the user as attendee
+                    if teams_integration and conference.meeting_id:
+                        api_client = TeamsAPIClient(teams_integration)
+                        display_name = user.get_full_name() or user.username
+                        
+                        result = api_client.add_meeting_attendee(
+                            meeting_id=conference.meeting_id,
+                            attendee_email=user.email,
+                            attendee_name=display_name,
+                            organizer_email=conference.created_by.email if conference.created_by.email else None
+                        )
+                        
+                        if result.get('success'):
+                            logger.info(f"Added {display_name} as attendee to Teams meeting {conference.meeting_id}")
+                        else:
+                            logger.warning(f"Could not add attendee to Teams meeting: {result.get('error')}")
+                    
+                except Exception as e:
+                    # Don't fail the join process if attendee addition fails
+                    logger.warning(f"Error adding attendee to Teams meeting: {str(e)}")
+                
+                # Update participant status
+                participant.participation_status = 'redirected_to_platform'
+                participant.tracking_data.update({
+                    'teams_join': {
+                        'join_time': timezone.now().isoformat(),
+                        'display_name': user.get_full_name() or user.username,
+                        'email': user.email
+                    }
+                })
+                participant.save()
+                
+                return JsonResponse({
+                    'success': True,
+                    'join_url': teams_join_url,
+                    'message': 'Joining Teams meeting with your name.',
+                    'platform': 'teams'
+                })
+        
+        # For other non-Zoom platforms, return the regular meeting link
         return JsonResponse({
             'success': True,
             'join_url': conference.meeting_link,
@@ -5019,6 +5080,66 @@ def build_direct_zoom_url_for_registered_user(conference, user, registration_res
         # Use the correct Zoom base URL, not the LMS base URL
         zoom_base_url = f"https://zoom.us/j/{meeting_id}"
         return f"{zoom_base_url}?{param_string}"
+
+
+def build_direct_teams_url_for_registered_user(conference, user):
+    """
+    Build a direct Microsoft Teams join URL for registered users
+    Adds user display name and email to the Teams meeting URL
+    """
+    from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
+    from django.conf import settings
+    
+    # Start with the base meeting link
+    base_url = conference.meeting_link
+    
+    if not base_url:
+        logger.error(f"No meeting link found for Teams conference {conference.id}")
+        return None
+    
+    # Parse the existing Teams URL
+    parsed_url = urlparse(base_url)
+    query_params = parse_qs(parsed_url.query)
+    
+    # Add user display name - Teams uses 'anon' parameter for anonymous users
+    # When joining anonymously, the user can specify their display name
+    display_name = user.get_full_name() or user.username
+    
+    # Add/update the display name parameter for Teams
+    # Teams supports 'anon' query parameter for anonymous join with display name
+    query_params['anon'] = ['true']  # Enable anonymous join
+    
+    # Add user's display name - this will be shown in Teams
+    # Note: Teams may still show "Unknown" if the user is not authenticated with Microsoft account
+    # but we'll pass the info from LMS
+    
+    # Add LMS tracking parameters
+    query_params['lms_user_id'] = [str(user.id)]
+    query_params['lms_conference_id'] = [str(conference.id)]
+    query_params['lms_user_name'] = [display_name]
+    query_params['lms_user_email'] = [user.email if user.email else '']
+    
+    # Add return URL for proper redirection after meeting
+    from django.urls import reverse
+    base_url_setting = getattr(settings, 'BASE_URL', 
+                               f"https://{getattr(settings, 'PRIMARY_DOMAIN', 'localhost')}")
+    return_url = f"{base_url_setting}{reverse('conferences:conference_redirect_handler', args=[conference.id])}"
+    query_params['lms_return_url'] = [return_url]
+    
+    # Rebuild the URL with all parameters
+    new_query = urlencode(query_params, doseq=True)
+    teams_join_url = urlunparse((
+        parsed_url.scheme,
+        parsed_url.netloc,
+        parsed_url.path,
+        parsed_url.params,
+        new_query,
+        parsed_url.fragment
+    ))
+    
+    logger.info(f"Generated Teams join URL with user info for {user.username}: {display_name}")
+    
+    return teams_join_url
 
 @login_required
 def upload_conference_file(request, conference_id):
@@ -5603,6 +5724,131 @@ def select_time_slot(request, conference_id, slot_id):
     return render(request, 'conferences/select_time_slot.html', context)
 
 
+@login_required
+@csrf_protect
+@require_http_methods(["POST"])
+def unselect_time_slot(request, conference_id):
+    """Allow learners to unselect/cancel their time slot selection"""
+    conference = get_object_or_404(Conference, id=conference_id)
+    
+    # Check if conference uses time slots
+    if not conference.use_time_slots:
+        messages.error(request, 'This conference does not use time slot selection.')
+        return redirect('conferences:conference_detail', conference_id=conference.id)
+    
+    # Check if user has a selection
+    existing_selection = ConferenceTimeSlotSelection.objects.filter(
+        conference=conference,
+        user=request.user
+    ).first()
+    
+    if not existing_selection:
+        messages.warning(request, 'You have not selected any time slot for this conference.')
+        
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({
+                'success': False,
+                'error': 'No time slot selection found'
+            }, status=404)
+        
+        return redirect('conferences:conference_detail', conference_id=conference.id)
+    
+    try:
+        # Get the time slot before deleting the selection
+        time_slot = existing_selection.time_slot
+        
+        # Decrease participant count on the slot
+        if time_slot.current_participants > 0:
+            time_slot.current_participants -= 1
+            time_slot.save(update_fields=['current_participants'])
+        
+        # Try to remove from Outlook calendar if it was added
+        if existing_selection.calendar_added and existing_selection.outlook_event_id:
+            try:
+                remove_from_outlook_calendar(request.user, existing_selection)
+            except Exception as e:
+                logger.error(f"Failed to remove from Outlook calendar: {str(e)}")
+                # Don't fail the unselection if calendar removal fails
+        
+        # Delete the selection
+        slot_info = f"{time_slot.date} {time_slot.start_time} - {time_slot.end_time}"
+        existing_selection.delete()
+        
+        messages.success(request, f'Successfully cancelled your time slot selection: {slot_info}')
+        
+        # Return JSON for AJAX requests
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({
+                'success': True,
+                'message': 'Time slot selection cancelled successfully'
+            })
+        
+        return redirect('conferences:conference_detail', conference_id=conference.id)
+        
+    except Exception as e:
+        logger.error(f"Error unselecting time slot: {str(e)}")
+        messages.error(request, f'Error cancelling time slot: {str(e)}')
+        
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({
+                'success': False,
+                'error': str(e)
+            }, status=500)
+        
+        return redirect('conferences:conference_detail', conference_id=conference.id)
+
+
+def remove_from_outlook_calendar(user, selection):
+    """Remove time slot from user's Outlook calendar using Microsoft Graph API"""
+    try:
+        # Get Teams integration for the user or their branch
+        integration = None
+        if hasattr(user, 'branch') and user.branch:
+            integration = TeamsIntegration.objects.filter(
+                user__branch=user.branch,
+                is_active=True
+            ).first()
+        
+        if not integration:
+            # Try to get user's own integration
+            integration = TeamsIntegration.objects.filter(
+                user=user,
+                is_active=True
+            ).first()
+        
+        if not integration or not integration.refresh_token:
+            logger.warning(f"No active Teams integration found for calendar removal for user {user.username}")
+            return
+        
+        # Refresh access token if needed
+        if integration.is_token_expired():
+            integration.refresh_access_token()
+        
+        # Get the access token
+        access_token = integration.access_token
+        
+        # Delete the event from Outlook calendar
+        headers = {
+            'Authorization': f'Bearer {access_token}',
+            'Content-Type': 'application/json'
+        }
+        
+        delete_url = f'https://graph.microsoft.com/v1.0/me/events/{selection.outlook_event_id}'
+        response = requests.delete(delete_url, headers=headers)
+        
+        if response.status_code == 204:
+            logger.info(f"Successfully removed event from Outlook calendar for user {user.username}")
+        elif response.status_code == 404:
+            logger.warning(f"Event not found in Outlook calendar for user {user.username}")
+        else:
+            logger.error(f"Failed to remove event from Outlook calendar: {response.status_code} - {response.text}")
+            raise Exception(f"Failed to remove from Outlook: {response.status_code}")
+            
+    except Exception as e:
+        logger.error(f"Error removing from Outlook calendar: {str(e)}")
+        raise
+
+
 def add_to_outlook_calendar(user, time_slot, selection):
     """Add time slot to user's Outlook calendar using Microsoft Graph API"""
     try:
@@ -5801,12 +6047,12 @@ def manage_time_slots(request, conference_id):
                             from teams_integration.utils.teams_api import TeamsAPIClient
                             teams_client = TeamsAPIClient(integration)
                             
-                            # Use integration owner's email or request user's email for application permissions
+                            # Use logged-in user's email (prioritized) or integration owner's email for application permissions
                             user_email = None
-                            if integration.user and integration.user.email:
-                                user_email = integration.user.email
-                            elif request.user.email:
+                            if request.user and request.user.email:
                                 user_email = request.user.email
+                            elif integration.user and integration.user.email:
+                                user_email = integration.user.email
                             
                             result = teams_client.create_meeting(
                                 title=f"{conference.title} - {time_slot.date} {time_slot.start_time}",
