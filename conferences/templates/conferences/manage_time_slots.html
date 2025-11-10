@@ -97,7 +97,7 @@
 
 {% block content %}
 <div class="container-fluid p-4">
-    {% include 'partials/breadcrumb.html' %}
+    {% include 'components/breadcrumb.html' %}
     
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h2><i class="fas fa-clock mr-2"></i> Manage Time Slots</h2>
@@ -230,27 +230,97 @@
             
             <div class="form-group">
                 <label class="form-label">Date</label>
-                <input type="date" name="date" class="form-control" required>
+                <input type="date" name="date" class="form-control" value="{{ conference.date|date:'Y-m-d' }}" required>
+                <small class="form-text text-muted">Conference date: {{ conference.date|date:"F d, Y" }}</small>
             </div>
             
             <div class="row">
                 <div class="col-md-6">
                     <div class="form-group">
                         <label class="form-label">Start Time</label>
-                        <input type="time" name="start_time" class="form-control" required>
+                        <input type="time" name="start_time" class="form-control" value="{{ conference.start_time|time:'H:i' }}" required>
+                        <small class="form-text text-muted">Conference start: {{ conference.start_time|time:"H:i" }}</small>
                     </div>
                 </div>
                 <div class="col-md-6">
                     <div class="form-group">
                         <label class="form-label">End Time</label>
-                        <input type="time" name="end_time" class="form-control" required>
+                        <input type="time" name="end_time" class="form-control" value="{{ conference.end_time|time:'H:i' }}" required>
+                        <small class="form-text text-muted">Conference end: {{ conference.end_time|time:"H:i" }}</small>
                     </div>
                 </div>
             </div>
             
             <div class="form-group">
                 <label class="form-label">Timezone</label>
-                <input type="text" name="timezone" class="form-control" value="{{ conference.timezone }}" required>
+                <select name="timezone" class="form-control" required>
+                    <optgroup label="Popular Timezones">
+                        <option value="UTC" {% if request.user.timezone == 'UTC' or conference.timezone == 'UTC' %}selected{% endif %}>UTC (Coordinated Universal Time)</option>
+                        <option value="Europe/London" {% if request.user.timezone == 'Europe/London' or conference.timezone == 'Europe/London' %}selected{% endif %}>Europe/London (GMT/BST)</option>
+                        <option value="Europe/Paris" {% if request.user.timezone == 'Europe/Paris' or conference.timezone == 'Europe/Paris' %}selected{% endif %}>Europe/Paris (CET/CEST)</option>
+                        <option value="America/New_York" {% if request.user.timezone == 'America/New_York' or conference.timezone == 'America/New_York' %}selected{% endif %}>America/New_York (EST/EDT)</option>
+                        <option value="America/Chicago" {% if request.user.timezone == 'America/Chicago' or conference.timezone == 'America/Chicago' %}selected{% endif %}>America/Chicago (CST/CDT)</option>
+                        <option value="America/Los_Angeles" {% if request.user.timezone == 'America/Los_Angeles' or conference.timezone == 'America/Los_Angeles' %}selected{% endif %}>America/Los_Angeles (PST/PDT)</option>
+                        <option value="Asia/Dubai" {% if request.user.timezone == 'Asia/Dubai' or conference.timezone == 'Asia/Dubai' %}selected{% endif %}>Asia/Dubai (GST)</option>
+                        <option value="Asia/Tokyo" {% if request.user.timezone == 'Asia/Tokyo' or conference.timezone == 'Asia/Tokyo' %}selected{% endif %}>Asia/Tokyo (JST)</option>
+                        <option value="Australia/Sydney" {% if request.user.timezone == 'Australia/Sydney' or conference.timezone == 'Australia/Sydney' %}selected{% endif %}>Australia/Sydney (AEDT/AEST)</option>
+                    </optgroup>
+                    <optgroup label="Europe">
+                        <option value="Europe/Dublin" {% if request.user.timezone == 'Europe/Dublin' or conference.timezone == 'Europe/Dublin' %}selected{% endif %}>Europe/Dublin</option>
+                        <option value="Europe/Berlin" {% if request.user.timezone == 'Europe/Berlin' or conference.timezone == 'Europe/Berlin' %}selected{% endif %}>Europe/Berlin</option>
+                        <option value="Europe/Madrid" {% if request.user.timezone == 'Europe/Madrid' or conference.timezone == 'Europe/Madrid' %}selected{% endif %}>Europe/Madrid</option>
+                        <option value="Europe/Rome" {% if request.user.timezone == 'Europe/Rome' or conference.timezone == 'Europe/Rome' %}selected{% endif %}>Europe/Rome</option>
+                        <option value="Europe/Amsterdam" {% if request.user.timezone == 'Europe/Amsterdam' or conference.timezone == 'Europe/Amsterdam' %}selected{% endif %}>Europe/Amsterdam</option>
+                        <option value="Europe/Brussels" {% if request.user.timezone == 'Europe/Brussels' or conference.timezone == 'Europe/Brussels' %}selected{% endif %}>Europe/Brussels</option>
+                        <option value="Europe/Vienna" {% if request.user.timezone == 'Europe/Vienna' or conference.timezone == 'Europe/Vienna' %}selected{% endif %}>Europe/Vienna</option>
+                        <option value="Europe/Athens" {% if request.user.timezone == 'Europe/Athens' or conference.timezone == 'Europe/Athens' %}selected{% endif %}>Europe/Athens</option>
+                        <option value="Europe/Istanbul" {% if request.user.timezone == 'Europe/Istanbul' or conference.timezone == 'Europe/Istanbul' %}selected{% endif %}>Europe/Istanbul</option>
+                        <option value="Europe/Moscow" {% if request.user.timezone == 'Europe/Moscow' or conference.timezone == 'Europe/Moscow' %}selected{% endif %}>Europe/Moscow</option>
+                    </optgroup>
+                    <optgroup label="Americas">
+                        <option value="America/Toronto" {% if request.user.timezone == 'America/Toronto' or conference.timezone == 'America/Toronto' %}selected{% endif %}>America/Toronto</option>
+                        <option value="America/Montreal" {% if request.user.timezone == 'America/Montreal' or conference.timezone == 'America/Montreal' %}selected{% endif %}>America/Montreal</option>
+                        <option value="America/Denver" {% if request.user.timezone == 'America/Denver' or conference.timezone == 'America/Denver' %}selected{% endif %}>America/Denver</option>
+                        <option value="America/Phoenix" {% if request.user.timezone == 'America/Phoenix' or conference.timezone == 'America/Phoenix' %}selected{% endif %}>America/Phoenix</option>
+                        <option value="America/Mexico_City" {% if request.user.timezone == 'America/Mexico_City' or conference.timezone == 'America/Mexico_City' %}selected{% endif %}>America/Mexico_City</option>
+                        <option value="America/Sao_Paulo" {% if request.user.timezone == 'America/Sao_Paulo' or conference.timezone == 'America/Sao_Paulo' %}selected{% endif %}>America/Sao_Paulo</option>
+                        <option value="America/Buenos_Aires" {% if request.user.timezone == 'America/Buenos_Aires' or conference.timezone == 'America/Buenos_Aires' %}selected{% endif %}>America/Buenos_Aires</option>
+                    </optgroup>
+                    <optgroup label="Asia & Middle East">
+                        <option value="Asia/Riyadh" {% if request.user.timezone == 'Asia/Riyadh' or conference.timezone == 'Asia/Riyadh' %}selected{% endif %}>Asia/Riyadh</option>
+                        <option value="Asia/Kuwait" {% if request.user.timezone == 'Asia/Kuwait' or conference.timezone == 'Asia/Kuwait' %}selected{% endif %}>Asia/Kuwait</option>
+                        <option value="Asia/Qatar" {% if request.user.timezone == 'Asia/Qatar' or conference.timezone == 'Asia/Qatar' %}selected{% endif %}>Asia/Qatar</option>
+                        <option value="Asia/Bahrain" {% if request.user.timezone == 'Asia/Bahrain' or conference.timezone == 'Asia/Bahrain' %}selected{% endif %}>Asia/Bahrain</option>
+                        <option value="Asia/Jerusalem" {% if request.user.timezone == 'Asia/Jerusalem' or conference.timezone == 'Asia/Jerusalem' %}selected{% endif %}>Asia/Jerusalem</option>
+                        <option value="Asia/Tehran" {% if request.user.timezone == 'Asia/Tehran' or conference.timezone == 'Asia/Tehran' %}selected{% endif %}>Asia/Tehran</option>
+                        <option value="Asia/Karachi" {% if request.user.timezone == 'Asia/Karachi' or conference.timezone == 'Asia/Karachi' %}selected{% endif %}>Asia/Karachi</option>
+                        <option value="Asia/Kolkata" {% if request.user.timezone == 'Asia/Kolkata' or conference.timezone == 'Asia/Kolkata' %}selected{% endif %}>Asia/Kolkata</option>
+                        <option value="Asia/Singapore" {% if request.user.timezone == 'Asia/Singapore' or conference.timezone == 'Asia/Singapore' %}selected{% endif %}>Asia/Singapore</option>
+                        <option value="Asia/Hong_Kong" {% if request.user.timezone == 'Asia/Hong_Kong' or conference.timezone == 'Asia/Hong_Kong' %}selected{% endif %}>Asia/Hong_Kong</option>
+                        <option value="Asia/Shanghai" {% if request.user.timezone == 'Asia/Shanghai' or conference.timezone == 'Asia/Shanghai' %}selected{% endif %}>Asia/Shanghai</option>
+                        <option value="Asia/Seoul" {% if request.user.timezone == 'Asia/Seoul' or conference.timezone == 'Asia/Seoul' %}selected{% endif %}>Asia/Seoul</option>
+                    </optgroup>
+                    <optgroup label="Africa">
+                        <option value="Africa/Cairo" {% if request.user.timezone == 'Africa/Cairo' or conference.timezone == 'Africa/Cairo' %}selected{% endif %}>Africa/Cairo</option>
+                        <option value="Africa/Johannesburg" {% if request.user.timezone == 'Africa/Johannesburg' or conference.timezone == 'Africa/Johannesburg' %}selected{% endif %}>Africa/Johannesburg</option>
+                        <option value="Africa/Lagos" {% if request.user.timezone == 'Africa/Lagos' or conference.timezone == 'Africa/Lagos' %}selected{% endif %}>Africa/Lagos</option>
+                        <option value="Africa/Nairobi" {% if request.user.timezone == 'Africa/Nairobi' or conference.timezone == 'Africa/Nairobi' %}selected{% endif %}>Africa/Nairobi</option>
+                    </optgroup>
+                    <optgroup label="Pacific & Oceania">
+                        <option value="Australia/Melbourne" {% if request.user.timezone == 'Australia/Melbourne' or conference.timezone == 'Australia/Melbourne' %}selected{% endif %}>Australia/Melbourne</option>
+                        <option value="Australia/Brisbane" {% if request.user.timezone == 'Australia/Brisbane' or conference.timezone == 'Australia/Brisbane' %}selected{% endif %}>Australia/Brisbane</option>
+                        <option value="Australia/Perth" {% if request.user.timezone == 'Australia/Perth' or conference.timezone == 'Australia/Perth' %}selected{% endif %}>Australia/Perth</option>
+                        <option value="Pacific/Auckland" {% if request.user.timezone == 'Pacific/Auckland' or conference.timezone == 'Pacific/Auckland' %}selected{% endif %}>Pacific/Auckland</option>
+                        <option value="Pacific/Fiji" {% if request.user.timezone == 'Pacific/Fiji' or conference.timezone == 'Pacific/Fiji' %}selected{% endif %}>Pacific/Fiji</option>
+                    </optgroup>
+                </select>
+                <small class="form-text text-muted">
+                    {% if request.user.timezone %}
+                        Your timezone: {{ request.user.timezone }}
+                    {% else %}
+                        Conference timezone: {{ conference.timezone }}
+                    {% endif %}
+                </small>
             </div>
             
             <div class="form-group">
