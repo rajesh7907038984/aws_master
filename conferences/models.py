@@ -1129,8 +1129,15 @@ class ConferenceParticipant(models.Model):
             
             # Calculate percentage based on meeting duration
             if self.conference.start_time and self.conference.end_time:
-                meeting_start = timezone.datetime.combine(self.conference.date, self.conference.start_time)
-                meeting_end = timezone.datetime.combine(self.conference.date, self.conference.end_time)
+                from dateutil import parser as date_parser
+                
+                # Ensure date and time are proper objects, not strings
+                conf_date = date_parser.parse(self.conference.date).date() if isinstance(self.conference.date, str) else self.conference.date
+                conf_start = date_parser.parse(self.conference.start_time).time() if isinstance(self.conference.start_time, str) else self.conference.start_time
+                conf_end = date_parser.parse(self.conference.end_time).time() if isinstance(self.conference.end_time, str) else self.conference.end_time
+                
+                meeting_start = timezone.datetime.combine(conf_date, conf_start)
+                meeting_end = timezone.datetime.combine(conf_date, conf_end)
                 if hasattr(meeting_start, 'replace'):
                     meeting_start = meeting_start.replace(tzinfo=timezone.get_current_timezone())
                     meeting_end = meeting_end.replace(tzinfo=timezone.get_current_timezone())

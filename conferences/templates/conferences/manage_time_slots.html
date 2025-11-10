@@ -73,24 +73,73 @@
     }
     .modal-content {
         background-color: white;
-        margin: 5% auto;
+        margin: 2% auto;
         padding: 2rem;
         border-radius: 8px;
         max-width: 600px;
+        max-height: 90vh;
+        overflow-y: auto;
     }
     .form-group {
-        margin-bottom: 1rem;
+        margin-bottom: 1.5rem;
     }
     .form-label {
         display: block;
         margin-bottom: 0.5rem;
         font-weight: 500;
+        color: #1f2937;
     }
     .form-control {
         width: 100%;
         padding: 0.5rem;
         border: 1px solid #d1d5db;
         border-radius: 4px;
+        font-size: 0.95rem;
+    }
+    .form-text {
+        display: block;
+        margin-top: 0.25rem;
+        font-size: 0.875rem;
+        color: #6b7280;
+    }
+    .modal-content h3 {
+        margin-bottom: 1.5rem;
+        color: #1f2937;
+    }
+    .form-group label {
+        cursor: pointer;
+    }
+    .form-group input[type="checkbox"] {
+        margin-right: 0.5rem;
+        cursor: pointer;
+    }
+    .modal-form-container {
+        max-height: calc(90vh - 150px);
+        overflow-y: auto;
+        padding-right: 0.5rem;
+    }
+    .modal-footer {
+        position: sticky;
+        bottom: 0;
+        background: white;
+        padding-top: 1rem;
+        margin-top: 1rem;
+        border-top: 1px solid #e5e7eb;
+    }
+    /* Smooth scrollbar styling */
+    .modal-form-container::-webkit-scrollbar {
+        width: 8px;
+    }
+    .modal-form-container::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 4px;
+    }
+    .modal-form-container::-webkit-scrollbar-thumb {
+        background: #888;
+        border-radius: 4px;
+    }
+    .modal-form-container::-webkit-scrollbar-thumb:hover {
+        background: #555;
     }
 </style>
 {% endblock %}
@@ -139,7 +188,6 @@
                         <div class="info-label">Participants</div>
                         <div class="info-value">
                             {{ item.slot.current_participants }}
-                            {% if item.slot.max_participants > 0 %} / {{ item.slot.max_participants }}{% else %} (Unlimited){% endif %}
                         </div>
                     </div>
                     {% if item.available_spots %}
@@ -228,6 +276,7 @@
             {% csrf_token %}
             <input type="hidden" name="action" value="create">
             
+            <div class="modal-form-container">
             <div class="form-group">
                 <label class="form-label">Date</label>
                 <input type="date" name="date" class="form-control" value="{{ conference.date|date:'Y-m-d' }}" required>
@@ -323,11 +372,6 @@
                 </small>
             </div>
             
-            <div class="form-group">
-                <label class="form-label">Max Participants (0 for unlimited)</label>
-                <input type="number" name="max_participants" class="form-control" value="0" min="0">
-            </div>
-            
             {% if conference.meeting_platform == 'teams' %}
                 <div class="form-group">
                     <label>
@@ -341,10 +385,13 @@
                     <input type="url" name="meeting_link" class="form-control">
                 </div>
             {% endif %}
+            </div>
             
-            <div class="d-flex justify-content-between mt-4">
-                <button type="button" class="btn btn-secondary" onclick="closeCreateModal()">Cancel</button>
-                <button type="submit" class="btn btn-primary">Create Time Slot</button>
+            <div class="modal-footer">
+                <div class="d-flex justify-content-between">
+                    <button type="button" class="btn btn-secondary" onclick="closeCreateModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Create Time Slot</button>
+                </div>
             </div>
         </form>
     </div>

@@ -150,7 +150,7 @@ class TeamsAPIClient:
             logger.error(f"Teams API request failed: {str(e)}")
             raise TeamsAPIError(f"API request failed: {str(e)}")
     
-    def create_meeting(self, title, start_time, end_time, description=None):
+    def create_meeting(self, title, start_time, end_time, description=None, user_email=None):
         """
         Create a Teams meeting
         
@@ -159,6 +159,8 @@ class TeamsAPIClient:
             start_time: Meeting start time
             end_time: Meeting end time
             description: Meeting description
+            user_email: User's email address (userPrincipalName) for application permissions.
+                       If None, uses integration owner's email.
             
         Returns:
             dict: Meeting details
@@ -188,10 +190,22 @@ class TeamsAPIClient:
                     "content": description
                 }
             
+            # Determine user email for application permissions
+            # With client credentials flow, we need to specify the user
+            if not user_email and self.integration.user and self.integration.user.email:
+                user_email = self.integration.user.email
+            
+            if not user_email:
+                raise TeamsAPIError("User email is required for creating calendar events with application permissions")
+            
+            # Use /users/{userPrincipalName}/calendar/events for application permissions
+            # instead of /me/events which requires delegated permissions
+            endpoint = f'/users/{user_email}/calendar/events'
+            
             # Create the meeting
             response = self._make_request(
                 'POST',
-                '/me/events',
+                endpoint,
                 data=meeting_data
             )
             

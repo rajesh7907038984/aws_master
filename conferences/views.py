@@ -2178,7 +2178,13 @@ def sync_zoom_meeting_data(conference):
                                     attendance_status = 'absent'
                                 elif join_time and conference.start_time:
                                     # Check if joined late (more than 15 minutes after start)
-                                    conference_start = timezone.datetime.combine(conference.date, conference.start_time)
+                                    from dateutil import parser as date_parser
+                                    
+                                    # Ensure date and time are proper objects, not strings
+                                    conf_date = date_parser.parse(conference.date).date() if isinstance(conference.date, str) else conference.date
+                                    conf_start = date_parser.parse(conference.start_time).time() if isinstance(conference.start_time, str) else conference.start_time
+                                    
+                                    conference_start = timezone.datetime.combine(conf_date, conf_start)
                                     if conference_start.tzinfo is None:
                                         conference_start = timezone.make_aware(conference_start)
                                     
@@ -5627,8 +5633,26 @@ def add_to_outlook_calendar(user, time_slot, selection):
         
         # Create datetime objects
         import datetime
-        start_datetime = datetime.datetime.combine(time_slot.date, time_slot.start_time)
-        end_datetime = datetime.datetime.combine(time_slot.date, time_slot.end_time)
+        from dateutil import parser as date_parser
+        
+        # Ensure date and time are proper objects, not strings
+        if isinstance(time_slot.date, str):
+            slot_date = date_parser.parse(time_slot.date).date()
+        else:
+            slot_date = time_slot.date
+            
+        if isinstance(time_slot.start_time, str):
+            slot_start_time = date_parser.parse(time_slot.start_time).time()
+        else:
+            slot_start_time = time_slot.start_time
+            
+        if isinstance(time_slot.end_time, str):
+            slot_end_time = date_parser.parse(time_slot.end_time).time()
+        else:
+            slot_end_time = time_slot.end_time
+        
+        start_datetime = datetime.datetime.combine(slot_date, slot_start_time)
+        end_datetime = datetime.datetime.combine(slot_date, slot_end_time)
         
         # Make timezone aware
         import pytz
@@ -5665,7 +5689,19 @@ def add_to_outlook_calendar(user, time_slot, selection):
             }
         
         # Make API call to create event
-        response = teams_client._make_request('POST', '/me/events', data=event_data)
+        # Use user's email for application permissions (client credentials flow)
+        # With application permissions, we need /users/{userPrincipalName}/calendar/events
+        # instead of /me/events which requires delegated permissions
+        user_email = user.email if user.email else None
+        if not user_email:
+            logger.warning(f"User {user.username} has no email address, cannot create calendar event")
+            selection.calendar_error = "User email address is required for calendar integration"
+            selection.calendar_add_attempted_at = timezone.now()
+            selection.save()
+            return False
+        
+        endpoint = f'/users/{user_email}/calendar/events'
+        response = teams_client._make_request('POST', endpoint, data=event_data)
         
         if response and 'id' in response:
             # Successfully created event
@@ -5728,8 +5764,26 @@ def manage_time_slots(request, conference_id):
                 if conference.meeting_platform == 'teams' and request.POST.get('create_teams_meeting') == 'true':
                     try:
                         import datetime
-                        start_datetime = datetime.datetime.combine(time_slot.date, time_slot.start_time)
-                        end_datetime = datetime.datetime.combine(time_slot.date, time_slot.end_time)
+                        from dateutil import parser as date_parser
+                        
+                        # Ensure date and time are proper objects, not strings
+                        if isinstance(time_slot.date, str):
+                            slot_date = date_parser.parse(time_slot.date).date()
+                        else:
+                            slot_date = time_slot.date
+                            
+                        if isinstance(time_slot.start_time, str):
+                            slot_start_time = date_parser.parse(time_slot.start_time).time()
+                        else:
+                            slot_start_time = time_slot.start_time
+                            
+                        if isinstance(time_slot.end_time, str):
+                            slot_end_time = date_parser.parse(time_slot.end_time).time()
+                        else:
+                            slot_end_time = time_slot.end_time
+                        
+                        start_datetime = datetime.datetime.combine(slot_date, slot_start_time)
+                        end_datetime = datetime.datetime.combine(slot_date, slot_end_time)
                         
                         # Make timezone aware
                         import pytz
@@ -5747,11 +5801,19 @@ def manage_time_slots(request, conference_id):
                             from teams_integration.utils.teams_api import TeamsAPIClient
                             teams_client = TeamsAPIClient(integration)
                             
+                            # Use integration owner's email or request user's email for application permissions
+                            user_email = None
+                            if integration.user and integration.user.email:
+                                user_email = integration.user.email
+                            elif request.user.email:
+                                user_email = request.user.email
+                            
                             result = teams_client.create_meeting(
                                 title=f"{conference.title} - {time_slot.date} {time_slot.start_time}",
                                 start_time=start_datetime,
                                 end_time=end_datetime,
-                                description=conference.description
+                                description=conference.description,
+                                user_email=user_email
                             )
                             
                             if result.get('success'):
