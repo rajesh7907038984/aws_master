@@ -529,6 +529,17 @@
             <strong>Authentication Required:</strong> Only registered users can join this conference. Guest participation is not allowed.
         </div>
 
+        {% if conference.meeting_platform == 'teams' %}
+        <!-- Teams Sign-In Notice -->
+        <div class="auth-required" style="background-color: #E3F2FD; border-left-color: #1976D2; color: #0D47A1; margin-top: 1rem;">
+            <svg class="inline-block w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
+            </svg>
+            <strong>Microsoft Teams Meeting:</strong> You may be asked to sign in with your Microsoft account when joining. 
+            The system will automatically register you with your name: <strong>{{ request.user.get_full_name|default:request.user.username }}</strong>
+        </div>
+        {% endif %}
+
 
 
         <!-- Join Button / Status -->
@@ -662,8 +673,14 @@ function autoRegisterAndJoin() {
     })
     .then(data => {
         if (data.success) {
-            // Show success message
-            successMessage.textContent = data.message;
+            // Show success message with platform-specific instructions
+            if (data.platform === 'teams') {
+                successMessage.innerHTML = '<strong>✅ Registration successful!</strong><br>' + 
+                    'Redirecting to Microsoft Teams... You may need to sign in with your Microsoft account.<br>' +
+                    '<small>Your name: <strong>' + (data.user_info?.display_name || 'Authenticated User') + '</strong></small>';
+            } else {
+                successMessage.textContent = data.message;
+            }
             successMessage.style.display = 'block';
             
             // Update button text
@@ -680,8 +697,9 @@ function autoRegisterAndJoin() {
                 conference_detail_url: "{% url 'conferences:conference_detail' conference_id=conference.id %}"
             }));
             
-            // Open the meeting in a new tab after a short delay
+            // Open the meeting - always open in new tab for all platforms
             setTimeout(() => {
+                // Open meeting in new tab
                 const newTab = window.open(data.join_url, '_blank');
                 
                 // Check if popup was blocked
@@ -720,8 +738,18 @@ function autoRegisterAndJoin() {
                 return;
             }
             
-            // Show error message
-            errorMessage.textContent = data.error || 'Failed to join conference. Please try again.';
+            // Show error message with better formatting
+            let errorText = data.error || 'Failed to join conference. Please try again.';
+            
+            // Make the error message more prominent for configuration issues
+            if (errorText.includes('instant meeting') || errorText.includes('not have a meeting link') || errorText.includes('Invalid Teams meeting')) {
+                errorMessage.innerHTML = '<strong>⚠️ Configuration Issue:</strong><br>' + errorText;
+                errorMessage.style.padding = '15px';
+                errorMessage.style.borderLeft = '4px solid #dc2626';
+            } else {
+                errorMessage.textContent = errorText;
+            }
+            
             errorMessage.style.display = 'block';
             
             // Re-enable button
@@ -742,6 +770,12 @@ function autoRegisterAndJoin() {
 
 // Check if user has returned from a meeting
 function checkReturnFromMeeting() {
+    // Skip Zoom return notification for term-based (time slot) conferences
+    const isTimeSlotConference = {{ conference.use_time_slots|yesno:"true,false" }};
+    if (isTimeSlotConference) {
+        return;
+    }
+    
     const meetingData = localStorage.getItem('lms_meeting_join_' + {{ conference.id }});
     if (meetingData) {
         try {
@@ -765,6 +799,12 @@ function checkReturnFromMeeting() {
 
 // Enhanced return detection with visibility API
 function detectReturnFromMeeting() {
+    // Skip Zoom return notification for term-based (time slot) conferences
+    const isTimeSlotConference = {{ conference.use_time_slots|yesno:"true,false" }};
+    if (isTimeSlotConference) {
+        return;
+    }
+    
     const meetingData = localStorage.getItem('lms_meeting_join_' + {{ conference.id }});
     if (meetingData) {
         try {
@@ -872,6 +912,12 @@ function showReturnWelcomeMessage() {
 
 // Enhanced return detection with multiple fallback options
 function checkReturnFromMeetingEnhanced() {
+    // Skip Zoom return notification for term-based (time slot) conferences
+    const isTimeSlotConference = {{ conference.use_time_slots|yesno:"true,false" }};
+    if (isTimeSlotConference) {
+        return;
+    }
+    
     const meetingData = localStorage.getItem('lms_meeting_join_' + {{ conference.id }});
     if (meetingData) {
         try {

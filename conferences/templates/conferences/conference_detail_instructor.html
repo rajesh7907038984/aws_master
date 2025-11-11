@@ -1563,15 +1563,53 @@ function autoRegisterAndJoin() {
             successMessage.textContent = data.message;
             
             // Update button text
-            buttonText.textContent = 'Redirecting to meeting...';
+            buttonText.textContent = 'Opening meeting in new tab...';
             
-            // Redirect to the meeting after a short delay
+            // Open meeting in new tab after a short delay
             setTimeout(() => {
-                window.location.href = data.join_url;
+                const newTab = window.open(data.join_url, '_blank');
+                
+                // Check if popup was blocked
+                if (newTab === null || typeof(newTab) === 'undefined') {
+                    // Popup blocked - provide fallback
+                    buttonText.textContent = 'Click to Join Meeting';
+                    button.onclick = function() {
+                        window.open(data.join_url, '_blank');
+                    };
+                    button.disabled = false;
+                    
+                    // Show popup blocked message
+                    errorMessage.innerHTML = 'Popup blocked! Please <strong>click the button above</strong> to open the meeting, or <a href="' + data.join_url + '" target="_blank">click here to join directly</a>.';
+                    errorMessage.style.display = 'block';
+                } else {
+                    // Successfully opened in new tab
+                    buttonText.textContent = 'Meeting opened in new tab!';
+                    
+                    // Show success message with manual link option
+                    successMessage.innerHTML = 'Meeting link opened in new tab! If it didn\'t open properly, <a href="' + data.join_url + '" target="_blank">click here to join directly</a>.';
+                    successMessage.style.display = 'block';
+                    
+                    // Reset button after 5 seconds
+                    setTimeout(() => {
+                        button.disabled = false;
+                        buttonText.textContent = 'Join Conference';
+                    }, 5000);
+                }
             }, 1500);
         } else {
-            // Show error message
-            errorMessage.textContent = data.error || 'Failed to join conference. Please try again.';
+            // Show error message with better formatting
+            let errorText = data.error || 'Failed to join conference. Please try again.';
+            
+            // Make the error message more prominent for configuration issues
+            if (errorText.includes('instant meeting') || errorText.includes('not have a meeting link') || errorText.includes('Invalid Teams meeting')) {
+                errorMessage.innerHTML = '<strong>⚠️ Configuration Issue:</strong><br>' + errorText;
+                errorMessage.style.padding = '12px';
+                errorMessage.style.borderLeft = '4px solid #dc2626';
+                errorMessage.style.backgroundColor = '#fee2e2';
+                errorMessage.style.borderRadius = '4px';
+            } else {
+                errorMessage.textContent = errorText;
+            }
             
             // Re-enable button
             button.disabled = false;

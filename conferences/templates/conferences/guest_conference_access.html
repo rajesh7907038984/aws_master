@@ -185,7 +185,7 @@
                     </div>
                 </div>
                 
-                <form method="post" action="{% url 'conferences:guest_join_conference' conference.id %}">
+                <form method="post" action="{% url 'conferences:guest_join_conference' conference.id %}" target="_blank">
                     {% csrf_token %}
                     <div class="guest-form">
                         <h5 class="mb-3">

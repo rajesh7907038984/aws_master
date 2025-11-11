@@ -152,18 +152,32 @@ class TeamsAPIClient:
                 'url': url,
                 'method': method,
                 'status_code': getattr(response, 'status_code', None),
-                'error': str(e)
+                'error': str(e),
+                'response_body': getattr(response, 'text', None) if hasattr(response, 'text') else None
             }
             
             # Special handling for common errors
             if hasattr(response, 'status_code'):
                 if response.status_code == 404:
-                    error_msg = (
-                        f"API request failed: 404 Not Found for endpoint {endpoint}. "
-                        "This usually indicates missing API permissions in Azure AD. "
-                        "Please ensure 'Calendars.ReadWrite' application permission is configured "
-                        "and admin consent is granted. See TEAMS_INTEGRATION_FIX.md for details."
-                    )
+                    # More specific error handling for 404s
+                    if '/users/' in endpoint and '/calendar' in endpoint:
+                        # Extract user email from endpoint
+                        user_email = endpoint.split('/users/')[1].split('/')[0]
+                        error_msg = (
+                            f"API request failed: 404 Not Found for endpoint {endpoint}. "
+                            f"The user '{user_email}' does not exist in Azure AD or doesn't have a mailbox. "
+                            "Possible solutions: "
+                            "(1) Verify the user exists in Azure AD and has an Exchange Online license, "
+                            "(2) Use a different user's email address, "
+                            "(3) Run 'python manage.py list_azure_ad_users' to see available users."
+                        )
+                    else:
+                        error_msg = (
+                            f"API request failed: 404 Not Found for endpoint {endpoint}. "
+                            "This usually indicates missing API permissions or the resource doesn't exist. "
+                            "Please ensure required application permissions are configured "
+                            "and admin consent is granted."
+                        )
                 elif response.status_code == 403:
                     error_msg = (
                         f"API request failed: 403 Forbidden for endpoint {endpoint}. "

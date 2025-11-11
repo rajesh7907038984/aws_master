@@ -1067,22 +1067,28 @@ class ConferenceParticipant(models.Model):
         if 'teams.microsoft.com' in base_meeting_url or 'teams.live.com' in base_meeting_url:
             logger.info(f"🎯 Processing Teams URL for learner join: {base_meeting_url}")
             
-            # Add Teams-specific parameters
-            query_params['anon'] = ['true']  # Enable anonymous join
-            query_params['lms_user_id'] = [str(self.user.id) if self.user else '']
-            query_params['lms_conference_id'] = [str(self.conference.id)]
-            query_params['lms_user_name'] = [self.display_name]
-            query_params['lms_user_email'] = [self.email_address if self.email_address else '']
+            # For Teams, return the original URL without modifications
+            # Teams doesn't support custom URL parameters and adding them may cause errors
+            # The display name will be handled by the Teams client when the user joins
             
-            # Add return URL for proper redirection
-            from django.urls import reverse
-            from django.conf import settings
-            base_url = getattr(settings, 'BASE_URL', 
-                               f"https://{getattr(settings, 'PRIMARY_DOMAIN', 'localhost')}")
-            return_url = f"{base_url}{reverse('conferences:conference_redirect_handler', args=[self.conference.id])}"
-            query_params['lms_return_url'] = [return_url]
+            # Update tracking data
+            self.tracking_data.update({
+                'tracking_url_generated': True,
+                'tracking_url_timestamp': timezone.now().isoformat(),
+                'original_url': base_meeting_url,
+                'platform_type': 'teams',
+                'user_info': {
+                    'display_name': self.display_name,
+                    'email': self.email_address,
+                    'user_id': str(self.user.id) if self.user else ''
+                },
+                'note': 'Returning clean Teams URL - display name handled by Teams client',
+                'platform': 'teams'
+            })
+            self.save(update_fields=['tracking_data'])
             
-            logger.info(f"✓ Added Teams user info: {self.display_name} ({self.email_address})")
+            logger.info(f"✓ Returning clean Teams URL for user: {self.display_name} ({self.email_address})")
+            return base_meeting_url
         else:
             # For other non-Zoom platforms, use standard parameters
             query_params['lms_participant_id'] = [self.participant_id]
@@ -1091,34 +1097,33 @@ class ConferenceParticipant(models.Model):
             if self.email_address:
                 query_params['email'] = [self.email_address]
         
-        # Rebuild URL with tracking parameters
-        new_query = urlencode(query_params, doseq=True)
-        tracking_url = urlunparse((
-            parsed_url.scheme,
-            parsed_url.netloc,
-            parsed_url.path,
-            parsed_url.params,
-            new_query,
-            parsed_url.fragment
-        ))
-        
-        # Update tracking data
-        platform_type = 'teams' if ('teams.microsoft.com' in base_meeting_url or 'teams.live.com' in base_meeting_url) else 'other'
-        self.tracking_data.update({
-            'tracking_url_generated': True,
-            'tracking_url_timestamp': timezone.now().isoformat(),
-            'original_url': base_meeting_url,
-            'enhanced_url': tracking_url,
-            'platform_type': platform_type,
-            'user_info_added': {
-                'display_name': self.display_name,
-                'email': self.email_address
-            },
-            'platform': 'non_zoom'
-        })
-        self.save(update_fields=['tracking_data'])
-        
-        return tracking_url
+            # Rebuild URL with tracking parameters
+            new_query = urlencode(query_params, doseq=True)
+            tracking_url = urlunparse((
+                parsed_url.scheme,
+                parsed_url.netloc,
+                parsed_url.path,
+                parsed_url.params,
+                new_query,
+                parsed_url.fragment
+            ))
+            
+            # Update tracking data
+            self.tracking_data.update({
+                'tracking_url_generated': True,
+                'tracking_url_timestamp': timezone.now().isoformat(),
+                'original_url': base_meeting_url,
+                'enhanced_url': tracking_url,
+                'platform_type': 'other',
+                'user_info_added': {
+                    'display_name': self.display_name,
+                    'email': self.email_address
+                },
+                'platform': 'non_zoom'
+            })
+            self.save(update_fields=['tracking_data'])
+            
+            return tracking_url
 
     def update_participation_status(self, new_status, additional_data=None):
         """Update participation status with optional additional data"""

@@ -2996,11 +2996,60 @@ def update_meeting_to_disable_registration(conference):
 @login_required
 def join_conference(request, conference_id):
     """
-    Redirect all join requests to auto-registered join method
-    All users now use auto-registered join method
+    Handle join requests for all users
+    - POST requests: Forward to auto-registered join method
+    - GET requests: Render auto-join page that triggers POST join
     """
-    logger.info(f"Redirecting join request to auto-registered join for conference {conference_id}")
-    return redirect('conferences:auto_register_and_join', conference_id=conference_id)
+    # Handle POST requests by forwarding to auto-register view
+    if request.method == 'POST':
+        logger.info(f"Forwarding POST join request to auto-registered join for conference {conference_id}")
+        return auto_register_and_join(request, conference_id)
+    
+    # Handle GET requests by rendering auto-join page
+    try:
+        conference = get_object_or_404(Conference, id=conference_id)
+    except:
+        messages.error(request, f'Conference with ID {conference_id} does not exist or has been deleted.')
+        return redirect('conferences:conference_list')
+    
+    # Check if user has access based on role
+    user = request.user
+    if user.role == 'learner':
+        if not conference.is_available_for_user(user):
+            messages.error(request, 'You do not have permission to access this conference.')
+            return redirect('conferences:conference_list')
+    elif user.role == 'instructor':
+        # Instructors can join conferences they created or from their courses
+        has_access = False
+        
+        # Check if instructor created this conference
+        if conference.created_by == user:
+            has_access = True
+        
+        # Check if conference is in instructor's course
+        if conference.course and hasattr(conference.course, 'instructor') and conference.course.instructor == user:
+            has_access = True
+        
+        # Check if instructor is part of any group that has this conference
+        if not has_access and hasattr(conference, 'groups'):
+            from groups.models import CourseGroup
+            user_groups = CourseGroup.objects.filter(instructor=user)
+            conference_groups = conference.groups.all()
+            if any(group in conference_groups for group in user_groups):
+                has_access = True
+        
+        if not has_access:
+            messages.error(request, 'You do not have permission to access this conference.')
+            return redirect('conferences:conference_list')
+    # Admin and superadmin roles have access to all conferences (no additional checks needed)
+    
+    # Render auto-join page that will trigger POST join
+    logger.info(f"Rendering auto-join page for user {user.username} to join conference {conference_id}")
+    context = {
+        'conference': conference,
+        'user': user,
+    }
+    return render(request, 'conferences/auto_join.html', context)
 
 
 
@@ -3203,6 +3252,7 @@ def conference_detail(request, conference_id):
             # Check if instructor has any course access (direct or group-based)
             has_access = False
             
+            # Check direct course relationship
             if conference.course:
                 # Check direct instructor assignment
                 if conference.course.instructor == user:
@@ -3214,6 +3264,27 @@ def conference_detail(request, conference_id):
                         memberships__user=user,
                         memberships__is_active=True,
                         memberships__custom_role__name__icontains='instructor'
+                    ).exists()
+            
+            # Also check topic-based course relationships
+            if not has_access:
+                from courses.models import Course, CourseTopic
+                # Get courses where instructor has access (direct assignment, enrollment, or group-based)
+                assigned_courses = Course.objects.filter(instructor=user).values_list('id', flat=True)
+                enrolled_courses = Course.objects.filter(enrolled_users=user).values_list('id', flat=True)
+                group_assigned_courses = Course.objects.filter(
+                    accessible_groups__memberships__user=user,
+                    accessible_groups__memberships__is_active=True,
+                    accessible_groups__memberships__custom_role__name__icontains='instructor'
+                ).values_list('id', flat=True)
+                
+                accessible_course_ids = set(assigned_courses) | set(enrolled_courses) | set(group_assigned_courses)
+                
+                # Check if conference is linked to any accessible course through topics
+                if accessible_course_ids:
+                    has_access = CourseTopic.objects.filter(
+                        topic__conference=conference,
+                        course__id__in=accessible_course_ids
                     ).exists()
             
             if not has_access:
@@ -4761,66 +4832,117 @@ def auto_register_and_join(request, conference_id):
     if conference.meeting_platform != 'zoom':
         # For Microsoft Teams, build URL with user information AND add user as attendee
         if conference.meeting_platform == 'teams':
+            # Validate that meeting_link exists and is not empty
+            if not conference.meeting_link or conference.meeting_link.strip() == '':
+                logger.error(f"Teams conference {conference.id} has no meeting link configured")
+                return JsonResponse({
+                    'success': False,
+                    'error': 'This Teams conference does not have a meeting link configured. Please contact the instructor.'
+                }, status=400)
+            
+            # Validate that it's a proper Teams URL
+            if not ('teams.microsoft.com' in conference.meeting_link or 'teams.live.com' in conference.meeting_link):
+                logger.error(f"Conference {conference.id} has invalid Teams meeting link: {conference.meeting_link}")
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Invalid Teams meeting link. Please contact the instructor.'
+                }, status=400)
+            
+            # Check for invalid "meet-now" links (instant meeting links that don't work for scheduled conferences)
+            if 'meet-now' in conference.meeting_link.lower() or '/v2/meet/' in conference.meeting_link:
+                logger.error(f"Conference {conference.id} has a 'meet-now' link instead of a proper scheduled meeting link: {conference.meeting_link}")
+                return JsonResponse({
+                    'success': False,
+                    'error': 'This conference has an invalid meeting link (instant meeting link). The instructor needs to create a proper scheduled Teams meeting. Please contact the instructor to fix this.'
+                }, status=400)
+            
             teams_join_url = build_direct_teams_url_for_registered_user(conference, user)
             
-            if teams_join_url:
-                # Try to add user as meeting attendee via Teams API
-                # This ensures they show up with their correct name if logged into Microsoft
-                try:
-                    from teams_integration.models import TeamsIntegration
-                    from teams_integration.utils.teams_api import TeamsAPIClient
-                    
-                    # Get Teams integration for the conference creator or branch
-                    teams_integration = None
-                    if hasattr(conference.created_by, 'teams_integrations'):
-                        teams_integration = conference.created_by.teams_integrations.filter(is_active=True).first()
-                    
-                    if not teams_integration and hasattr(conference.created_by, 'branch') and conference.created_by.branch:
-                        teams_integration = TeamsIntegration.objects.filter(
-                            user__branch=conference.created_by.branch,
-                            is_active=True
-                        ).exclude(user__role='superadmin').first()
-                    
-                    # If we have integration and meeting_id, add the user as attendee
-                    if teams_integration and conference.meeting_id:
-                        api_client = TeamsAPIClient(teams_integration)
-                        display_name = user.get_full_name() or user.username
-                        
-                        result = api_client.add_meeting_attendee(
-                            meeting_id=conference.meeting_id,
-                            attendee_email=user.email,
-                            attendee_name=display_name,
-                            organizer_email=conference.created_by.email if conference.created_by.email else None
-                        )
-                        
-                        if result.get('success'):
-                            logger.info(f"Added {display_name} as attendee to Teams meeting {conference.meeting_id}")
-                        else:
-                            logger.warning(f"Could not add attendee to Teams meeting: {result.get('error')}")
-                    
-                except Exception as e:
-                    # Don't fail the join process if attendee addition fails
-                    logger.warning(f"Error adding attendee to Teams meeting: {str(e)}")
-                
-                # Update participant status
-                participant.participation_status = 'redirected_to_platform'
-                participant.tracking_data.update({
-                    'teams_join': {
-                        'join_time': timezone.now().isoformat(),
-                        'display_name': user.get_full_name() or user.username,
-                        'email': user.email
-                    }
-                })
-                participant.save()
-                
+            if not teams_join_url:
+                logger.error(f"Failed to build Teams join URL for conference {conference.id}")
                 return JsonResponse({
-                    'success': True,
-                    'join_url': teams_join_url,
-                    'message': 'Joining Teams meeting with your name.',
-                    'platform': 'teams'
-                })
+                    'success': False,
+                    'error': 'Unable to generate meeting join link. Please contact the instructor.'
+                }, status=500)
+            
+            # Log the exact URL being used for debugging
+            logger.info(f"🔗 Teams join URL for {user.username}: {teams_join_url}")
+            logger.info(f"📋 Conference: {conference.title} (ID: {conference.id})")
+            logger.info(f"👤 User will join with name: {user.get_full_name() or user.username} ({user.email})")
+            
+            # Try to add user as meeting attendee via Teams API
+            # This ensures they show up with their correct name if logged into Microsoft
+            try:
+                from teams_integration.models import TeamsIntegration
+                from teams_integration.utils.teams_api import TeamsAPIClient
+                
+                # Get Teams integration for the conference creator or branch
+                teams_integration = None
+                if hasattr(conference.created_by, 'teams_integrations'):
+                    teams_integration = conference.created_by.teams_integrations.filter(is_active=True).first()
+                
+                if not teams_integration and hasattr(conference.created_by, 'branch') and conference.created_by.branch:
+                    teams_integration = TeamsIntegration.objects.filter(
+                        user__branch=conference.created_by.branch,
+                        is_active=True
+                    ).exclude(user__role='superadmin').first()
+                
+                # If we have integration and meeting_id, add the user as attendee
+                if teams_integration and conference.meeting_id:
+                    api_client = TeamsAPIClient(teams_integration)
+                    display_name = user.get_full_name() or user.username
+                    
+                    result = api_client.add_meeting_attendee(
+                        meeting_id=conference.meeting_id,
+                        attendee_email=user.email,
+                        attendee_name=display_name,
+                        organizer_email=conference.created_by.email if conference.created_by.email else None
+                    )
+                    
+                    if result.get('success'):
+                        logger.info(f"Added {display_name} as attendee to Teams meeting {conference.meeting_id}")
+                    else:
+                        logger.warning(f"Could not add attendee to Teams meeting: {result.get('error')}")
+                
+            except Exception as e:
+                # Don't fail the join process if attendee addition fails
+                logger.warning(f"Error adding attendee to Teams meeting: {str(e)}")
+            
+            # Update participant status
+            participant.participation_status = 'redirected_to_platform'
+            participant.tracking_data.update({
+                'teams_join': {
+                    'join_time': timezone.now().isoformat(),
+                    'display_name': user.get_full_name() or user.username,
+                    'email': user.email,
+                    'meeting_url': teams_join_url
+                }
+            })
+            participant.save()
+            
+            logger.info(f"✓ Redirecting user {user.username} to Teams meeting: {teams_join_url}")
+            
+            # Return success with helpful information
+            return JsonResponse({
+                'success': True,
+                'join_url': teams_join_url,
+                'message': 'Redirecting to Microsoft Teams. You may need to sign in with your Microsoft account.',
+                'platform': 'teams',
+                'user_info': {
+                    'display_name': user.get_full_name() or user.username,
+                    'email': user.email
+                },
+                'instructions': 'If prompted, sign in with your Microsoft account to join the meeting.'
+            })
         
-        # For other non-Zoom platforms, return the regular meeting link
+        # For other non-Zoom platforms, validate and return the meeting link
+        if not conference.meeting_link or conference.meeting_link.strip() == '':
+            logger.error(f"Conference {conference.id} ({conference.meeting_platform}) has no meeting link")
+            return JsonResponse({
+                'success': False,
+                'error': 'This conference does not have a meeting link configured. Please contact the instructor.'
+            }, status=400)
+        
         return JsonResponse({
             'success': True,
             'join_url': conference.meeting_link,
@@ -5085,7 +5207,7 @@ def build_direct_zoom_url_for_registered_user(conference, user, registration_res
 def build_direct_teams_url_for_registered_user(conference, user):
     """
     Build a direct Microsoft Teams join URL for registered users
-    Adds user display name and email to the Teams meeting URL
+    Returns the clean Teams meeting URL without extra parameters that may interfere
     """
     from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
     from django.conf import settings
@@ -5099,47 +5221,21 @@ def build_direct_teams_url_for_registered_user(conference, user):
     
     # Parse the existing Teams URL
     parsed_url = urlparse(base_url)
+    
+    # For Teams URLs, preserve existing query parameters and only add minimal tracking
+    # Teams doesn't support custom parameters for anonymous join display names in the URL
+    # The display name is handled by the Teams client/browser when the user joins
     query_params = parse_qs(parsed_url.query)
     
-    # Add user display name - Teams uses 'anon' parameter for anonymous users
-    # When joining anonymously, the user can specify their display name
     display_name = user.get_full_name() or user.username
     
-    # Add/update the display name parameter for Teams
-    # Teams supports 'anon' query parameter for anonymous join with display name
-    query_params['anon'] = ['true']  # Enable anonymous join
+    # Log the join attempt for tracking
+    logger.info(f"Building Teams join URL for user {user.username} ({display_name}) - Conference: {conference.title}")
     
-    # Add user's display name - this will be shown in Teams
-    # Note: Teams may still show "Unknown" if the user is not authenticated with Microsoft account
-    # but we'll pass the info from LMS
-    
-    # Add LMS tracking parameters
-    query_params['lms_user_id'] = [str(user.id)]
-    query_params['lms_conference_id'] = [str(conference.id)]
-    query_params['lms_user_name'] = [display_name]
-    query_params['lms_user_email'] = [user.email if user.email else '']
-    
-    # Add return URL for proper redirection after meeting
-    from django.urls import reverse
-    base_url_setting = getattr(settings, 'BASE_URL', 
-                               f"https://{getattr(settings, 'PRIMARY_DOMAIN', 'localhost')}")
-    return_url = f"{base_url_setting}{reverse('conferences:conference_redirect_handler', args=[conference.id])}"
-    query_params['lms_return_url'] = [return_url]
-    
-    # Rebuild the URL with all parameters
-    new_query = urlencode(query_params, doseq=True)
-    teams_join_url = urlunparse((
-        parsed_url.scheme,
-        parsed_url.netloc,
-        parsed_url.path,
-        parsed_url.params,
-        new_query,
-        parsed_url.fragment
-    ))
-    
-    logger.info(f"Generated Teams join URL with user info for {user.username}: {display_name}")
-    
-    return teams_join_url
+    # Return the original Teams URL without modifications
+    # Adding custom parameters may cause Teams to fail or show errors
+    # Teams handles authentication and display names through its own mechanisms
+    return base_url
 
 @login_required
 def upload_conference_file(request, conference_id):
@@ -5379,25 +5475,27 @@ def return_from_meeting(request, conference_id):
     """
     conference = get_object_or_404(Conference, id=conference_id)
     
-    # Update participant status to indicate they've returned
-    try:
-        participant = ConferenceParticipant.objects.filter(
-            conference=conference,
-            user=request.user
-        ).first()
+    # Skip Zoom return handling for term-based (time slot) conferences
+    if not conference.use_time_slots:
+        # Update participant status to indicate they've returned
+        try:
+            participant = ConferenceParticipant.objects.filter(
+                conference=conference,
+                user=request.user
+            ).first()
+            
+            if participant:
+                # Update the leave timestamp if it's not already set
+                if not participant.leave_timestamp:
+                    participant.leave_timestamp = timezone.now()
+                    participant.participation_status = 'left_meeting'
+                    participant.save(update_fields=['leave_timestamp', 'participation_status'])
+                    logger.info(f"Updated participant {request.user.username} return status for conference {conference.id}")
+        except Exception as e:
+            logger.error(f"Error updating participant return status: {str(e)}")
         
-        if participant:
-            # Update the leave timestamp if it's not already set
-            if not participant.leave_timestamp:
-                participant.leave_timestamp = timezone.now()
-                participant.participation_status = 'left_meeting'
-                participant.save(update_fields=['leave_timestamp', 'participation_status'])
-                logger.info(f"Updated participant {request.user.username} return status for conference {conference.id}")
-    except Exception as e:
-        logger.error(f"Error updating participant return status: {str(e)}")
-    
-    # Add a welcome back message
-    messages.success(request, f'Welcome back! You have returned from the "{conference.title}" meeting.')
+        # Add a welcome back message
+        messages.success(request, f'Welcome back! You have returned from the "{conference.title}" meeting.')
     
     # Redirect to conference detail page
     return redirect('conferences:conference_detail', conference_id=conference.id)

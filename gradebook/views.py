@@ -2168,6 +2168,8 @@ def conference_grade_sidebar(request, conference_id, student_id):
         if hasattr(conference, 'created_by') and conference.created_by != user:
             # Check if the instructor is assigned to the course containing this conference or has group access
             has_conference_access = False
+            
+            # Check direct course relationship
             if hasattr(conference, 'course') and conference.course:
                 has_conference_access = (
                     conference.course.instructor == user or
@@ -2178,6 +2180,28 @@ def conference_grade_sidebar(request, conference_id, student_id):
                         memberships__custom_role__name__icontains='instructor'
                     ).exists()
                 )
+            
+            # Also check topic-based course relationships
+            if not has_conference_access:
+                from courses.models import Course, CourseTopic
+                # Get courses where instructor has access (direct assignment, enrollment, or group-based)
+                assigned_courses = Course.objects.filter(instructor=user).values_list('id', flat=True)
+                enrolled_courses = Course.objects.filter(enrolled_users=user).values_list('id', flat=True)
+                group_assigned_courses = Course.objects.filter(
+                    accessible_groups__memberships__user=user,
+                    accessible_groups__memberships__is_active=True,
+                    accessible_groups__memberships__custom_role__name__icontains='instructor'
+                ).values_list('id', flat=True)
+                
+                accessible_course_ids = set(assigned_courses) | set(enrolled_courses) | set(group_assigned_courses)
+                
+                # Check if conference is linked to any accessible course through topics
+                if accessible_course_ids:
+                    has_conference_access = CourseTopic.objects.filter(
+                        topic__conference=conference,
+                        course__id__in=accessible_course_ids
+                    ).exists()
+            
             if not has_conference_access:
                 return HttpResponse('Unauthorized - Conference access denied', status=403)
     

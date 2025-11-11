@@ -690,7 +690,8 @@
                      {% elif activity.type == 'conference' %}
                        <a href="{% url 'conferences:join_conference' activity.object.id %}" 
                           class="action-btn" 
-                          title="Join conference">
+                          title="Join conference"
+                          target="_blank">
                          <i class="fas fa-video mr-1"></i>Join
                        </a>
                      {% elif activity.type == 'scorm' %}

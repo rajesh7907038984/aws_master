@@ -1,0 +1,246 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Joining {{ conference.title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .auto-join-container {
+        min-height: 60vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+    
+    .join-card {
+        background: white;
+        border-radius: 1rem;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        padding: 3rem;
+        max-width: 500px;
+        width: 90%;
+        text-align: center;
+    }
+    
+    .join-icon {
+        width: 80px;
+        height: 80px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 1.5rem;
+        animation: pulse 2s ease-in-out infinite;
+    }
+    
+    .join-icon svg {
+        width: 40px;
+        height: 40px;
+        color: white;
+    }
+    
+    @keyframes pulse {
+        0%, 100% {
+            transform: scale(1);
+            box-shadow: 0 0 0 0 rgba(102, 126, 234, 0.7);
+        }
+        50% {
+            transform: scale(1.05);
+            box-shadow: 0 0 0 20px rgba(102, 126, 234, 0);
+        }
+    }
+    
+    .spinner {
+        border: 3px solid #f3f3f3;
+        border-top: 3px solid #667eea;
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        animation: spin 1s linear infinite;
+        margin: 1rem auto;
+    }
+    
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+    
+    .conference-title {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #1a202c;
+        margin-bottom: 0.5rem;
+    }
+    
+    .conference-info {
+        color: #718096;
+        font-size: 0.95rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .status-message {
+        color: #4a5568;
+        font-size: 1rem;
+        margin-top: 1rem;
+    }
+    
+    .error-message {
+        background: #fff5f5;
+        border: 1px solid #fc8181;
+        color: #c53030;
+        padding: 1rem;
+        border-radius: 0.5rem;
+        margin-top: 1rem;
+        display: none;
+    }
+    
+    .manual-join-link {
+        margin-top: 1.5rem;
+        padding-top: 1.5rem;
+        border-top: 1px solid #e2e8f0;
+    }
+    
+    .manual-join-link a {
+        color: #667eea;
+        text-decoration: none;
+        font-weight: 600;
+    }
+    
+    .manual-join-link a:hover {
+        text-decoration: underline;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="auto-join-container">
+    <div class="join-card">
+        <div class="join-icon">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                      d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+            </svg>
+        </div>
+        
+        <h1 class="conference-title">{{ conference.title }}</h1>
+        
+        <div class="conference-info">
+            {% if conference.date %}
+            <div>{{ conference.date|date:"F d, Y" }}</div>
+            {% endif %}
+            {% if conference.start_time %}
+            <div>{{ conference.start_time|time:"g:i A" }}</div>
+            {% endif %}
+        </div>
+        
+        <div class="spinner"></div>
+        
+        <div class="status-message" id="statusMessage">
+            Preparing to join conference...
+        </div>
+        
+        <div class="error-message" id="errorMessage"></div>
+        
+        <div class="manual-join-link">
+            <a href="{% url 'conferences:conference_detail' conference.id %}">
+                ← Back to Conference Details
+            </a>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Get CSRF token
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    const statusMessage = document.getElementById('statusMessage');
+    const errorMessage = document.getElementById('errorMessage');
+    
+    // Auto-trigger join when page loads
+    window.addEventListener('DOMContentLoaded', function() {
+        setTimeout(joinConference, 500);  // Small delay for better UX
+    });
+    
+    function joinConference() {
+        statusMessage.textContent = 'Registering you for the conference...';
+        
+        // Make POST request to join conference
+        fetch("{% url 'conferences:auto_register_and_join' conference_id=conference.id %}", {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrfToken,
+                'Content-Type': 'application/json',
+            },
+            credentials: 'same-origin'
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                statusMessage.textContent = 'Opening meeting...';
+                
+                // Store meeting join info for return detection
+                localStorage.setItem('lms_meeting_join_{{ conference.id }}', JSON.stringify({
+                    joined_at: new Date().toISOString(),
+                    conference_id: {{ conference.id }},
+                    conference_title: "{{ conference.title|escapejs }}",
+                    return_url: "{% url 'conferences:return_from_meeting' conference_id=conference.id %}",
+                    {% if user.role == 'learner' %}
+                    dashboard_url: "{% url 'dashboard_learner' %}",
+                    {% elif user.role == 'instructor' %}
+                    dashboard_url: "{% url 'dashboard_instructor' %}",
+                    {% elif user.role == 'admin' %}
+                    dashboard_url: "{% url 'dashboard_admin' %}",
+                    {% endif %}
+                    conference_detail_url: "{% url 'conferences:conference_detail' conference_id=conference.id %}"
+                }));
+                
+                // Open meeting in new tab/window
+                setTimeout(() => {
+                    const meetingWindow = window.open(data.join_url, '_blank');
+                    
+                    if (meetingWindow === null || typeof(meetingWindow) === 'undefined') {
+                        // Popup blocked - show manual link
+                        statusMessage.textContent = 'Popup blocked!';
+                        errorMessage.innerHTML = '<strong>Popup blocked by your browser.</strong><br>' +
+                            'Please <a href="' + data.join_url + '" target="_blank" style="color: #667eea; text-decoration: underline;">click here to join the meeting</a> or allow popups for this site.';
+                        errorMessage.style.display = 'block';
+                    } else {
+                        // Successfully opened - redirect to conference detail or dashboard
+                        statusMessage.textContent = 'Meeting opened successfully!';
+                        statusMessage.style.color = '#38a169';
+                        
+                        // Redirect after a short delay
+                        setTimeout(() => {
+                            {% if user.role == 'learner' %}
+                            window.location.href = "{% url 'conferences:conference_detail' conference.id %}";
+                            {% else %}
+                            window.location.href = "{% url 'conferences:conference_detail' conference.id %}";
+                            {% endif %}
+                        }, 2000);
+                    }
+                }, 500);
+            } else {
+                // Show error message
+                statusMessage.textContent = 'Failed to join conference';
+                statusMessage.style.color = '#e53e3e';
+                errorMessage.textContent = data.error || 'An error occurred while trying to join the conference.';
+                errorMessage.style.display = 'block';
+            }
+        })
+        .catch(error => {
+            console.error('Error joining conference:', error);
+            statusMessage.textContent = 'Failed to join conference';
+            statusMessage.style.color = '#e53e3e';
+            errorMessage.textContent = 'An error occurred: ' + error.message;
+            errorMessage.style.display = 'block';
+        });
+    }
+</script>
+{% endblock %}
+
