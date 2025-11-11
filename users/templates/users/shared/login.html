@@ -1234,10 +1234,19 @@
             const termsContainer = document.getElementById('terms-container');
             
             if (termsCheckbox && termsContainer) {
+                // Auto-check terms if previously accepted (stored in localStorage)
+                const termsAccepted = localStorage.getItem('lms_terms_accepted');
+                if (termsAccepted === 'true') {
+                    termsCheckbox.checked = true;
+                    termsContainer.classList.remove('checkbox-error');
+                }
+                
                 // Remove error state when checkbox is checked
                 termsCheckbox.addEventListener('change', function() {
                     if (this.checked) {
                         termsContainer.classList.remove('checkbox-error');
+                        // Store acceptance in localStorage for future logins
+                        localStorage.setItem('lms_terms_accepted', 'true');
                     }
                 });
                 

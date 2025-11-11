@@ -23,7 +23,8 @@
     <script src="{% static 'core/js/optimized-script-loader.js' %}" defer></script>
     
     <!-- CSRF Token (Critical for security) -->
-    <meta name="csrf-token" content="{% csrf_token %}">
+    {% csrf_token %}
+    <meta name="csrf-token" content="{{ csrf_token }}">
     
     <!-- Essential CSS (combine and minify in production) -->
     <!-- Critical CSS not found in repository - commented out -->

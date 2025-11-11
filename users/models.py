@@ -218,6 +218,13 @@ class CustomUser(AbstractUser):
         help_text="When the user's timezone was first auto-detected"
     )
     
+    # Terms and Privacy Policy acceptance tracking
+    terms_accepted_date = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Date and time when the user accepted Terms of Service and Privacy Policy"
+    )
+    
     # Profile image
     profile_image = models.ImageField(
         upload_to='profile_images/',

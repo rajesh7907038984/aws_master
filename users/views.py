@@ -452,17 +452,6 @@ def custom_login(request):
             }
             return render(request, "users/shared/login.html", context)
         
-        # Terms acceptance validation
-        terms_acceptance = request.POST.get("terms_acceptance")
-        if not terms_acceptance:
-            messages.error(request, "You must agree to the Terms of Service and Privacy Policy to log in.")
-            context = {
-                'form': None,
-                'next': request.GET.get('next', ''),
-                'security_status': security_status,
-            }
-            return render(request, "users/shared/login.html", context)
-        
         # Sanitize username input
         import re
         if not re.match(r'^[a-zA-Z0-9@._-]+$', username):
@@ -481,6 +470,19 @@ def custom_login(request):
         user = authenticate(request, username=username, password=password)
 
         if user is not None:
+            # Terms acceptance validation - only check for first-time logins
+            # For returning users, terms are remembered in browser localStorage
+            terms_acceptance = request.POST.get("terms_acceptance")
+            if not terms_acceptance and user.last_login is None:
+                # First time login - require terms acceptance
+                messages.error(request, "You must agree to the Terms of Service and Privacy Policy to log in.")
+                context = {
+                    'form': None,
+                    'next': request.GET.get('next', ''),
+                    'security_status': security_status,
+                }
+                return render(request, "users/shared/login.html", context)
+            
             # Check if user account is active
             if not user.is_active:
                 Session_logger.warning(f"Login attempt for inactive user: {username} from IP: {ip_address}")
@@ -1632,17 +1634,6 @@ def custom_login(request):
             }
             return render(request, "users/shared/login.html", context)
         
-        # Terms acceptance validation
-        terms_acceptance = request.POST.get("terms_acceptance")
-        if not terms_acceptance:
-            messages.error(request, "You must agree to the Terms of Service and Privacy Policy to log in.")
-            context = {
-                'form': None,
-                'next': request.GET.get('next', ''),
-                'security_status': security_status,
-            }
-            return render(request, "users/shared/login.html", context)
-        
         # Sanitize username input
         import re
         if not re.match(r'^[a-zA-Z0-9@._-]+$', username):
@@ -1661,6 +1652,19 @@ def custom_login(request):
         user = authenticate(request, username=username, password=password)
 
         if user is not None:
+            # Terms acceptance validation - only check for first-time logins
+            # For returning users, terms are remembered in browser localStorage
+            terms_acceptance = request.POST.get("terms_acceptance")
+            if not terms_acceptance and user.last_login is None:
+                # First time login - require terms acceptance
+                messages.error(request, "You must agree to the Terms of Service and Privacy Policy to log in.")
+                context = {
+                    'form': None,
+                    'next': request.GET.get('next', ''),
+                    'security_status': security_status,
+                }
+                return render(request, "users/shared/login.html", context)
+            
             # Check if user account is active
             if not user.is_active:
                 Session_logger.warning(f"Login attempt for inactive user: {username} from IP: {ip_address}")
