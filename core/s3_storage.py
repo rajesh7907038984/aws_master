@@ -55,9 +55,10 @@ class MediaS3Storage(S3Boto3Storage):
                 if url.startswith('http://'):
                     url = url.replace('http://', 'https://', 1)
                 
-                # Add query parameters for better caching and streaming
-                separator = '&' if '?' in url else '?'
-                url += f"{separator}response-content-type=video%2Fmp4&response-cache-control=max-age%3D3600"
+                # DON'T add response-content-type parameter as it:
+                # 1. Conflicts with presigned URLs
+                # 2. Forces incorrect content type for non-MP4 videos
+                # 3. The browser determines the type from the <source type="..."> attribute
             
             return url
             

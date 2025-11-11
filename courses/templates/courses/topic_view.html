@@ -536,15 +536,37 @@
                     </div>
                 {% elif topic.content_type == 'Video' and topic.content_file %}
                     <div class="aspect-w-16 aspect-h-9 mb-4 video-content" data-content-type="Video">
-                        <video id="topic-video" class="w-full h-full rounded-lg" controls>
-                            <source src="{{ topic.content_file.url }}">
+                        <video id="topic-video" class="w-full h-full rounded-lg" controls preload="metadata">
+                            {% with file_name=topic.content_file.name|lower %}
+                                {% if '.webm' in file_name %}
+                                    <source src="{{ topic.content_file.url }}" type="video/webm">
+                                {% elif '.ogg' in file_name or '.ogv' in file_name %}
+                                    <source src="{{ topic.content_file.url }}" type="video/ogg">
+                                {% elif '.mov' in file_name %}
+                                    <source src="{{ topic.content_file.url }}" type="video/quicktime">
+                                {% else %}
+                                    <source src="{{ topic.content_file.url }}" type="video/mp4">
+                                {% endif %}
+                            {% endwith %}
                             Your browser does not support the video tag.
                         </video>
                     </div>
                 {% elif topic.content_type == 'Audio' and topic.content_file %}
                     <div class="mb-4 audio-content" data-content-type="Audio">
-                        <audio id="topic-audio" class="w-full" controls>
-                            <source src="{{ topic.content_file.url }}">
+                        <audio id="topic-audio" class="w-full" controls preload="metadata">
+                            {% with file_name=topic.content_file.name|lower %}
+                                {% if '.mp3' in file_name %}
+                                    <source src="{{ topic.content_file.url }}" type="audio/mpeg">
+                                {% elif '.ogg' in file_name or '.oga' in file_name %}
+                                    <source src="{{ topic.content_file.url }}" type="audio/ogg">
+                                {% elif '.wav' in file_name %}
+                                    <source src="{{ topic.content_file.url }}" type="audio/wav">
+                                {% elif '.m4a' in file_name %}
+                                    <source src="{{ topic.content_file.url }}" type="audio/mp4">
+                                {% else %}
+                                    <source src="{{ topic.content_file.url }}" type="audio/mpeg">
+                                {% endif %}
+                            {% endwith %}
                             Your browser does not support the audio tag.
                         </audio>
                     </div>
@@ -1495,6 +1517,43 @@
             videoElement.addEventListener('seeked', function() {
                 sendVideoProgress(videoElement.currentTime, videoElement.duration);
             });
+            
+            // Handle video loading errors
+            videoElement.addEventListener('error', function(e) {
+                const error = videoElement.error;
+                let errorMessage = 'Unknown video error';
+                
+                if (error) {
+                    switch(error.code) {
+                        case error.MEDIA_ERR_ABORTED:
+                            errorMessage = 'Video playback was aborted';
+                            break;
+                        case error.MEDIA_ERR_NETWORK:
+                            errorMessage = 'Network error occurred while loading video';
+                            break;
+                        case error.MEDIA_ERR_DECODE:
+                            errorMessage = 'Video format not supported or corrupted';
+                            break;
+                        case error.MEDIA_ERR_SRC_NOT_SUPPORTED:
+                            errorMessage = 'Video source not supported or file not found';
+                            break;
+                    }
+                }
+                
+                console.error('Video error:', errorMessage, error);
+                
+                // Show user-friendly error message
+                const videoContainer = videoElement.closest('.video-content');
+                if (videoContainer) {
+                    const errorDiv = document.createElement('div');
+                    errorDiv.className = 'bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mt-4';
+                    errorDiv.innerHTML = `
+                        <strong>Video Error:</strong> ${errorMessage}<br>
+                        <span class="text-sm">Please try refreshing the page or contact support if the issue persists.</span>
+                    `;
+                    videoContainer.appendChild(errorDiv);
+                }
+            });
         }
         
         const audioElement = document.getElementById('topic-audio');
@@ -1581,6 +1640,43 @@
             // Handle seeking (user jumps to different position)
             audioElement.addEventListener('seeked', function() {
                 sendAudioProgress(audioElement.currentTime, audioElement.duration);
+            });
+            
+            // Handle audio loading errors
+            audioElement.addEventListener('error', function(e) {
+                const error = audioElement.error;
+                let errorMessage = 'Unknown audio error';
+                
+                if (error) {
+                    switch(error.code) {
+                        case error.MEDIA_ERR_ABORTED:
+                            errorMessage = 'Audio playback was aborted';
+                            break;
+                        case error.MEDIA_ERR_NETWORK:
+                            errorMessage = 'Network error occurred while loading audio';
+                            break;
+                        case error.MEDIA_ERR_DECODE:
+                            errorMessage = 'Audio format not supported or corrupted';
+                            break;
+                        case error.MEDIA_ERR_SRC_NOT_SUPPORTED:
+                            errorMessage = 'Audio source not supported or file not found';
+                            break;
+                    }
+                }
+                
+                console.error('Audio error:', errorMessage, error);
+                
+                // Show user-friendly error message
+                const audioContainer = audioElement.closest('.audio-content');
+                if (audioContainer) {
+                    const errorDiv = document.createElement('div');
+                    errorDiv.className = 'bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mt-4';
+                    errorDiv.innerHTML = `
+                        <strong>Audio Error:</strong> ${errorMessage}<br>
+                        <span class="text-sm">Please try refreshing the page or contact support if the issue persists.</span>
+                    `;
+                    audioContainer.appendChild(errorDiv);
+                }
             });
         }
         
