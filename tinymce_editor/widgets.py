@@ -54,6 +54,8 @@ class TinyMCEWidget(forms.Textarea):
                       'bold italic forecolor | alignleft aligncenter ' +
                       'alignright alignjustify | bullist numlist outdent indent | ' +
                       'removeformat | image media | code fullscreen | aiwriter',
+            'toolbar_sticky': True,
+            'toolbar_sticky_offset': 0,
             'content_style': 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px }',
             'image_advtab': True,
             'image_uploadtab': True,
@@ -123,6 +125,8 @@ class TinyMCEAdvancedWidget(TinyMCEWidget):
                       'searchreplace | ' +
                       'fullscreen preview | aiwriter',
             'toolbar_mode': 'sliding',
+            'toolbar_sticky': True,
+            'toolbar_sticky_offset': 0,
             'content_style': 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px }',
             'quickbars_selection_toolbar': 'bold italic | quicklink h2 h3 blockquote quickimage quicktable',
             'quickbars_insert_toolbar': 'quickimage quicktable',
