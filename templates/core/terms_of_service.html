@@ -157,7 +157,11 @@
     <div class="page-container">
         <div class="legal-card">
             <div class="logo-header">
+                {% if branch_logo %}
+                <img src="{{ branch_logo }}" alt="{{ branch_logo_alt }}" class="logo">
+                {% else %}
                 <img src="{% static 'core/img/logo-light.png' %}" alt="Nexsy LMS Logo" class="logo">
+                {% endif %}
                 <h1 class="page-title">Terms of Service</h1>
                 <p class="last-updated">Last updated: {% now "F d, Y" %}</p>
             </div>

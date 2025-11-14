@@ -519,6 +519,27 @@ def global_context(request):
             'rate_max_count': 0
         })
         context['security_status'] = security_status
+        
+        # Add branch portal logo logic
+        # Check if user has a branch and if that branch has a portal with a logo
+        branch_logo = None
+        branch_logo_alt = "Nexsy LMS"
+        
+        try:
+            if hasattr(request.user, 'branch') and request.user.branch:
+                # Try to get the branch portal
+                if hasattr(request.user.branch, 'portal'):
+                    portal = request.user.branch.portal
+                    if portal and portal.logo:
+                        branch_logo = portal.logo.url
+                        branch_logo_alt = portal.business_name or request.user.branch.name
+        except Exception as e:
+            # Silently fail if there's any issue accessing the branch portal
+            logger.error(f"Error accessing branch portal logo for user {request.user.id}: {str(e)}")
+        
+        context['branch_logo'] = branch_logo
+        context['branch_logo_alt'] = branch_logo_alt
+        
     else:
         # Default security status for anonymous users
         context['security_status'] = {
@@ -535,6 +556,10 @@ def global_context(request):
             'rate_current_count': 0,
             'rate_max_count': 0
         }
+        
+        # Default logo for anonymous users
+        context['branch_logo'] = None
+        context['branch_logo_alt'] = "Nexsy LMS"
     
     return context
 

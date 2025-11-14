@@ -5,7 +5,11 @@
         <!-- Left Section: Logo and Sidebar Toggle -->
         <div class="flex items-center gap-1 sm:gap-2 md:gap-4 flex-shrink-0">
             <a href="{% url 'users:role_based_redirect' %}" class="flex items-center transition-transform hover:scale-105 flex-shrink-0">
-                <img src="{% static 'core/img/logo-light.png' %}" alt="Nexsy LMS" class="h-10 w-auto">
+                {% if branch_logo %}
+                <img src="{{ branch_logo }}" alt="{{ branch_logo_alt }}" class="h-10 w-auto">
+                {% else %}
+                <img src="{% static 'core/img/logo-light.png' %}" alt="{{ branch_logo_alt }}" class="h-10 w-auto">
+                {% endif %}
             </a>
             
             <!-- Sidebar Toggle Button (works for both mobile and desktop) -->
@@ -235,7 +239,11 @@
     <div class="absolute top-0 left-0 w-64 h-full bg-[#1C2260] shadow-lg transform transition-all duration-300 ease-in-out">
         <div class="flex items-center justify-between p-4 border-b border-gray-200" style="background-color: #191f56;">
             <a href="{% url 'users:role_based_redirect' %}" class="flex items-center">
-                <img src="{% static 'img/logo-dark.png' %}" alt="Nexsy LMS" style="height: 2.5rem; display: block !important; visibility: visible !important; opacity: 1 !important;">
+                {% if branch_logo %}
+                <img src="{{ branch_logo }}" alt="{{ branch_logo_alt }}" style="height: 2.5rem; display: block !important; visibility: visible !important; opacity: 1 !important;">
+                {% else %}
+                <img src="{% static 'img/logo-dark.png' %}" alt="{{ branch_logo_alt }}" style="height: 2.5rem; display: block !important; visibility: visible !important; opacity: 1 !important;">
+                {% endif %}
             </a>
             <button id="close-mobile-menu" 
                     class="flex items-center justify-center w-9 h-9 rounded-lg hover:bg-red-500 text-white transition-all" 

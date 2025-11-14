@@ -2173,13 +2173,6 @@
 
             <!-- Action Buttons -->
             <div class="flex justify-end space-x-4">
-                {% if course_id %}
-                <a href="{% url 'courses:course_edit' course_id %}" 
-                   class="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
-                    Cancel
-                </a>
-                {% endif %}
-                
                 <!-- View Topic Button (only show when editing) -->
                 {% if action == 'Edit' and topic.id %}
                 <a href="{% url 'courses:topic_view' topic.id %}" 
