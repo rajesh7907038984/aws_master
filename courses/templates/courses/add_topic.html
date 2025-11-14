@@ -41,42 +41,63 @@
         display: none !important;
     }
     
-    /* Force text content editor height - inline override */
+    /* Force text content editor height - comprehensive fix */
     #text-content .tox.tox-tinymce {
-        min-height: 450px !important;
-        height: 450px !important;
-        border: 2px solid #3b82f6 !important; /* Debug border */
+        min-height: 500px !important;
+        height: 500px !important;
+        display: block !important;
+    }
+    
+    #text-content .tox-editor-container {
+        display: flex !important;
+        flex-direction: column !important;
+        min-height: 500px !important;
+        height: 500px !important;
+    }
+    
+    #text-content .tox-edit-area {
+        min-height: 420px !important;
+        height: 420px !important;
+        flex: 1 !important;
     }
     
     #text-content .tox-edit-area__iframe {
-        min-height: 400px !important;
-        height: 400px !important;
-        border: 1px solid #10b981 !important; /* Debug border */
+        min-height: 420px !important;
+        height: 420px !important;
     }
     
     #text_content.tinymce-editor {
-        min-height: 450px !important;
-        height: 450px !important;
-        border: 1px solid #f59e0b !important; /* Debug border */
+        min-height: 500px !important;
+        height: 500px !important;
     }
     
-    /* Ensure TinyMCE container has proper dimensions */
+    /* Ensure TinyMCE container has proper dimensions when active */
     #text-content.active .tox.tox-tinymce {
-        min-height: 450px !important;
-        height: 450px !important;
+        min-height: 500px !important;
+        height: 500px !important;
         display: block !important;
         visibility: visible !important;
         opacity: 1 !important;
     }
     
+    #text-content.active .tox-editor-container {
+        display: flex !important;
+        flex-direction: column !important;
+        min-height: 500px !important;
+        height: 500px !important;
+    }
+    
     #text-content.active .tox-edit-area {
-        min-height: 400px !important;
-        height: 400px !important;
+        min-height: 420px !important;
+        height: 420px !important;
+        flex: 1 !important;
+        display: block !important;
     }
     
     #text-content.active .tox-edit-area__iframe {
-        min-height: 400px !important;
-        height: 400px !important;
+        min-height: 420px !important;
+        height: 420px !important;
+        display: block !important;
     }
 </style>
 
@@ -1174,12 +1195,13 @@
         opacity: 1 !important;
     }
     
-    /* Ensure TinyMCE editor is visible in text content field */
+    /* Ensure TinyMCE editor is visible in text content field - consolidated rules */
     #text-content.active .tox.tox-tinymce {
         display: block !important;
         visibility: visible !important;
         opacity: 1 !important;
-        min-height: 450px !important;
+        min-height: 500px !important;
+        height: 500px !important;
     }
     
     /* Ensure TinyMCE iframe is visible */
@@ -1187,28 +1209,35 @@
         display: block !important;
         visibility: visible !important;
         opacity: 1 !important;
-        min-height: 400px !important;
+        min-height: 420px !important;
+        height: 420px !important;
     }
     
-    /* Additional fixes for TinyMCE visibility when text content is selected */
-    #text-content.active .tox-tinymce {
-        display: block !important;
+    /* Additional fixes for TinyMCE editor container */
+    #text-content.active .tox-editor-container {
+        display: flex !important;
+        flex-direction: column !important;
         visibility: visible !important;
         opacity: 1 !important;
-        min-height: 450px !important;
+        min-height: 500px !important;
+        height: 500px !important;
     }
     
     #text-content.active .tox-edit-area {
         display: block !important;
         visibility: visible !important;
         opacity: 1 !important;
+        min-height: 420px !important;
+        height: 420px !important;
+        flex: 1 !important;
     }
     
     #text-content.active .tox-edit-area__iframe {
         display: block !important;
         visibility: visible !important;
         opacity: 1 !important;
-        min-height: 300px !important;
+        min-height: 420px !important;
+        height: 420px !important;
     }
     
     /* Ensure Quill toolbar is visible */
@@ -1468,6 +1497,20 @@
     .tox-tinymce .tox-editor-container {
         display: flex !important;
         flex-direction: column !important;
+        min-height: 500px !important;
+    }
+    
+    /* Global TinyMCE minimum height enforcement */
+    .tox.tox-tinymce {
+        min-height: 500px !important;
+    }
+    
+    .tox .tox-edit-area {
+        min-height: 420px !important;
+    }
+    
+    .tox .tox-edit-area__iframe {
+        min-height: 420px !important;
     }
 </style>
 {% endblock %}
@@ -2132,11 +2175,6 @@
             <div class="flex justify-end space-x-4">
                 {% if course_id %}
                 <a href="{% url 'courses:course_edit' course_id %}" 
-                   class="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
-                    Cancel
-                </a>
-                {% else %}
-                <a href="{% url 'courses:course_list' %}" 
                    class="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
                     Cancel
                 </a>
@@ -3518,8 +3556,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 menubar: 'edit view insert format table',
                 statusbar: true,
                 resize: true,
-                height: 450,
-                min_height: 450,
+                height: 500,
+                min_height: 500,
                 license_key: 'gpl',
                 toolbar_sticky: true,
                 toolbar_sticky_offset: 0,
@@ -3530,12 +3568,28 @@ document.addEventListener('DOMContentLoaded', function() {
                         setTimeout(function() {
                             const container = editor.getContainer();
                             if (container) {
-                                container.style.minHeight = '450px';
-                                container.style.height = '450px';
+                                container.style.minHeight = '500px';
+                                container.style.height = '500px';
+                                
+                                const editorContainer = container.querySelector('.tox-editor-container');
+                                if (editorContainer) {
+                                    editorContainer.style.minHeight = '500px';
+                                    editorContainer.style.height = '500px';
+                                    editorContainer.style.display = 'flex';
+                                    editorContainer.style.flexDirection = 'column';
+                                }
+                                
+                                const editArea = container.querySelector('.tox-edit-area');
+                                if (editArea) {
+                                    editArea.style.minHeight = '420px';
+                                    editArea.style.height = '420px';
+                                    editArea.style.flex = '1';
+                                }
+                                
                                 const iframe = container.querySelector('.tox-edit-area__iframe');
                                 if (iframe) {
-                                    iframe.style.minHeight = '400px';
-                                    iframe.style.height = '400px';
+                                    iframe.style.minHeight = '420px';
+                                    iframe.style.height = '420px';
                                 }
                             }
                             
@@ -3593,16 +3647,31 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Force height settings
                     const container = editor.getContainer();
                     if (container) {
-                        container.style.minHeight = '450px';
-                        container.style.height = '450px';
+                        container.style.minHeight = '500px';
+                        container.style.height = '500px';
                         container.style.display = 'block';
                         container.style.visibility = 'visible';
                         container.style.opacity = '1';
                         
+                        const editorContainer = container.querySelector('.tox-editor-container');
+                        if (editorContainer) {
+                            editorContainer.style.minHeight = '500px';
+                            editorContainer.style.height = '500px';
+                            editorContainer.style.display = 'flex';
+                            editorContainer.style.flexDirection = 'column';
+                        }
+                        
+                        const editArea = container.querySelector('.tox-edit-area');
+                        if (editArea) {
+                            editArea.style.minHeight = '420px';
+                            editArea.style.height = '420px';
+                            editArea.style.flex = '1';
+                        }
+                        
                         const iframe = container.querySelector('.tox-edit-area__iframe');
                         if (iframe) {
-                            iframe.style.minHeight = '400px';
-                            iframe.style.height = '400px';
+                            iframe.style.minHeight = '420px';
+                            iframe.style.height = '420px';
                         }
                     }
                     console.log('TinyMCE container made visible');

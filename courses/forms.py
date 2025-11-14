@@ -1181,10 +1181,10 @@ class TopicForm(BaseModelFormWithTinyMCE):
                 'class': 'tinymce-editor',
                 'id': 'text_content',
                 'data-no-html-display': 'true',
-                'style': 'min-height: 450px; height: 450px;'
+                'style': 'min-height: 500px; height: 500px;'
             }, config={
-                'height': 450,
-                'min_height': 450,
+                'height': 500,
+                'min_height': 500,
                 'menubar': 'edit view insert format tools table',
                 'skin': 'oxide',
                 'plugins': 'advlist autolink link image lists charmap preview anchor searchreplace visualblocks code fullscreen insertdatetime media table wordcount help aiwriter toolbarfix',
@@ -1199,7 +1199,7 @@ class TopicForm(BaseModelFormWithTinyMCE):
                 'elementpath': True,
                 'content_style': 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px }',
                 'placeholder': 'Enter content for this topic',
-                'setup': 'function(editor) { editor.on("init", function() { const container = editor.getContainer(); if (container) { container.style.minHeight = "450px"; container.style.height = "450px"; const iframe = container.querySelector(".tox-edit-area__iframe"); if (iframe) { iframe.style.minHeight = "400px"; iframe.style.height = "400px"; } } }); }'
+                'setup': 'function(editor) { editor.on("init", function() { const container = editor.getContainer(); if (container) { container.style.minHeight = "500px"; container.style.height = "500px"; const editorContainer = container.querySelector(".tox-editor-container"); if (editorContainer) { editorContainer.style.minHeight = "500px"; editorContainer.style.height = "500px"; editorContainer.style.display = "flex"; editorContainer.style.flexDirection = "column"; } const editArea = container.querySelector(".tox-edit-area"); if (editArea) { editArea.style.minHeight = "420px"; editArea.style.height = "420px"; editArea.style.flex = "1"; } const iframe = container.querySelector(".tox-edit-area__iframe"); if (iframe) { iframe.style.minHeight = "420px"; iframe.style.height = "420px"; } } }); }'
             }),
             'content_type': forms.Select(attrs={
                 'class': 'w-full px-4 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500'
