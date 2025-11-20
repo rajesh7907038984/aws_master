@@ -2643,14 +2643,117 @@ def sync_zoom_meeting_data(conference):
         }
 
 def sync_teams_meeting_data(conference):
-    """Sync meeting data from Microsoft Teams"""
-    return {
-        'success': True,
-        'message': 'Teams data sync not yet implemented',
-        'items_processed': 0,
-        'items_failed': 0,
-        'platform_response': {}
-    }
+    """Sync meeting data from Microsoft Teams (including OneDrive recordings)"""
+    try:
+        from account_settings.models import TeamsIntegration
+        from teams_integration.utils.sync_services import MeetingSyncService
+        
+        logger.info(f"🔵 Starting Teams data sync for conference: {conference.title} (ID: {conference.id})")
+        
+        # Get Teams integration
+        teams_integration = None
+        if hasattr(conference.created_by, 'branch') and conference.created_by.branch:
+            teams_integration = TeamsIntegration.objects.filter(
+                branch=conference.created_by.branch,
+                is_active=True
+            ).first()
+        
+        if not teams_integration:
+            teams_integration = TeamsIntegration.objects.filter(
+                user=conference.created_by,
+                is_active=True
+            ).first()
+        
+        if not teams_integration:
+            logger.warning(f"No Teams integration found for conference {conference.id}")
+            return {
+                'success': False,
+                'error': 'No active Teams integration found. Please configure Teams integration in Account Settings.',
+                'items_processed': 0,
+                'items_failed': 0,
+                'platform_response': {}
+            }
+        
+        # Initialize meeting sync service
+        meeting_sync = MeetingSyncService(teams_integration)
+        
+        # Sync all meeting data
+        results = {
+            'success': True,
+            'items_processed': 0,
+            'items_failed': 0,
+            'platform_response': {},
+            'details': {}
+        }
+        
+        # Sync recordings (OneDrive)
+        logger.info("📹 Syncing recordings from OneDrive...")
+        recording_results = meeting_sync.sync_meeting_recordings(conference)
+        results['items_processed'] += recording_results.get('processed', 0)
+        results['details']['recordings'] = {
+            'created': recording_results.get('created', 0),
+            'updated': recording_results.get('updated', 0),
+            'success': recording_results.get('success', False)
+        }
+        
+        # Sync attendance
+        logger.info("👥 Syncing attendance...")
+        attendance_results = meeting_sync.sync_meeting_attendance(conference)
+        results['items_processed'] += attendance_results.get('processed', 0)
+        results['details']['attendance'] = {
+            'processed': attendance_results.get('processed', 0),
+            'success': attendance_results.get('success', False)
+        }
+        
+        # Sync chat
+        logger.info("💬 Syncing chat messages...")
+        chat_results = meeting_sync.sync_meeting_chat(conference)
+        results['items_processed'] += chat_results.get('processed', 0)
+        results['details']['chat'] = {
+            'processed': chat_results.get('processed', 0),
+            'success': chat_results.get('success', False)
+        }
+        
+        # Sync files
+        logger.info("📎 Syncing shared files...")
+        file_results = meeting_sync.sync_meeting_files(conference)
+        results['items_processed'] += file_results.get('processed', 0)
+        results['details']['files'] = {
+            'processed': file_results.get('processed', 0),
+            'success': file_results.get('success', False)
+        }
+        
+        # Determine overall success
+        all_successful = all([
+            recording_results.get('success', False),
+            attendance_results.get('success', False),
+            chat_results.get('success', False),
+            file_results.get('success', False)
+        ])
+        
+        results['success'] = all_successful
+        
+        if all_successful:
+            logger.info(f"✓ Teams data sync completed successfully for conference {conference.id}")
+            logger.info(f"   Recordings: {results['details']['recordings']['created']} created, {results['details']['recordings']['updated']} updated")
+            logger.info(f"   Attendance: {results['details']['attendance']['processed']} records")
+            logger.info(f"   Chat: {results['details']['chat']['processed']} messages")
+            logger.info(f"   Files: {results['details']['files']['processed']} files")
+        else:
+            logger.warning(f"⚠️ Teams data sync completed with some failures for conference {conference.id}")
+        
+        return results
+        
+    except Exception as e:
+        logger.error(f"✗ Error syncing Teams meeting data: {str(e)}")
+        logger.exception(e)
+        return {
+            'success': False,
+            'error': str(e),
+            'items_processed': 0,
+            'items_failed': 1,
+            'platform_response': {}
+        }
 
 
 
@@ -3752,10 +3855,13 @@ def conference_detailed_report(request, conference_id):
 @login_required
 def download_conference_recording(request, conference_id, recording_id):
     """
-     FIX #6: Download Zoom cloud recordings without requiring passcode from users
-     Uses OAuth token authentication to proxy downloads through LMS
+    Download conference recordings from Zoom or Teams (OneDrive)
+    Supports authenticated proxy download for both platforms
     """
     try:
+        from django.http import StreamingHttpResponse, HttpResponse
+        import requests
+        
         conference = get_object_or_404(Conference, id=conference_id)
         recording = get_object_or_404(ConferenceRecording, id=recording_id, conference=conference)
         
@@ -3767,6 +3873,109 @@ def download_conference_recording(request, conference_id, recording_id):
                 'error': 'You do not have access to this conference recording.'
             }, status=403)
         
+        # Update download tracking
+        recording.download_count += 1
+        recording.last_downloaded_at = timezone.now()
+        recording.save(update_fields=['download_count', 'last_downloaded_at'])
+        
+        logger.info(f"📥 User {request.user.username} downloading recording: {recording.title} (Platform: {conference.meeting_platform})")
+        
+        # Handle Teams/OneDrive recordings
+        if recording.stored_in_onedrive and conference.meeting_platform == 'teams':
+            try:
+                from account_settings.models import TeamsIntegration
+                from teams_integration.utils.onedrive_api import OneDriveAPI, OneDriveAPIError
+                
+                logger.info(f"🔵 Processing Teams/OneDrive recording download")
+                
+                # Get Teams integration
+                teams_integration = None
+                if hasattr(conference.created_by, 'branch') and conference.created_by.branch:
+                    teams_integration = TeamsIntegration.objects.filter(
+                        branch=conference.created_by.branch,
+                        is_active=True
+                    ).first()
+                
+                if not teams_integration:
+                    teams_integration = TeamsIntegration.objects.filter(is_active=True).first()
+                
+                if not teams_integration:
+                    logger.error("No Teams integration found for OneDrive access")
+                    return JsonResponse({
+                        'success': False,
+                        'error': 'Teams integration not configured. Please contact your administrator.'
+                    }, status=500)
+                
+                # Initialize OneDrive API
+                onedrive_api = OneDriveAPI(teams_integration)
+                
+                # Determine admin email for OneDrive access
+                admin_email = None
+                if conference.created_by and conference.created_by.email:
+                    admin_email = conference.created_by.email
+                elif teams_integration.user and teams_integration.user.email:
+                    admin_email = teams_integration.user.email
+                elif teams_integration.service_account_email:
+                    admin_email = teams_integration.service_account_email
+                
+                if not admin_email:
+                    raise OneDriveAPIError("No admin email found for OneDrive access")
+                
+                logger.info(f"📧 Accessing OneDrive with: {admin_email}")
+                
+                # Get fresh download URL if needed
+                if not recording.onedrive_download_url or not recording.onedrive_item_id:
+                    logger.error("OneDrive item ID or download URL missing")
+                    return JsonResponse({
+                        'success': False,
+                        'error': 'Recording information incomplete. Please sync recordings.'
+                    }, status=404)
+                
+                # Stream download from OneDrive
+                logger.info(f"🔽 Streaming recording from OneDrive: {recording.onedrive_item_id}")
+                
+                # Get the file stream
+                response = onedrive_api.download_recording(admin_email, recording.onedrive_item_id)
+                
+                # Create streaming response
+                streaming_response = StreamingHttpResponse(
+                    response.iter_content(chunk_size=8192),
+                    content_type=f'video/{recording.file_format}'
+                )
+                
+                # Set download filename
+                filename = f"{recording.title.replace(' ', '_')}_{conference.id}.{recording.file_format}"
+                streaming_response['Content-Disposition'] = f'attachment; filename="{filename}"'
+                
+                # Set content length if available
+                if recording.file_size:
+                    streaming_response['Content-Length'] = recording.file_size
+                
+                logger.info(f"✓ Streaming Teams recording: {filename} ({recording.file_size} bytes)")
+                return streaming_response
+                
+            except OneDriveAPIError as e:
+                logger.error(f"OneDrive API error: {str(e)}")
+                # Fallback to direct URL if available
+                if recording.onedrive_download_url:
+                    logger.info("Falling back to direct OneDrive URL")
+                    return redirect(recording.onedrive_download_url)
+                return JsonResponse({
+                    'success': False,
+                    'error': f'OneDrive access error: {str(e)}'
+                }, status=500)
+            except Exception as e:
+                logger.error(f"Error downloading Teams recording: {str(e)}")
+                logger.exception(e)
+                # Fallback to direct URL if available
+                if recording.onedrive_download_url:
+                    return redirect(recording.onedrive_download_url)
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Failed to download recording from OneDrive.'
+                }, status=500)
+        
+        # Handle Zoom recordings (existing code)
         if not recording.download_url:
             return JsonResponse({
                 'success': False,

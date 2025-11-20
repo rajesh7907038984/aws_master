@@ -727,14 +727,30 @@
                         {% endif %}
                         
                         <!--  FIX #5: Direct download for cloud recordings without password restrictions -->
-                        {% if recording.download_url %}
-                        <div class="flex justify-center">
+                        {% if recording.download_url or recording.stored_in_onedrive %}
+                        <div class="flex justify-center space-x-3">
                             <a href="{% url 'conferences:download_conference_recording' conference.id recording.id %}" 
                                class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
                                target="_blank">
                                 <i class="fas fa-download mr-2"></i>
                                 Download Recording
+                                {% if recording.stored_in_onedrive %}
+                                <span class="ml-2 px-2 py-0.5 text-xs bg-blue-100 text-blue-800 rounded">OneDrive</span>
+                                {% endif %}
                             </a>
+                            {% if recording.onedrive_web_url %}
+                            <a href="{{ recording.onedrive_web_url }}" 
+                               class="inline-flex items-center px-4 py-2 border border-blue-300 shadow-sm text-sm font-medium rounded-md text-blue-700 bg-blue-50 hover:bg-blue-100"
+                               target="_blank">
+                                <i class="fas fa-external-link-alt mr-2"></i>
+                                View in OneDrive
+                            </a>
+                            {% endif %}
+                        </div>
+                        {% else %}
+                        <div class="text-center text-gray-500">
+                            <i class="fas fa-spinner fa-spin mr-2"></i>
+                            Recording is being processed...
                         </div>
                         {% endif %}
                     </div>

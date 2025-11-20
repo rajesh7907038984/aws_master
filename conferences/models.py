@@ -462,6 +462,20 @@ class ConferenceRecording(models.Model):
     password_protected = models.BooleanField(default=False)
     recording_password = models.CharField(max_length=100, blank=True, null=True)
     
+    # OneDrive/SharePoint storage (for Teams recordings)
+    onedrive_item_id = models.CharField(max_length=255, blank=True, null=True, help_text="OneDrive item ID")
+    onedrive_drive_id = models.CharField(max_length=255, blank=True, null=True, help_text="OneDrive drive ID")
+    onedrive_file_path = models.CharField(max_length=1000, blank=True, null=True, help_text="Full path in OneDrive")
+    onedrive_web_url = models.URLField(max_length=1000, blank=True, null=True, help_text="Web viewing URL")
+    onedrive_download_url = models.URLField(max_length=1000, blank=True, null=True, help_text="Direct download URL from OneDrive")
+    stored_in_onedrive = models.BooleanField(default=False, help_text="Whether recording is stored in OneDrive")
+    
+    # Recording metadata from Teams
+    meeting_recording_id = models.CharField(max_length=255, blank=True, null=True, help_text="Teams meeting recording ID")
+    recording_content_url = models.URLField(max_length=1000, blank=True, null=True, help_text="Content URL from Teams")
+    created_by_name = models.CharField(max_length=255, blank=True, null=True, help_text="Name of person who created recording")
+    created_by_email = models.EmailField(blank=True, null=True, help_text="Email of person who created recording")
+    
     # Status and availability
     status = models.CharField(
         max_length=20,
@@ -474,6 +488,10 @@ class ConferenceRecording(models.Model):
         default='processing'
     )
     expires_at = models.DateTimeField(blank=True, null=True)
+    
+    # Download tracking
+    download_count = models.IntegerField(default=0, help_text="Number of times recording has been downloaded")
+    last_downloaded_at = models.DateTimeField(blank=True, null=True, help_text="Last download timestamp")
     
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

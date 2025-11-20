@@ -199,9 +199,9 @@ class TeamsAPIClient:
             logger.error(f"Teams API request failed: {error_msg}", extra=error_details)
             raise TeamsAPIError(error_msg)
     
-    def create_meeting(self, title, start_time, end_time, description=None, user_email=None):
+    def create_meeting(self, title, start_time, end_time, description=None, user_email=None, enable_recording=True):
         """
-        Create a Teams meeting
+        Create a Teams meeting with auto-recording enabled
         
         Args:
             title: Meeting title
@@ -210,6 +210,7 @@ class TeamsAPIClient:
             description: Meeting description
             user_email: User's email address (userPrincipalName) for application permissions.
                        If None, uses integration owner's email.
+            enable_recording: Whether to enable automatic cloud recording (default: True)
             
         Returns:
             dict: Meeting details
@@ -261,7 +262,7 @@ class TeamsAPIClient:
             # Use /users/{userPrincipalName}/calendar/events for application permissions
             # instead of /me/events which requires delegated permissions
             endpoint = f'/users/{user_email}/calendar/events'
-            logger.info(f"Creating Teams meeting for user: {user_email}, title: {title}")
+            logger.info(f"Creating Teams meeting for user: {user_email}, title: {title}, recording: {enable_recording}")
             
             # Create the meeting
             response = self._make_request(
@@ -273,13 +274,39 @@ class TeamsAPIClient:
             # Extract meeting details
             meeting_id = response.get('id')
             join_url = response.get('onlineMeeting', {}).get('joinUrl')
+            online_meeting_id = response.get('onlineMeeting', {}).get('id')
             
-            logger.info(f"Created Teams meeting: {meeting_id}")
+            logger.info(f"✓ Created Teams meeting: {meeting_id}")
+            
+            # Enable automatic recording if requested
+            recording_status = 'not_attempted'
+            recording_error = None
+            
+            if enable_recording and online_meeting_id:
+                try:
+                    logger.info(f"🔴 Enabling auto-recording for meeting: {online_meeting_id}")
+                    recording_result = self.enable_meeting_recording(online_meeting_id, user_email)
+                    
+                    if recording_result['success']:
+                        recording_status = 'enabled'
+                        logger.info(f"✓ Auto-recording enabled successfully")
+                    else:
+                        recording_status = 'failed'
+                        recording_error = recording_result.get('error', 'Unknown error')
+                        logger.warning(f"⚠️ Failed to enable auto-recording: {recording_error}")
+                        
+                except Exception as rec_error:
+                    recording_status = 'error'
+                    recording_error = str(rec_error)
+                    logger.error(f"✗ Error enabling auto-recording: {recording_error}")
             
             return {
                 'success': True,
                 'meeting_id': meeting_id,
                 'meeting_link': join_url,
+                'online_meeting_id': online_meeting_id,
+                'recording_status': recording_status,
+                'recording_error': recording_error,
                 'meeting_details': response
             }
             
@@ -288,6 +315,68 @@ class TeamsAPIClient:
             return {
                 'success': False,
                 'error': str(e)
+            }
+    
+    def enable_meeting_recording(self, online_meeting_id, user_email=None):
+        """
+        Enable automatic recording for a Teams online meeting
+        
+        Args:
+            online_meeting_id: Teams online meeting ID
+            user_email: Organizer's email address
+            
+        Returns:
+            dict: Recording enable status
+        """
+        try:
+            # Determine user email
+            if not user_email and self.integration.user and self.integration.user.email:
+                user_email = self.integration.user.email
+            
+            if not user_email and hasattr(self.integration, 'service_account_email'):
+                user_email = self.integration.service_account_email
+            
+            if not user_email:
+                raise TeamsAPIError("User email required to enable recording")
+            
+            # Update online meeting to enable recording
+            # Note: This requires the OnlineMeetings.ReadWrite.All permission
+            endpoint = f'/users/{user_email}/onlineMeetings/{online_meeting_id}'
+            
+            recording_config = {
+                "recordAutomatically": True,
+                "isEntryExitAnnounced": False  # Disable join/leave sounds for better recording
+            }
+            
+            response = self._make_request(
+                'PATCH',
+                endpoint,
+                data=recording_config
+            )
+            
+            logger.info(f"✓ Recording settings updated for meeting {online_meeting_id}")
+            
+            return {
+                'success': True,
+                'message': 'Auto-recording enabled',
+                'details': response
+            }
+            
+        except Exception as e:
+            error_msg = str(e)
+            logger.error(f"✗ Failed to enable recording: {error_msg}")
+            
+            # Check if it's a permissions error
+            if '403' in error_msg or 'Forbidden' in error_msg:
+                return {
+                    'success': False,
+                    'error': 'Insufficient permissions. Ensure OnlineMeetings.ReadWrite.All is granted.',
+                    'permission_required': 'OnlineMeetings.ReadWrite.All'
+                }
+            
+            return {
+                'success': False,
+                'error': error_msg
             }
     
     def get_meeting_attendance(self, meeting_id, user_email=None):
@@ -564,3 +653,128 @@ class TeamsAPIClient:
                 'success': False,
                 'error': str(e)
             }
+    
+    def get_meeting_transcript(self, meeting_id, user_email=None):
+        """
+        Get meeting transcript/chat messages from Teams
+        
+        Note: This requires OnlineMeetings.Read.All or OnlineMeetings.ReadWrite.All
+        API permissions. The meeting must have transcription enabled.
+        
+        Args:
+            meeting_id: Teams meeting ID (online meeting ID, not calendar event ID)
+            user_email: User's email address (userPrincipalName) for application permissions
+            
+        Returns:
+            dict: Transcript data with chat messages
+        """
+        try:
+            logger.info(f"Fetching transcript for meeting: {meeting_id}")
+            
+            # Method 1: Try to get transcript using online meeting ID
+            # This requires OnlineMeetings.Read.All permission
+            try:
+                endpoint = f'/users/{user_email}/onlineMeetings/{meeting_id}/transcripts'
+                response = self._make_request('GET', endpoint)
+                
+                transcripts = response.get('value', [])
+                if transcripts:
+                    # Get the content of each transcript
+                    chat_messages = []
+                    for transcript in transcripts:
+                        transcript_id = transcript.get('id')
+                        content_endpoint = f'/users/{user_email}/onlineMeetings/{meeting_id}/transcripts/{transcript_id}/content'
+                        
+                        # Note: Content is in VTT format
+                        content = self._make_request('GET', content_endpoint)
+                        chat_messages.append({
+                            'transcript_id': transcript_id,
+                            'created': transcript.get('createdDateTime'),
+                            'content': content
+                        })
+                    
+                    return {
+                        'success': True,
+                        'messages': chat_messages,
+                        'total_messages': len(chat_messages)
+                    }
+            except TeamsAPIError as e:
+                logger.warning(f"Transcript API not available (may require premium license): {str(e)}")
+            
+            # Method 2: Try to get chat messages from the associated chat
+            # This requires Chat.Read.All permission
+            try:
+                # First, get the online meeting to find associated chat ID
+                meeting_endpoint = f'/users/{user_email}/onlineMeetings/{meeting_id}'
+                meeting_details = self._make_request('GET', meeting_endpoint)
+                
+                chat_id = meeting_details.get('chatInfo', {}).get('threadId')
+                if chat_id:
+                    # Get chat messages
+                    chat_endpoint = f'/chats/{chat_id}/messages'
+                    chat_response = self._make_request('GET', chat_endpoint, params={'$top': 100})
+                    
+                    messages = chat_response.get('value', [])
+                    chat_data = []
+                    
+                    for msg in messages:
+                        chat_data.append({
+                            'id': msg.get('id'),
+                            'created': msg.get('createdDateTime'),
+                            'sender': msg.get('from', {}).get('user', {}).get('displayName'),
+                            'sender_email': msg.get('from', {}).get('user', {}).get('userPrincipalName'),
+                            'message': msg.get('body', {}).get('content'),
+                            'message_type': msg.get('messageType'),
+                        })
+                    
+                    return {
+                        'success': True,
+                        'messages': chat_data,
+                        'total_messages': len(chat_data)
+                    }
+            except TeamsAPIError as e:
+                logger.warning(f"Chat API not available: {str(e)}")
+            
+            # If both methods fail, return empty result
+            logger.warning(f"No transcript or chat data available for meeting {meeting_id}")
+            return {
+                'success': True,
+                'messages': [],
+                'total_messages': 0,
+                'note': 'No transcript or chat data available. This may require additional API permissions (OnlineMeetings.Read.All, Chat.Read.All) or Teams Premium license for transcription.'
+            }
+            
+        except Exception as e:
+            logger.error(f"Error getting meeting transcript: {str(e)}")
+            return {
+                'success': False,
+                'error': str(e)
+            }
+    
+    def get_online_meeting_id_from_join_url(self, join_url):
+        """
+        Extract online meeting ID from Teams join URL
+        
+        Args:
+            join_url: Teams meeting join URL
+            
+        Returns:
+            str: Online meeting ID or None
+        """
+        try:
+            # Teams join URLs typically contain the thread ID
+            # Format: https://teams.microsoft.com/l/meetup-join/...
+            import re
+            
+            # Try to extract meeting ID from URL
+            # This is a simplified extraction - actual format may vary
+            match = re.search(r'meetup-join/([^/]+)', join_url)
+            if match:
+                return match.group(1)
+            
+            logger.warning(f"Could not extract meeting ID from URL: {join_url}")
+            return None
+            
+        except Exception as e:
+            logger.error(f"Error extracting meeting ID from URL: {str(e)}")
+            return None
