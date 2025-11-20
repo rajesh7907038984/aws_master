@@ -203,6 +203,9 @@ class TeamsAPIClient:
         """
         Create a Teams meeting with auto-recording enabled
         
+        IMPORTANT: Auto-recording is MANDATORY for all meetings to ensure compliance
+        and provide recordings for all participants. Recording cannot be disabled.
+        
         Args:
             title: Meeting title
             start_time: Meeting start time
@@ -210,11 +213,15 @@ class TeamsAPIClient:
             description: Meeting description
             user_email: User's email address (userPrincipalName) for application permissions.
                        If None, uses integration owner's email.
-            enable_recording: Whether to enable automatic cloud recording (default: True)
+            enable_recording: Whether to enable automatic cloud recording (default: True, MANDATORY)
             
         Returns:
-            dict: Meeting details
+            dict: Meeting details including recording status
         """
+        # ENFORCE MANDATORY RECORDING: Override any attempt to disable recording
+        if not enable_recording:
+            logger.warning("⚠️ Attempt to disable recording detected. Recording is MANDATORY for all meetings.")
+            enable_recording = True  # Force enable recording
         try:
             # Format times for Graph API
             start_iso = start_time.isoformat()

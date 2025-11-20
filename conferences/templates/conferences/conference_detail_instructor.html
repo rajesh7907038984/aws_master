@@ -446,13 +446,28 @@
                                         <span class="badge badge-success ml-2">
                                             <i class="fas fa-calendar-check"></i> Added to Outlook
                                         </span>
+                                    {% elif selection.calendar_error %}
+                                        <span class="badge badge-warning ml-2" title="{{ selection.calendar_error }}">
+                                            <i class="fas fa-exclamation-triangle"></i> Calendar sync failed
+                                        </span>
                                     {% endif %}
                                 </div>
-                                {% if selection.time_slot.meeting_link %}
-                                    <a href="{{ selection.time_slot.meeting_link }}" target="_blank" class="btn btn-sm btn-primary">
-                                        <i class="fas fa-video mr-1"></i> Join
-                                    </a>
-                                {% endif %}
+                                <div style="display: flex; gap: 10px; margin-top: 5px;">
+                                    {% if selection.time_slot.meeting_link %}
+                                        <a href="{{ selection.time_slot.meeting_link }}" target="_blank" class="btn btn-sm btn-primary">
+                                            <i class="fas fa-video mr-1"></i> Join
+                                        </a>
+                                    {% endif %}
+                                    {% if not selection.calendar_added %}
+                                        <form method="POST" action="{% url 'conferences:retry_calendar_sync' conference.id selection.time_slot.id %}" style="display: inline-block;">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn btn-sm btn-outline-primary">
+                                                <i class="fas fa-calendar-plus mr-1"></i>
+                                                Add to Calendar
+                                            </button>
+                                        </form>
+                                    {% endif %}
+                                </div>
                             </div>
                         </div>
                     {% endfor %}
@@ -563,7 +578,7 @@
                     Chat History ({{ chat_messages|length }})
                 </button>
                 <button class="tab-button" onclick="showTab('recordings')">
-                    Conference Files ({{ recordings|length }})
+                    Recordings ({{ recordings|length }})
                 </button>
                 {% if can_evaluate and rubric_data %}
                 <button class="tab-button" onclick="showTab('rubric')">
@@ -845,7 +860,7 @@
                         <svg class="inline-block w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
                             <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
                         </svg>
-                        Conference files: chat transcripts and shared screen recordings. Shows meeting data for both instructors and learners.
+                        Meeting recordings including video recordings, chat transcripts, and shared screen recordings. Available for download or online viewing.
                     </p>
                 </div>
             {% endif %}
@@ -2184,6 +2199,22 @@ function syncConferenceData() {
                 <span>Sync Complete</span>
             `;
             
+            // Show success message with details
+            if (data.message) {
+                successMessage.textContent = data.message;
+            } else if (data.items_processed > 0) {
+                successMessage.textContent = `Successfully synced ${data.items_processed} items`;
+            } else {
+                successMessage.textContent = 'Sync completed successfully';
+            }
+            
+            // Show warning if present (partial success)
+            if (data.warning) {
+                errorMessage.textContent = '⚠️ ' + data.warning;
+                errorMessage.classList.remove('text-red-600');
+                errorMessage.classList.add('text-yellow-600');
+            }
+            
             // Re-enable button and restore original content after delay
             setTimeout(() => {
                 button.disabled = false;
@@ -2193,10 +2224,24 @@ function syncConferenceData() {
             // Refresh page after delay to show updated data
             setTimeout(() => {
                 window.location.reload();
-            }, 2000);
+            }, 2500);
         } else {
             // Show error message
-            errorMessage.textContent = data.error || 'Failed to sync conference data. Please try again.';
+            let errorText = data.error || 'Failed to sync conference data. Please try again.';
+            
+            // Add technical details if available (for debugging)
+            if (data.technical_error && console) {
+                console.error('Technical error:', data.technical_error);
+            }
+            
+            // Provide helpful context for common errors
+            if (errorText.includes('Database connection')) {
+                errorText += ' The system is experiencing temporary connectivity issues. Please wait a moment and try again.';
+            }
+            
+            errorMessage.textContent = errorText;
+            errorMessage.classList.remove('text-yellow-600');
+            errorMessage.classList.add('text-red-600');
             
             // Re-enable button and restore original content
             button.disabled = false;
@@ -2205,7 +2250,20 @@ function syncConferenceData() {
     })
     .catch(error => {
         console.error('Error:', error);
-        errorMessage.textContent = 'An error occurred while syncing data. Please try again.';
+        
+        // Parse error response if available
+        if (error.response) {
+            error.response.json().then(data => {
+                errorMessage.textContent = data.error || 'An error occurred while syncing data. Please try again.';
+            }).catch(() => {
+                errorMessage.textContent = 'An error occurred while syncing data. Please try again.';
+            });
+        } else {
+            errorMessage.textContent = 'Network error. Please check your connection and try again.';
+        }
+        
+        errorMessage.classList.remove('text-yellow-600');
+        errorMessage.classList.add('text-red-600');
         
         // Re-enable button and restore original content
         button.disabled = false;

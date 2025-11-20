@@ -155,17 +155,19 @@ DATABASES = {
         'HOST': AWS_DB_HOST,
         'PORT': get_env('AWS_DB_PORT', '5432'),
         'OPTIONS': {
-            'connect_timeout': 60,  # Standard timeout
+            'connect_timeout': 30,  # Reduced timeout to fail faster on connection issues
             'sslmode': 'prefer',  # Prefer SSL but allow fallback
             'application_name': 'LMS_Production',
-            'keepalives_idle': 300,  # Keep connections alive for 5 minutes (reduced from 10)
-            'keepalives_interval': 30,
-            'keepalives_count': 3,
+            'keepalives': 1,  # Enable TCP keepalive
+            'keepalives_idle': 120,  # Start keepalive probes after 2 minutes of idle (reduced)
+            'keepalives_interval': 20,  # Send keepalive probes every 20 seconds (reduced)
+            'keepalives_count': 5,  # Send 5 probes before considering connection dead (increased)
+            'tcp_user_timeout': 10000,  # 10 seconds TCP timeout (prevents hanging on dead connections)
         },
-        'CONN_MAX_AGE': 120,  # Reduced to 2 minutes to prevent stale connections
-        'CONN_HEALTH_CHECKS': True,  # Enable connection health checks
+        'CONN_MAX_AGE': 60,  # Further reduced to 1 minute to prevent stale connections
+        'CONN_HEALTH_CHECKS': True,  # Enable connection health checks (Django 4.1+)
         'ATOMIC_REQUESTS': False,  # Disable atomic requests for better performance
-        # Connection pool settings
+        # Connection pool settings (for external poolers like pgbouncer if used)
         'CONN_POOL_SIZE': 10,  # Reduced pool size for stability
         'CONN_POOL_OVERFLOW': 5,  # Reduced overflow for stability
         'CONN_POOL_TIMEOUT': 30,  # Timeout for getting connection from pool

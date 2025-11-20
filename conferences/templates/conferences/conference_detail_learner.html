@@ -451,16 +451,32 @@
                                 <span class="badge badge-success ml-2">
                                     <i class="fas fa-calendar-check"></i> Added to Outlook
                                 </span>
+                            {% elif user_selection.calendar_error %}
+                                <span class="badge badge-warning ml-2" title="{{ user_selection.calendar_error }}">
+                                    <i class="fas fa-exclamation-triangle"></i> Calendar sync failed
+                                </span>
                             {% endif %}
                         </div>
                         
-                        <form method="POST" action="{% url 'conferences:unselect_time_slot' conference.id %}" style="display: block; margin-top: 10px;" onsubmit="return confirm('Are you sure you want to cancel your time slot selection?');">
-                            {% csrf_token %}
-                            <button type="submit" class="btn btn-sm btn-danger">
-                                <i class="fas fa-times mr-1"></i>
-                                Cancel Selection
-                            </button>
-                        </form>
+                        <div style="display: flex; gap: 10px; margin-top: 10px;">
+                            {% if not user_selection.calendar_added %}
+                            <form method="POST" action="{% url 'conferences:retry_calendar_sync' conference.id user_selection.time_slot.id %}" style="display: inline-block;">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm btn-primary">
+                                    <i class="fas fa-calendar-plus mr-1"></i>
+                                    Add to Outlook Calendar
+                                </button>
+                            </form>
+                            {% endif %}
+                            
+                            <form method="POST" action="{% url 'conferences:unselect_time_slot' conference.id %}" style="display: inline-block;" onsubmit="return confirm('Are you sure you want to cancel your time slot selection?');">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm btn-danger">
+                                    <i class="fas fa-times mr-1"></i>
+                                    Cancel Selection
+                                </button>
+                            </form>
+                        </div>
                     </div>
                 {% endif %}
             {% endwith %}

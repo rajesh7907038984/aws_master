@@ -1017,29 +1017,92 @@ def create_zoom_meeting(user, integration_id, title, description, start_datetime
 @login_required
 @require_POST
 def sync_conference_data(request, conference_id):
-    """API endpoint to trigger conference data synchronization"""
+    """API endpoint to trigger conference data synchronization with database resilience"""
     if request.user.role not in ['instructor', 'admin', 'superadmin', 'globaladmin'] and not request.user.is_superuser:
         return JsonResponse({'success': False, 'error': 'Permission denied'}, status=403)
     
+    from django.db import connection, OperationalError
+    import time
+    
+    # Helper function to ensure database connection is healthy
+    def ensure_db_connection(max_retries=3):
+        """Ensure database connection is active and healthy"""
+        for attempt in range(max_retries):
+            try:
+                connection.ensure_connection()
+                # Test the connection with a simple query
+                with connection.cursor() as cursor:
+                    cursor.execute("SELECT 1")
+                return True
+            except OperationalError as e:
+                logger.warning(f"Database connection attempt {attempt + 1} failed: {str(e)}")
+                if attempt < max_retries - 1:
+                    connection.close()  # Close stale connection
+                    time.sleep(1)  # Wait before retry
+                else:
+                    logger.error("Failed to establish database connection after all retries")
+                    return False
+        return False
+    
+    # Helper function with retry logic for database operations
+    def execute_with_retry(func, max_retries=3):
+        """Execute a function with retry logic for database operations"""
+        for attempt in range(max_retries):
+            try:
+                # Ensure connection is healthy before operation
+                if not ensure_db_connection():
+                    raise OperationalError("Failed to establish database connection")
+                return func()
+            except OperationalError as e:
+                error_str = str(e).lower()
+                # Check if it's a connection-related error
+                if 'ssl' in error_str or 'eof' in error_str or 'connection' in error_str:
+                    logger.warning(f"Database connection error on attempt {attempt + 1}: {str(e)}")
+                    if attempt < max_retries - 1:
+                        connection.close()  # Force close the connection
+                        time.sleep(2)  # Wait before retry
+                    else:
+                        raise
+                else:
+                    raise  # Re-raise non-connection errors immediately
+        return None
+    
     try:
-        conference = get_object_or_404(Conference, id=conference_id)
-    except:
+        # Get conference with retry logic
+        def get_conference():
+            return get_object_or_404(Conference, id=conference_id)
+        
+        conference = execute_with_retry(get_conference)
+        if not conference:
+            return JsonResponse({
+                'success': False,
+                'error': f'Conference with ID {conference_id} does not exist or has been deleted.'
+            }, status=404)
+            
+    except Exception as e:
+        logger.error(f"Error fetching conference {conference_id}: {str(e)}")
         return JsonResponse({
             'success': False,
             'error': f'Conference with ID {conference_id} does not exist or has been deleted.'
         }, status=404)
     
+    sync_log = None
     try:
-        # Update sync status
-        conference.data_sync_status = 'in_progress'
-        conference.save()
+        # Update sync status with retry logic
+        def update_sync_status():
+            conference.data_sync_status = 'in_progress'
+            conference.save()
+            return ConferenceSyncLog.objects.create(
+                conference=conference,
+                sync_type='full',
+                status='started'
+            )
         
-        # Create sync log
-        sync_log = ConferenceSyncLog.objects.create(
-            conference=conference,
-            sync_type='full',
-            status='started'
-        )
+        sync_log = execute_with_retry(update_sync_status)
+        if not sync_log:
+            raise Exception("Failed to create sync log after retries")
+        
+        logger.info(f"🔄 Starting data sync for conference {conference_id} ({conference.title})")
         
         # Sync data based on platform
         if conference.meeting_platform == 'zoom':
@@ -1049,27 +1112,76 @@ def sync_conference_data(request, conference_id):
         else:
             result = {'success': False, 'error': 'Unsupported platform'}
         
-        # Update sync log
-        sync_log.status = 'completed' if result.get('success') else 'failed'
-        sync_log.items_processed = result.get('items_processed', 0)
-        sync_log.items_failed = result.get('items_failed', 0)
-        sync_log.error_message = result.get('error')
-        sync_log.platform_response = result.get('platform_response', {})
-        sync_log.completed_at = timezone.now()
-        sync_log.save()
+        # Update sync log and conference with retry logic
+        def finalize_sync():
+            sync_log.status = 'completed' if result.get('success') else 'failed'
+            sync_log.items_processed = result.get('items_processed', 0)
+            sync_log.items_failed = result.get('items_failed', 0)
+            sync_log.error_message = result.get('error')
+            sync_log.platform_response = result.get('platform_response', {})
+            sync_log.completed_at = timezone.now()
+            sync_log.save()
+            
+            conference.data_sync_status = 'completed' if result.get('success') else 'failed'
+            conference.last_sync_at = timezone.now()
+            conference.save()
         
-        # Update conference sync status
-        conference.data_sync_status = 'completed' if result.get('success') else 'failed'
-        conference.last_sync_at = timezone.now()
-        conference.save()
+        execute_with_retry(finalize_sync)
+        
+        logger.info(f"✅ Data sync completed for conference {conference_id}: {result.get('items_processed', 0)} items processed")
+        
+        # Add user-friendly message if there's a warning
+        if result.get('warning'):
+            result['message'] = result['warning']
+        elif result.get('success'):
+            result['message'] = f"Successfully synced {result.get('items_processed', 0)} items"
         
         return JsonResponse(result)
         
+    except OperationalError as e:
+        error_msg = str(e)
+        logger.error(f"✗ Database connection error syncing conference {conference_id}: {error_msg}")
+        
+        # Try to update status one last time
+        try:
+            if sync_log:
+                sync_log.status = 'failed'
+                sync_log.error_message = f"Database connection error: {error_msg}"
+                sync_log.completed_at = timezone.now()
+                sync_log.save()
+            
+            conference.data_sync_status = 'failed'
+            conference.save()
+        except:
+            pass  # If we can't update status, that's okay
+        
+        return JsonResponse({
+            'success': False, 
+            'error': 'Database connection error. Please try again in a moment.',
+            'technical_error': error_msg
+        }, status=503)
+        
     except Exception as e:
-        logger.exception(f"Error syncing conference data: {str(e)}")
-        conference.data_sync_status = 'failed'
-        conference.save()
-        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+        logger.exception(f"✗ Unexpected error syncing conference data: {str(e)}")
+        
+        # Try to update status
+        try:
+            if sync_log:
+                sync_log.status = 'failed'
+                sync_log.error_message = str(e)
+                sync_log.completed_at = timezone.now()
+                sync_log.save()
+            
+            conference.data_sync_status = 'failed'
+            conference.save()
+        except:
+            pass  # If we can't update status, that's okay
+        
+        return JsonResponse({
+            'success': False, 
+            'error': 'An error occurred while syncing data. Please try again.',
+            'technical_error': str(e)
+        }, status=500)
 
 def extract_meeting_id_from_any_zoom_url(url):
     """Extract meeting ID from any Zoom URL format"""
@@ -2723,15 +2835,37 @@ def sync_teams_meeting_data(conference):
             'success': file_results.get('success', False)
         }
         
-        # Determine overall success
-        all_successful = all([
+        # Determine overall success - consider sync successful if at least one operation succeeded
+        # and there were no critical errors (at least some data was processed)
+        successful_operations = [
             recording_results.get('success', False),
             attendance_results.get('success', False),
             chat_results.get('success', False),
             file_results.get('success', False)
-        ])
+        ]
         
-        results['success'] = all_successful
+        at_least_one_success = any(successful_operations)
+        all_successful = all(successful_operations)
+        
+        # Mark as successful if at least one operation succeeded OR if there was simply no data to sync
+        # (which is not an error condition)
+        results['success'] = at_least_one_success or results['items_processed'] == 0
+        
+        # Build detailed error messages if any operations failed
+        failed_operations = []
+        if not recording_results.get('success', False):
+            failed_operations.append('recordings')
+        if not attendance_results.get('success', False):
+            failed_operations.append('attendance')
+        if not chat_results.get('success', False):
+            failed_operations.append('chat')
+        if not file_results.get('success', False):
+            failed_operations.append('files')
+        
+        if failed_operations and at_least_one_success:
+            results['warning'] = f"Some operations had issues: {', '.join(failed_operations)}. Other data synced successfully."
+        elif not at_least_one_success and results['items_processed'] == 0:
+            results['warning'] = "No data available to sync for this meeting. This is normal if the meeting hasn't occurred yet or has no recorded data."
         
         if all_successful:
             logger.info(f"✓ Teams data sync completed successfully for conference {conference.id}")
@@ -2739,8 +2873,15 @@ def sync_teams_meeting_data(conference):
             logger.info(f"   Attendance: {results['details']['attendance']['processed']} records")
             logger.info(f"   Chat: {results['details']['chat']['processed']} messages")
             logger.info(f"   Files: {results['details']['files']['processed']} files")
+        elif at_least_one_success:
+            logger.info(f"✓ Teams data sync completed partially for conference {conference.id}")
+            logger.info(f"   Recordings: {results['details']['recordings']['created']} created, {results['details']['recordings']['updated']} updated")
+            logger.info(f"   Attendance: {results['details']['attendance']['processed']} records")
+            logger.info(f"   Chat: {results['details']['chat']['processed']} messages")
+            logger.info(f"   Files: {results['details']['files']['processed']} files")
+            logger.warning(f"⚠️ Some operations had issues: {', '.join(failed_operations)}")
         else:
-            logger.warning(f"⚠️ Teams data sync completed with some failures for conference {conference.id}")
+            logger.warning(f"⚠️ Teams data sync completed with failures for conference {conference.id}")
         
         return results
         
@@ -3473,7 +3614,7 @@ def conference_detail(request, conference_id):
                     try:
                         with transaction.atomic():
                             # Create selection for this slot
-                            ConferenceTimeSlotSelection.objects.create(
+                            selection = ConferenceTimeSlotSelection.objects.create(
                                 conference=conference,
                                 time_slot=time_slot,
                                 user=user,
@@ -3485,6 +3626,13 @@ def conference_detail(request, conference_id):
                             time_slot.save(update_fields=['current_participants'])
                             
                             logger.info(f"Auto-selected time slot {time_slot.id} for instructor {user.username}")
+                            
+                            # Try to add to Outlook calendar for instructors too
+                            try:
+                                add_to_outlook_calendar(user, time_slot, selection)
+                            except Exception as cal_e:
+                                logger.error(f"Failed to add to Outlook calendar for instructor: {str(cal_e)}")
+                                # Don't fail the selection if calendar add fails
                     except Exception as e:
                         logger.error(f"Error auto-selecting time slot {time_slot.id} for instructor {user.username}: {str(e)}")
         
@@ -3499,10 +3647,13 @@ def conference_detail(request, conference_id):
             user__isnull=False  # Only show attendances with matched LMS users
         ).select_related('user').order_by('-join_time')
         
-        # Get recordings - only show chat_file and shared_screen_with_speaker_view
+        # Get recordings - show Zoom chat/screen recordings and Teams/OneDrive video recordings
         recordings = ConferenceRecording.objects.filter(
-            conference=conference,
-            title__in=['chat_file', 'shared_screen_with_speaker_view']
+            conference=conference
+        ).filter(
+            Q(title__in=['chat_file', 'shared_screen_with_speaker_view']) |  # Zoom recordings
+            Q(stored_in_onedrive=True) |  # Teams OneDrive recordings
+            Q(recording_type__in=['cloud', 'shared_screen', 'audio_only'])  # Other cloud recordings
         ).order_by('-created_at')
         
         # Get shared files
@@ -3510,10 +3661,9 @@ def conference_detail(request, conference_id):
             conference=conference
         ).select_related('shared_by').order_by('-shared_at')
         
-        #  FIX #4: Only show chat messages from registered users - exclude guest messages
+        # Get all chat messages including from registered users, guests, and external participants
         chat_messages = ConferenceChat.objects.filter(
-            conference=conference,
-            sender__isnull=False  # Only show messages from matched LMS users
+            conference=conference
         ).select_related('sender').order_by('sent_at')
         
         # Determine sync and evaluation permissions
@@ -6179,16 +6329,15 @@ def select_time_slot(request, conference_id, slot_id):
                 time_slot.current_participants += 1
                 time_slot.save(update_fields=['current_participants'])
             
-            # Try to add to Outlook calendar
-            if conference.meeting_platform == 'teams':
-                try:
-                    add_to_outlook_calendar(request.user, time_slot, existing_selection)
-                except Exception as e:
-                    logger.error(f"Failed to add to Outlook calendar: {str(e)}")
-                    # Don't fail the selection if calendar add fails
-                    existing_selection.calendar_error = str(e)
-                    existing_selection.calendar_add_attempted_at = timezone.now()
-                    existing_selection.save()
+            # Try to add to Outlook calendar for all meeting platforms
+            try:
+                add_to_outlook_calendar(request.user, time_slot, existing_selection)
+            except Exception as e:
+                logger.error(f"Failed to add to Outlook calendar: {str(e)}")
+                # Don't fail the selection if calendar add fails
+                existing_selection.calendar_error = str(e)
+                existing_selection.calendar_add_attempted_at = timezone.now()
+                existing_selection.save()
             
             messages.success(request, f'Successfully selected time slot: {time_slot.date} {time_slot.start_time} - {time_slot.end_time}')
             
@@ -6318,6 +6467,89 @@ def unselect_time_slot(request, conference_id, slot_id=None):
         return redirect('conferences:conference_detail', conference_id=conference.id)
 
 
+@login_required
+@csrf_protect
+@require_http_methods(["POST"])
+def retry_calendar_sync(request, conference_id, slot_id):
+    """Allow users to manually retry adding their time slot to Outlook calendar"""
+    conference = get_object_or_404(Conference, id=conference_id)
+    time_slot = get_object_or_404(ConferenceTimeSlot, id=slot_id, conference=conference)
+    
+    # Check if conference uses time slots
+    if not conference.use_time_slots:
+        messages.error(request, 'This conference does not use time slot selection.')
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({
+                'success': False,
+                'error': 'Conference does not use time slots'
+            }, status=400)
+        return redirect('conferences:conference_detail', conference_id=conference.id)
+    
+    # Get user's selection for this slot
+    selection = ConferenceTimeSlotSelection.objects.filter(
+        conference=conference,
+        user=request.user,
+        time_slot=time_slot
+    ).first()
+    
+    if not selection:
+        messages.error(request, 'You have not selected this time slot.')
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({
+                'success': False,
+                'error': 'Time slot not selected'
+            }, status=400)
+        return redirect('conferences:conference_detail', conference_id=conference.id)
+    
+    try:
+        # If already added to calendar, remove the old event first
+        if selection.calendar_added and selection.outlook_event_id:
+            try:
+                remove_from_outlook_calendar(request.user, selection)
+            except Exception as e:
+                logger.warning(f"Could not remove old calendar event: {str(e)}")
+        
+        # Reset calendar status before retrying
+        selection.calendar_added = False
+        selection.outlook_event_id = None
+        selection.calendar_error = None
+        selection.save()
+        
+        # Try to add to calendar
+        result = add_to_outlook_calendar(request.user, time_slot, selection)
+        
+        if result:
+            messages.success(request, 'Successfully added time slot to your Outlook calendar!')
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({
+                    'success': True,
+                    'message': 'Time slot added to calendar successfully',
+                    'calendar_added': True
+                })
+        else:
+            error_msg = selection.calendar_error or 'Failed to add to calendar'
+            messages.error(request, f'Could not add to calendar: {error_msg}')
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({
+                    'success': False,
+                    'error': error_msg
+                }, status=500)
+        
+        return redirect('conferences:conference_detail', conference_id=conference.id)
+        
+    except Exception as e:
+        logger.error(f"Error retrying calendar sync: {str(e)}")
+        messages.error(request, f'Error adding to calendar: {str(e)}')
+        
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({
+                'success': False,
+                'error': str(e)
+            }, status=500)
+        
+        return redirect('conferences:conference_detail', conference_id=conference.id)
+
+
 def remove_from_outlook_calendar(user, selection):
     """Remove time slot from user's Outlook calendar using Microsoft Graph API"""
     try:
@@ -6429,12 +6661,24 @@ def add_to_outlook_calendar(user, time_slot, selection):
         # Create Teams API client
         teams_client = TeamsAPIClient(integration)
         
+        # Prepare meeting body with link
+        meeting_link = time_slot.meeting_link or time_slot.conference.meeting_link
+        body_content = time_slot.conference.description or 'Conference meeting'
+        
+        # Add meeting link to body for all platforms
+        if meeting_link:
+            meeting_platform_name = dict(time_slot.conference._meta.get_field('meeting_platform').choices).get(
+                time_slot.conference.meeting_platform, 
+                'Online Meeting'
+            )
+            body_content += f"<br><br><strong>Join {meeting_platform_name}:</strong><br><a href='{meeting_link}'>{meeting_link}</a>"
+        
         # Create calendar event
         event_data = {
             "subject": f"{time_slot.conference.title}",
             "body": {
                 "contentType": "HTML",
-                "content": f"{time_slot.conference.description or 'Conference meeting'}"
+                "content": body_content
             },
             "start": {
                 "dateTime": start_datetime.isoformat(),
@@ -6443,15 +6687,25 @@ def add_to_outlook_calendar(user, time_slot, selection):
             "end": {
                 "dateTime": end_datetime.isoformat(),
                 "timeZone": time_slot.timezone
-            },
-            "isOnlineMeeting": True,
-            "onlineMeetingProvider": "teamsForBusiness"
+            }
         }
         
-        # Add meeting link if available
-        if time_slot.meeting_link:
-            event_data["onlineMeeting"] = {
-                "joinUrl": time_slot.meeting_link
+        # Add online meeting details based on platform
+        if time_slot.conference.meeting_platform == 'teams':
+            # For Teams meetings, create a Teams online meeting
+            event_data["isOnlineMeeting"] = True
+            event_data["onlineMeetingProvider"] = "teamsForBusiness"
+            if meeting_link:
+                event_data["onlineMeeting"] = {
+                    "joinUrl": meeting_link
+                }
+        elif meeting_link:
+            # For other platforms (Zoom, Google Meet, etc.), just mark as online meeting
+            event_data["isOnlineMeeting"] = False
+            # Add location field with meeting link
+            event_data["location"] = {
+                "displayName": "Online Meeting",
+                "locationType": "default"
             }
         
         # Make API call to create event
@@ -6576,12 +6830,15 @@ def manage_time_slots(request, conference_id):
                             elif integration.user and integration.user.email:
                                 user_email = integration.user.email
                             
+                            # IMPORTANT: Auto-recording is MANDATORY for all Teams meetings
+                            # This ensures compliance and provides recordings for all participants
                             result = teams_client.create_meeting(
                                 title=f"{conference.title} - {time_slot.date} {time_slot.start_time}",
                                 start_time=start_datetime,
                                 end_time=end_datetime,
                                 description=conference.description,
-                                user_email=user_email
+                                user_email=user_email,
+                                enable_recording=True  # MANDATORY: All meetings must be recorded
                             )
                             
                             if result.get('success'):
