@@ -9585,6 +9585,11 @@ def google_login(request):
     # Get branch from URL parameter
     branch_slug = request.GET.get('branch')
     
+    # Get next URL parameter for redirect after authentication
+    next_url = request.GET.get('next', '')
+    if next_url:
+        request.session['oauth_next_url'] = next_url
+    
     # Build redirect URI
     redirect_uri = request.build_absolute_uri(reverse('users:google_callback'))
     
@@ -9738,7 +9743,11 @@ def google_callback(request):
                         # Store user info in session for OTP verification
                         request.session['otp_user_id'] = user.id
                         request.session['otp_token_id'] = otp_token.id
-                        request.session['otp_next_url'] = reverse('users:role_based_redirect')
+                        
+                        # Check for conference join redirect
+                        next_url = request.session.pop('oauth_next_url', None)
+                        request.session['otp_next_url'] = next_url if next_url else reverse('users:role_based_redirect')
+                        
                         request.session['oauth_branch_context'] = {
                             'branch_id': branch.id if branch else None,
                             'branch_name': branch.name if branch else None,
@@ -9780,6 +9789,11 @@ def google_callback(request):
                     messages.success(request, f"Welcome back! You've been enrolled in {branch.name}.")
                 else:
                     messages.success(request, f"Welcome back, {user.get_full_name() or user.username}!")
+                
+                # Check for conference join redirect
+                next_url = request.session.pop('oauth_next_url', None)
+                if next_url:
+                    return redirect(next_url)
                 
                 return redirect('users:role_based_redirect')
             else:
@@ -9856,7 +9870,11 @@ def google_callback(request):
                     # Store user info in session for OTP verification (new user context)
                     request.session['otp_user_id'] = user.id
                     request.session['otp_token_id'] = otp_token.id
-                    request.session['otp_next_url'] = reverse('users:role_based_redirect')
+                    
+                    # Check for conference join redirect
+                    next_url = request.session.pop('oauth_next_url', None)
+                    request.session['otp_next_url'] = next_url if next_url else reverse('users:role_based_redirect')
+                    
                     request.session['oauth_branch_context'] = {
                         'branch_id': branch.id if branch else None,
                         'branch_name': branch.name if branch else None,
@@ -9890,6 +9908,11 @@ def google_callback(request):
             # Normal OAuth login flow for new user (no 2FA or 2FA disabled)
             user.backend = 'django.contrib.auth.backends.ModelBackend'
             login(request, user)
+            
+            # Check for conference join redirect
+            next_url = request.session.pop('oauth_next_url', None)
+            if next_url:
+                return redirect(next_url)
             
             return redirect('users:role_based_redirect')
             
@@ -9939,6 +9962,12 @@ def microsoft_login(request):
     
     # Get branch from URL parameter
     branch_slug = request.GET.get('branch')
+    
+    # Get next URL parameter for redirect after authentication
+    next_url = request.GET.get('next', '')
+    if next_url:
+        request.session['oauth_next_url'] = next_url
+        logger.info(f"Microsoft OAuth: Next URL stored in session: {next_url}")
     
     # Build redirect URI
     redirect_uri = request.build_absolute_uri(reverse('users:microsoft_callback'))
@@ -10206,7 +10235,11 @@ def microsoft_callback(request):
                     # Store user info in session for OTP verification
                     request.session['otp_user_id'] = user.id
                     request.session['otp_token_id'] = otp_token.id
-                    request.session['otp_next_url'] = reverse('users:role_based_redirect')
+                    
+                    # Check for conference join redirect
+                    next_url = request.session.pop('oauth_next_url', None)
+                    request.session['otp_next_url'] = next_url if next_url else reverse('users:role_based_redirect')
+                    
                     request.session['oauth_branch_context'] = {
                         'branch_id': branch.id if branch else None,
                         'branch_name': branch.name if branch else None,
@@ -10245,6 +10278,12 @@ def microsoft_callback(request):
                 messages.info(request, f"You are already registered. Welcome back! Note: You are accessing {branch.name} but your account is associated with {user.branch.name if user.branch else 'the default branch'}.")
             else:
                 messages.success(request, "Welcome back! You have been logged in successfully.")
+            
+            # Check for conference join redirect
+            next_url = request.session.pop('oauth_next_url', None)
+            if next_url:
+                logger.info(f"Microsoft OAuth: Redirecting to next URL: {next_url}")
+                return redirect(next_url)
                 
             return redirect('users:role_based_redirect')
                 
@@ -10358,6 +10397,12 @@ def microsoft_callback(request):
             # Normal OAuth login flow for new user (no 2FA or 2FA disabled)
             user.backend = 'django.contrib.auth.backends.ModelBackend'
             login(request, user)
+            
+            # Check for conference join redirect
+            next_url = request.session.pop('oauth_next_url', None)
+            if next_url:
+                logger.info(f"Microsoft OAuth (new user): Redirecting to next URL: {next_url}")
+                return redirect(next_url)
             
             return redirect('users:role_based_redirect')
             

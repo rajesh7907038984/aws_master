@@ -3296,6 +3296,54 @@ def join_conference(request, conference_id):
     return render(request, 'conferences/auto_join.html', context)
 
 
+def join_conference_microsoft_sso(request, conference_id):
+    """
+    Join conference using Microsoft SSO passthrough authentication.
+    Stores conference_id in session and redirects to Microsoft OAuth.
+    """
+    try:
+        conference = get_object_or_404(Conference, id=conference_id)
+    except:
+        messages.error(request, f'Conference with ID {conference_id} does not exist or has been deleted.')
+        return redirect('conferences:conference_list')
+    
+    # Store conference join intent in session
+    request.session['conference_join_after_auth'] = conference_id
+    request.session['conference_join_method'] = 'microsoft_sso'
+    
+    logger.info(f"User initiating Microsoft SSO join for conference {conference_id}: {conference.title}")
+    
+    # Build the Microsoft login URL with next parameter
+    from urllib.parse import quote
+    next_url = reverse('conferences:join_conference', kwargs={'conference_id': conference_id})
+    microsoft_login_url = f"{reverse('users:microsoft_login')}?next={quote(next_url)}"
+    
+    return redirect(microsoft_login_url)
+
+
+def join_conference_google_sso(request, conference_id):
+    """
+    Join conference using Google SSO passthrough authentication.
+    Stores conference_id in session and redirects to Google OAuth.
+    """
+    try:
+        conference = get_object_or_404(Conference, id=conference_id)
+    except:
+        messages.error(request, f'Conference with ID {conference_id} does not exist or has been deleted.')
+        return redirect('conferences:conference_list')
+    
+    # Store conference join intent in session
+    request.session['conference_join_after_auth'] = conference_id
+    request.session['conference_join_method'] = 'google_sso'
+    
+    logger.info(f"User initiating Google SSO join for conference {conference_id}: {conference.title}")
+    
+    # Build the Google login URL with next parameter
+    from urllib.parse import quote
+    next_url = reverse('conferences:join_conference', kwargs={'conference_id': conference_id})
+    google_login_url = f"{reverse('users:google_login')}?next={quote(next_url)}"
+    
+    return redirect(google_login_url)
 
 
 @login_required
