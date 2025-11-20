@@ -3455,6 +3455,39 @@ def conference_detail(request, conference_id):
         # Enhanced view for instructors with rubric evaluations
         template_name = 'conferences/conference_detail_instructor.html'
         
+        # Auto-select all available time slots for instructors
+        if conference.use_time_slots and user.role == 'instructor':
+            from django.db import transaction
+            
+            available_slots = conference.time_slots.filter(is_available=True)
+            
+            for time_slot in available_slots:
+                # Check if instructor already has this slot selected
+                existing_selection = ConferenceTimeSlotSelection.objects.filter(
+                    conference=conference,
+                    user=user,
+                    time_slot=time_slot
+                ).first()
+                
+                if not existing_selection:
+                    try:
+                        with transaction.atomic():
+                            # Create selection for this slot
+                            ConferenceTimeSlotSelection.objects.create(
+                                conference=conference,
+                                time_slot=time_slot,
+                                user=user,
+                                ip_address=request.META.get('REMOTE_ADDR')
+                            )
+                            
+                            # Increase participant count on the slot
+                            time_slot.current_participants += 1
+                            time_slot.save(update_fields=['current_participants'])
+                            
+                            logger.info(f"Auto-selected time slot {time_slot.id} for instructor {user.username}")
+                    except Exception as e:
+                        logger.error(f"Error auto-selecting time slot {time_slot.id} for instructor {user.username}: {str(e)}")
+        
         #  FIX #4: Only show registered users - exclude unmatched guests
         participants = ConferenceParticipant.objects.filter(
             conference=conference,
@@ -3611,6 +3644,24 @@ def conference_detail(request, conference_id):
                 'user_role': participant.user.role if participant.user else 'guest'  # User role
             })
         
+        # Calculate meeting statistics for recordings tab
+        total_attended = attendances.count()
+        if total_attended > 0:
+            total_duration = sum([att.duration_minutes or 0 for att in attendances])
+            avg_duration = total_duration / total_attended if total_attended > 0 else 0
+        else:
+            avg_duration = 0
+        
+        # Calculate attendance rate (attended vs registered participants)
+        total_registered = participants.count()
+        attendance_rate = (total_attended / total_registered * 100) if total_registered > 0 else 0
+        
+        stats = {
+            'total_attended': total_attended,
+            'avg_duration': round(avg_duration, 1),
+            'attendance_rate': attendance_rate,
+        }
+        
         context.update({
             'participants': participants,
             'attendances': attendances,
@@ -3622,6 +3673,7 @@ def conference_detail(request, conference_id):
             'can_evaluate': can_evaluate,
             'rubric_data': rubric_data,
             'participant_data': participant_data,
+            'stats': stats,
         })
     
     else:
@@ -6065,15 +6117,23 @@ def select_time_slot(request, conference_id, slot_id):
         messages.error(request, 'This conference does not use time slot selection.')
         return redirect('conferences:conference_detail', conference_id=conference.id)
     
-    # Check if user already has a selection
+    # Check if user already has this specific slot selected
     existing_selection = ConferenceTimeSlotSelection.objects.filter(
         conference=conference,
-        user=request.user
+        user=request.user,
+        time_slot=time_slot
     ).first()
     
-    if existing_selection and request.method != 'POST':
-        messages.warning(request, f'You have already selected a time slot: {existing_selection.time_slot}')
-        return redirect('conferences:conference_detail', conference_id=conference.id)
+    # For learners only, check if they already have any selection (restrict to one slot)
+    if request.user.role == 'learner':
+        any_selection = ConferenceTimeSlotSelection.objects.filter(
+            conference=conference,
+            user=request.user
+        ).first()
+        
+        if any_selection and any_selection.time_slot != time_slot and request.method != 'POST':
+            messages.warning(request, f'You have already selected a time slot: {any_selection.time_slot}. You can change your selection.')
+            return redirect('conferences:conference_detail', conference_id=conference.id)
     
     # Check if slot is full
     if time_slot.is_full():
@@ -6082,19 +6142,31 @@ def select_time_slot(request, conference_id, slot_id):
     
     if request.method == 'POST':
         try:
-            # If user has an existing selection, update it
-            if existing_selection:
-                # Decrease participant count on old slot
-                old_slot = existing_selection.time_slot
-                old_slot.current_participants -= 1
-                old_slot.save(update_fields=['current_participants'])
+            # For instructors, they already have all slots auto-selected
+            if request.user.role == 'instructor' and existing_selection:
+                messages.info(request, 'As an instructor, you are already registered for all available time slots.')
+                return redirect('conferences:conference_detail', conference_id=conference.id)
+            
+            # For learners: handle slot selection/change
+            if request.user.role == 'learner':
+                # Check if learner has any existing selection for this conference
+                any_existing = ConferenceTimeSlotSelection.objects.filter(
+                    conference=conference,
+                    user=request.user
+                ).first()
                 
-                # Update selection
-                existing_selection.time_slot = time_slot
-                existing_selection.selected_at = timezone.now()
-                existing_selection.ip_address = request.META.get('REMOTE_ADDR')
-                existing_selection.save()
-            else:
+                if any_existing and any_existing.time_slot != time_slot:
+                    # Changing selection - decrease count on old slot
+                    old_slot = any_existing.time_slot
+                    if old_slot.current_participants > 0:
+                        old_slot.current_participants -= 1
+                        old_slot.save(update_fields=['current_participants'])
+                    
+                    # Delete old selection
+                    any_existing.delete()
+            
+            # Check if this specific slot is already selected (shouldn't happen but just in case)
+            if not existing_selection:
                 # Create new selection
                 existing_selection = ConferenceTimeSlotSelection.objects.create(
                     conference=conference,
@@ -6102,10 +6174,10 @@ def select_time_slot(request, conference_id, slot_id):
                     user=request.user,
                     ip_address=request.META.get('REMOTE_ADDR')
                 )
-            
-            # Increase participant count on new slot
-            time_slot.current_participants += 1
-            time_slot.save(update_fields=['current_participants'])
+                
+                # Increase participant count on new slot
+                time_slot.current_participants += 1
+                time_slot.save(update_fields=['current_participants'])
             
             # Try to add to Outlook calendar
             if conference.meeting_platform == 'teams':
@@ -6161,8 +6233,8 @@ def select_time_slot(request, conference_id, slot_id):
 @login_required
 @csrf_protect
 @require_http_methods(["POST"])
-def unselect_time_slot(request, conference_id):
-    """Allow users to unselect/cancel their time slot selection"""
+def unselect_time_slot(request, conference_id, slot_id=None):
+    """Allow users to unselect/cancel their time slot selection(s)"""
     conference = get_object_or_404(Conference, id=conference_id)
     
     # Check if conference uses time slots
@@ -6170,11 +6242,25 @@ def unselect_time_slot(request, conference_id):
         messages.error(request, 'This conference does not use time slot selection.')
         return redirect('conferences:conference_detail', conference_id=conference.id)
     
-    # Check if user has a selection
-    existing_selection = ConferenceTimeSlotSelection.objects.filter(
-        conference=conference,
-        user=request.user
-    ).first()
+    # Instructors should not unselect slots as they are auto-registered for all
+    if request.user.role == 'instructor':
+        messages.warning(request, 'As an instructor, you are automatically registered for all time slots and cannot unselect them.')
+        return redirect('conferences:conference_detail', conference_id=conference.id)
+    
+    # Get selection(s) to unselect
+    if slot_id:
+        # Unselect specific slot
+        existing_selection = ConferenceTimeSlotSelection.objects.filter(
+            conference=conference,
+            user=request.user,
+            time_slot_id=slot_id
+        ).first()
+    else:
+        # Unselect any selection (for learners - they should only have one)
+        existing_selection = ConferenceTimeSlotSelection.objects.filter(
+            conference=conference,
+            user=request.user
+        ).first()
     
     if not existing_selection:
         messages.warning(request, 'You have not selected any time slot for this conference.')

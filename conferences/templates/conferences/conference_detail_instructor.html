@@ -415,45 +415,87 @@
     <!-- Time Slot Selection Section -->
     {% if conference.use_time_slots %}
     <div class="detail-card">
-        <h3 class="text-lg font-semibold text-gray-900 mb-3">
-            <i class="fas fa-clock mr-2"></i>Select Your Time Slot
-        </h3>
+        {% if request.user.role == 'instructor' %}
+            <h3 class="text-lg font-semibold text-gray-900 mb-3">
+                <i class="fas fa-clock mr-2"></i>Your Time Slots (Instructor - Auto-registered for all slots)
+            </h3>
+        {% else %}
+            <h3 class="text-lg font-semibold text-gray-900 mb-3">
+                <i class="fas fa-clock mr-2"></i>Select Your Time Slot
+            </h3>
+        {% endif %}
         
-        {% with user_selection=conference.time_slot_selections.all|filter_by_user:request.user %}
-            {% if user_selection %}
-                <div class="alert alert-success" style="position: relative;">
-                    <div style="margin-bottom: 10px;">
-                        <i class="fas fa-check-circle mr-2"></i>
-                        <strong>You have selected:</strong> 
-                        {{ user_selection.time_slot.date|date:"F d, Y" }} 
-                        {{ user_selection.time_slot.start_time|time:"H:i" }} - {{ user_selection.time_slot.end_time|time:"H:i" }}
-                        ({{ user_selection.time_slot.timezone }})
-                        {% if user_selection.calendar_added %}
-                            <span class="badge badge-success ml-2">
-                                <i class="fas fa-calendar-check"></i> Added to Outlook
-                            </span>
-                        {% endif %}
-                        {% if user_selection.time_slot.meeting_link %}
-                            <div class="mt-2">
-                                <a href="{{ user_selection.time_slot.meeting_link }}" target="_blank" class="btn btn-sm btn-primary">
-                                    <i class="fas fa-video mr-1"></i> Join Selected Slot
-                                </a>
-                            </div>
-                        {% endif %}
+        {% with user_selections=conference.time_slot_selections.all|filter_all_by_user:request.user %}
+            {% if user_selections %}
+                {% if request.user.role == 'instructor' %}
+                    <!-- Instructor view: Show all registered slots -->
+                    <div class="alert alert-info" style="margin-bottom: 15px;">
+                        <i class="fas fa-info-circle mr-2"></i>
+                        <strong>As an instructor, you are automatically registered for all {{ user_selections.count }} available time slot{{ user_selections.count|pluralize }}.</strong>
                     </div>
                     
-                    <form method="POST" action="{% url 'conferences:unselect_time_slot' conference.id %}" style="display: block; margin-top: 10px;" onsubmit="return confirm('Are you sure you want to cancel your time slot selection?');">
-                        {% csrf_token %}
-                        <button type="submit" class="btn btn-sm btn-danger">
-                            <i class="fas fa-times mr-1"></i>
-                            Cancel Selection
-                        </button>
-                    </form>
-                </div>
+                    {% for selection in user_selections %}
+                        <div class="alert alert-success" style="position: relative; margin-bottom: 10px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <div>
+                                    <i class="fas fa-check-circle mr-2"></i>
+                                    <strong>{{ selection.time_slot.date|date:"F d, Y" }}</strong> - 
+                                    {{ selection.time_slot.start_time|time:"H:i" }} - {{ selection.time_slot.end_time|time:"H:i" }}
+                                    ({{ selection.time_slot.timezone }})
+                                    {% if selection.calendar_added %}
+                                        <span class="badge badge-success ml-2">
+                                            <i class="fas fa-calendar-check"></i> Added to Outlook
+                                        </span>
+                                    {% endif %}
+                                </div>
+                                {% if selection.time_slot.meeting_link %}
+                                    <a href="{{ selection.time_slot.meeting_link }}" target="_blank" class="btn btn-sm btn-primary">
+                                        <i class="fas fa-video mr-1"></i> Join
+                                    </a>
+                                {% endif %}
+                            </div>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <!-- Learner view: Show single selection with cancel option -->
+                    {% with user_selection=user_selections|first %}
+                        <div class="alert alert-success" style="position: relative;">
+                            <div style="margin-bottom: 10px;">
+                                <i class="fas fa-check-circle mr-2"></i>
+                                <strong>You have selected:</strong> 
+                                {{ user_selection.time_slot.date|date:"F d, Y" }} 
+                                {{ user_selection.time_slot.start_time|time:"H:i" }} - {{ user_selection.time_slot.end_time|time:"H:i" }}
+                                ({{ user_selection.time_slot.timezone }})
+                                {% if user_selection.calendar_added %}
+                                    <span class="badge badge-success ml-2">
+                                        <i class="fas fa-calendar-check"></i> Added to Outlook
+                                    </span>
+                                {% endif %}
+                                {% if user_selection.time_slot.meeting_link %}
+                                    <div class="mt-2">
+                                        <a href="{{ user_selection.time_slot.meeting_link }}" target="_blank" class="btn btn-sm btn-primary">
+                                            <i class="fas fa-video mr-1"></i> Join Selected Slot
+                                        </a>
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            <form method="POST" action="{% url 'conferences:unselect_time_slot' conference.id %}" style="display: block; margin-top: 10px;" onsubmit="return confirm('Are you sure you want to cancel your time slot selection?');">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm btn-danger">
+                                    <i class="fas fa-times mr-1"></i>
+                                    Cancel Selection
+                                </button>
+                            </form>
+                        </div>
+                    {% endwith %}
+                {% endif %}
             {% endif %}
         {% endwith %}
         
+        {% if request.user.role != 'instructor' %}
         <div class="mt-3">
+            <h4 class="text-md font-semibold text-gray-700 mb-2">Available Time Slots:</h4>
             {% for time_slot in conference.time_slots.all %}
                 {% if time_slot.is_available %}
                     <div class="info-row" style="align-items: center;">
@@ -480,23 +522,24 @@
                             {% if time_slot.is_full %}
                                 <span class="badge badge-secondary">Full</span>
                             {% else %}
-                                <a href="{% url 'conferences:select_time_slot' conference.id time_slot.id %}" 
-                                   class="btn btn-sm btn-primary">
-                                    <i class="fas fa-check mr-1"></i>
-                                    {% with user_selection=conference.time_slot_selections.all|filter_by_user:request.user %}
-                                        {% if user_selection and user_selection.time_slot.id == time_slot.id %}
-                                            Selected
-                                        {% else %}
-                                            Select
-                                        {% endif %}
-                                    {% endwith %}
-                                </a>
+                                {% is_slot_selected_by_user conference time_slot request.user as is_selected %}
+                                {% if is_selected %}
+                                    <span class="badge badge-success">
+                                        <i class="fas fa-check mr-1"></i> Selected
+                                    </span>
+                                {% else %}
+                                    <a href="{% url 'conferences:select_time_slot' conference.id time_slot.id %}" 
+                                       class="btn btn-sm btn-primary">
+                                        <i class="fas fa-check mr-1"></i> Select
+                                    </a>
+                                {% endif %}
                             {% endif %}
                         </div>
                     </div>
                 {% endif %}
             {% endfor %}
         </div>
+        {% endif %}
         
         {% if conference.meeting_platform == 'teams' %}
             <div class="alert alert-info mt-3">
@@ -2072,8 +2115,49 @@ function syncConferenceData() {
     errorMessage.textContent = '';
     successMessage.textContent = '';
     
-    // Get CSRF token from meta tag (consistent with base template)
-    const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    // Get CSRF token with multiple fallback methods
+    let csrfToken = null;
+    
+    // Method 1: Global window.CSRF_TOKEN (set by base template)
+    if (window.CSRF_TOKEN) {
+        csrfToken = window.CSRF_TOKEN;
+    }
+    
+    // Method 2: Meta tag
+    if (!csrfToken) {
+        const csrfTokenMeta = document.querySelector('meta[name="csrf-token"]');
+        if (csrfTokenMeta) {
+            csrfToken = csrfTokenMeta.getAttribute('content');
+        }
+    }
+    
+    // Method 3: Cookie
+    if (!csrfToken) {
+        const cookies = document.cookie.split(';');
+        for (let cookie of cookies) {
+            const [name, value] = cookie.trim().split('=');
+            if (name === 'csrftoken') {
+                csrfToken = value;
+                break;
+            }
+        }
+    }
+    
+    // Method 4: Form input
+    if (!csrfToken) {
+        const csrfInput = document.querySelector('input[name="csrfmiddlewaretoken"]');
+        if (csrfInput) {
+            csrfToken = csrfInput.value;
+        }
+    }
+    
+    if (!csrfToken) {
+        console.error('No CSRF token found');
+        errorMessage.textContent = 'Security token missing. Please refresh the page.';
+        button.disabled = false;
+        button.innerHTML = originalButtonContent;
+        return;
+    }
     
     // Make AJAX request to sync data
     fetch("{% url 'conferences:sync_conference_data' conference_id=conference.id %}", {

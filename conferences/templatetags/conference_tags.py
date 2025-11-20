@@ -421,4 +421,53 @@ def filter_by_user(queryset, user):
     try:
         return queryset.filter(user=user).first()
     except:
-        return None 
+        return None
+
+
+@register.filter
+def filter_all_by_user(queryset, user):
+    """
+    Filter a queryset to get all objects matching a specific user.
+    Useful for cases where users can have multiple selections (e.g., instructors with multiple time slots).
+    
+    Args:
+        queryset: QuerySet to filter
+        user: User object to filter by
+    
+    Returns:
+        QuerySet of all matching objects
+    """
+    if not queryset or not user:
+        return queryset.none() if queryset else []
+    try:
+        return queryset.filter(user=user)
+    except:
+        return queryset.none() if queryset else []
+
+
+@register.simple_tag
+def is_slot_selected_by_user(conference, time_slot, user):
+    """
+    Check if a specific time slot is selected by a user.
+    
+    Args:
+        conference: Conference object
+        time_slot: TimeSlot object to check
+        user: User object
+    
+    Returns:
+        Boolean indicating if the slot is selected
+    """
+    from conferences.models import ConferenceTimeSlotSelection
+    
+    if not conference or not time_slot or not user:
+        return False
+    
+    try:
+        return ConferenceTimeSlotSelection.objects.filter(
+            conference=conference,
+            time_slot=time_slot,
+            user=user
+        ).exists()
+    except:
+        return False 

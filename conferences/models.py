@@ -367,7 +367,7 @@ class ConferenceTimeSlotSelection(models.Model):
     
     class Meta:
         app_label = 'conferences'
-        unique_together = ['conference', 'user']
+        unique_together = ['time_slot', 'user']  # Allow multiple slots per user per conference, but not duplicate slot selections
         indexes = [
             models.Index(fields=['time_slot', 'user']),
             models.Index(fields=['conference', 'user']),

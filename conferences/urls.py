@@ -42,4 +42,5 @@ urlpatterns = [
     path('<int:conference_id>/time-slots/', views.manage_time_slots, name='manage_time_slots'),
     path('<int:conference_id>/time-slots/<int:slot_id>/select/', views.select_time_slot, name='select_time_slot'),
     path('<int:conference_id>/time-slots/unselect/', views.unselect_time_slot, name='unselect_time_slot'),
+    path('<int:conference_id>/time-slots/<int:slot_id>/unselect/', views.unselect_time_slot, name='unselect_specific_time_slot'),
 ]

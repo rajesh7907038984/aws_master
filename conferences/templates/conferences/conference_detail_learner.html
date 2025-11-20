@@ -492,16 +492,15 @@
                                 {% if time_slot.is_full %}
                                     <span class="badge badge-secondary">Full</span>
                                 {% else %}
+                                    {% is_slot_selected_by_user conference time_slot request.user as is_selected %}
                                     <a href="{% url 'conferences:select_time_slot' conference.id time_slot.id %}" 
                                        class="btn btn-sm btn-primary">
                                         <i class="fas fa-check mr-1"></i>
-                                        {% with user_selection=conference.time_slot_selections.all|filter_by_user:request.user %}
-                                            {% if user_selection and user_selection.time_slot.id == time_slot.id %}
-                                                Selected
-                                            {% else %}
-                                                Select
-                                            {% endif %}
-                                        {% endwith %}
+                                        {% if is_selected %}
+                                            Selected
+                                        {% else %}
+                                            Select
+                                        {% endif %}
                                     </a>
                                 {% endif %}
                             </div>
