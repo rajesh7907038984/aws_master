@@ -6056,7 +6056,7 @@ def sync_status_dashboard(request):
 @login_required
 @csrf_protect
 def select_time_slot(request, conference_id, slot_id):
-    """Allow learners to select a time slot for a conference"""
+    """Allow users to select a time slot for a conference"""
     conference = get_object_or_404(Conference, id=conference_id)
     time_slot = get_object_or_404(ConferenceTimeSlot, id=slot_id, conference=conference)
     
@@ -6162,7 +6162,7 @@ def select_time_slot(request, conference_id, slot_id):
 @csrf_protect
 @require_http_methods(["POST"])
 def unselect_time_slot(request, conference_id):
-    """Allow learners to unselect/cancel their time slot selection"""
+    """Allow users to unselect/cancel their time slot selection"""
     conference = get_object_or_404(Conference, id=conference_id)
     
     # Check if conference uses time slots
