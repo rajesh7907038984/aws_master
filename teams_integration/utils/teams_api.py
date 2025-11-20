@@ -116,7 +116,10 @@ class TeamsAPIClient:
             'Content-Type': 'application/json'
         }
         
-        url = urljoin(self.base_url, endpoint)
+        # Fix URL construction - urljoin doesn't work correctly with absolute paths
+        # Strip leading slash from endpoint if present, then append to base_url
+        endpoint_clean = endpoint.lstrip('/')
+        url = f"{self.base_url}/{endpoint_clean}"
         
         try:
             response = requests.request(
@@ -242,10 +245,15 @@ class TeamsAPIClient:
                 user_email = self.integration.user.email
                 logger.info(f"Using integration owner email: {user_email}")
             
+            # Fallback to service account email if configured
+            if not user_email and hasattr(self.integration, 'service_account_email') and self.integration.service_account_email:
+                user_email = self.integration.service_account_email
+                logger.info(f"Using service account email: {user_email}")
+            
             if not user_email:
                 error_msg = (
                     "User email is required for creating calendar events with application permissions. "
-                    "Please ensure the integration owner or request user has a valid email address configured."
+                    "Please ensure the integration owner, request user, or service account email has a valid email address configured."
                 )
                 logger.error(error_msg)
                 raise TeamsAPIError(error_msg)

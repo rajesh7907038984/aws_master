@@ -673,11 +673,24 @@ function autoRegisterAndJoin() {
     })
     .then(data => {
         if (data.success) {
-            // Show success message with platform-specific instructions
+            // Show success message with platform-specific instructions and registration status
             if (data.platform === 'teams') {
-                successMessage.innerHTML = '<strong>✅ Registration successful!</strong><br>' + 
-                    'Redirecting to Microsoft Teams... You may need to sign in with your Microsoft account.<br>' +
-                    '<small>Your name: <strong>' + (data.user_info?.display_name || 'Authenticated User') + '</strong></small>';
+                // Build message based on registration status
+                let messageHTML = '';
+                
+                if (data.registration_successful) {
+                    messageHTML = '<strong>✅ Auto-registration successful!</strong><br>' + 
+                        'You have been registered as: <strong>' + (data.user_info?.display_name || 'Authenticated User') + '</strong> (' + (data.user_info?.email || '') + ')<br>' +
+                        'Redirecting to Microsoft Teams...<br>' +
+                        '<small style="color: #10b981;">⚡ Sign in with your Microsoft account to join automatically.</small>';
+                } else {
+                    messageHTML = '<strong>⚠️ Auto-registration failed</strong><br>' + 
+                        'Redirecting to Microsoft Teams...<br>' +
+                        '<small style="color: #f59e0b;">Reason: ' + (data.registration_error || 'Unknown error') + '</small><br>' +
+                        '<small>You can still join the meeting by signing in with: <strong>' + (data.user_info?.email || 'your Microsoft account') + '</strong></small>';
+                }
+                
+                successMessage.innerHTML = messageHTML;
             } else {
                 successMessage.textContent = data.message;
             }
@@ -694,7 +707,9 @@ function autoRegisterAndJoin() {
                 return_url: "{% url 'conferences:return_from_meeting' conference_id=conference.id %}",
                 redirect_url: "{% url 'conferences:conference_redirect_handler' conference_id=conference.id %}",
                 dashboard_url: "{% url 'dashboard_learner' %}",
-                conference_detail_url: "{% url 'conferences:conference_detail' conference_id=conference.id %}"
+                conference_detail_url: "{% url 'conferences:conference_detail' conference_id=conference.id %}",
+                registration_successful: data.registration_successful || false,
+                registration_error: data.registration_error || null
             }));
             
             // Open the meeting - always open in new tab for all platforms
@@ -711,15 +726,31 @@ function autoRegisterAndJoin() {
                     };
                     button.disabled = false;
                     
-                    // Show popup blocked message
-                    errorMessage.innerHTML = 'Popup blocked! Please <strong>click the button above</strong> to open the meeting, or <a href="' + data.join_url + '" target="_blank">click here to join directly</a>.';
+                    // Show popup blocked message with registration status
+                    let popupMessage = 'Popup blocked! Please <strong>click the button above</strong> to open the meeting, or <a href="' + data.join_url + '" target="_blank">click here to join directly</a>.';
+                    
+                    if (data.platform === 'teams' && !data.registration_successful) {
+                        popupMessage += '<br><small style="color: #f59e0b;">⚠️ Note: Auto-registration failed. Sign in with ' + (data.user_info?.email || 'your Microsoft account') + ' to be identified.</small>';
+                    }
+                    
+                    errorMessage.innerHTML = popupMessage;
                     errorMessage.style.display = 'block';
                 } else {
                     // Successfully opened in new tab
                     buttonText.textContent = 'Meeting opened in new tab!';
                     
-                    // Show success message with manual link option
-                    successMessage.innerHTML = 'Meeting link opened in new tab! If it didn\'t open properly, <a href="' + data.join_url + '" target="_blank">click here to join directly</a>.';
+                    // Show success message with manual link option and registration status
+                    let successHTML = 'Meeting link opened in new tab! If it didn\'t open properly, <a href="' + data.join_url + '" target="_blank">click here to join directly</a>.';
+                    
+                    if (data.platform === 'teams') {
+                        if (data.registration_successful) {
+                            successHTML += '<br><small style="color: #10b981;">✅ You are registered! Sign in with your Microsoft account to join.</small>';
+                        } else {
+                            successHTML += '<br><small style="color: #f59e0b;">⚠️ Auto-registration failed. Sign in with ' + (data.user_info?.email || 'your Microsoft account') + ' to be identified.</small>';
+                        }
+                    }
+                    
+                    successMessage.innerHTML = successHTML;
                     successMessage.style.display = 'block';
                     
                     // Reset button after 5 seconds

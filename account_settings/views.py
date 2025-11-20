@@ -894,10 +894,22 @@ LMS System''',
                     client_id = request.POST.get('teams_client_id')
                     client_secret = request.POST.get('teams_client_secret')
                     tenant_id = request.POST.get('teams_tenant_id')
+                    service_account_email = request.POST.get('teams_service_account_email', '').strip()
                     
-                    if not all([name, client_id, client_secret, tenant_id]):
-                        messages.error(request, 'All fields are required for Teams integration.')
-                        return redirect('account_settings:settings?tab=integrations&integration=teams')
+                    # Check if integration already exists for this branch
+                    existing_integration = TeamsIntegration.objects.filter(branch=request.user.branch).first()
+                    
+                    # Validate required fields
+                    if existing_integration:
+                        # For updates, client_secret is optional
+                        if not all([name, client_id, tenant_id]):
+                            messages.error(request, 'Integration Name, Client ID, and Tenant ID are required.')
+                            return redirect(reverse('account_settings:settings') + '?tab=integrations&integration=teams')
+                    else:
+                        # For new integrations, all fields are required
+                        if not all([name, client_id, client_secret, tenant_id]):
+                            messages.error(request, 'All fields are required for Teams integration.')
+                            return redirect(reverse('account_settings:settings') + '?tab=integrations&integration=teams')
                     
                     # Get or create Teams integration for this branch
                     integration, created = TeamsIntegration.objects.get_or_create(
@@ -907,6 +919,7 @@ LMS System''',
                             'client_id': client_id,
                             'client_secret': client_secret,
                             'tenant_id': tenant_id,
+                            'service_account_email': service_account_email if service_account_email else None,
                             'user': request.user
                         }
                     )
@@ -918,6 +931,7 @@ LMS System''',
                         if client_secret:  # Only update if new secret provided
                             integration.client_secret = client_secret
                         integration.tenant_id = tenant_id
+                        integration.service_account_email = service_account_email if service_account_email else None
                         integration.save()
                         messages.success(request, 'Microsoft Teams integration updated successfully.')
                     else:
@@ -2242,7 +2256,22 @@ def edit_integration(request, integration_type, integration_id):
         integration.is_active = is_active
         
         # Type-specific fields
-        if integration_type == 'zoom':
+        if integration_type == 'teams':
+            client_id = request.POST.get('client_id')
+            client_secret = request.POST.get('client_secret')
+            tenant_id = request.POST.get('tenant_id')
+            service_account_email = request.POST.get('service_account_email', '').strip()
+            
+            if client_id:
+                integration.client_id = client_id
+            if client_secret:  # Only update if new secret provided
+                integration.client_secret = client_secret
+            if tenant_id:
+                integration.tenant_id = tenant_id
+            # Always update service account email (can be set to None/empty)
+            integration.service_account_email = service_account_email if service_account_email else None
+                
+        elif integration_type == 'zoom':
             api_key = request.POST.get('api_key')
             api_secret = request.POST.get('api_secret')
             account_id = request.POST.get('account_id')

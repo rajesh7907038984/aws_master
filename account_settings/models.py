@@ -45,6 +45,11 @@ class TeamsIntegration(IntegrationCredential):
     token_expiry = models.DateTimeField(blank=True, null=True)
     # Fixed Bug #2: Use SET_NULL instead of CASCADE with null=True
     branch = models.ForeignKey('branches.Branch', on_delete=models.SET_NULL, null=True, blank=True, help_text="The branch this integration belongs to")
+    service_account_email = models.EmailField(
+        blank=True, 
+        null=True,
+        help_text="Service account email (must exist in Azure AD with Exchange Online license) used for creating Teams meetings when user email is not available or invalid"
+    )
     
     def __str__(self):
         return f"Teams - {self.name}"

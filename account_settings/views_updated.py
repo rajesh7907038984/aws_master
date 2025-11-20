@@ -271,7 +271,7 @@ def handle_portal_settings(request):
         portal_settings.save()
     
     messages.success(request, 'Portal settings updated successfully.')
-    return redirect('account_settings:settings?tab=portal')
+    return redirect(reverse('account_settings:settings') + '?tab=portal')
 
 def handle_teams_integration(request):
     """Handle Microsoft Teams integration form submission"""
@@ -284,9 +284,20 @@ def handle_teams_integration(request):
     client_secret = request.POST.get('teams_client_secret')
     tenant_id = request.POST.get('teams_tenant_id')
     
-    if not all([name, client_id, client_secret, tenant_id]):
-        messages.error(request, 'All fields are required for Teams integration.')
-        return redirect('account_settings:settings?tab=integrations&integration=teams')
+    # Check if integration already exists for this branch
+    existing_integration = TeamsIntegration.objects.filter(branch=request.user.branch).first()
+    
+    # Validate required fields
+    if existing_integration:
+        # For updates, client_secret is optional
+        if not all([name, client_id, tenant_id]):
+            messages.error(request, 'Integration Name, Client ID, and Tenant ID are required.')
+            return redirect(reverse('account_settings:settings') + '?tab=integrations&integration=teams')
+    else:
+        # For new integrations, all fields are required
+        if not all([name, client_id, client_secret, tenant_id]):
+            messages.error(request, 'All fields are required for Teams integration.')
+            return redirect(reverse('account_settings:settings') + '?tab=integrations&integration=teams')
     
     integration, created = TeamsIntegration.objects.get_or_create(
         branch=request.user.branch,
@@ -308,7 +319,7 @@ def handle_teams_integration(request):
         integration.save()
     
     messages.success(request, 'Microsoft Teams integration updated successfully.')
-    return redirect('account_settings:settings?tab=integrations&integration=teams')
+    return redirect(reverse('account_settings:settings') + '?tab=integrations&integration=teams')
 
 # Continue with other integration handlers...
 # (Similar pattern for zoom, stripe, paypal, sharepoint integrations)
