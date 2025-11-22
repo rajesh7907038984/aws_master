@@ -1,0 +1,344 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Branch Notification Settings - {{ block.super }}{% endblock %}
+
+{% block global_breadcrumbs %}
+<!-- Breadcrumb -->
+{% include 'components/breadcrumb.html' with breadcrumbs=breadcrumbs %}
+{% endblock %}
+
+{% block extra_css %}
+<style>
+/* Toggle switch styling */
+.toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 60px;
+    height: 34px;
+}
+
+.toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #ccc;
+    transition: .4s;
+    border-radius: 34px;
+}
+
+.slider:before {
+    position: absolute;
+    content: "";
+    height: 26px;
+    width: 26px;
+    left: 4px;
+    bottom: 4px;
+    background-color: white;
+    transition: .4s;
+    border-radius: 50%;
+}
+
+input:checked + .slider {
+    background-color: #10b981;
+}
+
+input:checked + .slider:before {
+    transform: translateX(26px);
+}
+
+.section-box {
+    border-radius: 8px;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+    background-color: white;
+    transition: all 0.2s ease-in-out;
+    padding: 1.25rem;
+    margin-bottom: 1rem;
+}
+
+.section-box:hover {
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+.role-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.5rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    margin-right: 0.25rem;
+    margin-bottom: 0.25rem;
+}
+
+.role-globaladmin {
+    background-color: rgb(239 68 68);
+    color: white;
+}
+
+.role-superadmin {
+    background-color: rgb(147 51 234);
+    color: white;
+}
+
+.role-admin {
+    background-color: rgb(59 130 246);
+    color: white;
+}
+
+.role-instructor {
+    background-color: rgb(16 185 129);
+    color: white;
+}
+
+.role-learner {
+    background-color: rgb(245 158 11);
+    color: white;
+}
+
+.notification-item {
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 0.75rem;
+    background-color: #f9fafb;
+    transition: all 0.2s ease-in-out;
+}
+
+.notification-item:hover {
+    background-color: #f3f4f6;
+    border-color: #d1d5db;
+}
+
+.notification-item.disabled {
+    opacity: 0.6;
+    background-color: #f5f5f5;
+}
+
+.branch-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.375rem 0.75rem;
+    border-radius: 0.5rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="flex justify-between items-center mb-6">
+        <div>
+            <h1 class="text-3xl font-semibold text-gray-900 flex items-center">
+                <i class="fas fa-building mr-3 text-blue-600"></i>
+                Branch Notification Settings
+            </h1>
+            <p class="text-gray-600 mt-1">
+                Manage notification types available to users in 
+                <span class="branch-badge ml-1"><i class="fas fa-building mr-1"></i>{{ branch.name }}</span>
+            </p>
+        </div>
+        <div class="flex gap-3">
+            <a href="{% url 'lms_notifications:notification_center' %}" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                <i class="fas fa-arrow-left mr-2"></i> Back to Notifications
+            </a>
+        </div>
+    </div>
+
+    <!-- Settings Form -->
+    <form method="POST" id="branchNotificationSettingsForm">
+        {% csrf_token %}
+        
+        <!-- Info Box -->
+        <div class="section-box bg-blue-50 border-l-4 border-blue-400 mb-6">
+            <div class="flex">
+                <div class="flex-shrink-0">
+                    <i class="fas fa-info-circle text-blue-400"></i>
+                </div>
+                <div class="ml-3">
+                    <p class="text-sm text-blue-700">
+                        <strong>Branch Admin Control:</strong> You can enable or disable notification types for users in your branch ({{ branch.name }}). 
+                        Users in your branch will only see and receive notifications for the types you enable here. 
+                        This overrides their individual preferences - if you disable a type, they won't receive it even if they have it enabled.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Branch Statistics -->
+        <div class="section-box bg-gradient-to-r from-blue-50 to-indigo-50 border-l-4 border-blue-500 mb-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-900">Branch Information</h3>
+                    <p class="text-sm text-gray-600 mt-1">
+                        <i class="fas fa-building mr-2"></i><strong>Branch:</strong> {{ branch.name }}<br>
+                        <i class="fas fa-users mr-2"></i><strong>Total Users:</strong> {{ branch.users.count }}<br>
+                        <i class="fas fa-user-tie mr-2"></i><strong>Admins:</strong> {{ branch.users.filter.role='admin'.count }}
+                        <i class="fas fa-chalkboard-teacher ml-4 mr-2"></i><strong>Instructors:</strong> {{ branch.users.filter.role='instructor'.count }}
+                        <i class="fas fa-user-graduate ml-4 mr-2"></i><strong>Learners:</strong> {{ branch.users.filter.role='learner'.count }}
+                    </p>
+                </div>
+                <div class="text-right">
+                    <i class="fas fa-building text-6xl text-blue-400 opacity-20"></i>
+                </div>
+            </div>
+        </div>
+
+        {% for category, items in categorized_types.items %}
+        {% if items %}
+        <div class="section-box mb-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                {% if category == 'Session & Account' %}
+                    <i class="fas fa-shield-alt text-red-500 mr-2"></i>
+                {% elif category == 'Course Activities' %}
+                    <i class="fas fa-graduation-cap text-blue-500 mr-2"></i>
+                {% elif category == 'Assignments & Assessments' %}
+                    <i class="fas fa-tasks text-green-500 mr-2"></i>
+                {% elif category == 'Communication' %}
+                    <i class="fas fa-comments text-purple-500 mr-2"></i>
+                {% else %}
+                    <i class="fas fa-cogs text-gray-500 mr-2"></i>
+                {% endif %}
+                {{ category }}
+            </h3>
+            
+            <div class="space-y-3">
+                {% for item in items %}
+                <div class="notification-item {% if not item.branch_settings.is_enabled %}disabled{% endif %}">
+                    <div class="flex items-center justify-between">
+                        <div class="flex-1">
+                            <div class="flex items-center mb-2">
+                                <h4 class="text-base font-medium text-gray-900 mr-3">
+                                    {{ item.type.display_name }}
+                                </h4>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" 
+                                           name="notification_{{ item.type.id }}_enabled" 
+                                           {% if item.branch_settings.is_enabled %}checked{% endif %}
+                                           {% if not item.type.can_be_disabled %}disabled{% endif %}
+                                           data-notification-id="{{ item.type.id }}">
+                                    <span class="slider"></span>
+                                </label>
+                                {% if not item.type.can_be_disabled %}
+                                <span class="ml-2 text-xs text-red-600 font-medium">
+                                    <i class="fas fa-lock mr-1"></i>System Required
+                                </span>
+                                {% endif %}
+                                
+                                {% if item.branch_settings.is_enabled %}
+                                <span class="ml-2 text-xs text-green-600 font-medium">
+                                    <i class="fas fa-check-circle mr-1"></i>Enabled for {{ branch.name }}
+                                </span>
+                                {% else %}
+                                <span class="ml-2 text-xs text-gray-500 font-medium">
+                                    <i class="fas fa-ban mr-1"></i>Disabled for {{ branch.name }}
+                                </span>
+                                {% endif %}
+                            </div>
+                            
+                            <p class="text-sm text-gray-600 mb-3">{{ item.type.description }}</p>
+                            
+                            <div class="flex items-center">
+                                <span class="text-xs font-medium text-gray-500 mr-2">Available to roles:</span>
+                                <div class="flex flex-wrap">
+                                    {% if item.type.available_to_roles %}
+                                        {% for role in item.type.available_to_roles %}
+                                        <span class="role-badge role-{{ role }}">
+                                            {% if role == 'globaladmin' %}Global Admin
+                                            {% elif role == 'superadmin' %}Super Admin
+                                            {% elif role == 'admin' %}Admin
+                                            {% elif role == 'instructor' %}Instructor
+                                            {% elif role == 'learner' %}Learner
+                                            {% else %}{{ role|title }}
+                                            {% endif %}
+                                        </span>
+                                        {% endfor %}
+                                    {% else %}
+                                        <span class="role-badge" style="background-color: #6b7280; color: white;">All Roles</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            {% if item.branch_settings.configured_by %}
+                            <div class="mt-2 text-xs text-gray-500">
+                                <i class="fas fa-user-cog mr-1"></i>Last configured by: {{ item.branch_settings.configured_by.get_full_name|default:item.branch_settings.configured_by.username }} 
+                                on {{ item.branch_settings.updated_at|date:"M d, Y g:i A" }}
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+        {% endfor %}
+
+        <!-- Action Buttons -->
+        <div class="section-box">
+            <div class="flex justify-between items-center">
+                <div>
+                    <h3 class="text-lg font-medium text-gray-900">Save Changes</h3>
+                    <p class="text-gray-600 text-sm">Apply the notification settings for {{ branch.name }} branch users.</p>
+                </div>
+                <div class="flex gap-3">
+                    <button type="button" 
+                            onclick="resetForm()" 
+                            class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                        <i class="fas fa-undo mr-2"></i> Reset
+                    </button>
+                    <button type="submit" 
+                            class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white"
+                            style="background-color: #1c2260;" 
+                            onmouseover="this.style.backgroundColor='#181f56'" 
+                            onmouseout="this.style.backgroundColor='#1c2260'">
+                        <i class="fas fa-save mr-2"></i> Save Settings
+                    </button>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+
+<script>
+function resetForm() {
+    if (confirm('Are you sure you want to reset all changes? This will revert to the last saved state.')) {
+        location.reload();
+    }
+}
+
+// Add form submission confirmation
+document.getElementById('branchNotificationSettingsForm').addEventListener('submit', function(e) {
+    if (!confirm('Are you sure you want to save these notification settings? This will affect all users in {{ branch.name }} branch.')) {
+        e.preventDefault();
+    }
+});
+
+// Add visual feedback for toggle changes
+document.querySelectorAll('.toggle-switch input').forEach(function(toggle) {
+    toggle.addEventListener('change', function() {
+        const item = this.closest('.notification-item');
+        if (this.checked) {
+            item.classList.remove('disabled');
+        } else {
+            item.classList.add('disabled');
+        }
+    });
+});
+</script>
+{% endblock %}
+

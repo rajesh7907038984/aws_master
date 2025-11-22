@@ -14,7 +14,8 @@ import json
 
 from .models import (
     Notification, NotificationSettings, NotificationTypeSettings,
-    NotificationType, BulkNotification, NotificationTemplate, NotificationLog
+    NotificationType, BulkNotification, NotificationTemplate, NotificationLog,
+    BranchNotificationSettings
 )
 from .forms import (
     NotificationSettingsForm, NotificationTypeSettingsForm, NotificationTypeSettingsFormSet,
@@ -23,10 +24,14 @@ from .forms import (
 )
 
 
-def filter_notification_types_by_role(user_role):
+def filter_notification_types_by_role(user_role, user_branch=None):
     """
-    Filter notification types by user role in a database-agnostic way.
+    Filter notification types by user role and branch settings in a database-agnostic way.
     Returns a queryset of notification types that the user can access.
+    
+    Args:
+        user_role: The role of the user
+        user_branch: The branch of the user (optional)
     """
     # Get all active notification types
     all_types = NotificationType.objects.filter(
@@ -38,12 +43,31 @@ def filter_notification_types_by_role(user_role):
     for notification_type in all_types:
         available_roles = notification_type.available_to_roles
         
-        # Allow if:
-        # 1. available_to_roles is null or empty (available to all)
-        # 2. user's role is in the available_to_roles list
-        if (not available_roles or 
+        # Check if user's role has access to this notification type
+        role_has_access = (
+            not available_roles or 
             available_roles == [] or 
-            user_role in available_roles):
+            user_role in available_roles
+        )
+        
+        if not role_has_access:
+            continue
+        
+        # If user has a branch, check branch-level settings
+        if user_branch:
+            try:
+                branch_settings = BranchNotificationSettings.objects.get(
+                    branch=user_branch,
+                    notification_type=notification_type
+                )
+                # Only include if enabled at branch level
+                if branch_settings.is_enabled:
+                    accessible_types.append(notification_type.id)
+            except BranchNotificationSettings.DoesNotExist:
+                # If no branch settings exist, default to enabled
+                accessible_types.append(notification_type.id)
+        else:
+            # No branch, just check role
             accessible_types.append(notification_type.id)
     
     # Return filtered queryset
@@ -58,6 +82,11 @@ def is_admin_or_instructor(user):
 def is_admin(user):
     """Check if user is admin"""
     return user.is_authenticated and user.role in ['globaladmin', 'admin', 'superadmin']
+
+
+def is_branch_admin(user):
+    """Check if user is a branch admin (admin or superadmin with a branch)"""
+    return user.is_authenticated and user.role in ['admin', 'superadmin'] and user.branch is not None
 
 
 @login_required
@@ -297,7 +326,7 @@ def notification_settings(request):
         form = EnhancedNotificationSettingsForm(request.POST, instance=settings_obj)
         
         # Handle individual notification type settings
-        notification_types = filter_notification_types_by_role(request.user.role)
+        notification_types = filter_notification_types_by_role(request.user.role, request.user.branch)
         
         for notification_type in notification_types:
             # Get or create individual settings
@@ -311,33 +340,57 @@ def notification_settings(request):
             )
             
             # Update settings from form data
+            # Checkboxes only appear in POST if checked, so check for their presence
             email_key = f'type_{notification_type.id}_email'
             web_key = f'type_{notification_type.id}_web'
             
-            type_settings.email_enabled = email_key in request.POST
-            type_settings.web_enabled = web_key in request.POST
+            # Only update if the notification type can be disabled
+            if notification_type.can_be_disabled:
+                type_settings.email_enabled = email_key in request.POST
+                type_settings.web_enabled = web_key in request.POST
+            else:
+                # Force enabled if cannot be disabled
+                type_settings.email_enabled = True
+                type_settings.web_enabled = True
+            
             type_settings.save()
         
         # Handle certificate expiry reminder intervals
         intervals_json = request.POST.get('certificate_expiry_intervals_json', '[]')
+        certificate_intervals = None
         try:
             intervals = json.loads(intervals_json)
             if isinstance(intervals, list):
                 # Filter valid intervals (positive integers)
-                valid_intervals = [int(i) for i in intervals if isinstance(i, (int, str)) and int(i) > 0]
-                settings_obj.certificate_expiry_reminder_intervals = valid_intervals
+                certificate_intervals = [int(i) for i in intervals if isinstance(i, (int, str)) and int(i) > 0]
         except (json.JSONDecodeError, ValueError):
             pass  # Keep existing intervals if parsing fails
         
         if form.is_valid():
-            form.save()
+            # Only globaladmin users can update global notification settings
+            if request.user.role == 'globaladmin':
+                # Explicitly handle global checkbox states
+                # Since unchecked checkboxes don't appear in POST data, we need to check for their presence
+                settings_obj.email_notifications_enabled = 'email_notifications_enabled' in request.POST
+                settings_obj.web_notifications_enabled = 'web_notifications_enabled' in request.POST
+            
+            # All users can update certificate expiry reminder settings
+            settings_obj.certificate_expiry_reminder_days = form.cleaned_data.get('certificate_expiry_reminder_days', 30)
+            
+            # Update certificate intervals
+            if certificate_intervals is not None:
+                settings_obj.certificate_expiry_reminder_intervals = certificate_intervals
+            
+            # Save all changes
+            settings_obj.save()
+            
             messages.success(request, 'Notification settings updated successfully.')
             return redirect('lms_notifications:settings')
     else:
         form = EnhancedNotificationSettingsForm(instance=settings_obj)
     
-    # Get available notification types for current user's role
-    notification_types = filter_notification_types_by_role(request.user.role).order_by('display_name')
+    # Get available notification types for current user's role and branch
+    notification_types = filter_notification_types_by_role(request.user.role, request.user.branch).order_by('display_name')
     
     # Get existing user settings for each notification type
     notification_types_with_settings = []
@@ -986,6 +1039,106 @@ def notification_admin_settings(request):
     }
     
     return render(request, 'lms_notifications/admin_settings.html', context)
+
+
+@login_required
+@user_passes_test(is_branch_admin)
+def branch_notification_settings(request):
+    """Branch-level notification settings management for branch admins"""
+    # Get the branch admin's branch
+    branch = request.user.branch
+    
+    if not branch:
+        messages.error(request, 'You do not have a branch assigned.')
+        return redirect('lms_notifications:notification_center')
+    
+    if request.method == 'POST':
+        # Handle form submission for updating notification type settings
+        for notification_type in NotificationType.objects.filter(is_active=True):
+            # Get the enabled status for each notification type
+            enabled_key = f'notification_{notification_type.id}_enabled'
+            is_enabled = request.POST.get(enabled_key) == 'on'
+            
+            # Get or create branch notification settings
+            branch_settings, created = BranchNotificationSettings.objects.get_or_create(
+                branch=branch,
+                notification_type=notification_type,
+                defaults={
+                    'is_enabled': is_enabled,
+                    'default_email_enabled': notification_type.default_email_enabled,
+                    'default_web_enabled': notification_type.default_web_enabled,
+                    'configured_by': request.user,
+                }
+            )
+            
+            # Update the settings only if notification type can be disabled
+            if notification_type.can_be_disabled:
+                branch_settings.is_enabled = is_enabled
+                branch_settings.configured_by = request.user
+                branch_settings.save()
+        
+        messages.success(request, f'Notification settings for {branch.name} updated successfully.')
+        return redirect('lms_notifications:branch_settings')
+    
+    # Get all notification types with their current settings
+    notification_types = NotificationType.objects.filter(is_active=True).order_by('display_name')
+    
+    # Get existing branch settings for each notification type
+    notification_types_with_settings = []
+    for notification_type in notification_types:
+        branch_settings, created = BranchNotificationSettings.objects.get_or_create(
+            branch=branch,
+            notification_type=notification_type,
+            defaults={
+                'is_enabled': True,  # Default to enabled
+                'default_email_enabled': notification_type.default_email_enabled,
+                'default_web_enabled': notification_type.default_web_enabled,
+                'configured_by': request.user,
+            }
+        )
+        notification_types_with_settings.append({
+            'type': notification_type,
+            'branch_settings': branch_settings,
+        })
+    
+    # Organize notification types by category for better display
+    categorized_types = {
+        'Session & Account': [],
+        'Course Activities': [],
+        'Assignments & Assessments': [],
+        'Communication': [],
+        'System & Administrative': [],
+    }
+    
+    # Categorize notification types
+    for item in notification_types_with_settings:
+        nt = item['type']
+        if nt.name in ['account_Session', 'system_maintenance']:
+            categorized_types['Session & Account'].append(item)
+        elif nt.name in ['course_enrollment', 'course_announcement', 'course_completion', 'conference_reminder', 'enrollment_approved', 'enrollment_rejected']:
+            categorized_types['Course Activities'].append(item)
+        elif nt.name in ['assignment_due', 'assignment_graded', 'quiz_available', 'quiz_reminder', 'certificate_earned', 'certificate_expiry_reminder']:
+            categorized_types['Assignments & Assessments'].append(item)
+        elif nt.name in ['message_received', 'discussion_reply', 'instructor_feedback', 'bulk_announcement']:
+            categorized_types['Communication'].append(item)
+        else:
+            categorized_types['System & Administrative'].append(item)
+    
+    # Breadcrumbs
+    breadcrumbs = [
+        {'url': reverse('users:role_based_redirect'), 'label': 'Dashboard', 'icon': 'fa-home'},
+        {'url': reverse('lms_notifications:notification_center'), 'label': 'Notifications', 'icon': 'fa-bell'},
+        {'label': f'{branch.name} Settings', 'icon': 'fa-building'}
+    ]
+    
+    context = {
+        'branch': branch,
+        'notification_types_with_settings': notification_types_with_settings,
+        'categorized_types': categorized_types,
+        'breadcrumbs': breadcrumbs,
+    }
+    
+    return render(request, 'lms_notifications/branch_notification_settings.html', context)
 
 
 

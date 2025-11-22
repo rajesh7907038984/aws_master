@@ -11,8 +11,10 @@
 {% block extra_css %}
 <style>
 /* Form toggle switches styling */
-input[type="checkbox"] {
+.toggle-checkbox {
     appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
     width: 2.5rem;
     height: 1.25rem;
     background-color: #d1d5db;
@@ -20,13 +22,20 @@ input[type="checkbox"] {
     position: relative;
     cursor: pointer;
     transition: background-color 0.2s ease-in-out;
+    outline: none;
+    border: none;
 }
 
-input[type="checkbox"]:checked {
+.toggle-checkbox:checked {
     background-color: #3b82f6;
 }
 
-input[type="checkbox"]:before {
+.toggle-checkbox:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.toggle-checkbox:before {
     content: '';
     position: absolute;
     width: 1rem;
@@ -39,8 +48,12 @@ input[type="checkbox"]:before {
     box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
 }
 
-input[type="checkbox"]:checked:before {
+.toggle-checkbox:checked:before {
     transform: translateX(1.25rem);
+}
+
+.toggle-checkbox:focus {
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3);
 }
 
 
@@ -103,9 +116,11 @@ button[type="submit"]:hover {
             <h1 class="text-3xl font-semibold text-gray-900">Notification Settings</h1>
             <p class="text-gray-600 mt-1">Manage how and when you receive notifications</p>
         </div>
-        <a href="{% url 'lms_notifications:notification_center' %}" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
-            <i class="fas fa-arrow-left mr-2"></i> Back to Notifications
-        </a>
+        <div class="flex gap-3">
+            <a href="{% url 'lms_notifications:notification_center' %}" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                <i class="fas fa-arrow-left mr-2"></i> Back to Notifications
+            </a>
+        </div>
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -113,7 +128,8 @@ button[type="submit"]:hover {
             <form method="POST" class="space-y-6">
                 {% csrf_token %}
                 
-                <!-- Global Settings -->
+                <!-- Global Settings - Only visible to Global Admin users -->
+                {% if request.user.role == 'globaladmin' %}
                 <div class="bg-white rounded-lg shadow">
                     <div class="px-6 py-4 border-b border-gray-200">
                         <h3 class="text-lg font-medium text-gray-900">
@@ -124,26 +140,35 @@ button[type="submit"]:hover {
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div class="flex items-center justify-between">
                                 <div>
-                                    <label class="text-sm font-medium text-gray-900">Email Notifications</label>
+                                    <label for="{{ form.email_notifications_enabled.id_for_label }}" class="text-sm font-medium text-gray-900 cursor-pointer">Email Notifications</label>
                                     <p class="text-sm text-gray-500">Receive notifications via email</p>
                                 </div>
                                 <div class="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in">
-                                    {{ form.email_notifications_enabled }}
+                                    <input type="checkbox" 
+                                           name="{{ form.email_notifications_enabled.name }}" 
+                                           id="{{ form.email_notifications_enabled.id_for_label }}"
+                                           {% if form.email_notifications_enabled.value %}checked{% endif %}
+                                           class="toggle-checkbox">
                                 </div>
                             </div>
                             <div class="flex items-center justify-between">
                                 <div>
-                                    <label class="text-sm font-medium text-gray-900">Web Notifications</label>
+                                    <label for="{{ form.web_notifications_enabled.id_for_label }}" class="text-sm font-medium text-gray-900 cursor-pointer">Web Notifications</label>
                                     <p class="text-sm text-gray-500">Show notifications in the web interface</p>
                                 </div>
                                 <div class="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in">
-                                    {{ form.web_notifications_enabled }}
+                                    <input type="checkbox" 
+                                           name="{{ form.web_notifications_enabled.name }}" 
+                                           id="{{ form.web_notifications_enabled.id_for_label }}"
+                                           {% if form.web_notifications_enabled.value %}checked{% endif %}
+                                           class="toggle-checkbox">
                                 </div>
                             </div>
                         </div>
                         
                     </div>
                 </div>
+                {% endif %}
 
                 <!-- Individual Notification Type Settings -->
                 <div class="bg-white rounded-lg shadow">
@@ -169,12 +194,13 @@ button[type="submit"]:hover {
                                     <div class="flex items-center space-x-4">
                                         <!-- Email Toggle -->
                                         <div class="flex items-center space-x-2">
-                                            <span class="text-xs text-gray-500">Email</span>
+                                            <label for="type_{{ item.type.id }}_email" class="text-xs text-gray-500 cursor-pointer">Email</label>
                                             <input type="checkbox" 
                                                    name="type_{{ item.type.id }}_email" 
+                                                   id="type_{{ item.type.id }}_email"
                                                    {% if item.settings.email_enabled %}checked{% endif %}
                                                    {% if not item.type.can_be_disabled %}disabled{% endif %}
-                                                   class="form-checkbox">
+                                                   class="toggle-checkbox notification-type-toggle">
                                         </div>
                                         <!-- Test Email Button -->
                                         <button type="button" 
@@ -246,6 +272,7 @@ button[type="submit"]:hover {
                     </h3>
                 </div>
                 <div class="px-6 py-4 space-y-4">
+                    {% if request.user.role == 'globaladmin' %}
                     <div>
                         <h4 class="text-sm font-medium text-gray-900">Email Notifications</h4>
                         <p class="text-sm text-gray-500">Get notified via email for important updates and activities.</p>
@@ -255,6 +282,7 @@ button[type="submit"]:hover {
                         <h4 class="text-sm font-medium text-gray-900">Web Notifications</h4>
                         <p class="text-sm text-gray-500">See notifications in your notification center when you're online.</p>
                     </div>
+                    {% endif %}
                     
                     <div>
                         <h4 class="text-sm font-medium text-gray-900">Individual Email Types</h4>
@@ -276,6 +304,16 @@ button[type="submit"]:hover {
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Toggle checkbox functionality - just for debugging
+    const toggleCheckboxes = document.querySelectorAll('.toggle-checkbox');
+    
+    toggleCheckboxes.forEach(checkbox => {
+        // Log changes for debugging
+        checkbox.addEventListener('change', function() {
+            console.log(this.name + ' changed to: ' + this.checked);
+        });
+    });
+    
     // Certificate Expiry Reminder Intervals Management
     let intervals = [];
     const intervalsContainer = document.getElementById('reminder-intervals-container');

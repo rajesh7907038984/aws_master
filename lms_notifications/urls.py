@@ -21,6 +21,8 @@ urlpatterns = [
     path('settings/type/<int:type_id>/', views.notification_type_settings, name='type_settings'),
     path('settings/test-email/', views.send_test_email, name='send_test_email'),
     path('admin-settings/', views.notification_admin_settings, name='admin_settings'),
+    # Branch settings disabled - using main notification settings instead
+    # path('branch-settings/', views.branch_notification_settings, name='branch_settings'),
     
     # Bulk notifications (admin/instructor only)
     path('bulk/', views.bulk_notification_list, name='bulk_notification_list'),

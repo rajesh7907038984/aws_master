@@ -87,6 +87,63 @@ class NotificationSettings(models.Model):
         return f"Notification settings for {self.user.username}"
 
 
+class BranchNotificationSettings(models.Model):
+    """
+    Branch-level notification settings - allows branch admins to control
+    which notification types are available to users in their branch
+    """
+    branch = models.ForeignKey(
+        Branch,
+        on_delete=models.CASCADE,
+        related_name='notification_settings'
+    )
+    notification_type = models.ForeignKey(
+        NotificationType,
+        on_delete=models.CASCADE,
+        related_name='branch_settings'
+    )
+    
+    # Control availability at branch level
+    is_enabled = models.BooleanField(
+        default=True,
+        help_text="Whether this notification type is enabled for users in this branch"
+    )
+    
+    # Override default settings for this branch
+    default_email_enabled = models.BooleanField(
+        default=True,
+        help_text="Default email setting for new users in this branch"
+    )
+    default_web_enabled = models.BooleanField(
+        default=True,
+        help_text="Default web setting for new users in this branch"
+    )
+    
+    # Who configured this and when
+    configured_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='configured_branch_notifications'
+    )
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ['branch', 'notification_type']
+        indexes = [
+            models.Index(fields=['branch', 'notification_type']),
+            models.Index(fields=['branch', 'is_enabled']),
+        ]
+        verbose_name = 'Branch Notification Setting'
+        verbose_name_plural = 'Branch Notification Settings'
+
+    def __str__(self):
+        return f"{self.branch.name} - {self.notification_type.display_name} ({'Enabled' if self.is_enabled else 'Disabled'})"
+
+
 class NotificationTypeSettings(models.Model):
     """
     User-specific settings for each notification type

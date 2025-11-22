@@ -6,7 +6,8 @@ from django.contrib import messages
 from django.utils import timezone
 from .models import (
     NotificationType, NotificationSettings, NotificationTypeSettings,
-    Notification, BulkNotification, NotificationTemplate, NotificationLog
+    BranchNotificationSettings, Notification, BulkNotification, 
+    NotificationTemplate, NotificationLog
 )
 
 
@@ -61,6 +62,30 @@ class NotificationTypeSettingsAdmin(admin.ModelAdmin):
     list_filter = ['email_enabled', 'web_enabled', 'notification_type', 'created_at']
     search_fields = ['user__username', 'user__email', 'notification_type__name']
     readonly_fields = ['created_at', 'updated_at']
+
+
+@admin.register(BranchNotificationSettings)
+class BranchNotificationSettingsAdmin(admin.ModelAdmin):
+    list_display = ['branch', 'notification_type', 'is_enabled', 'default_email_enabled', 'default_web_enabled', 'configured_by', 'updated_at']
+    list_filter = ['is_enabled', 'default_email_enabled', 'default_web_enabled', 'branch', 'notification_type', 'updated_at']
+    search_fields = ['branch__name', 'notification_type__name', 'notification_type__display_name']
+    readonly_fields = ['created_at', 'updated_at']
+    
+    fieldsets = (
+        ('Branch & Notification Type', {
+            'fields': ('branch', 'notification_type')
+        }),
+        ('Settings', {
+            'fields': ('is_enabled', 'default_email_enabled', 'default_web_enabled')
+        }),
+        ('Configuration', {
+            'fields': ('configured_by',)
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
 
 
 @admin.register(Notification)
