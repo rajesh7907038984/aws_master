@@ -126,9 +126,29 @@ class OneDriveAPI:
             return response.json()
             
         except requests.exceptions.HTTPError as e:
-            error_msg = f"HTTP {e.response.status_code}: {e.response.text}"
-            logger.error(f"OneDrive API request failed: {error_msg}")
-            raise OneDriveAPIError(error_msg)
+            status_code = e.response.status_code
+            error_msg = f"HTTP {status_code}: {e.response.text}"
+            
+            # Handle specific error codes with appropriate logging level
+            if status_code == 403:
+                # Access denied - likely permission issue, log as warning not error
+                logger.warning(f"OneDrive API access denied (403). Please verify API permissions are granted. Endpoint: {endpoint}")
+                raise OneDriveAPIError("Access denied. Please ensure the app has 'Files.Read.All' or 'Sites.Read.All' permissions and admin consent is granted.")
+            elif status_code == 404:
+                # Not found - expected for missing resources, log as info
+                logger.info(f"OneDrive API resource not found (404): {endpoint}")
+                raise OneDriveAPIError(f"Resource not found: {endpoint}")
+            elif status_code == 429:
+                # Rate limit - log as warning
+                logger.warning(f"OneDrive API rate limit exceeded (429). Retry after: {e.response.headers.get('Retry-After', 'unknown')}")
+                raise OneDriveAPIError("API rate limit exceeded. Please try again later.")
+            else:
+                # Other errors
+                logger.error(f"OneDrive API request failed: {error_msg}")
+                raise OneDriveAPIError(error_msg)
+        except OneDriveAPIError:
+            # Re-raise our custom errors
+            raise
         except Exception as e:
             logger.error(f"OneDrive API request error: {str(e)}")
             raise OneDriveAPIError(str(e))
@@ -237,6 +257,9 @@ class OneDriveAPI:
                 'total_count': len(recordings)
             }
             
+        except OneDriveAPIError as e:
+            # Error already logged in _make_request, just return failure
+            return {'success': False, 'error': str(e), 'recordings': []}
         except Exception as e:
             logger.error(f"Error searching recordings: {str(e)}")
             return {'success': False, 'error': str(e), 'recordings': []}

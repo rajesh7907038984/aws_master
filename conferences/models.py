@@ -37,6 +37,7 @@ class Conference(models.Model):
     
     # Extended fields for full integration
     meeting_id = models.CharField(max_length=255, blank=True, null=True, help_text="Platform-specific meeting ID")
+    online_meeting_id = models.CharField(max_length=255, blank=True, null=True, help_text="Teams online meeting ID (required for recording)")
     meeting_password = models.CharField(max_length=100, blank=True, null=True)
     host_url = models.URLField(max_length=500, blank=True, null=True, help_text="Host start URL")
     
@@ -302,6 +303,7 @@ class ConferenceTimeSlot(models.Model):
     # Meeting details (can be different for each slot)
     meeting_link = models.URLField(max_length=500, blank=True, null=True)
     meeting_id = models.CharField(max_length=255, blank=True, null=True)
+    online_meeting_id = models.CharField(max_length=255, blank=True, null=True, help_text="Teams online meeting ID (required for recording)")
     meeting_password = models.CharField(max_length=100, blank=True, null=True)
     
     # Status

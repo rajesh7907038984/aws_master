@@ -447,15 +447,23 @@ class EnhancedUserChangeForm(CustomUserChangeForm):
                 current_user_groups = BranchGroup.objects.filter(
                     id__in=user_groups
                 )
-                # Union the current queryset with the user's current groups
-                self.fields['user_groups'].queryset = self.fields['user_groups'].queryset.union(current_user_groups)
-            
+                # Combine querysets by collecting all IDs and creating a new QuerySet
+                # This avoids the union() QuerySet issue where filtering after union() is not supported
+                existing_group_ids = set(self.fields['user_groups'].queryset.values_list('id', flat=True))
+                current_group_ids = set(current_user_groups.values_list('id', flat=True))
+                all_group_ids = existing_group_ids.union(current_group_ids)
+                self.fields['user_groups'].queryset = BranchGroup.objects.filter(id__in=all_group_ids)
+
             if course_groups.exists():
                 current_course_groups = BranchGroup.objects.filter(
                     id__in=course_groups
                 )
-                # Union the current queryset with the user's current groups
-                self.fields['course_groups'].queryset = self.fields['course_groups'].queryset.union(current_course_groups)
+                # Combine querysets by collecting all IDs and creating a new QuerySet
+                # This avoids the union() QuerySet issue where filtering after union() is not supported
+                existing_course_group_ids = set(self.fields['course_groups'].queryset.values_list('id', flat=True))
+                current_course_group_ids = set(current_course_groups.values_list('id', flat=True))
+                all_course_group_ids = existing_course_group_ids.union(current_course_group_ids)
+                self.fields['course_groups'].queryset = BranchGroup.objects.filter(id__in=all_course_group_ids)
             
             # Auto-select user groups if learner has course groups but no user groups
             if (self.instance.role == 'learner' and 

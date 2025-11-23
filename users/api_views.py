@@ -66,15 +66,23 @@ def get_branch_groups(request, branch_id):
                     current_user_groups = BranchGroup.objects.filter(
                         id__in=user_current_groups
                     ).values('id', 'name', 'description')
-                    # Union with existing groups
-                    user_groups = user_groups.union(current_user_groups)
-                
+                    # Combine querysets by collecting all IDs and creating a new QuerySet
+                    # This avoids the union() QuerySet issue where filtering after union() is not supported
+                    existing_user_group_ids = set(user_groups.values_list('id', flat=True))
+                    current_user_group_ids = set(current_user_groups.values_list('id', flat=True))
+                    all_user_group_ids = existing_user_group_ids.union(current_user_group_ids)
+                    user_groups = BranchGroup.objects.filter(id__in=all_user_group_ids).values('id', 'name', 'description')
+
                 if course_current_groups.exists():
                     current_course_groups = BranchGroup.objects.filter(
                         id__in=course_current_groups
                     ).values('id', 'name', 'description')
-                    # Union with existing groups
-                    course_groups = course_groups.union(current_course_groups)
+                    # Combine querysets by collecting all IDs and creating a new QuerySet
+                    # This avoids the union() QuerySet issue where filtering after union() is not supported
+                    existing_course_group_ids = set(course_groups.values_list('id', flat=True))
+                    current_course_group_ids = set(current_course_groups.values_list('id', flat=True))
+                    all_course_group_ids = existing_course_group_ids.union(current_course_group_ids)
+                    course_groups = BranchGroup.objects.filter(id__in=all_course_group_ids).values('id', 'name', 'description')
                     
             except CustomUser.DoesNotExist:
                 pass  # Continue with branch-only groups if user not found

@@ -113,8 +113,15 @@ class MeetingSyncService(TeamsSyncService):
                 logger.info(f"No meeting ID for conference {conference.id}, skipping attendance sync")
                 return self.sync_status
             
+            # Determine user email - use conference creator's email (who owns the meeting)
+            user_email = None
+            if conference.created_by and conference.created_by.email:
+                user_email = conference.created_by.email
+            elif self.config.user and self.config.user.email:
+                user_email = self.config.user.email
+            
             # Get attendance data from Teams
-            attendance_result = self.api.get_meeting_attendance(conference.meeting_id)
+            attendance_result = self.api.get_meeting_attendance(conference.meeting_id, user_email=user_email)
             if not attendance_result['success']:
                 raise TeamsAPIError(f"Failed to get meeting attendance: {attendance_result['error']}")
             
@@ -370,7 +377,7 @@ class MeetingSyncService(TeamsSyncService):
         }
         
         try:
-            from .models import TeamsMeetingSync
+            from teams_integration.models import TeamsMeetingSync
             from conferences.models import ConferenceChat
             from users.models import CustomUser
             
@@ -382,25 +389,59 @@ class MeetingSyncService(TeamsSyncService):
                 logger.info("No meeting sync record found for chat sync, skipping")
                 return self.sync_status
             
-            # Check if we have a meeting ID
-            if not conference.meeting_id:
-                logger.info("No Teams meeting ID found for chat sync, skipping")
-                return self.sync_status
-            
             # Determine user email for API calls
+            # Priority: 1. Conference creator (owns the meeting), 2. Integration user, 3. Service account
             user_email = None
-            if self.config.user and self.config.user.email:
+            if conference.created_by and conference.created_by.email:
+                user_email = conference.created_by.email
+                logger.info(f"Using conference creator email for API: {user_email}")
+            elif self.config.user and self.config.user.email:
                 user_email = self.config.user.email
+                logger.info(f"Using Teams integration user email for API: {user_email}")
             elif hasattr(self.config, 'service_account_email') and self.config.service_account_email:
                 user_email = self.config.service_account_email
+                logger.info(f"Using service account email for API: {user_email}")
             
             if not user_email:
                 logger.info("No user email available for API authentication for chat sync, skipping")
                 return self.sync_status
             
-            # Try to get meeting transcript/chat messages
+            # Get the online meeting ID (required for chat/transcript access)
+            online_meeting_id = conference.online_meeting_id
+            
+            # If we don't have online_meeting_id but have meeting_id (calendar event ID),
+            # try to fetch the online meeting details to get the online_meeting_id
+            if not online_meeting_id and conference.meeting_id:
+                logger.info(f"No online_meeting_id found, attempting to fetch from calendar event {conference.meeting_id}")
+                try:
+                    # Get calendar event to extract online meeting ID
+                    endpoint = f'/users/{user_email}/calendar/events/{conference.meeting_id}'
+                    event_data = self.api._make_request('GET', endpoint)
+                    
+                    # Extract online meeting ID from calendar event
+                    if event_data.get('onlineMeeting'):
+                        online_meeting_id = event_data['onlineMeeting'].get('id')
+                        if online_meeting_id:
+                            # Save the online_meeting_id for future use
+                            conference.online_meeting_id = online_meeting_id
+                            conference.save(update_fields=['online_meeting_id'])
+                            logger.info(f"✓ Retrieved and saved online_meeting_id: {online_meeting_id}")
+                    else:
+                        logger.warning(f"Calendar event {conference.meeting_id} has no online meeting associated")
+                        
+                except Exception as e:
+                    logger.warning(f"Failed to fetch online meeting ID from calendar event: {str(e)}")
+            
+            # Check if we have an online meeting ID
+            if not online_meeting_id:
+                logger.info("No Teams online meeting ID found for chat sync. This meeting may not have chat data available.")
+                return self.sync_status
+            
+            logger.info(f"Fetching chat messages for online meeting: {online_meeting_id}")
+            
+            # Try to get meeting transcript/chat messages using online meeting ID
             transcript_result = self.api.get_meeting_transcript(
-                conference.meeting_id,
+                online_meeting_id,
                 user_email=user_email
             )
             
@@ -540,7 +581,7 @@ class MeetingSyncService(TeamsSyncService):
         }
         
         try:
-            from .models import TeamsMeetingSync
+            from teams_integration.models import TeamsMeetingSync
             
             logger.info(f"Syncing files for conference: {conference.title}")
             

@@ -254,3 +254,7 @@ class DiscussionAttachment(models.Model):
         elif self.comment:
             return f"Attachment for comment"
         return "Orphaned attachment"
+
+
+# Alias for backward compatibility - this fixes ImportError for code importing 'Attachment'
+Attachment = DiscussionAttachment

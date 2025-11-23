@@ -3262,6 +3262,19 @@ def join_conference(request, conference_id):
         if not conference.is_available_for_user(user):
             messages.error(request, 'You do not have permission to access this conference.')
             return redirect('conferences:conference_list')
+        
+        # Check if conference uses time slots and learner has selected one
+        if conference.use_time_slots:
+            from conferences.models import ConferenceTimeSlotSelection
+            time_slot_selection = ConferenceTimeSlotSelection.objects.filter(
+                conference=conference,
+                user=user
+            ).first()
+            
+            if not time_slot_selection:
+                logger.info(f"Learner {user.username} tried to join conference {conference.id} without selecting a time slot, redirecting to detail page")
+                messages.warning(request, 'Please select a time slot before joining this conference.')
+                return redirect('conferences:conference_detail', conference_id=conference.id)
     elif user.role == 'instructor':
         # Instructors can join conferences they created or from their courses
         has_access = False
@@ -3635,9 +3648,25 @@ def conference_detail(request, conference_id):
             except Exception as e:
                 logger.error(f"Error getting rubric data for learner {user.id} in conference {conference.id}: {str(e)}")
         
+        # Get recordings and chat messages for learner view
+        recordings = ConferenceRecording.objects.filter(
+            conference=conference
+        ).filter(
+            Q(title__in=['chat_file', 'shared_screen_with_speaker_view']) |  # Zoom recordings
+            Q(stored_in_onedrive=True) |  # Teams OneDrive recordings
+            Q(recording_type__in=['cloud', 'shared_screen', 'audio_only'])  # Other cloud recordings
+        ).order_by('-created_at')
+        
+        # Get chat messages for learner view
+        chat_messages = ConferenceChat.objects.filter(
+            conference=conference
+        ).select_related('sender').order_by('sent_at')
+        
         context.update({
             'participant': participant,
             'learner_rubric_data': learner_rubric_data,
+            'recordings': recordings,
+            'chat_messages': chat_messages,
         })
     
     elif user.role in ['instructor', 'admin', 'superadmin']:
@@ -5297,21 +5326,80 @@ def auto_register_and_join(request, conference_id):
             'error': 'Failed to track participation.'
         }, status=500)
     
+    # Check if conference uses time slots - if yes, get user's selected slot
+    selected_time_slot = None
+    if conference.use_time_slots:
+        # For learners, they must select a time slot before joining
+        if user.role == 'learner':
+            try:
+                from conferences.models import ConferenceTimeSlotSelection
+                time_slot_selection = ConferenceTimeSlotSelection.objects.filter(
+                    conference=conference,
+                    user=user
+                ).select_related('time_slot').first()
+                
+                if not time_slot_selection:
+                    logger.warning(f"User {user.username} tried to join conference {conference.id} without selecting a time slot")
+                    return JsonResponse({
+                        'success': False,
+                        'error': 'Please select a time slot before joining this conference.'
+                    }, status=400)
+                
+                selected_time_slot = time_slot_selection.time_slot
+                logger.info(f"User {user.username} joining selected time slot: {selected_time_slot.date} {selected_time_slot.start_time}")
+                
+                # Update participant tracking data with time slot info
+                if not participant.tracking_data:
+                    participant.tracking_data = {}
+                participant.tracking_data.update({
+                    'time_slot_id': selected_time_slot.id,
+                    'time_slot_date': str(selected_time_slot.date),
+                    'time_slot_start': str(selected_time_slot.start_time),
+                    'time_slot_end': str(selected_time_slot.end_time)
+                })
+                participant.save()
+                
+            except Exception as e:
+                logger.error(f"Error getting time slot for user {user.username}: {str(e)}")
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Error retrieving your selected time slot. Please try again.'
+                }, status=500)
+        else:
+            # For instructors/admins, they can access any time slot
+            # We don't require them to select one, they use the main conference link
+            logger.info(f"Instructor/Admin {user.username} joining conference with time slots (using main link)")
+    
+    # Determine which meeting link and ID to use
+    # If user has a selected time slot, use that slot's meeting details
+    # Otherwise, use the conference's main meeting details
+    if selected_time_slot and selected_time_slot.meeting_link:
+        effective_meeting_link = selected_time_slot.meeting_link
+        effective_meeting_id = selected_time_slot.meeting_id
+        effective_online_meeting_id = selected_time_slot.online_meeting_id
+        logger.info(f"Using time slot meeting link for user {user.username}: {effective_meeting_link}")
+    else:
+        effective_meeting_link = conference.meeting_link
+        effective_meeting_id = conference.meeting_id
+        effective_online_meeting_id = conference.online_meeting_id
+        logger.info(f"Using conference main meeting link for user {user.username}")
+    
     # Check if meeting platform is Zoom
     if conference.meeting_platform != 'zoom':
         # For Microsoft Teams, build URL with user information AND add user as attendee
         if conference.meeting_platform == 'teams':
             # Validate that meeting_link exists and is not empty
-            if not conference.meeting_link or conference.meeting_link.strip() == '':
-                logger.error(f"Teams conference {conference.id} has no meeting link configured")
+            if not effective_meeting_link or effective_meeting_link.strip() == '':
+                slot_info = f" (time slot {selected_time_slot.date} {selected_time_slot.start_time})" if selected_time_slot else ""
+                logger.error(f"Teams conference {conference.id}{slot_info} has no meeting link configured")
                 return JsonResponse({
                     'success': False,
-                    'error': 'This Teams conference does not have a meeting link configured. Please contact the instructor.'
+                    'error': f'This {"time slot" if selected_time_slot else "conference"} does not have a meeting link configured. Please contact the instructor.'
                 }, status=400)
             
             # Validate that it's a proper Teams URL
-            if not ('teams.microsoft.com' in conference.meeting_link or 'teams.live.com' in conference.meeting_link):
-                logger.error(f"Conference {conference.id} has invalid Teams meeting link: {conference.meeting_link}")
+            if not ('teams.microsoft.com' in effective_meeting_link or 'teams.live.com' in effective_meeting_link):
+                logger.error(f"Conference {conference.id} has invalid Teams meeting link: {effective_meeting_link}")
                 return JsonResponse({
                     'success': False,
                     'error': 'Invalid Teams meeting link. Please contact the instructor.'
@@ -5319,14 +5407,14 @@ def auto_register_and_join(request, conference_id):
             
             # Check for invalid "meet-now" links (instant meeting links that don't work properly for scheduled conferences)
             # Only block if it's clearly a meet-now link AND there's no meeting_id
-            if ('meet-now' in conference.meeting_link.lower() or '/v2/meet/meet-now' in conference.meeting_link.lower()) and not conference.meeting_id:
-                logger.error(f"Conference {conference.id} has a 'meet-now' link without meeting_id: {conference.meeting_link}")
+            if ('meet-now' in effective_meeting_link.lower() or '/v2/meet/meet-now' in effective_meeting_link.lower()) and not effective_meeting_id:
+                logger.error(f"Conference {conference.id} has a 'meet-now' link without meeting_id: {effective_meeting_link}")
                 return JsonResponse({
                     'success': False,
                     'error': 'This conference has an instant meeting link which may not work properly for scheduled conferences. The instructor needs to create a proper scheduled Teams meeting with a meeting ID. Please contact the instructor to fix this.'
                 }, status=400)
             
-            teams_join_url = build_direct_teams_url_for_registered_user(conference, user)
+            teams_join_url = build_direct_teams_url_for_registered_user(conference, user, meeting_link=effective_meeting_link)
             
             if not teams_join_url:
                 logger.error(f"Failed to build Teams join URL for conference {conference.id}")
@@ -5429,9 +5517,10 @@ def auto_register_and_join(request, conference_id):
                     if not teams_integration:
                         registration_error = 'No Teams integration available for this conference'
                         logger.warning(f"Cannot add attendee to Teams meeting - no integration found for conference {conference.id}")
-                    elif not conference.meeting_id:
-                        registration_error = 'Conference has no Teams meeting ID'
-                        logger.warning(f"Cannot add attendee to Teams meeting - conference {conference.id} has no meeting_id")
+                    elif not effective_meeting_id:
+                        slot_info = f" (time slot {selected_time_slot.date} {selected_time_slot.start_time})" if selected_time_slot else ""
+                        registration_error = f'{"Time slot" if selected_time_slot else "Conference"} has no Teams meeting ID'
+                        logger.warning(f"Cannot add attendee to Teams meeting - conference {conference.id}{slot_info} has no meeting_id")
                     else:
                         # We have both integration and meeting_id - attempt to add attendee
                         api_client = TeamsAPIClient(teams_integration)
@@ -5444,14 +5533,14 @@ def auto_register_and_join(request, conference_id):
                         else:
                             # Attempt to add attendee (only for learners)
                             result = api_client.add_meeting_attendee(
-                                meeting_id=conference.meeting_id,
+                                meeting_id=effective_meeting_id,
                                 attendee_email=user.email,
                                 attendee_name=display_name,
                                 organizer_email=organizer_email
                             )
                             
                             if result.get('success'):
-                                logger.info(f"✅ Successfully added {display_name} ({user.email}) as attendee to Teams meeting {conference.meeting_id}")
+                                logger.info(f"✅ Successfully added {display_name} ({user.email}) as attendee to Teams meeting {effective_meeting_id}")
                                 registration_successful = True
                             else:
                                 registration_error = result.get('error', 'Unknown error')
@@ -5519,16 +5608,17 @@ def auto_register_and_join(request, conference_id):
             })
         
         # For other non-Zoom platforms, validate and return the meeting link
-        if not conference.meeting_link or conference.meeting_link.strip() == '':
-            logger.error(f"Conference {conference.id} ({conference.meeting_platform}) has no meeting link")
+        if not effective_meeting_link or effective_meeting_link.strip() == '':
+            slot_info = f" (time slot {selected_time_slot.date} {selected_time_slot.start_time})" if selected_time_slot else ""
+            logger.error(f"Conference {conference.id} ({conference.meeting_platform}){slot_info} has no meeting link")
             return JsonResponse({
                 'success': False,
-                'error': 'This conference does not have a meeting link configured. Please contact the instructor.'
+                'error': f'This {"time slot" if selected_time_slot else "conference"} does not have a meeting link configured. Please contact the instructor.'
             }, status=400)
         
         return JsonResponse({
             'success': True,
-            'join_url': conference.meeting_link,
+            'join_url': effective_meeting_link,
             'message': 'Direct join link ready.',
             'platform': conference.meeting_platform
         })
@@ -5787,19 +5877,24 @@ def build_direct_zoom_url_for_registered_user(conference, user, registration_res
         return f"{zoom_base_url}?{param_string}"
 
 
-def build_direct_teams_url_for_registered_user(conference, user):
+def build_direct_teams_url_for_registered_user(conference, user, meeting_link=None):
     """
     Build a direct Microsoft Teams join URL for registered users
     Returns the clean Teams meeting URL without extra parameters that may interfere
     
     All users (instructors and learners) get the same regular meeting_link for participant access
+    
+    Args:
+        conference: Conference object
+        user: User object
+        meeting_link: Optional meeting link to use (for time slots). If not provided, uses conference.meeting_link
     """
     from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
     from django.conf import settings
     
-    # Use regular meeting link for all users (both instructors and learners)
-    # This ensures everyone joins as a participant with the same link
-    base_url = conference.meeting_link
+    # Use provided meeting_link or fall back to conference meeting link
+    # This allows for time slot-specific meeting links
+    base_url = meeting_link if meeting_link else conference.meeting_link
     
     if not base_url:
         logger.error(f"No meeting link found for Teams conference {conference.id}")
@@ -6892,8 +6987,17 @@ def manage_time_slots(request, conference_id):
                             if result.get('success'):
                                 time_slot.meeting_link = result.get('meeting_link')
                                 time_slot.meeting_id = result.get('meeting_id')
+                                time_slot.online_meeting_id = result.get('online_meeting_id')
                                 time_slot.save()
-                                messages.success(request, f'Created time slot with Teams meeting link')
+                                
+                                # Check if recording was enabled successfully
+                                recording_status = result.get('recording_status', 'not_attempted')
+                                if recording_status == 'enabled':
+                                    messages.success(request, f'Created time slot with Teams meeting link (Recording enabled)')
+                                elif recording_status == 'failed':
+                                    messages.warning(request, f'Created time slot with Teams meeting link (Recording setup failed: {result.get("recording_error")})')
+                                else:
+                                    messages.success(request, f'Created time slot with Teams meeting link')
                             else:
                                 messages.warning(request, f'Time slot created but Teams meeting creation failed: {result.get("error")}')
                         else:

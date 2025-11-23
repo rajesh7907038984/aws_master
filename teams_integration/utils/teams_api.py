@@ -159,9 +159,11 @@ class TeamsAPIClient:
                 'response_body': getattr(response, 'text', None) if hasattr(response, 'text') else None
             }
             
-            # Special handling for common errors
+            # Special handling for common errors with appropriate log levels
+            log_level = 'error'  # default
             if hasattr(response, 'status_code'):
                 if response.status_code == 404:
+                    log_level = 'info'  # 404s are expected for missing resources
                     # More specific error handling for 404s
                     if '/users/' in endpoint and '/calendar' in endpoint:
                         # Extract user email from endpoint
@@ -182,21 +184,32 @@ class TeamsAPIClient:
                             "and admin consent is granted."
                         )
                 elif response.status_code == 403:
+                    log_level = 'warning'  # 403s indicate permission issues, not critical errors
                     error_msg = (
                         f"API request failed: 403 Forbidden for endpoint {endpoint}. "
                         "This indicates insufficient permissions. Verify API permissions and admin consent."
                     )
                 elif response.status_code == 401:
+                    log_level = 'warning'  # 401s are auth issues, typically resolved by token refresh
                     error_msg = (
                         f"API request failed: 401 Unauthorized for endpoint {endpoint}. "
                         "Token might be invalid or expired."
                     )
+                elif response.status_code == 400:
+                    log_level = 'info'  # 400s are often expected (bad meeting IDs, etc.)
+                    error_msg = f"API request failed: 400 Bad Request for url: {url}"
                 else:
                     error_msg = f"API request failed: {str(e)}"
             else:
                 error_msg = f"API request failed: {str(e)}"
             
-            logger.error(f"Teams API request failed: {error_msg}", extra=error_details)
+            # Log at appropriate level based on error type
+            if log_level == 'info':
+                logger.info(f"Teams API request: {error_msg}")
+            elif log_level == 'warning':
+                logger.warning(f"Teams API request: {error_msg}")
+            else:
+                logger.error(f"Teams API request failed: {error_msg}", extra=error_details)
             raise TeamsAPIError(error_msg)
     
     def create_meeting(self, title, start_time, end_time, description=None, user_email=None, enable_recording=True):
@@ -433,6 +446,12 @@ class TeamsAPIClient:
                 'total_attendees': len(attendance_data)
             }
             
+        except TeamsAPIError as e:
+            # Error already logged in _make_request, just return failure
+            return {
+                'success': False,
+                'error': str(e)
+            }
         except Exception as e:
             logger.error(f"Error getting Teams meeting attendance: {str(e)}")
             return {

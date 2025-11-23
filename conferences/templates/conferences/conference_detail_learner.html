@@ -459,6 +459,15 @@
                         </div>
                         
                         <div style="display: flex; gap: 10px; margin-top: 10px;">
+                            {% if user_selection.time_slot.meeting_link %}
+                                {% if conference.meeting_status == 'scheduled' or conference.meeting_status == 'started' %}
+                                <a href="{{ user_selection.time_slot.meeting_link }}" target="_blank" class="btn btn-sm btn-success">
+                                    <i class="fas fa-video mr-1"></i>
+                                    Join This Slot Directly
+                                </a>
+                                {% endif %}
+                            {% endif %}
+                            
                             {% if not user_selection.calendar_added %}
                             <form method="POST" action="{% url 'conferences:retry_calendar_sync' conference.id user_selection.time_slot.id %}" style="display: inline-block;">
                                 {% csrf_token %}
@@ -534,7 +543,202 @@
         </div>
         {% endif %}
 
+        <!-- Chat History and Recordings Tabs for Learners -->
+        {% if chat_messages or recordings %}
+        <div class="description-section">
+            <div class="border-b border-gray-200 mb-4">
+                <nav class="-mb-px flex space-x-8">
+                    <button class="tab-button active" onclick="showLearnerTab('chat')">
+                        <i class="fas fa-comments mr-2"></i>Chat History ({{ chat_messages|length }})
+                    </button>
+                    <button class="tab-button" onclick="showLearnerTab('recordings')">
+                        <i class="fas fa-video mr-2"></i>Recordings ({{ recordings|length }})
+                    </button>
+                </nav>
+            </div>
 
+            <!-- Chat History Tab -->
+            <div id="learner-chat-tab" class="learner-tab-content">
+                {% if chat_messages %}
+                <div class="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <p class="text-sm text-blue-800">
+                        <i class="fas fa-info-circle mr-2"></i>
+                        Meeting chat history with all participants. {{ chat_messages|length }} total messages.
+                    </p>
+                </div>
+                
+                <div class="chat-timeline max-h-96 overflow-y-auto">
+                    {% for message in chat_messages %}
+                    <div class="chat-message">
+                        <div class="flex items-start">
+                            <div class="flex-shrink-0 mr-3">
+                                <div class="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-medium
+                                    {% if message.sender and message.sender.id == request.user.id %}
+                                        bg-blue-500
+                                    {% elif message.sender %}
+                                        bg-green-500
+                                    {% else %}
+                                        bg-gray-500
+                                    {% endif %}">
+                                    {% if message.sender %}
+                                        {{ message.sender.get_full_name|default:message.sender.username|slice:":1"|upper }}
+                                    {% else %}
+                                        {{ message.sender_name|default:"?"|slice:":1"|upper }}
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="flex-1">
+                                <div class="flex items-center justify-between mb-1">
+                                    <span class="text-sm font-semibold text-gray-900">
+                                        {% if message.sender %}
+                                            {{ message.sender.get_full_name|default:message.sender.username }}
+                                            {% if message.sender.id == request.user.id %}
+                                                <span class="text-xs text-blue-600">(You)</span>
+                                            {% endif %}
+                                        {% else %}
+                                            {{ message.sender_name|default:"Unknown User" }}
+                                        {% endif %}
+                                    </span>
+                                    <span class="text-xs text-gray-500">
+                                        {{ message.sent_at|date:"M d, H:i" }}
+                                    </span>
+                                </div>
+                                <div class="text-sm text-gray-700">
+                                    {{ message.message_text }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center py-8 text-gray-500">
+                    <i class="fas fa-comments fa-3x mb-3"></i>
+                    <p>No chat messages yet.</p>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Recordings Tab -->
+            <div id="learner-recordings-tab" class="learner-tab-content" style="display: none;">
+                {% if recordings %}
+                <div class="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <p class="text-sm text-blue-800">
+                        <i class="fas fa-info-circle mr-2"></i>
+                        Meeting recordings available for playback or download.
+                    </p>
+                </div>
+                
+                {% for recording in recordings %}
+                <div class="recording-card">
+                    <div class="flex justify-between items-start">
+                        <div class="flex-1">
+                            <h4 class="font-medium text-gray-900">{{ recording.title }}</h4>
+                            <div class="text-sm text-gray-500 mt-1">
+                                {{ recording.get_recording_type_display }} • 
+                                {{ recording.duration_minutes }} minutes • 
+                                {{ recording.file_size|filesizeformat }}
+                            </div>
+                        </div>
+                        
+                        <div class="flex flex-col space-y-2 ml-4">
+                            {% if recording.download_url or recording.stored_in_onedrive %}
+                            <a href="{% url 'conferences:download_conference_recording' conference.id recording.id %}" 
+                               class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                               target="_blank">
+                                <i class="fas fa-download mr-2"></i>
+                                Download
+                            </a>
+                            {% if recording.onedrive_web_url %}
+                            <a href="{{ recording.onedrive_web_url }}" 
+                               class="inline-flex items-center px-3 py-2 border border-blue-300 shadow-sm text-sm leading-4 font-medium rounded-md text-blue-700 bg-blue-50 hover:bg-blue-100"
+                               target="_blank"
+                               title="View in OneDrive">
+                                <i class="fas fa-eye mr-2"></i>
+                                View Online
+                            </a>
+                            {% endif %}
+                            {% else %}
+                            <span class="text-sm text-gray-500">Processing...</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+                {% else %}
+                <div class="text-center py-8 text-gray-500">
+                    <i class="fas fa-video fa-3x mb-3"></i>
+                    <p>No recordings available yet.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <style>
+            .tab-button {
+                padding: 0.75rem 1.5rem;
+                border-bottom: 2px solid transparent;
+                color: #6b7280;
+                font-weight: 500;
+                transition: all 0.2s;
+                background: none;
+                border: none;
+                cursor: pointer;
+                border-bottom: 2px solid transparent;
+            }
+            
+            .tab-button.active {
+                color: #3b82f6;
+                border-bottom-color: #3b82f6;
+            }
+            
+            .tab-button:hover {
+                color: #374151;
+            }
+            
+            .chat-message {
+                padding: 0.75rem;
+                border-radius: 8px;
+                margin-bottom: 0.5rem;
+                background-color: #f9fafb;
+            }
+            
+            .recording-card {
+                border: 1px solid #e5e7eb;
+                border-radius: 8px;
+                padding: 1rem;
+                margin-bottom: 0.75rem;
+                transition: all 0.2s;
+            }
+            
+            .recording-card:hover {
+                box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            }
+        </style>
+
+        <script>
+        function showLearnerTab(tabName) {
+            // Hide all tabs
+            document.querySelectorAll('.learner-tab-content').forEach(tab => {
+                tab.style.display = 'none';
+            });
+            
+            // Remove active class from all buttons
+            document.querySelectorAll('.tab-button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            // Show selected tab
+            const targetTab = document.getElementById('learner-' + tabName + '-tab');
+            if (targetTab) {
+                targetTab.style.display = 'block';
+            }
+            
+            // Add active class to clicked button
+            event.target.classList.add('active');
+        }
+        </script>
+        {% endif %}
 
         <!-- Authentication Required Notice -->
         <div class="auth-required">
@@ -575,8 +779,21 @@
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
                     </svg>
-                    <span id="joinButtonText">{% if has_joined %}Rejoin Conference{% else %}Join Conference{% endif %}</span>
+                    <span id="joinButtonText">
+                        {% if conference.use_time_slots %}
+                            {% if has_joined %}Rejoin Selected Slot{% else %}Join Selected Slot{% endif %}
+                        {% else %}
+                            {% if has_joined %}Rejoin Conference{% else %}Join Conference{% endif %}
+                        {% endif %}
+                    </span>
                 </button>
+                
+                {% if conference.use_time_slots %}
+                <div class="text-sm text-gray-600 mt-2">
+                    <i class="fas fa-info-circle mr-1"></i>
+                    You will join your selected time slot
+                </div>
+                {% endif %}
 
 
 

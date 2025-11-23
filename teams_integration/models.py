@@ -12,6 +12,13 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+# Import TeamsIntegration from account_settings to make it available for backward compatibility
+try:
+    from account_settings.models import TeamsIntegration
+except ImportError:
+    # If import fails during migrations, define a placeholder
+    TeamsIntegration = None
+
 
 class TeamsSyncLog(models.Model):
     """Model for tracking Teams integration sync operations"""

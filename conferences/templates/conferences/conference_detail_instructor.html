@@ -335,8 +335,8 @@
                 {% endif %}
             </div>
             <div class="flex space-x-2">
-                {% if conference.meeting_link %}
-                <!-- Auto-registration join button (same as learner view) -->
+                {% if conference.meeting_link and not conference.use_time_slots %}
+                <!-- Auto-registration join button (only shown when NOT using time slots) -->
                 <button id="joinButton" onclick="autoRegisterAndJoin()" 
                         class="btn-standard">
                     <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -349,6 +349,14 @@
                 <div id="joinMessages" class="hidden ml-4 flex items-center space-x-2">
                     <div id="errorMessage" class="text-red-600 text-sm"></div>
                     <div id="successMessage" class="text-green-600 text-sm"></div>
+                </div>
+                {% endif %}
+                
+                {% if conference.use_time_slots %}
+                <!-- Info message when time slots are enabled -->
+                <div class="text-sm text-gray-600 flex items-center">
+                    <i class="fas fa-info-circle mr-2"></i>
+                    Use the individual "Join" buttons for each time slot below
                 </div>
                 {% endif %}
                 
@@ -701,13 +709,13 @@
             
             <!-- Enhanced Timeline Chat Display -->
             <div class="chat-timeline max-h-96 overflow-y-auto">
-                <div class="relative">
+                <div class="relative pl-8">
                     <!-- Timeline Line -->
-                    <div class="absolute left-6 top-0 bottom-0 w-0.5 bg-gray-300"></div>
+                    <div class="absolute left-4 top-0 bottom-0 w-0.5 bg-gray-300"></div>
                     
                     <!-- Chat Messages -->
                     {% for message in chat_messages %}
-                    <div class="relative flex items-start mb-4 pl-4">
+                    <div class="relative flex items-start mb-4">
                         <!-- Timeline Node -->
                         <div class="flex-shrink-0 relative z-10">
                             <div class="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-medium shadow-md
@@ -2104,8 +2112,42 @@ function toggleConferenceRubricEvaluationHistory() {
     }
 }
 
+// Show terms acceptance modal before syncing
+function showTermsModal() {
+    const modal = document.getElementById('termsModal');
+    if (modal) {
+        modal.classList.remove('hidden');
+        document.body.style.overflow = 'hidden'; // Prevent scrolling
+    }
+}
+
+// Close terms modal
+function closeTermsModal() {
+    const modal = document.getElementById('termsModal');
+    if (modal) {
+        modal.classList.add('hidden');
+        document.body.style.overflow = ''; // Restore scrolling
+    }
+    // Uncheck the checkbox
+    const checkbox = document.getElementById('termsCheckbox');
+    if (checkbox) {
+        checkbox.checked = false;
+    }
+}
+
+// Accept terms and proceed with sync
+function acceptTermsAndSync() {
+    const checkbox = document.getElementById('termsCheckbox');
+    if (!checkbox || !checkbox.checked) {
+        alert('Please accept the terms to continue.');
+        return;
+    }
+    closeTermsModal();
+    performConferenceDataSync();
+}
+
 // Sync conference data function
-function syncConferenceData() {
+function performConferenceDataSync() {
     const button = document.getElementById('syncDataBtn');
     const buttonText = document.getElementById('syncButtonText');
     const syncIcon = button.querySelector('.sync-icon');
@@ -2275,7 +2317,7 @@ function syncConferenceData() {
 document.addEventListener('DOMContentLoaded', function() {
     const syncButton = document.getElementById('syncDataBtn');
     if (syncButton) {
-        syncButton.addEventListener('click', syncConferenceData);
+        syncButton.addEventListener('click', showTermsModal);
     }
     
     // Handle URL fragments for tab navigation
@@ -2348,6 +2390,123 @@ function generateConferenceDetailedReport(conferenceId, studentId) {
     margin-right: 8px;
 }
 </style>
+
+<!-- Terms Acceptance Modal -->
+<div id="termsModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50" onclick="if(event.target === this) closeTermsModal()">
+    <div class="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white">
+        <div class="mt-3">
+            <!-- Modal Header -->
+            <div class="flex items-center justify-between pb-3 border-b">
+                <h3 class="text-xl font-bold text-gray-900">
+                    <i class="fas fa-file-contract mr-2 text-blue-600"></i>
+                    Terms of Service & Privacy Policy
+                </h3>
+                <button onclick="closeTermsModal()" class="text-gray-400 hover:text-gray-600">
+                    <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+            
+            <!-- Modal Body -->
+            <div class="mt-4 max-h-96 overflow-y-auto">
+                <div class="space-y-4 text-gray-700">
+                    <div class="bg-blue-50 border-l-4 border-blue-500 p-4">
+                        <p class="text-sm">
+                            <i class="fas fa-info-circle mr-2 text-blue-600"></i>
+                            Before syncing meeting data, please review and accept our terms regarding data collection and usage.
+                        </p>
+                    </div>
+                    
+                    <div class="space-y-3">
+                        <h4 class="font-semibold text-lg text-gray-900">Data Collection</h4>
+                        <p class="text-sm">
+                            When you sync conference data, the following information will be imported from the meeting platform:
+                        </p>
+                        <ul class="list-disc list-inside text-sm space-y-2 ml-4">
+                            <li>Participant attendance records and join/leave times</li>
+                            <li>Chat messages and conversation history</li>
+                            <li>Meeting recordings stored on the platform or OneDrive</li>
+                            <li>Files shared during the meeting</li>
+                            <li>Participant engagement metrics</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="space-y-3">
+                        <h4 class="font-semibold text-lg text-gray-900">Data Usage</h4>
+                        <p class="text-sm">
+                            The synced data will be used for:
+                        </p>
+                        <ul class="list-disc list-inside text-sm space-y-2 ml-4">
+                            <li>Tracking learner attendance and participation</li>
+                            <li>Evaluating learner performance using rubrics</li>
+                            <li>Maintaining records for educational purposes</li>
+                            <li>Generating reports and analytics</li>
+                            <li>Providing access to meeting recordings and materials</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="space-y-3">
+                        <h4 class="font-semibold text-lg text-gray-900">Data Privacy</h4>
+                        <p class="text-sm">
+                            Your privacy is important to us:
+                        </p>
+                        <ul class="list-disc list-inside text-sm space-y-2 ml-4">
+                            <li>All data is securely stored and encrypted</li>
+                            <li>Data access is restricted to authorized personnel only</li>
+                            <li>Chat messages remain visible only to course participants</li>
+                            <li>Recordings are accessible only to enrolled users</li>
+                            <li>Personal information is handled according to our Privacy Policy</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="space-y-3">
+                        <h4 class="font-semibold text-lg text-gray-900">User Consent</h4>
+                        <p class="text-sm">
+                            By accepting these terms, you confirm that:
+                        </p>
+                        <ul class="list-disc list-inside text-sm space-y-2 ml-4">
+                            <li>All meeting participants were informed about data collection</li>
+                            <li>You have the authority to sync this meeting data</li>
+                            <li>The data will be used for educational purposes only</li>
+                            <li>You agree to comply with applicable data protection laws</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="bg-yellow-50 border-l-4 border-yellow-500 p-4 mt-4">
+                        <p class="text-sm text-yellow-800">
+                            <i class="fas fa-exclamation-triangle mr-2"></i>
+                            <strong>Important:</strong> Once synced, chat messages and recordings will be visible to all course participants. Ensure all content is appropriate for educational sharing.
+                        </p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Modal Footer -->
+            <div class="mt-6 border-t pt-4">
+                <div class="flex items-start mb-4">
+                    <div class="flex items-center h-5">
+                        <input id="termsCheckbox" type="checkbox" class="w-4 h-4 border border-gray-300 rounded bg-gray-50 focus:ring-3 focus:ring-blue-300">
+                    </div>
+                    <label for="termsCheckbox" class="ml-2 text-sm font-medium text-gray-900">
+                        I agree to the Terms of Service and Privacy Policy, and I confirm that meeting participants were informed about data collection
+                    </label>
+                </div>
+                
+                <div class="flex justify-end space-x-3">
+                    <button onclick="closeTermsModal()" 
+                            class="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 transition">
+                        <i class="fas fa-times mr-2"></i>Cancel
+                    </button>
+                    <button onclick="acceptTermsAndSync()" 
+                            class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition">
+                        <i class="fas fa-check mr-2"></i>Accept & Sync Data
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 
 <!-- Include the return help modal -->
 {% include 'conferences/return_help_modal.html' %}
