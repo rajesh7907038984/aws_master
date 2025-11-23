@@ -296,7 +296,30 @@ class TeamsAPIClient:
             join_url = response.get('onlineMeeting', {}).get('joinUrl')
             online_meeting_id = response.get('onlineMeeting', {}).get('id')
             
-            logger.info(f"✓ Created Teams meeting: {meeting_id}")
+            # 🐛 FIX: Extract thread ID from join URL if available
+            # The online_meeting_id from calendar API is a GUID (calendar event ID)
+            # But we need the thread ID (19:meeting_XXX@thread.v2) for attendance/chat APIs
+            thread_id = None
+            if join_url:
+                try:
+                    import re
+                    import urllib.parse
+                    
+                    # Extract thread ID from join URL
+                    # Format: https://teams.microsoft.com/l/meetup-join/19%3ameeting_XXX%40thread.v2/...
+                    match = re.search(r'/meetup-join/([^/]+)', join_url)
+                    if match:
+                        encoded_thread = match.group(1)
+                        # URL decode to get actual thread ID
+                        thread_id = urllib.parse.unquote(encoded_thread)
+                        logger.info(f"✓ Extracted thread ID from join URL: {thread_id}")
+                        
+                        # Use thread ID as the online_meeting_id for sync operations
+                        online_meeting_id = thread_id
+                except Exception as e:
+                    logger.warning(f"Could not extract thread ID from join URL: {str(e)}")
+            
+            logger.info(f"✓ Created Teams meeting: Calendar ID={meeting_id}, Thread ID={online_meeting_id}")
             
             # Enable automatic recording if requested
             recording_status = 'not_attempted'
@@ -401,7 +424,9 @@ class TeamsAPIClient:
     
     def get_meeting_attendance(self, meeting_id, user_email=None):
         """
-        Get meeting attendance data
+        Get meeting attendance data (LEGACY - returns calendar attendees only, no duration)
+        
+        DEPRECATED: Use get_meeting_attendance_report() instead for actual attendance with duration
         
         Args:
             meeting_id: Teams meeting ID (calendar event ID)
@@ -409,7 +434,7 @@ class TeamsAPIClient:
                        If None, uses integration owner's email.
             
         Returns:
-            dict: Attendance data
+            dict: Attendance data (calendar invitees only, no duration data)
         """
         try:
             # Determine user email for application permissions
@@ -454,6 +479,161 @@ class TeamsAPIClient:
             }
         except Exception as e:
             logger.error(f"Error getting Teams meeting attendance: {str(e)}")
+            return {
+                'success': False,
+                'error': str(e)
+            }
+    
+    def get_meeting_attendance_report(self, online_meeting_id, user_email=None):
+        """
+        Get ACTUAL meeting attendance report with join/leave times and duration
+        
+        This is the CORRECT method to get attendance data with duration.
+        Requires: OnlineMeetingArtifact.Read.All permission
+        
+        Args:
+            online_meeting_id: Teams online meeting ID (not calendar event ID)
+            user_email: Meeting organizer's email address
+            
+        Returns:
+            dict: Actual attendance data with durations, join/leave times
+        """
+        try:
+            # Determine user email
+            if not user_email and self.integration.user and self.integration.user.email:
+                user_email = self.integration.user.email
+            
+            if not user_email:
+                raise TeamsAPIError("User email required for attendance reports")
+            
+            logger.info(f"Fetching attendance report for meeting: {online_meeting_id} as user: {user_email}")
+            
+            # Get attendance reports for the online meeting
+            endpoint = f'/users/{user_email}/onlineMeetings/{online_meeting_id}/attendanceReports'
+            response = self._make_request('GET', endpoint)
+            
+            reports = response.get('value', [])
+            
+            if not reports:
+                logger.info("No attendance reports available yet. Reports are generated after meeting ends.")
+                return {
+                    'success': True,
+                    'attendees': [],
+                    'note': 'No attendance report available. Reports are generated after the meeting ends and may take a few minutes.'
+                }
+            
+            # Get the latest attendance report (most recent)
+            latest_report = reports[0]
+            report_id = latest_report.get('id')
+            
+            logger.info(f"Found attendance report: {report_id}")
+            
+            # Get detailed attendance records from the report
+            attendance_endpoint = f'/users/{user_email}/onlineMeetings/{online_meeting_id}/attendanceReports/{report_id}/attendanceRecords'
+            attendance_response = self._make_request('GET', attendance_endpoint)
+            
+            attendance_records = attendance_response.get('value', [])
+            logger.info(f"Retrieved {len(attendance_records)} attendance records")
+            
+            # Process attendance records
+            attendance_data = []
+            for record in attendance_records:
+                # Get identity information
+                identity = record.get('identity', {})
+                email_address = record.get('emailAddress', '')
+                display_name = identity.get('displayName', 'Unknown')
+                
+                # Parse attendance intervals to calculate join/leave times and total duration
+                join_time = None
+                leave_time = None
+                total_duration_seconds = 0
+                
+                attendance_intervals = record.get('attendanceIntervals', [])
+                
+                if attendance_intervals:
+                    # Process all attendance intervals (user may join/leave multiple times)
+                    for interval in attendance_intervals:
+                        try:
+                            join_dt_str = interval.get('joinDateTime')
+                            leave_dt_str = interval.get('leaveDateTime')
+                            
+                            if join_dt_str and leave_dt_str:
+                                # Parse ISO format timestamps
+                                from dateutil import parser as date_parser
+                                join_dt = date_parser.parse(join_dt_str)
+                                leave_dt = date_parser.parse(leave_dt_str)
+                                
+                                # Track earliest join time
+                                if not join_time or join_dt < join_time:
+                                    join_time = join_dt
+                                
+                                # Track latest leave time
+                                if not leave_time or leave_dt > leave_time:
+                                    leave_time = leave_dt
+                                
+                                # Add interval duration
+                                interval_duration = (leave_dt - join_dt).total_seconds()
+                                total_duration_seconds += interval_duration
+                                
+                        except Exception as e:
+                            logger.warning(f"Error parsing attendance interval: {str(e)}")
+                            continue
+                
+                # Also check totalAttendanceInSeconds from the record
+                record_duration = record.get('totalAttendanceInSeconds', 0)
+                if record_duration > total_duration_seconds:
+                    total_duration_seconds = record_duration
+                
+                # Convert to minutes
+                duration_minutes = int(total_duration_seconds // 60) if total_duration_seconds else 0
+                
+                attendance_data.append({
+                    'email': email_address,
+                    'name': display_name,
+                    'join_time': join_time,
+                    'leave_time': leave_time,
+                    'duration': int(total_duration_seconds),
+                    'duration_minutes': duration_minutes,
+                    'role': record.get('role', 'Attendee'),
+                    'total_attendance_seconds': record.get('totalAttendanceInSeconds', 0),
+                    'attendance_intervals': attendance_intervals
+                })
+                
+                logger.info(f"  {display_name} ({email_address}): {duration_minutes} minutes")
+            
+            return {
+                'success': True,
+                'attendees': attendance_data,
+                'total_attendees': len(attendance_data),
+                'report_id': report_id,
+                'report_created': latest_report.get('meetingStartDateTime')
+            }
+            
+        except TeamsAPIError as e:
+            error_msg = str(e)
+            
+            # Provide helpful error messages for common issues
+            if '404' in error_msg:
+                return {
+                    'success': False,
+                    'error': 'Attendance report not found. Reports are generated after meeting ends.',
+                    'note': 'Please wait a few minutes after the meeting ends and try again.'
+                }
+            elif '403' in error_msg or 'Forbidden' in error_msg:
+                return {
+                    'success': False,
+                    'error': 'Insufficient permissions to access attendance reports.',
+                    'permission_required': 'OnlineMeetingArtifact.Read.All',
+                    'note': 'Please ensure OnlineMeetingArtifact.Read.All permission is granted in Azure AD and admin consent is provided.'
+                }
+            else:
+                return {
+                    'success': False,
+                    'error': error_msg
+                }
+                
+        except Exception as e:
+            logger.error(f"Error getting meeting attendance report: {str(e)}")
             return {
                 'success': False,
                 'error': str(e)
@@ -777,30 +957,304 @@ class TeamsAPIClient:
                 'error': str(e)
             }
     
+    def get_meeting_chat_messages(self, online_meeting_id, user_email=None, meeting_id=None):
+        """
+        Get chat messages from Teams meeting (works without premium license)
+        
+        This is the PREFERRED method for getting chat messages.
+        Requires: Chat.Read.All or Chat.ReadWrite.All permission
+        
+        Args:
+            online_meeting_id: Teams online meeting ID
+            user_email: Meeting organizer's email address
+            meeting_id: Calendar event ID (optional, used as fallback)
+            
+        Returns:
+            dict: Chat messages data
+        """
+        try:
+            if not user_email and self.integration.user and self.integration.user.email:
+                user_email = self.integration.user.email
+            
+            if not user_email:
+                raise TeamsAPIError("User email required for chat access")
+            
+            logger.info(f"Fetching chat messages for meeting: {online_meeting_id}")
+            
+            chat_id = None
+            
+            # Try to get chat ID from online meeting
+            if online_meeting_id:
+                try:
+                    meeting_endpoint = f'/users/{user_email}/onlineMeetings/{online_meeting_id}'
+                    meeting_details = self._make_request('GET', meeting_endpoint)
+                    
+                    chat_info = meeting_details.get('chatInfo', {})
+                    chat_id = chat_info.get('threadId')
+                    
+                    if chat_id:
+                        logger.info(f"Found chat thread ID from online meeting: {chat_id}")
+                        
+                except Exception as e:
+                    logger.warning(f"Could not get chat ID from online meeting: {str(e)}")
+            
+            # Fallback: try to get chat ID from calendar event
+            if not chat_id and meeting_id:
+                try:
+                    event_endpoint = f'/users/{user_email}/events/{meeting_id}'
+                    event_details = self._make_request('GET', event_endpoint)
+                    
+                    online_meeting = event_details.get('onlineMeeting', {})
+                    join_url = online_meeting.get('joinUrl', '')
+                    
+                    # Try to extract thread ID from join URL if available
+                    # This is a workaround when chat info is not directly available
+                    
+                except Exception as e:
+                    logger.warning(f"Could not get chat ID from calendar event: {str(e)}")
+            
+            if not chat_id:
+                logger.info("No chat thread found for this meeting. Chat may not have been used.")
+                return {
+                    'success': True,
+                    'messages': [],
+                    'total_messages': 0,
+                    'note': 'No chat thread available. Chat may not have been enabled or used during this meeting.'
+                }
+            
+            # Get chat messages
+            logger.info(f"Retrieving messages from chat: {chat_id}")
+            chat_endpoint = f'/chats/{chat_id}/messages'
+            params = {
+                '$top': 50,  # Get last 50 messages
+                '$orderby': 'createdDateTime asc'  # Oldest first
+            }
+            
+            response = self._make_request('GET', chat_endpoint, params=params)
+            
+            messages = response.get('value', [])
+            
+            # Process and filter messages
+            chat_data = []
+            for msg in messages:
+                # Get message type
+                msg_type = msg.get('messageType', 'message')
+                
+                # Skip system messages and non-text messages
+                if msg_type not in ['message']:
+                    continue
+                
+                # Get sender information
+                from_info = msg.get('from', {})
+                sender_user = from_info.get('user', {})
+                sender_name = sender_user.get('displayName', 'Unknown')
+                sender_email = sender_user.get('userPrincipalName', '')
+                
+                # Get message content
+                body = msg.get('body', {})
+                content_type = body.get('contentType', 'text')
+                message_text = body.get('content', '')
+                
+                # Skip empty messages
+                if not message_text or not message_text.strip():
+                    continue
+                
+                # Parse timestamp
+                created_time = msg.get('createdDateTime')
+                
+                chat_data.append({
+                    'id': msg.get('id'),
+                    'created': created_time,
+                    'sender': sender_name,
+                    'sender_email': sender_email,
+                    'message': message_text,
+                    'message_type': msg_type,
+                    'content_type': content_type,
+                })
+                
+            logger.info(f"Retrieved {len(chat_data)} chat messages")
+            
+            return {
+                'success': True,
+                'messages': chat_data,
+                'total_messages': len(chat_data),
+                'chat_id': chat_id
+            }
+            
+        except TeamsAPIError as e:
+            error_msg = str(e)
+            
+            if '403' in error_msg or 'Forbidden' in error_msg:
+                return {
+                    'success': False,
+                    'error': 'Insufficient permissions to access chat messages.',
+                    'permission_required': 'Chat.Read.All',
+                    'note': 'Please ensure Chat.Read.All permission is granted in Azure AD and admin consent is provided.'
+                }
+            else:
+                return {
+                    'success': False,
+                    'error': error_msg
+                }
+                
+        except Exception as e:
+            logger.error(f"Error getting meeting chat messages: {str(e)}")
+            return {
+                'success': False,
+                'error': str(e)
+            }
+    
     def get_online_meeting_id_from_join_url(self, join_url):
         """
-        Extract online meeting ID from Teams join URL
+        Extract online meeting thread ID from Teams join URL
         
         Args:
             join_url: Teams meeting join URL
             
         Returns:
-            str: Online meeting ID or None
+            str: Online meeting thread ID (19:meeting_XXX@thread.v2) or None
         """
         try:
-            # Teams join URLs typically contain the thread ID
-            # Format: https://teams.microsoft.com/l/meetup-join/...
+            # Teams join URLs contain the thread ID
+            # Format: https://teams.microsoft.com/l/meetup-join/19%3ameeting_XXX%40thread.v2/...
             import re
+            import urllib.parse
             
-            # Try to extract meeting ID from URL
-            # This is a simplified extraction - actual format may vary
-            match = re.search(r'meetup-join/([^/]+)', join_url)
+            # Extract encoded thread ID from URL
+            match = re.search(r'/meetup-join/([^/]+)', join_url)
             if match:
-                return match.group(1)
+                encoded_thread = match.group(1)
+                # URL decode to get actual thread ID (19:meeting_XXX@thread.v2)
+                thread_id = urllib.parse.unquote(encoded_thread)
+                
+                # Verify it's in the correct format
+                if '@thread.v2' in thread_id or 'meeting_' in thread_id:
+                    logger.info(f"✓ Extracted thread ID: {thread_id}")
+                    return thread_id
+                else:
+                    logger.warning(f"Extracted ID doesn't match expected format: {thread_id}")
+                    return encoded_thread  # Return as-is
             
-            logger.warning(f"Could not extract meeting ID from URL: {join_url}")
+            logger.warning(f"Could not extract thread ID from URL: {join_url}")
             return None
             
         except Exception as e:
-            logger.error(f"Error extracting meeting ID from URL: {str(e)}")
+            logger.error(f"Error extracting thread ID from URL: {str(e)}")
             return None
+    
+    def validate_permissions(self):
+        """
+        Validate that all required Microsoft Graph API permissions are available
+        
+        Returns:
+            dict: Permission validation results
+        """
+        required_permissions = {
+            'calendar': {
+                'name': 'Calendars.ReadWrite',
+                'description': 'Create and manage calendar events',
+                'test_endpoint': '/users',
+                'test_params': {'$top': 1, '$select': 'id,displayName'}
+            },
+            'attendance': {
+                'name': 'OnlineMeetingArtifact.Read.All',
+                'description': 'Read attendance reports with duration',
+                'test_endpoint': '/users',
+                'test_params': {'$top': 1, '$select': 'id'}
+            },
+            'chat': {
+                'name': 'Chat.Read.All',
+                'description': 'Read chat messages from meetings',
+                'test_endpoint': '/chats',
+                'test_params': {'$top': 1}
+            },
+            'recordings': {
+                'name': 'Files.Read.All',
+                'description': 'Read recordings from OneDrive',
+                'test_endpoint': '/drives',
+                'test_params': {'$top': 1}
+            },
+            'meetings': {
+                'name': 'OnlineMeetings.ReadWrite',
+                'description': 'Create and manage online meetings',
+                'test_endpoint': '/users',
+                'test_params': {'$top': 1, '$select': 'id'}
+            }
+        }
+        
+        validation_results = {
+            'all_granted': True,
+            'permissions': {},
+            'missing_permissions': [],
+            'available_features': [],
+            'unavailable_features': []
+        }
+        
+        logger.info("🔍 Validating Microsoft Graph API permissions...")
+        
+        for feature, perm_info in required_permissions.items():
+            try:
+                # Try a simple API call that requires this permission
+                endpoint = perm_info['test_endpoint']
+                params = perm_info.get('test_params', {})
+                
+                try:
+                    self._make_request('GET', endpoint, params=params)
+                    
+                    # If successful, permission is granted
+                    validation_results['permissions'][feature] = {
+                        'granted': True,
+                        'permission_name': perm_info['name'],
+                        'description': perm_info['description']
+                    }
+                    validation_results['available_features'].append(feature)
+                    logger.info(f"  ✓ {feature}: {perm_info['name']} - GRANTED")
+                    
+                except TeamsAPIError as e:
+                    error_msg = str(e)
+                    
+                    # Check if it's a permission error
+                    if '403' in error_msg or 'Forbidden' in error_msg or 'Insufficient' in error_msg:
+                        validation_results['permissions'][feature] = {
+                            'granted': False,
+                            'permission_name': perm_info['name'],
+                            'description': perm_info['description'],
+                            'error': 'Permission not granted or admin consent not provided'
+                        }
+                        validation_results['missing_permissions'].append(perm_info['name'])
+                        validation_results['unavailable_features'].append(feature)
+                        validation_results['all_granted'] = False
+                        logger.warning(f"  ✗ {feature}: {perm_info['name']} - NOT GRANTED")
+                    else:
+                        # Other error - permission might be OK but test failed for another reason
+                        validation_results['permissions'][feature] = {
+                            'granted': 'unknown',
+                            'permission_name': perm_info['name'],
+                            'description': perm_info['description'],
+                            'error': error_msg
+                        }
+                        logger.info(f"  ? {feature}: {perm_info['name']} - UNKNOWN (test failed: {error_msg})")
+                        
+            except Exception as e:
+                validation_results['permissions'][feature] = {
+                    'granted': 'error',
+                    'permission_name': perm_info['name'],
+                    'description': perm_info['description'],
+                    'error': str(e)
+                }
+                logger.error(f"  ✗ {feature}: Error testing permission - {str(e)}")
+        
+        # Generate summary message
+        if validation_results['all_granted']:
+            validation_results['message'] = "✅ All required permissions are granted"
+        elif validation_results['missing_permissions']:
+            validation_results['message'] = (
+                f"⚠️ Missing permissions: {', '.join(validation_results['missing_permissions'])}. "
+                f"Please grant these permissions in Azure AD and provide admin consent."
+            )
+        else:
+            validation_results['message'] = "⚠️ Some permissions could not be validated"
+        
+        logger.info(f"Permission validation complete: {validation_results['message']}")
+        
+        return validation_results

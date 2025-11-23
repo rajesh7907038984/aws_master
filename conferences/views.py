@@ -2808,13 +2808,16 @@ def sync_teams_meeting_data(conference):
             'success': recording_results.get('success', False)
         }
         
-        # Sync attendance
-        logger.info("👥 Syncing attendance...")
+        # Sync attendance WITH DURATION
+        logger.info("👥 Syncing attendance WITH DURATION...")
         attendance_results = meeting_sync.sync_meeting_attendance(conference)
         results['items_processed'] += attendance_results.get('processed', 0)
         results['details']['attendance'] = {
             'processed': attendance_results.get('processed', 0),
-            'success': attendance_results.get('success', False)
+            'created': attendance_results.get('created', 0),
+            'updated': attendance_results.get('updated', 0),
+            'success': attendance_results.get('success', False),
+            'error': attendance_results.get('error') if not attendance_results.get('success') else None
         }
         
         # Sync chat
@@ -2823,7 +2826,10 @@ def sync_teams_meeting_data(conference):
         results['items_processed'] += chat_results.get('processed', 0)
         results['details']['chat'] = {
             'processed': chat_results.get('processed', 0),
-            'success': chat_results.get('success', False)
+            'created': chat_results.get('created', 0),
+            'updated': chat_results.get('updated', 0),
+            'success': chat_results.get('success', False),
+            'error': chat_results.get('error') if not chat_results.get('success') else None
         }
         
         # Sync files
@@ -2832,11 +2838,11 @@ def sync_teams_meeting_data(conference):
         results['items_processed'] += file_results.get('processed', 0)
         results['details']['files'] = {
             'processed': file_results.get('processed', 0),
-            'success': file_results.get('success', False)
+            'success': file_results.get('success', False),
+            'error': file_results.get('error') if not file_results.get('success') else None
         }
         
-        # Determine overall success - consider sync successful if at least one operation succeeded
-        # and there were no critical errors (at least some data was processed)
+        # ✅ FIX: Improved success criteria and error reporting
         successful_operations = [
             recording_results.get('success', False),
             attendance_results.get('success', False),
@@ -2844,44 +2850,76 @@ def sync_teams_meeting_data(conference):
             file_results.get('success', False)
         ]
         
+        successful_count = sum(1 for s in successful_operations if s)
+        total_operations = len(successful_operations)
+        
         at_least_one_success = any(successful_operations)
         all_successful = all(successful_operations)
         
-        # Mark as successful if at least one operation succeeded OR if there was simply no data to sync
-        # (which is not an error condition)
-        results['success'] = at_least_one_success or results['items_processed'] == 0
+        # Check if meeting hasn't occurred (no data is expected)
+        no_data = all([
+            results['details']['recordings']['processed'] == 0,
+            results['details']['attendance']['processed'] == 0,
+            results['details']['chat']['processed'] == 0,
+            results['details']['files']['processed'] == 0
+        ])
         
-        # Build detailed error messages if any operations failed
+        # ✅ IMPROVED: More nuanced success criteria
+        # Consider successful if:
+        # 1. All operations succeeded, OR
+        # 2. At least 2 operations succeeded (50% threshold), OR
+        # 3. No data available (meeting hasn't occurred yet)
+        results['success'] = all_successful or successful_count >= 2 or no_data
+        results['success_rate'] = f"{successful_count}/{total_operations}"
+        
+        # Build detailed error messages with specific issues
         failed_operations = []
-        if not recording_results.get('success', False):
-            failed_operations.append('recordings')
-        if not attendance_results.get('success', False):
-            failed_operations.append('attendance')
-        if not chat_results.get('success', False):
-            failed_operations.append('chat')
-        if not file_results.get('success', False):
-            failed_operations.append('files')
+        error_details = []
         
-        if failed_operations and at_least_one_success:
-            results['warning'] = f"Some operations had issues: {', '.join(failed_operations)}. Other data synced successfully."
-        elif not at_least_one_success and results['items_processed'] == 0:
-            results['warning'] = "No data available to sync for this meeting. This is normal if the meeting hasn't occurred yet or has no recorded data."
+        for op_name, op_results in [
+            ('recordings', recording_results),
+            ('attendance', attendance_results),
+            ('chat', chat_results),
+            ('files', file_results)
+        ]:
+            if not op_results.get('success', False):
+                failed_operations.append(op_name)
+                error = op_results.get('error', 'Unknown error')
+                error_details.append(f"{op_name}: {error}")
         
+        # Store detailed error information
+        results['failed_operations'] = failed_operations
+        results['error_details'] = error_details
+        
+        # Create user-friendly messages
         if all_successful:
-            logger.info(f"✓ Teams data sync completed successfully for conference {conference.id}")
+            results['message'] = "All data synced successfully"
+            logger.info(f"✅ ALL Teams data synced successfully for conference {conference.id}")
             logger.info(f"   Recordings: {results['details']['recordings']['created']} created, {results['details']['recordings']['updated']} updated")
-            logger.info(f"   Attendance: {results['details']['attendance']['processed']} records")
+            logger.info(f"   Attendance: {results['details']['attendance']['processed']} records ({results['details']['attendance']['created']} created, {results['details']['attendance']['updated']} updated)")
             logger.info(f"   Chat: {results['details']['chat']['processed']} messages")
             logger.info(f"   Files: {results['details']['files']['processed']} files")
-        elif at_least_one_success:
-            logger.info(f"✓ Teams data sync completed partially for conference {conference.id}")
-            logger.info(f"   Recordings: {results['details']['recordings']['created']} created, {results['details']['recordings']['updated']} updated")
-            logger.info(f"   Attendance: {results['details']['attendance']['processed']} records")
-            logger.info(f"   Chat: {results['details']['chat']['processed']} messages")
-            logger.info(f"   Files: {results['details']['files']['processed']} files")
-            logger.warning(f"⚠️ Some operations had issues: {', '.join(failed_operations)}")
+        elif successful_count >= 2:
+            results['warning'] = f"Partial sync: {successful_count}/{total_operations} operations succeeded. Failed: {', '.join(failed_operations)}"
+            results['message'] = results['warning']
+            logger.warning(f"⚠️ PARTIAL Teams data sync for conference {conference.id}: {successful_count}/{total_operations} operations succeeded")
+            logger.warning(f"   Recordings: {results['details']['recordings']['created']} created, {results['details']['recordings']['updated']} updated")
+            logger.warning(f"   Attendance: {results['details']['attendance']['processed']} records")
+            logger.warning(f"   Chat: {results['details']['chat']['processed']} messages")
+            logger.warning(f"   Files: {results['details']['files']['processed']} files")
+            logger.warning(f"   Failed operations: {', '.join(failed_operations)}")
+            for detail in error_details:
+                logger.warning(f"     - {detail}")
+        elif no_data:
+            results['message'] = "No data available to sync. Meeting may not have occurred yet."
+            results['warning'] = results['message']
+            logger.info(f"ℹ️ No data to sync for conference {conference.id} (meeting may not have occurred yet)")
         else:
-            logger.warning(f"⚠️ Teams data sync completed with failures for conference {conference.id}")
+            results['error'] = f"Sync mostly failed: Only {successful_count}/{total_operations} operations succeeded"
+            results['message'] = results['error']
+            logger.error(f"❌ Teams data sync MOSTLY FAILED for conference {conference.id}: Only {successful_count}/{total_operations} operations succeeded")
+            for detail in error_details:
+                logger.error(f"   {detail}")
         
         return results
         

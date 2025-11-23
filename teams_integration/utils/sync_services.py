@@ -76,7 +76,7 @@ class MeetingSyncService(TeamsSyncService):
     
     def sync_meeting_attendance(self, conference):
         """
-        Sync meeting attendance data from Teams
+        Sync meeting attendance data from Teams WITH DURATION
         
         Args:
             conference: Conference instance
@@ -97,7 +97,7 @@ class MeetingSyncService(TeamsSyncService):
         try:
             from teams_integration.models import TeamsMeetingSync
             
-            logger.info(f"Syncing attendance for conference: {conference.title}")
+            logger.info(f"👥 Syncing attendance WITH DURATION for conference: {conference.title}")
             
             # Get or create meeting sync record
             meeting_sync, created = TeamsMeetingSync.objects.get_or_create(
@@ -109,8 +109,68 @@ class MeetingSyncService(TeamsSyncService):
                 }
             )
             
-            if not conference.meeting_id:
-                logger.info(f"No meeting ID for conference {conference.id}, skipping attendance sync")
+            # 🐛 FIX: Check if online_meeting_id is in correct format (thread ID)
+            # If it's a GUID (calendar event ID), try to get the thread ID
+            if conference.online_meeting_id and '@thread.v2' not in conference.online_meeting_id:
+                logger.warning(f"online_meeting_id appears to be calendar event ID (GUID), not thread ID")
+                logger.info(f"Current ID: {conference.online_meeting_id}")
+                
+                # Try to extract thread ID from meeting link
+                if conference.meeting_link:
+                    logger.info("Attempting to extract thread ID from meeting link...")
+                    thread_id = self.api.get_online_meeting_id_from_join_url(conference.meeting_link)
+                    
+                    if thread_id and '@thread.v2' in thread_id:
+                        logger.info(f"✓ Extracted thread ID from meeting link: {thread_id}")
+                        conference.online_meeting_id = thread_id
+                        conference.save(update_fields=['online_meeting_id'])
+                        logger.info(f"✓ Updated conference with correct thread ID")
+                    else:
+                        logger.warning(f"Could not extract valid thread ID from meeting link")
+            
+            # Check if we have online_meeting_id (required for attendance reports)
+            if not conference.online_meeting_id:
+                logger.warning(f"No online_meeting_id for conference {conference.id}")
+                
+                # Try to extract from meeting link first
+                if conference.meeting_link:
+                    logger.info("Attempting to extract thread ID from meeting link...")
+                    thread_id = self.api.get_online_meeting_id_from_join_url(conference.meeting_link)
+                    
+                    if thread_id:
+                        conference.online_meeting_id = thread_id
+                        conference.save(update_fields=['online_meeting_id'])
+                        logger.info(f"✓ Extracted and saved thread ID: {thread_id}")
+                    else:
+                        # Fallback: Try to get it from the calendar event if we have meeting_id
+                        if conference.meeting_id:
+                            logger.info("Attempting to fetch online_meeting_id from calendar event...")
+                            
+                            user_email = None
+                            if conference.created_by and conference.created_by.email:
+                                user_email = conference.created_by.email
+                            elif self.config.user and self.config.user.email:
+                                user_email = self.config.user.email
+                            
+                            if user_email:
+                                try:
+                                    endpoint = f'/users/{user_email}/events/{conference.meeting_id}'
+                                    event_data = self.api._make_request('GET', endpoint)
+                                    
+                                    if event_data.get('onlineMeeting'):
+                                        online_meeting_id = event_data['onlineMeeting'].get('id')
+                                        if online_meeting_id:
+                                            conference.online_meeting_id = online_meeting_id
+                                            conference.save(update_fields=['online_meeting_id'])
+                                            logger.info(f"✓ Retrieved and saved online_meeting_id: {online_meeting_id}")
+                                except Exception as e:
+                                    logger.warning(f"Could not fetch online_meeting_id: {str(e)}")
+                        else:
+                            logger.info("No meeting_id available, skipping attendance sync")
+                            return self.sync_status
+            
+            if not conference.online_meeting_id:
+                logger.info("Could not obtain online_meeting_id, skipping attendance sync")
                 return self.sync_status
             
             # Determine user email - use conference creator's email (who owns the meeting)
@@ -120,19 +180,41 @@ class MeetingSyncService(TeamsSyncService):
             elif self.config.user and self.config.user.email:
                 user_email = self.config.user.email
             
-            # Get attendance data from Teams
-            attendance_result = self.api.get_meeting_attendance(conference.meeting_id, user_email=user_email)
+            # ✅ FIX: Use the NEW attendance report API with duration
+            logger.info(f"Fetching attendance report from Teams API...")
+            attendance_result = self.api.get_meeting_attendance_report(
+                conference.online_meeting_id, 
+                user_email=user_email
+            )
+            
             if not attendance_result['success']:
-                raise TeamsAPIError(f"Failed to get meeting attendance: {attendance_result['error']}")
+                error_msg = attendance_result.get('error', 'Unknown error')
+                logger.warning(f"Attendance report sync failed: {error_msg}")
+                
+                # Check if it's a permission error
+                if 'permission' in error_msg.lower():
+                    self.sync_status['error'] = f"Missing API permission: {attendance_result.get('permission_required', 'OnlineMeetingArtifact.Read.All')}"
+                else:
+                    self.sync_status['error'] = error_msg
+                
+                # Return success with 0 items (meeting may not have occurred yet)
+                return self.sync_status
             
-            attendees = attendance_result['attendees']
-            logger.info(f"Found {len(attendees)} attendees in Teams meeting")
+            attendees = attendance_result.get('attendees', [])
+            logger.info(f"Found {len(attendees)} attendees with duration data")
             
-            # Process each attendee
+            # Process each attendee WITH DURATION
             synced_count = 0
+            created_count = 0
+            updated_count = 0
+            
             for attendee in attendees:
                 try:
-                    self._process_attendee(conference, attendee)
+                    was_created = self._process_attendee_with_duration(conference, attendee)
+                    if was_created:
+                        created_count += 1
+                    else:
+                        updated_count += 1
                     synced_count += 1
                 except Exception as e:
                     self.log_sync_result(
@@ -148,21 +230,23 @@ class MeetingSyncService(TeamsSyncService):
             meeting_sync.save()
             
             self.sync_status['processed'] = len(attendees)
-            self.sync_status['updated'] = synced_count
+            self.sync_status['created'] = created_count
+            self.sync_status['updated'] = updated_count
             self.sync_status['success'] = True
             
-            logger.info(f"Synced attendance for {synced_count} attendees")
+            logger.info(f"✓ Attendance sync completed: {created_count} created, {updated_count} updated (all with duration)")
             return self.sync_status
             
         except Exception as e:
             error_msg = f"Meeting attendance sync failed: {str(e)}"
             logger.warning(error_msg)
+            self.sync_status['error'] = error_msg
             # Log error but don't fail the entire sync
             self.log_sync_result('sync_attendance', True, f"Skipped: {str(e)}")
             return self.sync_status
     
     def _process_attendee(self, conference, attendee):
-        """Process a single meeting attendee"""
+        """Process a single meeting attendee (LEGACY - no duration)"""
         try:
             # Find user by email
             user = CustomUser.objects.filter(email=attendee['email']).first()
@@ -193,6 +277,124 @@ class MeetingSyncService(TeamsSyncService):
                 True, 
                 f"Processed attendee: {attendee['name']}"
             )
+            
+        except Exception as e:
+            logger.error(f"Error processing attendee {attendee.get('email', 'unknown')}: {str(e)}")
+            raise
+    
+    def _process_attendee_with_duration(self, conference, attendee):
+        """
+        Process a single meeting attendee WITH DURATION
+        
+        Args:
+            conference: Conference instance
+            attendee: Attendee data from attendance report (includes duration)
+            
+        Returns:
+            bool: True if created, False if updated
+        """
+        try:
+            # Find user by email
+            email = attendee.get('email', '')
+            if not email:
+                logger.warning(f"Attendee has no email: {attendee.get('name', 'Unknown')}")
+                return False
+            
+            user = CustomUser.objects.filter(email=email).first()
+            
+            if not user:
+                logger.warning(f"User not found for email: {email}")
+                return False
+            
+            # Extract attendance data with duration
+            join_time = attendee.get('join_time')
+            leave_time = attendee.get('leave_time')
+            duration_minutes = attendee.get('duration_minutes', 0)
+            
+            # Determine attendance status based on duration
+            attendance_status = 'present'
+            if duration_minutes < 5:  # Less than 5 minutes
+                attendance_status = 'absent'
+            elif join_time and conference.start_time:
+                # Check if joined late (more than 15 minutes after scheduled start)
+                from dateutil import parser as date_parser
+                
+                # Ensure we have datetime objects
+                if isinstance(conference.date, str):
+                    conf_date = date_parser.parse(conference.date).date()
+                else:
+                    conf_date = conference.date
+                
+                if isinstance(conference.start_time, str):
+                    conf_start = date_parser.parse(conference.start_time).time()
+                else:
+                    conf_start = conference.start_time
+                
+                conference_start = timezone.datetime.combine(conf_date, conf_start)
+                if hasattr(conference_start, 'replace'):
+                    conference_start = conference_start.replace(tzinfo=timezone.get_current_timezone())
+                
+                # Make sure join_time is timezone-aware
+                if join_time and not timezone.is_aware(join_time):
+                    join_time = timezone.make_aware(join_time)
+                
+                if join_time > conference_start + timezone.timedelta(minutes=15):
+                    attendance_status = 'late'
+            
+            # Create or update attendance record WITH DURATION
+            attendance, created = ConferenceAttendance.objects.get_or_create(
+                conference=conference,
+                user=user,
+                defaults={
+                    'participant_id': email,
+                    'join_time': join_time,
+                    'leave_time': leave_time,
+                    'duration_minutes': duration_minutes,
+                    'attendance_status': attendance_status,
+                    'device_info': {
+                        'teams_attendance_report': True,
+                        'role': attendee.get('role', 'Attendee'),
+                        'total_attendance_seconds': attendee.get('total_attendance_seconds', 0),
+                        'sync_timestamp': timezone.now().isoformat()
+                    }
+                }
+            )
+            
+            if not created:
+                # Update existing attendance with latest data
+                # Keep the maximum duration if multiple sync attempts
+                if join_time:
+                    attendance.join_time = join_time
+                if leave_time:
+                    attendance.leave_time = leave_time
+                attendance.duration_minutes = max(duration_minutes, attendance.duration_minutes or 0)
+                attendance.attendance_status = attendance_status
+                
+                # Merge device info
+                if not attendance.device_info:
+                    attendance.device_info = {}
+                attendance.device_info.update({
+                    'teams_attendance_report': True,
+                    'role': attendee.get('role', 'Attendee'),
+                    'total_attendance_seconds': attendee.get('total_attendance_seconds', 0),
+                    'last_sync_timestamp': timezone.now().isoformat()
+                })
+                
+                attendance.save()
+            
+            action = "Created" if created else "Updated"
+            logger.info(
+                f"  {action} attendance: {attendee.get('name')} ({email}) - "
+                f"Duration: {duration_minutes}min, Status: {attendance_status}"
+            )
+            
+            self.log_sync_result(
+                f"process_attendee_{email}", 
+                True, 
+                f"{action} attendee with duration: {attendee.get('name')} - {duration_minutes}min"
+            )
+            
+            return created
             
         except Exception as e:
             logger.error(f"Error processing attendee {attendee.get('email', 'unknown')}: {str(e)}")
@@ -288,10 +490,50 @@ class MeetingSyncService(TeamsSyncService):
                 try:
                     recording_id = recording_data.get('id')
                     
-                    # Extract duration from file name if possible (format: Meeting-YYYYMMDD-HHMMSS.mp4)
+                    # ✅ FIX: Get actual video duration from OneDrive metadata
                     duration_minutes = 0
                     
-                    # Create or update recording
+                    # Try to get duration from video metadata
+                    if drive_id and recording_id:
+                        try:
+                            logger.info(f"Fetching video duration for recording: {recording_data.get('name')}")
+                            
+                            # Get detailed file metadata including video properties
+                            item_endpoint = f'/drives/{drive_id}/items/{recording_id}'
+                            params = {
+                                '$select': 'id,name,size,video,createdDateTime,lastModifiedDateTime'
+                            }
+                            
+                            try:
+                                item_details = onedrive_api.api._make_request('GET', item_endpoint, params=params)
+                                
+                                # Extract video duration from metadata
+                                video_metadata = item_details.get('video', {})
+                                duration_ms = video_metadata.get('duration', 0)
+                                
+                                if duration_ms:
+                                    duration_minutes = duration_ms // 60000  # Convert milliseconds to minutes
+                                    logger.info(f"  ✓ Video duration: {duration_minutes} minutes (from metadata)")
+                                else:
+                                    logger.info("  ⚠ No video duration in metadata")
+                                    
+                            except Exception as e:
+                                logger.warning(f"Could not get video metadata: {str(e)}")
+                        
+                        except Exception as e:
+                            logger.warning(f"Error fetching video duration: {str(e)}")
+                    
+                    # Fallback: Try to estimate from file size (very rough estimate)
+                    # Typical bitrate for Teams recordings: 1-2 Mbps
+                    if duration_minutes == 0 and recording_data.get('size', 0) > 0:
+                        file_size_mb = recording_data.get('size', 0) / (1024 * 1024)
+                        estimated_bitrate_mbps = 1.5  # Conservative estimate
+                        estimated_minutes = int((file_size_mb * 8) / (estimated_bitrate_mbps * 60))
+                        if estimated_minutes > 0:
+                            duration_minutes = estimated_minutes
+                            logger.info(f"  ℹ Estimated duration from file size: {duration_minutes} minutes")
+                    
+                    # Create or update recording WITH DURATION
                     recording, created = ConferenceRecording.objects.update_or_create(
                         conference=conference,
                         recording_id=f"onedrive_{recording_id}",
@@ -300,7 +542,7 @@ class MeetingSyncService(TeamsSyncService):
                             'recording_type': 'cloud',
                             'file_url': recording_data.get('webUrl'),
                             'file_size': recording_data.get('size', 0),
-                            'duration_minutes': duration_minutes,
+                            'duration_minutes': duration_minutes,  # ✅ NOW HAS ACTUAL DURATION
                             'file_format': recording_data.get('name', '').split('.')[-1].lower() or 'mp4',
                             'download_url': recording_data.get('downloadUrl'),
                             'status': 'available',
@@ -383,24 +625,29 @@ class MeetingSyncService(TeamsSyncService):
             
             logger.info(f"Syncing chat for conference: {conference.title}")
             
-            # Get meeting sync record
-            meeting_sync = TeamsMeetingSync.objects.filter(conference=conference).first()
-            if not meeting_sync:
-                logger.info("No meeting sync record found for chat sync, skipping")
-                return self.sync_status
+            # Ensure a meeting sync record exists (align behavior with attendance/recordings)
+            meeting_sync, _ = TeamsMeetingSync.objects.get_or_create(
+                conference=conference,
+                defaults={
+                    'teams_meeting_id': conference.meeting_id or '',
+                    'teams_meeting_url': conference.meeting_link,
+                    'meeting_status': 'scheduled'
+                }
+            )
             
             # Determine user email for API calls
             # Priority: 1. Conference creator (owns the meeting), 2. Integration user, 3. Service account
-            user_email = None
+            candidate_emails = []
             if conference.created_by and conference.created_by.email:
-                user_email = conference.created_by.email
-                logger.info(f"Using conference creator email for API: {user_email}")
-            elif self.config.user and self.config.user.email:
-                user_email = self.config.user.email
-                logger.info(f"Using Teams integration user email for API: {user_email}")
-            elif hasattr(self.config, 'service_account_email') and self.config.service_account_email:
-                user_email = self.config.service_account_email
-                logger.info(f"Using service account email for API: {user_email}")
+                candidate_emails.append(conference.created_by.email)
+            if self.config.user and self.config.user.email and self.config.user.email not in candidate_emails:
+                candidate_emails.append(self.config.user.email)
+            if hasattr(self.config, 'service_account_email') and self.config.service_account_email and self.config.service_account_email not in candidate_emails:
+                candidate_emails.append(self.config.service_account_email)
+            
+            user_email = candidate_emails[0] if candidate_emails else None
+            if user_email:
+                logger.info(f"Using email for API: {user_email}")
             
             if not user_email:
                 logger.info("No user email available for API authentication for chat sync, skipping")
@@ -413,24 +660,36 @@ class MeetingSyncService(TeamsSyncService):
             # try to fetch the online meeting details to get the online_meeting_id
             if not online_meeting_id and conference.meeting_id:
                 logger.info(f"No online_meeting_id found, attempting to fetch from calendar event {conference.meeting_id}")
-                try:
-                    # Get calendar event to extract online meeting ID
-                    endpoint = f'/users/{user_email}/calendar/events/{conference.meeting_id}'
-                    event_data = self.api._make_request('GET', endpoint)
-                    
-                    # Extract online meeting ID from calendar event
-                    if event_data.get('onlineMeeting'):
-                        online_meeting_id = event_data['onlineMeeting'].get('id')
-                        if online_meeting_id:
-                            # Save the online_meeting_id for future use
-                            conference.online_meeting_id = online_meeting_id
-                            conference.save(update_fields=['online_meeting_id'])
-                            logger.info(f"✓ Retrieved and saved online_meeting_id: {online_meeting_id}")
-                    else:
-                        logger.warning(f"Calendar event {conference.meeting_id} has no online meeting associated")
+                # Try all candidate emails in case the creator is not the actual organizer
+                for candidate in candidate_emails:
+                    try:
+                        endpoint = f'/users/{candidate}/calendar/events/{conference.meeting_id}'
+                        event_data = self.api._make_request('GET', endpoint)
                         
+                        if event_data.get('onlineMeeting'):
+                            online_meeting_id = event_data['onlineMeeting'].get('id')
+                            if online_meeting_id:
+                                conference.online_meeting_id = online_meeting_id
+                                conference.save(update_fields=['online_meeting_id'])
+                                user_email = candidate  # Use the email that successfully accessed the event
+                                logger.info(f"✓ Retrieved and saved online_meeting_id via {candidate}: {online_meeting_id}")
+                                break
+                        else:
+                            logger.warning(f"Calendar event {conference.meeting_id} (queried as {candidate}) has no online meeting associated")
+                    except Exception as e:
+                        logger.warning(f"Failed to fetch online meeting ID from calendar event as {candidate}: {str(e)}")
+            
+            # Fallback: try to derive online_meeting_id from the Teams join URL if still missing
+            if not online_meeting_id and conference.meeting_link:
+                try:
+                    derived_id = self.api.get_online_meeting_id_from_join_url(conference.meeting_link)
+                    if derived_id:
+                        online_meeting_id = derived_id
+                        conference.online_meeting_id = online_meeting_id
+                        conference.save(update_fields=['online_meeting_id'])
+                        logger.info(f"✓ Derived and saved online_meeting_id from join URL: {online_meeting_id}")
                 except Exception as e:
-                    logger.warning(f"Failed to fetch online meeting ID from calendar event: {str(e)}")
+                    logger.warning(f"Failed to derive online meeting ID from join URL: {str(e)}")
             
             # Check if we have an online meeting ID
             if not online_meeting_id:
@@ -439,26 +698,44 @@ class MeetingSyncService(TeamsSyncService):
             
             logger.info(f"Fetching chat messages for online meeting: {online_meeting_id}")
             
-            # Try to get meeting transcript/chat messages using online meeting ID
-            transcript_result = self.api.get_meeting_transcript(
+            # ✅ FIX: Use the NEW chat messages API (more reliable than transcripts)
+            # Try the improved chat messages API first
+            chat_result = self.api.get_meeting_chat_messages(
                 online_meeting_id,
-                user_email=user_email
+                user_email=user_email,
+                meeting_id=conference.meeting_id
             )
             
-            if not transcript_result['success']:
-                error_msg = transcript_result.get('error', 'Failed to retrieve chat messages')
+            # Fallback to transcript API if chat API fails
+            if not chat_result['success']:
+                logger.info("Chat API failed, trying transcript API as fallback...")
+                chat_result = self.api.get_meeting_transcript(
+                    online_meeting_id,
+                    user_email=user_email
+                )
+            
+            if not chat_result['success']:
+                error_msg = chat_result.get('error', 'Failed to retrieve chat messages')
                 logger.warning(f"Chat sync failed for conference {conference.id}: {error_msg}")
+                
+                # Check if it's a permission error
+                if 'permission' in error_msg.lower():
+                    self.sync_status['error'] = f"Missing API permission: {chat_result.get('permission_required', 'Chat.Read.All')}"
+                else:
+                    self.sync_status['error'] = error_msg
                 
                 # Mark as synced even if no data (might require permissions/license)
                 meeting_sync.chat_synced = True
                 meeting_sync.last_chat_sync = timezone.now()
+                if not hasattr(meeting_sync, 'sync_errors') or meeting_sync.sync_errors is None:
+                    meeting_sync.sync_errors = {}
                 meeting_sync.sync_errors['chat'] = error_msg
                 meeting_sync.save()
                 
                 self.log_sync_result('sync_chat', True, error_msg)
                 return self.sync_status
             
-            messages = transcript_result.get('messages', [])
+            messages = chat_result.get('messages', [])
             logger.info(f"Retrieved {len(messages)} chat messages from Teams")
             
             # Process and save chat messages
