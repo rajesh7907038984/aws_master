@@ -764,18 +764,105 @@
                                                                                     <li>Go to <strong>"API permissions"</strong> in your app registration</li>
                                                                                     <li>Click <strong>"Add a permission"</strong> → <strong>"Microsoft Graph"</strong></li>
                                                                                     <li>Select <strong>"Application permissions"</strong></li>
-                                                                                    <li>Add the following permissions:</li>
+                                                                                    <li>Add the following permissions (organized by category):</li>
                                                                                 </ol>
-                                                                                <div class="mt-2 ml-6 bg-gray-50 rounded p-3">
-                                                                                    <p class="font-medium text-gray-800 mb-2">Required Permissions:</p>
-                                                                                    <ul class="list-none space-y-1 text-gray-700">
-                                                                                        <li><i class="fas fa-check-circle text-green-600 mr-1"></i> <code class="bg-gray-200 px-1.5 py-0.5 rounded text-xs">Calendars.ReadWrite</code></li>
-                                                                                        <li><i class="fas fa-check-circle text-green-600 mr-1"></i> <code class="bg-gray-200 px-1.5 py-0.5 rounded text-xs">Group.Read.All</code></li>
-                                                                                        <li><i class="fas fa-check-circle text-green-600 mr-1"></i> <code class="bg-gray-200 px-1.5 py-0.5 rounded text-xs">OnlineMeetings.ReadWrite</code></li>
-                                                                                        <li><i class="fas fa-check-circle text-green-600 mr-1"></i> <code class="bg-gray-200 px-1.5 py-0.5 rounded text-xs">User.Read.All</code></li>
-                                                                                    </ul>
+                                                                                <div class="mt-3 ml-6 space-y-4">
+                                                                                    <!-- Calendar / Events -->
+                                                                                    <div class="bg-blue-50 rounded p-3 border border-blue-200">
+                                                                                        <p class="font-semibold text-blue-900 mb-2 flex items-center">
+                                                                                            <i class="fas fa-calendar-alt mr-2"></i>
+                                                                                            Calendar / Events
+                                                                                        </p>
+                                                                                        <ul class="list-none space-y-1 text-gray-700 text-sm">
+                                                                                            <li><i class="fas fa-check-circle text-green-600 mr-1"></i> <code class="bg-white px-1.5 py-0.5 rounded text-xs">Calendars.ReadWrite</code> – Read/write calendars in all mailboxes <span class="text-xs text-gray-500">(Admin: Yes)</span></li>
+                                                                                        </ul>
+                                                                                    </div>
+
+                                                                                    <!-- Calls / Online Meetings -->
+                                                                                    <div class="bg-purple-50 rounded p-3 border border-purple-200">
+                                                                                        <p class="font-semibold text-purple-900 mb-2 flex items-center">
+                                                                                            <i class="fas fa-video mr-2"></i>
+                                                                                            Calls / Online Meetings
+                                                                                        </p>
+                                                                                        <ul class="list-none space-y-1 text-gray-700 text-sm">
+                                                                                            <li><i class="fas fa-check-circle text-green-600 mr-1"></i> <code class="bg-white px-1.5 py-0.5 rounded text-xs">CallRecordings.Read.All</code> – Read all call recordings <span class="text-xs text-gray-500">(Yes)</span></li>
+                                                                                            <li><i class="fas fa-check-circle text-green-600 mr-1"></i> <code class="bg-white px-1.5 py-0.5 rounded text-xs">CallRecords.Read.All</code> – Read all call records <span class="text-xs text-gray-500">(Yes)</span></li>
+                                                                                            <li><i class="fas fa-check-circle text-green-600 mr-1"></i> <code class="bg-white px-1.5 py-0.5 rounded text-xs">Calls.AccessMedia.All</code> – Access media streams in calls <span class="text-xs text-gray-500">(Yes)</span></li>
+                                                                                            <li><i class="fas fa-check-circle text-green-600 mr-1"></i> <code class="bg-white px-1.5 py-0.5 rounded text-xs">Calls.Initiate.All</code> – Initiate 1:1 calls <span class="text-xs text-gray-500">(Yes)</span></li>
+                                                                                            <li><i class="fas fa-check-circle text-green-600 mr-1"></i> <code class="bg-white px-1.5 py-0.5 rounded text-xs">Calls.InitiateGroupCall.All</code> – Initiate group calls <span class="text-xs text-gray-500">(Yes)</span></li>
+                                                                                            <li><i class="fas fa-check-circle text-green-600 mr-1"></i> <code class="bg-white px-1.5 py-0.5 rounded text-xs">Calls.JoinGroupCall.All</code> – Join group calls/meetings <span class="text-xs text-gray-500">(Yes)</span></li>
+                                                                                            <li><i class="fas fa-check-circle text-green-600 mr-1"></i> <code class="bg-white px-1.5 py-0.5 rounded text-xs">Calls.JoinGroupCallAsGuest.All</code> – Join group calls/meetings as guest <span class="text-xs text-gray-500">(Yes)</span></li>
+                                                                                            <li><i class="fas fa-check-circle text-green-600 mr-1"></i> <code class="bg-white px-1.5 py-0.5 rounded text-xs">CallTranscripts.Read.All</code> – Read all call transcripts <span class="text-xs text-gray-500">(Yes)</span></li>
+                                                                                            <li><i class="fas fa-check-circle text-green-600 mr-1"></i> <code class="bg-white px-1.5 py-0.5 rounded text-xs">OnlineMeetingArtifact.Read.All</code> – Read meeting artifacts <span class="text-xs text-gray-500">(Yes)</span></li>
+                                                                                            <li><i class="fas fa-check-circle text-green-600 mr-1"></i> <code class="bg-white px-1.5 py-0.5 rounded text-xs">OnlineMeetingRecording.Read.All</code> – Read meeting recordings <span class="text-xs text-gray-500">(Yes)</span></li>
+                                                                                            <li><i class="fas fa-check-circle text-green-600 mr-1"></i> <code class="bg-white px-1.5 py-0.5 rounded text-xs">OnlineMeetings.Read.All</code> – Read online meeting details <span class="text-xs text-gray-500">(Yes)</span></li>
+                                                                                            <li><i class="fas fa-check-circle text-green-600 mr-1"></i> <code class="bg-white px-1.5 py-0.5 rounded text-xs">OnlineMeetings.ReadWrite.All</code> – Read/create online meetings <span class="text-xs text-gray-500">(Yes)</span></li>
+                                                                                            <li><i class="fas fa-check-circle text-green-600 mr-1"></i> <code class="bg-white px-1.5 py-0.5 rounded text-xs">OnlineMeetingTranscript.Read.All</code> – Read meeting transcripts <span class="text-xs text-gray-500">(Yes)</span></li>
+                                                                                        </ul>
+                                                                                    </div>
+
+                                                                                    <!-- Teams / Channels / Chat -->
+                                                                                    <div class="bg-indigo-50 rounded p-3 border border-indigo-200">
+                                                                                        <p class="font-semibold text-indigo-900 mb-2 flex items-center">
+                                                                                            <i class="fab fa-microsoft-teams mr-2"></i>
+                                                                                            Teams / Channels / Chat
+                                                                                        </p>
+                                                                                        <ul class="list-none space-y-1 text-gray-700 text-sm">
+                                                                                            <li><i class="fas fa-check-circle text-green-600 mr-1"></i> <code class="bg-white px-1.5 py-0.5 rounded text-xs">Channel.ReadBasic.All</code> – Read channel names/descriptions <span class="text-xs text-gray-500">(Yes)</span></li>
+                                                                                            <li><i class="fas fa-check-circle text-green-600 mr-1"></i> <code class="bg-white px-1.5 py-0.5 rounded text-xs">ChannelMember.Read.All</code> – Read channel members <span class="text-xs text-gray-500">(Yes)</span></li>
+                                                                                            <li><i class="fas fa-check-circle text-green-600 mr-1"></i> <code class="bg-white px-1.5 py-0.5 rounded text-xs">ChannelMember.ReadWrite.All</code> – Add/remove channel members <span class="text-xs text-gray-500">(Yes)</span></li>
+                                                                                            <li><i class="fas fa-check-circle text-green-600 mr-1"></i> <code class="bg-white px-1.5 py-0.5 rounded text-xs">ChannelMessage.Read.All</code> – Read all channel messages <span class="text-xs text-gray-500">(Yes)</span></li>
+                                                                                            <li><i class="fas fa-check-circle text-green-600 mr-1"></i> <code class="bg-white px-1.5 py-0.5 rounded text-xs">ChannelSettings.Read.All</code> – Read channel settings <span class="text-xs text-gray-500">(Yes)</span></li>
+                                                                                            <li><i class="fas fa-check-circle text-green-600 mr-1"></i> <code class="bg-white px-1.5 py-0.5 rounded text-xs">ChannelSettings.ReadWrite.All</code> – Read/write channel settings <span class="text-xs text-gray-500">(Yes)</span></li>
+                                                                                            <li><i class="fas fa-check-circle text-green-600 mr-1"></i> <code class="bg-white px-1.5 py-0.5 rounded text-xs">Chat.Read.All</code> – Read all chat messages <span class="text-xs text-gray-500">(Yes)</span></li>
+                                                                                            <li><i class="fas fa-check-circle text-green-600 mr-1"></i> <code class="bg-white px-1.5 py-0.5 rounded text-xs">Chat.ReadWrite.All</code> – Read/write all chat messages <span class="text-xs text-gray-500">(Yes)</span></li>
+                                                                                            <li><i class="fas fa-check-circle text-green-600 mr-1"></i> <code class="bg-white px-1.5 py-0.5 rounded text-xs">TeamsAppInstallation.ReadForChat.All</code> – Read installed Teams apps in chats <span class="text-xs text-gray-500">(Yes)</span></li>
+                                                                                        </ul>
+                                                                                    </div>
+
+                                                                                    <!-- Directory / Users / Groups -->
+                                                                                    <div class="bg-green-50 rounded p-3 border border-green-200">
+                                                                                        <p class="font-semibold text-green-900 mb-2 flex items-center">
+                                                                                            <i class="fas fa-users mr-2"></i>
+                                                                                            Directory / Users / Groups
+                                                                                        </p>
+                                                                                        <ul class="list-none space-y-1 text-gray-700 text-sm">
+                                                                                            <li><i class="fas fa-check-circle text-green-600 mr-1"></i> <code class="bg-white px-1.5 py-0.5 rounded text-xs">Group.Read.All</code> – Read all groups <span class="text-xs text-gray-500">(Yes)</span></li>
+                                                                                            <li><i class="fas fa-check-circle text-green-600 mr-1"></i> <code class="bg-white px-1.5 py-0.5 rounded text-xs">User.Read.All</code> – Read all users' full profiles <span class="text-xs text-gray-500">(Yes)</span></li>
+                                                                                        </ul>
+                                                                                    </div>
+
+                                                                                    <!-- Files / OneDrive / Sites (Missing) -->
+                                                                                    <div class="bg-yellow-50 rounded p-3 border-2 border-yellow-400">
+                                                                                        <p class="font-semibold text-yellow-900 mb-2 flex items-center">
+                                                                                            <i class="fas fa-exclamation-triangle mr-2"></i>
+                                                                                            Files / OneDrive / Sites <span class="text-xs bg-yellow-200 px-2 py-0.5 rounded ml-2">REQUIRED</span>
+                                                                                        </p>
+                                                                                        <ul class="list-none space-y-1 text-gray-700 text-sm">
+                                                                                            <li><i class="fas fa-times-circle text-red-600 mr-1"></i> <code class="bg-white px-1.5 py-0.5 rounded text-xs font-semibold">Files.Read.All</code> – Read files in all site collections <span class="text-xs text-red-600 font-semibold">(MISSING)</span></li>
+                                                                                            <li><i class="fas fa-times-circle text-red-600 mr-1"></i> <code class="bg-white px-1.5 py-0.5 rounded text-xs font-semibold">Sites.Read.All</code> – Read items in all site collections <span class="text-xs text-red-600 font-semibold">(MISSING - Alternative to Files.Read.All)</span></li>
+                                                                                        </ul>
+                                                                                        <p class="text-xs text-yellow-800 mt-2 italic">These permissions are required for reading Teams meeting recordings from OneDrive/SharePoint.</p>
+                                                                                    </div>
+
+                                                                                    <!-- Directory (Missing) -->
+                                                                                    <div class="bg-orange-50 rounded p-3 border-2 border-orange-400">
+                                                                                        <p class="font-semibold text-orange-900 mb-2 flex items-center">
+                                                                                            <i class="fas fa-exclamation-triangle mr-2"></i>
+                                                                                            Directory <span class="text-xs bg-orange-200 px-2 py-0.5 rounded ml-2">RECOMMENDED</span>
+                                                                                        </p>
+                                                                                        <ul class="list-none space-y-1 text-gray-700 text-sm">
+                                                                                            <li><i class="fas fa-times-circle text-red-600 mr-1"></i> <code class="bg-white px-1.5 py-0.5 rounded text-xs font-semibold">Directory.Read.All</code> – Read directory data <span class="text-xs text-red-600 font-semibold">(MISSING)</span></li>
+                                                                                        </ul>
+                                                                                        <p class="text-xs text-orange-800 mt-2 italic">This permission is recommended for enhanced directory operations and Entra ID group management.</p>
+                                                                                    </div>
                                                                                 </div>
-                                                                                <p class="mt-2 text-gray-700">5. Click <strong>"Add permissions"</strong></p>
+                                                                                <div class="mt-3 ml-6 bg-amber-50 border border-amber-200 rounded p-3">
+                                                                                    <p class="text-sm text-amber-800">
+                                                                                        <i class="fas fa-info-circle mr-1"></i>
+                                                                                        <strong>Note:</strong> After adding all permissions, click <strong>"Add permissions"</strong> button. Then proceed to Step 5 to grant admin consent.
+                                                                                    </p>
+                                                                                </div>
                                                                             </div>
                                                                         </div>
                                                                     </div>
@@ -814,13 +901,27 @@
                                                                                 <h5 class="font-semibold text-gray-900 mb-2">Configure Integration in LMS</h5>
                                                                                 <ol class="list-decimal list-inside space-y-1 text-gray-700">
                                                                                     <li>Click the <strong>"Add Teams Integration"</strong> button below</li>
-                                                                                    <li>Enter a descriptive name for your integration</li>
-                                                                                    <li>Paste the <strong>Client ID</strong> from Step 2</li>
-                                                                                    <li>Paste the <strong>Client Secret</strong> from Step 3</li>
-                                                                                    <li>Paste the <strong>Tenant ID</strong> from Step 2</li>
-                                                                                    <li>Click <strong>"Add Integration"</strong></li>
-                                                                                    <li>Test the connection using the <strong>"Test Connection"</strong> button</li>
+                                                                                    <li>Enter a descriptive name for your integration (e.g., "Main Campus Teams Integration")</li>
+                                                                                    <li>Paste the <strong>Client ID</strong> from Step 2 (Application ID from Azure Portal)</li>
+                                                                                    <li>Paste the <strong>Client Secret</strong> from Step 3 (the secret Value you copied)</li>
+                                                                                    <li>Paste the <strong>Tenant ID</strong> from Step 2 (Directory ID from Azure Portal)</li>
+                                                                                    <li><strong>Service Account Email</strong> (Optional but recommended):
+                                                                                        <ul class="list-disc list-inside ml-4 mt-1 space-y-1 text-sm text-gray-600">
+                                                                                            <li>Enter an Azure AD email address that exists in your tenant</li>
+                                                                                            <li>This account must have an <strong>Exchange Online license</strong> (mailbox)</li>
+                                                                                            <li>Used for creating Teams meetings when user email is not available or invalid</li>
+                                                                                            <li>Example: <code class="bg-gray-100 px-1 rounded">teams-service@yourdomain.com</code></li>
+                                                                                        </ul>
+                                                                                    </li>
+                                                                                    <li>Click <strong>"Add Integration"</strong> to save your configuration</li>
+                                                                                    <li>Test the connection using the <strong>"Test Connection"</strong> button to verify everything is working</li>
                                                                                 </ol>
+                                                                                <div class="mt-3 bg-blue-50 border border-blue-200 rounded p-3">
+                                                                                    <p class="text-sm text-blue-800">
+                                                                                        <i class="fas fa-info-circle mr-1"></i>
+                                                                                        <strong>Tip:</strong> The Service Account Email is especially useful if you're creating Teams meetings programmatically or when users don't have valid Exchange Online mailboxes.
+                                                                                    </p>
+                                                                                </div>
                                                                             </div>
                                                                         </div>
                                                                     </div>

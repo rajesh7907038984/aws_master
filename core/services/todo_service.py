@@ -3,7 +3,7 @@ Centralized Todo Service for Role-Based and User-Specific Todo Generation
 """
 from django.utils import timezone
 from django.db.models import Q, Count, Prefetch
-from datetime import timedelta, datetime
+from datetime import timedelta, datetime, time as dt_time
 import logging
 
 logger = logging.getLogger(__name__)
@@ -44,11 +44,15 @@ class TodoService:
             return []
     
     def _get_learner_todos(self, limit=10, offset=0):
-        """Generate todos for learners"""
+        """Generate todos for learners - comprehensive time-sensitive reminder list"""
         from assignments.models import Assignment, AssignmentSubmission
-        from conferences.models import Conference
+        from conferences.models import Conference, ConferenceTimeSlot
         from lms_messages.models import Message, MessageReadStatus
         from lms_notifications.models import Notification
+        from courses.models import Topic
+        from quiz.models import Quiz, QuizAttempt
+        from discussions.models import Discussion
+        from scorm.models import ScormPackage
         
         # Use module-level import, fallback to local import if needed
         if CourseEnrollment is None:
@@ -125,9 +129,9 @@ class TodoService:
             
             first_course = submission.assignment.courses.first()
             todos.append({
-                'id': f'feedback_review_{submission.id}',
+                'id': f'feedback_assignment_{submission.id}',
                 'title': f'View Feedback: {submission.assignment.title}',
-                'description': f'Grade: {grade_pct:.0f}% - {first_course.title if first_course else "General"}',
+                'description': f'Assignment - Grade: {grade_pct:.0f}% - {first_course.title if first_course else "General"}',
                 'due_date': due_text,
                 'sort_date': submission.graded_at,
                 'type': 'feedback',
@@ -140,9 +144,47 @@ class TodoService:
                     'grade': submission.grade,
                     'grade_percentage': grade_pct,
                     'days_ago': days_ago,
+                    'assessment_type': 'assignment',
                     'has_notification': True
                 }
             })
+        
+        # 0c. URGENT PRIORITY: Quiz feedback received (graded quizzes with feedback)
+        graded_quiz_attempts = QuizAttempt.objects.filter(
+            user=self.user,
+            is_completed=True,
+            quiz__course__in=enrolled_course_ids
+        ).select_related('quiz', 'quiz__course').order_by('-end_time')[:10]
+        
+        for attempt in graded_quiz_attempts:
+            if attempt.quiz and attempt.end_time:
+                days_ago = (self.now.date() - attempt.end_time.date()).days
+                if days_ago == 0:
+                    due_text, priority = "Completed today", 'high'
+                elif days_ago <= 2:
+                    due_text, priority = f"Completed {days_ago} days ago", 'high'
+                else:
+                    due_text, priority = f"Completed {days_ago} days ago", 'medium'
+                
+                todos.append({
+                    'id': f'feedback_quiz_{attempt.id}',
+                    'title': f'View Results: {attempt.quiz.title}',
+                    'description': f'Quiz - Score: {attempt.score:.0f}% - {attempt.quiz.course.title if attempt.quiz.course else "General"}',
+                    'due_date': due_text,
+                    'sort_date': attempt.end_time,
+                    'type': 'feedback',
+                    'priority': priority,
+                    'icon': 'comment-alt',
+                    'url': f'/quiz/attempt/{attempt.id}/view/',
+                    'metadata': {
+                        'attempt_id': attempt.id,
+                        'quiz_id': attempt.quiz.id,
+                        'score': float(attempt.score),
+                        'days_ago': days_ago,
+                        'assessment_type': 'quiz',
+                        'has_notification': True
+                    }
+                })
         
         if not enrolled_course_ids and not unread_messages and not graded_submissions:
             return []
@@ -215,17 +257,17 @@ class TodoService:
                 }
             })
         
-        # 3. MEDIUM PRIORITY: Upcoming assignments (within week)
+        # 3. MEDIUM PRIORITY: Upcoming assignments (within month)
         # Note: Assignment has ManyToMany relationship with Course through 'courses'
         upcoming_assignments = Assignment.objects.filter(
             Q(courses__in=enrolled_course_ids),
             due_date__gt=self.tomorrow,
-            due_date__date__lte=self.next_week,
+            due_date__date__lte=self.next_month,
             is_active=True
         ).exclude(
             submissions__user=self.user,
             submissions__status__in=['submitted', 'graded']
-        ).distinct().select_related('course').order_by('due_date')[:10]
+        ).distinct().select_related('course').order_by('due_date')[:20]
         
         for assignment in upcoming_assignments:
             due_text = self._format_due_date(assignment.due_date)
@@ -233,7 +275,7 @@ class TodoService:
             todos.append({
                 'id': f'assignment_upcoming_{assignment.id}',
                 'title': assignment.title,
-                'description': f'{first_course.title if first_course else "General"}',
+                'description': f'Assignment - {first_course.title if first_course else "General"}',
                 'due_date': due_text,
                 'sort_date': assignment.due_date,
                 'type': 'assignment',
@@ -248,24 +290,216 @@ class TodoService:
                 }
             })
         
-        # 4. MEDIUM PRIORITY: Conferences today/tomorrow
-        upcoming_conferences = Conference.objects.filter(
+        # 3b. HIGH/MEDIUM PRIORITY: Quiz assessments (from Topics with Quiz content type)
+        quiz_topics = Topic.objects.filter(
+            section__course__in=enrolled_course_ids,
+            content_type='Quiz',
+            status='active',
+            quiz__isnull=False,
+            end_date__isnull=False,
+            end_date__gte=self.today
+        ).select_related('quiz', 'section__course').order_by('end_date')[:20]
+        
+        for topic in quiz_topics:
+            # Check if user has completed the quiz
+            completed_attempts = QuizAttempt.objects.filter(
+                user=self.user,
+                quiz=topic.quiz,
+                is_completed=True
+            ).exists()
+            
+            if not completed_attempts:
+                # Create datetime from end_date (use end of day for sorting)
+                quiz_due_datetime = datetime.combine(topic.end_date, dt_time(23, 59, 59))
+                quiz_due_datetime = timezone.make_aware(quiz_due_datetime, timezone.get_current_timezone())
+                
+                due_text = self._format_due_date(quiz_due_datetime)
+                if topic.end_date <= self.tomorrow:
+                    priority = 'high'
+                elif topic.end_date <= self.next_week:
+                    priority = 'medium'
+                else:
+                    priority = 'low'
+                
+                todos.append({
+                    'id': f'quiz_{topic.quiz.id}',
+                    'title': topic.quiz.title if topic.quiz else topic.title,
+                    'description': f'Quiz - {topic.section.course.title if topic.section and topic.section.course else "General"}',
+                    'due_date': due_text,
+                    'sort_date': quiz_due_datetime,
+                    'type': 'quiz',
+                    'priority': priority,
+                    'icon': 'question-circle',
+                    'url': f'/quiz/{topic.quiz.id}/' if topic.quiz else f'/courses/{topic.section.course.id}/view/' if topic.section and topic.section.course else '#',
+                    'metadata': {
+                        'quiz_id': topic.quiz.id if topic.quiz else None,
+                        'topic_id': topic.id,
+                        'course_id': topic.section.course.id if topic.section and topic.section.course else None
+                    }
+                })
+        
+        # 3c. HIGH/MEDIUM PRIORITY: Discussion assessments (from Topics with Discussion content type)
+        discussion_topics = Topic.objects.filter(
+            section__course__in=enrolled_course_ids,
+            content_type='Discussion',
+            status='active',
+            discussion__isnull=False
+        ).select_related('discussion', 'section__course').order_by('end_date')[:20]
+        
+        for topic in discussion_topics:
+            # Use topic end_date or discussion end_date
+            due_date = topic.end_date
+            if not due_date and topic.discussion:
+                due_date = topic.discussion.end_date
+            
+            if due_date and due_date >= self.today:
+                # Create datetime from end_date (use end of day for sorting)
+                discussion_due_datetime = datetime.combine(due_date, dt_time(23, 59, 59))
+                discussion_due_datetime = timezone.make_aware(discussion_due_datetime, timezone.get_current_timezone())
+                
+                due_text = self._format_due_date(discussion_due_datetime)
+                if due_date <= self.tomorrow:
+                    priority = 'high'
+                elif due_date <= self.next_week:
+                    priority = 'medium'
+                else:
+                    priority = 'low'
+                
+                todos.append({
+                    'id': f'discussion_{topic.discussion.id if topic.discussion else topic.id}',
+                    'title': topic.discussion.title if topic.discussion else topic.title,
+                    'description': f'Discussion - {topic.section.course.title if topic.section and topic.section.course else "General"}',
+                    'due_date': due_text,
+                    'sort_date': discussion_due_datetime,
+                    'type': 'discussion',
+                    'priority': priority,
+                    'icon': 'comments',
+                    'url': f'/discussions/{topic.discussion.id}/' if topic.discussion else f'/courses/{topic.section.course.id}/view/' if topic.section and topic.section.course else '#',
+                    'metadata': {
+                        'discussion_id': topic.discussion.id if topic.discussion else None,
+                        'topic_id': topic.id,
+                        'course_id': topic.section.course.id if topic.section and topic.section.course else None
+                    }
+                })
+        
+        # 3d. HIGH/MEDIUM PRIORITY: SCORM assessments (from Topics with SCORM content type)
+        scorm_topics = Topic.objects.filter(
+            section__course__in=enrolled_course_ids,
+            content_type='SCORM',
+            status='active',
+            scorm__isnull=False,
+            end_date__isnull=False,
+            end_date__gte=self.today
+        ).select_related('scorm', 'section__course').order_by('end_date')[:20]
+        
+        for topic in scorm_topics:
+            # Create datetime from end_date (use end of day for sorting)
+            scorm_due_datetime = datetime.combine(topic.end_date, dt_time(23, 59, 59))
+            scorm_due_datetime = timezone.make_aware(scorm_due_datetime, timezone.get_current_timezone())
+            
+            due_text = self._format_due_date(scorm_due_datetime)
+            if topic.end_date <= self.tomorrow:
+                priority = 'high'
+            elif topic.end_date <= self.next_week:
+                priority = 'medium'
+            else:
+                priority = 'low'
+            
+            todos.append({
+                'id': f'scorm_{topic.scorm.id if topic.scorm else topic.id}',
+                'title': topic.scorm.title if topic.scorm else topic.title,
+                'description': f'SCORM - {topic.section.course.title if topic.section and topic.section.course else "General"}',
+                'due_date': due_text,
+                'sort_date': scorm_due_datetime,
+                'type': 'scorm',
+                'priority': priority,
+                'icon': 'graduation-cap',
+                'url': f'/courses/{topic.section.course.id}/view/' if topic.section and topic.section.course else '#',
+                'metadata': {
+                    'scorm_id': topic.scorm.id if topic.scorm else None,
+                    'topic_id': topic.id,
+                    'course_id': topic.section.course.id if topic.section and topic.section.course else None
+                }
+            })
+        
+        # 4. HIGH/MEDIUM PRIORITY: ILT/Conference time slots - all available slots in chronological order
+        # Get conferences with time slots enabled
+        conferences_with_slots = Conference.objects.filter(
+            course__in=enrolled_course_ids,
+            use_time_slots=True,
+            status='published'
+        ).select_related('course').prefetch_related('time_slots')
+        
+        # Get all available time slots from conferences
+        all_time_slots = ConferenceTimeSlot.objects.filter(
+            conference__course__in=enrolled_course_ids,
+            conference__status='published',
+            is_available=True,
+            date__gte=self.today
+        ).select_related('conference', 'conference__course').order_by('date', 'start_time')[:20]
+        
+        for time_slot in all_time_slots:
+            # Create datetime for sorting
+            slot_datetime = datetime.combine(time_slot.date, time_slot.start_time)
+            slot_datetime = timezone.make_aware(slot_datetime, timezone.get_current_timezone())
+            
+            due_text = self._format_due_date(slot_datetime)
+            if time_slot.date <= self.tomorrow:
+                priority = 'high'
+            elif time_slot.date <= self.next_week:
+                priority = 'medium'
+            else:
+                priority = 'low'
+            
+            time_str = f"{time_slot.start_time.strftime('%I:%M %p')} - {time_slot.end_time.strftime('%I:%M %p')}"
+            
+            todos.append({
+                'id': f'conference_slot_{time_slot.id}',
+                'title': f'ILT: {time_slot.conference.title}',
+                'description': f'{time_slot.conference.course.title if time_slot.conference.course else "General"} - {time_str}',
+                'due_date': due_text,
+                'sort_date': slot_datetime,
+                'type': 'conference',
+                'priority': priority,
+                'icon': 'video',
+                'url': f'/conferences/{time_slot.conference.id}/',
+                'metadata': {
+                    'time_slot_id': time_slot.id,
+                    'conference_id': time_slot.conference.id,
+                    'course_id': time_slot.conference.course.id if time_slot.conference.course else None,
+                    'meeting_time': time_str,
+                    'date': time_slot.date,
+                    'start_time': time_slot.start_time,
+                    'end_time': time_slot.end_time
+                }
+            })
+        
+        # Also add regular conferences (without time slots) for backward compatibility
+        regular_conferences = Conference.objects.filter(
             course__in=enrolled_course_ids,
             date__gte=self.today,
-            date__lte=self.next_week,
-            status='published'
-        ).select_related('course').order_by('date')[:5]
+            date__lte=self.next_month,
+            status='published',
+            use_time_slots=False
+        ).select_related('course').order_by('date')[:10]
         
-        for conference in upcoming_conferences:
-            due_text = self._format_due_date(conference.date)
-            priority = 'high' if conference.date.date() <= self.tomorrow else 'medium'
+        for conference in regular_conferences:
+            # Create datetime for sorting
+            conf_datetime = datetime.combine(conference.date, conference.start_time) if conference.start_time else conference.date
+            if isinstance(conf_datetime, datetime) and not timezone.is_aware(conf_datetime):
+                conf_datetime = timezone.make_aware(conf_datetime, timezone.get_current_timezone())
+            
+            due_text = self._format_due_date(conf_datetime)
+            priority = 'high' if conference.date <= self.tomorrow else 'medium'
+            
+            time_str = conference.start_time.strftime("%I:%M %p") if conference.start_time else ""
             
             todos.append({
                 'id': f'conference_{conference.id}',
-                'title': f'Join: {conference.title}',
-                'description': f'{conference.course.title if conference.course else "General"} - {conference.date.strftime("%I:%M %p")}',
+                'title': f'ILT: {conference.title}',
+                'description': f'{conference.course.title if conference.course else "General"} - {time_str}',
                 'due_date': due_text,
-                'sort_date': conference.date,
+                'sort_date': conf_datetime,
                 'type': 'conference',
                 'priority': priority,
                 'icon': 'video',
@@ -273,7 +507,7 @@ class TodoService:
                 'metadata': {
                     'conference_id': conference.id,
                     'course_id': conference.course.id if conference.course else None,
-                    'meeting_time': conference.date.strftime("%I:%M %p")
+                    'meeting_time': time_str
                 }
             })
         
@@ -330,9 +564,13 @@ class TodoService:
                 }
             })
         
-        # Sort todos by priority and date
+        # Sort todos chronologically by sort_date (time-sensitive order)
+        # Priority order: critical > high > medium > low, then by date/time
         priority_order = {'critical': 0, 'high': 1, 'medium': 2, 'low': 3}
-        todos.sort(key=lambda x: (priority_order.get(x['priority'], 4), x['sort_date']))
+        todos.sort(key=lambda x: (
+            priority_order.get(x['priority'], 4),
+            x['sort_date'] if isinstance(x['sort_date'], (datetime, type(self.now))) else datetime.min.replace(tzinfo=timezone.get_current_timezone())
+        ))
         
         # Apply pagination
         return todos[offset:offset + limit]
