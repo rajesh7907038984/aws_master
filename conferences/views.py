@@ -2754,6 +2754,89 @@ def sync_zoom_meeting_data(conference):
             'items_failed': 1
         }
 
+def _sync_time_slot_data(meeting_sync, conference, time_slot):
+    """
+    Helper function to sync data for a specific time slot meeting.
+    Temporarily uses the time slot's meeting details to sync chat and recordings.
+    
+    Args:
+        meeting_sync: MeetingSyncService instance
+        conference: Conference instance (main conference)
+        time_slot: ConferenceTimeSlot instance
+        
+    Returns:
+        dict: Combined sync results for the time slot
+    """
+    logger.info(f"🕐 Syncing data for time slot: {time_slot.date} {time_slot.start_time} (Slot ID: {time_slot.id})")
+    
+    # Store original conference meeting details
+    original_meeting_id = conference.meeting_id
+    original_online_meeting_id = conference.online_meeting_id
+    original_meeting_link = conference.meeting_link
+    
+    slot_results = {
+        'success': True,
+        'items_processed': 0,
+        'recordings': {'processed': 0, 'created': 0, 'updated': 0, 'success': False},
+        'chat': {'processed': 0, 'created': 0, 'updated': 0, 'success': False},
+    }
+    
+    try:
+        # Only sync if time slot has meeting details
+        if not time_slot.meeting_id and not time_slot.online_meeting_id:
+            logger.info(f"⏭️ Skipping time slot {time_slot.id} - no meeting details")
+            return slot_results
+        
+        # Temporarily update conference with time slot's meeting details
+        conference.meeting_id = time_slot.meeting_id or original_meeting_id
+        conference.online_meeting_id = time_slot.online_meeting_id or original_online_meeting_id
+        conference.meeting_link = time_slot.meeting_link or original_meeting_link
+        
+        # Sync recordings for this time slot
+        try:
+            logger.info(f"📹 Syncing recordings for time slot {time_slot.id}...")
+            recording_results = meeting_sync.sync_meeting_recordings(conference)
+            slot_results['recordings'] = {
+                'processed': recording_results.get('processed', 0),
+                'created': recording_results.get('created', 0),
+                'updated': recording_results.get('updated', 0),
+                'success': recording_results.get('success', False),
+            }
+            slot_results['items_processed'] += recording_results.get('processed', 0)
+        except Exception as e:
+            logger.error(f"✗ Error syncing recordings for time slot {time_slot.id}: {str(e)}")
+            slot_results['recordings']['error'] = str(e)
+        
+        # Sync chat for this time slot
+        try:
+            logger.info(f"💬 Syncing chat for time slot {time_slot.id}...")
+            chat_results = meeting_sync.sync_meeting_chat(conference)
+            slot_results['chat'] = {
+                'processed': chat_results.get('processed', 0),
+                'created': chat_results.get('created', 0),
+                'updated': chat_results.get('updated', 0),
+                'success': chat_results.get('success', False),
+            }
+            slot_results['items_processed'] += chat_results.get('processed', 0)
+        except Exception as e:
+            logger.error(f"✗ Error syncing chat for time slot {time_slot.id}: {str(e)}")
+            slot_results['chat']['error'] = str(e)
+        
+        # Determine overall success
+        slot_results['success'] = (
+            slot_results['recordings'].get('success', False) or 
+            slot_results['chat'].get('success', False)
+        )
+        
+    finally:
+        # Restore original conference meeting details
+        conference.meeting_id = original_meeting_id
+        conference.online_meeting_id = original_online_meeting_id
+        conference.meeting_link = original_meeting_link
+    
+    return slot_results
+
+
 def sync_teams_meeting_data(conference):
     """Sync meeting data from Microsoft Teams (including OneDrive recordings)"""
     try:
@@ -2762,17 +2845,15 @@ def sync_teams_meeting_data(conference):
         
         logger.info(f"🔵 Starting Teams data sync for conference: {conference.title} (ID: {conference.id})")
         
-        # Get Teams integration
-        teams_integration = None
-        if hasattr(conference.created_by, 'branch') and conference.created_by.branch:
+        # Get Teams integration (prefer user-specific integration, fallback to branch)
+        teams_integration = TeamsIntegration.objects.filter(
+            user=conference.created_by,
+            is_active=True
+        ).first()
+        
+        if not teams_integration and hasattr(conference.created_by, 'branch') and conference.created_by.branch:
             teams_integration = TeamsIntegration.objects.filter(
                 branch=conference.created_by.branch,
-                is_active=True
-            ).first()
-        
-        if not teams_integration:
-            teams_integration = TeamsIntegration.objects.filter(
-                user=conference.created_by,
                 is_active=True
             ).first()
         
@@ -2798,14 +2879,18 @@ def sync_teams_meeting_data(conference):
             'details': {}
         }
         
+        # Sync main conference data first
         # Sync recordings (OneDrive)
-        logger.info("📹 Syncing recordings from OneDrive...")
+        logger.info("📹 Syncing recordings from OneDrive for main conference...")
         recording_results = meeting_sync.sync_meeting_recordings(conference)
-        results['items_processed'] += recording_results.get('processed', 0)
+        recording_processed = recording_results.get('processed', 0)
+        results['items_processed'] += recording_processed
         results['details']['recordings'] = {
+            'processed': recording_processed,
             'created': recording_results.get('created', 0),
             'updated': recording_results.get('updated', 0),
-            'success': recording_results.get('success', False)
+            'success': recording_results.get('success', False),
+            'error': recording_results.get('error') if not recording_results.get('success') else None
         }
         
         # Sync attendance WITH DURATION
@@ -2821,7 +2906,7 @@ def sync_teams_meeting_data(conference):
         }
         
         # Sync chat
-        logger.info("💬 Syncing chat messages...")
+        logger.info("💬 Syncing chat messages for main conference...")
         chat_results = meeting_sync.sync_meeting_chat(conference)
         results['items_processed'] += chat_results.get('processed', 0)
         results['details']['chat'] = {
@@ -2842,6 +2927,46 @@ def sync_teams_meeting_data(conference):
             'error': file_results.get('error') if not file_results.get('success') else None
         }
         
+        # ✅ NEW: Sync data for all time slots if conference uses time slots
+        if conference.use_time_slots:
+            logger.info(f"🕐 Conference uses time slots. Syncing data for all {conference.time_slots.count()} time slots...")
+            time_slots = conference.time_slots.all()
+            
+            time_slot_results = {
+                'total_slots': time_slots.count(),
+                'synced_slots': 0,
+                'total_recordings': 0,
+                'total_chat': 0,
+            }
+            
+            for time_slot in time_slots:
+                slot_results = _sync_time_slot_data(meeting_sync, conference, time_slot)
+                
+                # Aggregate results
+                if slot_results.get('success'):
+                    time_slot_results['synced_slots'] += 1
+                
+                time_slot_results['total_recordings'] += slot_results['recordings'].get('processed', 0)
+                time_slot_results['total_chat'] += slot_results['chat'].get('processed', 0)
+                
+                # Add to main results
+                results['items_processed'] += slot_results.get('items_processed', 0)
+                
+                # Update recordings totals
+                results['details']['recordings']['processed'] += slot_results['recordings'].get('processed', 0)
+                results['details']['recordings']['created'] += slot_results['recordings'].get('created', 0)
+                results['details']['recordings']['updated'] += slot_results['recordings'].get('updated', 0)
+                
+                # Update chat totals
+                results['details']['chat']['processed'] += slot_results['chat'].get('processed', 0)
+                results['details']['chat']['created'] += slot_results['chat'].get('created', 0)
+                results['details']['chat']['updated'] += slot_results['chat'].get('updated', 0)
+            
+            results['details']['time_slots'] = time_slot_results
+            logger.info(f"✅ Time slots sync completed: {time_slot_results['synced_slots']}/{time_slot_results['total_slots']} slots synced")
+            logger.info(f"   Total recordings from time slots: {time_slot_results['total_recordings']}")
+            logger.info(f"   Total chat messages from time slots: {time_slot_results['total_chat']}")
+        
         # ✅ FIX: Improved success criteria and error reporting
         successful_operations = [
             recording_results.get('success', False),
@@ -2858,10 +2983,10 @@ def sync_teams_meeting_data(conference):
         
         # Check if meeting hasn't occurred (no data is expected)
         no_data = all([
-            results['details']['recordings']['processed'] == 0,
-            results['details']['attendance']['processed'] == 0,
-            results['details']['chat']['processed'] == 0,
-            results['details']['files']['processed'] == 0
+            results['details']['recordings'].get('processed', 0) == 0,
+            results['details']['attendance'].get('processed', 0) == 0,
+            results['details']['chat'].get('processed', 0) == 0,
+            results['details']['files'].get('processed', 0) == 0
         ])
         
         # ✅ IMPROVED: More nuanced success criteria

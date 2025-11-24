@@ -260,6 +260,12 @@ class TeamsAPIClient:
                     "content": description
                 }
             
+            # Note: Recording configuration will be set after meeting creation
+            # The Graph API doesn't support setting recordAutomatically during calendar event creation
+            # We'll configure it via onlineMeeting API after the meeting is created
+            if enable_recording:
+                logger.info("🔴 Recording will be configured after meeting creation")
+            
             # Determine user email for application permissions
             # With client credentials flow, we need to specify the user
             if not user_email and self.integration.user and self.integration.user.email:
@@ -294,9 +300,10 @@ class TeamsAPIClient:
             # Extract meeting details
             meeting_id = response.get('id')
             join_url = response.get('onlineMeeting', {}).get('joinUrl')
-            online_meeting_id = response.get('onlineMeeting', {}).get('id')
+            # IMPORTANT: Keep the original online_meeting_id from calendar event for API calls
+            online_meeting_id_for_api = response.get('onlineMeeting', {}).get('id')
             
-            # 🐛 FIX: Extract thread ID from join URL if available
+            # Extract thread ID from join URL if available
             # The online_meeting_id from calendar API is a GUID (calendar event ID)
             # But we need the thread ID (19:meeting_XXX@thread.v2) for attendance/chat APIs
             thread_id = None
@@ -313,41 +320,78 @@ class TeamsAPIClient:
                         # URL decode to get actual thread ID
                         thread_id = urllib.parse.unquote(encoded_thread)
                         logger.info(f"✓ Extracted thread ID from join URL: {thread_id}")
-                        
-                        # Use thread ID as the online_meeting_id for sync operations
-                        online_meeting_id = thread_id
                 except Exception as e:
                     logger.warning(f"Could not extract thread ID from join URL: {str(e)}")
             
-            logger.info(f"✓ Created Teams meeting: Calendar ID={meeting_id}, Thread ID={online_meeting_id}")
+            # Use thread ID for sync operations (attendance/chat), but keep online_meeting_id_for_api for recording API
+            online_meeting_id = thread_id if thread_id else online_meeting_id_for_api
+            
+            logger.info(f"✓ Created Teams meeting: Calendar ID={meeting_id}, Online Meeting ID={online_meeting_id_for_api}, Thread ID={thread_id}")
             
             # Enable automatic recording if requested
+            # Use MULTIPLE methods to ensure recording is enabled:
+            # 1. During creation (already set above)
+            # 2. Via PATCH to onlineMeeting endpoint (backup method)
+            # 3. Verify recording is actually enabled
             recording_status = 'not_attempted'
             recording_error = None
             
-            if enable_recording and online_meeting_id:
-                try:
-                    logger.info(f"🔴 Enabling auto-recording for meeting: {online_meeting_id}")
-                    recording_result = self.enable_meeting_recording(online_meeting_id, user_email)
-                    
-                    if recording_result['success']:
+            if enable_recording:
+                # Method 1: Verify recording was set during creation
+                online_meeting_from_response = response.get('onlineMeeting', {})
+                record_auto_from_response = online_meeting_from_response.get('recordAutomatically', False)
+                
+                if record_auto_from_response:
+                    logger.info("✓ Recording was enabled during meeting creation")
+                    recording_status = 'enabled'
+                else:
+                    logger.warning("⚠️ Recording not confirmed in creation response, trying PATCH method...")
+                
+                # Method 2: Explicitly enable via PATCH (backup/verification method)
+                # BUG FIX: Use the original online_meeting_id_for_api (GUID) for the API call, not the thread ID
+                if online_meeting_id_for_api and recording_status != 'enabled':
+                    try:
+                        logger.info(f"🔴 Attempting to enable auto-recording via PATCH using online meeting ID: {online_meeting_id_for_api}")
+                        recording_result = self.enable_meeting_recording(online_meeting_id_for_api, user_email)
+                        
+                        if recording_result['success']:
+                            recording_status = 'enabled'
+                            logger.info(f"✓ Auto-recording enabled successfully via PATCH")
+                        else:
+                            # If PATCH failed but creation had it, still mark as enabled
+                            if record_auto_from_response:
+                                recording_status = 'enabled'
+                                logger.info(f"✓ Recording enabled during creation (PATCH failed but creation succeeded)")
+                            else:
+                                recording_status = 'failed'
+                                recording_error = recording_result.get('error', 'Unknown error')
+                                logger.warning(f"⚠️ Failed to enable auto-recording: {recording_error}")
+                            
+                    except Exception as rec_error:
+                        # If creation had it, still mark as enabled
+                        if record_auto_from_response:
+                            recording_status = 'enabled'
+                            logger.info(f"✓ Recording enabled during creation (PATCH error ignored)")
+                        else:
+                            recording_status = 'error'
+                            recording_error = str(rec_error)
+                            logger.error(f"✗ Error enabling auto-recording: {recording_error}")
+                elif not online_meeting_id_for_api:
+                    if record_auto_from_response:
                         recording_status = 'enabled'
-                        logger.info(f"✓ Auto-recording enabled successfully")
+                        logger.info("✓ Recording enabled during creation (no online meeting ID for PATCH)")
                     else:
                         recording_status = 'failed'
-                        recording_error = recording_result.get('error', 'Unknown error')
-                        logger.warning(f"⚠️ Failed to enable auto-recording: {recording_error}")
-                        
-                except Exception as rec_error:
-                    recording_status = 'error'
-                    recording_error = str(rec_error)
-                    logger.error(f"✗ Error enabling auto-recording: {recording_error}")
+                        recording_error = 'No online meeting ID available from calendar event'
+                        logger.warning(f"⚠️ Cannot enable recording: {recording_error}")
             
             return {
                 'success': True,
                 'meeting_id': meeting_id,
                 'meeting_link': join_url,
-                'online_meeting_id': online_meeting_id,
+                'online_meeting_id': online_meeting_id,  # Thread ID for sync operations
+                'online_meeting_id_for_api': online_meeting_id_for_api,  # GUID for API calls
+                'thread_id': thread_id,  # Explicit thread ID
                 'recording_status': recording_status,
                 'recording_error': recording_error,
                 'meeting_details': response
@@ -364,8 +408,12 @@ class TeamsAPIClient:
         """
         Enable automatic recording for a Teams online meeting
         
+        IMPORTANT: The online_meeting_id must be the GUID from the calendar event's onlineMeeting.id,
+        NOT the thread ID (19:meeting_XXX@thread.v2). The thread ID is used for attendance/chat APIs,
+        but the onlineMeetings endpoint requires the GUID format.
+        
         Args:
-            online_meeting_id: Teams online meeting ID
+            online_meeting_id: Teams online meeting ID (GUID format from calendar event, not thread ID)
             user_email: Organizer's email address
             
         Returns:
@@ -382,14 +430,32 @@ class TeamsAPIClient:
             if not user_email:
                 raise TeamsAPIError("User email required to enable recording")
             
+            # Validate that online_meeting_id is in GUID format (not thread ID)
+            # Thread IDs have format: 19:meeting_XXX@thread.v2
+            # GUIDs are UUIDs: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+            if online_meeting_id and ('@thread.v2' in str(online_meeting_id) or online_meeting_id.startswith('19:')):
+                logger.warning(f"⚠️ Invalid online_meeting_id format detected (thread ID instead of GUID): {online_meeting_id[:50]}")
+                logger.warning("⚠️ The enable_meeting_recording API requires the GUID from calendar event, not the thread ID")
+                return {
+                    'success': False,
+                    'error': 'Invalid online meeting ID format. Expected GUID from calendar event, got thread ID.',
+                    'note': 'The online_meeting_id must be the GUID from the calendar event response, not the thread ID extracted from join URL.'
+                }
+            
             # Update online meeting to enable recording
             # Note: This requires the OnlineMeetings.ReadWrite.All permission
             endpoint = f'/users/{user_email}/onlineMeetings/{online_meeting_id}'
             
+            # CRITICAL: Set multiple properties to ensure recording is enabled
+            # recordAutomatically: True should start recording automatically when meeting begins
             recording_config = {
                 "recordAutomatically": True,
+                "allowRecording": True,  # Explicitly allow recording
                 "isEntryExitAnnounced": False  # Disable join/leave sounds for better recording
             }
+            
+            logger.info(f"🔴 Attempting to enable automatic recording via PATCH {endpoint}")
+            logger.info(f"   Config: recordAutomatically=True, allowRecording=True")
             
             response = self._make_request(
                 'PATCH',
@@ -397,15 +463,23 @@ class TeamsAPIClient:
                 data=recording_config
             )
             
+            # Verify the response confirms recording is enabled
+            record_auto_confirmed = response.get('recordAutomatically', False)
+            if record_auto_confirmed:
+                logger.info(f"✓ Recording settings confirmed: recordAutomatically={record_auto_confirmed}")
+            else:
+                logger.warning(f"⚠️ Recording setting not confirmed in response. Response: {response}")
+            
             logger.info(f"✓ Recording settings updated for meeting {online_meeting_id}")
             
             return {
                 'success': True,
                 'message': 'Auto-recording enabled',
+                'recordAutomatically': record_auto_confirmed,
                 'details': response
             }
             
-        except Exception as e:
+        except TeamsAPIError as e:
             error_msg = str(e)
             logger.error(f"✗ Failed to enable recording: {error_msg}")
             
@@ -414,12 +488,77 @@ class TeamsAPIClient:
                 return {
                     'success': False,
                     'error': 'Insufficient permissions. Ensure OnlineMeetings.ReadWrite.All is granted.',
-                    'permission_required': 'OnlineMeetings.ReadWrite.All'
+                    'permission_required': 'OnlineMeetings.ReadWrite.All',
+                    'note': 'Please verify that OnlineMeetings.ReadWrite.All permission is granted in Azure AD and admin consent is provided.'
+                }
+            elif '404' in error_msg or 'Not Found' in error_msg:
+                return {
+                    'success': False,
+                    'error': 'Online meeting not found. The meeting may not exist or the ID format is incorrect.',
+                    'note': 'Ensure you are using the GUID from the calendar event response, not the thread ID.'
+                }
+            elif '400' in error_msg or 'Bad Request' in error_msg:
+                return {
+                    'success': False,
+                    'error': f'Invalid request: {error_msg}',
+                    'note': 'The online meeting ID format may be incorrect or the API endpoint may not support this operation.'
                 }
             
             return {
                 'success': False,
                 'error': error_msg
+            }
+        except Exception as e:
+            error_msg = str(e)
+            logger.error(f"✗ Failed to enable recording: {error_msg}")
+            return {
+                'success': False,
+                'error': error_msg
+            }
+    
+    def verify_recording_enabled(self, online_meeting_id, user_email=None):
+        """
+        Verify that recording is enabled for a Teams meeting
+        
+        Args:
+            online_meeting_id: Teams online meeting ID (GUID format)
+            user_email: Organizer's email address
+            
+        Returns:
+            dict: Verification result with recording status
+        """
+        try:
+            # Determine user email
+            if not user_email and self.integration.user and self.integration.user.email:
+                user_email = self.integration.user.email
+            
+            if not user_email and hasattr(self.integration, 'service_account_email'):
+                user_email = self.integration.service_account_email
+            
+            if not user_email:
+                raise TeamsAPIError("User email required to verify recording")
+            
+            # Get online meeting details
+            endpoint = f'/users/{user_email}/onlineMeetings/{online_meeting_id}'
+            response = self._make_request('GET', endpoint)
+            
+            record_automatically = response.get('recordAutomatically', False)
+            allow_recording = response.get('allowRecording', True)  # Defaults to True if not specified
+            
+            return {
+                'success': True,
+                'recordAutomatically': record_automatically,
+                'allowRecording': allow_recording,
+                'recording_enabled': record_automatically and allow_recording,
+                'details': response
+            }
+            
+        except Exception as e:
+            logger.error(f"Error verifying recording status: {str(e)}")
+            return {
+                'success': False,
+                'error': str(e),
+                'recording_enabled': False
             }
     
     def get_meeting_attendance(self, meeting_id, user_email=None):
@@ -983,8 +1122,14 @@ class TeamsAPIClient:
             
             chat_id = None
             
+            # ✅ FIX: Check if online_meeting_id is already a thread ID
+            if online_meeting_id and '@thread.v2' in str(online_meeting_id):
+                # This is already a thread ID, use it directly
+                chat_id = online_meeting_id
+                logger.info(f"✓ Using provided thread ID directly: {chat_id}")
+            
             # Try to get chat ID from online meeting
-            if online_meeting_id:
+            elif online_meeting_id:
                 try:
                     meeting_endpoint = f'/users/{user_email}/onlineMeetings/{online_meeting_id}'
                     meeting_details = self._make_request('GET', meeting_endpoint)
@@ -1024,7 +1169,12 @@ class TeamsAPIClient:
             
             # Get chat messages
             logger.info(f"Retrieving messages from chat: {chat_id}")
-            chat_endpoint = f'/chats/{chat_id}/messages'
+            
+            # ✅ FIX: URL-encode the chat ID (required for thread IDs with special characters)
+            import urllib.parse
+            encoded_chat_id = urllib.parse.quote(chat_id, safe='')
+            
+            chat_endpoint = f'/chats/{encoded_chat_id}/messages'
             params = {
                 '$top': 50,  # Get last 50 messages
                 '$orderby': 'createdDateTime asc'  # Oldest first

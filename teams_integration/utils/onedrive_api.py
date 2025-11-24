@@ -215,16 +215,27 @@ class OneDriveAPI:
             user_drive = self._make_request('GET', f'/users/{user_email}/drive')
             drive_id = user_drive.get('id')
             
-            # Search for recording files (Teams recordings are typically .mp4)
-            # Search in Recordings folder
-            search_query = f'.mp4'
-            if meeting_title:
-                # Clean meeting title for search
-                clean_title = meeting_title.replace(' ', '_')[:50]
-                search_query = clean_title
+            # ✅ FIX: Try multiple methods to find recordings
+            items = []
             
-            search_endpoint = f'/users/{user_email}/drive/root/search(q=\'{search_query}\')'
-            results = self._make_request('GET', search_endpoint)
+            # Method 1: Try direct access to Recordings folder (more reliable with app permissions)
+            try:
+                recordings_folder_endpoint = f'/users/{user_email}/drive/root:/Recordings:/children'
+                results = self._make_request('GET', recordings_folder_endpoint)
+                items = results.get('value', [])
+                logger.info(f"✓ Accessed Recordings folder directly, found {len(items)} items")
+            except Exception as e:
+                logger.info(f"Direct Recordings folder access failed: {str(e)}, trying search method")
+                
+                # Method 2: Fallback to search (might not work with app permissions)
+                search_query = f'.mp4'
+                if meeting_title:
+                    clean_title = meeting_title.replace(' ', '_')[:50]
+                    search_query = clean_title
+                
+                search_endpoint = f'/users/{user_email}/drive/root/search(q=\'{search_query}\')'
+                results = self._make_request('GET', search_endpoint)
+                items = results.get('value', [])
             
             items = results.get('value', [])
             

@@ -447,14 +447,14 @@ class MeetingSyncService(TeamsSyncService):
                 return self.sync_status
             
             # Determine which user's OneDrive to search
-            # Priority: 1. Conference creator, 2. Integration owner, 3. Service account
+            # Priority: 1. Integration owner (branch admin), 2. Service account, 3. Conference creator
             admin_email = None
-            if conference.created_by and conference.created_by.email:
-                admin_email = conference.created_by.email
-            elif self.config.user and self.config.user.email:
+            if self.config.user and self.config.user.email:
                 admin_email = self.config.user.email
             elif self.config.service_account_email:
                 admin_email = self.config.service_account_email
+            elif conference.created_by and conference.created_by.email:
+                admin_email = conference.created_by.email
             
             if not admin_email:
                 logger.warning("No admin email found for OneDrive access")
@@ -636,14 +636,14 @@ class MeetingSyncService(TeamsSyncService):
             )
             
             # Determine user email for API calls
-            # Priority: 1. Conference creator (owns the meeting), 2. Integration user, 3. Service account
+            # Priority: 1. Integration user (branch admin - meeting organizer), 2. Service account, 3. Conference creator
             candidate_emails = []
-            if conference.created_by and conference.created_by.email:
-                candidate_emails.append(conference.created_by.email)
-            if self.config.user and self.config.user.email and self.config.user.email not in candidate_emails:
+            if self.config.user and self.config.user.email:
                 candidate_emails.append(self.config.user.email)
             if hasattr(self.config, 'service_account_email') and self.config.service_account_email and self.config.service_account_email not in candidate_emails:
                 candidate_emails.append(self.config.service_account_email)
+            if conference.created_by and conference.created_by.email and conference.created_by.email not in candidate_emails:
+                candidate_emails.append(conference.created_by.email)
             
             user_email = candidate_emails[0] if candidate_emails else None
             if user_email:
@@ -824,7 +824,7 @@ class MeetingSyncService(TeamsSyncService):
             
             # Add note if no messages were retrieved
             if len(messages) == 0:
-                note = transcript_result.get('note', '')
+                note = chat_result.get('note', '')
                 if note:
                     logger.info(f"Chat sync note: {note}")
             
