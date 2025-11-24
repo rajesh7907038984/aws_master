@@ -337,20 +337,7 @@
             <div class="flex space-x-2">
                 {% if conference.meeting_link %}
                     {% if not conference.use_time_slots %}
-                        <!-- Auto-registration join button (only shown when NOT using time slots) -->
-                        <button id="joinButton" onclick="autoRegisterAndJoin()" 
-                                class="btn-standard">
-                            <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
-                            </svg>
-                            <span id="joinButtonText">Join Conference</span>
-                        </button>
-                        
-                        <!-- Messages for join status -->
-                        <div id="joinMessages" class="hidden ml-4 flex items-center space-x-2">
-                            <div id="errorMessage" class="text-red-600 text-sm"></div>
-                            <div id="successMessage" class="text-green-600 text-sm"></div>
-                        </div>
+                        <!-- Auto-registration join button removed -->
                     {% endif %}
                 {% endif %}
                 
@@ -498,9 +485,9 @@
                                 {% endif %}
                                 {% if user_selection.time_slot.meeting_link %}
                                     <div class="mt-2">
-                                        <a href="{{ user_selection.time_slot.meeting_link }}" target="_blank" class="btn btn-sm btn-primary">
+                                        <button type="button" onclick="autoRegisterAndJoin(event)" class="btn btn-sm btn-primary">
                                             <i class="fas fa-video mr-1"></i> Join Selected Slot
-                                        </a>
+                                        </button>
                                     </div>
                                 {% endif %}
                             </div>
@@ -858,6 +845,12 @@
                 </svg>
                 <h3 class="text-lg font-medium text-gray-900 mb-2">No Chat Messages Yet</h3>
                 <p class="text-gray-500">Chat history will appear here after syncing conference data or when participants start sending messages.</p>
+                {% if conference.meeting_platform == 'teams' %}
+                <div class="mt-4 p-3 bg-blue-50 border border-blue-200 rounded text-sm">
+                    <strong>Note:</strong> Microsoft Teams meeting chats require Protected API approval from Microsoft.<br>
+                    <a href="https://aka.ms/pa-request" target="_blank" class="text-blue-600 underline">Request Protected API Access →</a>
+                </div>
+                {% endif %}
             </div>
             {% endif %}
         </div>
@@ -1741,24 +1734,77 @@ function showTab(tabName) {
 }
 
 // Auto-registration and join function (same as learner view)
-function autoRegisterAndJoin() {
-    const button = document.getElementById('joinButton');
+function autoRegisterAndJoin(event) {
+    // Find the button that was clicked - try multiple methods
+    let button = null;
+    if (event && event.target) {
+        button = event.target.closest('button');
+    }
+    if (!button) {
+        button = document.getElementById('joinButton');
+    }
+    if (!button) {
+        // Find button with onclick handler
+        const buttons = document.querySelectorAll('button[onclick*="autoRegisterAndJoin"]');
+        if (buttons.length > 0) {
+            button = buttons[0];
+        }
+    }
+    
     const buttonText = document.getElementById('joinButtonText');
     const errorMessage = document.getElementById('errorMessage');
     const successMessage = document.getElementById('successMessage');
     const messagesContainer = document.getElementById('joinMessages');
     
-    // Disable button and show loading
-    button.disabled = true;
-    buttonText.innerHTML = '<span class="loading-spinner"></span>Processing...';
+    // Store original button content for restoration
+    let originalButtonHTML = button ? button.innerHTML : '';
+    let originalButtonDisabled = button ? button.disabled : false;
     
-    // Show messages container and hide previous messages
-    messagesContainer.classList.remove('hidden');
-    errorMessage.textContent = '';
-    successMessage.textContent = '';
+    // Disable button and show loading if button exists
+    if (button) {
+        button.disabled = true;
+        button.innerHTML = '<span class="spinner-border spinner-border-sm mr-1" role="status" aria-hidden="true"></span>Processing...';
+    }
+    
+    // Show messages container and hide previous messages if they exist
+    if (messagesContainer) {
+        messagesContainer.classList.remove('hidden');
+    }
+    if (errorMessage) {
+        errorMessage.textContent = '';
+    }
+    if (successMessage) {
+        successMessage.textContent = '';
+    }
     
     // Get CSRF token from meta tag (consistent with base template)
-    const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    let csrfToken = null;
+    const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+    if (csrfMeta) {
+        csrfToken = csrfMeta.getAttribute('content');
+    }
+    if (!csrfToken) {
+        // Fallback: try to get from cookie
+        const csrfCookie = document.cookie.split(';').find(c => c.trim().startsWith('csrftoken='));
+        if (csrfCookie) {
+            csrfToken = csrfCookie.split('=')[1];
+        }
+    }
+    
+    if (!csrfToken) {
+        const errorMsg = 'Unable to process join request. Please refresh the page and try again.';
+        if (errorMessage) {
+            errorMessage.textContent = errorMsg;
+            errorMessage.style.display = 'block';
+        } else {
+            alert(errorMsg);
+        }
+        if (button) {
+            button.disabled = originalButtonDisabled;
+            button.innerHTML = originalButtonHTML;
+        }
+        return;
+    }
     
     // Make AJAX request to auto-register and get join link
     fetch("{% url 'conferences:auto_register_and_join' conference_id=conference.id %}", {
@@ -1771,17 +1817,36 @@ function autoRegisterAndJoin() {
     })
     .then(response => {
         if (!response.ok) {
+            // Handle authentication redirect
+            if (response.status === 401) {
+                return response.json().then(data => {
+                    if (data.redirect_url) {
+                        window.location.href = data.redirect_url;
+                        return null;
+                    }
+                    throw new Error(data.error || 'Authentication required');
+                });
+            }
             throw new Error(`HTTP error! status: ${response.status}`);
         }
         return response.json();
     })
     .then(data => {
+        if (!data) return; // Handled redirect case
+        
         if (data.success) {
-            // Show success message
-            successMessage.textContent = data.message;
+            // Show success message if element exists
+            if (successMessage) {
+                successMessage.textContent = data.message || 'Redirecting to meeting...';
+                successMessage.style.display = 'block';
+            }
             
-            // Update button text
-            buttonText.textContent = 'Opening meeting in new tab...';
+            // Update button text if element exists
+            if (buttonText) {
+                buttonText.textContent = 'Opening meeting in new tab...';
+            } else if (button) {
+                button.innerHTML = '<i class="fas fa-video mr-1"></i> Opening...';
+            }
             
             // Open meeting in new tab after a short delay
             setTimeout(() => {
@@ -1790,27 +1855,49 @@ function autoRegisterAndJoin() {
                 // Check if popup was blocked
                 if (newTab === null || typeof(newTab) === 'undefined') {
                     // Popup blocked - provide fallback
-                    buttonText.textContent = 'Click to Join Meeting';
-                    button.onclick = function() {
-                        window.open(data.join_url, '_blank');
-                    };
-                    button.disabled = false;
+                    if (buttonText) {
+                        buttonText.textContent = 'Click to Join Meeting';
+                    } else if (button) {
+                        button.innerHTML = '<i class="fas fa-video mr-1"></i> Click to Join Meeting';
+                        button.onclick = function() {
+                            window.open(data.join_url, '_blank');
+                        };
+                        button.disabled = false;
+                    }
                     
                     // Show popup blocked message
-                    errorMessage.innerHTML = 'Popup blocked! Please <strong>click the button above</strong> to open the meeting, or <a href="' + data.join_url + '" target="_blank">click here to join directly</a>.';
-                    errorMessage.style.display = 'block';
+                    const popupMsg = 'Popup blocked! Please <strong>click the button above</strong> to open the meeting, or <a href="' + data.join_url + '" target="_blank">click here to join directly</a>.';
+                    if (errorMessage) {
+                        errorMessage.innerHTML = popupMsg;
+                        errorMessage.style.display = 'block';
+                    } else {
+                        alert('Popup blocked! Please allow popups or click the button again to join.');
+                    }
                 } else {
                     // Successfully opened in new tab
-                    buttonText.textContent = 'Meeting opened in new tab!';
+                    if (buttonText) {
+                        buttonText.textContent = 'Meeting opened in new tab!';
+                    } else if (button) {
+                        button.innerHTML = '<i class="fas fa-check mr-1"></i> Meeting Opened!';
+                    }
                     
                     // Show success message with manual link option
-                    successMessage.innerHTML = 'Meeting link opened in new tab! If it didn\'t open properly, <a href="' + data.join_url + '" target="_blank">click here to join directly</a>.';
-                    successMessage.style.display = 'block';
+                    const successMsg = 'Meeting link opened in new tab! If it didn\'t open properly, <a href="' + data.join_url + '" target="_blank">click here to join directly</a>.';
+                    if (successMessage) {
+                        successMessage.innerHTML = successMsg;
+                        successMessage.style.display = 'block';
+                    }
                     
                     // Reset button after 5 seconds
                     setTimeout(() => {
-                        button.disabled = false;
-                        buttonText.textContent = 'Join Conference';
+                        if (button) {
+                            button.disabled = false;
+                            if (buttonText) {
+                                buttonText.textContent = 'Join Conference';
+                            } else {
+                                button.innerHTML = originalButtonHTML;
+                            }
+                        }
                     }, 5000);
                 }
             }, 1500);
@@ -1819,28 +1906,51 @@ function autoRegisterAndJoin() {
             let errorText = data.error || 'Failed to join conference. Please try again.';
             
             // Make the error message more prominent for configuration issues
-            if (errorText.includes('instant meeting') || errorText.includes('not have a meeting link') || errorText.includes('Invalid Teams meeting')) {
-                errorMessage.innerHTML = '<strong>⚠️ Configuration Issue:</strong><br>' + errorText;
-                errorMessage.style.padding = '12px';
-                errorMessage.style.borderLeft = '4px solid #dc2626';
-                errorMessage.style.backgroundColor = '#fee2e2';
-                errorMessage.style.borderRadius = '4px';
+            if (errorMessage) {
+                if (errorText.includes('instant meeting') || errorText.includes('not have a meeting link') || errorText.includes('Invalid Teams meeting')) {
+                    errorMessage.innerHTML = '<strong>⚠️ Configuration Issue:</strong><br>' + errorText;
+                    errorMessage.style.padding = '12px';
+                    errorMessage.style.borderLeft = '4px solid #dc2626';
+                    errorMessage.style.backgroundColor = '#fee2e2';
+                    errorMessage.style.borderRadius = '4px';
+                } else {
+                    errorMessage.textContent = errorText;
+                }
+                errorMessage.style.display = 'block';
             } else {
-                errorMessage.textContent = errorText;
+                alert(errorText);
             }
             
             // Re-enable button
-            button.disabled = false;
-            buttonText.textContent = 'Join Conference';
+            if (button) {
+                button.disabled = false;
+                if (buttonText) {
+                    buttonText.textContent = 'Join Conference';
+                } else {
+                    button.innerHTML = originalButtonHTML;
+                }
+            }
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        errorMessage.textContent = 'Network error. Please try again.';
+        const errorMsg = 'Network error. Please try again.';
+        if (errorMessage) {
+            errorMessage.textContent = errorMsg;
+            errorMessage.style.display = 'block';
+        } else {
+            alert(errorMsg);
+        }
         
         // Re-enable button
-        button.disabled = false;
-        buttonText.textContent = 'Join Conference';
+        if (button) {
+            button.disabled = false;
+            if (buttonText) {
+                buttonText.textContent = 'Join Conference';
+            } else {
+                button.innerHTML = originalButtonHTML;
+            }
+        }
     });
 }
 
@@ -2218,11 +2328,59 @@ function performConferenceDataSync() {
                 successMessage.textContent = 'Sync completed successfully';
             }
             
+            // ✅ IMPROVED: Show detailed sync results
+            if (data.details) {
+                const details = [];
+                if (data.details.recordings) {
+                    const rec = data.details.recordings;
+                    if (rec.created > 0 || rec.updated > 0) {
+                        details.push(`Recordings: ${rec.created} new, ${rec.updated} updated`);
+                    }
+                }
+                if (data.details.attendance) {
+                    const att = data.details.attendance;
+                    if (att.created > 0 || att.updated > 0) {
+                        details.push(`Attendance: ${att.created} new, ${att.updated} updated`);
+                    }
+                }
+                if (data.details.chat) {
+                    const chat = data.details.chat;
+                    if (chat.created > 0 || chat.updated > 0) {
+                        details.push(`Chat: ${chat.created} new, ${chat.updated} updated`);
+                    }
+                }
+                if (data.details.files) {
+                    const files = data.details.files;
+                    if (files.processed > 0) {
+                        details.push(`Files: ${files.processed} synced`);
+                    }
+                }
+                
+                if (details.length > 0) {
+                    const detailsDiv = document.createElement('div');
+                    detailsDiv.className = 'mt-2 text-sm text-gray-600';
+                    detailsDiv.innerHTML = details.join('<br>');
+                    successMessage.parentElement.appendChild(detailsDiv);
+                }
+            }
+            
             // Show warning if present (partial success)
             if (data.warning) {
                 errorMessage.textContent = '⚠️ ' + data.warning;
                 errorMessage.classList.remove('text-red-600');
                 errorMessage.classList.add('text-yellow-600');
+            }
+            
+            // Show chat sync limitation message if chat failed due to Protected API
+            if (data.chat_note || (data.details && data.details.chat && data.details.chat.error && data.details.chat.error.includes('Protected API'))) {
+                const chatNote = document.createElement('div');
+                chatNote.className = 'mt-2 p-3 bg-blue-50 border border-blue-200 rounded text-sm';
+                chatNote.innerHTML = `
+                    <strong>Chat Sync Limitation:</strong><br>
+                    ${data.chat_note || 'Meeting chat requires Protected API approval from Microsoft.'}<br>
+                    <a href="https://aka.ms/pa-request" target="_blank" class="text-blue-600 underline mt-1 inline-block">Request Protected API Access →</a>
+                `;
+                messagesContainer.appendChild(chatNote);
             }
             
             // Re-enable button and restore original content after delay
@@ -2231,10 +2389,11 @@ function performConferenceDataSync() {
                 button.innerHTML = originalButtonContent;
             }, 3000);
             
-            // Refresh page after delay to show updated data
+            // ✅ IMPROVED: Wait longer before reload to ensure data is saved and show message
+            // Also force reload with cache bypass to ensure fresh data
             setTimeout(() => {
-                window.location.reload();
-            }, 2500);
+                window.location.reload(true);  // Force reload from server, bypass cache
+            }, 3500);  // Increased from 2500ms to 3500ms to ensure data is saved
         } else {
             // Show error message
             let errorText = data.error || 'Failed to sync conference data. Please try again.';

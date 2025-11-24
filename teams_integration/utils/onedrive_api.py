@@ -196,7 +196,7 @@ class OneDriveAPI:
             logger.error(f"Error getting recordings folder: {str(e)}")
             return {'success': False, 'error': str(e)}
     
-    def search_recordings_for_meeting(self, user_email, meeting_id, meeting_title=None):
+    def search_recordings_for_meeting(self, user_email, meeting_id, meeting_title=None, meeting_date=None, meeting_start_time=None):
         """
         Search for recordings related to a specific meeting
         
@@ -204,6 +204,8 @@ class OneDriveAPI:
             user_email: Email of the admin/organizer whose OneDrive stores recordings
             meeting_id: Teams meeting ID
             meeting_title: Optional meeting title for search
+            meeting_date: Optional meeting date for filtering recordings
+            meeting_start_time: Optional meeting start time for filtering recordings
             
         Returns:
             dict: Search results with list of recordings
@@ -217,6 +219,7 @@ class OneDriveAPI:
             
             # ✅ FIX: Try multiple methods to find recordings
             items = []
+            results = None
             
             # Method 1: Try direct access to Recordings folder (more reliable with app permissions)
             try:
@@ -228,24 +231,74 @@ class OneDriveAPI:
                 logger.info(f"Direct Recordings folder access failed: {str(e)}, trying search method")
                 
                 # Method 2: Fallback to search (might not work with app permissions)
-                search_query = f'.mp4'
-                if meeting_title:
-                    clean_title = meeting_title.replace(' ', '_')[:50]
-                    search_query = clean_title
-                
-                search_endpoint = f'/users/{user_email}/drive/root/search(q=\'{search_query}\')'
-                results = self._make_request('GET', search_endpoint)
-                items = results.get('value', [])
+                try:
+                    search_query = f'.mp4'
+                    if meeting_title:
+                        clean_title = meeting_title.replace(' ', '_')[:50]
+                        search_query = clean_title
+                    
+                    search_endpoint = f'/users/{user_email}/drive/root/search(q=\'{search_query}\')'
+                    results = self._make_request('GET', search_endpoint)
+                    items = results.get('value', [])
+                    logger.info(f"✓ Search method found {len(items)} items")
+                except Exception as search_error:
+                    logger.warning(f"Search method also failed: {str(search_error)}")
+                    items = []
             
-            items = results.get('value', [])
-            
-            # Filter for video files
+            # Filter for video files and match by date/time if provided
             recordings = []
+            
+            # Calculate time window for matching recordings (meeting time ± 2 hours)
+            time_window_start = None
+            time_window_end = None
+            if meeting_date and meeting_start_time:
+                try:
+                    from dateutil import parser as date_parser
+                    # Parse meeting date/time
+                    if isinstance(meeting_date, str):
+                        meeting_date_obj = date_parser.parse(meeting_date).date()
+                    else:
+                        meeting_date_obj = meeting_date
+                    
+                    if isinstance(meeting_start_time, str):
+                        meeting_start_time_obj = date_parser.parse(meeting_start_time).time()
+                    else:
+                        meeting_start_time_obj = meeting_start_time
+                    
+                    meeting_datetime = timezone.datetime.combine(meeting_date_obj, meeting_start_time_obj)
+                    if not timezone.is_aware(meeting_datetime):
+                        meeting_datetime = timezone.make_aware(meeting_datetime)
+                    
+                    # Create time window: 2 hours before meeting start to 6 hours after (more lenient)
+                    time_window_start = meeting_datetime - timedelta(hours=2)
+                    time_window_end = meeting_datetime + timedelta(hours=6)
+                    logger.info(f"Filtering recordings created between {time_window_start} and {time_window_end}")
+                except Exception as e:
+                    logger.warning(f"Could not parse meeting date/time for filtering: {str(e)}")
+            
             for item in items:
                 if item.get('file') and item.get('name', '').lower().endswith(('.mp4', '.mkv', '.avi', '.mov')):
                     # Check if in Recordings folder path
                     parent_path = item.get('parentReference', {}).get('path', '')
                     if 'Recordings' in parent_path or 'recordings' in parent_path.lower():
+                        # Filter by date/time if meeting date/time provided
+                        if time_window_start and time_window_end:
+                            created_str = item.get('createdDateTime')
+                            if created_str:
+                                try:
+                                    from dateutil import parser as date_parser
+                                    created_dt = date_parser.parse(created_str)
+                                    if not timezone.is_aware(created_dt):
+                                        created_dt = timezone.make_aware(created_dt)
+                                    
+                                    # Check if recording was created within time window
+                                    if created_dt < time_window_start or created_dt > time_window_end:
+                                        logger.debug(f"Skipping recording {item.get('name')} - created {created_dt} outside time window")
+                                        continue
+                                except Exception as e:
+                                    logger.debug(f"Could not parse recording date {created_str}: {str(e)}")
+                                    # Include recording if we can't parse date (better to include than exclude)
+                        
                         recordings.append({
                             'id': item.get('id'),
                             'name': item.get('name'),

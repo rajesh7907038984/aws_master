@@ -50,16 +50,22 @@ class TeamsAPIClient:
             logger.error("MSAL library not available. Teams integration will not work.")
             raise TeamsAPIError("MSAL library not available")
     
-    def get_access_token(self, force_refresh=False):
+    def get_access_token(self, force_refresh=False, user_email=None):
         """
         Get or refresh access token
         
         Args:
             force_refresh: Force token refresh
+            user_email: Optional user email for delegated permissions (for chat access)
             
         Returns:
             str: Access token
         """
+        # If user_email provided, use delegated permissions (for chat)
+        if user_email:
+            return self.get_delegated_access_token(user_email, force_refresh)
+        
+        # Otherwise use application permissions (default)
         # Check if we have a valid cached token
         if not force_refresh and self.access_token and self.token_expiry:
             if timezone.now() < self.token_expiry:
@@ -97,7 +103,99 @@ class TeamsAPIClient:
             logger.error(f"Error getting Teams API token: {str(e)}")
             raise TeamsAPIError(f"Token acquisition error: {str(e)}")
     
-    def _make_request(self, method, endpoint, data=None, params=None):
+    def get_delegated_access_token(self, user_email, force_refresh=False):
+        """
+        Get delegated access token for a user (required for chat access)
+        
+        IMPORTANT: True delegated permissions require user OAuth consent and refresh tokens.
+        This method uses application token with user context as a workaround.
+        For full delegated permissions, implement user OAuth flow to get refresh tokens.
+        
+        Args:
+            user_email: User's email address
+            force_refresh: Force token refresh
+            
+        Returns:
+            str: Access token (application token with user context)
+        """
+        try:
+            # ✅ WORKAROUND: Use application token with user context header
+            # This may work for some endpoints but NOT for protected APIs like meeting chats
+            # True delegated permissions require:
+            # 1. User OAuth flow to get refresh token
+            # 2. Store refresh token for user
+            # 3. Use refresh token to get delegated access token
+            
+            # For now, use application token (client credentials)
+            scopes = ["https://graph.microsoft.com/.default"]
+            result = self.msal_app.acquire_token_for_client(scopes=scopes)
+            
+            if "access_token" in result:
+                logger.info(f"Using application token with user context header for {user_email}")
+                logger.warning(f"Note: This is NOT true delegated permissions. Protected APIs like meeting chats require user OAuth consent.")
+                return result["access_token"]
+            else:
+                error_msg = result.get("error_description", "Failed to get token")
+                logger.error(f"Failed to get token: {error_msg}")
+                raise TeamsAPIError(f"Token acquisition failed: {error_msg}")
+                
+        except Exception as e:
+            logger.error(f"Error getting access token: {str(e)}")
+            raise TeamsAPIError(f"Token acquisition error: {str(e)}")
+    
+    def get_user_delegated_token(self, user_email, refresh_token=None):
+        """
+        Get true delegated access token using user's refresh token
+        
+        This requires:
+        1. User to authenticate via OAuth and grant Chat.Read.All permission
+        2. Store refresh_token for the user
+        3. Use refresh_token to get delegated access token
+        
+        Args:
+            user_email: User's email address
+            refresh_token: User's refresh token (from OAuth flow)
+            
+        Returns:
+            str: Delegated access token
+        """
+        if not refresh_token:
+            raise TeamsAPIError(f"No refresh token available for {user_email}. User must authenticate via OAuth first.")
+        
+        try:
+            import requests
+            token_url = f"https://login.microsoftonline.com/{self.integration.tenant_id}/oauth2/v2.0/token"
+            
+            token_data = {
+                'grant_type': 'refresh_token',
+                'refresh_token': refresh_token,
+                'client_id': self.integration.client_id,
+                'client_secret': self.integration.client_secret,
+                'scope': 'https://graph.microsoft.com/Chat.Read.All offline_access'
+            }
+            
+            response = requests.post(token_url, data=token_data, timeout=30)
+            
+            if response.status_code == 200:
+                token_response = response.json()
+                access_token = token_response.get('access_token')
+                new_refresh_token = token_response.get('refresh_token', refresh_token)
+                
+                # Store new refresh token for future use
+                # TODO: Store refresh_token in user profile or separate model
+                
+                logger.info(f"✓ Successfully obtained delegated token for {user_email}")
+                return access_token
+            else:
+                error_msg = response.text
+                logger.error(f"Failed to get delegated token: {error_msg}")
+                raise TeamsAPIError(f"Delegated token acquisition failed: {error_msg}")
+                
+        except Exception as e:
+            logger.error(f"Error getting delegated access token: {str(e)}")
+            raise TeamsAPIError(f"Delegated token acquisition error: {str(e)}")
+    
+    def _make_request(self, method, endpoint, data=None, params=None, user_email=None):
         """
         Make authenticated request to Microsoft Graph API
         
@@ -106,15 +204,21 @@ class TeamsAPIClient:
             endpoint: API endpoint
             data: Request data
             params: Query parameters
+            user_email: Optional user email for delegated permissions (for chat access)
             
         Returns:
             dict: API response
         """
-        token = self.get_access_token()
+        # Use delegated token if user_email provided (for chat endpoints)
+        token = self.get_access_token(user_email=user_email)
         headers = {
             'Authorization': f'Bearer {token}',
             'Content-Type': 'application/json'
         }
+        
+        # Add user context header if provided (helps with some Graph API endpoints)
+        if user_email:
+            headers['X-AnchorMailbox'] = user_email
         
         # Fix URL construction - urljoin doesn't work correctly with absolute paths
         # Strip leading slash from endpoint if present, then append to base_url
@@ -134,7 +238,7 @@ class TeamsAPIClient:
             if response.status_code == 401:
                 # Token expired, try to refresh
                 logger.warning("Teams API token expired, refreshing...")
-                token = self.get_access_token(force_refresh=True)
+                token = self.get_access_token(force_refresh=True, user_email=user_email)
                 headers['Authorization'] = f'Bearer {token}'
                 
                 response = requests.request(
@@ -146,23 +250,60 @@ class TeamsAPIClient:
                     timeout=30
                 )
             
+            # Check response status before parsing JSON
+            if response.status_code >= 400:
+                response_text = response.text if hasattr(response, 'text') else str(response.content) if hasattr(response, 'content') else ''
+                status_code = response.status_code
+                
+                # Check for Protected API errors in response body
+                is_protected_api = False
+                if response_text:
+                    response_lower = response_text.lower()
+                    protected_patterns = [
+                        'protected api',
+                        'restricted api',
+                        'requires approval',
+                        'not approved',
+                        'application access restricted',
+                        'restrictedresource'
+                    ]
+                    if any(pattern in response_lower for pattern in protected_patterns):
+                        is_protected_api = True
+                
+                if is_protected_api:
+                    error_msg = (
+                        f"API request failed: {status_code} - PROTECTED API REQUIRED for endpoint {endpoint}. "
+                        "Microsoft Teams meeting chats require Protected API approval from Microsoft. "
+                        "Request access at: https://aka.ms/pa-request"
+                    )
+                    api_error = TeamsAPIError(error_msg)
+                    api_error.response_body = response_text
+                    api_error.status_code = status_code
+                    logger.error(f"Teams API request failed: {error_msg}")
+                    raise api_error
+            
+            # Raise for status will throw HTTPError for 4xx/5xx, which we'll catch below
             response.raise_for_status()
             return response.json() if response.content else {}
             
-        except requests.exceptions.RequestException as e:
-            # Provide detailed error information for troubleshooting
+        except requests.exceptions.HTTPError as e:
+            # Handle HTTP errors (4xx, 5xx)
+            response = e.response if hasattr(e, 'response') else None
+            response_text = response.text if response and hasattr(response, 'text') else str(e)
+            status_code = response.status_code if response and hasattr(response, 'status_code') else None
+            
             error_details = {
                 'url': url,
                 'method': method,
-                'status_code': getattr(response, 'status_code', None),
+                'status_code': status_code,
                 'error': str(e),
-                'response_body': getattr(response, 'text', None) if hasattr(response, 'text') else None
+                'response_body': response_text
             }
             
             # Special handling for common errors with appropriate log levels
             log_level = 'error'  # default
-            if hasattr(response, 'status_code'):
-                if response.status_code == 404:
+            if status_code:
+                if status_code == 404:
                     log_level = 'info'  # 404s are expected for missing resources
                     # More specific error handling for 404s
                     if '/users/' in endpoint and '/calendar' in endpoint:
@@ -183,25 +324,55 @@ class TeamsAPIClient:
                             "Please ensure required application permissions are configured "
                             "and admin consent is granted."
                         )
-                elif response.status_code == 403:
+                elif status_code == 403:
                     log_level = 'warning'  # 403s indicate permission issues, not critical errors
-                    error_msg = (
-                        f"API request failed: 403 Forbidden for endpoint {endpoint}. "
-                        "This indicates insufficient permissions. Verify API permissions and admin consent."
-                    )
-                elif response.status_code == 401:
+                    
+                    # Check for Protected API errors in response body
+                    is_protected_api = False
+                    if response_text:
+                        response_lower = response_text.lower()
+                        protected_patterns = [
+                            'protected api',
+                            'restricted api',
+                            'requires approval',
+                            'not approved',
+                            'application access restricted',
+                            'restrictedresource'
+                        ]
+                        if any(pattern in response_lower for pattern in protected_patterns):
+                            is_protected_api = True
+                            log_level = 'error'
+                            error_msg = (
+                                f"API request failed: 403 Forbidden - PROTECTED API REQUIRED for endpoint {endpoint}. "
+                                "Microsoft Teams meeting chats require Protected API approval from Microsoft. "
+                                "Request access at: https://aka.ms/pa-request"
+                            )
+                    
+                    if not is_protected_api:
+                        error_msg = (
+                            f"API request failed: 403 Forbidden for endpoint {endpoint}. "
+                            "This indicates insufficient permissions. Verify API permissions and admin consent."
+                        )
+                elif status_code == 401:
                     log_level = 'warning'  # 401s are auth issues, typically resolved by token refresh
                     error_msg = (
                         f"API request failed: 401 Unauthorized for endpoint {endpoint}. "
                         "Token might be invalid or expired."
                     )
-                elif response.status_code == 400:
+                elif status_code == 400:
                     log_level = 'info'  # 400s are often expected (bad meeting IDs, etc.)
                     error_msg = f"API request failed: 400 Bad Request for url: {url}"
                 else:
                     error_msg = f"API request failed: {str(e)}"
             else:
                 error_msg = f"API request failed: {str(e)}"
+            
+            # Create exception with response body attached for better error handling
+            api_error = TeamsAPIError(error_msg)
+            if response_text:
+                api_error.response_body = response_text
+            if status_code:
+                api_error.status_code = status_code
             
             # Log at appropriate level based on error type
             if log_level == 'info':
@@ -210,6 +381,12 @@ class TeamsAPIClient:
                 logger.warning(f"Teams API request: {error_msg}")
             else:
                 logger.error(f"Teams API request failed: {error_msg}", extra=error_details)
+            raise api_error
+            
+        except requests.exceptions.RequestException as e:
+            # Handle other request exceptions (network errors, timeouts, etc.)
+            error_msg = f"API request failed: {str(e)}"
+            logger.error(f"Teams API request failed: {error_msg}")
             raise TeamsAPIError(error_msg)
     
     def create_meeting(self, title, start_time, end_time, description=None, user_email=None, enable_recording=True):
@@ -302,6 +479,67 @@ class TeamsAPIClient:
             join_url = response.get('onlineMeeting', {}).get('joinUrl')
             # IMPORTANT: Keep the original online_meeting_id from calendar event for API calls
             online_meeting_id_for_api = response.get('onlineMeeting', {}).get('id')
+            
+            # 🐛 FIX: If online_meeting_id is not in the calendar event response, try multiple fallback methods
+            # This is a known issue where Microsoft Graph sometimes doesn't include the ID immediately
+            if not online_meeting_id_for_api and join_url and meeting_id:
+                logger.warning("⚠️ No online meeting ID in calendar event response, trying fallback methods...")
+                
+                # Method 1: Re-fetch the calendar event with multiple retry attempts
+                import time
+                max_retries = 3
+                retry_delays = [1, 2, 3]  # Progressive delays in seconds
+                
+                for attempt in range(max_retries):
+                    try:
+                        time.sleep(retry_delays[attempt])  # Progressive delay to allow Microsoft to process
+                        
+                        logger.info(f"📡 Re-fetching calendar event (attempt {attempt + 1}/{max_retries})...")
+                        refetch_endpoint = f'/users/{user_email}/events/{meeting_id}'
+                        refetch_response = self._make_request('GET', refetch_endpoint)
+                        online_meeting_id_for_api = refetch_response.get('onlineMeeting', {}).get('id')
+                        
+                        if online_meeting_id_for_api:
+                            logger.info(f"✓ Found online meeting ID via re-fetch on attempt {attempt + 1}: {online_meeting_id_for_api}")
+                            break
+                        else:
+                            logger.warning(f"Online meeting ID not available on attempt {attempt + 1}")
+                    except Exception as e:
+                        logger.warning(f"Could not re-fetch calendar event on attempt {attempt + 1}: {str(e)}")
+                
+                # Method 2: Try querying online meetings API (requires OnlineMeetings.Read permission)
+                if not online_meeting_id_for_api:
+                    try:
+                        time.sleep(1)  # Brief delay before API query
+                        meeting_subject = response.get('subject', '')
+                        
+                        if meeting_subject:
+                            # Escape single quotes in subject for OData filter
+                            escaped_subject = meeting_subject.replace("'", "''")
+                            online_meeting_endpoint = f'/users/{user_email}/onlineMeetings?$filter=subject eq \'{escaped_subject}\''
+                            
+                            logger.info(f"📡 Querying online meetings API with subject filter...")
+                            online_meetings_response = self._make_request('GET', online_meeting_endpoint)
+                            meetings = online_meetings_response.get('value', [])
+                            
+                            if meetings:
+                                # Find the most recently created meeting that matches
+                                for meeting in meetings:
+                                    meeting_join_url = meeting.get('joinWebUrl', '')
+                                    if meeting_join_url and join_url and meeting_join_url.strip() == join_url.strip():
+                                        online_meeting_id_for_api = meeting.get('id')
+                                        logger.info(f"✓ Found online meeting ID via online meetings API (URL match): {online_meeting_id_for_api}")
+                                        break
+                                
+                                # If no URL match, use the first result
+                                if not online_meeting_id_for_api and meetings:
+                                    online_meeting_id_for_api = meetings[0].get('id')
+                                    logger.info(f"✓ Found online meeting ID via online meetings API (first result): {online_meeting_id_for_api}")
+                            else:
+                                logger.warning("No matching online meetings found in query")
+                    except Exception as e:
+                        logger.warning(f"Could not query online meetings API: {str(e)}")
+                        logger.debug(f"Full error details: {repr(e)}")
             
             # Extract thread ID from join URL if available
             # The online_meeting_id from calendar API is a GUID (calendar event ID)
@@ -1055,9 +1293,16 @@ class TeamsAPIClient:
                 
                 chat_id = meeting_details.get('chatInfo', {}).get('threadId')
                 if chat_id:
-                    # Get chat messages
+                    # Get chat messages - try without encoding first (as in transcript method)
                     chat_endpoint = f'/chats/{chat_id}/messages'
-                    chat_response = self._make_request('GET', chat_endpoint, params={'$top': 100})
+                    try:
+                        chat_response = self._make_request('GET', chat_endpoint, params={'$top': 100})
+                    except TeamsAPIError:
+                        # If that fails, try with encoding
+                        import urllib.parse
+                        encoded_chat_id = urllib.parse.quote(chat_id, safe='')
+                        chat_endpoint = f'/chats/{encoded_chat_id}/messages'
+                        chat_response = self._make_request('GET', chat_endpoint, params={'$top': 100})
                     
                     messages = chat_response.get('value', [])
                     chat_data = []
@@ -1132,13 +1377,51 @@ class TeamsAPIClient:
             elif online_meeting_id:
                 try:
                     meeting_endpoint = f'/users/{user_email}/onlineMeetings/{online_meeting_id}'
-                    meeting_details = self._make_request('GET', meeting_endpoint)
+                    meeting_details = self._make_request('GET', meeting_endpoint, user_email=user_email)
                     
                     chat_info = meeting_details.get('chatInfo', {})
                     chat_id = chat_info.get('threadId')
                     
                     if chat_id:
                         logger.info(f"Found chat thread ID from online meeting: {chat_id}")
+                        
+                        # ✅ NEW: Try to get chat messages directly from online meeting endpoint
+                        # Some Graph API versions allow accessing chat through onlineMeetings
+                        try:
+                            chat_messages_endpoint = f'/users/{user_email}/onlineMeetings/{online_meeting_id}/chat/messages'
+                            logger.info(f"Trying to get chat messages via onlineMeetings endpoint: {chat_messages_endpoint}")
+                            chat_response = self._make_request('GET', chat_messages_endpoint, user_email=user_email, params={'$top': 50})
+                            if chat_response and chat_response.get('value'):
+                                logger.info(f"✓ Successfully retrieved chat via onlineMeetings endpoint")
+                                # Process messages and return
+                                messages = chat_response.get('value', [])
+                                chat_data = []
+                                for msg in messages:
+                                    msg_type = msg.get('messageType', 'message')
+                                    if msg_type == 'message':
+                                        from_info = msg.get('from', {})
+                                        sender_user = from_info.get('user', {})
+                                        body = msg.get('body', {})
+                                        message_text = body.get('content', '')
+                                        if message_text and message_text.strip():
+                                            chat_data.append({
+                                                'id': msg.get('id'),
+                                                'created': msg.get('createdDateTime'),
+                                                'sender': sender_user.get('displayName', 'Unknown'),
+                                                'sender_email': sender_user.get('userPrincipalName', ''),
+                                                'message': message_text,
+                                                'message_type': msg_type,
+                                            })
+                                
+                                if chat_data:
+                                    return {
+                                        'success': True,
+                                        'messages': chat_data,
+                                        'total_messages': len(chat_data),
+                                        'chat_id': chat_id
+                                    }
+                        except Exception as e:
+                            logger.debug(f"onlineMeetings chat endpoint not available: {str(e)}")
                         
                 except Exception as e:
                     logger.warning(f"Could not get chat ID from online meeting: {str(e)}")
@@ -1170,17 +1453,135 @@ class TeamsAPIClient:
             # Get chat messages
             logger.info(f"Retrieving messages from chat: {chat_id}")
             
-            # ✅ FIX: URL-encode the chat ID (required for thread IDs with special characters)
             import urllib.parse
-            encoded_chat_id = urllib.parse.quote(chat_id, safe='')
             
-            chat_endpoint = f'/chats/{encoded_chat_id}/messages'
             params = {
-                '$top': 50,  # Get last 50 messages
-                '$orderby': 'createdDateTime asc'  # Oldest first
+                '$top': 50  # Get last 50 messages
+                # Note: $orderby parameter causes 400 errors, so we'll sort in Python instead
             }
             
-            response = self._make_request('GET', chat_endpoint, params=params)
+            response = None
+            error_to_raise = None
+            
+            # ✅ FIX: Use delegated permissions (user context) for chat access
+            # Try with user-scoped endpoint using delegated token
+            response = None
+            error_to_raise = None
+            
+            if not user_email:
+                return {
+                    'success': False,
+                    'error': 'User email required for delegated permissions to access chat messages',
+                    'messages': [],
+                    'total_messages': 0
+                }
+            
+            # ✅ FIX: Try direct endpoint FIRST (works better than user-scoped endpoints)
+            # Method 1: Try direct endpoint with URL encoding (MOST RELIABLE - works!)
+            try:
+                encoded_chat_id = urllib.parse.quote(chat_id, safe='')
+                chat_endpoint = f'/chats/{encoded_chat_id}/messages'
+                logger.info(f"Trying Method 1 - Direct endpoint (encoded): {chat_endpoint}")
+                response = self._make_request('GET', chat_endpoint, params=params, user_email=user_email)
+                logger.info(f"✓ Success with direct endpoint")
+            except TeamsAPIError as e1:
+                error_to_raise = e1
+                logger.warning(f"Method 1 failed: {str(e1)}")
+                
+                # Method 2: Try direct endpoint without encoding
+                try:
+                    chat_endpoint = f'/chats/{chat_id}/messages'
+                    logger.info(f"Trying Method 2 - Direct endpoint (unencoded): {chat_endpoint}")
+                    response = self._make_request('GET', chat_endpoint, params=params, user_email=user_email)
+                    logger.info(f"✓ Success with direct unencoded endpoint")
+                except TeamsAPIError as e2:
+                    logger.warning(f"Method 2 failed: {str(e2)}")
+                    
+                    # Method 3: Try user-scoped endpoint with encoding (fallback)
+                    try:
+                        encoded_chat_id = urllib.parse.quote(chat_id, safe='')
+                        chat_endpoint = f'/users/{user_email}/chats/{encoded_chat_id}/messages'
+                        logger.info(f"Trying Method 3 - User-scoped endpoint (encoded): {chat_endpoint}")
+                        response = self._make_request('GET', chat_endpoint, params=params, user_email=user_email)
+                        logger.info(f"✓ Success with user-scoped encoded endpoint")
+                    except TeamsAPIError as e3:
+                        logger.warning(f"Method 3 failed: {str(e3)}")
+                        
+                        # Method 4: Try beta API with delegated token
+                        try:
+                            original_base = self.base_url
+                            self.base_url = "https://graph.microsoft.com/beta"
+                            encoded_chat_id = urllib.parse.quote(chat_id, safe='')
+                            chat_endpoint = f'/users/{user_email}/chats/{encoded_chat_id}/messages'
+                            logger.info(f"Trying Method 4 - Beta API with delegated token: {chat_endpoint}")
+                            response = self._make_request('GET', chat_endpoint, params=params, user_email=user_email)
+                            logger.info(f"✓ Success with beta delegated endpoint")
+                            self.base_url = original_base
+                        except TeamsAPIError as e4:
+                            error_msg = str(e4)
+                            logger.error(f"All chat endpoint methods failed. Last error: {error_msg}")
+                            
+                            # Check if this is a Protected API error
+                            is_protected_api = False
+                            if '403' in error_msg or 'Forbidden' in error_msg:
+                                # Check response body for Protected API indicators
+                                if hasattr(e4, 'response_body'):
+                                    response_body = str(e4.response_body).lower()
+                                    if 'protected' in response_body or 'restricted' in response_body or 'requires approval' in response_body:
+                                        is_protected_api = True
+                            
+                            # Also check for common Protected API error patterns
+                            protected_patterns = [
+                                'protected api',
+                                'restricted api',
+                                'requires approval',
+                                'not approved',
+                                'application access restricted'
+                            ]
+                            if any(pattern in error_msg.lower() for pattern in protected_patterns):
+                                is_protected_api = True
+                            
+                            self.base_url = original_base
+                            
+                            if is_protected_api:
+                                logger.error(f"Microsoft Graph API meeting chat endpoints are PROTECTED APIs.")
+                                logger.error(f"Even with delegated permissions, meeting chats require Protected API approval.")
+                                logger.error(f"Request access at: https://aka.ms/pa-request")
+                                
+                                # Return informative error with Protected API info
+                                return {
+                                    'success': False,
+                                    'error': 'Microsoft Graph API meeting chat endpoints are PROTECTED APIs that require special approval from Microsoft.',
+                                    'error_code': 'PROTECTED_API_REQUIRED',
+                                    'note': 'Meeting chats require Protected API approval even with delegated permissions. Request access at: https://aka.ms/pa-request',
+                                    'messages': [],
+                                    'total_messages': 0,
+                                    'protected_api_info': {
+                                        'request_url': 'https://aka.ms/pa-request',
+                                        'required_permission': 'Microsoft Graph Chat API',
+                                        'approval_time': 'Typically 1-4 weeks'
+                                    }
+                                }
+                            else:
+                                # Return generic error
+                                return {
+                                    'success': False,
+                                    'error': f'Failed to retrieve chat messages: {error_msg}',
+                                    'messages': [],
+                                    'total_messages': 0,
+                                    'note': 'Please check API permissions and ensure Chat.Read.All is granted with admin consent.'
+                                }
+            
+            if not response:
+                if error_to_raise:
+                    raise error_to_raise
+                else:
+                    return {
+                        'success': False,
+                        'error': 'Failed to retrieve chat messages with delegated permissions',
+                        'messages': [],
+                        'total_messages': 0
+                    }
             
             messages = response.get('value', [])
             
@@ -1196,16 +1597,51 @@ class TeamsAPIClient:
                 
                 # Get sender information
                 from_info = msg.get('from', {})
+                if not from_info:
+                    continue  # Skip messages without sender info
+                
                 sender_user = from_info.get('user', {})
-                sender_name = sender_user.get('displayName', 'Unknown')
+                sender_name = sender_user.get('displayName', '')
                 sender_email = sender_user.get('userPrincipalName', '')
+                
+                # Use "User name needed" instead of "Unknown" when display name is missing
+                if not sender_name:
+                    sender_name = 'User name needed'
                 
                 # Get message content
                 body = msg.get('body', {})
                 content_type = body.get('contentType', 'text')
                 message_text = body.get('content', '')
                 
-                # Skip empty messages
+                # Skip empty messages and system event messages
+                if not message_text or not message_text.strip():
+                    continue
+                if message_text.strip().startswith('<systemEventMessage'):
+                    continue
+                
+                # ✅ FIX: Extract plain text from HTML content
+                # Strip HTML tags and decode HTML entities to get clean text
+                if content_type == 'html' or ('<' in message_text and '>' in message_text):
+                    try:
+                        import re
+                        import html as html_module
+                        
+                        # First unescape HTML entities (like &lt; to <, &amp; to &)
+                        message_text = html_module.unescape(message_text)
+                        
+                        # Remove HTML tags using regex (simple and fast)
+                        # This handles common HTML tags like <p>, <br>, <div>, etc.
+                        message_text = re.sub(r'<[^>]+>', '', message_text)
+                        
+                        # Clean up whitespace (replace multiple spaces/newlines with single space)
+                        message_text = re.sub(r'\s+', ' ', message_text)
+                        message_text = message_text.strip()
+                    except Exception as e:
+                        logger.debug(f"Error stripping HTML from message: {str(e)}")
+                        # If HTML stripping fails, keep original text
+                        pass
+                
+                # Skip if message is empty after HTML stripping
                 if not message_text or not message_text.strip():
                     continue
                 
@@ -1221,6 +1657,14 @@ class TeamsAPIClient:
                     'message_type': msg_type,
                     'content_type': content_type,
                 })
+            
+            # Sort by createdDateTime ascending (oldest first) since we can't use $orderby
+            from dateutil import parser as date_parser
+            try:
+                chat_data.sort(key=lambda x: date_parser.parse(x['created']) if x.get('created') else date_parser.parse('1970-01-01T00:00:00Z'))
+            except Exception:
+                # If sorting fails, keep original order
+                pass
                 
             logger.info(f"Retrieved {len(chat_data)} chat messages")
             
@@ -1234,7 +1678,40 @@ class TeamsAPIClient:
         except TeamsAPIError as e:
             error_msg = str(e)
             
-            if '403' in error_msg or 'Forbidden' in error_msg:
+            # Check for Protected API errors
+            is_protected_api = False
+            protected_patterns = [
+                'protected api',
+                'restricted api',
+                'requires approval',
+                'not approved',
+                'application access restricted'
+            ]
+            
+            if any(pattern in error_msg.lower() for pattern in protected_patterns):
+                is_protected_api = True
+            
+            # Also check response body if available
+            if hasattr(e, 'response_body'):
+                response_body = str(e.response_body).lower()
+                if 'protected' in response_body or 'restricted' in response_body or 'requires approval' in response_body:
+                    is_protected_api = True
+            
+            if is_protected_api:
+                return {
+                    'success': False,
+                    'error': 'Microsoft Graph API meeting chat endpoints are PROTECTED APIs that require special approval from Microsoft.',
+                    'error_code': 'PROTECTED_API_REQUIRED',
+                    'note': 'Meeting chats require Protected API approval even with delegated permissions. Request access at: https://aka.ms/pa-request',
+                    'messages': [],
+                    'total_messages': 0,
+                    'protected_api_info': {
+                        'request_url': 'https://aka.ms/pa-request',
+                        'required_permission': 'Microsoft Graph Chat API',
+                        'approval_time': 'Typically 1-4 weeks'
+                    }
+                }
+            elif '403' in error_msg or 'Forbidden' in error_msg:
                 return {
                     'success': False,
                     'error': 'Insufficient permissions to access chat messages.',

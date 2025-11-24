@@ -159,9 +159,9 @@
                             {% endif %}
                             {% if user_selection.time_slot.meeting_link %}
                                 <div class="mt-2">
-                                    <a href="{{ user_selection.time_slot.meeting_link }}" target="_blank" class="btn btn-sm btn-primary">
+                                    <button type="button" onclick="autoRegisterAndJoin()" class="btn btn-sm btn-primary">
                                         <i class="fas fa-video mr-1"></i> Join Selected Slot
-                                    </a>
+                                    </button>
                                 </div>
                             {% endif %}
                         </div>
@@ -245,4 +245,51 @@
         </div>
     </div>
 </div>
+
+{% block extra_js %}
+<script>
+function autoRegisterAndJoin() {
+    // Get CSRF token
+    let csrfToken = null;
+    const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+    if (csrfMeta) {
+        csrfToken = csrfMeta.getAttribute('content');
+    }
+    if (!csrfToken) {
+        const csrfCookie = document.cookie.split(';').find(c => c.trim().startsWith('csrftoken='));
+        if (csrfCookie) {
+            csrfToken = csrfCookie.split('=')[1];
+        }
+    }
+    
+    if (!csrfToken) {
+        alert('Unable to process join request. Please refresh the page and try again.');
+        return;
+    }
+    
+    // Make AJAX request to auto-register and get join link
+    fetch("{% url 'conferences:auto_register_and_join' conference_id=conference.id %}", {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': csrfToken,
+            'Content-Type': 'application/json',
+        },
+        credentials: 'same-origin'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Open the meeting in a new tab
+            window.open(data.join_url, '_blank');
+        } else {
+            alert(data.error || 'Failed to join conference. Please try again.');
+        }
+    })
+    .catch(error => {
+        console.error('Error joining conference:', error);
+        alert('An error occurred while trying to join the conference. Please try again.');
+    });
+}
+</script>
+{% endblock %}
 {% endblock %} 

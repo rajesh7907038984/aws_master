@@ -491,6 +491,42 @@ def topic_view(request, topic_id):
                 f"incomplete_attempt={scorm_incomplete_attempt.id if scorm_incomplete_attempt else None}"
             )
         
+        # Check conference time slot availability for Join Conference button
+        # Only check for learners; instructors can join without selecting slots
+        can_join_conference = True
+        conference_slot_message = None
+        if topic.content_type == 'Conference' and topic.conference and request.user.is_authenticated:
+            conference = topic.conference
+            # Only check time slot availability for learners
+            if conference.use_time_slots and request.user.role == 'learner':
+                # Check if user has selected a time slot
+                try:
+                    from conferences.models import ConferenceTimeSlotSelection
+                    time_slot_selection = ConferenceTimeSlotSelection.objects.filter(
+                        conference=conference,
+                        user=request.user
+                    ).select_related('time_slot').first()
+                    
+                    if time_slot_selection:
+                        time_slot = time_slot_selection.time_slot
+                        # Check if the selected slot is available and not full
+                        if not time_slot.is_available:
+                            can_join_conference = False
+                            conference_slot_message = "Your selected time slot is no longer available."
+                        elif time_slot.is_full():
+                            can_join_conference = False
+                            conference_slot_message = "Your selected time slot is full."
+                        else:
+                            can_join_conference = True
+                    else:
+                        # User hasn't selected a slot yet
+                        can_join_conference = False
+                        conference_slot_message = "Please select a time slot before joining the conference."
+                except ImportError:
+                    logger.warning("ConferenceTimeSlotSelection model not found")
+                except Exception as e:
+                    logger.error(f"Error checking conference time slot availability: {str(e)}")
+        
         # Debug logging before sending to template
         logger.info(f"DEBUG topic_view context - Topic ID: {topic.id}, Title: {topic.title}, Content Type: {topic.content_type}")
         logger.info(f"DEBUG topic_view context - Has quiz: {bool(topic.quiz_id)}, Quiz ID: {topic.quiz_id if topic.quiz_id else 'None'}")
@@ -522,7 +558,9 @@ def topic_view(request, topic_id):
             'scorm_enrollment': scorm_enrollment,
             'scorm_is_passed': scorm_is_passed,
             'scorm_incomplete_attempt': scorm_incomplete_attempt,
-            'can_resume_scorm': can_resume_scorm  # Always include this, defaults to False if not SCORM
+            'can_resume_scorm': can_resume_scorm,  # Always include this, defaults to False if not SCORM
+            'can_join_conference': can_join_conference,
+            'conference_slot_message': conference_slot_message
         }
         
         

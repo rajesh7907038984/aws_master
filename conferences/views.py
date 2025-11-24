@@ -21,6 +21,7 @@ import jwt
 import hmac
 import logging
 from django.db.models import Q
+from django.db import IntegrityError
 import re
 import random
 from django.utils.html import strip_tags
@@ -1130,11 +1131,55 @@ def sync_conference_data(request, conference_id):
         
         logger.info(f"✅ Data sync completed for conference {conference_id}: {result.get('items_processed', 0)} items processed")
         
-        # Add user-friendly message if there's a warning
+        # ✅ IMPROVED: Better success messages based on what was actually synced
+        items_processed = result.get('items_processed', 0)
+        details = result.get('details', {})
+        
+        # Count actual items synced (created + updated)
+        total_created = (
+            details.get('recordings', {}).get('created', 0) +
+            details.get('attendance', {}).get('created', 0) +
+            details.get('chat', {}).get('created', 0) +
+            details.get('files', {}).get('processed', 0)  # Files uses 'processed' instead of 'created'
+        )
+        total_updated = (
+            details.get('recordings', {}).get('updated', 0) +
+            details.get('attendance', {}).get('updated', 0) +
+            details.get('chat', {}).get('updated', 0)
+        )
+        
+        # Build detailed success message
         if result.get('warning'):
             result['message'] = result['warning']
+        elif total_created > 0 or total_updated > 0:
+            # New or updated data was synced
+            parts = []
+            if total_created > 0:
+                parts.append(f"{total_created} new item{'s' if total_created != 1 else ''}")
+            if total_updated > 0:
+                parts.append(f"{total_updated} updated item{'s' if total_updated != 1 else ''}")
+            result['message'] = f"Successfully synced: {', '.join(parts)}"
+        elif items_processed == 0:
+            # Check if data already exists in database
+            from conferences.models import ConferenceRecording, ConferenceChat, ConferenceParticipant
+            existing_recordings = ConferenceRecording.objects.filter(conference=conference).count()
+            existing_chat = ConferenceChat.objects.filter(conference=conference).count()
+            existing_participants = ConferenceParticipant.objects.filter(conference=conference).count()
+            
+            if existing_recordings > 0 or existing_chat > 0 or existing_participants > 0:
+                result['message'] = f"Sync completed. Data already up to date. ({existing_recordings} recordings, {existing_chat} chat messages, {existing_participants} participants)"
+            else:
+                result['message'] = "Sync completed. No new data available. Meeting may not have occurred yet or data is not available from Teams."
         elif result.get('success'):
-            result['message'] = f"Successfully synced {result.get('items_processed', 0)} items"
+            result['message'] = f"Successfully synced {items_processed} items"
+        else:
+            result['message'] = "Sync completed with some issues. Please check the details."
+        
+        # Add helpful note about chat sync limitation if chat failed
+        if result.get('details', {}).get('chat', {}).get('error'):
+            chat_error = result['details']['chat']['error']
+            if 'Protected API' in chat_error or 'PROTECTED_API_REQUIRED' in str(result.get('details', {}).get('chat', {})):
+                result['chat_note'] = 'Chat sync requires Protected API approval from Microsoft. Request access at: https://aka.ms/pa-request'
         
         return JsonResponse(result)
         
@@ -5530,8 +5575,35 @@ def auto_register_and_join(request, conference_id):
                 }, status=500)
         else:
             # For instructors/admins, they can access any time slot
-            # We don't require them to select one, they use the main conference link
-            logger.info(f"Instructor/Admin {user.username} joining conference with time slots (using main link)")
+            # Check if they have selected a specific time slot, if not they can use the main conference link
+            try:
+                from conferences.models import ConferenceTimeSlotSelection
+                time_slot_selection = ConferenceTimeSlotSelection.objects.filter(
+                    conference=conference,
+                    user=user
+                ).select_related('time_slot').first()
+                
+                if time_slot_selection:
+                    selected_time_slot = time_slot_selection.time_slot
+                    logger.info(f"Instructor/Admin {user.username} joining selected time slot: {selected_time_slot.date} {selected_time_slot.start_time}")
+                    
+                    # Update participant tracking data with time slot info
+                    if not participant.tracking_data:
+                        participant.tracking_data = {}
+                    participant.tracking_data.update({
+                        'time_slot_id': selected_time_slot.id,
+                        'time_slot_date': str(selected_time_slot.date),
+                        'time_slot_start': str(selected_time_slot.start_time),
+                        'time_slot_end': str(selected_time_slot.end_time)
+                    })
+                    participant.save()
+                else:
+                    logger.info(f"Instructor/Admin {user.username} joining conference with time slots (using main link)")
+                    
+            except Exception as e:
+                logger.warning(f"Error getting time slot for instructor/admin {user.username}: {str(e)}")
+                # Don't fail for admins/instructors - they can still use the main link
+                logger.info(f"Instructor/Admin {user.username} will use main conference link")
     
     # Determine which meeting link and ID to use
     # If user has a selected time slot, use that slot's meeting details
@@ -7073,13 +7145,44 @@ def manage_time_slots(request, conference_id):
         
         if action == 'create':
             try:
+                # Get the time slot details
+                slot_date = request.POST.get('date')
+                slot_start_time = request.POST.get('start_time')
+                slot_end_time = request.POST.get('end_time')
+                slot_timezone = request.POST.get('timezone', conference.timezone)
+                
+                # Check for duplicate time slots (same date and overlapping times)
+                existing_slots = ConferenceTimeSlot.objects.filter(
+                    conference=conference,
+                    date=slot_date,
+                    start_time=slot_start_time,
+                    end_time=slot_end_time
+                )
+                
+                if existing_slots.exists():
+                    messages.error(request, f'A time slot already exists for {slot_date} from {slot_start_time} to {slot_end_time}. Please choose a different time.')
+                    return redirect('conferences:manage_time_slots', conference_id=conference.id)
+                
+                # Check for overlapping time slots on the same date
+                overlapping_slots = ConferenceTimeSlot.objects.filter(
+                    conference=conference,
+                    date=slot_date
+                ).filter(
+                    Q(start_time__lt=slot_end_time, end_time__gt=slot_start_time)  # Overlapping logic
+                )
+                
+                if overlapping_slots.exists():
+                    overlapping = overlapping_slots.first()
+                    messages.error(request, f'This time slot overlaps with an existing slot ({overlapping.start_time} - {overlapping.end_time}). Please choose a different time.')
+                    return redirect('conferences:manage_time_slots', conference_id=conference.id)
+                
                 # Create new time slot
                 time_slot = ConferenceTimeSlot.objects.create(
                     conference=conference,
-                    date=request.POST.get('date'),
-                    start_time=request.POST.get('start_time'),
-                    end_time=request.POST.get('end_time'),
-                    timezone=request.POST.get('timezone', conference.timezone),
+                    date=slot_date,
+                    start_time=slot_start_time,
+                    end_time=slot_end_time,
+                    timezone=slot_timezone,
                     max_participants=int(request.POST.get('max_participants', 0)),
                     meeting_link=request.POST.get('meeting_link', ''),
                     meeting_id=request.POST.get('meeting_id', ''),
@@ -7153,14 +7256,8 @@ def manage_time_slots(request, conference_id):
                                 time_slot.online_meeting_id = result.get('online_meeting_id')
                                 time_slot.save()
                                 
-                                # Check if recording was enabled successfully
-                                recording_status = result.get('recording_status', 'not_attempted')
-                                if recording_status == 'enabled':
-                                    messages.success(request, f'Created time slot with Teams meeting link (Recording enabled)')
-                                elif recording_status == 'failed':
-                                    messages.warning(request, f'Created time slot with Teams meeting link (Recording setup failed: {result.get("recording_error")})')
-                                else:
-                                    messages.success(request, f'Created time slot with Teams meeting link')
+                                # Show success message (recording is handled automatically in background)
+                                messages.success(request, 'Time slot created successfully with Teams meeting link')
                             else:
                                 messages.warning(request, f'Time slot created but Teams meeting creation failed: {result.get("error")}')
                         else:
@@ -7177,8 +7274,13 @@ def manage_time_slots(request, conference_id):
                     conference.save(update_fields=['use_time_slots'])
                 
             except Exception as e:
-                logger.error(f"Error creating time slot: {str(e)}")
-                messages.error(request, f'Error creating time slot: {str(e)}')
+                # Check if it's a duplicate key error
+                if isinstance(e, IntegrityError) and 'duplicate key value violates unique constraint' in str(e):
+                    logger.warning(f"Duplicate time slot attempt: {str(e)}")
+                    messages.warning(request, f'A time slot already exists for {slot_date} from {slot_start_time} to {slot_end_time}. Please choose a different time.')
+                else:
+                    logger.error(f"Error creating time slot: {str(e)}")
+                    messages.error(request, f'Error creating time slot: {str(e)}')
         
         elif action == 'delete':
             try:

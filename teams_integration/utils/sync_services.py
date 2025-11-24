@@ -457,23 +457,35 @@ class MeetingSyncService(TeamsSyncService):
                 admin_email = conference.created_by.email
             
             if not admin_email:
-                logger.warning("No admin email found for OneDrive access")
-                # Return success with 0 items - email may not be configured
+                error_msg = "No admin email found for OneDrive access. Cannot sync recordings without admin email."
+                logger.warning(error_msg)
+                self.sync_status['error'] = error_msg
+                self.sync_status['success'] = False
                 return self.sync_status
             
             logger.info(f"📧 Accessing OneDrive for: {admin_email}")
             
-            # Search for recordings
+            # Search for recordings (with date/time filtering)
             recordings_result = onedrive_api.search_recordings_for_meeting(
                 user_email=admin_email,
                 meeting_id=conference.meeting_id,
-                meeting_title=conference.title
+                meeting_title=conference.title,
+                meeting_date=conference.date,
+                meeting_start_time=conference.start_time
             )
             
             if not recordings_result['success']:
                 error_msg = f"OneDrive search failed: {recordings_result.get('error', 'Unknown error')}"
                 logger.warning(error_msg)
-                # Return success with 0 items - recordings may not be available yet
+                self.sync_status['error'] = error_msg
+                self.sync_status['success'] = False
+                # Still mark as attempted
+                meeting_sync.recordings_synced = True
+                meeting_sync.last_recording_sync = timezone.now()
+                if not hasattr(meeting_sync, 'sync_errors') or meeting_sync.sync_errors is None:
+                    meeting_sync.sync_errors = {}
+                meeting_sync.sync_errors['recordings'] = error_msg
+                meeting_sync.save()
                 return self.sync_status
             
             recordings = recordings_result.get('recordings', [])
@@ -533,28 +545,45 @@ class MeetingSyncService(TeamsSyncService):
                             duration_minutes = estimated_minutes
                             logger.info(f"  ℹ Estimated duration from file size: {duration_minutes} minutes")
                     
+                    # ✅ FIX: Truncate long values to fit database constraints
+                    recording_name = recording_data.get('name', 'Meeting Recording')
+                    web_url = recording_data.get('webUrl', '')
+                    download_url = recording_data.get('downloadUrl', '')
+                    file_path = recording_data.get('path', '')
+                    
+                    # Truncate title to 255 chars (max_length for title field)
+                    title = recording_name[:255] if len(recording_name) > 255 else recording_name
+                    
+                    # Truncate URLs to 500 chars (max_length for URL fields)
+                    file_url = web_url[:500] if len(web_url) > 500 else web_url
+                    download_url_truncated = download_url[:500] if len(download_url) > 500 else download_url
+                    onedrive_web_url = web_url[:500] if len(web_url) > 500 else web_url
+                    onedrive_download_url = download_url[:500] if len(download_url) > 500 else download_url
+                    onedrive_file_path = file_path[:500] if len(file_path) > 500 else file_path
+                    recording_content_url = web_url[:500] if len(web_url) > 500 else web_url
+                    
                     # Create or update recording WITH DURATION
                     recording, created = ConferenceRecording.objects.update_or_create(
                         conference=conference,
                         recording_id=f"onedrive_{recording_id}",
                         defaults={
-                            'title': recording_data.get('name', 'Meeting Recording'),
+                            'title': title,
                             'recording_type': 'cloud',
-                            'file_url': recording_data.get('webUrl'),
+                            'file_url': file_url,
                             'file_size': recording_data.get('size', 0),
                             'duration_minutes': duration_minutes,  # ✅ NOW HAS ACTUAL DURATION
-                            'file_format': recording_data.get('name', '').split('.')[-1].lower() or 'mp4',
-                            'download_url': recording_data.get('downloadUrl'),
+                            'file_format': recording_name.split('.')[-1].lower() if '.' in recording_name else 'mp4',
+                            'download_url': download_url_truncated,
                             'status': 'available',
                             # OneDrive-specific fields
                             'onedrive_item_id': recording_id,
                             'onedrive_drive_id': drive_id,
-                            'onedrive_file_path': recording_data.get('path', ''),
-                            'onedrive_web_url': recording_data.get('webUrl'),
-                            'onedrive_download_url': recording_data.get('downloadUrl'),
+                            'onedrive_file_path': onedrive_file_path,
+                            'onedrive_web_url': onedrive_web_url,
+                            'onedrive_download_url': onedrive_download_url,
                             'stored_in_onedrive': True,
                             'meeting_recording_id': conference.meeting_id,
-                            'recording_content_url': recording_data.get('webUrl'),
+                            'recording_content_url': recording_content_url,
                         }
                     )
                     
@@ -667,17 +696,125 @@ class MeetingSyncService(TeamsSyncService):
                         event_data = self.api._make_request('GET', endpoint)
                         
                         if event_data.get('onlineMeeting'):
-                            online_meeting_id = event_data['onlineMeeting'].get('id')
-                            if online_meeting_id:
+                            online_meeting_data = event_data['onlineMeeting']
+                            # Try to get thread ID from chatInfo first (most reliable)
+                            chat_info = online_meeting_data.get('chatInfo', {})
+                            thread_id = chat_info.get('threadId')
+                            
+                            if thread_id:
+                                online_meeting_id = thread_id
                                 conference.online_meeting_id = online_meeting_id
                                 conference.save(update_fields=['online_meeting_id'])
-                                user_email = candidate  # Use the email that successfully accessed the event
-                                logger.info(f"✓ Retrieved and saved online_meeting_id via {candidate}: {online_meeting_id}")
+                                user_email = candidate
+                                logger.info(f"✓ Retrieved thread ID from chatInfo via {candidate}: {online_meeting_id}")
+                                break
+                            # Fallback to online meeting ID
+                            elif online_meeting_data.get('id'):
+                                online_meeting_id = online_meeting_data.get('id')
+                                # Only use if it's different from meeting_id (GUID)
+                                if online_meeting_id != conference.meeting_id:
+                                    conference.online_meeting_id = online_meeting_id
+                                    conference.save(update_fields=['online_meeting_id'])
+                                    user_email = candidate
+                                    logger.info(f"✓ Retrieved online meeting ID via {candidate}: {online_meeting_id}")
                                 break
                         else:
                             logger.warning(f"Calendar event {conference.meeting_id} (queried as {candidate}) has no online meeting associated")
                     except Exception as e:
                         logger.warning(f"Failed to fetch online meeting ID from calendar event as {candidate}: {str(e)}")
+            
+            # ✅ NEW: If online_meeting_id is still a GUID (same as meeting_id), try to query online meetings API
+            if online_meeting_id == conference.meeting_id or (online_meeting_id and '@thread.v2' not in str(online_meeting_id)):
+                logger.info(f"online_meeting_id appears to be a GUID, trying to find actual thread ID via online meetings API")
+                for candidate in candidate_emails:
+                    try:
+                        # Query online meetings by subject/title
+                        # Teams meetings often have the subject in the online meeting
+                        filter_query = f"subject eq '{conference.title}'"
+                        endpoint = f'/users/{candidate}/onlineMeetings?$filter={filter_query}&$orderby=startDateTime desc&$top=10'
+                        meetings_response = self.api._make_request('GET', endpoint)
+                        meetings = meetings_response.get('value', [])
+                        
+                        # Try to match by date/time or use most recent
+                        from django.utils import timezone
+                        from dateutil import parser as date_parser
+                        
+                        for meeting in meetings:
+                            try:
+                                meeting_start = meeting.get('startDateTime')
+                                if meeting_start:
+                                    meeting_dt = date_parser.parse(meeting_start)
+                                    conf_datetime = timezone.datetime.combine(conference.date, conference.start_time)
+                                    if not timezone.is_aware(conf_datetime):
+                                        conf_datetime = timezone.make_aware(conf_datetime)
+                                    
+                                    # Check if meeting times match (within 1 hour)
+                                    time_diff = abs((meeting_dt - conf_datetime).total_seconds())
+                                    if time_diff < 3600:  # 1 hour
+                                        chat_info = meeting.get('chatInfo', {})
+                                        thread_id = chat_info.get('threadId')
+                                        if thread_id:
+                                            online_meeting_id = thread_id
+                                            conference.online_meeting_id = online_meeting_id
+                                            conference.save(update_fields=['online_meeting_id'])
+                                            user_email = candidate
+                                            logger.info(f"✓ Found matching online meeting and extracted thread ID: {online_meeting_id}")
+                                            break
+                            except Exception as e:
+                                logger.debug(f"Error matching meeting: {str(e)}")
+                                continue
+                        
+                        if online_meeting_id and '@thread.v2' in str(online_meeting_id):
+                            break
+                            
+                    except Exception as e:
+                        logger.warning(f"Failed to query online meetings API as {candidate}: {str(e)}")
+            
+            # ✅ NEW: If online_meeting_id is still a GUID, try to find chat thread by querying user's chats
+            if online_meeting_id == conference.meeting_id or (online_meeting_id and '@thread.v2' not in str(online_meeting_id)):
+                logger.info(f"online_meeting_id is still a GUID, trying to find chat thread by querying chats")
+                for candidate in candidate_emails:
+                    try:
+                        # Query user's chats and find one matching the meeting title/date
+                        chats_endpoint = f'/users/{candidate}/chats'
+                        params = {
+                            '$top': 50,
+                            '$orderby': 'lastMessagePreview/createdDateTime desc'
+                        }
+                        chats_response = self.api._make_request('GET', chats_endpoint, params=params)
+                        chats = chats_response.get('value', [])
+                        
+                        logger.info(f"Found {len(chats)} chats for {candidate}")
+                        
+                        # Try to match chat by topic (meeting title + date)
+                        from django.utils import timezone
+                        from dateutil import parser as date_parser
+                        
+                        meeting_date_str = conference.date.strftime('%Y-%m-%d')
+                        meeting_time_str = conference.start_time.strftime('%H:%M')
+                        search_patterns = [
+                            conference.title.lower(),
+                            f"{conference.title} - {meeting_date_str}".lower(),
+                            f"{conference.title} - {meeting_date_str} {meeting_time_str}".lower(),
+                        ]
+                        
+                        for chat in chats:
+                            topic = chat.get('topic', '').lower()
+                            if any(pattern in topic for pattern in search_patterns):
+                                thread_id = chat.get('id')
+                                if thread_id and '@thread.v2' in thread_id:
+                                    online_meeting_id = thread_id
+                                    conference.online_meeting_id = online_meeting_id
+                                    conference.save(update_fields=['online_meeting_id'])
+                                    user_email = candidate
+                                    logger.info(f"✓ Found matching chat thread: {online_meeting_id}")
+                                    break
+                        
+                        if online_meeting_id and '@thread.v2' in str(online_meeting_id):
+                            break
+                            
+                    except Exception as e:
+                        logger.warning(f"Failed to query chats API as {candidate}: {str(e)}")
             
             # Fallback: try to derive online_meeting_id from the Teams join URL if still missing
             if not online_meeting_id and conference.meeting_link:
@@ -691,9 +828,42 @@ class MeetingSyncService(TeamsSyncService):
                 except Exception as e:
                     logger.warning(f"Failed to derive online meeting ID from join URL: {str(e)}")
             
+            # ✅ FIX: If online_meeting_id is still a GUID, try to use it to query the online meeting API to get thread ID
+            if online_meeting_id and '@thread.v2' not in str(online_meeting_id):
+                logger.info(f"online_meeting_id is GUID format, trying to get thread ID from online meeting API")
+                for candidate in candidate_emails:
+                    try:
+                        # Try to get online meeting details using the GUID
+                        meeting_endpoint = f'/users/{candidate}/onlineMeetings/{online_meeting_id}'
+                        meeting_details = self.api._make_request('GET', meeting_endpoint)
+                        
+                        chat_info = meeting_details.get('chatInfo', {})
+                        thread_id = chat_info.get('threadId')
+                        
+                        if thread_id:
+                            online_meeting_id = thread_id
+                            conference.online_meeting_id = online_meeting_id
+                            conference.save(update_fields=['online_meeting_id'])
+                            user_email = candidate
+                            logger.info(f"✓ Got thread ID from online meeting API: {online_meeting_id}")
+                            break
+                    except Exception as e:
+                        logger.debug(f"Could not get online meeting details for GUID {online_meeting_id} as {candidate}: {str(e)}")
+                        continue
+            
             # Check if we have an online meeting ID
             if not online_meeting_id:
-                logger.info("No Teams online meeting ID found for chat sync. This meeting may not have chat data available.")
+                error_msg = "No Teams online meeting ID found. Cannot sync chat without online meeting ID."
+                logger.warning(f"Chat sync skipped for conference {conference.id}: {error_msg}")
+                self.sync_status['error'] = error_msg
+                self.sync_status['success'] = False
+                # Still mark as attempted
+                meeting_sync.chat_synced = True
+                meeting_sync.last_chat_sync = timezone.now()
+                if not hasattr(meeting_sync, 'sync_errors') or meeting_sync.sync_errors is None:
+                    meeting_sync.sync_errors = {}
+                meeting_sync.sync_errors['chat'] = error_msg
+                meeting_sync.save()
                 return self.sync_status
             
             logger.info(f"Fetching chat messages for online meeting: {online_meeting_id}")
@@ -707,22 +877,83 @@ class MeetingSyncService(TeamsSyncService):
             )
             
             # Fallback to transcript API if chat API fails
+            # Note: Transcripts may contain chat-like data if transcription was enabled
             if not chat_result['success']:
                 logger.info("Chat API failed, trying transcript API as fallback...")
-                chat_result = self.api.get_meeting_transcript(
+                logger.info("Note: Transcripts require Teams Premium and transcription enabled")
+                transcript_result = self.api.get_meeting_transcript(
                     online_meeting_id,
                     user_email=user_email
                 )
+                
+                # If transcript succeeds, convert transcript format to chat format
+                if transcript_result.get('success') and transcript_result.get('messages'):
+                    logger.info(f"Found {len(transcript_result.get('messages', []))} transcript entries")
+                    # Convert transcript messages to chat format
+                    chat_messages = []
+                    for transcript_msg in transcript_result.get('messages', []):
+                        # Extract chat data from transcript if available
+                        content = transcript_msg.get('content', '')
+                        if content:
+                            # Parse VTT format or extract chat-like data
+                            # For now, add as a note that transcripts are available
+                            chat_messages.append({
+                                'id': transcript_msg.get('transcript_id'),
+                                'created': transcript_msg.get('created'),
+                                'sender': 'Meeting Transcript',
+                                'sender_email': '',
+                                'message': f"[Transcript available - requires parsing]",
+                                'message_type': 'system',
+                                'note': 'Transcript data available but requires VTT parsing'
+                            })
+                    
+                    if chat_messages:
+                        chat_result = {
+                            'success': True,
+                            'messages': chat_messages,
+                            'total_messages': len(chat_messages),
+                            'note': 'Chat data from transcripts (requires Teams Premium and transcription)'
+                        }
+                    else:
+                        chat_result = transcript_result
+                else:
+                    chat_result = transcript_result
             
             if not chat_result['success']:
                 error_msg = chat_result.get('error', 'Failed to retrieve chat messages')
+                error_code = chat_result.get('error_code', 'UNKNOWN')
+                note = chat_result.get('note', '')
+                
                 logger.warning(f"Chat sync failed for conference {conference.id}: {error_msg}")
                 
-                # Check if it's a permission error
-                if 'permission' in error_msg.lower():
+                # Check if it's a protected API issue (check multiple indicators)
+                is_protected_api = False
+                if error_code == 'PROTECTED_API_REQUIRED':
+                    is_protected_api = True
+                elif 'protected api' in error_msg.lower() or 'restricted api' in error_msg.lower():
+                    is_protected_api = True
+                    error_code = 'PROTECTED_API_REQUIRED'
+                    if not note:
+                        note = 'Meeting chats require Protected API approval even with delegated permissions. Request access at: https://aka.ms/pa-request'
+                
+                if is_protected_api:
+                    self.sync_status['success'] = False  # Mark as failed for Protected API
+                    self.sync_status['error'] = f"Protected API Access Required: {error_msg}"
+                    self.sync_status['error_code'] = error_code
+                    self.sync_status['note'] = note
+                    self.sync_status['errors'] += 1
+                    self.sync_status['error_messages'].append(f"Chat sync requires Protected API approval: {note}")
+                    logger.info(f"Chat sync requires Protected API approval. See: {note}")
+                elif 'permission' in error_msg.lower() or 'forbidden' in error_msg.lower():
+                    self.sync_status['success'] = False
                     self.sync_status['error'] = f"Missing API permission: {chat_result.get('permission_required', 'Chat.Read.All')}"
+                    self.sync_status['errors'] += 1
+                    self.sync_status['error_messages'].append(self.sync_status['error'])
                 else:
+                    self.sync_status['success'] = False
                     self.sync_status['error'] = error_msg
+                    self.sync_status['errors'] += 1
+                    self.sync_status['error_messages'].append(error_msg)
                 
                 # Mark as synced even if no data (might require permissions/license)
                 meeting_sync.chat_synced = True
@@ -730,9 +961,13 @@ class MeetingSyncService(TeamsSyncService):
                 if not hasattr(meeting_sync, 'sync_errors') or meeting_sync.sync_errors is None:
                     meeting_sync.sync_errors = {}
                 meeting_sync.sync_errors['chat'] = error_msg
+                if note:
+                    meeting_sync.sync_errors['chat_note'] = note
+                if is_protected_api:
+                    meeting_sync.sync_errors['chat_protected_api'] = True
                 meeting_sync.save()
                 
-                self.log_sync_result('sync_chat', True, error_msg)
+                self.log_sync_result('sync_chat', False if is_protected_api else True, error_msg)
                 return self.sync_status
             
             messages = chat_result.get('messages', [])
@@ -745,11 +980,28 @@ class MeetingSyncService(TeamsSyncService):
             for msg_data in messages:
                 try:
                     # Parse message data
-                    sender_name = msg_data.get('sender', 'Unknown')
+                    sender_name = msg_data.get('sender', '')
                     sender_email = msg_data.get('sender_email', '')
                     message_text = msg_data.get('message', msg_data.get('content', ''))
                     sent_at_str = msg_data.get('created')
                     message_id = msg_data.get('id', msg_data.get('transcript_id'))
+                    
+                    # Use "User name needed" instead of empty string when sender name is missing
+                    if not sender_name:
+                        sender_name = 'User name needed'
+                    
+                    # ✅ FIX: Ensure message text is plain text (HTML should already be stripped by API)
+                    # But double-check and strip HTML if present
+                    if message_text and ('<' in message_text and '>' in message_text):
+                        try:
+                            import re
+                            import html as html_module
+                            # Unescape HTML entities and strip tags
+                            message_text = html_module.unescape(message_text)
+                            message_text = re.sub(r'<[^>]+>', '', message_text)
+                            message_text = re.sub(r'\s+', ' ', message_text).strip()
+                        except Exception:
+                            pass  # Keep original if stripping fails
                     
                     # Skip empty messages
                     if not message_text or not message_text.strip():

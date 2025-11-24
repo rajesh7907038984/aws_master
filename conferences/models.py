@@ -318,6 +318,7 @@ class ConferenceTimeSlot(models.Model):
     class Meta:
         app_label = 'conferences'
         ordering = ['date', 'start_time']
+        unique_together = ['conference', 'date', 'start_time', 'end_time']
         indexes = [
             models.Index(fields=['conference', 'date', 'start_time']),
             models.Index(fields=['is_available']),
