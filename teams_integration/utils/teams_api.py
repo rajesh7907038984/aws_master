@@ -1346,7 +1346,7 @@ class TeamsAPIClient:
         Get chat messages from Teams meeting (works without premium license)
         
         This is the PREFERRED method for getting chat messages.
-        Requires: Chat.Read.All or Chat.ReadWrite.All permission
+        Requires: Chat.Read.All permission (read-only operation)
         
         Args:
             online_meeting_id: Teams online meeting ID
