@@ -34,6 +34,7 @@ urlpatterns = [
     
     # Integration Test URLs
     path('test-teams-connection/', views.test_teams_connection, name='test_teams_connection'),
+    path('validate-teams-permissions/', views.validate_teams_permissions, name='validate_teams_permissions'),
     path('test-zoom-connection/', views.test_zoom_connection, name='test_zoom_connection'),
     path('test-sharepoint-connection/', views.test_sharepoint_connection, name='test_sharepoint_connection'),
     path('sharepoint-manual-setup-guide/', views.sharepoint_manual_setup_guide, name='sharepoint_manual_setup_guide'),

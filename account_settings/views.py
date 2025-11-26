@@ -2959,6 +2959,102 @@ def test_teams_connection(request):
 
 
 @login_required
+def validate_teams_permissions(request):
+    """Validate Microsoft Teams integration permissions"""
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'Invalid request method'})
+    
+    # Check user permissions
+    if not hasattr(request.user, 'role') or request.user.role not in ['admin', 'superadmin', 'globaladmin']:
+        return JsonResponse({'success': False, 'error': 'Access denied. Only administrators can validate Teams permissions.'})
+    
+    try:
+        # Get Teams integration for user's branch
+        teams_integration = TeamsIntegration.objects.filter(branch=request.user.branch).first()
+        
+        if not teams_integration:
+            return JsonResponse({'success': False, 'error': 'No Teams integration found for your branch'})
+        
+        if not teams_integration.is_active:
+            return JsonResponse({'success': False, 'error': 'Teams integration is not active'})
+        
+        # Validate permissions using Teams API client
+        try:
+            from teams_integration.utils.teams_api import TeamsAPIClient, TeamsAPIError
+            
+            api_client = TeamsAPIClient(teams_integration)
+            validation_result = api_client.validate_permissions()
+            
+            # Check specifically for Calendars.ReadWrite permission (needed for auto-registration)
+            calendar_permission = validation_result.get('permissions', {}).get('calendar', {})
+            calendar_granted = calendar_permission.get('granted', False)
+            
+            # Handle 'unknown' status - if we couldn't test, assume not granted for safety
+            if calendar_permission.get('granted') == 'unknown':
+                calendar_granted = False
+                if not calendar_permission.get('error'):
+                    calendar_permission['error'] = calendar_permission.get('error', 'Could not test permission - organizer email may be missing')
+            
+            missing_permissions = validation_result.get('missing_permissions', [])
+            all_granted = validation_result.get('all_granted', False)
+            
+            # Build response with detailed permission status
+            response_data = {
+                'success': True,
+                'all_granted': all_granted,
+                'calendar_permission': {
+                    'granted': calendar_granted,
+                    'name': calendar_permission.get('permission_name', 'Calendars.ReadWrite'),
+                    'description': calendar_permission.get('description', 'Create and manage calendar events'),
+                    'error': calendar_permission.get('error')
+                },
+                'missing_permissions': missing_permissions,
+                'available_features': validation_result.get('available_features', []),
+                'unavailable_features': validation_result.get('unavailable_features', []),
+                'message': validation_result.get('message', 'Permission validation complete')
+            }
+            
+            # Add specific guidance for auto-registration
+            if not calendar_granted:
+                response_data['auto_registration_available'] = False
+                response_data['auto_registration_guidance'] = (
+                    'Auto-registration requires Calendars.ReadWrite application permission. '
+                    'To enable auto-registration:\n'
+                    '1. Go to Azure Portal → Azure AD → App registrations\n'
+                    '2. Find your app (Client ID: ' + teams_integration.client_id[:8] + '...)\n'
+                    '3. Go to API permissions → Add permission → Microsoft Graph → Application permissions\n'
+                    '4. Add Calendars.ReadWrite permission\n'
+                    '5. Click "Grant admin consent for [Your Organization]"\n'
+                    '6. Wait 5-10 minutes for permissions to propagate'
+                )
+            else:
+                response_data['auto_registration_available'] = True
+                response_data['auto_registration_guidance'] = 'Auto-registration is available. Users will be automatically added to Teams meetings.'
+            
+            return JsonResponse(response_data)
+                
+        except TeamsAPIError as e:
+            logger.error(f"Teams API error during permission validation: {str(e)}")
+            return JsonResponse({'success': False, 'error': f'Teams API Error: {str(e)}'})
+            
+    except ImportError:
+        return JsonResponse({
+            'success': False, 
+            'error': 'Teams integration module not available. Please ensure the teams_integration app is properly configured.'
+        })
+    except Exception as e:
+        import traceback
+        error_traceback = traceback.format_exc()
+        logger.error(f"Error validating Teams permissions for user {request.user.id}: {str(e)}")
+        logger.error(f"Traceback: {error_traceback}")
+        return JsonResponse({
+            'success': False, 
+            'error': f'Error validating permissions: {str(e)}',
+            'details': error_traceback if settings.DEBUG else None
+        })
+
+
+@login_required
 def test_zoom_connection(request):
     """Test Zoom integration connection (only for branch admins)"""
     if request.method != 'POST':

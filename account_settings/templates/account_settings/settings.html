@@ -664,6 +664,9 @@
                                                                 <button type="button" onclick="testTeamsConnection()" class="text-sm font-medium text-green-600 hover:text-green-500">
                                                                     Test Connection
                                                                 </button>
+                                                                <button type="button" onclick="validateTeamsPermissions()" class="text-sm font-medium text-purple-600 hover:text-purple-500">
+                                                                    Check Permissions
+                                                                </button>
                                                             </div>
                                                         </div>
                                                     </div>
@@ -6492,6 +6495,93 @@ function testTeamsConnection() {
     .catch(error => {
         console.error('Error testing Teams connection:', error);
         alert('❌ An error occurred while testing the connection. Please try again.');
+    })
+    .finally(() => {
+        // Reset button state
+        button.textContent = originalText;
+        button.disabled = false;
+    });
+}
+
+function validateTeamsPermissions() {
+    // Show loading state
+    const button = event.target;
+    const originalText = button.textContent;
+    button.textContent = 'Checking...';
+    button.disabled = true;
+    
+    fetch('/account/validate-teams-permissions/', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            let message = `🔍 Permission Validation Results\n\n`;
+            
+            // Calendar permission status (critical for auto-registration)
+            if (data.calendar_permission) {
+                const calPerm = data.calendar_permission;
+                if (calPerm.granted) {
+                    message += `✅ ${calPerm.name}: GRANTED\n`;
+                    message += `   ${calPerm.description}\n\n`;
+                } else {
+                    message += `❌ ${calPerm.name}: NOT GRANTED\n`;
+                    message += `   ${calPerm.description}\n`;
+                    if (calPerm.error) {
+                        message += `   Error: ${calPerm.error}\n\n`;
+                    }
+                }
+            }
+            
+            // Auto-registration status
+            if (data.auto_registration_available !== undefined) {
+                if (data.auto_registration_available) {
+                    message += `✅ Auto-Registration: AVAILABLE\n`;
+                    message += `   Users will be automatically added to Teams meetings.\n\n`;
+                } else {
+                    message += `⚠️ Auto-Registration: UNAVAILABLE\n`;
+                    message += `   Auto-registration requires Calendars.ReadWrite permission.\n\n`;
+                }
+            }
+            
+            // Missing permissions
+            if (data.missing_permissions && data.missing_permissions.length > 0) {
+                message += `Missing Permissions:\n`;
+                data.missing_permissions.forEach(perm => {
+                    message += `   ❌ ${perm}\n`;
+                });
+                message += `\n`;
+            }
+            
+            // Guidance
+            if (data.auto_registration_guidance) {
+                message += `📋 Setup Instructions:\n${data.auto_registration_guidance}`;
+            }
+            
+            // Show in alert (or could be enhanced to show in a modal)
+            alert(message);
+        } else {
+            alert(`❌ Permission validation failed:\n\n${data.error}`);
+        }
+    })
+    .catch(error => {
+        console.error('Error validating Teams permissions:', error);
+        let errorMsg = '❌ An error occurred while validating permissions.\n\n';
+        errorMsg += 'Error: ' + (error.message || 'Unknown error') + '\n\n';
+        errorMsg += 'Please check:\n';
+        errorMsg += '1. Teams integration is configured correctly\n';
+        errorMsg += '2. You have administrator access\n';
+        errorMsg += '3. Check browser console for more details';
+        alert(errorMsg);
     })
     .finally(() => {
         // Reset button state

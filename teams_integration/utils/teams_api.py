@@ -1197,18 +1197,32 @@ class TeamsAPIClient:
             dict: Result of adding attendee
         """
         try:
-            # Determine organizer email
-            if not organizer_email:
-                if self.integration.user and self.integration.user.email:
-                    organizer_email = self.integration.user.email
-                else:
-                    return {
-                        'success': False,
-                        'error': 'Organizer email required'
-                    }
+            # Determine the email to use for accessing the calendar event
+            # Priority: Integration owner → Service account → Provided organizer email
+            # This ensures we use a valid Azure AD email that has the calendar event
+            admin_email = None
             
-            # Get current meeting details
-            endpoint = f'/users/{organizer_email}/calendar/events/{meeting_id}'
+            # Priority 1: Use Teams integration owner's email (branch admin)
+            if self.integration.user and self.integration.user.email:
+                admin_email = self.integration.user.email
+                logger.info(f"Using integration owner email for calendar access: {admin_email}")
+            # Priority 2: Use service account email if configured
+            elif hasattr(self.integration, 'service_account_email') and self.integration.service_account_email:
+                admin_email = self.integration.service_account_email
+                logger.info(f"Using service account email for calendar access: {admin_email}")
+            # Priority 3: Use provided organizer email as fallback
+            elif organizer_email:
+                admin_email = organizer_email
+                logger.info(f"Using provided organizer email for calendar access: {admin_email}")
+            else:
+                return {
+                    'success': False,
+                    'error': 'No valid email found for calendar access. Please configure integration owner or service account email.'
+                }
+            
+            # Get current meeting details using the determined admin email
+            endpoint = f'/users/{admin_email}/calendar/events/{meeting_id}'
+            logger.info(f"Fetching meeting details from: {endpoint}")
             meeting = self._make_request('GET', endpoint)
             
             # Get existing attendees
@@ -1249,11 +1263,37 @@ class TeamsAPIClient:
                 'message': f'Attendee {attendee_name} added successfully'
             }
             
+        except TeamsAPIError as e:
+            error_msg = str(e)
+            logger.error(f"Error adding attendee to Teams meeting: {error_msg}")
+            
+            # Provide more helpful error messages for common permission issues
+            if '403' in error_msg or 'Forbidden' in error_msg or 'Insufficient' in error_msg:
+                return {
+                    'success': False,
+                    'error': 'Missing Calendars.ReadWrite permission. The Azure AD app needs this application permission to automatically add attendees to Teams meetings. Please grant Calendars.ReadWrite permission in Azure AD and provide admin consent.',
+                    'permission_required': 'Calendars.ReadWrite',
+                    'error_type': 'permission_denied'
+                }
+            elif '404' in error_msg or 'Not Found' in error_msg:
+                return {
+                    'success': False,
+                    'error': f'Meeting not found in calendar for {admin_email}. Please ensure: 1) The email exists in Azure AD, 2) The user has an Exchange Online license, 3) The Teams integration owner/service account email is correctly configured.',
+                    'error_type': 'not_found',
+                    'admin_email_used': admin_email
+                }
+            else:
+                return {
+                    'success': False,
+                    'error': error_msg,
+                    'error_type': 'api_error'
+                }
         except Exception as e:
             logger.error(f"Error adding attendee to Teams meeting: {str(e)}")
             return {
                 'success': False,
-                'error': str(e)
+                'error': str(e),
+                'error_type': 'unknown_error'
             }
     
     def get_meeting_transcript(self, meeting_id, user_email=None):
@@ -1799,8 +1839,9 @@ class TeamsAPIClient:
             'calendar': {
                 'name': 'Calendars.ReadWrite',
                 'description': 'Create and manage calendar events',
-                'test_endpoint': '/users',
-                'test_params': {'$top': 1, '$select': 'id,displayName'}
+                'test_endpoint': None,  # Will test with organizer email if available
+                'test_params': {},
+                'test_method': 'calendar_read'  # Custom test method
             },
             'attendance': {
                 'name': 'OnlineMeetingArtifact.Read.All',
@@ -1838,10 +1879,94 @@ class TeamsAPIClient:
         
         logger.info("🔍 Validating Microsoft Graph API permissions...")
         
+        # Get organizer email for calendar permission test
+        # Try multiple sources: integration user, branch admin, or any user in the branch
+        organizer_email = None
+        if self.integration.user and self.integration.user.email:
+            organizer_email = self.integration.user.email
+        elif hasattr(self.integration, 'branch') and self.integration.branch:
+            # Try to get branch admin email as fallback
+            try:
+                from django.contrib.auth import get_user_model
+                User = get_user_model()
+                branch_admin = User.objects.filter(branch=self.integration.branch, role='admin').first()
+                if branch_admin and branch_admin.email:
+                    organizer_email = branch_admin.email
+                    logger.info(f"Using branch admin email for permission test: {organizer_email}")
+            except Exception as e:
+                logger.warning(f"Could not get branch admin email: {str(e)}")
+        
         for feature, perm_info in required_permissions.items():
             try:
-                # Try a simple API call that requires this permission
-                endpoint = perm_info['test_endpoint']
+                # Special handling for calendar permission - test with actual calendar endpoint
+                if feature == 'calendar' and perm_info.get('test_method') == 'calendar_read':
+                    if not organizer_email:
+                        # Try to get email from integration owner or use a generic test
+                        # For now, mark as unknown since we can't test without an email
+                        validation_results['permissions'][feature] = {
+                            'granted': 'unknown',
+                            'permission_name': perm_info['name'],
+                            'description': perm_info['description'],
+                            'error': 'Cannot test: Organizer email not available. Please ensure the Teams integration has an associated user with an email address.'
+                        }
+                        logger.warning(f"  ? {feature}: {perm_info['name']} - CANNOT TEST (no organizer email)")
+                        # Don't continue - try alternative test below
+                        # For now, we'll mark it as unknown and continue
+                        continue
+                    
+                    # Test calendar permission by trying to read calendar events
+                    try:
+                        endpoint = f'/users/{organizer_email}/calendar/events'
+                        params = {'$top': 1}
+                        self._make_request('GET', endpoint, params=params)
+                        
+                        # If successful, permission is granted
+                        validation_results['permissions'][feature] = {
+                            'granted': True,
+                            'permission_name': perm_info['name'],
+                            'description': perm_info['description']
+                        }
+                        validation_results['available_features'].append(feature)
+                        logger.info(f"  ✓ {feature}: {perm_info['name']} - GRANTED")
+                        
+                    except TeamsAPIError as e:
+                        error_msg = str(e)
+                        
+                        # Check if it's a permission error
+                        if '403' in error_msg or 'Forbidden' in error_msg or 'Insufficient' in error_msg:
+                            validation_results['permissions'][feature] = {
+                                'granted': False,
+                                'permission_name': perm_info['name'],
+                                'description': perm_info['description'],
+                                'error': 'Permission not granted or admin consent not provided'
+                            }
+                            validation_results['missing_permissions'].append(perm_info['name'])
+                            validation_results['unavailable_features'].append(feature)
+                            validation_results['all_granted'] = False
+                            logger.warning(f"  ✗ {feature}: {perm_info['name']} - NOT GRANTED")
+                        else:
+                            # Other error - permission might be OK but test failed for another reason
+                            validation_results['permissions'][feature] = {
+                                'granted': 'unknown',
+                                'permission_name': perm_info['name'],
+                                'description': perm_info['description'],
+                                'error': error_msg
+                            }
+                            logger.info(f"  ? {feature}: {perm_info['name']} - UNKNOWN (test failed: {error_msg})")
+                    continue
+                
+                # For other permissions, use standard endpoint test
+                endpoint = perm_info.get('test_endpoint')
+                if not endpoint:
+                    validation_results['permissions'][feature] = {
+                        'granted': 'unknown',
+                        'permission_name': perm_info['name'],
+                        'description': perm_info['description'],
+                        'error': 'No test endpoint configured'
+                    }
+                    logger.warning(f"  ? {feature}: {perm_info['name']} - NO TEST ENDPOINT")
+                    continue
+                
                 params = perm_info.get('test_params', {})
                 
                 try:
@@ -1882,6 +2007,8 @@ class TeamsAPIClient:
                         logger.info(f"  ? {feature}: {perm_info['name']} - UNKNOWN (test failed: {error_msg})")
                         
             except Exception as e:
+                import traceback
+                error_traceback = traceback.format_exc()
                 validation_results['permissions'][feature] = {
                     'granted': 'error',
                     'permission_name': perm_info['name'],
@@ -1889,6 +2016,7 @@ class TeamsAPIClient:
                     'error': str(e)
                 }
                 logger.error(f"  ✗ {feature}: Error testing permission - {str(e)}")
+                logger.error(f"  Traceback: {error_traceback}")
         
         # Generate summary message
         if validation_results['all_granted']:

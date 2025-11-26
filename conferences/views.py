@@ -4445,13 +4445,14 @@ def download_conference_recording(request, conference_id, recording_id):
                 onedrive_api = OneDriveAPI(teams_integration)
                 
                 # Determine admin email for OneDrive access
+                # CORRECT LOGIC: Use branch admin's email (Teams integration owner)
                 admin_email = None
-                if conference.created_by and conference.created_by.email:
-                    admin_email = conference.created_by.email
-                elif teams_integration.user and teams_integration.user.email:
+                if teams_integration.user and teams_integration.user.email:
                     admin_email = teams_integration.user.email
                 elif teams_integration.service_account_email:
                     admin_email = teams_integration.service_account_email
+                elif conference.created_by and conference.created_by.email:
+                    admin_email = conference.created_by.email
                 
                 if not admin_email:
                     raise OneDriveAPIError("No admin email found for OneDrive access")
@@ -7135,9 +7136,8 @@ def add_to_outlook_calendar(user, time_slot, selection):
             }
         
         # Make API call to create event
-        # Use user's email for application permissions (client credentials flow)
-        # With application permissions, we need /users/{userPrincipalName}/calendar/events
-        # instead of /me/events which requires delegated permissions
+        # Create event directly in the participant's calendar (learner or instructor)
+        # This ensures the meeting appears immediately in their Outlook/Teams calendar
         user_email = user.email if user.email else None
         if not user_email:
             logger.warning(f"User {user.username} has no email address, cannot create calendar event")
@@ -7147,6 +7147,7 @@ def add_to_outlook_calendar(user, time_slot, selection):
             return False
         
         endpoint = f'/users/{user_email}/calendar/events'
+        logger.info(f"Creating calendar event in participant's calendar: {user_email}")
         response = teams_client._make_request('POST', endpoint, data=event_data)
         
         if response and 'id' in response:

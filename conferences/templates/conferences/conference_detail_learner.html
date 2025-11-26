@@ -719,9 +719,20 @@ function autoRegisterAndJoin() {
                         'Redirecting to Microsoft Teams...<br>' +
                         '<small style="color: #10b981;">⚡ Sign in with your Microsoft account to join automatically.</small>';
                 } else {
+                    let reasonText = data.registration_error || 'Unknown error';
+                    let permissionNote = '';
+                    
+                    // Check if it's a permission-related error
+                    if (reasonText.toLowerCase().includes('permission') || 
+                        reasonText.toLowerCase().includes('forbidden') || 
+                        reasonText.toLowerCase().includes('403') ||
+                        reasonText.toLowerCase().includes('insufficient')) {
+                        permissionNote = '<br><small style="color: #6366f1;">💡 <strong>Why?</strong> The LMS needs <code>Calendars.ReadWrite</code> permission in Azure AD to automatically add you to Teams meetings. This is different from your SSO login - it\'s an application-level permission that requires admin approval.</small>';
+                    }
+                    
                     messageHTML = '<strong>⚠️ Auto-registration failed</strong><br>' + 
                         'Redirecting to Microsoft Teams...<br>' +
-                        '<small style="color: #f59e0b;">Reason: ' + (data.registration_error || 'Unknown error') + '</small><br>' +
+                        '<small style="color: #f59e0b;">Reason: ' + reasonText + '</small>' + permissionNote + '<br>' +
                         '<small>You can still join the meeting by signing in with: <strong>' + (data.user_info?.email || 'your Microsoft account') + '</strong></small>';
                 }
                 
@@ -765,7 +776,18 @@ function autoRegisterAndJoin() {
                     let popupMessage = 'Popup blocked! Please <strong>click the button above</strong> to open the meeting, or <a href="' + data.join_url + '" target="_blank">click here to join directly</a>.';
                     
                     if (data.platform === 'teams' && !data.registration_successful) {
-                        popupMessage += '<br><small style="color: #f59e0b;">⚠️ Note: Auto-registration failed. Sign in with ' + (data.user_info?.email || 'your Microsoft account') + ' to be identified.</small>';
+                        let reasonText = data.registration_error || 'Unknown error';
+                        let permissionNote = '';
+                        
+                        // Check if it's a permission-related error
+                        if (reasonText.toLowerCase().includes('permission') || 
+                            reasonText.toLowerCase().includes('forbidden') || 
+                            reasonText.toLowerCase().includes('403') ||
+                            reasonText.toLowerCase().includes('insufficient')) {
+                            permissionNote = '<br><small style="color: #6366f1;">💡 <strong>Why?</strong> The LMS needs <code>Calendars.ReadWrite</code> permission in Azure AD to automatically add you to Teams meetings. This is different from your SSO login - it\'s an application-level permission that requires admin approval.</small>';
+                        }
+                        
+                        popupMessage += '<br><small style="color: #f59e0b;">⚠️ Note: Auto-registration failed. Sign in with ' + (data.user_info?.email || 'your Microsoft account') + ' to be identified.</small>' + permissionNote;
                     }
                     
                     errorMessage.innerHTML = popupMessage;
@@ -781,7 +803,18 @@ function autoRegisterAndJoin() {
                         if (data.registration_successful) {
                             successHTML += '<br><small style="color: #10b981;">✅ You are registered! Sign in with your Microsoft account to join.</small>';
                         } else {
-                            successHTML += '<br><small style="color: #f59e0b;">⚠️ Auto-registration failed. Sign in with ' + (data.user_info?.email || 'your Microsoft account') + ' to be identified.</small>';
+                            let reasonText = data.registration_error || 'Unknown error';
+                            let permissionNote = '';
+                            
+                            // Check if it's a permission-related error
+                            if (reasonText.toLowerCase().includes('permission') || 
+                                reasonText.toLowerCase().includes('forbidden') || 
+                                reasonText.toLowerCase().includes('403') ||
+                                reasonText.toLowerCase().includes('insufficient')) {
+                                permissionNote = '<br><small style="color: #6366f1;">💡 <strong>Why?</strong> The LMS needs <code>Calendars.ReadWrite</code> permission in Azure AD to automatically add you to Teams meetings. This is different from your SSO login - it\'s an application-level permission that requires admin approval.</small>';
+                            }
+                            
+                            successHTML += '<br><small style="color: #f59e0b;">⚠️ Auto-registration failed. Sign in with ' + (data.user_info?.email || 'your Microsoft account') + ' to be identified.</small>' + permissionNote;
                         }
                     }
                     
