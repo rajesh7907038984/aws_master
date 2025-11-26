@@ -917,8 +917,18 @@ class TeamsAPIClient:
             for record in attendance_records:
                 # Get identity information
                 identity = record.get('identity', {})
+                
+                # Teams API may return emailAddress as string or object
                 email_address = record.get('emailAddress', '')
-                display_name = identity.get('displayName', 'Unknown')
+                if isinstance(email_address, dict):
+                    # If emailAddress is an object, extract the address
+                    email_address = email_address.get('address', '') or email_address.get('email', '')
+                
+                # Also check identity for email
+                if not email_address and identity:
+                    email_address = identity.get('email', '') or identity.get('emailAddress', '')
+                
+                display_name = identity.get('displayName', 'Unknown') if identity else record.get('displayName', 'Unknown')
                 
                 # Parse attendance intervals to calculate join/leave times and total duration
                 join_time = None
@@ -964,6 +974,15 @@ class TeamsAPIClient:
                 # Convert to minutes
                 duration_minutes = int(total_duration_seconds // 60) if total_duration_seconds else 0
                 
+                # Log detailed info for debugging
+                logger.info(f"Processing attendance record:")
+                logger.info(f"  Display Name: {display_name}")
+                logger.info(f"  Email Address: {email_address}")
+                logger.info(f"  Join Time: {join_time}")
+                logger.info(f"  Leave Time: {leave_time}")
+                logger.info(f"  Duration: {duration_minutes} minutes ({total_duration_seconds} seconds)")
+                logger.info(f"  Role: {record.get('role', 'Attendee')}")
+                
                 attendance_data.append({
                     'email': email_address,
                     'name': display_name,
@@ -976,7 +995,7 @@ class TeamsAPIClient:
                     'attendance_intervals': attendance_intervals
                 })
                 
-                logger.info(f"  {display_name} ({email_address}): {duration_minutes} minutes")
+                logger.info(f"  ✅ Added to attendance_data: {display_name} ({email_address}): {duration_minutes} minutes")
             
             return {
                 'success': True,

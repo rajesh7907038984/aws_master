@@ -173,12 +173,19 @@ class MeetingSyncService(TeamsSyncService):
                 logger.info("Could not obtain online_meeting_id, skipping attendance sync")
                 return self.sync_status
             
-            # Determine user email - use conference creator's email (who owns the meeting)
+            # Determine user email - prioritize integration's user email or service account email
+            # This is the admin email configured in account settings
             user_email = None
-            if conference.created_by and conference.created_by.email:
-                user_email = conference.created_by.email
-            elif self.config.user and self.config.user.email:
+            # First priority: Use integration's user email (admin account from settings)
+            if self.config.user and self.config.user.email:
                 user_email = self.config.user.email
+            # Second priority: Use service account email if configured
+            elif hasattr(self.config, 'service_account_email') and self.config.service_account_email:
+                user_email = self.config.service_account_email
+            # Fallback: Use conference creator's email (less reliable)
+            elif conference.created_by and conference.created_by.email:
+                user_email = conference.created_by.email
+                logger.warning(f"Using conference creator email as fallback: {user_email}. Consider configuring integration user email in account settings.")
             
             # ✅ FIX: Use the NEW attendance report API with duration
             logger.info(f"Fetching attendance report from Teams API...")
@@ -201,7 +208,23 @@ class MeetingSyncService(TeamsSyncService):
                 return self.sync_status
             
             attendees = attendance_result.get('attendees', [])
-            logger.info(f"Found {len(attendees)} attendees with duration data")
+            note = attendance_result.get('note', '')
+            
+            logger.info(f"📊 Found {len(attendees)} attendees with duration data")
+            if note:
+                logger.info(f"📝 Teams API Note: {note}")
+            
+            # Log each attendee email for debugging
+            if len(attendees) > 0:
+                logger.info("📋 Attendees from Teams API:")
+                for idx, att in enumerate(attendees, 1):
+                    logger.info(f"   {idx}. {att.get('name', 'Unknown')} - {att.get('email', 'NO EMAIL')} - {att.get('duration_minutes', 0)} min")
+            else:
+                # If no attendees but API returned success, log the reason
+                if 'No attendance report available' in note:
+                    logger.info("⚠️ Teams attendance report not yet generated. Reports are created after meeting ends.")
+                else:
+                    logger.info("⚠️ Teams API returned empty attendees list. Meeting may not have occurred yet or report not available.")
             
             # Process each attendee WITH DURATION
             synced_count = 0
@@ -234,6 +257,10 @@ class MeetingSyncService(TeamsSyncService):
             self.sync_status['updated'] = updated_count
             self.sync_status['success'] = True
             
+            # Include note from Teams API if no attendees were found
+            if len(attendees) == 0 and note:
+                self.sync_status['note'] = note
+            
             logger.info(f"✓ Attendance sync completed: {created_count} created, {updated_count} updated (all with duration)")
             return self.sync_status
             
@@ -249,7 +276,8 @@ class MeetingSyncService(TeamsSyncService):
         """Process a single meeting attendee (LEGACY - no duration)"""
         try:
             # Find user by email
-            user = CustomUser.objects.filter(email=attendee['email']).first()
+            # Use case-insensitive email matching
+            user = CustomUser.objects.filter(email__iexact=attendee['email']).first()
             
             if not user:
                 logger.warning(f"User not found for email: {attendee['email']}")
@@ -295,16 +323,30 @@ class MeetingSyncService(TeamsSyncService):
         """
         try:
             # Find user by email
-            email = attendee.get('email', '')
+            email = attendee.get('email', '').strip()
+            attendee_name = attendee.get('name', 'Unknown')
+            
             if not email:
-                logger.warning(f"Attendee has no email: {attendee.get('name', 'Unknown')}")
+                logger.warning(f"⚠️ Attendee has no email: {attendee_name}")
+                logger.warning(f"   Attendee data: {attendee}")
                 return False
             
-            user = CustomUser.objects.filter(email=email).first()
+            logger.info(f"🔍 Looking for user with email: {email}")
+            
+            # Use case-insensitive email matching (Teams emails may have different casing)
+            user = CustomUser.objects.filter(email__iexact=email).first()
             
             if not user:
-                logger.warning(f"User not found for email: {email}")
-                return False
+                logger.warning(f"⚠️ User not found for email: {email} (case-insensitive search)")
+                # Try exact match as fallback (in case email field has unique constraint)
+                user = CustomUser.objects.filter(email=email).first()
+                if not user:
+                    logger.warning(f"❌ User not found for email: {email} (exact match also failed)")
+                    logger.warning(f"   Attendee name: {attendee_name}")
+                    logger.warning(f"   This attendee will be skipped. Check if user exists with this email in LMS.")
+                    return False
+            
+            logger.info(f"✅ Found user: {user.username} ({user.email}) for attendee {attendee_name} ({email})")
             
             # Extract attendance data with duration
             join_time = attendee.get('join_time')
@@ -1018,7 +1060,8 @@ class MeetingSyncService(TeamsSyncService):
                     sender = None
                     if sender_email:
                         try:
-                            sender = CustomUser.objects.filter(email=sender_email).first()
+                            # Use case-insensitive email matching
+                            sender = CustomUser.objects.filter(email__iexact=sender_email).first()
                         except Exception:
                             pass
                     

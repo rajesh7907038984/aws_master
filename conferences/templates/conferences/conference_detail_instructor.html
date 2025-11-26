@@ -665,7 +665,7 @@
                                     {% else %}
                                     -
                                     {% endif %}
-                                    ({{ session.duration|default:0 }} min)
+                                    ({{ session.duration_minutes|default:0 }} min)
                                 </div>
                                 {% empty %}
                                 <span class="text-gray-500">No session data</span>
@@ -2341,6 +2341,11 @@ function performConferenceDataSync() {
                     const att = data.details.attendance;
                     if (att.created > 0 || att.updated > 0) {
                         details.push(`Attendance: ${att.created} new, ${att.updated} updated`);
+                    } else if (att.note) {
+                        // Show note if no attendance data was synced
+                        details.push(`Attendance: ${att.note}`);
+                    } else if (att.processed === 0 && att.success) {
+                        details.push(`Attendance: No attendance data available. Teams reports are generated after meeting ends.`);
                     }
                 }
                 if (data.details.chat) {
@@ -2383,17 +2388,23 @@ function performConferenceDataSync() {
                 messagesContainer.appendChild(chatNote);
             }
             
+            // Check if attendance data was synced
+            const attendanceSynced = data.details && data.details.attendance && 
+                (data.details.attendance.created > 0 || data.details.attendance.updated > 0);
+            
             // Re-enable button and restore original content after delay
             setTimeout(() => {
                 button.disabled = false;
                 button.innerHTML = originalButtonContent;
             }, 3000);
             
-            // ✅ IMPROVED: Wait longer before reload to ensure data is saved and show message
-            // Also force reload with cache bypass to ensure fresh data
+            // ✅ IMPROVED: Reload page to show updated data
+            // Reload immediately if attendance was synced, otherwise wait a bit longer
+            const reloadDelay = attendanceSynced ? 2000 : 3500;
             setTimeout(() => {
-                window.location.reload(true);  // Force reload from server, bypass cache
-            }, 3500);  // Increased from 2500ms to 3500ms to ensure data is saved
+                // Force reload from server, bypass cache to ensure fresh data
+                window.location.reload(true);
+            }, reloadDelay);  // Increased from 2500ms to 3500ms to ensure data is saved
         } else {
             // Show error message
             let errorText = data.error || 'Failed to sync conference data. Please try again.';

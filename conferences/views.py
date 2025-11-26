@@ -2947,7 +2947,8 @@ def sync_teams_meeting_data(conference):
             'created': attendance_results.get('created', 0),
             'updated': attendance_results.get('updated', 0),
             'success': attendance_results.get('success', False),
-            'error': attendance_results.get('error') if not attendance_results.get('success') else None
+            'error': attendance_results.get('error') if not attendance_results.get('success') else None,
+            'note': attendance_results.get('note', '')  # Include note from Teams API
         }
         
         # Sync chat
@@ -4052,19 +4053,66 @@ def conference_detail(request, conference_id):
                 })
         
         # Prepare participant data for template
+        # Create a mapping of user_id -> attendance records for quick lookup
+        attendance_by_user = {}
+        for attendance in attendances:
+            user_id = attendance.user.id if attendance.user else None
+            if user_id:
+                if user_id not in attendance_by_user:
+                    attendance_by_user[user_id] = []
+                attendance_by_user[user_id].append(attendance)
+        
         participant_data = []
         for participant in participants:
             # Generate join URL using the participant's tracking URL method
             join_url = participant.generate_tracking_url(conference.meeting_link) if conference.meeting_link else None
             
-            # Calculate session data
+            # Get attendance data for this participant's user
+            user_id = participant.user.id if participant.user else None
+            user_attendances = attendance_by_user.get(user_id, [])
+            
+            # Calculate session data from attendance records (actual meeting data)
             join_sessions = []
-            if participant.join_timestamp and participant.leave_timestamp:
-                join_sessions.append({
-                    'join_time': participant.join_timestamp,
-                    'leave_time': participant.leave_timestamp,
-                    'duration_minutes': participant.total_duration_minutes or 0
-                })
+            total_time_minutes = 0
+            total_joins_count = 0
+            
+            if user_attendances:
+                # Use attendance data from sync (Zoom/Teams API)
+                for attendance in user_attendances:
+                    if attendance.join_time:
+                        total_joins_count += 1
+                        session_data = {
+                            'join_time': attendance.join_time,
+                            'leave_time': attendance.leave_time,
+                            'duration_minutes': attendance.duration_minutes or 0
+                        }
+                        join_sessions.append(session_data)
+                        total_time_minutes += attendance.duration_minutes or 0
+            else:
+                # Fallback to participant data if no attendance record exists yet
+                # Handle cases where user joined but we don't have complete data
+                if participant.join_timestamp:
+                    total_joins_count = 1
+                    # Calculate duration if we have both join and leave times
+                    if participant.leave_timestamp:
+                        duration = participant.total_duration_minutes or 0
+                        # If duration is 0 but we have both timestamps, calculate it
+                        if duration == 0:
+                            try:
+                                delta = participant.leave_timestamp - participant.join_timestamp
+                                duration = int(delta.total_seconds() / 60)
+                            except:
+                                duration = 0
+                    else:
+                        # Only join time available, duration is 0 or from total_duration_minutes
+                        duration = participant.total_duration_minutes or 0
+                    
+                    join_sessions.append({
+                        'join_time': participant.join_timestamp,
+                        'leave_time': participant.leave_timestamp,
+                        'duration_minutes': duration
+                    })
+                    total_time_minutes = duration
             
             participant_data.append({
                 'participant': participant,  # This is what the template expects
@@ -4073,9 +4121,9 @@ def conference_detail(request, conference_id):
                 'join_url': join_url,
                 'platform_user_id': participant.platform_user_id,
                 'registration_id': participant.platform_participant_id,  # Use platform_participant_id instead of registration_id
-                'total_joins': 1 if participant.join_timestamp else 0,  # Number of times joined
-                'total_time': participant.total_duration_minutes or 0,  # Total time in minutes
-                'join_sessions': join_sessions,  # Session data for template
+                'total_joins': total_joins_count,  # Number of attendance records (sessions)
+                'total_time': total_time_minutes,  # Total time from attendance records
+                'join_sessions': join_sessions,  # Session data from attendance records
                 'user_role': participant.user.role if participant.user else 'guest'  # User role
             })
         

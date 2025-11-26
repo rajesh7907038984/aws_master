@@ -379,11 +379,12 @@ def div(value, arg):
 @register.filter
 def decode_html(value):
     """
-    Decode HTML entities that might be double-encoded in conference descriptions.
-    This helps fix existing descriptions that show HTML tags instead of rendered content.
+    Decode HTML entities and render HTML content properly.
+    This helps fix conference descriptions that show HTML code instead of rendered content.
+    Handles both escaped HTML entities and raw HTML tags.
     
     Args:
-        value: String that might contain HTML entities
+        value: String that might contain HTML entities or HTML tags
     
     Returns:
         Decoded HTML string safe for rendering
@@ -392,16 +393,35 @@ def decode_html(value):
         return ""
     
     try:
-        # First decode any HTML entities (like &lt; to <)
-        decoded = html.unescape(str(value))
-        # Return as safe HTML for rendering
+        content = str(value)
+        
+        # First decode any HTML entities (like &lt; to <, &amp; to &)
+        decoded = html.unescape(content)
+        
+        # Check if content contains HTML tags (like <br>, <strong>, <a>, etc.)
+        import re
+        html_tag_pattern = r'</?[a-zA-Z][^>]*>'
+        has_html_tags = re.search(html_tag_pattern, decoded)
+        
+        # If content has HTML tags, mark it as safe for rendering
+        if has_html_tags:
+            return mark_safe(decoded)
+        
+        # If content has HTML entities but no tags, unescape and mark safe
+        # This handles cases where entities are escaped but tags aren't present
+        if '&lt;' in content or '&gt;' in content or '&amp;' in content:
+            return mark_safe(decoded)
+        
+        # For plain text, return as-is (marked safe to allow any HTML that might be there)
         return mark_safe(decoded)
-    except (ValueError, TypeError, AttributeError):
-        # If decoding fails, return the original value as safe
-        # Import html here to avoid scoping issues
-        import html as html_module
-        escaped_value = html_module.escape(str(value))
-        return mark_safe(escaped_value)
+        
+    except (ValueError, TypeError, AttributeError) as e:
+        # If decoding fails, try to return the original value as safe
+        # This handles edge cases where content might be in an unexpected format
+        try:
+            return mark_safe(str(value))
+        except Exception:
+            return ""
 
 
 @register.filter
