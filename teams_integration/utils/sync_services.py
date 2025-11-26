@@ -201,11 +201,27 @@ class MeetingSyncService(TeamsSyncService):
                 # Check if it's a permission error
                 if 'permission' in error_msg.lower():
                     self.sync_status['error'] = f"Missing API permission: {attendance_result.get('permission_required', 'OnlineMeetingArtifact.Read.All')}"
-                else:
-                    self.sync_status['error'] = error_msg
+                    return self.sync_status
                 
-                # Return success with 0 items (meeting may not have occurred yet)
-                return self.sync_status
+                # 🆕 FALLBACK: Try Call Records API for instant meetings
+                logger.info("⚠️ OnlineMeetings API failed. Attempting Call Records API fallback...")
+                try:
+                    attendees = self._get_attendance_from_call_records(conference)
+                    if attendees:
+                        logger.info(f"✅ Call Records API fallback succeeded: {len(attendees)} attendees found")
+                        attendance_result = {
+                            'success': True,
+                            'attendees': attendees,
+                            'note': 'Retrieved from Call Records API (instant meeting)'
+                        }
+                    else:
+                        logger.warning("Call Records API fallback found no attendance data")
+                        self.sync_status['error'] = error_msg
+                        return self.sync_status
+                except Exception as e:
+                    logger.error(f"Call Records API fallback failed: {str(e)}")
+                    self.sync_status['error'] = f"{error_msg}. Fallback also failed: {str(e)}"
+                    return self.sync_status
             
             attendees = attendance_result.get('attendees', [])
             note = attendance_result.get('note', '')
@@ -440,6 +456,138 @@ class MeetingSyncService(TeamsSyncService):
             
         except Exception as e:
             logger.error(f"Error processing attendee {attendee.get('email', 'unknown')}: {str(e)}")
+            raise
+    
+    def _get_attendance_from_call_records(self, conference):
+        """
+        Fallback method to get attendance from Call Records API
+        Used when onlineMeetings API is not available (instant meetings)
+        
+        Args:
+            conference: Conference instance
+            
+        Returns:
+            list: Attendees with duration data in same format as onlineMeetings API
+        """
+        from dateutil import parser as date_parser
+        
+        logger.info("📞 Fetching attendance from Call Records API...")
+        
+        try:
+            # Get conference date/time for filtering
+            if isinstance(conference.date, str):
+                conf_date = date_parser.parse(conference.date).date()
+            else:
+                conf_date = conference.date
+            
+            target_date_str = conf_date.strftime('%Y-%m-%d')
+            
+            # Get all call records
+            endpoint = '/communications/callRecords'
+            all_records = self.api._make_request('GET', endpoint)
+            records = all_records.get('value', [])
+            
+            logger.info(f"Found {len(records)} call records, filtering for {target_date_str}...")
+            
+            # Filter records from conference date
+            matching_calls = []
+            for record in records:
+                start_str = record.get('startDateTime', '')
+                if target_date_str in start_str:
+                    matching_calls.append(record)
+            
+            logger.info(f"Found {len(matching_calls)} calls on {target_date_str}")
+            
+            if not matching_calls:
+                logger.warning(f"No calls found on {target_date_str}")
+                return []
+            
+            # Aggregate attendance from all calls on this date
+            participant_data = {}
+            
+            for call_record in matching_calls:
+                call_id = call_record.get('id')
+                
+                try:
+                    # Get sessions for this call
+                    sessions_endpoint = f'/communications/callRecords/{call_id}/sessions'
+                    sessions_data = self.api._make_request('GET', sessions_endpoint)
+                    sessions = sessions_data.get('value', [])
+                    
+                    for session in sessions:
+                        # Extract participant identity
+                        caller = session.get('caller', {})
+                        identity = caller.get('associatedIdentity', {})
+                        
+                        if not identity or not identity.get('displayName'):
+                            # Fallback to identity.user
+                            caller_identity = caller.get('identity', {})
+                            user_info = caller_identity.get('user', {})
+                            identity = user_info
+                        
+                        email = identity.get('userPrincipalName', '')
+                        display_name = identity.get('displayName', '')
+                        
+                        if not email or not display_name:
+                            continue
+                        
+                        # Get session times
+                        sess_start_str = session.get('startDateTime')
+                        sess_end_str = session.get('endDateTime')
+                        
+                        if not sess_start_str or not sess_end_str:
+                            continue
+                        
+                        sess_start = date_parser.parse(sess_start_str)
+                        sess_end = date_parser.parse(sess_end_str)
+                        duration_seconds = (sess_end - sess_start).total_seconds()
+                        duration_minutes = duration_seconds / 60
+                        
+                        # Aggregate by email
+                        if email not in participant_data:
+                            participant_data[email] = {
+                                'email': email,
+                                'name': display_name,
+                                'join_time': sess_start,
+                                'leave_time': sess_end,
+                                'duration': duration_seconds,
+                                'duration_minutes': duration_minutes,
+                                'total_attendance_seconds': duration_seconds,
+                                'attendance_intervals': []
+                            }
+                        else:
+                            # Update earliest join and latest leave
+                            if sess_start < participant_data[email]['join_time']:
+                                participant_data[email]['join_time'] = sess_start
+                            if sess_end > participant_data[email]['leave_time']:
+                                participant_data[email]['leave_time'] = sess_end
+                            
+                            # Add duration
+                            participant_data[email]['duration'] += duration_seconds
+                            participant_data[email]['duration_minutes'] += duration_minutes
+                            participant_data[email]['total_attendance_seconds'] += duration_seconds
+                        
+                        # Add interval
+                        participant_data[email]['attendance_intervals'].append({
+                            'joinDateTime': sess_start_str,
+                            'leaveDateTime': sess_end_str
+                        })
+                
+                except Exception as e:
+                    logger.warning(f"Error processing call {call_id}: {str(e)}")
+                    continue
+            
+            # Convert to list format expected by sync code
+            attendees = list(participant_data.values())
+            
+            logger.info(f"📊 Extracted {len(attendees)} unique participants from Call Records:")
+            for att in attendees:
+                logger.info(f"   - {att['name']} ({att['email']}): {att['duration_minutes']:.2f} min")
+            
+            return attendees
+            
+        except Exception as e:
+            logger.error(f"Error in Call Records fallback: {str(e)}")
             raise
     
     def sync_meeting_recordings(self, conference):
