@@ -1,6 +1,9 @@
 from django.db import models
 from django.conf import settings
 from django.utils import timezone
+import logging
+
+logger = logging.getLogger(__name__)
 
 class CertificateTemplate(models.Model):
     """Model for storing certificate templates"""
@@ -22,6 +25,51 @@ class CertificateTemplate(models.Model):
 
     def __str__(self):
         return self.name
+    
+    def save(self, *args, **kwargs):
+        """Override save to track storage usage"""
+        is_new = self.pk is None
+        old_image = None
+        
+        if not is_new and self.image:
+            try:
+                old_instance = CertificateTemplate.objects.get(pk=self.pk)
+                old_image = old_instance.image
+            except CertificateTemplate.DoesNotExist:
+                pass
+        
+        super().save(*args, **kwargs)
+        
+        # Register certificate template upload with storage tracking
+        if self.image and (is_new or (old_image != self.image)):
+            try:
+                from core.utils.storage_manager import StorageManager
+                from django.core.files.storage import default_storage
+                
+                # Get file size
+                file_size = self.image.size if hasattr(self.image, 'size') else 0
+                
+                # If file_size is 0, try to get it from storage
+                if file_size == 0:
+                    try:
+                        file_size = default_storage.size(self.image.name)
+                    except Exception:
+                        file_size = 0
+                
+                if file_size > 0 and self.created_by and self.created_by.branch:
+                    StorageManager.register_file_upload(
+                        user=self.created_by,
+                        file_path=self.image.name,
+                        original_filename=self.name,
+                        file_size_bytes=file_size,
+                        content_type='image/jpeg',
+                        source_app='certificates',
+                        source_model='CertificateTemplate',
+                        source_object_id=self.id
+                    )
+                    logger.info(f"Registered certificate template upload: {self.name} - {file_size} bytes")
+            except Exception as e:
+                logger.error(f"Error registering certificate template upload: {str(e)}")
     
     def get_image_url(self):
         """
@@ -108,6 +156,51 @@ class IssuedCertificate(models.Model):
 
     def __str__(self):
         return f"Certificate #{self.certificate_number} for {self.recipient.username}"
+    
+    def save(self, *args, **kwargs):
+        """Override save to track storage usage"""
+        is_new = self.pk is None
+        old_certificate_file = None
+        
+        if not is_new and self.certificate_file:
+            try:
+                old_instance = IssuedCertificate.objects.get(pk=self.pk)
+                old_certificate_file = old_instance.certificate_file
+            except IssuedCertificate.DoesNotExist:
+                pass
+        
+        super().save(*args, **kwargs)
+        
+        # Register issued certificate upload with storage tracking
+        if self.certificate_file and (is_new or (old_certificate_file != self.certificate_file)):
+            try:
+                from core.utils.storage_manager import StorageManager
+                from django.core.files.storage import default_storage
+                
+                # Get file size
+                file_size = self.certificate_file.size if hasattr(self.certificate_file, 'size') else 0
+                
+                # If file_size is 0, try to get it from storage
+                if file_size == 0:
+                    try:
+                        file_size = default_storage.size(self.certificate_file.name)
+                    except Exception:
+                        file_size = 0
+                
+                if file_size > 0 and self.recipient and self.recipient.branch:
+                    StorageManager.register_file_upload(
+                        user=self.recipient,
+                        file_path=self.certificate_file.name,
+                        original_filename=f"Certificate_{self.certificate_number}.pdf",
+                        file_size_bytes=file_size,
+                        content_type='application/pdf',
+                        source_app='certificates',
+                        source_model='IssuedCertificate',
+                        source_object_id=self.id
+                    )
+                    logger.info(f"Registered issued certificate upload: {self.certificate_number} - {file_size} bytes")
+            except Exception as e:
+                logger.error(f"Error registering issued certificate upload: {str(e)}")
     
     def delete(self, *args, **kwargs):
         """

@@ -763,7 +763,50 @@ class CustomUser(AbstractUser):
     def save(self, *args: Any, **kwargs: Any) -> None:
         if self.is_superuser and self.role not in ['globaladmin', 'superadmin']:
             self.role = 'superadmin'
+        
+        # Track if this is a profile image upload
+        is_new = self.pk is None
+        old_profile_image = None
+        
+        if not is_new and self.profile_image:
+            try:
+                old_instance = CustomUser.objects.get(pk=self.pk)
+                old_profile_image = old_instance.profile_image
+            except CustomUser.DoesNotExist:
+                pass
+        
         super().save(*args, **kwargs)
+        
+        # Register profile image upload with storage tracking if it's a new upload
+        if self.profile_image and (is_new or (old_profile_image != self.profile_image)):
+            try:
+                from core.utils.storage_manager import StorageManager
+                from django.core.files.storage import default_storage
+                
+                # Get file size
+                file_size = self.profile_image.size if hasattr(self.profile_image, 'size') else 0
+                
+                # If file_size is 0, try to get it from storage
+                if file_size == 0:
+                    try:
+                        file_size = default_storage.size(self.profile_image.name)
+                    except Exception:
+                        file_size = 0
+                
+                if file_size > 0 and self.branch:
+                    StorageManager.register_file_upload(
+                        user=self,
+                        file_path=self.profile_image.name,
+                        original_filename=self.profile_image.name.split('/')[-1],
+                        file_size_bytes=file_size,
+                        content_type='image/jpeg',  # Default, could be detected
+                        source_app='users',
+                        source_model='CustomUser',
+                        source_object_id=self.id
+                    )
+                    logger.info(f"Registered profile image upload for user {self.username}: {file_size} bytes")
+            except Exception as e:
+                logger.error(f"Error registering profile image upload: {str(e)}")
 
     def has_module_perms(self, app_label: str) -> bool:
         if self.is_superuser or self.role in ['globaladmin', 'superadmin']:

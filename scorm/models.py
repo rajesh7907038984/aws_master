@@ -782,12 +782,16 @@ class ScormPackage(models.Model):
     
     def save(self, *args, **kwargs):
         """
-        Override save to handle cache invalidation on re-upload
+        Override save to handle cache invalidation on re-upload and track storage usage
         """
+        is_new = self.pk is None
+        old_package_zip = None
+        
         # If package_zip changed (re-upload), clear cached entry point
         if self.pk:
             try:
                 old_instance = ScormPackage.objects.get(pk=self.pk)
+                old_package_zip = old_instance.package_zip
                 if old_instance.package_zip != self.package_zip:
                     logger.info(f"Package {self.pk} re-uploaded, clearing entry point cache")
                     self.clear_entry_point_cache()
@@ -795,6 +799,49 @@ class ScormPackage(models.Model):
                 pass
         
         super().save(*args, **kwargs)
+        
+        # Register SCORM package upload with storage tracking
+        if self.package_zip and (is_new or (old_package_zip != self.package_zip)):
+            try:
+                from core.utils.storage_manager import StorageManager
+                from django.core.files.storage import default_storage
+                
+                # Try to get the uploader (from topic or other related object)
+                uploader = None
+                try:
+                    # Try to find the user who uploaded this SCORM package
+                    # Check if it's associated with a topic
+                    from courses.models import Topic
+                    topic = Topic.objects.filter(scorm_package=self).first()
+                    if topic and topic.course and topic.course.instructor:
+                        uploader = topic.course.instructor
+                except Exception as e:
+                    logger.warning(f"Could not determine SCORM package uploader: {str(e)}")
+                
+                # Get file size
+                file_size = self.package_zip.size if hasattr(self.package_zip, 'size') else 0
+                
+                # If file_size is 0, try to get it from storage
+                if file_size == 0:
+                    try:
+                        file_size = default_storage.size(self.package_zip.name)
+                    except Exception:
+                        file_size = 0
+                
+                if file_size > 0 and uploader and uploader.branch:
+                    StorageManager.register_file_upload(
+                        user=uploader,
+                        file_path=self.package_zip.name,
+                        original_filename=self.title or self.package_zip.name.split('/')[-1],
+                        file_size_bytes=file_size,
+                        content_type='application/zip',
+                        source_app='scorm',
+                        source_model='ScormPackage',
+                        source_object_id=self.id
+                    )
+                    logger.info(f"Registered SCORM package upload: {self.title} - {file_size} bytes")
+            except Exception as e:
+                logger.error(f"Error registering SCORM package upload: {str(e)}")
     
     def delete(self, *args, **kwargs):
         """

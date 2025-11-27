@@ -378,19 +378,62 @@ class AssignmentSubmission(models.Model):
             raise ValidationError("Either file or text submission is required")
 
     def save(self, *args, **kwargs):
+        is_new = self.pk is None
+        old_submission_file = None
+        
         if self.pk:  # If this is an update
-            old_instance = AssignmentSubmission.objects.get(pk=self.pk)
-            if (old_instance.grade != self.grade or old_instance.status != self.status):
-                GradeHistory.objects.create(
-                    submission=self,
-                    previous_grade=old_instance.grade,
-                    new_grade=self.grade,
-                    previous_status=old_instance.status,
-                    new_status=self.status,
-                    changed_by=self.graded_by,
-                    comment=f"Grade changed from {old_instance.grade} to {self.grade}"
-                )
+            try:
+                old_instance = AssignmentSubmission.objects.get(pk=self.pk)
+                old_submission_file = old_instance.submission_file
+                if (old_instance.grade != self.grade or old_instance.status != self.status):
+                    GradeHistory.objects.create(
+                        submission=self,
+                        previous_grade=old_instance.grade,
+                        new_grade=self.grade,
+                        previous_status=old_instance.status,
+                        new_status=self.status,
+                        changed_by=self.graded_by,
+                        comment=f"Grade changed from {old_instance.grade} to {self.grade}"
+                    )
+            except AssignmentSubmission.DoesNotExist:
+                pass
+        
         super().save(*args, **kwargs)
+        
+        # Register assignment submission file with storage tracking
+        if self.submission_file and (is_new or (old_submission_file != self.submission_file)):
+            try:
+                from core.utils.storage_manager import StorageManager
+                from django.core.files.storage import default_storage
+                import logging
+                logger = logging.getLogger(__name__)
+                
+                # Get file size
+                file_size = self.submission_file.size if hasattr(self.submission_file, 'size') else 0
+                
+                # If file_size is 0, try to get it from storage
+                if file_size == 0:
+                    try:
+                        file_size = default_storage.size(self.submission_file.name)
+                    except Exception:
+                        file_size = 0
+                
+                if file_size > 0 and self.user and self.user.branch:
+                    StorageManager.register_file_upload(
+                        user=self.user,
+                        file_path=self.submission_file.name,
+                        original_filename=self.submission_file.name.split('/')[-1],
+                        file_size_bytes=file_size,
+                        content_type=self.content_type or 'application/octet-stream',
+                        source_app='assignments',
+                        source_model='AssignmentSubmission',
+                        source_object_id=self.id
+                    )
+                    logger.info(f"Registered assignment submission upload for user {self.user.username}: {file_size} bytes")
+            except Exception as e:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"Error registering assignment submission upload: {str(e)}")
 
     def can_be_edited_by_student(self):
         """
@@ -895,6 +938,16 @@ class FileSubmissionIteration(models.Model):
         return True  # If no feedback yet, allow new iterations
 
     def save(self, *args, **kwargs):
+        is_new = self.pk is None
+        old_file = None
+        
+        if self.pk:
+            try:
+                old_instance = FileSubmissionIteration.objects.get(pk=self.pk)
+                old_file = old_instance.file
+            except FileSubmissionIteration.DoesNotExist:
+                pass
+        
         if self.file and not self.file_name:
             try:
                 self.file_name = self.file.name
@@ -924,7 +977,46 @@ class FileSubmissionIteration(models.Model):
                 logger = logging.getLogger('assignments')
                 logger.warning(f"Error accessing file name for content type: {e}")
                 self.content_type = 'application/octet-stream'
+        
         super().save(*args, **kwargs)
+        
+        # Register file iteration upload with storage tracking
+        if self.file and (is_new or (old_file != self.file)):
+            try:
+                from core.utils.storage_manager import StorageManager
+                from django.core.files.storage import default_storage
+                import logging
+                logger = logging.getLogger(__name__)
+                
+                # Get file size
+                file_size = self.file_size or 0
+                
+                # If file_size is 0, try to get it from storage
+                if file_size == 0 and hasattr(self.file, 'size'):
+                    file_size = self.file.size
+                
+                if file_size == 0:
+                    try:
+                        file_size = default_storage.size(self.file.name)
+                    except Exception:
+                        file_size = 0
+                
+                if file_size > 0 and self.submission and self.submission.user and self.submission.user.branch:
+                    StorageManager.register_file_upload(
+                        user=self.submission.user,
+                        file_path=self.file.name,
+                        original_filename=self.file_name or self.file.name.split('/')[-1],
+                        file_size_bytes=file_size,
+                        content_type=self.content_type or 'application/octet-stream',
+                        source_app='assignments',
+                        source_model='FileSubmissionIteration',
+                        source_object_id=self.id
+                    )
+                    logger.info(f"Registered file iteration upload for user {self.submission.user.username}: {file_size} bytes")
+            except Exception as e:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"Error registering file iteration upload: {str(e)}")
     
     def delete(self, *args, **kwargs):
         """
