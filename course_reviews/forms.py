@@ -26,6 +26,13 @@ class SurveyForm(forms.ModelForm):
 
 class SurveyFieldForm(forms.ModelForm):
     """Form for creating/editing survey fields"""
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Set initial value for is_required to False for new forms
+        if not self.instance.pk:
+            self.fields['is_required'].initial = False
+    
     class Meta:
         model = SurveyField
         fields = ['label', 'field_type', 'is_required', 'order', 'placeholder', 'help_text', 'max_rating']
@@ -77,7 +84,7 @@ SurveyFieldFormSet = inlineformset_factory(
     Survey,
     SurveyField,
     form=SurveyFieldForm,
-    extra=1,
+    extra=0,  # No extra forms beyond min_num (shows only 1 form by default)
     can_delete=True,
     min_num=1,
     validate_min=True,

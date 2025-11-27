@@ -378,12 +378,13 @@
                                     {% endif %}
                                 </div>
                                 
-                                <div class="form-group">
+                                <div class="form-group max-rating-field">
                                     <label class="form-label">Max Rating</label>
                                     {{ form.max_rating }}
                                     {% if form.max_rating.errors %}
                                         <p class="form-error">{{ form.max_rating.errors.0 }}</p>
                                     {% endif %}
+                                    <p class="form-help">Only for rating fields (1-10 stars)</p>
                                 </div>
                                 
                                 <div class="form-group">
@@ -468,15 +469,25 @@
             }
         };
         
-        // Update field type text dynamically
+        // Update field type text dynamically and show/hide Max Rating field
         const fieldTypeSelects = document.querySelectorAll('[name*="field_type"]');
         fieldTypeSelects.forEach(function(select) {
             const row = select.closest('.formset-row');
             const fieldTypeText = row ? row.querySelector('.field-type-text') : null;
+            const maxRatingField = row ? row.querySelector('.max-rating-field') : null;
             
             function updateFieldType() {
                 if (fieldTypeText) {
                     fieldTypeText.textContent = select.value || 'text';
+                }
+                
+                // Show/hide Max Rating field based on field type
+                if (maxRatingField) {
+                    if (select.value === 'rating') {
+                        maxRatingField.style.display = 'block';
+                    } else {
+                        maxRatingField.style.display = 'none';
+                    }
                 }
             }
             
@@ -554,18 +565,72 @@
                     const fieldNumber = newForm.querySelector('.field-number');
                     if (fieldNumber) fieldNumber.textContent = newIndex + 1;
                     
-                    // Clear input values only for new fields (not existing ones)
+                    // Clear ALL input values for the new field
                     const inputs = newForm.querySelectorAll('input:not([type="hidden"]), textarea, select');
                     inputs.forEach(input => {
-                        // Only clear if it's a new field (no existing value)
                         if (input.type === 'checkbox') {
                             input.checked = false;
-                        } else if (!input.value || input.value === '') {
+                        } else {
                             input.value = '';
                         }
                     });
                     
+                    // Update input name attributes to use the new index
+                    const allInputs = newForm.querySelectorAll('input, textarea, select');
+                    allInputs.forEach(input => {
+                        if (input.name) {
+                            // Replace the old index with new index in the name attribute
+                            input.name = input.name.replace(/fields-\d+/, `fields-${newIndex}`);
+                        }
+                        if (input.id) {
+                            // Replace the old index with new index in the id attribute
+                            input.id = input.id.replace(/fields-\d+/, `fields-${newIndex}`);
+                        }
+                    });
+                    
+                    // Update label 'for' attributes
+                    const labels = newForm.querySelectorAll('label[for]');
+                    labels.forEach(label => {
+                        if (label.getAttribute('for')) {
+                            label.setAttribute('for', label.getAttribute('for').replace(/fields-\d+/, `fields-${newIndex}`));
+                        }
+                    });
+                    
+                    // Auto-fill the Order field with next sequential number
+                    const orderInput = newForm.querySelector('[name*="order"]');
+                    if (orderInput) {
+                        // Find the highest order value from all existing fields
+                        let maxOrder = 0;
+                        const allOrderInputs = container.querySelectorAll('[name*="order"]');
+                        allOrderInputs.forEach(input => {
+                            const orderValue = parseInt(input.value) || 0;
+                            if (orderValue > maxOrder) {
+                                maxOrder = orderValue;
+                            }
+                        });
+                        // Set the new field's order to maxOrder + 1
+                        orderInput.value = maxOrder + 1;
+                    }
+                    
                     container.appendChild(newForm);
+                    
+                    // Set up Max Rating field visibility for the new form
+                    const newFieldTypeSelect = newForm.querySelector('[name*="field_type"]');
+                    const newMaxRatingField = newForm.querySelector('.max-rating-field');
+                    
+                    if (newFieldTypeSelect && newMaxRatingField) {
+                        // Hide by default (since default type is 'text')
+                        newMaxRatingField.style.display = 'none';
+                        
+                        // Add event listener to show/hide based on selection
+                        newFieldTypeSelect.addEventListener('change', function() {
+                            if (this.value === 'rating') {
+                                newMaxRatingField.style.display = 'block';
+                            } else {
+                                newMaxRatingField.style.display = 'none';
+                            }
+                        });
+                    }
                 }
             }
             

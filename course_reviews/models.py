@@ -71,7 +71,7 @@ class SurveyField(models.Model):
         default='text',
         help_text="Type of input field"
     )
-    is_required = models.BooleanField(default=True, help_text="Is this field required?")
+    is_required = models.BooleanField(default=False, help_text="Is this field required?")
     order = models.PositiveIntegerField(default=0, help_text="Display order of field")
     placeholder = models.CharField(max_length=800, blank=True, help_text="Placeholder text for input")
     help_text = models.TextField(blank=True, help_text="Help text for the field")
