@@ -1895,129 +1895,223 @@ def export_user_reports_to_excel(request):
     from users.models import CustomUser
     from django.db.models import Count, Q, Avg
     from quiz.models import QuizAttempt
+    from django.db import connection
+    from django.db.utils import OperationalError
+    from time import sleep
     
-    # Get users based on role permissions
-    if request.user.role in ['globaladmin', 'superadmin']:
-        users = CustomUser.objects.filter(is_active=True).exclude(role__in=['globaladmin'])
-    elif request.user.role in ['admin', 'instructor']:
-        if request.user.branch:
-            users = CustomUser.objects.filter(branch=request.user.branch, is_active=True).exclude(role__in=['globaladmin', 'superadmin'])
-        else:
-            users = CustomUser.objects.filter(is_active=True).exclude(role__in=['globaladmin', 'superadmin', 'admin'])
-    else:
-        users = CustomUser.objects.none()
+    # Retry logic for database operations
+    max_retries = 3
+    retry_count = 0
     
-    # Annotate users with statistics
-    users = users.annotate(
-        assigned_count=Count('courseenrollment', distinct=True),
-        completed_count=Count('courseenrollment', filter=Q(courseenrollment__completed=True), distinct=True),
-        initial_assessment_count=Count('module_quiz_attempts', filter=Q(
-            module_quiz_attempts__quiz__is_initial_assessment=True, 
-            module_quiz_attempts__is_completed=True
-        ), distinct=True)
-    ).order_by('username')
+    while retry_count < max_retries:
+        try:
+            # Close existing connection if it's stale
+            if connection.connection and not connection.is_usable():
+                connection.close()
+            
+            # Get users based on role permissions
+            if request.user.role in ['globaladmin', 'superadmin']:
+                users = CustomUser.objects.filter(is_active=True).exclude(role__in=['globaladmin'])
+            elif request.user.role in ['admin', 'instructor']:
+                if request.user.branch:
+                    users = CustomUser.objects.filter(branch=request.user.branch, is_active=True).exclude(role__in=['globaladmin', 'superadmin'])
+                else:
+                    users = CustomUser.objects.filter(is_active=True).exclude(role__in=['globaladmin', 'superadmin', 'admin'])
+            else:
+                users = CustomUser.objects.none()
+            
+            # Annotate users with statistics
+            users = users.annotate(
+                assigned_count=Count('courseenrollment', distinct=True),
+                completed_count=Count('courseenrollment', filter=Q(courseenrollment__completed=True), distinct=True),
+                initial_assessment_count=Count('module_quiz_attempts', filter=Q(
+                    module_quiz_attempts__quiz__is_initial_assessment=True, 
+                    module_quiz_attempts__is_completed=True
+                ), distinct=True)
+            ).order_by('username')
+            
+            # Force evaluation of queryset to catch DB errors early
+            users_list = list(users)
+            
+            # Create workbook
+            wb = xlwt.Workbook(encoding='utf-8')
+            ws = wb.add_sheet('User Reports')
+            
+            # Define styles
+            header_style = xlwt.easyxf('font: bold on; align: wrap on, vert centre, horiz center')
+            
+            # Write headers
+            headers = ['User', 'User Type', 'Last Login', 'Assigned Courses', 'Completed Courses', 'Initial Assessments']
+            for col, header in enumerate(headers):
+                ws.write(0, col, header, header_style)
+                ws.col(col).width = 5000
+            
+            # Write data rows
+            for row, user in enumerate(users_list, start=1):
+                ws.write(row, 0, user.get_full_name() or user.username)
+                ws.write(row, 1, user.get_user_type_display() if hasattr(user, 'get_user_type_display') else user.role)
+                ws.write(row, 2, user.last_login.strftime('%d/%m/%Y') if user.last_login else 'Never')
+                ws.write(row, 3, user.assigned_count)
+                ws.write(row, 4, user.completed_count)
+                ws.write(row, 5, user.initial_assessment_count)
+            
+            # Prepare response
+            timestamp = timezone.now().strftime('%Y%m%d_%H%M%S')
+            filename = f'user_reports_{timestamp}.xls'
+            response = HttpResponse(content_type='application/ms-excel')
+            response['Content-Disposition'] = f'attachment; filename="{filename}"'
+            wb.save(response)
+            return response
+            
+        except OperationalError as e:
+            retry_count += 1
+            logger.error(f"Database connection error in export_user_reports_to_excel (attempt {retry_count}/{max_retries}): {str(e)}")
+            
+            if retry_count >= max_retries:
+                logger.error("All retry attempts failed for user report export")
+                return HttpResponse(
+                    "Database connection error. Please try again in a moment.",
+                    status=503,
+                    content_type="text/plain"
+                )
+            
+            connection.close()
+            sleep(1 * retry_count)
+            
+        except Exception as e:
+            logger.error(f"Unexpected error in export_user_reports_to_excel: {str(e)}", exc_info=True)
+            return HttpResponse(
+                "An error occurred while generating the report. Please contact support.",
+                status=500,
+                content_type="text/plain"
+            )
     
-    # Create workbook
-    wb = xlwt.Workbook(encoding='utf-8')
-    ws = wb.add_sheet('User Reports')
-    
-    # Define styles
-    header_style = xlwt.easyxf('font: bold on; align: wrap on, vert centre, horiz center')
-    
-    # Write headers
-    headers = ['User', 'User Type', 'Last Login', 'Assigned Courses', 'Completed Courses', 'Initial Assessments']
-    for col, header in enumerate(headers):
-        ws.write(0, col, header, header_style)
-        ws.col(col).width = 5000
-    
-    # Write data rows
-    for row, user in enumerate(users, start=1):
-        ws.write(row, 0, user.get_full_name() or user.username)
-        ws.write(row, 1, user.get_user_type_display() if hasattr(user, 'get_user_type_display') else user.role)
-        ws.write(row, 2, user.last_login.strftime('%d/%m/%Y') if user.last_login else 'Never')
-        ws.write(row, 3, user.assigned_count)
-        ws.write(row, 4, user.completed_count)
-        ws.write(row, 5, user.initial_assessment_count)
-    
-    # Prepare response
-    timestamp = timezone.now().strftime('%Y%m%d_%H%M%S')
-    filename = f'user_reports_{timestamp}.xls'
-    response = HttpResponse(content_type='application/ms-excel')
-    response['Content-Disposition'] = f'attachment; filename="{filename}"'
-    wb.save(response)
-    return response
+    return HttpResponse(
+        "Unable to generate report. Please try again later.",
+        status=503,
+        content_type="text/plain"
+    )
 
 def export_courses_report_to_excel(request):
     """Export courses report to Excel"""
     import xlwt
+    from django.db import connection
+    from django.db.utils import OperationalError
+    from time import sleep
     
-    # Get courses (reuse logic from courses_report view)
-    courses = Course.objects.all()
+    # Retry logic for database operations
+    max_retries = 3
+    retry_count = 0
     
-    # Apply business/branch filtering based on user permissions
-    enrollment_filter = Q()
-    if request.user.role == 'superadmin':
-        courses = filter_queryset_by_business(courses, request.user, 'branch__business')
-        from core.utils.business_filtering import get_superadmin_business_filter
-        assigned_businesses = get_superadmin_business_filter(request.user)
-        if assigned_businesses:
-            enrollment_filter = Q(courseenrollment__user__branch__business__in=assigned_businesses)
-    elif request.user.role not in ['globaladmin'] and not request.user.is_superuser:
-        if request.user.role == 'admin':
-            from core.branch_filters import BranchFilterManager
-            effective_branch = BranchFilterManager.get_effective_branch(request.user, request)
-            if effective_branch:
-                courses = courses.filter(courseenrollment__user__branch=effective_branch).distinct()
-                enrollment_filter = Q(courseenrollment__user__branch=effective_branch)
-        elif request.user.branch:
-            courses = courses.filter(courseenrollment__user__branch=request.user.branch).distinct()
-            enrollment_filter = Q(courseenrollment__user__branch=request.user.branch)
+    while retry_count < max_retries:
+        try:
+            # Close existing connection if it's stale
+            if connection.connection and not connection.is_usable():
+                connection.close()
+            
+            # Get courses (reuse logic from courses_report view)
+            courses = Course.objects.all()
+            
+            # Apply business/branch filtering based on user permissions
+            enrollment_filter = Q()
+            if request.user.role == 'superadmin':
+                courses = filter_queryset_by_business(courses, request.user, 'branch__business')
+                from core.utils.business_filtering import get_superadmin_business_filter
+                assigned_businesses = get_superadmin_business_filter(request.user)
+                if assigned_businesses:
+                    enrollment_filter = Q(courseenrollment__user__branch__business__in=assigned_businesses)
+            elif request.user.role not in ['globaladmin'] and not request.user.is_superuser:
+                if request.user.role == 'admin':
+                    from core.branch_filters import BranchFilterManager
+                    effective_branch = BranchFilterManager.get_effective_branch(request.user, request)
+                    if effective_branch:
+                        courses = courses.filter(courseenrollment__user__branch=effective_branch).distinct()
+                        enrollment_filter = Q(courseenrollment__user__branch=effective_branch)
+                elif request.user.branch:
+                    courses = courses.filter(courseenrollment__user__branch=request.user.branch).distinct()
+                    enrollment_filter = Q(courseenrollment__user__branch=request.user.branch)
+            
+            # Add learner filter
+            learner_filter = Q(courseenrollment__user__role='learner')
+            enrollment_filter = enrollment_filter & learner_filter
+            
+            # Annotate courses with statistics
+            courses = courses.annotate(
+                enrolled_count=Count('courseenrollment', filter=enrollment_filter, distinct=True),
+                completed_count=Count('courseenrollment', filter=enrollment_filter & Q(courseenrollment__completed=True), distinct=True),
+                completion_rate=ExpressionWrapper(
+                    Case(
+                        When(enrolled_count=0, then=Value(0, output_field=FloatField())),
+                        default=Cast(F('completed_count'), FloatField()) / Cast(F('enrolled_count'), FloatField()) * 100
+                    ),
+                    output_field=FloatField()
+                )
+            )
+            
+            # Force evaluation of queryset to catch DB errors early
+            courses_list = list(courses)
+            
+            # Create workbook
+            wb = xlwt.Workbook(encoding='utf-8')
+            ws = wb.add_sheet('Course Reports')
+            
+            # Define styles
+            header_style = xlwt.easyxf('font: bold on; align: wrap on, vert centre, horiz center')
+            
+            # Write headers
+            headers = ['Course', 'Category', 'Enrolled', 'Completed', 'Completion Rate (%)']
+            for col, header in enumerate(headers):
+                ws.write(0, col, header, header_style)
+                ws.col(col).width = 6000
+            
+            # Write data rows
+            for row, course in enumerate(courses_list, start=1):
+                ws.write(row, 0, course.title)
+                ws.write(row, 1, course.category.name if course.category else 'N/A')
+                ws.write(row, 2, course.enrolled_count)
+                ws.write(row, 3, course.completed_count)
+                ws.write(row, 4, f'{course.completion_rate:.1f}%')
+            
+            # Prepare response
+            timestamp = timezone.now().strftime('%Y%m%d_%H%M%S')
+            filename = f'course_reports_{timestamp}.xls'
+            response = HttpResponse(content_type='application/ms-excel')
+            response['Content-Disposition'] = f'attachment; filename="{filename}"'
+            wb.save(response)
+            return response
+            
+        except OperationalError as e:
+            retry_count += 1
+            logger.error(f"Database connection error in export_courses_report_to_excel (attempt {retry_count}/{max_retries}): {str(e)}")
+            
+            if retry_count >= max_retries:
+                # All retries failed, return error response
+                logger.error("All retry attempts failed for course export")
+                return HttpResponse(
+                    "Database connection error. Please try again in a moment.",
+                    status=503,
+                    content_type="text/plain"
+                )
+            
+            # Close the connection and wait before retry
+            connection.close()
+            sleep(1 * retry_count)  # Exponential backoff
+            
+        except Exception as e:
+            # Log unexpected errors
+            logger.error(f"Unexpected error in export_courses_report_to_excel: {str(e)}", exc_info=True)
+            return HttpResponse(
+                "An error occurred while generating the report. Please contact support.",
+                status=500,
+                content_type="text/plain"
+            )
     
-    # Add learner filter
-    learner_filter = Q(courseenrollment__user__role='learner')
-    enrollment_filter = enrollment_filter & learner_filter
-    
-    # Annotate courses with statistics
-    courses = courses.annotate(
-        enrolled_count=Count('courseenrollment', filter=enrollment_filter, distinct=True),
-        completed_count=Count('courseenrollment', filter=enrollment_filter & Q(courseenrollment__completed=True), distinct=True),
-        completion_rate=ExpressionWrapper(
-            Case(
-                When(enrolled_count=0, then=Value(0, output_field=FloatField())),
-                default=Cast(F('completed_count'), FloatField()) / Cast(F('enrolled_count'), FloatField()) * 100
-            ),
-            output_field=FloatField()
-        )
+    # This shouldn't be reached, but just in case
+    return HttpResponse(
+        "Unable to generate report. Please try again later.",
+        status=503,
+        content_type="text/plain"
     )
-    
-    # Create workbook
-    wb = xlwt.Workbook(encoding='utf-8')
-    ws = wb.add_sheet('Course Reports')
-    
-    # Define styles
-    header_style = xlwt.easyxf('font: bold on; align: wrap on, vert centre, horiz center')
-    
-    # Write headers
-    headers = ['Course', 'Category', 'Enrolled', 'Completed', 'Completion Rate (%)']
-    for col, header in enumerate(headers):
-        ws.write(0, col, header, header_style)
-        ws.col(col).width = 6000
-    
-    # Write data rows
-    for row, course in enumerate(courses, start=1):
-        ws.write(row, 0, course.title)
-        ws.write(row, 1, course.category.name if course.category else 'N/A')
-        ws.write(row, 2, course.enrolled_count)
-        ws.write(row, 3, course.completed_count)
-        ws.write(row, 4, f'{course.completion_rate:.1f}%')
-    
-    # Prepare response
-    timestamp = timezone.now().strftime('%Y%m%d_%H%M%S')
-    filename = f'course_reports_{timestamp}.xls'
-    response = HttpResponse(content_type='application/ms-excel')
-    response['Content-Disposition'] = f'attachment; filename="{filename}"'
-    wb.save(response)
-    return response
 
 @login_required
 @reports_access_required
@@ -2566,9 +2660,13 @@ def subgroup_detail_excel(request, subgroup_id):
 @reports_access_required
 def courses_report(request):
     """View for displaying course reports."""
+    from django.db import connection
     
     # Check if export is requested
     if request.GET.get('export') == 'excel':
+        # Ensure database connection is healthy before export
+        if connection.connection and not connection.is_usable():
+            connection.close()
         return export_courses_report_to_excel(request)
     
     # Start with basic course queryset

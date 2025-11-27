@@ -822,6 +822,11 @@
             <!-- Right Sidebar -->
             {% block right_sidebar %}{% endblock %}
         </div>
+        
+        <!-- Global Footer -->
+        {% block footer %}
+        {% include 'components/footer.html' %}
+        {% endblock %}
     </div>
 
     <!-- Type Safety Utilities - Load first for type checking -->

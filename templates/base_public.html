@@ -232,20 +232,10 @@
             </div>
         </main>
         
-        <!-- Public Footer -->
-        <footer class="public-footer">
-            <div class="container">
-                <div class="row">
-                    <div class="col-md-6">
-                        <p class="mb-0">&copy; {% now "Y" %} Nexsy LMS. All rights reserved.</p>
-                    </div>
-                    <div class="col-md-6 text-end">
-                        <a href="{% url 'core:privacy_policy' %}" class="text-white me-3">Privacy Policy</a>
-                        <a href="{% url 'core:terms_of_service' %}" class="text-white">Terms of Service</a>
-                    </div>
-                </div>
-            </div>
-        </footer>
+        <!-- Global Footer -->
+        {% block footer %}
+        {% include 'components/footer.html' %}
+        {% endblock %}
     </div>
     
     <!-- Bootstrap JS -->

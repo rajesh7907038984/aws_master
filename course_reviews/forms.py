@@ -62,7 +62,7 @@ class SurveyFieldForm(forms.ModelForm):
             'max_rating': forms.NumberInput(attrs={
                 'class': 'form-control',
                 'min': '1',
-                'max': '10',
+                'max': '5',
                 'value': '5'
             }),
         }
@@ -73,8 +73,8 @@ class SurveyFieldForm(forms.ModelForm):
         max_rating = cleaned_data.get('max_rating')
         
         # Validate max_rating for rating fields
-        if field_type == 'rating' and (not max_rating or max_rating < 1 or max_rating > 10):
-            self.add_error('max_rating', 'Rating fields must have a max_rating between 1 and 10')
+        if field_type == 'rating' and (not max_rating or max_rating < 1 or max_rating > 5):
+            self.add_error('max_rating', 'Rating fields must have a max_rating between 1 and 5')
         
         return cleaned_data
 

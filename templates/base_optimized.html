@@ -46,6 +46,11 @@
     <!-- Content -->
     <div id="app" class="min-h-screen flex flex-col">
         {% block content %}{% endblock %}
+        
+        <!-- Global Footer -->
+        {% block footer %}
+        {% include 'components/footer.html' %}
+        {% endblock %}
     </div>
     
     <!-- FOOTER SCRIPTS - Load after content -->

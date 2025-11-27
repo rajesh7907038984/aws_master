@@ -79,8 +79,8 @@ class SurveyField(models.Model):
     # For rating fields
     max_rating = models.PositiveIntegerField(
         default=5,
-        validators=[MinValueValidator(1), MaxValueValidator(10)],
-        help_text="Maximum rating value (for rating fields)"
+        validators=[MinValueValidator(1), MaxValueValidator(5)],
+        help_text="Maximum rating value (for rating fields, 1-5 stars)"
     )
     
     class Meta:
@@ -119,8 +119,8 @@ class SurveyResponse(models.Model):
     rating_response = models.PositiveIntegerField(
         null=True,
         blank=True,
-        validators=[MinValueValidator(1), MaxValueValidator(10)],
-        help_text="Rating response (1-10)"
+        validators=[MinValueValidator(1), MaxValueValidator(5)],
+        help_text="Rating response (1-5 stars)"
     )
     
     submitted_at = models.DateTimeField(auto_now_add=True)
