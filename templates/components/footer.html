@@ -5,13 +5,23 @@
         <!-- Left Section: Powered by NEXSY -->
         <div class="flex items-center gap-2">
             <span class="text-sm text-gray-600">Powered by</span>
-            <img src="{% static 'img/logo.png' %}" alt="NEXSY Logo" class="h-6 w-auto">
+            <img src="{% static 'favicon.png' %}" alt="Nexsy Icon" class="h-5 w-5">
+            <span class="text-sm font-semibold text-gray-800">Nexsy</span>
         </div>
 
-        <!-- Right Section: Live Time -->
-        <div class="flex items-center gap-2">
-           
-            <span id="live-time" class="text-sm text-gray-600 font-medium">--:--:--</span>
+        <!-- Right Section: Date and Time -->
+        <div class="flex items-center gap-4">
+            <!-- Date with Calendar Icon -->
+            <div class="flex items-center gap-1.5">
+                <i class="fas fa-calendar text-sm" style="color: #1c2260;"></i>
+                <span id="live-date" class="text-sm text-gray-600 font-medium">--/--/----</span>
+            </div>
+            
+            <!-- Time with Clock Icon -->
+            <div class="flex items-center gap-1.5">
+                <i class="fas fa-clock text-sm" style="color: #1c2260;"></i>
+                <span id="live-time" class="text-sm text-gray-600 font-medium">--:--:--</span>
+            </div>
         </div>
     </div>
 </footer>
@@ -28,17 +38,25 @@
     
     /* Responsive adjustments */
     @media (max-width: 640px) {
-        footer .flex.items-center.gap-2 span {
+        footer .flex.items-center.gap-2 span,
+        footer .flex.items-center.gap-4 span,
+        footer .flex.items-center.gap-1\\.5 span {
             font-size: 0.75rem;
         }
         
-        footer .flex.items-center.gap-2 svg {
+        footer .flex.items-center.gap-2 svg,
+        footer .flex.items-center.gap-4 svg,
+        footer .flex.items-center.gap-1\\.5 i {
+            font-size: 0.75rem;
+        }
+        
+        footer .flex.items-center.gap-2 img {
             width: 1rem;
             height: 1rem;
         }
         
-        footer .flex.items-center.gap-2 img {
-            height: 1.25rem;
+        footer .flex.items-center.gap-4 {
+            gap: 0.5rem;
         }
         
         footer {
@@ -49,7 +67,12 @@
     
     /* Extra small screens */
     @media (max-width: 480px) {
-        footer .flex.items-center.gap-2 {
+        footer .flex.items-center.gap-2,
+        footer .flex.items-center.gap-4 {
+            gap: 0.25rem;
+        }
+        
+        footer .flex.items-center.gap-1\\.5 {
             gap: 0.25rem;
         }
         
@@ -61,26 +84,34 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Live time update function
-    function updateLiveTime() {
+    // Live date and time update function
+    function updateDateTime() {
+        const dateElement = document.getElementById('live-date');
         const timeElement = document.getElementById('live-time');
-        if (!timeElement) return;
+        
+        if (!dateElement || !timeElement) return;
         
         const now = new Date();
+        
+        // Format date as DD/MM/YYYY
+        const day = String(now.getDate()).padStart(2, '0');
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const year = now.getFullYear();
         
         // Format time as HH:MM:SS
         const hours = String(now.getHours()).padStart(2, '0');
         const minutes = String(now.getMinutes()).padStart(2, '0');
         const seconds = String(now.getSeconds()).padStart(2, '0');
         
+        dateElement.textContent = `${day}/${month}/${year}`;
         timeElement.textContent = `${hours}:${minutes}:${seconds}`;
     }
     
-    // Update time immediately
-    updateLiveTime();
+    // Update date and time immediately
+    updateDateTime();
     
-    // Update time every second
-    setInterval(updateLiveTime, 1000);
+    // Update date and time every second
+    setInterval(updateDateTime, 1000);
 });
 </script>
 

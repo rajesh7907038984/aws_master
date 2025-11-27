@@ -60,8 +60,8 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     
     # Favicon handling
-    path('favicon.ico', RedirectView.as_view(url=settings.STATIC_URL + 'core/img/favicon.png', permanent=True)),
-    path('favicon.ico/', RedirectView.as_view(url=settings.STATIC_URL + 'core/img/favicon.png', permanent=True)),
+    path('favicon.ico', RedirectView.as_view(url=settings.STATIC_URL + 'favicon.png', permanent=True)),
+    path('favicon.ico/', RedirectView.as_view(url=settings.STATIC_URL + 'favicon.png', permanent=True)),
     
     # Standard web files
     path('robots.txt', RedirectView.as_view(url=settings.STATIC_URL + 'robots.txt', permanent=True)),
