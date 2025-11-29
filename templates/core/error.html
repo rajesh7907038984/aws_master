@@ -28,7 +28,7 @@
                         {% if error_code %}
                             <p class="text-sm text-gray-500 mt-4">Error Code: {{ error_code }}</p>
                         {% endif %}
-                        {% if request_path and user.is_authenticated and user.role and user.role in 'superadmin,globaladmin' %}
+                        {% if request_path and user.is_authenticated and user.role and user.role == 'superadmin' or user.role == 'globaladmin' %}
                             <p class="text-xs text-gray-400 mt-2">Path: {{ request_path }}</p>
                         {% endif %}
                     </div>

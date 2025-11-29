@@ -34,7 +34,7 @@
                 <div class="relative">
                     <select name="category" class="h-10 pl-4 pr-8 text-sm bg-transparent border-0 rounded-l-xl text-gray-600 focus:outline-none focus:ring-0 cursor-pointer appearance-none border-r border-gray-300">
                         <option value="all" selected>All</option>
-                        {% if user.is_authenticated and user.role in 'globaladmin,superadmin,admin,instructor' %}
+                        {% if user.is_authenticated and user.role == 'globaladmin' or user.role == 'superadmin' or user.role == 'admin' or user.role == 'instructor' %}
                         <option value="users">Users</option>
                         {% endif %}
                         {% for category in categories %}

@@ -815,12 +815,47 @@
         retryAttempts = 0;
         
         const textareas = document.querySelectorAll('textarea.tinymce-editor');
+        console.log('TinyMCE Widget: Found', textareas.length, 'textareas to initialize');
+        
         textareas.forEach(function(textarea) {
+            // Skip if textarea is hidden or not visible
+            if (!textarea.offsetParent && textarea.style.display !== 'none') {
+                // Check if it's in a hidden parent
+                let parent = textarea.parentElement;
+                let isVisible = false;
+                while (parent && parent !== document.body) {
+                    if (parent.offsetParent || parent === document.body) {
+                        isVisible = true;
+                        break;
+                    }
+                    parent = parent.parentElement;
+                }
+                
+                if (!isVisible) {
+                    console.log('Skipping hidden textarea:', textarea.id);
+                    // Retry initialization for hidden textareas after a delay
+                    setTimeout(function() {
+                        if (textarea.offsetParent && !initializedEditors.has(textarea.id)) {
+                            console.log('Retrying hidden textarea:', textarea.id);
+                            initializeTinyMCE(textarea);
+                        }
+                    }, 1000);
+                    return;
+                }
+            }
+            
             // Ensure textarea has an ID
             if (!textarea.id) {
                 textarea.id = 'tinymce-' + Math.random().toString(36).substr(2, 9);
             }
             
+            // Check if already initialized
+            if (initializedEditors.has(textarea.id)) {
+                console.log('Textarea already initialized:', textarea.id);
+                return;
+            }
+            
+            console.log('Initializing textarea:', textarea.id);
             initializeTinyMCE(textarea);
         });
     }

@@ -6,7 +6,7 @@
         <select name="category" class="h-10 {% if is_mobile %}pl-2 sm:pl-3 pr-5 sm:pr-6 text-xs sm:text-sm{% else %}pl-4 pr-8 text-sm{% endif %} bg-transparent border-0 rounded-l-xl text-gray-600 focus:outline-none focus:ring-0 cursor-pointer appearance-none border-r border-gray-300">
             <option value="all" selected>{% if is_mobile %}All{% else %}Select Option{% endif %}</option>
             <option value="courses">Courses</option>
-            {% if user.is_authenticated and user.role in 'globaladmin,superadmin,admin,instructor' %}
+            {% if user.is_authenticated and user.role == 'globaladmin' or user.role == 'superadmin' or user.role == 'admin' or user.role == 'instructor' %}
             <option value="users">Users</option>
             {% endif %}
             {% for category in categories %}

@@ -86,7 +86,7 @@
             <div class="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
                 <p class="text-sm text-red-800">
                     <strong>Error Code:</strong> {{ error_code }}
-                    {% if request_path and user.is_authenticated and user.role and user.role in 'superadmin,globaladmin' %}
+                    {% if request_path and user.is_authenticated and user.role and user.role == 'superadmin' or user.role == 'globaladmin' %}
                         <br><strong>Path:</strong> {{ request_path }}
                     {% endif %}
                 </p>

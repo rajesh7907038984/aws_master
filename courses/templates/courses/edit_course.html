@@ -5319,10 +5319,27 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log('Initializing TinyMCE editors');
         
         // Use TinyMCE widget system for course description field
-        if (typeof window.TinyMCEWidget !== 'undefined' && window.TinyMCEWidget.initializeAll) {
-            console.log('Initializing TinyMCE widgets');
-            window.TinyMCEWidget.initializeAll();
-        }
+        // Add a small delay to ensure DOM is fully ready
+        setTimeout(function() {
+            if (typeof window.TinyMCEWidget !== 'undefined' && window.TinyMCEWidget.initializeAll) {
+                console.log('Initializing TinyMCE widgets');
+                try {
+                    window.TinyMCEWidget.initializeAll();
+                    console.log('TinyMCE widgets initialized successfully');
+                } catch (error) {
+                    console.error('Error initializing TinyMCE widgets:', error);
+                }
+            } else {
+                console.warn('TinyMCE widget system not available, will retry');
+                // Retry after a longer delay if widget system is not ready
+                setTimeout(function() {
+                    if (typeof window.TinyMCEWidget !== 'undefined' && window.TinyMCEWidget.initializeAll) {
+                        console.log('Retry: Initializing TinyMCE widgets');
+                        window.TinyMCEWidget.initializeAll();
+                    }
+                }, 500);
+            }
+        }, 200);
         
         const textareas = document.querySelectorAll('textarea.tinymce-editor:not([data-tinymce-config])');
         console.log('Found textareas for manual TinyMCE init:', textareas.length);
