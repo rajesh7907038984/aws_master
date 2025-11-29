@@ -337,7 +337,13 @@
             <div class="flex space-x-2">
                 {% if conference.meeting_link %}
                     {% if not conference.use_time_slots %}
-                        <!-- Auto-registration join button removed -->
+                        <!-- Join Conference Button -->
+                        {% if conference.meeting_status == 'scheduled' or conference.meeting_status == 'started' %}
+                        <button id="joinButton" class="btn-standard" onclick="autoRegisterAndJoin(event)">
+                            <i class="fas fa-video mr-2"></i>
+                            <span id="joinButtonText">Join Conference</span>
+                        </button>
+                        {% endif %}
                     {% endif %}
                 {% endif %}
                 
@@ -406,6 +412,12 @@
                 <span class="text-sm text-gray-500">Created By</span>
                 <p class="font-medium">{{ conference.created_by.get_full_name }}</p>
             </div>
+        </div>
+        
+        <!-- Error/Success Messages for Join Button -->
+        <div id="joinMessages" class="mt-4">
+            <div id="errorMessage" class="alert alert-danger" style="display: none;"></div>
+            <div id="successMessage" class="alert alert-success" style="display: none;"></div>
         </div>
     </div>
 
@@ -1523,12 +1535,53 @@
 
     </div>
 
-    <!-- Join Button for Instructors -->
-    <div class="text-center mt-6">
+    <!-- Join Button for Instructors (for non-time-slot conferences) -->
+    {% if not conference.use_time_slots %}
+    <div class="detail-card text-center">
         {% if conference.meeting_status == 'scheduled' or conference.meeting_status == 'started' %}
-
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">
+                <i class="fas fa-video mr-2"></i>Join Conference
+            </h3>
+            
+            {% if conference.meeting_link %}
+            <button id="joinButton" class="btn-standard btn-large" onclick="autoRegisterAndJoin(event)">
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                </svg>
+                <span id="joinButtonText">Join Conference</span>
+            </button>
+            
+            <div class="mt-3">
+                <small class="text-gray-600">
+                    <i class="fas fa-info-circle mr-1"></i>
+                    Platform: {{ conference.get_meeting_platform_display }}
+                </small>
+            </div>
+            
+            <!-- Error/Success Messages -->
+            <div id="joinMessages" class="mt-3">
+                <div id="errorMessage" class="alert alert-danger" style="display: none;"></div>
+                <div id="successMessage" class="alert alert-success" style="display: none;"></div>
+            </div>
+            {% else %}
+            <div class="alert alert-warning">
+                <i class="fas fa-exclamation-triangle mr-2"></i>
+                No meeting link is configured for this conference.
+            </div>
+            {% endif %}
+        {% elif conference.meeting_status == 'ended' %}
+            <div class="alert alert-secondary">
+                <i class="fas fa-clock mr-2"></i>
+                This conference has ended.
+            </div>
+        {% elif conference.meeting_status == 'cancelled' %}
+            <div class="alert alert-danger">
+                <i class="fas fa-times-circle mr-2"></i>
+                This conference has been cancelled.
+            </div>
         {% endif %}
     </div>
+    {% endif %}
 </div>
 {% endblock %}
 

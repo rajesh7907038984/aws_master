@@ -229,114 +229,133 @@
     </div>
 
     <!-- Pagination -->
-    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between mt-6 gap-4">
-        <div class="flex items-center gap-2">
-            <span class="text-sm text-gray-700">Show</span>
-            <form method="GET" id="perPageForm" class="inline">
-                <!-- Preserve other query parameters -->
-                {% if search_query %}
-                <input type="hidden" name="search" value="{{ search_query }}">
-                {% endif %}
-                {% if request.GET.business %}
-                <input type="hidden" name="business" value="{{ request.GET.business }}">
-                {% endif %}
-                {% if request.GET.branch %}
-                <input type="hidden" name="branch" value="{{ request.GET.branch }}">
-                {% endif %}
-                
-                <select name="per_page" class="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm" 
-                        onchange="document.getElementById('perPageForm').submit();">
-                    <option value="10" {% if per_page == 10 %}selected{% endif %}>10</option>
-                    <option value="25" {% if per_page == 25 %}selected{% endif %}>25</option>
-                    <option value="50" {% if per_page == 50 %}selected{% endif %}>50</option>
-                </select>
-            </form>
-            <span class="text-sm text-gray-700">per page</span>
-        </div>
-        
-        {% if page_obj.has_other_pages %}
-        <nav class="flex items-center">
-            <ul class="flex items-center space-x-1 sm:space-x-2">
-                <!-- First Page -->
-                <li>
-                    {% if page_obj.has_previous %}
-                        <a href="?page=1{% if search_query %}&search={{ search_query }}{% endif %}{% if per_page %}&per_page={{ per_page }}{% endif %}{% if request.GET.business %}&business={{ request.GET.business }}{% endif %}{% if request.GET.branch %}&branch={{ request.GET.branch }}{% endif %}" 
-                           class="px-2 py-2 sm:px-3 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm">
-                            <span class="sr-only">First</span>
-                            <i class="fas fa-angle-double-left"></i>
-                        </a>
-                    {% else %}
-                        <span class="px-2 py-2 sm:px-3 border border-gray-300 rounded-lg bg-gray-100 text-gray-400 text-sm">
-                            <i class="fas fa-angle-double-left"></i>
+    <div class="bg-white rounded-lg shadow p-4 sm:p-6 mt-6 mb-8">
+        <div class="flex flex-col lg:flex-row items-center justify-between gap-4">
+            <!-- Per Page Selector -->
+            <div class="flex items-center gap-2 w-full lg:w-auto justify-center lg:justify-start">
+                <span class="text-sm font-medium text-gray-700">Show</span>
+                <form method="GET" id="perPageForm" class="inline">
+                    <!-- Preserve other query parameters -->
+                    {% if search_query %}
+                    <input type="hidden" name="search" value="{{ search_query }}">
+                    {% endif %}
+                    {% if request.GET.business %}
+                    <input type="hidden" name="business" value="{{ request.GET.business }}">
+                    {% endif %}
+                    {% if request.GET.branch %}
+                    <input type="hidden" name="branch" value="{{ request.GET.branch }}">
+                    {% endif %}
+                    
+                    <select name="per_page" class="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white" 
+                            onchange="document.getElementById('perPageForm').submit();">
+                        <option value="10" {% if per_page == 10 %}selected{% endif %}>10</option>
+                        <option value="25" {% if per_page == 25 %}selected{% endif %}>25</option>
+                        <option value="50" {% if per_page == 50 %}selected{% endif %}>50</option>
+                    </select>
+                </form>
+                <span class="text-sm font-medium text-gray-700">per page</span>
+            </div>
+            
+            <!-- Pagination Controls -->
+            {% if page_obj.has_other_pages %}
+            <nav class="flex items-center w-full lg:w-auto justify-center" aria-label="Pagination">
+                <ul class="flex items-center space-x-1">
+                    <!-- First Page -->
+                    <li>
+                        {% if page_obj.has_previous %}
+                            <a href="?page=1{% if search_query %}&search={{ search_query }}{% endif %}{% if per_page %}&per_page={{ per_page }}{% endif %}{% if request.GET.business %}&business={{ request.GET.business }}{% endif %}{% if request.GET.branch %}&branch={{ request.GET.branch }}{% endif %}" 
+                               class="inline-flex items-center justify-center w-10 h-10 border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-700 transition-colors"
+                               title="First Page">
+                                <i class="fas fa-angle-double-left"></i>
+                            </a>
+                        {% else %}
+                            <span class="inline-flex items-center justify-center w-10 h-10 border border-gray-200 rounded-lg bg-gray-50 text-gray-300 cursor-not-allowed">
+                                <i class="fas fa-angle-double-left"></i>
+                            </span>
+                        {% endif %}
+                    </li>
+                    
+                    <!-- Previous Page -->
+                    <li>
+                        {% if page_obj.has_previous %}
+                            <a href="?page={{ page_obj.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if per_page %}&per_page={{ per_page }}{% endif %}{% if request.GET.business %}&business={{ request.GET.business }}{% endif %}{% if request.GET.branch %}&branch={{ request.GET.branch }}{% endif %}" 
+                               class="inline-flex items-center justify-center w-10 h-10 border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-700 transition-colors"
+                               title="Previous Page">
+                                <i class="fas fa-angle-left"></i>
+                            </a>
+                        {% else %}
+                            <span class="inline-flex items-center justify-center w-10 h-10 border border-gray-200 rounded-lg bg-gray-50 text-gray-300 cursor-not-allowed">
+                                <i class="fas fa-angle-left"></i>
+                            </span>
+                        {% endif %}
+                    </li>
+                    
+                    <!-- Page Numbers -->
+                    {% for num in page_obj.paginator.page_range %}
+                        {% if page_obj.number == num %}
+                            <li class="hidden sm:block">
+                                <span class="inline-flex items-center justify-center w-10 h-10 text-white border border-blue-600 rounded-lg font-medium" 
+                                      style="background-color: #3b82f6;">{{ num }}</span>
+                            </li>
+                        {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                            <li class="hidden sm:block">
+                                <a href="?page={{ num }}{% if search_query %}&search={{ search_query }}{% endif %}{% if per_page %}&per_page={{ per_page }}{% endif %}{% if request.GET.business %}&business={{ request.GET.business }}{% endif %}{% if request.GET.branch %}&branch={{ request.GET.branch }}{% endif %}" 
+                                   class="inline-flex items-center justify-center w-10 h-10 border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-700 transition-colors">{{ num }}</a>
+                            </li>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    <!-- Current Page (Mobile Only) -->
+                    <li class="block sm:hidden">
+                        <span class="inline-flex items-center justify-center px-3 h-10 text-sm font-medium text-gray-700 border border-gray-300 rounded-lg bg-white">
+                            Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
                         </span>
-                    {% endif %}
-                </li>
-                
-                <!-- Previous Page -->
-                <li>
-                    {% if page_obj.has_previous %}
-                        <a href="?page={{ page_obj.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if per_page %}&per_page={{ per_page }}{% endif %}{% if request.GET.business %}&business={{ request.GET.business }}{% endif %}{% if request.GET.branch %}&branch={{ request.GET.branch }}{% endif %}" 
-                           class="px-2 py-2 sm:px-3 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm">
-                            <span class="sr-only">Previous</span>
-                            <i class="fas fa-angle-left"></i>
-                        </a>
-                    {% else %}
-                        <span class="px-2 py-2 sm:px-3 border border-gray-300 rounded-lg bg-gray-100 text-gray-400 text-sm">
-                            <i class="fas fa-angle-left"></i>
-                        </span>
-                    {% endif %}
-                </li>
-                
-                <!-- Page Numbers -->
-                {% for num in page_obj.paginator.page_range %}
-                    {% if page_obj.number == num %}
-                        <li>
-                            <span class="px-2 py-2 sm:px-3 bg-blue-600 text-white border border-blue-600 rounded-lg text-sm">{{ num }}</span>
-                        </li>
-                    {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
-                        <li>
-                            <a href="?page={{ num }}{% if search_query %}&search={{ search_query }}{% endif %}{% if per_page %}&per_page={{ per_page }}{% endif %}{% if request.GET.business %}&business={{ request.GET.business }}{% endif %}{% if request.GET.branch %}&branch={{ request.GET.branch }}{% endif %}" 
-                               class="px-2 py-2 sm:px-3 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm">{{ num }}</a>
-                        </li>
-                    {% endif %}
-                {% endfor %}
-                
-                <!-- Next Page -->
-                <li>
-                    {% if page_obj.has_next %}
-                        <a href="?page={{ page_obj.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if per_page %}&per_page={{ per_page }}{% endif %}{% if request.GET.business %}&business={{ request.GET.business }}{% endif %}{% if request.GET.branch %}&branch={{ request.GET.branch }}{% endif %}" 
-                           class="px-2 py-2 sm:px-3 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm">
-                            <span class="sr-only">Next</span>
-                            <i class="fas fa-angle-right"></i>
-                        </a>
-                    {% else %}
-                        <span class="px-2 py-2 sm:px-3 border border-gray-300 rounded-lg bg-gray-100 text-gray-400 text-sm">
-                            <i class="fas fa-angle-right"></i>
-                        </span>
-                    {% endif %}
-                </li>
-                
-                <!-- Last Page -->
-                <li>
-                    {% if page_obj.has_next %}
-                        <a href="?page={{ page_obj.paginator.num_pages }}{% if search_query %}&search={{ search_query }}{% endif %}{% if per_page %}&per_page={{ per_page }}{% endif %}{% if request.GET.business %}&business={{ request.GET.business }}{% endif %}{% if request.GET.branch %}&branch={{ request.GET.branch }}{% endif %}" 
-                           class="px-2 py-2 sm:px-3 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm">
-                            <span class="sr-only">Last</span>
-                            <i class="fas fa-angle-double-right"></i>
-                        </a>
-                    {% else %}
-                        <span class="px-2 py-2 sm:px-3 border border-gray-300 rounded-lg bg-gray-100 text-gray-400 text-sm">
-                            <i class="fas fa-angle-double-right"></i>
-                        </span>
-                    {% endif %}
-                </li>
-            </ul>
-        </nav>
-        {% endif %}
-        
-        <!-- Pagination Info -->
-        <div class="text-sm text-gray-500 pagination-info">
-            Showing {{ page_obj.start_index }} to {{ page_obj.end_index }} of {{ page_obj.paginator.count }} results
+                    </li>
+                    
+                    <!-- Next Page -->
+                    <li>
+                        {% if page_obj.has_next %}
+                            <a href="?page={{ page_obj.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if per_page %}&per_page={{ per_page }}{% endif %}{% if request.GET.business %}&business={{ request.GET.business }}{% endif %}{% if request.GET.branch %}&branch={{ request.GET.branch }}{% endif %}" 
+                               class="inline-flex items-center justify-center w-10 h-10 border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-700 transition-colors"
+                               title="Next Page">
+                                <i class="fas fa-angle-right"></i>
+                            </a>
+                        {% else %}
+                            <span class="inline-flex items-center justify-center w-10 h-10 border border-gray-200 rounded-lg bg-gray-50 text-gray-300 cursor-not-allowed">
+                                <i class="fas fa-angle-right"></i>
+                            </span>
+                        {% endif %}
+                    </li>
+                    
+                    <!-- Last Page -->
+                    <li>
+                        {% if page_obj.has_next %}
+                            <a href="?page={{ page_obj.paginator.num_pages }}{% if search_query %}&search={{ search_query }}{% endif %}{% if per_page %}&per_page={{ per_page }}{% endif %}{% if request.GET.business %}&business={{ request.GET.business }}{% endif %}{% if request.GET.branch %}&branch={{ request.GET.branch }}{% endif %}" 
+                               class="inline-flex items-center justify-center w-10 h-10 border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-700 transition-colors"
+                               title="Last Page">
+                                <i class="fas fa-angle-double-right"></i>
+                            </a>
+                        {% else %}
+                            <span class="inline-flex items-center justify-center w-10 h-10 border border-gray-200 rounded-lg bg-gray-50 text-gray-300 cursor-not-allowed">
+                                <i class="fas fa-angle-double-right"></i>
+                            </span>
+                        {% endif %}
+                    </li>
+                </ul>
+            </nav>
+            {% else %}
+            <!-- No Pagination Needed -->
+            <div class="flex items-center justify-center w-full lg:w-auto text-sm text-gray-500">
+                <span>All results displayed</span>
+            </div>
+            {% endif %}
+            
+            <!-- Pagination Info -->
+            <div class="text-sm font-medium text-gray-700 w-full lg:w-auto text-center lg:text-right">
+                Showing <span class="font-semibold text-gray-900">{{ page_obj.start_index }}</span> to 
+                <span class="font-semibold text-gray-900">{{ page_obj.end_index }}</span> of 
+                <span class="font-semibold text-gray-900">{{ page_obj.paginator.count }}</span> results
+            </div>
         </div>
     </div>
 </div>
