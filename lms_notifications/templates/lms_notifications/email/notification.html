@@ -172,7 +172,7 @@
             
             {% load json_filters %}
             <div class="message">
-                {{ notification.message|render_rich_content }}
+                {{ notification.message|render_rich_content|safe }}
             </div>
             
             {% if notification.action_url %}

@@ -125,23 +125,22 @@ def send_conference_notifications(sender, instance, created, **kwargs):
             for enrollment in enrollments:
                 try:
                     # Prepare conference notification message
-                    conference_message = f"""
-                    <h2>New Conference Scheduled</h2>
-                    <p>Dear {enrollment.user.first_name or enrollment.user.username},</p>
-                    <p>A new conference has been scheduled for your course:</p>
-                    <p><strong>Conference Details:</strong></p>
-                    <ul>
-                        <li><strong>Title:</strong> {instance.title}</li>
-                        <li><strong>Course:</strong> {instance.course.title}</li>
-                        <li><strong>Date & Time:</strong> {conference_datetime}</li>
-                        <li><strong>Timezone:</strong> {instance.timezone}</li>
-                        <li><strong>Platform:</strong> {instance.get_meeting_platform_display()}</li>
-                    </ul>
-                    {f'<div style="background-color: #f5f5f5; padding: 15px; border-left: 4px solid #2196F3; margin: 15px 0;"><p><strong>Description:</strong></p><p>{instance.description}</p></div>' if instance.description else ''}
-                    <p>Please mark your calendar and join the conference at the scheduled time.</p>
-                    <p>We look forward to seeing you there!</p>
-                    <p>Best regards,<br>The LMS Team</p>
-                    """
+                    conference_message = f"""<h2>New Conference Scheduled</h2>
+<p>Dear {enrollment.user.first_name or enrollment.user.username},</p>
+<p>A new conference has been scheduled for your course:</p>
+<p><strong>Conference Details:</strong></p>
+<ul>
+    <li><strong>Title:</strong> {instance.title}</li>
+    <li><strong>Course:</strong> {instance.course.title}</li>
+    <li><strong>Date & Time:</strong> {conference_datetime}</li>
+    <li><strong>Timezone:</strong> {instance.timezone}</li>
+    <li><strong>Platform:</strong> {instance.get_meeting_platform_display()}</li>
+</ul>
+{f'<div style="background-color: #f5f5f5; padding: 15px; border-left: 4px solid #2196F3; margin: 15px 0;"><p><strong>Description:</strong></p><p>{instance.description}</p></div>' if instance.description else ''}
+<p>Please mark your calendar and join the conference at the scheduled time.</p>
+<p>We look forward to seeing you there!</p>
+<p>Best regards,<br>The LMS Team</p>
+""".strip()
                     
                     # Send notification
                     notification = send_notification(
@@ -218,25 +217,24 @@ def send_conference_update_email(sender, instance, created, **kwargs):
             for enrollment in enrollments:
                 try:
                     # Prepare conference update message
-                    update_message = f"""
-                    <h2>Conference Updated</h2>
-                    <p>Dear {enrollment.user.first_name or enrollment.user.username},</p>
-                    <p>The details for a conference in your course have been updated:</p>
-                    <p><strong>Updated Conference Details:</strong></p>
-                    <ul>
-                        <li><strong>Title:</strong> {instance.title}</li>
-                        <li><strong>Course:</strong> {instance.course.title}</li>
-                        <li><strong>Date & Time:</strong> {conference_datetime}</li>
-                        <li><strong>Timezone:</strong> {instance.timezone}</li>
-                        <li><strong>Platform:</strong> {instance.get_meeting_platform_display()}</li>
-                    </ul>
-                    <div style="background-color: #fff3cd; padding: 15px; border-left: 4px solid #ffc107; margin: 15px 0;">
-                        <p><strong> Important:</strong> Please update your calendar with the new details.</p>
-                    </div>
-                    {f'<div style="background-color: #f5f5f5; padding: 15px; border-left: 4px solid #2196F3; margin: 15px 0;"><p><strong>Description:</strong></p><p>{instance.description}</p></div>' if instance.description else ''}
-                    <p>We apologize for any inconvenience this may cause.</p>
-                    <p>Best regards,<br>The LMS Team</p>
-                    """
+                    update_message = f"""<h2>Conference Updated</h2>
+<p>Dear {enrollment.user.first_name or enrollment.user.username},</p>
+<p>The details for a conference in your course have been updated:</p>
+<p><strong>Updated Conference Details:</strong></p>
+<ul>
+    <li><strong>Title:</strong> {instance.title}</li>
+    <li><strong>Course:</strong> {instance.course.title}</li>
+    <li><strong>Date & Time:</strong> {conference_datetime}</li>
+    <li><strong>Timezone:</strong> {instance.timezone}</li>
+    <li><strong>Platform:</strong> {instance.get_meeting_platform_display()}</li>
+</ul>
+<div style="background-color: #fff3cd; padding: 15px; border-left: 4px solid #ffc107; margin: 15px 0;">
+    <p><strong>⚠️ Important:</strong> Please update your calendar with the new details.</p>
+</div>
+{f'<div style="background-color: #f5f5f5; padding: 15px; border-left: 4px solid #2196F3; margin: 15px 0;"><p><strong>Description:</strong></p><p>{instance.description}</p></div>' if instance.description else ''}
+<p>We apologize for any inconvenience this may cause.</p>
+<p>Best regards,<br>The LMS Team</p>
+""".strip()
                     
                     # Send notification
                     notification = send_notification(
