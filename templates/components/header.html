@@ -739,10 +739,42 @@
             min-height: 2rem;
         }
         
+        /* Ensure mobile menu toggle button and icon remain visible */
+        #mobile-menu-toggle {
+            min-width: 2rem !important;
+            min-height: 2rem !important;
+            display: flex !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+        }
+        
+        #mobile-menu-toggle svg {
+            width: 1rem !important;
+            height: 1rem !important;
+            min-width: 1rem !important;
+            min-height: 1rem !important;
+            display: inline !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+        }
+        
         /* Profile button should remain touch-friendly */
         #profile-button {
             min-width: 2.5rem !important;
             min-height: 2.5rem !important;
+            display: flex !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+        }
+        
+        #profile-button img {
+            width: 2.5rem !important;
+            height: 2.5rem !important;
+            min-width: 2.5rem !important;
+            min-height: 2.5rem !important;
+            display: block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
         }
         
         /* Adjust notification badges */
@@ -781,6 +813,44 @@
             max-height: 1.25rem;
         }
         
+        /* Ensure mobile menu toggle is always visible on extra small screens */
+        #mobile-menu-toggle {
+            min-width: 1.75rem !important;
+            min-height: 1.75rem !important;
+            display: flex !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+        }
+        
+        #mobile-menu-toggle svg {
+            width: 0.875rem !important;
+            height: 0.875rem !important;
+            min-width: 0.875rem !important;
+            min-height: 0.875rem !important;
+            display: inline !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+        }
+        
+        /* Ensure profile button and image remain visible */
+        #profile-button {
+            min-width: 2rem !important;
+            min-height: 2rem !important;
+            display: flex !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+        }
+        
+        #profile-button img {
+            width: 2rem !important;
+            height: 2rem !important;
+            min-width: 2rem !important;
+            min-height: 2rem !important;
+            display: block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+        }
+        
         /* Ensure profile container allows overflow */
         #profile-container {
             overflow: visible !important;
@@ -792,8 +862,7 @@
     .discussion-icon,
     .notification-icon,
     #mobile-menu-toggle,
-    #mobile-search-toggle,
-    #profile-button {
+    #mobile-search-toggle {
         display: flex !important;
         visibility: visible !important;
         opacity: 1 !important;
@@ -805,6 +874,18 @@
         height: 2rem !important;
         align-items: center !important;
         justify-content: center !important;
+    }
+    
+    /* Profile button specific styles */
+    #profile-button {
+        display: flex !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        position: relative !important;
+        z-index: 10 !important;
+        align-items: center !important;
+        justify-content: center !important;
+        overflow: hidden !important;
     }
     
     /* Fix header icon positioning and alignment */
@@ -851,10 +932,38 @@
     /* Fix for icon SVGs */
     .header-icon svg,
     .discussion-icon svg,
-    .notification-icon svg {
-        display: inline;
-        visibility: visible;
-        opacity: 1;
+    .notification-icon svg,
+    #mobile-menu-toggle svg {
+        display: inline !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+    }
+    
+    /* Ensure mobile menu toggle icon is always visible and properly sized */
+    #mobile-menu-toggle svg {
+        min-width: 20px !important;
+        min-height: 20px !important;
+        pointer-events: none !important;
+        fill: none !important;
+        stroke: currentColor !important;
+        stroke-width: 2 !important;
+    }
+    
+    #mobile-menu-toggle svg path {
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        stroke: currentColor !important;
+        fill: none !important;
+    }
+    
+    /* Ensure profile button image is always visible */
+    #profile-button img {
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        object-fit: cover !important;
+        pointer-events: none !important;
     }
     
     /* Mobile search container animations */
