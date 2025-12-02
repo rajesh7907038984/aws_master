@@ -12,7 +12,9 @@
         </div>
 
         <!-- Branch Filter -->
-        {% include 'components/branch_filter.html' with branches=branches user_branch_id=user_branch_id %}
+        {% if user.role != 'instructor' %}
+            {% include 'components/branch_filter.html' with branches=branches user_branch_id=user_branch_id %}
+        {% endif %}
 
         <!-- Main grid with 70-30 split -->
         <div class="grid grid-cols-12 gap-4 md:gap-6">

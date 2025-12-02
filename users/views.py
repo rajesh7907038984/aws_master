@@ -5818,29 +5818,6 @@ def global_admin_dashboard(request):
         # Sort by date (earliest first) for global admin dashboard
         recent_activities.sort(key=lambda x: x['sort_date'])
         
-        # Handle AJAX request for loading more activities
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest' and 'load_more_todos' in request.GET:
-            start = int(request.GET.get('start', 0))
-            limit = int(request.GET.get('limit', 5))
-            
-            paginated_activities = recent_activities[start:start + limit]
-            has_more = len(recent_activities) > start + limit
-            
-            from django.http import JsonResponse
-            from django.template.loader import render_to_string
-            
-            # Render the activities as HTML
-            html = render_to_string('users/components/globaladmin_activity_item.html', {
-                'recent_activities': paginated_activities,
-                'request': request
-            })
-            
-            return JsonResponse({
-                'html': html,
-                'has_more': has_more,
-                'total_count': len(recent_activities)
-            })
-        
         # Generate todo items using TodoService for enhanced role-based functionality
         todo_service = TodoService(request.user)
         all_todo_items = todo_service.get_todos(limit=50)  # Get more items for initial load
@@ -5869,6 +5846,30 @@ def global_admin_dashboard(request):
                 todo_item['business_name'] = todo.get('metadata', {}).get('business_name', '')
                 
             todo_items.append(todo_item)
+        
+        # Handle AJAX request for loading more todo items
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest' and 'load_more_todos' in request.GET:
+            start = int(request.GET.get('start', 0))
+            limit = int(request.GET.get('limit', 5))
+            
+            paginated_todos = todo_items[start:start + limit]
+            has_more = len(todo_items) > start + limit
+            
+            from django.http import JsonResponse
+            from django.template.loader import render_to_string
+            
+            # Render the todo items as HTML using enhanced template
+            html = render_to_string('users/components/enhanced_todo_item.html', {
+                'todo_items': paginated_todos,
+                'user': request.user,
+                'request': request
+            })
+            
+            return JsonResponse({
+                'html': html,
+                'has_more': has_more,
+                'total_count': len(todo_items)
+            })
         
         # For initial page load, show first 5 items
         initial_todos = todo_items[:5]
@@ -6340,29 +6341,6 @@ def admin_dashboard(request):
     # Sort by date (earliest first) for admin dashboard
     recent_activities.sort(key=lambda x: x['sort_date'])
     
-    # Handle AJAX request for loading more activities
-    if request.headers.get('X-Requested-With') == 'XMLHttpRequest' and 'load_more_todos' in request.GET:
-        start = int(request.GET.get('start', 0))
-        limit = int(request.GET.get('limit', 5))
-        
-        paginated_activities = recent_activities[start:start + limit]
-        has_more = len(recent_activities) > start + limit
-        
-        from django.http import JsonResponse
-        from django.template.loader import render_to_string
-        
-        # Render the activities as HTML
-        html = render_to_string('users/components/admin_activity_item.html', {
-            'recent_activities': paginated_activities,
-            'request': request
-        })
-        
-        return JsonResponse({
-            'html': html,
-            'has_more': has_more,
-            'total_count': len(recent_activities)
-        })
-    
     # Handle AJAX request for activity timeframe changes
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest' and 'timeframe' in request.GET:
         timeframe = request.GET.get('timeframe', 'month')
@@ -6409,6 +6387,30 @@ def admin_dashboard(request):
             todo_item['enrollment_count'] = todo.get('metadata', {}).get('enrollment_count', 0)
             
         todo_items.append(todo_item)
+    
+    # Handle AJAX request for loading more todo items
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest' and 'load_more_todos' in request.GET:
+        start = int(request.GET.get('start', 0))
+        limit = int(request.GET.get('limit', 5))
+        
+        paginated_todos = todo_items[start:start + limit]
+        has_more = len(todo_items) > start + limit
+        
+        from django.http import JsonResponse
+        from django.template.loader import render_to_string
+        
+        # Render the todo items as HTML using enhanced template
+        html = render_to_string('users/components/enhanced_todo_item.html', {
+            'todo_items': paginated_todos,
+            'user': request.user,
+            'request': request
+        })
+        
+        return JsonResponse({
+            'html': html,
+            'has_more': has_more,
+            'total_count': len(todo_items)
+        })
     
     # For initial page load, show first 5 items
     initial_todos = todo_items[:5]
@@ -6981,29 +6983,6 @@ def instructor_dashboard(request):
     # Sort by date (earliest first) for instructor dashboard
     recent_activities.sort(key=lambda x: x['sort_date'])
     
-    # Handle AJAX request for loading more activities
-    if request.headers.get('X-Requested-With') == 'XMLHttpRequest' and 'load_more_todos' in request.GET:
-        start = int(request.GET.get('start', 0))
-        limit = int(request.GET.get('limit', 5))
-        
-        paginated_activities = recent_activities[start:start + limit]
-        has_more = len(recent_activities) > start + limit
-        
-        from django.http import JsonResponse
-        from django.template.loader import render_to_string
-        
-        # Render the activities as HTML
-        html = render_to_string('users/components/instructor_activity_item.html', {
-            'recent_activities': paginated_activities,
-            'request': request
-        })
-        
-        return JsonResponse({
-            'html': html,
-            'has_more': has_more,
-            'total_count': len(recent_activities)
-        })
-    
     # Handle AJAX request for activity timeframe changes  
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest' and 'timeframe' in request.GET:
         timeframe = request.GET.get('timeframe', 'month')
@@ -7048,6 +7027,30 @@ def instructor_dashboard(request):
             todo_item['assignment_points'] = todo.get('metadata', {}).get('points')
             
         todo_items.append(todo_item)
+    
+    # Handle AJAX request for loading more todo items
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest' and 'load_more_todos' in request.GET:
+        start = int(request.GET.get('start', 0))
+        limit = int(request.GET.get('limit', 5))
+        
+        paginated_todos = todo_items[start:start + limit]
+        has_more = len(todo_items) > start + limit
+        
+        from django.http import JsonResponse
+        from django.template.loader import render_to_string
+        
+        # Render the todo items as HTML using enhanced template
+        html = render_to_string('users/components/enhanced_todo_item.html', {
+            'todo_items': paginated_todos,
+            'user': request.user,
+            'request': request
+        })
+        
+        return JsonResponse({
+            'html': html,
+            'has_more': has_more,
+            'total_count': len(todo_items)
+        })
     
     # For initial page load, show first 5 items
     initial_todos = todo_items[:5]
@@ -7408,9 +7411,10 @@ def learner_dashboard(request):
         from django.http import JsonResponse
         from django.template.loader import render_to_string
         
-        # Render the todo items as HTML
-        html = render_to_string('users/components/todo_item.html', {
+        # Render the todo items as HTML using enhanced template
+        html = render_to_string('users/components/enhanced_todo_item.html', {
             'todo_items': paginated_todos,
+            'user': request.user,
             'request': request
         })
         

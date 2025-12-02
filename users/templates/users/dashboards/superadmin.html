@@ -233,4 +233,96 @@
 {{ block.super }}
 
 <!-- Chart functionality handled by global unified chart system -->
+<script>
+let currentTodoStart = {{ todo_items|length }};
+
+// Load more todos functionality
+function loadMoreTodos() {
+    const loadButton = document.getElementById('load-more-todos');
+    const todoList = document.getElementById('todo-list');
+    
+    if (!loadButton || !todoList) return;
+    
+    // Show loading state
+    const originalText = loadButton.innerHTML;
+    loadButton.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Loading...';
+    loadButton.disabled = true;
+    
+    // Make AJAX request
+    fetch(`${window.location.pathname}?load_more_todos=1&start=${currentTodoStart}&limit=5`, {
+        method: 'GET',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'Cache-Control': 'no-cache'
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.html) {
+            // Append new items to the todo list
+            todoList.insertAdjacentHTML('beforeend', data.html);
+            
+            // Update the start position for next load
+            currentTodoStart += 5;
+            
+            // Update task count
+            const countElement = document.getElementById('todo-count');
+            if (countElement) {
+                const currentCount = todoList.querySelectorAll('.todo-item').length;
+                countElement.textContent = `${data.total_count} active tasks`;
+            }
+            
+            // Hide load more button if no more items
+            if (!data.has_more) {
+                const loadMoreContainer = document.getElementById('load-more-container');
+                if (loadMoreContainer) {
+                    loadMoreContainer.style.display = 'none';
+                }
+            }
+        }
+        
+        // Restore button state
+        loadButton.innerHTML = originalText;
+        loadButton.disabled = false;
+    })
+    .catch(error => {
+        console.error('Error loading more todos:', error);
+        
+        // Restore button state on error
+        loadButton.innerHTML = originalText;
+        loadButton.disabled = false;
+        
+        // Show error message
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'alert alert-danger text-center mt-2';
+        errorDiv.style.fontSize = '12px';
+        errorDiv.innerHTML = '<i class="fas fa-exclamation-triangle mr-1"></i>Failed to load more tasks. Please try again.';
+        
+        const loadMoreContainer = document.getElementById('load-more-container');
+        if (loadMoreContainer) {
+            loadMoreContainer.appendChild(errorDiv);
+            
+            // Remove error message after 3 seconds
+            setTimeout(() => {
+                if (errorDiv.parentNode) {
+                    errorDiv.parentNode.removeChild(errorDiv);
+                }
+            }, 3000);
+        }
+    });
+}
+
+// Attach event listener when DOM is ready
+document.addEventListener('DOMContentLoaded', function() {
+    const loadMoreButton = document.getElementById('load-more-todos');
+    if (loadMoreButton) {
+        loadMoreButton.addEventListener('click', loadMoreTodos);
+    }
+});
+</script>
 {% endblock %}

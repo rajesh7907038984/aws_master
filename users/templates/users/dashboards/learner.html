@@ -54,7 +54,7 @@ function loadMoreTodos() {
             // Update task count
             const countElement = document.getElementById('todo-count');
             if (countElement) {
-                const currentCount = todoList.querySelectorAll('.dashboard-activity-item').length;
+                const currentCount = todoList.querySelectorAll('.todo-item').length;
                 const pluralText = currentCount === 1 ? 'active task' : 'active tasks';
                 countElement.textContent = `${data.total_count} ${pluralText} (showing ${currentCount})`;
             }

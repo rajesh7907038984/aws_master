@@ -628,8 +628,26 @@ def user_reports_list(request):
     # Get users based on role permissions
     if request.user.role in ['globaladmin', 'superadmin']:
         users = CustomUser.objects.filter(is_active=True).exclude(role__in=['globaladmin'])
-    elif request.user.role in ['admin', 'instructor']:
-        # Allow admins and instructors to see users in their branch
+    elif request.user.role == 'instructor':
+        # Instructors see only learner role users enrolled in courses they have access to
+        from courses.models import Course
+        
+        # Get all courses the instructor has access to
+        instructor_courses = Course.objects.filter(
+            Q(instructor=request.user) |  # Primary instructor
+            Q(enrolled_users=request.user) |  # Enrolled as instructor
+            Q(accessible_groups__memberships__user=request.user,
+              accessible_groups__memberships__is_active=True)  # Group access
+        ).distinct()
+        
+        # Get only learner role users enrolled in these courses
+        users = CustomUser.objects.filter(
+            courseenrollment__course__in=instructor_courses,
+            is_active=True,
+            role='learner'  # Only learner role users
+        ).distinct()
+    elif request.user.role == 'admin':
+        # Allow admins to see users in their branch
         if request.user.branch:
             users = CustomUser.objects.filter(branch=request.user.branch, is_active=True).exclude(role__in=['globaladmin', 'superadmin'])
         else:
@@ -638,10 +656,22 @@ def user_reports_list(request):
     else:
         users = CustomUser.objects.none()
     
+    # For instructors, we need to filter enrollments by their accessible courses
+    enrollment_course_filter = Q()
+    if request.user.role == 'instructor':
+        # Get instructor's courses for filtering enrollment stats
+        instructor_courses = Course.objects.filter(
+            Q(instructor=request.user) |
+            Q(enrolled_users=request.user) |
+            Q(accessible_groups__memberships__user=request.user,
+              accessible_groups__memberships__is_active=True)
+        ).distinct()
+        enrollment_course_filter = Q(courseenrollment__course__in=instructor_courses)
+    
     # Annotate users with required statistics that templates expect
     users = users.annotate(
-        assigned_count=Count('courseenrollment', distinct=True),
-        completed_count=Count('courseenrollment', filter=Q(courseenrollment__completed=True), distinct=True),
+        assigned_count=Count('courseenrollment', filter=enrollment_course_filter if request.user.role == 'instructor' else Q(), distinct=True),
+        completed_count=Count('courseenrollment', filter=Q(courseenrollment__completed=True) & (enrollment_course_filter if request.user.role == 'instructor' else Q()), distinct=True),
         initial_assessment_count=Count('module_quiz_attempts', filter=Q(
             module_quiz_attempts__quiz__is_initial_assessment=True, 
             module_quiz_attempts__is_completed=True
@@ -658,9 +688,14 @@ def user_reports_list(request):
         total_assigned = sum(user.assigned_count for user in users_list)
         total_completed = sum(user.completed_count for user in users_list)
         
+        # Build base enrollment filter
+        enrollment_filter_base = Q(user__in=[user.id for user in users_list])
+        if request.user.role == 'instructor':
+            enrollment_filter_base &= Q(course__in=instructor_courses)
+        
         # Calculate in-progress courses (enrolled, not completed, has been accessed)
         courses_in_progress = CourseEnrollment.objects.filter(
-            user__in=[user.id for user in users_list],
+            enrollment_filter_base,
             completed=False,
             last_accessed__isnull=False
         ).count()
@@ -668,14 +703,14 @@ def user_reports_list(request):
         # Calculate not passed courses (enrolled, not completed, has been accessed)
         # Note: CourseEnrollment doesn't have score field, so we count incomplete accessed courses
         courses_not_passed = CourseEnrollment.objects.filter(
-            user__in=[user.id for user in users_list],
+            enrollment_filter_base,
             completed=False,
             last_accessed__isnull=False
         ).count()
         
         # Calculate not started courses (enrolled but never accessed)
         courses_not_started = CourseEnrollment.objects.filter(
-            user__in=[user.id for user in users_list],
+            enrollment_filter_base,
             last_accessed__isnull=True
         ).count()
         
@@ -697,8 +732,8 @@ def user_reports_list(request):
         
         # Re-create queryset for pagination
         users = users.annotate(
-            assigned_count=Count('courseenrollment', distinct=True),
-            completed_count=Count('courseenrollment', filter=Q(courseenrollment__completed=True), distinct=True),
+            assigned_count=Count('courseenrollment', filter=enrollment_course_filter if request.user.role == 'instructor' else Q(), distinct=True),
+            completed_count=Count('courseenrollment', filter=Q(courseenrollment__completed=True) & (enrollment_course_filter if request.user.role == 'instructor' else Q()), distinct=True),
             initial_assessment_count=Count('module_quiz_attempts', filter=Q(
                 module_quiz_attempts__quiz__is_initial_assessment=True, 
                 module_quiz_attempts__is_completed=True
@@ -799,21 +834,25 @@ class LearningActivitiesView(LoginRequiredMixin, TemplateView):
                 activities = Topic.objects.none()
                 progress_base_query = TopicProgress.objects.none()
         elif user.role == 'instructor':
-            # Instructor can see topics from courses they teach or from their branch
-            if user.branch:
-                activities = Topic.objects.filter(
-                    Q(coursetopic__course__instructor=user) |
-                    Q(coursetopic__course__branch=user.branch)
-                ).distinct()
-                progress_base_query = TopicProgress.objects.filter(
-                    Q(topic__coursetopic__course__instructor=user) |
-                    Q(topic__coursetopic__course__branch=user.branch)
-                ).distinct()
-            else:
-                activities = Topic.objects.filter(coursetopic__course__instructor=user).distinct()
-                progress_base_query = TopicProgress.objects.filter(
-                    topic__coursetopic__course__instructor=user
-                ).distinct()
+            # Instructor can only see topics from courses they have access to
+            # This includes: courses they are primary instructor for, enrolled in, or have group access to
+            from courses.models import Course
+            
+            # Get courses the instructor has access to
+            accessible_courses = Course.objects.filter(
+                Q(instructor=user) |  # Primary instructor
+                Q(enrolled_users=user) |  # Enrolled as instructor (invited)
+                Q(accessible_groups__memberships__user=user,
+                  accessible_groups__memberships__is_active=True)  # Group access
+            ).distinct()
+            
+            # Filter topics and progress to only those accessible courses
+            activities = Topic.objects.filter(
+                coursetopic__course__in=accessible_courses
+            ).distinct()
+            progress_base_query = TopicProgress.objects.filter(
+                topic__coursetopic__course__in=accessible_courses
+            ).distinct()
         else:
             # Other roles have no access
             activities = Topic.objects.none()
@@ -1671,6 +1710,20 @@ def training_matrix(request):
     # Apply business filtering for Super Admin users
     if request.user.role == 'superadmin':
         courses_queryset = filter_queryset_by_business(courses_queryset, request.user, 'branch__business')
+    elif request.user.role == 'instructor':
+        # For instructors, show only courses they have access to
+        # 1. Courses where they are the primary instructor
+        primary_instructor_courses = Q(instructor=request.user)
+        # 2. Courses where they are enrolled (invited instructor)
+        enrolled_instructor_courses = Q(enrolled_users=request.user)
+        # 3. Courses accessible through group membership
+        group_instructor_courses = Q(accessible_groups__memberships__user=request.user,
+                                    accessible_groups__memberships__is_active=True)
+        
+        # Filter courses to only those the instructor has access to
+        courses_queryset = courses_queryset.filter(
+            primary_instructor_courses | enrolled_instructor_courses | group_instructor_courses
+        ).distinct()
     elif request.user.role not in ['globaladmin'] and not request.user.is_superuser and request.user.branch:
         # For branch-level users, only show courses with enrollments from their branch
         courses_queryset = courses_queryset.filter(
@@ -1715,6 +1768,17 @@ def training_matrix(request):
     
     # Get course IDs for not_enrolled filter
     course_ids = list(courses_queryset.values_list('id', flat=True))
+    
+    # For instructors, filter learners to show only those enrolled in their accessible courses
+    if request.user.role == 'instructor':
+        # Get learner IDs who are enrolled in instructor's accessible courses
+        learner_ids_in_instructor_courses = CourseEnrollment.objects.filter(
+            course_id__in=course_ids,
+            user__role='learner'
+        ).values_list('user_id', flat=True).distinct()
+        
+        # Filter user_list to only include these learners
+        user_list = [user for user in user_list if user.id in learner_ids_in_instructor_courses]
     
     # Apply focus filter to users
     filtered_users = []
@@ -1912,7 +1976,25 @@ def export_user_reports_to_excel(request):
             # Get users based on role permissions
             if request.user.role in ['globaladmin', 'superadmin']:
                 users = CustomUser.objects.filter(is_active=True).exclude(role__in=['globaladmin'])
-            elif request.user.role in ['admin', 'instructor']:
+            elif request.user.role == 'instructor':
+                # Instructors see only learner role users enrolled in courses they have access to
+                from courses.models import Course
+                
+                # Get all courses the instructor has access to
+                instructor_courses = Course.objects.filter(
+                    Q(instructor=request.user) |  # Primary instructor
+                    Q(enrolled_users=request.user) |  # Enrolled as instructor
+                    Q(accessible_groups__memberships__user=request.user,
+                      accessible_groups__memberships__is_active=True)  # Group access
+                ).distinct()
+                
+                # Get only learner role users enrolled in these courses
+                users = CustomUser.objects.filter(
+                    courseenrollment__course__in=instructor_courses,
+                    is_active=True,
+                    role='learner'  # Only learner role users
+                ).distinct()
+            elif request.user.role == 'admin':
                 if request.user.branch:
                     users = CustomUser.objects.filter(branch=request.user.branch, is_active=True).exclude(role__in=['globaladmin', 'superadmin'])
                 else:
@@ -2222,6 +2304,38 @@ def subgroup_report(request):
         total_courses=Count('accessible_courses', distinct=True)
     ).prefetch_related('accessible_courses', 'memberships__user')
 
+    # Apply role-based filtering for instructors
+    if request.user.role == 'instructor':
+        # Filter to only show groups where:
+        # 1. Instructor is a member of the group, OR
+        # 2. Instructor has access to courses in the group (via group membership or being the course instructor)
+        instructor_group_ids = request.user.group_memberships.filter(
+            is_active=True
+        ).values_list('group_id', flat=True)
+        
+        # Get courses the instructor has access to
+        instructor_course_ids = Course.objects.filter(
+            Q(instructor=request.user) |  # Primary instructor
+            Q(enrolled_users=request.user, enrolled_users__role='instructor') |  # Enrolled as instructor
+            Q(accessible_groups__memberships__user=request.user,
+              accessible_groups__memberships__is_active=True,
+              accessible_groups__memberships__user__role='instructor')  # Group access as instructor
+        ).values_list('id', flat=True).distinct()
+        
+        # Filter subgroups to only those the instructor has access to
+        subgroups = subgroups.filter(
+            Q(id__in=instructor_group_ids) |  # Direct group membership
+            Q(accessible_courses__id__in=instructor_course_ids)  # Has access to courses in the group
+        ).distinct()
+    elif request.user.role == 'admin':
+        # Admins see groups in their branch
+        subgroups = subgroups.filter(branch=request.user.branch)
+    elif request.user.role == 'superadmin':
+        # Super admins see groups in their business
+        from core.utils.business_filtering import filter_queryset_by_business
+        subgroups = filter_queryset_by_business(subgroups, request.user, 'branch__business')
+    # Global admins and superusers see all groups (no additional filtering needed)
+
     # Apply search filter if provided
     if search_query:
         subgroups = subgroups.filter(name__icontains=search_query)
@@ -2229,12 +2343,33 @@ def subgroup_report(request):
     # Order the queryset to avoid pagination warnings
     subgroups = subgroups.order_by('name')
 
-    # Calculate overall statistics with proper branch filtering
-    enrollments = CourseEnrollment.objects.all()
-    enrollments = apply_role_based_filtering(request.user, enrollments, request=request)
-    
-    # Filter enrollments to only include learner users
-    enrollments = enrollments.filter(user__role='learner')
+    # Get accessible courses for statistics calculation based on user role
+    if request.user.role == 'instructor':
+        # For instructors, only include courses they have access to
+        accessible_course_ids = Course.objects.filter(
+            Q(instructor=request.user) |  # Primary instructor
+            Q(enrolled_users=request.user, enrolled_users__role='instructor') |  # Enrolled as instructor
+            Q(accessible_groups__memberships__user=request.user,
+              accessible_groups__memberships__is_active=True,
+              accessible_groups__memberships__user__role='instructor')  # Group access as instructor
+        ).values_list('id', flat=True).distinct()
+        
+        # Get learner users from groups the instructor has access to
+        accessible_user_ids = subgroups.values_list('memberships__user_id', flat=True).distinct()
+        
+        # Filter enrollments to only courses and users the instructor has access to
+        enrollments = CourseEnrollment.objects.filter(
+            course_id__in=accessible_course_ids,
+            user_id__in=accessible_user_ids,
+            user__role='learner'
+        )
+    else:
+        # For other roles, use normal role-based filtering
+        enrollments = CourseEnrollment.objects.all()
+        enrollments = apply_role_based_filtering(request.user, enrollments, request=request)
+        
+        # Filter enrollments to only include learner users
+        enrollments = enrollments.filter(user__role='learner')
     
     total_enrollments = enrollments.count()
     completed_courses = enrollments.filter(completed=True).count()
@@ -2254,12 +2389,21 @@ def subgroup_report(request):
     # Calculate completion rate
     completion_rate = calculate_progress_percentage(completed_courses, total_enrollments)
 
-    # Calculate total training time with proper branch filtering
-    topic_progress = TopicProgress.objects.all()
-    topic_progress = apply_role_based_filtering(request.user, topic_progress, request=request)
-    
-    # Filter topic progress to only include learner users
-    topic_progress = topic_progress.filter(user__role='learner')
+    # Calculate total training time based on accessible courses
+    if request.user.role == 'instructor':
+        # For instructors, only include time from their accessible courses
+        topic_progress = TopicProgress.objects.filter(
+            user_id__in=accessible_user_ids,
+            user__role='learner',
+            topic__courses__id__in=accessible_course_ids
+        ).distinct()
+    else:
+        # For other roles, use normal role-based filtering
+        topic_progress = TopicProgress.objects.all()
+        topic_progress = apply_role_based_filtering(request.user, topic_progress, request=request)
+        
+        # Filter topic progress to only include learner users
+        topic_progress = topic_progress.filter(user__role='learner')
     
     total_time = topic_progress.aggregate(
         total=Sum('total_time_spent', default=0)
@@ -2335,9 +2479,39 @@ def subgroup_detail(request, subgroup_id):
     subgroup = get_object_or_404(BranchGroup, id=subgroup_id)
     
     # Apply role-based access control
-    if request.user.role not in ['globaladmin', 'superadmin'] and not request.user.is_superuser:
+    if request.user.role == 'instructor':
+        # Check if instructor has access to this subgroup
+        has_group_membership = request.user.group_memberships.filter(
+            group=subgroup,
+            is_active=True
+        ).exists()
+        
+        # Check if instructor has access to any courses in this group
+        instructor_course_ids = Course.objects.filter(
+            Q(instructor=request.user) |  # Primary instructor
+            Q(enrolled_users=request.user, enrolled_users__role='instructor') |  # Enrolled as instructor
+            Q(accessible_groups__memberships__user=request.user,
+              accessible_groups__memberships__is_active=True,
+              accessible_groups__memberships__user__role='instructor')  # Group access as instructor
+        ).values_list('id', flat=True).distinct()
+        
+        has_course_access = subgroup.accessible_courses.filter(
+            id__in=instructor_course_ids
+        ).exists()
+        
+        if not has_group_membership and not has_course_access:
+            return HttpResponseForbidden("You don't have permission to view this subgroup.")
+    elif request.user.role == 'admin':
         if request.user.branch != subgroup.branch:
             return HttpResponseForbidden("You don't have permission to view this subgroup.")
+    elif request.user.role == 'superadmin':
+        # Check if subgroup belongs to superadmin's business
+        if not request.user.business_assignments.filter(
+            business=subgroup.branch.business,
+            is_active=True
+        ).exists():
+            return HttpResponseForbidden("You don't have permission to view this subgroup.")
+    # Global admins and superusers can access all subgroups
     
     # Get tab parameter
     active_tab = request.GET.get('tab', 'overview')
@@ -2693,22 +2867,30 @@ def courses_report(request):
         elif request.user.branch:
             # For other roles (instructor, etc.), use their assigned branch
             if request.user.role == 'instructor':
-                # For instructors, include both branch-based and group-assigned courses
-                branch_courses = Q(courseenrollment__user__branch=request.user.branch)
-                group_courses = Q(accessible_groups__memberships__user=request.user,
-                                accessible_groups__memberships__is_active=True,
-                                accessible_groups__memberships__custom_role__name__icontains='instructor')
-                courses = courses.filter(branch_courses | group_courses).distinct()
-                enrollment_filter = Q(courseenrollment__user__branch=request.user.branch) | Q(courseenrollment__course__accessible_groups__memberships__user=request.user,
-                                                                                             courseenrollment__course__accessible_groups__memberships__is_active=True,
-                                                                                             courseenrollment__course__accessible_groups__memberships__custom_role__name__icontains='instructor')
+                # For instructors, show only courses they have access to (as instructor)
+                # 1. Courses where they are the primary instructor
+                primary_instructor_courses = Q(instructor=request.user)
+                # 2. Courses where they are enrolled (invited instructor)
+                enrolled_instructor_courses = Q(enrolled_users=request.user)
+                # 3. Courses accessible through group membership
+                group_instructor_courses = Q(accessible_groups__memberships__user=request.user,
+                                            accessible_groups__memberships__is_active=True)
+                
+                # Filter courses to only those the instructor has access to
+                courses = courses.filter(primary_instructor_courses | enrolled_instructor_courses | group_instructor_courses).distinct()
+                
+                # Get the course IDs for use in other filters
+                instructor_course_ids = list(courses.values_list('id', flat=True))
+                
+                # For enrollment statistics, only count enrollments from the instructor's accessible courses
+                enrollment_filter = Q(courseenrollment__course_id__in=instructor_course_ids)
             else:
                 courses = courses.filter(courseenrollment__user__branch=request.user.branch).distinct()
                 enrollment_filter = Q(courseenrollment__user__branch=request.user.branch)
     
-    # Handle branch parameter if present
+    # Handle branch parameter if present (not for instructors)
     branch_id = request.GET.get('branch')
-    if branch_id and branch_id != 'all':
+    if branch_id and branch_id != 'all' and request.user.role != 'instructor':
         try:
             branch_id = int(branch_id)
             courses = courses.filter(courseenrollment__user__branch_id=branch_id).distinct()
@@ -2746,6 +2928,9 @@ def courses_report(request):
     elif request.user.role == 'superadmin':
         # Super Admin can only see branches from their assigned businesses
         branches = filter_branches_by_business(request.user)
+    elif request.user.role == 'instructor':
+        # Instructors don't see the branch filter, so return empty queryset
+        branches = Branch.objects.none()
     else:
         # Regular users can only see their own branch
         branches = Branch.objects.filter(id=request.user.branch_id) if request.user.branch else Branch.objects.none()
@@ -2757,14 +2942,18 @@ def courses_report(request):
     if request.user.role == 'superadmin':
         # Filter enrollments by Super Admin's assigned businesses
         enrollments = filter_queryset_by_business(enrollments, request.user, 'user__branch__business')
+    elif request.user.role == 'instructor':
+        # For instructors, only show enrollments from courses they have access to
+        instructor_course_ids = list(courses.values_list('id', flat=True))
+        enrollments = enrollments.filter(course_id__in=instructor_course_ids)
     elif request.user.role not in ['globaladmin'] and not request.user.is_superuser and request.user.branch:
         enrollments = enrollments.filter(user__branch=request.user.branch)
     
     # Filter enrollments to only include learner users
     enrollments = enrollments.filter(user__role='learner')
     
-    # Apply branch parameter to enrollments if present
-    if branch_id and branch_id != 'all':
+    # Apply branch parameter to enrollments if present (not for instructors)
+    if branch_id and branch_id != 'all' and request.user.role != 'instructor':
         try:
             branch_id = int(branch_id)
             enrollments = enrollments.filter(user__branch_id=branch_id)
@@ -2795,11 +2984,15 @@ def courses_report(request):
     if request.user.role == 'superadmin':
         # Filter topic progresses by Super Admin's assigned businesses
         topic_progresses = filter_queryset_by_business(topic_progresses, request.user, 'user__branch__business')
+    elif request.user.role == 'instructor':
+        # For instructors, only show topic progress from courses they have access to
+        instructor_course_ids = list(courses.values_list('id', flat=True))
+        topic_progresses = topic_progresses.filter(course__in=instructor_course_ids)
     elif request.user.role not in ['globaladmin'] and not request.user.is_superuser and request.user.branch:
         topic_progresses = topic_progresses.filter(user__branch=request.user.branch)
     
-    # Apply branch parameter to topic progresses if present
-    if branch_id and branch_id != 'all':
+    # Apply branch parameter to topic progresses if present (not for instructors)
+    if branch_id and branch_id != 'all' and request.user.role != 'instructor':
         try:
             branch_id = int(branch_id)
             topic_progresses = topic_progresses.filter(user__branch_id=branch_id)
