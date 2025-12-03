@@ -3970,8 +3970,9 @@ def topic_edit(request, topic_id, section_id=None):
         new_section_name = form_data.get('new_section_name')
         section_id_from_form = form_data.get('section')
         
-        # Use section_id from URL parameter if available, otherwise use form data
-        target_section_id = section_id if section_id else section_id_from_form
+        # Always use form data for section assignment on POST (user may have changed the selection)
+        # The URL section_id is only for pre-filling the dropdown on GET requests
+        target_section_id = section_id_from_form
         
         if new_section_name and new_section_name.strip():
             # Create new section
@@ -7549,8 +7550,9 @@ def topic_create(request, course_id):
             new_section_name = request.POST.get('new_section_name', '').strip()
             section_id_from_form = request.POST.get('section')
             
-            # Use section from URL parameter if available, otherwise use form data
-            target_section_id = section.id if section else section_id_from_form
+            # Always use form data for section assignment on POST (user may have changed the selection)
+            # The URL section is only for pre-filling the dropdown on GET requests
+            target_section_id = section_id_from_form
             
             # Validate: if "Create New Section" is selected, a name must be provided
             if target_section_id == 'new_section' and not new_section_name:
