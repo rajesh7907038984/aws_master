@@ -7343,44 +7343,116 @@ def learner_dashboard(request):
     # Sort events by day
     calendar_events.sort(key=lambda x: x['day'])
     
-    # Generate todo items using TodoService for enhanced role-based functionality
-    todo_service = TodoService(request.user)
-    all_todo_items = todo_service.get_todos(limit=50)  # Get more items for initial load
-    
-    # Convert TodoService format to existing template format for backward compatibility
+    # Generate todo items using SAME logic as sidebar context processor
+    # This ensures dashboard and sidebar show identical todo data
     todo_items = []
-    for todo in all_todo_items:
-        # Map new format to existing format - PRESERVE metadata structure
-        todo_item = {
-            'id': todo.get('id', ''),
-            'course': todo.get('metadata', {}).get('course_name', ''),
-            'task': todo['title'],
-            'title': todo['title'],
-            'description': todo['description'],
-            'due': todo['due_date'],
-            'due_date': todo['due_date'],
-            'sort_date': todo['sort_date'],
-            'icon': todo['icon'],
-            'type': todo['type'],
-            'priority': todo['priority'],
-            'url': todo['url'],
-            'metadata': todo.get('metadata', {})  # KEEP METADATA for enhanced_todo_item.html
-        }
-        
-        # Add type-specific metadata for backward compatibility (direct access)
-        if todo['type'] == 'assignment':
-            todo_item['assignment_points'] = todo.get('metadata', {}).get('points')
-        elif todo['type'] == 'course':
-            todo_item['course_progress'] = todo.get('metadata', {}).get('progress', 0)
-            
-        todo_items.append(todo_item)
+    tomorrow = today + timedelta(days=1)
+    next_week = today + timedelta(days=7)
     
-    # Prepare data for template - separate tasks by type (using TodoService data)
+    # 1. Get pending assignments (same as sidebar)
+    try:
+        from django.db.models import Q
+        pending_assignments = Assignment.objects.filter(
+            Q(courses__in=enrolled_course_ids) |
+            Q(topics__courses__in=enrolled_course_ids),
+            is_active=True,
+            due_date__gte=now
+        ).exclude(
+            submissions__user=request.user,
+            submissions__status__in=['submitted', 'graded', 'not_graded']
+        ).distinct().order_by('due_date')[:5]
+        
+        for assignment in pending_assignments:
+            due_date_val = assignment.due_date.date() if assignment.due_date else None
+            if due_date_val:
+                if due_date_val == today:
+                    due_text, priority = "Today", 'high'
+                elif due_date_val == tomorrow:
+                    due_text, priority = "Tomorrow", 'high'
+                elif due_date_val <= next_week:
+                    due_text, priority = due_date_val.strftime('%a %b %d'), 'medium'
+                else:
+                    due_text, priority = due_date_val.strftime('%b %d'), 'medium'
+            else:
+                due_text, priority = "No due date", 'low'
+            
+            first_course = assignment.courses.first()
+            course_name = first_course.title if first_course else 'General Assignment'
+            
+            todo_items.append({
+                'id': f'assignment_{assignment.id}',
+                'title': assignment.title,
+                'description': course_name,
+                'due_date': due_text,
+                'due_text': due_text,
+                'sort_date': assignment.due_date,
+                'icon': 'file-alt',
+                'type': 'assignment',
+                'priority': priority,
+                'url': f'/assignments/{assignment.id}/',
+                'metadata': {
+                    'assignment_id': assignment.id,
+                    'course_name': course_name
+                }
+            })
+    except Exception as e:
+        logger.error(f"Error getting pending assignments: {e}")
+    
+    # 2. Get in-progress courses (same as sidebar - using get_progress() > 0)
+    try:
+        incomplete_enrollments = CourseEnrollment.objects.filter(
+            user=request.user,
+            course__in=enrolled_course_ids,
+            completed=False
+        ).select_related('course')
+        
+        # Filter to only those with actual progress (same as sidebar)
+        in_progress_enrollments = []
+        for enrollment in incomplete_enrollments:
+            try:
+                if enrollment.get_progress() > 0:
+                    in_progress_enrollments.append(enrollment)
+            except Exception:
+                continue
+        
+        # Sort by last_accessed and limit to 3 (same as sidebar)
+        in_progress_enrollments = sorted(
+            in_progress_enrollments,
+            key=lambda x: x.last_accessed or (now - timedelta(days=365)),
+            reverse=True
+        )[:3]
+        
+        for enrollment in in_progress_enrollments:
+            progress_percentage = enrollment.progress_percentage
+            
+            todo_items.append({
+                'id': f'course_{enrollment.course.id}',
+                'title': f'Continue: {enrollment.course.title}',
+                'description': f'{progress_percentage}% complete',
+                'due_date': 'In Progress',
+                'due_text': 'In Progress',
+                'sort_date': now + timedelta(days=1),
+                'icon': 'book-open',
+                'type': 'course',
+                'priority': 'low',
+                'url': f'/courses/{enrollment.course.id}/view/',
+                'metadata': {
+                    'course_id': enrollment.course.id,
+                    'progress': progress_percentage,
+                    'course_name': enrollment.course.title
+                }
+            })
+    except Exception as e:
+        logger.error(f"Error getting in-progress courses: {e}")
+    
+    # Sort by priority (same as sidebar)
+    priority_order = {'high': 1, 'medium': 2, 'low': 3}
+    todo_items.sort(key=lambda x: priority_order.get(x['priority'], 4))
     
     # Prepare data for template - separate tasks by type
     course_tasks = [item for item in todo_items if item['type'] == 'course']
     assignment_tasks = [item for item in todo_items if item['type'] == 'assignment']
-    conference_tasks = [item for item in todo_items if item['type'] == 'conference']
+    conference_tasks = []  # Not included in sidebar logic
     
     # For assignment tab - get actual assignment objects
     # Note: Assignment has ManyToMany relationship with Course through 'courses'

@@ -511,18 +511,39 @@ class TodoService:
                 }
             })
         
-        # 5. LOW PRIORITY: In-progress courses
-        in_progress_enrollments = enrolled_courses.filter(
-            completed=False,
-            last_accessed__isnull=False
-        ).order_by('-last_accessed')[:5]
+        # 5. LOW PRIORITY: In-progress courses (match sidebar logic - use progress > 0)
+        incomplete_enrollments = enrolled_courses.filter(
+            completed=False
+        ).select_related('course')
         
-        for enrollment in in_progress_enrollments:
+        # Filter to only those with actual progress (match sidebar context processor logic)
+        in_progress_list = []
+        for enrollment in incomplete_enrollments:
+            try:
+                if enrollment.get_progress() > 0:
+                    in_progress_list.append(enrollment)
+            except Exception:
+                continue
+        
+        # Sort by last_accessed (with null handling) and limit to 5
+        in_progress_list = sorted(
+            in_progress_list,
+            key=lambda x: x.last_accessed or (self.now - timedelta(days=365)),
+            reverse=True
+        )[:5]
+        
+        for enrollment in in_progress_list:
             progress = enrollment.progress_percentage
+            # Handle case where last_accessed might be None
+            if enrollment.last_accessed:
+                description = f'{progress}% complete - Last accessed {enrollment.last_accessed.strftime("%b %d")}'
+            else:
+                description = f'{progress}% complete'
+            
             todos.append({
                 'id': f'course_continue_{enrollment.course.id}',
                 'title': f'Continue: {enrollment.course.title}',
-                'description': f'{progress}% complete - Last accessed {enrollment.last_accessed.strftime("%b %d")}',
+                'description': description,
                 'due_date': 'In Progress',
                 'sort_date': self.now + timedelta(days=1),
                 'type': 'course',
@@ -532,7 +553,8 @@ class TodoService:
                 'metadata': {
                     'course_id': enrollment.course.id,
                     'progress': progress,
-                    'enrollment_id': enrollment.id
+                    'enrollment_id': enrollment.id,
+                    'course_name': enrollment.course.title
                 }
             })
         
