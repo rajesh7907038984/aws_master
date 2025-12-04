@@ -30,8 +30,1469 @@ import hashlib
 from django.db.models import Max, OuterRef, Subquery, Sum, Case, When, F, Q
 from django.db.models.functions import Coalesce
 from django.shortcuts import redirect
+import traceback
 
 logger = logging.getLogger(__name__)
+
+def pre_calculate_student_scores(students, activities, grades, quiz_attempts, scorm_attempts, conference_evaluations, initial_assessment_attempts=None, course=None):
+    """
+    Pre-calculate all student scores for activities to reduce template computation.
+    Returns a dictionary structure: {student_id: {activity_id: score_data}}
+    
+    For quiz-type activities, this function now uses TopicProgress (same as Learning Activities Report)
+    which provides real-time updates via signals and eliminates cache issues.
+    Falls back to QuizAttempt for legacy data if TopicProgress doesn't exist.
+    """
+    # Initialize score data structure
+    score_data = {}
+    
+    try:
+        # Create lookups for efficient data retrieval
+        grade_lookup = {}
+        for grade in grades:
+            key = (grade.student_id, grade.assignment_id)
+            grade_lookup[key] = grade
+        
+        # Build TopicProgress lookup for quiz-type topics (same logic as Learning Activities Report)
+        from courses.models import Topic, TopicProgress
+        topic_progress_lookup = {}
+        if course:
+            # Get all quiz-type topics for the course
+            quiz_topics = Topic.objects.filter(
+                content_type='Quiz',
+                coursetopic__course=course
+            ).distinct()
+            
+            # Pre-fetch TopicProgress for all students and quiz topics
+            topic_progress_records = TopicProgress.objects.filter(
+                user__in=students,
+                topic__in=quiz_topics,
+                course=course
+            ).select_related('topic', 'topic__quiz')
+            
+            # Create lookup: (user_id, quiz_id) -> TopicProgress
+            for tp in topic_progress_records:
+                if tp.topic.quiz:
+                    key = (tp.user_id, tp.topic.quiz.id)
+                    topic_progress_lookup[key] = tp
+        
+        quiz_attempt_lookup = {}
+        for attempt in quiz_attempts:
+            key = (attempt.user_id, attempt.quiz_id)
+            # Keep only the latest attempt for each student-quiz pair
+            if key not in quiz_attempt_lookup or attempt.end_time > quiz_attempt_lookup[key].end_time:
+                quiz_attempt_lookup[key] = attempt
+        
+        # Add initial assessment attempts to the same lookup
+        if initial_assessment_attempts:
+            for attempt in initial_assessment_attempts:
+                key = (attempt.user_id, attempt.quiz_id)
+                # Keep only the latest attempt for each student-quiz pair
+                if key not in quiz_attempt_lookup or attempt.end_time > quiz_attempt_lookup[key].end_time:
+                    quiz_attempt_lookup[key] = attempt
+        
+        
+        conference_lookup = {}
+        for evaluation in conference_evaluations:
+            key = (evaluation.attendance.user_id, evaluation.conference_id)
+            if key not in conference_lookup:
+                conference_lookup[key] = []
+            conference_lookup[key].append(evaluation)
+        
+        # Calculate scores for each student-activity pair
+        for student in students:
+            try:
+                student_scores = {}
+                
+                for activity in activities:
+                    try:
+                        activity_id = activity['object'].id
+                        activity_type = activity['type']
+                        
+                        if activity_type == 'assignment':
+                            key = (student.id, activity_id)
+                            if key in grade_lookup:
+                                grade = grade_lookup[key]
+                                if grade.excused:
+                                    student_scores[activity_id] = {
+                                        'score': None,
+                                        'max_score': activity['max_score'],
+                                        'excused': True,
+                                        'date': grade.updated_at,
+                                        'type': 'assignment',
+                                        'submission': grade.submission
+                                    }
+                                else:
+                                    # Check if submission is late
+                                    is_late = False
+                                    if grade.submission and activity['object'].due_date and grade.submission.submitted_at:
+                                        is_late = grade.submission.submitted_at > activity['object'].due_date
+                                    
+                                    student_scores[activity_id] = {
+                                        'score': grade.score,
+                                        'max_score': activity['max_score'],
+                                        'date': grade.updated_at,
+                                        'type': 'assignment',
+                                        'submission': grade.submission,
+                                        'is_late': is_late
+                                    }
+                            else:
+                                # Check for submission without grade
+                                try:
+                                    from assignments.models import AssignmentSubmission
+                                    submission = AssignmentSubmission.objects.filter(
+                                        assignment=activity['object'],
+                                        user_id=student.id
+                                    ).first()
+                                    
+                                    if submission:
+                                        is_late = False
+                                        if activity['object'].due_date and submission.submitted_at:
+                                            is_late = submission.submitted_at > activity['object'].due_date
+                                        
+                                        # BUGFIX: Check if submission has been graded
+                                        # If submission.grade is None but submission exists with status submitted/not_graded,
+                                        # we should still show that there's a submission (not "Not Submitted")
+                                        student_scores[activity_id] = {
+                                            'score': submission.grade,  # Can be None if not graded yet
+                                            'max_score': activity['max_score'],
+                                            'date': submission.submitted_at,
+                                            'type': 'assignment',
+                                            'submission': submission,  # This is key - always include submission object
+                                            'is_late': is_late,
+                                            'has_submission': True  # Explicit flag to indicate submission exists
+                                        }
+                                    else:
+                                        student_scores[activity_id] = {
+                                            'score': None,
+                                            'max_score': activity['max_score'],
+                                            'type': 'assignment',
+                                            'has_submission': False  # Explicit flag - no submission
+                                        }
+                                except Exception as e:
+                                    logger.error(f"Error processing assignment submission for student {student.id}, activity {activity_id}: {str(e)}")
+                                    student_scores[activity_id] = {
+                                        'score': None,
+                                        'max_score': activity['max_score'],
+                                        'type': 'assignment',
+                                        'has_submission': False
+                                    }
+                        
+                        elif activity_type == 'quiz':
+                            key = (student.id, activity_id)
+                            quiz = activity['object']
+                            
+                            # NEW LOGIC: Try TopicProgress first (same as Learning Activities Report)
+                            # This provides real-time updates via signals without cache issues
+                            if key in topic_progress_lookup:
+                                topic_progress = topic_progress_lookup[key]
+                                
+                                if topic_progress.last_score is not None:
+                                    final_score = float(topic_progress.last_score)
+                                    max_score = 100  # Quiz scores in TopicProgress are percentages
+                                    
+                                    # Get the associated attempt for additional data
+                                    attempt = quiz_attempt_lookup.get(key)
+                                    
+                                    # Check for rubric evaluation if quiz has rubric
+                                    if quiz.rubric and attempt:
+                                        try:
+                                            from quiz.models import QuizRubricEvaluation
+                                            rubric_evaluations = QuizRubricEvaluation.objects.filter(
+                                                quiz_attempt=attempt
+                                            )
+                                            if rubric_evaluations.exists():
+                                                final_score = sum(evaluation.points for evaluation in rubric_evaluations)
+                                                max_score = quiz.rubric.total_points
+                                        except Exception as e:
+                                            logger.error(f"Error processing quiz rubric evaluation for student {student.id}, quiz {activity_id}: {str(e)}")
+                                            pass
+                                    
+                                    student_scores[activity_id] = {
+                                        'score': final_score,
+                                        'max_score': max_score,
+                                        'date': topic_progress.last_accessed,
+                                        'type': 'quiz',
+                                        'attempt': attempt,
+                                        'source': 'topic_progress'  # Track data source
+                                    }
+                                else:
+                                    # TopicProgress exists but no score
+                                    student_scores[activity_id] = {
+                                        'score': None,
+                                        'max_score': activity['max_score'],
+                                        'type': 'quiz',
+                                        'attempt': None,
+                                        'source': 'topic_progress'
+                                    }
+                            # FALLBACK: Use QuizAttempt for legacy data (old attempts before signal was added)
+                            elif key in quiz_attempt_lookup:
+                                attempt = quiz_attempt_lookup[key]
+                                final_score = attempt.score
+                                max_score = activity['max_score']
+                                
+                                # Check for rubric evaluation
+                                if quiz.rubric:
+                                    try:
+                                        from quiz.models import QuizRubricEvaluation
+                                        rubric_evaluations = QuizRubricEvaluation.objects.filter(
+                                            quiz_attempt=attempt
+                                        )
+                                        if rubric_evaluations.exists():
+                                            final_score = sum(evaluation.points for evaluation in rubric_evaluations)
+                                            max_score = quiz.rubric.total_points
+                                    except Exception as e:
+                                        logger.error(f"Error processing quiz rubric evaluation for student {student.id}, quiz {activity_id}: {str(e)}")
+                                        pass
+                                else:
+                                    # For non-rubric quizzes, attempt.score is a percentage (0-100)
+                                    # Keep as percentage for consistent display
+                                    final_score = attempt.score
+                                    max_score = 100
+                                
+                                student_scores[activity_id] = {
+                                    'score': final_score,
+                                    'max_score': max_score,
+                                    'date': attempt.end_time or attempt.start_time,
+                                    'type': 'quiz',
+                                    'attempt': attempt,
+                                    'source': 'quiz_attempt'  # Track data source for debugging
+                                }
+                            else:
+                                # No TopicProgress and no QuizAttempt - not attempted
+                                student_scores[activity_id] = {
+                                    'score': None,
+                                    'max_score': activity['max_score'],
+                                    'type': 'quiz',
+                                    'attempt': None,
+                                    'source': 'none'
+                                }
+                        
+                        elif activity_type == 'initial_assessment':
+                            key = (student.id, activity_id)
+                            if key in quiz_attempt_lookup:
+                                attempt = quiz_attempt_lookup[key]
+                                # For initial assessments, we show classification rather than just score
+                                assessment_data = attempt.calculate_assessment_classification()
+                                
+                                # For initial assessments, keep as percentage for consistent display
+                                quiz = activity['object']
+                                final_score = attempt.score
+                                max_score = 100
+                                
+                                student_scores[activity_id] = {
+                                    'score': final_score,
+                                    'max_score': max_score,
+                                    'date': attempt.end_time or attempt.start_time,
+                                    'type': 'initial_assessment',
+                                    'attempt': attempt,
+                                    'classification': assessment_data.get('classification', 'N/A') if assessment_data else 'N/A',
+                                    'classification_data': assessment_data,
+                                    'is_informational': True
+                                }
+                            else:
+                                student_scores[activity_id] = {
+                                    'score': None,
+                                    'max_score': activity['max_score'],
+                                    'type': 'initial_assessment',
+                                    'is_informational': True,
+                                    'attempt': None
+                                }
+                        
+                        elif activity_type == 'discussion':
+                            discussion = activity['object']
+                            max_score = discussion.rubric.total_points if discussion.rubric else 0
+                            
+                            # Check for rubric evaluations
+                            if discussion.rubric:
+                                try:
+                                    from lms_rubrics.models import RubricEvaluation
+                                    evaluations = RubricEvaluation.objects.filter(
+                                        discussion=discussion,
+                                        student_id=student.id
+                                    )
+                                    if evaluations.exists():
+                                        total_score = sum(evaluation.points for evaluation in evaluations)
+                                        latest_evaluation = evaluations.order_by('-created_at').first()
+                                        
+                                        student_scores[activity_id] = {
+                                            'score': total_score,
+                                            'max_score': max_score,
+                                            'date': latest_evaluation.created_at,
+                                            'type': 'discussion',
+                                            'evaluations': evaluations
+                                        }
+                                    else:
+                                        student_scores[activity_id] = {
+                                            'score': None,
+                                            'max_score': max_score,
+                                            'type': 'discussion'
+                                        }
+                                except Exception as e:
+                                    logger.error(f"Error processing discussion rubric evaluation for student {student.id}, discussion {activity_id}: {str(e)}")
+                                    student_scores[activity_id] = {
+                                        'score': None,
+                                        'max_score': max_score,
+                                        'type': 'discussion'
+                                    }
+                            else:
+                                student_scores[activity_id] = {
+                                    'score': None,
+                                    'max_score': max_score,
+                                    'type': 'discussion'
+                                }
+                        
+                        elif activity_type == 'conference':
+                            key = (student.id, activity_id)
+                            conference = activity['object']
+                            max_score = conference.rubric.total_points if conference.rubric else 0
+                            
+                            if key in conference_lookup:
+                                evaluations = conference_lookup[key]
+                                total_score = sum(evaluation.points for evaluation in evaluations)
+                                latest_evaluation = max(evaluations, key=lambda e: e.created_at)
+                                
+                                student_scores[activity_id] = {
+                                    'score': total_score,
+                                    'max_score': max_score,
+                                    'date': latest_evaluation.created_at,
+                                    'type': 'conference',
+                                    'evaluations': evaluations
+                                }
+                            else:
+                                student_scores[activity_id] = {
+                                    'score': None,
+                                    'max_score': max_score,
+                                    'type': 'conference'
+                                }
+                        
+                        elif activity_type == 'scorm':
+                            # Handle SCORM activity scores from TopicProgress
+                            from courses.models import TopicProgress
+                            from core.utils.scoring import ScoreCalculationService
+                            
+                            topic = activity['object']
+                            try:
+                                progress = TopicProgress.objects.filter(
+                                    user=student,
+                                    topic=topic
+                                ).first()
+                                
+                                if progress:
+                                    progress_data = progress.progress_data or {}
+                                    scorm_score = progress_data.get('scorm_score', progress.last_score)
+                                    scorm_max_score = progress_data.get('scorm_max_score', activity.get('max_score', 100))
+                                    
+                                    # Check if has meaningful score (quiz-based SCORM)
+                                    has_score = progress.last_score is not None and float(progress.last_score) > 0
+                                    
+                                    if has_score:
+                                        # Quiz-based SCORM - include score
+                                        normalized_score = ScoreCalculationService.normalize_score(scorm_score)
+                                        
+                                        student_scores[activity_id] = {
+                                            'score': float(normalized_score) if normalized_score is not None else float(scorm_score),
+                                            'max_score': float(scorm_max_score) if scorm_max_score else activity.get('max_score', 100),
+                                            'date': progress.completed_at or progress.last_accessed,
+                                            'type': 'scorm',
+                                            'completed': progress.completed,
+                                            'can_resume': False,
+                                            'completion_status': progress_data.get('scorm_completion_status'),
+                                            'success_status': progress_data.get('scorm_success_status')
+                                        }
+                                    elif progress.completed or progress_data.get('scorm_completion_status') in ['completed', 'passed']:
+                                        # Content-only SCORM but completed - show completion without score
+                                        student_scores[activity_id] = {
+                                            'score': None,
+                                            'max_score': None,
+                                            'date': progress.completed_at or progress.last_accessed,
+                                            'type': 'scorm',
+                                            'completed': True,
+                                            'status': 'completed',
+                                            'can_resume': False,
+                                            'completion_status': progress_data.get('scorm_completion_status'),
+                                            'success_status': progress_data.get('scorm_success_status')
+                                        }
+                                    elif progress.last_accessed:
+                                        # In-progress SCORM - show resume option
+                                        bookmark = progress.bookmark or {}
+                                        has_resume_data = bool(bookmark.get('lesson_location') or bookmark.get('suspend_data'))
+                                        
+                                        student_scores[activity_id] = {
+                                            'score': None,
+                                            'max_score': None,
+                                            'date': progress.last_accessed,
+                                            'type': 'scorm',
+                                            'completed': False,
+                                            'status': 'in_progress',
+                                            'can_resume': has_resume_data,
+                                            'completion_status': progress_data.get('scorm_completion_status'),
+                                            'success_status': progress_data.get('scorm_success_status')
+                                        }
+                                    # else: not started - don't add to student_scores
+                                else:
+                                    # Determine if learner has an in-progress attempt that can be resumed
+                                    can_resume = False
+                                    fallback_completion_status = None
+                                    fallback_success_status = None
+                                    if progress:
+                                        bookmark = progress.bookmark or {}
+                                        has_location = bool(bookmark.get('lesson_location'))
+                                        has_suspend = bool(bookmark.get('suspend_data'))
+                                        # Consider incomplete status as resumable as well
+                                        fallback_progress_data = progress.progress_data or {}
+                                        fallback_completion_status = fallback_progress_data.get('scorm_completion_status')
+                                        fallback_success_status = fallback_progress_data.get('scorm_success_status')
+                                        completion_status = (fallback_completion_status or '').lower()
+                                        is_incomplete = completion_status in ['incomplete', 'unknown', 'not attempted'] and (has_location or has_suspend)
+                                        can_resume = has_location or has_suspend or is_incomplete
+                                    
+                                    student_scores[activity_id] = {
+                                        'score': None,
+                                        'max_score': activity.get('max_score', 100),
+                                        'type': 'scorm',
+                                        'can_resume': can_resume,
+                                        'completion_status': fallback_completion_status,
+                                        'success_status': fallback_success_status
+                                    }
+                            except Exception as e:
+                                logger.error(f"Error processing SCORM activity {activity_id} for student {student.id}: {str(e)}")
+                                student_scores[activity_id] = {
+                                    'score': None,
+                                    'max_score': activity.get('max_score', 100),
+                                    'type': 'scorm',
+                                    'can_resume': False,
+                                    'completion_status': None,
+                                    'success_status': None
+                                }
+                        
+                    
+                    except Exception as e:
+                        logger.error(f"Error processing activity {activity_id} for student {student.id}: {str(e)}")
+                        # Add a fallback score entry
+                        student_scores[activity_id] = {
+                            'score': None,
+                            'max_score': activity.get('max_score', 0),
+                            'type': activity.get('type', 'unknown')
+                        }
+                
+                score_data[student.id] = student_scores
+            
+            except Exception as e:
+                logger.error(f"Error processing student {student.id}: {str(e)}")
+                # Initialize empty score data for this student
+                score_data[student.id] = {}
+    
+    except Exception as e:
+        logger.error(f"Error in pre_calculate_student_scores: {str(e)}")
+        # Return empty score data as fallback
+        score_data = {}
+    
+    return score_data
+
+def prepare_activity_display_data(activities, user_role):
+    """
+    Prepare activity data with pre-calculated display conditions for better template performance.
+    """
+    display_activities = []
+    
+    for activity in activities:
+        activity_data = {
+            'object': activity['object'],
+            'type': activity['type'],
+            'created_at': activity['created_at'],
+            'title': activity['title'],
+            'max_score': activity['max_score'],
+            'activity_number': activity['activity_number'],
+            'activity_name': activity['activity_name'],
+            
+            # Pre-calculate display conditions
+            'is_active': getattr(activity['object'], 'is_active', True),
+            'is_published': getattr(activity['object'], 'status', 'active') == 'published',
+            'has_max_score': activity['max_score'] > 0,
+            'show_grade_buttons': user_role != 'learner',
+            'truncated_title': activity['title'][:15] + '...' if len(activity['title']) > 15 else activity['title'],
+            
+            # Activity type specific data
+            'type_label': {
+                'assignment': 'ASG',
+                'quiz': 'QUZ',
+                'initial_assessment': 'IA',
+                'discussion': 'DSC',
+                'conference': 'CNF',
+                'scorm': 'SCORM'
+            }.get(activity['type'], 'UNK'),
+            
+            'type_class': f"activity-type-{activity['type']}",
+        }
+        
+        # Add specific conditions for each type
+        if activity['type'] == 'quiz':
+            activity_data['is_inactive'] = not getattr(activity['object'], 'is_active', True)
+            activity_data['passing_score'] = getattr(activity['object'], 'passing_score', 70)
+        
+        elif activity['type'] == 'initial_assessment':
+            activity_data['is_inactive'] = not getattr(activity['object'], 'is_active', True)
+            activity_data['is_informational'] = True  # Initial assessments are informational
+            
+        elif activity['type'] == 'discussion':
+            activity_data['is_participation'] = activity['max_score'] == 0
+            
+        elif activity['type'] == 'conference':
+            activity_data['is_attendance'] = activity['max_score'] == 0
+            
+        display_activities.append(activity_data)
+    
+    return display_activities
+
+def calculate_score_display_class(score, max_score):
+    """
+    Calculate the CSS class for score display based on percentage.
+    """
+    if not score or not max_score or max_score == 0:
+        return 'grade-none'
+    
+    # Convert to float to handle decimal.Decimal and float type mixing with error handling
+    try:
+        percentage = round((float(score) / float(max_score)) * 100)
+    except (ValueError, TypeError, ZeroDivisionError):
+        return 'grade-none'
+    
+    if percentage >= 90:
+        return 'grade-excellent'
+    elif percentage >= 80:
+        return 'grade-good'
+    elif percentage >= 70:
+        return 'grade-average'
+    else:
+        return 'grade-poor'
+
+def enhance_student_scores_with_display_data(student_scores, activities):
+    """
+    Enhance student scores with pre-calculated display data.
+    """
+    enhanced_scores = {}
+    
+    for student_id, scores in student_scores.items():
+        enhanced_student_scores = {}
+        
+        for activity_id, score_data in scores.items():
+            enhanced_score = score_data.copy()
+            
+            # Add display class
+            enhanced_score['display_class'] = calculate_score_display_class(
+                score_data.get('score'), 
+                score_data.get('max_score')
+            )
+            
+            # Add formatted score display
+            if score_data.get('score') is not None:
+                enhanced_score['formatted_score'] = f"{score_data['score']:.1f}/{score_data['max_score']:.1f}"
+            else:
+                enhanced_score['formatted_score'] = "Not graded"
+            
+            # Add date formatting
+            if score_data.get('date'):
+                enhanced_score['formatted_date'] = score_data['date'].strftime('%b %d, %Y')
+            
+            enhanced_student_scores[activity_id] = enhanced_score
+        
+        enhanced_scores[student_id] = enhanced_student_scores
+    
+    return enhanced_scores
+
+# Create your views here.
+@login_required
+@never_cache
+def gradebook_index(request):
+    """
+    Display the gradebook with activity-wise filtering.
+    Show activities from all courses grouped by type, with filters for each activity type.
+    """
+    user = request.user
+    User = get_user_model()
+    
+    # Get filters and search from request
+    activity_filter = request.GET.get('activity_type', 'all')
+    course_filter = request.GET.get('course', 'all')
+    status_filter = request.GET.get('status', 'all')
+    search_query = request.GET.get('search', '').strip()
+    
+    # Get courses based on user role with proper branch filtering
+    if user.role == 'learner':
+        # Show student's enrolled courses
+        enrolled_courses_ids = CourseEnrollment.objects.filter(
+            user=user,
+            course__is_active=True  # Only active courses
+        ).values_list('course_id', flat=True)
+        
+        all_courses = Course.objects.filter(id__in=enrolled_courses_ids).order_by('title')
+        
+    elif user.role == 'instructor':
+        # Show only enrolled courses (same rule as learner)
+        enrolled_courses_ids = CourseEnrollment.objects.filter(
+            user=user,
+            course__is_active=True  # Only active courses
+        ).values_list('course_id', flat=True)
+        
+        all_courses = Course.objects.filter(id__in=enrolled_courses_ids).order_by('title')
+        
+    elif user.role == 'admin':
+        # Branch admin can only see courses from their effective branch (supports branch switching)
+        from core.branch_filters import BranchFilterManager
+        effective_branch = BranchFilterManager.get_effective_branch(user, request)
+        if effective_branch:
+            all_courses = Course.objects.filter(
+                is_active=True,
+                branch=effective_branch
+            ).order_by('title')
+        else:
+            all_courses = Course.objects.none()
+        
+    elif user.role == 'globaladmin' or user.is_superuser:
+        # Global Admin: Show all active courses
+        all_courses = Course.objects.filter(is_active=True).order_by('title')
+    elif user.role == 'superadmin':
+        # Super Admin: Show courses within their assigned businesses only
+        from core.utils.business_filtering import filter_courses_by_business
+        all_courses = filter_courses_by_business(user).filter(is_active=True).order_by('title')
+        
+    else:
+        all_courses = Course.objects.none()
+
+    # Apply course filter if specified
+    if course_filter != 'all':
+        try:
+            selected_course_id = int(course_filter)
+            courses = all_courses.filter(id=selected_course_id)
+        except (ValueError, TypeError):
+            courses = all_courses
+    else:
+        courses = all_courses
+    
+    # Create a set of accessible course IDs for fast lookup
+    accessible_course_ids = set(all_courses.values_list('id', flat=True))
+    
+    # Get all activities from the accessible courses, organized by type
+    activities_data = []
+    
+    if courses.exists():
+        # Get assignments with course associations only - optimized with prefetch_related
+        assignments = Assignment.objects.filter(
+            Q(courses__in=courses) |  # M2M course relationship
+            Q(topics__courses__in=courses)  # Topic-based course relationship
+        ).filter(
+            is_active=True  # Only active assignments
+        ).filter(
+            # Either have active topics OR have no topics at all (direct course assignments)
+            Q(topics__status='active') |  # Has active topics
+            Q(topics__isnull=True)  # Has no topics (direct course assignment)
+        ).distinct().prefetch_related(
+            'courses', 
+            'topics__courses',
+            'attachments'
+        ).order_by('created_at')
+
+        # Get regular quizzes (exclude only VAK tests, include initial assessments) - optimized
+        # Build the query to include:
+        # 1. Regular quizzes linked to courses
+        # 2. Branch-wide Initial Assessments (even if not directly linked to courses)
+        
+        # Regular quizzes (non-Initial Assessment) with topic validation
+        regular_quiz_query = Q(
+            Q(course__in=courses) | Q(topics__courses__in=courses)
+        ) & Q(is_initial_assessment=False) & Q(
+            Q(topics__status='active') | Q(topics__isnull=True)
+        )
+        
+        # Initial Assessments from accessible branches (bypass topic requirements)
+        # Get unique branches from all accessible courses
+        course_branches = courses.values_list('branch', flat=True).distinct()
+        course_branches = [b for b in course_branches if b is not None]
+        
+        initial_assessment_query = Q(is_initial_assessment=True)
+        if course_branches:
+            initial_assessment_query &= Q(
+                creator__branch__in=course_branches,
+                creator__role__in=['admin', 'instructor']
+            )
+        else:
+            # If no branches, only include Initial Assessments directly linked to courses
+            initial_assessment_query &= Q(
+                Q(course__in=courses) | Q(topics__courses__in=courses)
+            )
+        
+        # Combine queries with OR
+        combined_quiz_query = regular_quiz_query | initial_assessment_query
+        
+        quizzes = Quiz.objects.filter(
+            combined_quiz_query
+        ).filter(
+            is_active=True  # Only active quizzes
+        ).exclude(
+            # Exclude only VAK tests from gradebook grading (include initial assessments)
+            Q(is_vak_test=True)
+        ).distinct().select_related('course', 'rubric').prefetch_related(
+            'topics__courses',
+            'questions'
+        ).order_by('created_at')
+
+        # Initial assessments are now included in the main quizzes query above
+
+        # Get discussions with course associations only
+        discussions = Discussion.objects.filter(
+            Q(course__in=courses) |  # Direct course relationship
+            Q(topics__courses__in=courses)  # Topic-based course relationship
+        ).filter(
+            status='published'  # Only published discussions
+        ).filter(
+            # Either have active topics OR have no topics at all
+            Q(topics__status='active') |
+            Q(topics__isnull=True)
+        ).distinct().prefetch_related('course', 'topics__courses').order_by('created_at')
+
+        # Get conferences with course associations only
+        conferences = Conference.objects.filter(
+            Q(course__in=courses) |  # Direct course relationship
+            Q(topics__courses__in=courses)  # Topic-based course relationship
+        ).filter(
+            status='published'  # Only published conferences
+        ).filter(
+            # Either have active topics OR have no topics at all
+            Q(topics__status='active') |
+            Q(topics__isnull=True)
+        ).distinct().prefetch_related('course', 'topics__courses').order_by('created_at')
+
+
+        # Helper function to get course info for activities
+        def get_activity_course_info(activity, activity_type):
+            course_info = None
+            if activity_type == 'assignment':
+                if hasattr(activity, 'course') and activity.course:
+                    course_info = activity.course
+                elif hasattr(activity, 'courses') and activity.courses.exists():
+                    course_info = activity.courses.first()
+                elif hasattr(activity, 'topics') and activity.topics.exists():
+                    topic = activity.topics.first()
+                    if hasattr(topic, 'courses') and topic.courses.exists():
+                        course_info = topic.courses.first()
+            elif activity_type in ['quiz', 'discussion', 'conference', 'initial_assessment']:
+                if hasattr(activity, 'course') and activity.course:
+                    course_info = activity.course
+                elif hasattr(activity, 'topics') and activity.topics.exists():
+                    topic = activity.topics.first()
+                    if hasattr(topic, 'courses') and topic.courses.exists():
+                        course_info = topic.courses.first()
+                # For Initial Assessments without direct course link, 
+                # find any course from their branch in the accessible courses list
+                if not course_info and activity_type == 'initial_assessment':
+                    if hasattr(activity, 'creator') and hasattr(activity.creator, 'branch') and activity.creator.branch:
+                        # Find first accessible course from the same branch
+                        for course in courses:
+                            if course.branch == activity.creator.branch:
+                                course_info = course
+                                break
+            elif activity_type == 'scorm':
+                # SCORM topics are Topic objects themselves
+                if hasattr(activity, 'courses') and activity.courses.exists():
+                    course_info = activity.courses.first()
+                elif hasattr(activity, 'coursetopic_set'):
+                    ct = activity.coursetopic_set.first()
+                    if ct and ct.course:
+                        course_info = ct.course
+            return course_info
+
+        # Process activities based on filter
+        if activity_filter == 'all' or activity_filter == 'assignment':
+            for assignment in assignments:
+                course_info = get_activity_course_info(assignment, 'assignment')
+                # Only include if has course association AND course is in user's accessible courses
+                if course_info and course_info.id in accessible_course_ids:
+                    # Use rubric total_points if assignment has rubric, otherwise use assignment max_score
+                    max_score = assignment.rubric.total_points if assignment.rubric else assignment.max_score
+                    activities_data.append({
+                        'object': assignment,
+                        'type': 'assignment',
+                        'title': assignment.title,
+                        'course': course_info,
+                        'created_at': assignment.created_at,
+                        'max_score': max_score,
+                    })
+
+        if activity_filter == 'all' or activity_filter == 'quiz' or activity_filter == 'initial_assessment':
+            for quiz in quizzes:
+                # Determine activity type for proper course info resolution
+                activity_type = 'initial_assessment' if quiz.is_initial_assessment else 'quiz'
+                course_info = get_activity_course_info(quiz, activity_type)
+                
+                # Only include if has course association AND course is in user's accessible courses
+                if course_info and course_info.id in accessible_course_ids:
+                    # Use rubric total_points if quiz has rubric, otherwise use quiz total_points
+                    max_score = quiz.rubric.total_points if quiz.rubric else (quiz.total_points or 0)
+                    
+                    # Determine activity type and include based on filter
+                    if quiz.is_initial_assessment:
+                        if activity_filter == 'all' or activity_filter == 'initial_assessment':
+                            activities_data.append({
+                                'object': quiz,
+                                'type': 'initial_assessment',
+                                'title': quiz.title,
+                                'course': course_info,
+                                'created_at': quiz.created_at,
+                                'max_score': max_score,
+                            })
+                    else:
+                        if activity_filter == 'all' or activity_filter == 'quiz':
+                            activities_data.append({
+                                'object': quiz,
+                                'type': 'quiz',
+                                'title': quiz.title,
+                                'course': course_info,
+                                'created_at': quiz.created_at,
+                                'max_score': max_score,
+                            })
+
+        if activity_filter == 'all' or activity_filter == 'scorm':
+            from courses.models import Topic
+            scorm_topics = Topic.objects.filter(
+                content_type='SCORM',
+                scorm__isnull=False,
+                courses__in=courses  # Filter by accessible courses only
+            ).distinct().select_related('scorm').prefetch_related('courses')
+            
+            for scorm_topic in scorm_topics:
+                course_info = get_activity_course_info(scorm_topic, 'scorm')
+                # Only include if has course association AND course is in user's accessible courses
+                if course_info and course_info.id in accessible_course_ids:
+                    max_score = 100  # Default max score for SCORM
+                    activities_data.append({
+                        'object': scorm_topic,
+                        'type': 'scorm',
+                        'title': scorm_topic.title,
+                        'course': course_info,
+                        'created_at': scorm_topic.created_at,
+                        'max_score': max_score,
+                    })
+
+        if activity_filter == 'all' or activity_filter == 'discussion':
+            for discussion in discussions:
+                course_info = get_activity_course_info(discussion, 'discussion')
+                # Only include if has course association AND course is in user's accessible courses AND has rubric
+                if course_info and course_info.id in accessible_course_ids and discussion.rubric:
+                    # Use rubric total_points if discussion has rubric
+                    max_score = discussion.rubric.total_points
+                    activities_data.append({
+                        'object': discussion,
+                        'type': 'discussion',
+                        'title': discussion.title,
+                        'course': course_info,
+                        'created_at': discussion.created_at,
+                        'max_score': max_score,
+                    })
+
+        if activity_filter == 'all' or activity_filter == 'conference':
+            for conference in conferences:
+                course_info = get_activity_course_info(conference, 'conference')
+                # Only include if has course association AND course is in user's accessible courses AND has rubric
+                if course_info and course_info.id in accessible_course_ids and hasattr(conference, 'rubric') and conference.rubric:
+                    max_score = conference.rubric.total_points
+                    activities_data.append({
+                        'object': conference,
+                        'type': 'conference',
+                        'title': conference.title,
+                        'course': course_info,
+                        'created_at': conference.created_at,
+                        'max_score': max_score,
+                    })
+
+
+    # Apply search filter if provided
+    if search_query:
+        filtered_activities = []
+        search_lower = search_query.lower()
+        for activity in activities_data:
+            # Search in activity title and course title
+            if (search_lower in activity['title'].lower() or 
+                search_lower in activity['course'].title.lower()):
+                filtered_activities.append(activity)
+        activities_data = filtered_activities
+
+    # Apply status filter if provided
+    if status_filter != 'all':
+        def calculate_activity_status(activity, user_id):
+            """Helper function to calculate activity status"""
+            try:
+                from assignments.models import AssignmentSubmission
+                from quiz.models import QuizAttempt
+                from discussions.models import Comment
+                from conferences.models import ConferenceAttendance
+                from courses.models import TopicProgress
+                
+                user_id = int(user_id)
+                activity_type = activity.get('type')
+                activity_obj = activity.get('object')
+                
+                if activity_type == 'assignment':
+                    submission = AssignmentSubmission.objects.filter(
+                        assignment=activity_obj,
+                        user_id=user_id
+                    ).first()
+                    
+                    if submission:
+                        # Check actual submission status from database
+                        if submission.status == 'returned':
+                            return "Returned"
+                        elif submission.status == 'missing':
+                            return "Missing"
+                        elif submission.grade is not None:
+                            return "Graded"
+                        elif submission.status in ['submitted', 'not_graded']:
+                            # Both 'submitted' and 'not_graded' represent submitted work
+                            return "Submitted"
+                        else:
+                            return "Submitted"
+                    else:
+                        return "Not Started"
+                        
+                elif activity_type == 'quiz':
+                    attempt = QuizAttempt.objects.filter(
+                        quiz=activity_obj,
+                        user_id=user_id
+                    ).order_by('-start_time').first()  # Get most recent attempt
+                    
+                    if attempt:
+                        if attempt.is_completed and attempt.end_time:
+                            return "Completed"
+                        elif attempt.start_time and not attempt.end_time:
+                            return "In Progress"
+                        else:
+                            return "Completed"  # Fallback for completed attempts
+                    else:
+                        return "Not Started"
+                        
+                elif activity_type == 'initial_assessment':
+                    attempt = QuizAttempt.objects.filter(
+                        quiz=activity_obj,
+                        user_id=user_id,
+                        is_completed=True
+                    ).order_by('-end_time').first()  # Get most recent completed attempt
+                    
+                    if attempt:
+                        return "Completed"
+                    else:
+                        return "Not Started"
+                        
+                elif activity_type == 'discussion':
+                    # Check for discussion comments/participation
+                    comment = Comment.objects.filter(
+                        discussion=activity_obj,
+                        created_by_id=user_id
+                    ).first()
+                    
+                    if comment:
+                        return "Participated"
+                    else:
+                        return "Not Started"
+                        
+                elif activity_type == 'conference':
+                    try:
+                        attendance = ConferenceAttendance.objects.filter(
+                            conference=activity_obj,
+                            user_id=user_id
+                        ).first()
+                        
+                        if attendance:
+                            # Check attendance status from database
+                            if attendance.attendance_status == 'present':
+                                return "Attended"
+                            elif attendance.attendance_status == 'absent':
+                                return "Absent"
+                            else:
+                                return "Registered"
+                        else:
+                            return "Not Started"
+                    except Exception as e:
+                        logger.error(f"Error checking conference attendance: {str(e)}")
+                        return "Not Started"
+                
+                elif activity_type == 'scorm':
+                    # Check SCORM progress from TopicProgress
+                    progress = TopicProgress.objects.filter(
+                        topic=activity_obj,
+                        user_id=user_id
+                    ).first()
+                    
+                    if progress:
+                        if progress.completed:
+                            return "Completed"
+                        elif progress.last_score is not None or (progress.progress_data and progress.progress_data.get('scorm_score')):
+                            return "In Progress"
+                        else:
+                            return "Started"
+                    else:
+                        return "Not Started"
+                
+                return "Not Started"
+                
+            except Exception as e:
+                logger.error(f"Error calculating activity status: {str(e)}")
+                return "Not Started"
+        
+        filtered_activities = []
+        for activity in activities_data:
+            # Calculate activity status for current user
+            activity_status = calculate_activity_status(activity, user.id)
+            
+            # Normalize status for comparison
+            normalized_activity_status = activity_status.lower().replace(' ', '-')
+            
+            if normalized_activity_status == status_filter:
+                filtered_activities.append(activity)
+        activities_data = filtered_activities
+
+    # Group activities by course for better organization
+    activities_by_course = {}
+    for activity in activities_data:
+        course = activity['course']
+        course_key = f"{course.id}_{course.title}"
+        if course_key not in activities_by_course:
+            activities_by_course[course_key] = {
+                'course': course,
+                'activities': []
+            }
+        activities_by_course[course_key]['activities'].append(activity)
+    
+    # Sort activities within each course by creation date
+    for course_group in activities_by_course.values():
+        course_group['activities'].sort(key=lambda x: x['created_at'], reverse=True)
+    
+    # Sort courses alphabetically
+    grouped_activities = sorted(activities_by_course.values(), key=lambda x: x['course'].title)
+
+    # Activity type choices for filter dropdown
+    activity_types = [
+        ('all', 'All Activities'),
+        ('assignment', 'Assignments'),
+        ('quiz', 'Quizzes'),
+        ('initial_assessment', 'Initial Assessments'),
+        ('scorm', 'SCORM'),
+        ('discussion', 'Discussions'),
+        ('conference', 'Conferences'),
+    ]
+    
+    # Course choices for filter dropdown
+    course_choices = [('all', 'All Courses')]
+    for course in all_courses:
+        course_choices.append((str(course.id), course.title))
+    
+    # Status choices for filter dropdown
+    status_choices = [
+        ('all', 'All Statuses'),
+        ('not-started', 'Not Started'),
+        ('in-progress', 'In Progress'),
+        ('submitted', 'Submitted'),
+        ('completed', 'Completed'),
+        ('failed', 'Failed'),
+        ('graded', 'Graded'),
+        ('returned', 'Returned'),
+        ('missing', 'Missing'),
+        ('participated', 'Participated'),
+        ('attended', 'Attended'),
+        ('absent', 'Absent'),
+        ('registered', 'Registered'),
+    ]
+    
+    # Define breadcrumbs for this view
+    breadcrumbs = [
+        {'url': '/', 'label': 'Dashboard', 'icon': 'fa-home'},
+        {'label': 'Gradebook', 'icon': 'fa-graduation-cap'}
+    ]
+    
+    context = {
+        'activities': activities_data,  # Keep original for count
+        'grouped_activities': grouped_activities,  # New grouped format
+        'activity_types': activity_types,
+        'course_choices': course_choices,
+        'status_choices': status_choices,
+        'current_filter': activity_filter,
+        'current_course_filter': course_filter,
+        'current_status_filter': status_filter,
+        'search_query': search_query,
+        'courses': courses,
+        'all_courses': all_courses,
+        'breadcrumbs': breadcrumbs,
+    }
+    
+    return render(request, 'gradebook/index.html', context)
+
+@login_required
+def course_gradebook_detail(request, course_id):
+    """
+    Display detailed gradebook for a specific course in table format.
+    """
+    import logging
+    import traceback
+    logger = logging.getLogger(__name__)
+    
+    # Add detailed error tracking at the start
+    logger.info(f"Gradebook access for course {course_id} by user {request.user.id}")
+    
+    user = request.user
+    User = get_user_model()
+    
+    try:
+        # Get the specific course
+        course = get_object_or_404(Course, id=course_id)
+        logger.info(f"Course {course_id} found: {course.title}")
+        
+        # Check permissions
+        if user.role == 'instructor':
+            # Instructors can access if they are assigned to the course OR enrolled in the course OR have group access
+            has_permission = (
+                course.instructor == user or
+                CourseEnrollment.objects.filter(course=course, user=user).exists() or
+                # Check for group-based access
+                course.accessible_groups.filter(
+                    memberships__user=user,
+                    memberships__is_active=True,
+                    memberships__custom_role__name__icontains='instructor'
+                ).exists()
+            )
+            if not has_permission:
+                from django.core.exceptions import PermissionDenied
+                raise PermissionDenied("You don't have permission to view this gradebook.")
+        elif user.role == 'learner':
+            # Learners can only see their own grades in courses they're enrolled in
+            if not CourseEnrollment.objects.filter(course=course, user=user).exists():
+                from django.core.exceptions import PermissionDenied
+                raise PermissionDenied("You are not enrolled in this course.")
+        elif user.role not in ['admin', 'superadmin', 'globaladmin']:
+            # Other roles don't have permission
+            from django.core.exceptions import PermissionDenied
+            raise PermissionDenied("You don't have permission to view this gradebook.")
+        
+        # Get students for this course with proper optimization
+        if user.role == 'learner':
+            students = User.objects.filter(id=user.id).select_related('branch')
+        else:
+            students = User.objects.filter(
+                Q(enrolled_courses__id=course_id) & Q(role='learner')
+            ).distinct().select_related('branch').prefetch_related('enrolled_courses')
+        
+        # Add pagination for better performance with large student lists
+        page_size = 50  # Configurable page size
+        page = request.GET.get('page', 1)
+        
+        # Get total count before pagination
+        total_students = students.count()
+        
+        # Keep original student list for queries
+        all_students = students
+        
+        # Apply pagination
+        paginator = Paginator(students, page_size)
+        try:
+            students_page = paginator.page(page)
+        except PageNotAnInteger:
+            students_page = paginator.page(1)
+        except EmptyPage:
+            students_page = paginator.page(paginator.num_pages)
+        
+        # Use paginated students for display
+        students = students_page.object_list
+        
+    except Exception as e:
+        logger.error(f"Error in course_gradebook_detail for course {course_id}: {str(e)}")
+        logger.error(f"Traceback: {traceback.format_exc()}")  # Add full traceback
+        messages.error(request, "An error occurred while loading the gradebook. Please try again.")
+        return redirect('gradebook:index')
+    
+    # Get all activities for this course grouped by type
+    # Include activities linked through direct course, M2M courses, and topic relationships
+    # Also filter for active/published status where applicable
+    
+    try:
+        # Assignments: Check M2M courses and topic-based relationships
+        assignments = Assignment.objects.filter(
+            Q(courses=course) |  # M2M course relationship
+            Q(topics__courses=course)  # Topic-based course relationship
+        ).filter(
+            is_active=True  # Only active assignments
+        ).filter(
+            # Either have active topics OR have no topics at all (direct course assignments)
+            Q(topics__status='active') |  # Has active topics
+            Q(topics__isnull=True)  # Has no topics (direct course assignment)
+        ).distinct().select_related('user', 'rubric').prefetch_related('courses', 'topics').order_by('created_at')
+        
+        # Quizzes: Check direct course and topic relationships (include initial assessments, exclude only VAK tests)
+        # Build the query to include:
+        # 1. Regular quizzes linked to the course
+        # 2. Branch-wide Initial Assessments (even if not directly linked to the course)
+        
+        # Regular quizzes (non-Initial Assessment) with topic validation
+        regular_quiz_query = Q(
+            Q(course=course) | Q(topics__courses=course)
+        ) & Q(is_initial_assessment=False) & Q(
+            Q(topics__status='active') | Q(topics__isnull=True)
+        )
+        
+        # Initial Assessments from the same branch (bypass topic requirements)
+        initial_assessment_query = Q(is_initial_assessment=True)
+        if course.branch:
+            initial_assessment_query &= Q(
+                creator__branch=course.branch,
+                creator__role__in=['admin', 'instructor']
+            )
+        else:
+            # If course has no branch, only include Initial Assessments directly linked to course
+            initial_assessment_query &= Q(
+                Q(course=course) | Q(topics__courses=course)
+            )
+        
+        # Combine queries with OR
+        combined_quiz_query = regular_quiz_query | initial_assessment_query
+        
+        quizzes = Quiz.objects.filter(
+            combined_quiz_query
+        ).filter(
+            is_active=True  # Only active quizzes
+        ).exclude(
+            # Exclude only VAK tests from gradebook grading (include initial assessments)
+            Q(is_vak_test=True)
+        ).distinct().select_related('course', 'creator', 'rubric').prefetch_related('topics').order_by('created_at')
+
+        # Initial assessments are now included in the main quizzes query above
+        
+        # Discussions: Check direct course and topic relationships
+        discussions = Discussion.objects.filter(
+            Q(course=course) |  # Direct course relationship
+            Q(topics__courses=course)  # Topic-based course relationship
+        ).filter(
+            status='published'  # Only published discussions
+        ).filter(
+            # Either have active topics OR have no topics at all
+            Q(topics__status='active') |
+            Q(topics__isnull=True)
+        ).distinct().select_related('course', 'created_by', 'rubric').prefetch_related('topics').order_by('created_at')
+        
+        # Conferences: Check direct course and topic relationships
+        conferences = Conference.objects.filter(
+            Q(course=course) |  # Direct course relationship
+            Q(topics__courses=course)  # Topic-based course relationship
+        ).filter(
+            status='published'  # Only published conferences
+        ).filter(
+            # Either have active topics OR have no topics at all
+            Q(topics__status='active') |
+            Q(topics__isnull=True)
+        ).distinct().select_related('course', 'created_by', 'rubric').prefetch_related('topics').order_by('created_at')
+        
+    except Exception as e:
+        logger.error(f"Error fetching activities for course {course_id}: {str(e)}")
+        # Initialize empty querysets as fallback
+        assignments = Assignment.objects.none()
+        quizzes = Quiz.objects.none()
+        discussions = Discussion.objects.none()
+        conferences = Conference.objects.none()
+    
+    
+    # Calculate overview metrics
+    students_count = total_students  # Use total count, not paginated count
+    # Count only discussions and conferences that have rubrics
+    discussions_with_rubrics = discussions.filter(rubric__isnull=False).count()
+    conferences_with_rubrics = conferences.filter(rubric__isnull=False).count()
+    total_activities = assignments.count() + quizzes.count() + discussions_with_rubrics + conferences_with_rubrics
+    
+    # Calculate activity status counts
+    # Get all submissions and attempts with optimized queries
+    all_submissions = AssignmentSubmission.objects.filter(
+        assignment__in=assignments,
+        user__in=all_students
+    ).select_related('assignment', 'user', 'graded_by').order_by('-submitted_at')
+    
+    # Get quiz attempts for this course (ordered by end time) with optimized queries
+    # Get all completed attempts - deduplication is handled by pre_calculate_student_scores
+    quiz_attempts = QuizAttempt.objects.filter(
+        user__in=all_students,
+        quiz__in=quizzes,
+        is_completed=True
+    ).select_related('quiz', 'user', 'quiz__rubric').prefetch_related(
+        'quiz__questions',  # Prefetch questions for initial assessment classification
+        'user_answers__question'  # Prefetch user answers with their questions for classification
+    ).order_by('-end_time')
+
+    # BUGFIX: Also query Initial Assessment attempts separately to ensure they're included
+    # Initial Assessments are branch-wide and attempts might not be found in the main query
+    initial_assessment_attempts = None
+    if course.branch:
+        initial_assessment_quizzes = Quiz.objects.filter(
+            is_initial_assessment=True,
+            is_active=True,
+            creator__branch=course.branch,
+            creator__role__in=['admin', 'instructor']
+        )
+        
+        if initial_assessment_quizzes.exists():
+            initial_assessment_attempts = QuizAttempt.objects.filter(
+                user__in=all_students,
+                quiz__in=initial_assessment_quizzes,
+                is_completed=True
+            ).select_related('quiz', 'user', 'quiz__rubric').prefetch_related(
+                'quiz__questions',
+                'user_answers__question'
+            ).order_by('-end_time')
+    
+    
+    # Calculate total possible activity instances (students × activities)
+    total_possible_instances = students_count * total_activities
+    
+    # Count submitted activities - include 'not_graded' as it represents submitted work awaiting grading
+    submitted_assignments = all_submissions.filter(status__in=['submitted', 'not_graded', 'graded', 'returned']).count()
+    submitted_quizzes = quiz_attempts.count()  # This now includes initial assessment attempts
+    submitted_scorm = 0
+    
+    submitted_scorm_topics = 0
+    
+    total_submitted = submitted_assignments + submitted_quizzes + submitted_scorm + submitted_scorm_topics
+    
+    # Count in-progress activities (for more accurate metrics)
+    in_progress_scorm_topics = 0
+    
+    # Adjust not started calculation to account for in-progress activities
+    total_started = total_submitted + in_progress_scorm_topics
+    total_not_started = total_possible_instances - total_started
+    
+    # Ensure not started count is non-negative
+    total_not_started = max(0, total_not_started)
+    
+    overview_metrics = {
+        'students_count': students_count,
+        'total_activities': total_activities,
+        'total_not_started': total_not_started,
+        'total_submitted': total_submitted,
+        'total_in_progress': in_progress_scorm_topics,
+    }
+    
+    # Create organized activities list with type-specific numbering
+    activities = []
+    
+    # Add assignments with numbering
+    assignment_counter = 1
+    for assignment in assignments:
+        # Use rubric total_points if assignment has rubric, otherwise use assignment max_score
+        max_score = assignment.rubric.total_points if assignment.rubric else assignment.max_score
+        activities.append({
+            'object': assignment,
+            'type': 'assignment',
+            'created_at': assignment.created_at,
+            'title': assignment.title,
+            'max_score': max_score,
+            'activity_number': assignment_counter,
+            'activity_name': f"Assignment {assignment_counter}"
+        })
+        assignment_counter += 1
+    
+    # Add quizzes and initial assessments with separate numbering
+    quiz_counter = 1
+    assessment_counter = 1
+    for quiz in quizzes:
+        # Use rubric total_points if quiz has rubric, otherwise use 100 for percentage-based scoring
+        max_score = quiz.rubric.total_points if quiz.rubric else 100
+        
+        if quiz.is_initial_assessment:
+            # Handle initial assessments
+            activities.append({
+                'object': quiz,
+                'type': 'initial_assessment',
+                'created_at': quiz.created_at,
+                'title': quiz.title,
+                'max_score': max_score,
+                'activity_number': assessment_counter,
+                'activity_name': f"Initial Assessment {assessment_counter}"
+            })
+            assessment_counter += 1
+        else:
+            # Handle regular quizzes
+            activities.append({
+                'object': quiz,
+                'type': 'quiz',
+                'created_at': quiz.created_at,
+                'title': quiz.title,
+                'max_score': max_score,
+                'activity_number': quiz_counter,
+                'activity_name': f"Quiz {quiz_counter}"
+            })
+            quiz_counter += 1
+
+    # Initial assessments are now handled in the quiz loop above
+    
+    # Add SCORM topics with numbering
+    scorm_counter = 1
+    from courses.models import Topic, TopicProgress
+    scorm_topics = Topic.objects.filter(
+        content_type='SCORM',
+        scorm__isnull=False,
+        courses=course
+    ).distinct().select_related('scorm')
+    
+    for scorm_topic in scorm_topics:
+        # Get max score from SCORM progress data if available, otherwise default to 100
+        max_score = 100  # Default max score
+        if scorm_topic.scorm:
+            # Try to determine max score from typical SCORM packages (usually 100)
+            max_score = 100
+        
+        activities.append({
+            'object': scorm_topic,
+            'type': 'scorm',
+            'created_at': scorm_topic.created_at,
+            'title': scorm_topic.title,
+            'max_score': max_score,
+            'activity_number': scorm_counter,
+            'activity_name': f"SCORM {scorm_counter}"
+        })
+        scorm_counter += 1
+    
+    # Add discussions with numbering (only if they have rubrics)
+    discussion_counter = 1
+    for discussion in discussions:
+        if discussion.rubric:  # Only include discussions with rubrics
+            # Use rubric total_points since discussion has rubric
+            max_score = discussion.rubric.total_points
+            activities.append({
+                'object': discussion,
+                'type': 'discussion',
+                'created_at': discussion.created_at,
+                'title': discussion.title,
+                'max_score': max_score,
+                'activity_number': discussion_counter,
+                'activity_name': f"Discussion {discussion_counter}"
+            })
+            discussion_counter += 1
+    
+    # Add conferences with numbering (only if they have rubrics)
+    conference_counter = 1
+    for conference in conferences:
+        if conference.rubric:  # Only include conferences with rubrics
+            # Calculate max score from rubric
+            max_score = conference.rubric.total_points
+            
+            activities.append({
+                'object': conference,
+                'type': 'conference',
+                'created_at': conference.created_at,
+                'title': conference.title,
+                'max_score': max_score,
+                'activity_number': conference_counter,
+                'activity_name': f"Conference {conference_counter}"
+            })
+            conference_counter += 1
+    
+    # Sort all activities by created_at (oldest first)
+    activities.sort(key=lambda x: x['created_at'] if x['created_at'] else timezone.now())
+    
+    return activities
+
 
 def pre_calculate_student_scores(students, activities, grades, quiz_attempts, scorm_attempts, conference_evaluations, initial_assessment_attempts=None, course=None):
     """
@@ -1317,7 +2778,7 @@ def course_gradebook_detail(request, course_id):
 
     # BUGFIX: Also query Initial Assessment attempts separately to ensure they're included
     # Initial Assessments are branch-wide and attempts might not be found in the main query
-    initial_assessment_attempts = None
+    initial_assessment_attempts = QuizAttempt.objects.none()  # Default to empty queryset
     if course.branch:
         initial_assessment_quizzes = Quiz.objects.filter(
             is_initial_assessment=True,
@@ -1597,6 +3058,121 @@ def course_gradebook_detail(request, course_id):
             # Cache for 5 minutes (reduced for more frequent updates)
             cache.set(cache_key, student_scores, timeout=300)
             logger.debug(f"Cached student scores for course {course_id}")
+    except Exception as e:
+        logger.error(f"Error pre-calculating student scores for course {course_id}: {str(e)}")
+        student_scores = {}
+    
+    # Cache the activities for better performance
+    try:
+        activities_cache_key = f"gradebook:activities:course:{course_id}"
+        cache.set(activities_cache_key, activities, timeout=600)  # Cache for 10 minutes
+        logger.debug(f"Cached activities for course {course_id}")
+    except Exception as e:
+        logger.error(f"Error caching activities for course {course_id}: {str(e)}")
+    
+    # Log activity counts for debugging (using proper logger)
+    logger.debug(f"Course {course.id} ({course.title}) activities found: "
+                f"Assignments: {assignments.count()}, Quizzes: {quizzes.count()}, "
+                f"Discussions: {discussions.count()}, Conferences: {conferences.count()}, "
+                f"Total activities: {len(activities)}, User role: {user.role}")
+    
+    # Calculate total possible points (convert all to Decimal to avoid type mismatch)
+    total_possible_points = sum([Decimal(str(activity['max_score'])) for activity in activities if activity['max_score'] > 0])
+    
+    try:
+        # Get grades for all assignments in this course with optimized queries
+        all_grades = Grade.objects.filter(
+            student__in=all_students,
+            assignment__in=assignments
+        ).select_related(
+            'student', 
+            'assignment__course', 
+            'submission__graded_by'
+        ).prefetch_related(
+            'assignment__courses'
+        ).order_by('-updated_at')
+        
+        # Use a more efficient approach to get unique grades (latest per student-assignment pair)
+        
+        # Get the latest grade for each student-assignment pair using a single query
+        latest_grade_times = all_grades.values('student_id', 'assignment_id').annotate(
+            latest_update=Max('updated_at')
+        )
+        
+        # Create a lookup dictionary for efficient filtering
+        latest_lookup = {
+            (item['student_id'], item['assignment_id']): item['latest_update']
+            for item in latest_grade_times
+        }
+        
+        # Filter grades to only include the latest ones
+        grades = [
+            grade for grade in all_grades
+            if grade.updated_at == latest_lookup.get((grade.student_id, grade.assignment_id))
+        ]
+        
+        # Get quiz attempts for this course (ordered by end time) with optimized queries
+        quiz_attempts = QuizAttempt.objects.filter(
+            user__in=all_students,
+            quiz__in=quizzes,
+            is_completed=True
+        ).select_related(
+            'quiz__course', 
+            'quiz__rubric',
+            'user'
+        ).prefetch_related(
+            'quiz__topics__courses',
+            'quiz__questions',  # Prefetch questions for initial assessment classification
+            'user_answers__question'  # Prefetch user answers with their questions for classification
+        ).order_by('-end_time')
+        
+        # NOTE: initial_assessment_attempts is already defined earlier (line 1245)
+        # Don't redefine it here to avoid overwriting the first query
+        
+        
+        # Get conference rubric evaluations for this course with optimized queries
+        conference_evaluations = ConferenceRubricEvaluation.objects.filter(
+            conference__in=conferences,
+            attendance__user__in=all_students
+        ).select_related('conference', 'attendance__user', 'criterion', 'evaluated_by', 'conference__rubric').order_by('-created_at')
+        
+    except Exception as e:
+        logger.error(f"Error fetching gradebook data for course {course_id}: {str(e)}")
+        # Initialize empty lists/querysets as fallback
+        grades = []
+        quiz_attempts = QuizAttempt.objects.none()
+        # Don't reset initial_assessment_attempts - it's already defined earlier (line 1245)
+        # and should be preserved even if this try block fails
+        conference_evaluations = ConferenceRubricEvaluation.objects.none()
+    
+    # Define breadcrumbs for this view
+    breadcrumbs = [
+        {'url': '/', 'label': 'Dashboard', 'icon': 'fa-home'},
+        {'url': '/gradebook/', 'label': 'Gradebook', 'icon': 'fa-graduation-cap'},
+        {'label': f'{course.title} - Detailed Gradebook', 'icon': 'fa-table'}
+    ]
+    
+    # Pre-calculate all student scores for better performance
+    try:
+        # Generate cache key for student scores with proper invalidation support
+        from core.utils.cache_invalidation import CacheInvalidationManager
+        
+        students_hash = hashlib.md5(str(sorted([s.id for s in all_students])).encode()).hexdigest()[:8]
+        cache_key = f"gradebook:scores:course:{course_id}:students:{students_hash}"
+        
+        # Try to get from cache first
+        student_scores = cache.get(cache_key)
+        
+        if student_scores is None:
+            # Not in cache, calculate and cache for ALL students (not just paginated)
+            # Pass course parameter to enable TopicProgress lookup (same logic as Learning Activities Report)
+            student_scores = pre_calculate_student_scores(
+                all_students, activities, grades, quiz_attempts, 
+                None, conference_evaluations, initial_assessment_attempts, course=course
+            )
+            # Cache for 5 minutes (reduced for more frequent updates)
+            cache.set(cache_key, student_scores, timeout=300)
+            logger.debug(f"Cached student scores for course {course_id}")
         else:
             logger.debug(f"Retrieved cached student scores for course {course_id}")
         
@@ -1626,6 +3202,215 @@ def course_gradebook_detail(request, course_id):
         for activity_id, score_data in list(scores.items())[:3]:  # First 3 activities
             print(f"    - Activity {activity_id}: type={score_data.get('type')}, score={score_data.get('score')}", file=sys.stderr)
     print(f"{'='*80}\n", file=sys.stderr)
+    
+    # Get outcome evaluations for students in this course
+    outcome_evaluations = {}
+    outcome_summary = {}
+    course_rubrics = set()
+    connected_outcomes = set()
+    
+    # Initialize variables to prevent NameError
+    has_rubrics = False
+    has_outcome_connections = False
+    
+    try:
+        from lms_outcomes.models import OutcomeEvaluation, Outcome, RubricCriterionOutcome
+        
+        # First check if there are rubric-outcome connections for this course's assignments/quizzes
+        for assignment in assignments:
+            if assignment.rubric:
+                course_rubrics.add(assignment.rubric)
+        for quiz in quizzes:
+            if quiz.rubric:
+                course_rubrics.add(quiz.rubric)
+        
+        # Get outcomes connected to this course's rubrics
+        if course_rubrics:
+            rubric_criteria = []
+            for rubric in course_rubrics:
+                rubric_criteria.extend(rubric.criteria.all())
+            
+            connections = RubricCriterionOutcome.objects.filter(
+                criterion__in=rubric_criteria
+            ).select_related('outcome', 'criterion')
+            
+            for connection in connections:
+                connected_outcomes.add(connection.outcome)
+        
+        # Auto-calculate outcome evaluations for students if connections exist but evaluations don't
+        if connected_outcomes and students:
+            for outcome in connected_outcomes:
+                for student in students:
+                    # Check if evaluation exists
+                    if not OutcomeEvaluation.objects.filter(outcome=outcome, student=student).exists():
+                        # Try to calculate and save evaluation
+                        try:
+                            outcome.update_student_evaluation(student)
+                        except Exception as eval_error:
+                            logger.warning(f"Could not auto-calculate outcome evaluation for {student} and {outcome}: {str(eval_error)}")
+        
+        # Get all outcome evaluations for students in this course
+        evaluations = OutcomeEvaluation.objects.filter(
+            student__in=students
+        ).select_related('outcome', 'student').order_by('outcome__title', 'student__first_name', 'student__last_name')
+        
+        # Organize evaluations by student and outcome
+        for evaluation in evaluations:
+            student_id = evaluation.student.id
+            outcome_id = evaluation.outcome.id
+            
+            if student_id not in outcome_evaluations:
+                outcome_evaluations[student_id] = {}
+            
+            outcome_evaluations[student_id][outcome_id] = {
+                'score': evaluation.score,
+                'proficiency_level': evaluation.proficiency_level,
+                'evidence_count': evaluation.evidence_count,
+                'calculation_date': evaluation.calculation_date,
+                'outcome': evaluation.outcome
+            }
+        
+        # Get unique outcomes for this course's students (include connected outcomes even if no evaluations yet)
+        unique_outcomes = set()
+        # Add outcomes that have evaluations
+        outcome_ids_with_evaluations = Outcome.objects.filter(
+            evaluations__student__in=students
+        ).distinct()
+        unique_outcomes.update(outcome_ids_with_evaluations)
+        # Add connected outcomes (for comprehensive tracking)
+        unique_outcomes.update(connected_outcomes)
+        
+        unique_outcomes = sorted(unique_outcomes, key=lambda x: x.title)
+        
+        # Calculate summary statistics for each outcome
+        for outcome in unique_outcomes:
+            student_evaluations = OutcomeEvaluation.objects.filter(
+                outcome=outcome,
+                student__in=students
+            )
+            
+            if student_evaluations.exists():
+                scores = [eval.score for eval in student_evaluations]
+                proficiency_levels = [eval.proficiency_level for eval in student_evaluations]
+                
+                # Count proficiency levels
+                level_counts = {}
+                for level in proficiency_levels:
+                    level_counts[level] = level_counts.get(level, 0) + 1
+                
+                outcome_summary[outcome.id] = {
+                    'outcome': outcome,
+                    'total_students': len(scores),
+                    'average_score': sum(scores) / len(scores) if scores else 0,
+                    'highest_score': max(scores) if scores else 0,
+                    'lowest_score': min(scores) if scores else 0,
+                    'proficiency_distribution': level_counts,
+                    'mastery_rate': round(len([s for s in scores if s >= outcome.mastery_points]) / len(scores) * 100) if scores else 0
+                }
+            else:
+                # Create placeholder summary for connected outcomes with no evaluations yet
+                outcome_summary[outcome.id] = {
+                    'outcome': outcome,
+                    'total_students': 0,
+                    'average_score': 0,
+                    'highest_score': 0,
+                    'lowest_score': 0,
+                    'proficiency_distribution': {},
+                    'mastery_rate': 0
+                }
+        
+    except Exception as e:
+        logger.error(f"Error fetching outcome evaluations: {str(e)}")
+        outcome_evaluations = {}
+        outcome_summary = {}
+        connected_outcomes = set()
+
+    # Check if this course has rubrics with outcome connections
+    has_rubrics = bool(course_rubrics)
+    has_outcome_connections = bool(connected_outcomes)
+
+
+    context = {
+        'course': course,
+        'students': students,
+        'assignments': assignments,
+        'quizzes': quizzes,
+        'grades': grades,
+        'quiz_attempts': quiz_attempts,
+        'discussions': discussions,
+        'conferences': conferences,
+        'conference_evaluations': conference_evaluations,
+        'activities': display_activities, # Use prepared activities for template
+        'total_possible_points': total_possible_points,
+        'breadcrumbs': breadcrumbs,
+        'overview_metrics': overview_metrics,
+        # Pagination context
+        'students_page': students_page,
+        'total_students': total_students,
+        'page_size': page_size,
+        'current_page': page,
+        # Pre-calculated score data
+        'student_scores': enhanced_student_scores,
+        # Outcome mastery data
+        'outcome_evaluations': outcome_evaluations,
+        'outcome_summary': outcome_summary,
+        # Outcome connection status
+        'has_outcome_connections': has_outcome_connections,
+        'has_rubrics': has_rubrics,
+    }
+    
+    return render(request, 'gradebook/course_detail.html', context)
+
+
+@login_required
+def assignment_grade_sidebar(request, assignment_id, student_id):
+    """
+    Render the assignment grading sidebar content
+    """
+    assignment = get_object_or_404(Assignment, id=assignment_id)
+    User = get_user_model()
+    student = get_object_or_404(User, id=student_id)
+    
+    # RBAC v0.1 Compliant Access Control
+    user = request.user
+    can_grade = False
+    
+    if user.role == 'globaladmin':
+        can_grade = True  # FULL access
+    elif user.role == 'superadmin':
+        can_grade = True  # CONDITIONAL access (business-scoped)
+    elif user.role == 'admin':
+        can_grade = True  # CONDITIONAL access (branch-scoped)
+    elif user.role == 'instructor':
+        can_grade = True  # CONDITIONAL access (assigned courses/assignments)
+    
+    if not can_grade:
+        return HttpResponse('Unauthorized', status=403)
+    
+    # Additional validation for assignment access - instructor should only grade their assignments or have group access
+    if user.role == 'instructor':
+        has_assignment_access = (
+            assignment.user == user or 
+            assignment.course.instructor == user or
+            # Check for group-based access
+            assignment.course.accessible_groups.filter(
+                memberships__user=user,
+                memberships__is_active=True,
+                memberships__custom_role__name__icontains='instructor'
+            ).exists()
+        )
+        if not has_assignment_access:
+            return HttpResponse('Unauthorized - Assignment access denied', status=403)
+    
+    # Get or create submission
+    submission_id = request.GET.get('submission_id')
+    if submission_id:
+        submission = get_object_or_404(AssignmentSubmission, id=submission_id)
+    else:
+        submission = AssignmentSubmission.objects.filter(
+            assignment=assignment, 
+            user=student
+        ).first()
     
     # Get outcome evaluations for students in this course
     outcome_evaluations = {}
