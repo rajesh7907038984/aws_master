@@ -218,7 +218,7 @@ class Conference(models.Model):
         if user.role in ['instructor', 'admin', 'superadmin'] or user.is_superuser:
             return True
         
-        # For learner role, apply filtering based on course enrollment and branch
+        # For learner role, ONLY show conferences from enrolled courses
         if user.role == 'learner':
             from courses.models import Course, CourseEnrollment
             
@@ -236,14 +236,8 @@ class Conference(models.Model):
                 ).exists()
             )
             
-            # Also allow access if conference is from the same branch as the user
-            # This handles cases where conferences are created for branch-wide access
-            same_branch_access = (
-                user.branch and 
-                self.created_by.branch == user.branch
-            )
-            
-            return linked_to_enrolled_course or same_branch_access
+            # Learners can ONLY access conferences from enrolled courses
+            return linked_to_enrolled_course
         
         return False
 

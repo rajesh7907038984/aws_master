@@ -136,15 +136,14 @@ def conference_list(request):
         can_manage_all = False
         
     else:  # learner
-        # Learner: Can view published conferences from courses they're enrolled in or same branch
+        # Learner: Can ONLY view published conferences from courses they're enrolled in
         enrolled_courses = Course.objects.filter(enrolled_users=user).values_list('id', flat=True)
         
-        # Get conferences linked to enrolled courses or from same branch
+        # Get conferences linked ONLY to enrolled courses (direct or through topics)
         conferences_queryset = Conference.objects.filter(
             Q(status='published') & (
                 Q(course__in=enrolled_courses) |  # Direct course link
-                Q(topics__coursetopic__course__in=enrolled_courses) |  # Through topics
-                Q(created_by__branch=user.branch) if user.branch else Q()  # Same branch
+                Q(topics__coursetopic__course__in=enrolled_courses)  # Through topics
             )
         ).distinct().order_by('-date', '-start_time')
         
