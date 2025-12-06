@@ -95,6 +95,245 @@
         border-bottom: 2px solid #2563EB;
     }
 
+    /* Mobile Accordion Styles */
+    @media (max-width: 768px) {
+        .tab-container {
+            border-radius: 0.5rem !important;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1) !important;
+            background-color: white !important;
+            border: 1px solid #E5E7EB !important;
+        }
+        
+        .tab-buttons {
+            display: block !important;
+            border-bottom: none !important;
+            background-color: transparent !important;
+        }
+        
+        .tab-button {
+            display: flex !important;
+            justify-content: space-between !important;
+            align-items: center !important;
+            width: 100% !important;
+            padding: 1rem 1.5rem !important;
+            background-color: #F9FAFB !important;
+            border: none !important;
+            border-bottom: 1px solid #E5E7EB !important;
+            border-radius: 0 !important;
+            color: #374151 !important;
+            font-weight: 500 !important;
+            font-size: 0.9rem !important;
+            text-align: left !important;
+            cursor: pointer !important;
+            transition: all 0.2s ease !important;
+            position: relative !important;
+            white-space: normal !important;
+            min-width: auto !important;
+        }
+        
+        .tab-button:last-child {
+            border-bottom: none !important;
+        }
+        
+        .tab-button:hover {
+            background-color: #F3F4F6 !important;
+            color: #1F2937 !important;
+        }
+        
+        .tab-button.active {
+            background-color: #EBF5FF !important;
+            color: #1D4ED8 !important;
+            border-bottom-color: #E5E7EB !important;
+        }
+        
+        /* Accordion arrows */
+        .tab-button::after {
+            content: "\f078" !important; /* Font Awesome chevron-down */
+            font-family: "Font Awesome 5 Free" !important;
+            font-weight: 900 !important;
+            font-size: 0.8rem !important;
+            color: #6B7280 !important;
+            transition: transform 0.2s ease !important;
+        }
+        
+        .tab-button.active::after {
+            transform: rotate(180deg) !important;
+            color: #1D4ED8 !important;
+        }
+        
+        /* Tab content adjustments for mobile */
+        .tab-content {
+            display: none !important;
+            padding: 0 !important;
+            border-radius: 0 !important;
+            border-top: 1px solid #E5E7EB !important;
+            background-color: white !important;
+            margin-bottom: 1rem !important;
+        }
+        
+        .tab-content.active {
+            display: block !important;
+            animation: slideDown 0.3s ease-out !important;
+        }
+        
+        /* Content inner padding */
+        .tab-content > div,
+        .tab-content > .grid {
+            padding: 1.5rem !important;
+        }
+        
+        /* Slide down animation for accordion */
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                max-height: 0;
+                overflow: hidden;
+            }
+            to {
+                opacity: 1;
+                max-height: 2000px;
+                overflow: visible;
+            }
+        }
+        
+        /* ILP nested tabs mobile styling */
+        .ilp-main-tabs {
+            display: block !important;
+            border: 1px solid #E5E7EB !important;
+            border-radius: 0.5rem !important;
+            overflow: hidden !important;
+        }
+        
+        .ilp-tab-button {
+            display: flex !important;
+            justify-content: space-between !important;
+            align-items: center !important;
+            width: 100% !important;
+            padding: 0.875rem 1rem !important;
+            background-color: #F9FAFB !important;
+            border: none !important;
+            border-bottom: 1px solid #E5E7EB !important;
+            border-radius: 0 !important;
+            color: #374151 !important;
+            font-weight: 500 !important;
+            font-size: 0.85rem !important;
+            text-align: left !important;
+            cursor: pointer !important;
+            transition: all 0.2s ease !important;
+            white-space: normal !important;
+        }
+        
+        .ilp-tab-button:last-child {
+            border-bottom: none !important;
+        }
+        
+        .ilp-tab-button:hover {
+            background-color: #F3F4F6 !important;
+        }
+        
+        .ilp-tab-button.active {
+            background-color: #EBF5FF !important;
+            color: #1D4ED8 !important;
+        }
+        
+        .ilp-tab-button::after {
+            content: "\f078" !important;
+            font-family: "Font Awesome 5 Free" !important;
+            font-weight: 900 !important;
+            font-size: 0.75rem !important;
+            color: #6B7280 !important;
+            transition: transform 0.2s ease !important;
+        }
+        
+        .ilp-tab-button.active::after {
+            transform: rotate(180deg) !important;
+            color: #1D4ED8 !important;
+        }
+        
+        .ilp-tab-content {
+            padding: 1rem !important;
+            margin-top: 0 !important;
+            border-radius: 0 !important;
+        }
+        
+        /* Learning Profile nested tabs mobile styling */
+        .learning-profile-main-tabs {
+            display: block !important;
+            border: 1px solid #E5E7EB !important;
+            border-radius: 0.5rem !important;
+            overflow: hidden !important;
+        }
+        
+        .learning-profile-tab-button {
+            display: flex !important;
+            justify-content: space-between !important;
+            align-items: center !important;
+            width: 100% !important;
+            padding: 0.75rem 1rem !important;
+            background-color: #F9FAFB !important;
+            border: none !important;
+            border-bottom: 1px solid #E5E7EB !important;
+            border-radius: 0 !important;
+            color: #374151 !important;
+            font-weight: 500 !important;
+            font-size: 0.8rem !important;
+            text-align: left !important;
+            cursor: pointer !important;
+            transition: all 0.2s ease !important;
+            white-space: normal !important;
+        }
+        
+        .learning-profile-tab-button:last-child {
+            border-bottom: none !important;
+        }
+        
+        .learning-profile-tab-button:hover {
+            background-color: #F3F4F6 !important;
+        }
+        
+        .learning-profile-tab-button.active {
+            background-color: #EBF5FF !important;
+            color: #1D4ED8 !important;
+        }
+        
+        .learning-profile-tab-button::after {
+            content: "\f078" !important;
+            font-family: "Font Awesome 5 Free" !important;
+            font-weight: 900 !important;
+            font-size: 0.7rem !important;
+            color: #6B7280 !important;
+            transition: transform 0.2s ease !important;
+        }
+        
+        .learning-profile-tab-button.active::after {
+            transform: rotate(180deg) !important;
+            color: #1D4ED8 !important;
+        }
+        
+        .learning-profile-tab-content {
+            padding: 1rem !important;
+            margin-top: 0 !important;
+            border-radius: 0 !important;
+        }
+        
+        /* Profile header mobile adjustments */
+        .profile-header .flex.items-center.justify-between {
+            flex-direction: column !important;
+            align-items: flex-start !important;
+            gap: 1rem !important;
+        }
+        
+        .profile-header .flex.gap-2 {
+            width: 100% !important;
+            flex-direction: column !important;
+        }
+        
+        .profile-header .flex.gap-2 a {
+            width: 100% !important;
+            justify-content: center !important;
+        }
+    }
+
     .tab-content {
         display: none;
         padding: 1.5rem;
@@ -1156,11 +1395,108 @@
 </div>
 
 <script>
-// Simplified Tab Management for Profile View
+// Simplified Tab Management for Profile View with Mobile Accordion Support
 class ProfileTabManager {
     constructor() {
         this.currentTab = 'account-tab';
+        this.isMobile = this.checkMobileView();
         this.init();
+        this.setupMobileAccordion();
+    }
+    
+    checkMobileView() {
+        return window.innerWidth <= 768;
+    }
+    
+    setupMobileAccordion() {
+        // Update mobile status on window resize
+        window.addEventListener('resize', () => {
+            const wasMobile = this.isMobile;
+            this.isMobile = this.checkMobileView();
+            
+            // If switching from desktop to mobile or vice versa, update UI
+            if (wasMobile !== this.isMobile) {
+                this.showTab(this.currentTab);
+            }
+        });
+        
+        // Override tab button clicks for mobile accordion behavior
+        document.querySelectorAll('.tab-button').forEach(button => {
+            button.addEventListener('click', (e) => {
+                if (!this.isMobile) return; // Let default behavior handle desktop
+                
+                e.preventDefault();
+                const onclick = button.getAttribute('onclick');
+                const match = onclick.match(/openTab\([^,]+,\s*['"]([^'"]+)['"]/);
+                if (match) {
+                    this.handleMobileTabClick(match[1], button);
+                }
+            });
+        });
+        
+        // Override ILP tab button clicks for mobile accordion behavior
+        document.querySelectorAll('.ilp-tab-button').forEach(button => {
+            button.addEventListener('click', (e) => {
+                if (!this.isMobile) return;
+                
+                e.preventDefault();
+                const onclick = button.getAttribute('onclick');
+                const match = onclick.match(/openILPTab\([^,]+,\s*['"]([^'"]+)['"]/);
+                if (match) {
+                    this.handleMobileILPTabClick(match[1], button);
+                }
+            });
+        });
+        
+        // Override learning profile tab button clicks for mobile accordion behavior
+        document.querySelectorAll('.learning-profile-tab-button').forEach(button => {
+            button.addEventListener('click', (e) => {
+                if (!this.isMobile) return;
+                
+                e.preventDefault();
+                const onclick = button.getAttribute('onclick');
+                const match = onclick.match(/openLearningProfileTab\([^,]+,\s*['"]([^'"]+)['"]/);
+                if (match) {
+                    this.handleMobileLearningProfileTabClick(match[1], button);
+                }
+            });
+        });
+    }
+    
+    handleMobileTabClick(tabName, button) {
+        const isCurrentlyActive = button.classList.contains('active');
+        
+        if (isCurrentlyActive) {
+            // Don't allow collapsing - always keep one tab open
+            return;
+        }
+        
+        // Normal tab switching behavior
+        this.openTab(tabName);
+    }
+    
+    handleMobileILPTabClick(tabName, button) {
+        const isCurrentlyActive = button.classList.contains('active');
+        
+        if (isCurrentlyActive) {
+            // Don't allow collapsing ILP sub-tabs
+            return;
+        }
+        
+        // Normal sub-tab switching behavior
+        this.openILPTab(tabName);
+    }
+    
+    handleMobileLearningProfileTabClick(tabName, button) {
+        const isCurrentlyActive = button.classList.contains('active');
+        
+        if (isCurrentlyActive) {
+            // Don't allow collapsing nested tabs
+            return;
+        }
+        
+        // Normal nested tab switching behavior
+        this.openLearningProfileTab(tabName);
     }
     
     init() {
@@ -1185,6 +1521,8 @@ class ProfileTabManager {
         // Setup main tab buttons
         document.querySelectorAll('.tab-button').forEach(button => {
             button.addEventListener('click', (e) => {
+                if (this.isMobile) return; // Mobile handled by setupMobileAccordion
+                
                 const onclick = button.getAttribute('onclick');
                 const match = onclick.match(/openTab\([^,]+,\s*['"]([^'"]+)['"]/);
                 if (match) {
@@ -1197,6 +1535,8 @@ class ProfileTabManager {
         // Setup ILP tab buttons
         document.querySelectorAll('.ilp-tab-button').forEach(button => {
             button.addEventListener('click', (e) => {
+                if (this.isMobile) return; // Mobile handled by setupMobileAccordion
+                
                 const onclick = button.getAttribute('onclick');
                 const match = onclick.match(/openILPTab\([^,]+,\s*['"]([^'"]+)['"]/);
                 if (match) {
@@ -1209,6 +1549,8 @@ class ProfileTabManager {
         // Setup Learning Profile tab buttons
         document.querySelectorAll('.learning-profile-tab-button').forEach(button => {
             button.addEventListener('click', (e) => {
+                if (this.isMobile) return; // Mobile handled by setupMobileAccordion
+                
                 const onclick = button.getAttribute('onclick');
                 const match = onclick.match(/openLearningProfileTab\([^,]+,\s*['"]([^'"]+)['"]/);
                 if (match) {
@@ -1504,15 +1846,36 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Make global functions available for backward compatibility
     window.openTab = function(evt, tabName) {
-        profileTabManager.openTab(tabName);
+        if (profileTabManager.isMobile) {
+            const button = document.querySelector(`.tab-button[onclick*="${tabName}"]`);
+            if (button) {
+                profileTabManager.handleMobileTabClick(tabName, button);
+            }
+        } else {
+            profileTabManager.openTab(tabName);
+        }
     };
     
     window.openILPTab = function(evt, tabName) {
-        profileTabManager.openILPTab(tabName);
+        if (profileTabManager.isMobile) {
+            const button = document.querySelector(`.ilp-tab-button[onclick*="${tabName}"]`);
+            if (button) {
+                profileTabManager.handleMobileILPTabClick(tabName, button);
+            }
+        } else {
+            profileTabManager.openILPTab(tabName);
+        }
     };
     
     window.openLearningProfileTab = function(evt, tabName) {
-        profileTabManager.openLearningProfileTab(tabName);
+        if (profileTabManager.isMobile) {
+            const button = document.querySelector(`.learning-profile-tab-button[onclick*="${tabName}"]`);
+            if (button) {
+                profileTabManager.handleMobileLearningProfileTabClick(tabName, button);
+            }
+        } else {
+            profileTabManager.openLearningProfileTab(tabName);
+        }
     };
     
     // Initialize any additional components
