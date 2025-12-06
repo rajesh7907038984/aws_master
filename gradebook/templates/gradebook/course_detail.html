@@ -660,9 +660,15 @@
     margin-bottom: 1rem;
     position: relative;
     z-index: 40; /* Above sticky table headers/columns */
-    position: sticky;
-    top: 0;
     box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+  }
+
+  /* Only sticky on desktop */
+  @media (min-width: 769px) {
+    .filter-controls {
+      position: sticky;
+      top: 0;
+    }
   }
 
   .filter-row {
@@ -842,6 +848,127 @@
     .export-filtered-btn {
       font-size: 0.75rem;
       padding: 0.375rem 0.5rem;
+    }
+
+    /* Mobile filter toggle button */
+    .mobile-filter-toggle {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.75rem 1rem;
+      background: #f8f9fa;
+      border: 1px solid #e9ecef;
+      border-radius: 0.5rem;
+      margin-bottom: 0.5rem;
+      cursor: pointer;
+      font-weight: 500;
+      color: #374151;
+    }
+
+    .mobile-filter-toggle i {
+      transition: transform 0.2s ease;
+    }
+
+    .mobile-filter-toggle.active i {
+      transform: rotate(180deg);
+    }
+
+    .filter-controls {
+      display: none;
+      margin-top: 0;
+      overflow: visible;
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    .filter-controls.mobile-visible {
+      display: block;
+    }
+
+    .filter-row {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      width: 100%;
+    }
+
+    .filter-row.learner-layout {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .filter-group {
+      background: white;
+      padding: 0.75rem;
+      border-radius: 0.5rem;
+      border: 1px solid #e5e7eb;
+      width: 100%;
+      box-sizing: border-box;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .filter-label {
+      font-size: 0.85rem;
+      margin-bottom: 0.25rem;
+      color: #374151;
+      font-weight: 500;
+    }
+
+    .filter-input,
+    .filter-select {
+      font-size: 16px; /* Prevent iOS zoom on focus */
+      padding: 0.75rem;
+      width: 100%;
+      box-sizing: border-box;
+      border: 1px solid #d1d5db;
+      border-radius: 0.375rem;
+      background: #f9fafb;
+    }
+
+    .filter-input:focus,
+    .filter-select:focus {
+      outline: none;
+      border-color: #3b82f6;
+      background: white;
+    }
+
+    .filter-actions {
+      background: white;
+      padding: 0.75rem;
+      border-radius: 0.5rem;
+      border: 1px solid #e5e7eb;
+      width: 100%;
+      box-sizing: border-box;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .clear-filters-btn,
+    .export-filtered-btn {
+      width: 100%;
+      justify-content: center;
+      padding: 0.75rem;
+      font-size: 0.875rem;
+    }
+
+    /* Fix table container on mobile */
+    .table-container {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+  }
+
+  /* Desktop: hide mobile toggle */
+  @media (min-width: 769px) {
+    .mobile-filter-toggle {
+      display: none;
+    }
+
+    .filter-controls {
+      display: block !important;
     }
   }
   
@@ -1389,8 +1516,14 @@
         </div>
       </div>
 
+      <!-- Mobile Filter Toggle Button -->
+      <div class="mobile-filter-toggle" id="mobileFilterToggle" onclick="toggleMobileFilters()">
+        <span><i class="fas fa-filter mr-2"></i>Filters & Search</span>
+        <i class="fas fa-chevron-down"></i>
+      </div>
+
       <!-- Filter and Search Controls -->
-      <div class="filter-controls">
+      <div class="filter-controls" id="filterControls">
         <div class="filter-row{% if user.role == 'learner' %} learner-layout{% endif %}">
           <div class="filter-group">
             <label class="filter-label">
@@ -2013,6 +2146,68 @@
           </tbody>
         </table>
 
+        <!-- Mobile Gradebook View -->
+        <div class="gradebook-mobile">
+          {% for student in students %}
+          <div class="gradebook-mobile-student">
+            <div class="gradebook-mobile-header">
+              {% if user.role != 'learner' %}
+              <div class="student-name-mobile">
+                <span class="font-bold text-gray-800">{{ student.get_full_name|default:student.username }}</span>
+              </div>
+              {% endif %}
+              <div class="student-total-mobile">
+                {% calculate_student_total_optimized student_scores student.id activities as total_score %}
+                <span class="text-sm text-gray-500">Total:</span>
+                <span class="font-bold {% if total_score.percentage >= 90 %}text-green-600{% elif total_score.percentage >= 80 %}text-blue-600{% elif total_score.percentage >= 70 %}text-yellow-600{% else %}text-red-600{% endif %}">
+                  {{ total_score.earned|floatformat:1 }}/{{ total_score.possible|floatformat:1 }} ({{ total_score.percentage|floatformat:0 }}%)
+                </span>
+              </div>
+            </div>
+            <div class="gradebook-mobile-activities">
+              {% for activity in activities %}
+              <div class="gradebook-mobile-activity">
+                <span class="gradebook-mobile-activity-type {% if activity.type == 'assignment' %}assignment{% elif activity.type == 'quiz' %}quiz{% else %}assessment{% endif %}">
+                  {% if activity.type == 'assignment' %}ASG{% elif activity.type == 'quiz' %}QUZ{% elif activity.type == 'initial_assessment' %}IA{% elif activity.type == 'scorm' %}SCORM{% elif activity.type == 'discussion' %}DSC{% elif activity.type == 'conference' %}CNF{% endif %}
+                </span>
+                <div class="gradebook-mobile-activity-title">{{ activity.title|truncatechars:25 }}</div>
+                {% get_student_activity_score student_scores student.id activity.object.id as score_data %}
+                <div class="gradebook-mobile-activity-score">
+                  {% if score_data.excused %}
+                    <span class="text-gray-500 text-sm">(Excused)</span>
+                  {% elif score_data.score is not None %}
+                    <span class="{% if score_data.score >= activity.max_score|mul:0.9 %}text-green-600{% elif score_data.score >= activity.max_score|mul:0.8 %}text-blue-600{% elif score_data.score >= activity.max_score|mul:0.7 %}text-yellow-600{% else %}text-red-600{% endif %}">
+                      {{ score_data.score|floatformat:1 }}/{{ activity.max_score|floatformat:1 }}
+                    </span>
+                  {% elif score_data.submission and score_data.has_submission %}
+                    <span class="text-yellow-600 text-sm">Pending</span>
+                  {% else %}
+                    <span class="text-gray-400 text-sm">Not Submitted</span>
+                  {% endif %}
+                </div>
+                {% if user.role == 'learner' %}
+                <div class="mt-2">
+                  {% if activity.type == 'assignment' %}
+                    <a href="{% url 'assignments:assignment_detail' activity.object.id %}" class="text-xs text-blue-600 hover:underline">View</a>
+                  {% elif activity.type == 'quiz' %}
+                    <a href="{% url 'quiz:quiz_detail' activity.object.id %}" class="text-xs text-blue-600 hover:underline">View</a>
+                  {% elif activity.type == 'initial_assessment' %}
+                    <a href="{% url 'quiz:quiz_detail' activity.object.id %}" class="text-xs text-blue-600 hover:underline">View</a>
+                  {% elif activity.type == 'discussion' %}
+                    <a href="{% url 'discussions:discussion_detail' activity.object.id %}" class="text-xs text-blue-600 hover:underline">View</a>
+                  {% elif activity.type == 'conference' %}
+                    <a href="{% url 'conferences:conference_detail' activity.object.id %}" class="text-xs text-blue-600 hover:underline">View</a>
+                  {% elif activity.type == 'scorm' %}
+                    <a href="{% url 'scorm:launcher' activity.object.id %}" class="text-xs text-blue-600 hover:underline">Launch</a>
+                  {% endif %}
+                </div>
+                {% endif %}
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+          {% endfor %}
+        </div>
         
         </div> <!-- End gradebook-wrapper -->
         {% endif %}
@@ -2140,6 +2335,39 @@ function exitFullscreen() {
     
     console.log(' Exited fullscreen mode');
 }
+
+// Mobile Filter Toggle Functionality
+function toggleMobileFilters() {
+    const filterControls = document.getElementById('filterControls');
+    const toggleButton = document.getElementById('mobileFilterToggle');
+    
+    if (filterControls.classList.contains('mobile-visible')) {
+        filterControls.classList.remove('mobile-visible');
+        toggleButton.classList.remove('active');
+    } else {
+        filterControls.classList.add('mobile-visible');
+        toggleButton.classList.add('active');
+    }
+}
+
+// Initialize mobile filters state on page load
+document.addEventListener('DOMContentLoaded', function() {
+    // Check if we're on mobile and show filters by default if there are active filters
+    if (window.innerWidth <= 768) {
+        const globalSearch = document.getElementById('globalSearch');
+        const activityTypeFilter = document.getElementById('activityTypeFilter');
+        const activitySearch = document.getElementById('activitySearch');
+        const statusFilter = document.getElementById('statusFilter');
+        
+        // If any filter has a value, show the filter panel
+        if ((globalSearch && globalSearch.value) || 
+            (activityTypeFilter && activityTypeFilter.value) ||
+            (activitySearch && activitySearch.value) ||
+            (statusFilter && statusFilter.value)) {
+            toggleMobileFilters();
+        }
+    }
+});
 
 // Filter and Search Functionality
 function applyFilters() {
@@ -2301,6 +2529,97 @@ function applyFilters() {
         }
     });
     
+    // Mobile Gradebook Filtering
+    const mobileStudents = document.querySelectorAll('.gradebook-mobile-student');
+    mobileStudents.forEach(studentCard => {
+        const studentNameEl = studentCard.querySelector('.student-name-mobile span');
+        const studentName = studentNameEl ? studentNameEl.textContent.toLowerCase() : '';
+        let studentVisible = true;
+        
+        // Apply student filter
+        if (studentFilter && !studentName.includes(studentFilter)) {
+            studentVisible = false;
+        }
+        
+        // Apply global search to student name
+        if (globalSearch && !studentName.includes(globalSearch)) {
+            // Check if any activity matches
+            const activities = studentCard.querySelectorAll('.gradebook-mobile-activity');
+            let activityMatch = false;
+            activities.forEach(activity => {
+                if (activity.textContent.toLowerCase().includes(globalSearch)) {
+                    activityMatch = true;
+                }
+            });
+            if (!activityMatch) {
+                studentVisible = false;
+            }
+        }
+        
+        // Show/hide student card
+        studentCard.style.display = studentVisible ? 'block' : 'none';
+        
+        // Filter activities within visible student
+        if (studentVisible) {
+            const activities = studentCard.querySelectorAll('.gradebook-mobile-activity');
+            activities.forEach(activity => {
+                const activityType = activity.querySelector('.gradebook-mobile-activity-type');
+                const activityTitle = activity.querySelector('.gradebook-mobile-activity-title');
+                const activityScore = activity.querySelector('.gradebook-mobile-activity-score');
+                
+                let activityVisible = true;
+                
+                // Activity type filter
+                if (activityTypeFilter) {
+                    const typeText = activityType ? activityType.textContent.toLowerCase() : '';
+                    const typeMatch = 
+                        (activityTypeFilter === 'assignment' && typeText.includes('asg')) ||
+                        (activityTypeFilter === 'quiz' && typeText.includes('quz')) ||
+                        (activityTypeFilter === 'initial_assessment' && typeText.includes('ia')) ||
+                        (activityTypeFilter === 'scorm' && typeText.includes('scorm')) ||
+                        (activityTypeFilter === 'discussion' && typeText.includes('dsc')) ||
+                        (activityTypeFilter === 'conference' && typeText.includes('cnf'));
+                    if (!typeMatch) {
+                        activityVisible = false;
+                    }
+                }
+                
+                // Activity search filter
+                if (activitySearch && activityTitle) {
+                    if (!activityTitle.textContent.toLowerCase().includes(activitySearch)) {
+                        activityVisible = false;
+                    }
+                }
+                
+                // Status filter
+                if (statusFilter && activityScore) {
+                    const scoreText = activityScore.textContent.toLowerCase();
+                    let statusMatch = false;
+                    
+                    if (statusFilter === 'submitted' && 
+                        (scoreText.includes('pending') || scoreText.includes('/') || scoreText.includes('%'))) {
+                        statusMatch = true;
+                    } else if (statusFilter === 'graded' && 
+                        (scoreText.includes('/') && !scoreText.includes('pending'))) {
+                        statusMatch = true;
+                    } else if (statusFilter === 'not-started' && 
+                        (scoreText.includes('not submitted') || scoreText.includes('not started'))) {
+                        statusMatch = true;
+                    } else if (statusFilter === 'in-progress' && 
+                        (scoreText.includes('in progress') || scoreText.includes('pending'))) {
+                        statusMatch = true;
+                    }
+                    
+                    if (!statusMatch) {
+                        activityVisible = false;
+                    }
+                }
+                
+                activity.style.display = activityVisible ? 'block' : 'none';
+            });
+        }
+    });
+    
     // Update filter summary
     updateFilterSummary(visibleRows, visibleActivities.size);
 }
@@ -2355,6 +2674,16 @@ window.clearAllFilters = function() {
     
     cells.forEach(cell => {
         cell.classList.remove('activity-filtered');
+    });
+    
+    // Reset mobile view visibility
+    const mobileStudents = document.querySelectorAll('.gradebook-mobile-student');
+    mobileStudents.forEach(student => {
+        student.style.display = 'block';
+        const activities = student.querySelectorAll('.gradebook-mobile-activity');
+        activities.forEach(activity => {
+            activity.style.display = 'block';
+        });
     });
     
     // Update summary
