@@ -3,97 +3,92 @@
 
 {% block section_content %}
 <!-- Stats Summary -->
-<div class="bg-gray-100 p-6 rounded-lg mb-6">
-    <div class="grid grid-cols-6 gap-4 text-center">
+<div class="bg-gray-100 p-4 sm:p-6 rounded-lg mb-6">
+    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4 text-center">
         <div>
-            <div class="text-2xl font-bold">{{ completion_rate }}%</div>
-            <div class="text-sm text-gray-600">Completion rate</div>
+            <div class="text-xl sm:text-2xl font-bold">{{ completion_rate }}%</div>
+            <div class="text-xs sm:text-sm text-gray-600">Completion rate</div>
         </div>
         <div>
-            <div class="text-2xl font-bold">{{ completed_courses }}</div>
-            <div class="text-sm text-gray-600">Completed courses</div>
+            <div class="text-xl sm:text-2xl font-bold">{{ completed_courses }}</div>
+            <div class="text-xs sm:text-sm text-gray-600">Completed courses</div>
         </div>
         <div>
-            <div class="text-2xl font-bold">{{ courses_in_progress }}</div>
-            <div class="text-sm text-gray-600">Courses in progress</div>
+            <div class="text-xl sm:text-2xl font-bold">{{ courses_in_progress }}</div>
+            <div class="text-xs sm:text-sm text-gray-600">Courses in progress</div>
         </div>
         <div>
-            <div class="text-2xl font-bold">{{ courses_not_passed }}</div>
-            <div class="text-sm text-gray-600">Courses not passed</div>
+            <div class="text-xl sm:text-2xl font-bold">{{ courses_not_passed }}</div>
+            <div class="text-xs sm:text-sm text-gray-600">Courses not passed</div>
         </div>
         <div>
-            <div class="text-2xl font-bold">{{ courses_not_started }}</div>
-            <div class="text-sm text-gray-600">Courses not started</div>
+            <div class="text-xl sm:text-2xl font-bold">{{ courses_not_started }}</div>
+            <div class="text-xs sm:text-sm text-gray-600">Courses not started</div>
         </div>
         <div>
-            <div class="text-2xl font-bold">{{ total_courses }}</div>
-            <div class="text-sm text-gray-600">Total courses</div>
+            <div class="text-xl sm:text-2xl font-bold">{{ total_courses }}</div>
+            <div class="text-xs sm:text-sm text-gray-600">Total courses</div>
         </div>
     </div>
 </div>
 
 <!-- Courses Table -->
-<div class="responsive-table-wrapper full-width" style="width: 100%; margin: 0; padding: 0;">
-    <!-- Desktop Table View -->
-    <div class="desktop-table table-scroll-wrapper" style="width: 100%;">
-        <table class="responsive-table" style="width: 100%; table-layout: auto;">
-        <thead>
-            <tr class="bg-gray-50 border-b">
-                <th class="py-3 px-4 text-left text-sm font-medium text-gray-700">Course</th>
-                <th class="py-3 px-4 text-left text-sm font-medium text-gray-700">
-                    Progress status
-                    <i class="fas fa-chevron-down ml-1 text-xs"></i>
-                </th>
-                <th class="py-3 px-4 text-left text-sm font-medium text-gray-700">Score</th>
-                <th class="py-3 px-4 text-left text-sm font-medium text-gray-700">Time Spent</th>
-                <th class="py-3 px-4 text-left text-sm font-medium text-gray-700">Attempts</th>
-                <th class="py-3 px-4 text-left text-sm font-medium text-gray-700">Enrolled on</th>
-                <th class="py-3 px-4 text-left text-sm font-medium text-gray-700">Completion date</th>
-                <th class="py-3 px-4 text-center text-sm font-medium text-gray-700"></th>
-            </tr>
-        </thead>
-        <tbody>
-            <!-- Loop through actual course data -->
-            {% for enrollment in user_courses %}
-            <tr class="border-b hover:bg-gray-50">
-                <td class="py-3 px-4">{{ enrollment.course.title }}</td>
-                <td class="py-3 px-4">
-                    <div class="flex flex-col">
-                        {% if enrollment.calculated_progress is not None %}
-                            <span class="text-sm mb-1">{{ enrollment.calculated_progress }}%</span>
-                            <div class="w-full bg-gray-200 rounded-full h-2">
-                                <div class="{% if enrollment.completed %}bg-green-500{% else %}bg-blue-500{% endif %} h-2 rounded-full" style="width: {{ enrollment.calculated_progress }}%"></div>
-                            </div>
-                        {% else %}
-                            <span class="text-sm mb-1">0%</span>
-                            <div class="w-full bg-gray-200 rounded-full h-2">
-                                <div class="bg-gray-400 h-2 rounded-full" style="width: 0%"></div>
-                            </div>
-                        {% endif %}
-                    </div>
-                </td>
-                <td class="py-3 px-4">{{ enrollment.calculated_score|default:"-" }}</td>
-                <td class="py-3 px-4">
-                    <span class="text-sm text-gray-700">{{ enrollment.formatted_time_spent }}</span>
-                </td>
-                <td class="py-3 px-4">
-                    <span class="text-sm text-gray-700">{{ enrollment.course_attempts }}</span>
-                </td>
-                <td class="py-3 px-4">{{ enrollment.enrolled_at|date:"d/m/Y" }}</td>
-                <td class="py-3 px-4">{% if enrollment.completed %}{{ enrollment.completion_date|date:"d/m/Y" }}{% else %}-{% endif %}</td>
-                <td class="py-3 px-4 text-center">
-                    <a href="{% url 'reports:course_detail' enrollment.course.id %}" class="text-gray-500 hover:text-gray-700 inline-block p-2">
-                        <i class="fas fa-ellipsis-h"></i>
-                    </a>
-                </td>
-            </tr>
-            {% empty %}
-            <tr class="border-b">
-                <td colspan="8" class="py-4 px-4 text-center text-gray-500">No courses data available</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+<div class="bg-white rounded-lg shadow-sm overflow-hidden">
+    <div class="overflow-x-auto">
+        <table class="min-w-full">
+            <thead>
+                <tr class="bg-gray-50 border-b">
+                    <th class="py-3 px-2 sm:px-4 text-left text-xs sm:text-sm font-medium text-gray-700 whitespace-nowrap">Course</th>
+                    <th class="py-3 px-2 sm:px-4 text-left text-xs sm:text-sm font-medium text-gray-700 whitespace-nowrap">
+                        Progress status
+                        <i class="fas fa-chevron-down ml-1 text-xs"></i>
+                    </th>
+                    <th class="py-3 px-2 sm:px-4 text-left text-xs sm:text-sm font-medium text-gray-700 whitespace-nowrap">Score</th>
+                    <th class="py-3 px-2 sm:px-4 text-left text-xs sm:text-sm font-medium text-gray-700 whitespace-nowrap">Time Spent</th>
+                    <th class="py-3 px-2 sm:px-4 text-left text-xs sm:text-sm font-medium text-gray-700 whitespace-nowrap">Attempts</th>
+                    <th class="py-3 px-2 sm:px-4 text-left text-xs sm:text-sm font-medium text-gray-700 whitespace-nowrap">Enrolled on</th>
+                    <th class="py-3 px-2 sm:px-4 text-left text-xs sm:text-sm font-medium text-gray-700 whitespace-nowrap">Completion date</th>
+                    <th class="py-3 px-2 sm:px-4 text-center text-xs sm:text-sm font-medium text-gray-700"></th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Loop through actual course data -->
+                {% for enrollment in user_courses %}
+                <tr class="border-b hover:bg-gray-50">
+                    <td class="py-3 px-2 sm:px-4 text-xs sm:text-sm">{{ enrollment.course.title }}</td>
+                    <td class="py-3 px-2 sm:px-4">
+                        <div class="flex flex-col min-w-[100px]">
+                            {% if enrollment.calculated_progress is not None %}
+                                <span class="text-xs sm:text-sm mb-1">{{ enrollment.calculated_progress }}%</span>
+                                <div class="w-full bg-gray-200 rounded-full h-2">
+                                    <div class="{% if enrollment.completed %}bg-green-500{% else %}bg-blue-500{% endif %} h-2 rounded-full" style="width: {{ enrollment.calculated_progress }}%"></div>
+                                </div>
+                            {% else %}
+                                <span class="text-xs sm:text-sm mb-1">0%</span>
+                                <div class="w-full bg-gray-200 rounded-full h-2">
+                                    <div class="bg-gray-400 h-2 rounded-full" style="width: 0%"></div>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </td>
+                    <td class="py-3 px-2 sm:px-4 text-xs sm:text-sm whitespace-nowrap">{{ enrollment.calculated_score|default:"-" }}</td>
+                    <td class="py-3 px-2 sm:px-4 text-xs sm:text-sm whitespace-nowrap">{{ enrollment.formatted_time_spent }}</td>
+                    <td class="py-3 px-2 sm:px-4 text-xs sm:text-sm whitespace-nowrap">{{ enrollment.course_attempts }}</td>
+                    <td class="py-3 px-2 sm:px-4 text-xs sm:text-sm whitespace-nowrap">{{ enrollment.enrolled_at|date:"d/m/Y" }}</td>
+                    <td class="py-3 px-2 sm:px-4 text-xs sm:text-sm whitespace-nowrap">{% if enrollment.completed %}{{ enrollment.completion_date|date:"d/m/Y" }}{% else %}-{% endif %}</td>
+                    <td class="py-3 px-2 sm:px-4 text-center">
+                        <a href="{% url 'reports:course_detail' enrollment.course.id %}" class="text-gray-500 hover:text-gray-700 inline-block p-2">
+                            <i class="fas fa-ellipsis-h"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr class="border-b">
+                    <td colspan="8" class="py-4 px-4 text-center text-gray-500 text-xs sm:text-sm">No courses data available</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
     </div>
 </div>
 {% endblock %}

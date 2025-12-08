@@ -11,89 +11,223 @@
 
         <!-- User header with type and profile info -->
         <div class="mt-6 mb-8">
-            <div class="flex items-center gap-6">
-                {% if user.profile_image %}
-                    <img src="{{ user.profile_image.url }}" alt="{{ user.get_full_name|default:user.username }}" 
-                         class="w-16 h-16 rounded-full object-cover border-2 border-gray-200">
-                {% else %}
-                    <div class="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center text-white text-2xl font-bold">
-                        {{ user.get_full_name.0|default:user.username.0 }}
+            <div class="flex flex-col lg:flex-row items-start lg:items-center gap-4 lg:gap-6">
+                <div class="flex items-center gap-4 w-full lg:w-auto">
+                    {% if user.profile_image %}
+                        <img src="{{ user.profile_image.url }}" alt="{{ user.get_full_name|default:user.username }}" 
+                             class="w-14 h-14 sm:w-16 sm:h-16 rounded-full object-cover border-2 border-gray-200 flex-shrink-0">
+                    {% else %}
+                        <div class="w-14 h-14 sm:w-16 sm:h-16 bg-blue-600 rounded-full flex items-center justify-center text-white text-xl sm:text-2xl font-bold flex-shrink-0">
+                            {{ user.get_full_name.0|default:user.username.0 }}
+                        </div>
+                    {% endif %}
+                    <div class="flex-1 min-w-0">
+                        <div class="text-xs sm:text-sm text-gray-500 uppercase">LEARNER-TYPE</div>
+                        <h1 class="text-lg sm:text-xl font-semibold text-gray-900 truncate">{{ user.get_full_name|default:user.username }}</h1>
+                        <div class="text-xs sm:text-sm text-gray-500 truncate">{{ user.email }}</div>
                     </div>
-                {% endif %}
-                <div>
-                    <div class="text-sm text-gray-500 uppercase">LEARNER-TYPE</div>
-                    <h1 class="text-xl font-semibold text-gray-900">{{ user.get_full_name|default:user.username }}</h1>
-                    <div class="text-sm text-gray-500">{{ user.email }}</div>
                 </div>
-                <div class="ml-auto flex items-center gap-3">
-                    <button onclick="window.history.back()" class="inline-flex items-center bg-gray-500 text-white py-2 px-4 rounded-md hover:bg-gray-600 transition-all">
-                        <i class="fas fa-arrow-left mr-2"></i>
-                        Back
+                <div class="flex items-center gap-2 sm:gap-3 w-full lg:w-auto lg:ml-auto">
+                    <button onclick="window.history.back()" class="flex-1 sm:flex-none inline-flex items-center justify-center bg-gray-500 text-white py-2 px-3 sm:px-4 rounded-md hover:bg-gray-600 transition-all text-sm">
+                        <i class="fas fa-arrow-left mr-1 sm:mr-2"></i>
+                        <span class="hidden sm:inline">Back</span>
                     </button>
-                    <a href="{% url 'reports:user_detail_report' user.id %}?export=excel" class="inline-flex items-center text-white py-2 px-4 rounded-md transition-all" style="background-color: #1c2260;" onmouseover="this.style.backgroundColor='#181f56'" onmouseout="this.style.backgroundColor='#1c2260'">
-                        Export in Excel
+                    <a href="{% url 'reports:user_detail_report' user.id %}?export=excel" class="flex-1 sm:flex-none inline-flex items-center justify-center text-white py-2 px-3 sm:px-4 rounded-md transition-all text-sm whitespace-nowrap" style="background-color: #1c2260;" onmouseover="this.style.backgroundColor='#181f56'" onmouseout="this.style.backgroundColor='#1c2260'">
+                        <i class="fas fa-file-excel mr-1 sm:mr-2"></i>
+                        Export<span class="hidden sm:inline"> in Excel</span>
                     </a>
                 </div>
             </div>
         </div>
 
-        <!-- Navigation Tabs -->
-        <div class="border-b border-gray-200 mb-6">
-            <nav class="flex -mb-px space-x-1">
+        <!-- Navigation Tabs - Desktop View -->
+        <div class="hidden md:block border-b border-gray-200 mb-6">
+            <nav class="flex -mb-px space-x-1 overflow-x-auto">
                 {% if user.id == request.user.id %}
                     <!-- My Learning Report navigation -->
                     <a href="{% url 'reports:my_report_overview' %}" 
-                       class="px-6 py-3 border-b-2 font-medium transition-colors {% if current_section == 'overview' %}border-blue-500 text-blue-600{% else %}border-transparent text-gray-500 hover:text-gray-700{% endif %}">
+                       class="px-4 lg:px-6 py-3 border-b-2 font-medium transition-colors whitespace-nowrap {% if current_section == 'overview' %}border-blue-500 text-blue-600{% else %}border-transparent text-gray-500 hover:text-gray-700{% endif %}">
                         <i class="fas fa-chart-line mr-2"></i>Overview
                     </a>
                     <a href="{% url 'reports:my_report_courses' %}" 
-                       class="px-6 py-3 border-b-2 font-medium transition-colors {% if current_section == 'courses' %}border-blue-500 text-blue-600{% else %}border-transparent text-gray-500 hover:text-gray-700{% endif %}">
+                       class="px-4 lg:px-6 py-3 border-b-2 font-medium transition-colors whitespace-nowrap {% if current_section == 'courses' %}border-blue-500 text-blue-600{% else %}border-transparent text-gray-500 hover:text-gray-700{% endif %}">
                         <i class="fas fa-book mr-2"></i>Courses
                     </a>
                     <a href="{% url 'reports:my_report_activities' %}" 
-                       class="px-6 py-3 border-b-2 font-medium transition-colors {% if current_section == 'learning-activities' %}border-blue-500 text-blue-600{% else %}border-transparent text-gray-500 hover:text-gray-700{% endif %}">
+                       class="px-4 lg:px-6 py-3 border-b-2 font-medium transition-colors whitespace-nowrap {% if current_section == 'learning-activities' %}border-blue-500 text-blue-600{% else %}border-transparent text-gray-500 hover:text-gray-700{% endif %}">
                         <i class="fas fa-tasks mr-2"></i>Learning Activities
                     </a>
                     <a href="{% url 'reports:my_report_assessments' %}" 
-                       class="px-6 py-3 border-b-2 font-medium transition-colors {% if current_section == 'initial-assessments' %}border-blue-500 text-blue-600{% else %}border-transparent text-gray-500 hover:text-gray-700{% endif %}">
+                       class="px-4 lg:px-6 py-3 border-b-2 font-medium transition-colors whitespace-nowrap {% if current_section == 'initial-assessments' %}border-blue-500 text-blue-600{% else %}border-transparent text-gray-500 hover:text-gray-700{% endif %}">
                         <i class="fas fa-clipboard-check mr-2"></i>Initial Assessments
                     </a>
                     <a href="{% url 'reports:my_report_certificates' %}" 
-                       class="px-6 py-3 border-b-2 font-medium transition-colors {% if current_section == 'certificates' %}border-blue-500 text-blue-600{% else %}border-transparent text-gray-500 hover:text-gray-700{% endif %}">
+                       class="px-4 lg:px-6 py-3 border-b-2 font-medium transition-colors whitespace-nowrap {% if current_section == 'certificates' %}border-blue-500 text-blue-600{% else %}border-transparent text-gray-500 hover:text-gray-700{% endif %}">
                         <i class="fas fa-certificate mr-2"></i>Certificates
                     </a>
                     <a href="{% url 'reports:my_report_timeline' %}" 
-                       class="px-6 py-3 border-b-2 font-medium transition-colors {% if current_section == 'timeline' %}border-blue-500 text-blue-600{% else %}border-transparent text-gray-500 hover:text-gray-700{% endif %}">
+                       class="px-4 lg:px-6 py-3 border-b-2 font-medium transition-colors whitespace-nowrap {% if current_section == 'timeline' %}border-blue-500 text-blue-600{% else %}border-transparent text-gray-500 hover:text-gray-700{% endif %}">
                         <i class="fas fa-clock mr-2"></i>Timeline
                     </a>
                 {% else %}
                     <!-- User Detail Report navigation -->
                     <a href="{% url 'reports:user_report_overview' user.id %}" 
-                       class="px-6 py-3 border-b-2 font-medium transition-colors {% if current_section == 'overview' %}border-blue-500 text-blue-600{% else %}border-transparent text-gray-500 hover:text-gray-700{% endif %}">
+                       class="px-4 lg:px-6 py-3 border-b-2 font-medium transition-colors whitespace-nowrap {% if current_section == 'overview' %}border-blue-500 text-blue-600{% else %}border-transparent text-gray-500 hover:text-gray-700{% endif %}">
                         <i class="fas fa-chart-line mr-2"></i>Overview
                     </a>
                     <a href="{% url 'reports:user_report_courses' user.id %}" 
-                       class="px-6 py-3 border-b-2 font-medium transition-colors {% if current_section == 'courses' %}border-blue-500 text-blue-600{% else %}border-transparent text-gray-500 hover:text-gray-700{% endif %}">
+                       class="px-4 lg:px-6 py-3 border-b-2 font-medium transition-colors whitespace-nowrap {% if current_section == 'courses' %}border-blue-500 text-blue-600{% else %}border-transparent text-gray-500 hover:text-gray-700{% endif %}">
                         <i class="fas fa-book mr-2"></i>Courses
                     </a>
                     <a href="{% url 'reports:user_report_activities' user.id %}" 
-                       class="px-6 py-3 border-b-2 font-medium transition-colors {% if current_section == 'learning-activities' %}border-blue-500 text-blue-600{% else %}border-transparent text-gray-500 hover:text-gray-700{% endif %}">
+                       class="px-4 lg:px-6 py-3 border-b-2 font-medium transition-colors whitespace-nowrap {% if current_section == 'learning-activities' %}border-blue-500 text-blue-600{% else %}border-transparent text-gray-500 hover:text-gray-700{% endif %}">
                         <i class="fas fa-tasks mr-2"></i>Learning Activities
                     </a>
                     <a href="{% url 'reports:user_report_assessments' user.id %}" 
-                       class="px-6 py-3 border-b-2 font-medium transition-colors {% if current_section == 'initial-assessments' %}border-blue-500 text-blue-600{% else %}border-transparent text-gray-500 hover:text-gray-700{% endif %}">
+                       class="px-4 lg:px-6 py-3 border-b-2 font-medium transition-colors whitespace-nowrap {% if current_section == 'initial-assessments' %}border-blue-500 text-blue-600{% else %}border-transparent text-gray-500 hover:text-gray-700{% endif %}">
                         <i class="fas fa-clipboard-check mr-2"></i>Initial Assessments
                     </a>
                     <a href="{% url 'reports:user_report_certificates' user.id %}" 
-                       class="px-6 py-3 border-b-2 font-medium transition-colors {% if current_section == 'certificates' %}border-blue-500 text-blue-600{% else %}border-transparent text-gray-500 hover:text-gray-700{% endif %}">
+                       class="px-4 lg:px-6 py-3 border-b-2 font-medium transition-colors whitespace-nowrap {% if current_section == 'certificates' %}border-blue-500 text-blue-600{% else %}border-transparent text-gray-500 hover:text-gray-700{% endif %}">
                         <i class="fas fa-certificate mr-2"></i>Certificates
                     </a>
                     <a href="{% url 'reports:user_report_timeline' user.id %}" 
-                       class="px-6 py-3 border-b-2 font-medium transition-colors {% if current_section == 'timeline' %}border-blue-500 text-blue-600{% else %}border-transparent text-gray-500 hover:text-gray-700{% endif %}">
+                       class="px-4 lg:px-6 py-3 border-b-2 font-medium transition-colors whitespace-nowrap {% if current_section == 'timeline' %}border-blue-500 text-blue-600{% else %}border-transparent text-gray-500 hover:text-gray-700{% endif %}">
                         <i class="fas fa-clock mr-2"></i>Timeline
                     </a>
                 {% endif %}
             </nav>
+        </div>
+
+        <!-- Accordion Navigation - Mobile View -->
+        <div class="md:hidden mb-6">
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+                {% if user.id == request.user.id %}
+                    <!-- My Learning Report accordion -->
+                    <div class="accordion-item border-b border-gray-200 last:border-b-0">
+                        <a href="{% url 'reports:my_report_overview' %}" 
+                           class="flex items-center justify-between p-4 hover:bg-gray-50 transition-colors {% if current_section == 'overview' %}bg-blue-50 text-blue-600{% endif %}">
+                            <div class="flex items-center gap-3">
+                                <i class="fas fa-chart-line"></i>
+                                <span class="font-medium">Overview</span>
+                            </div>
+                            {% if current_section == 'overview' %}<i class="fas fa-check text-blue-600"></i>{% endif %}
+                        </a>
+                    </div>
+                    <div class="accordion-item border-b border-gray-200 last:border-b-0">
+                        <a href="{% url 'reports:my_report_courses' %}" 
+                           class="flex items-center justify-between p-4 hover:bg-gray-50 transition-colors {% if current_section == 'courses' %}bg-blue-50 text-blue-600{% endif %}">
+                            <div class="flex items-center gap-3">
+                                <i class="fas fa-book"></i>
+                                <span class="font-medium">Courses</span>
+                            </div>
+                            {% if current_section == 'courses' %}<i class="fas fa-check text-blue-600"></i>{% endif %}
+                        </a>
+                    </div>
+                    <div class="accordion-item border-b border-gray-200 last:border-b-0">
+                        <a href="{% url 'reports:my_report_activities' %}" 
+                           class="flex items-center justify-between p-4 hover:bg-gray-50 transition-colors {% if current_section == 'learning-activities' %}bg-blue-50 text-blue-600{% endif %}">
+                            <div class="flex items-center gap-3">
+                                <i class="fas fa-tasks"></i>
+                                <span class="font-medium">Learning Activities</span>
+                            </div>
+                            {% if current_section == 'learning-activities' %}<i class="fas fa-check text-blue-600"></i>{% endif %}
+                        </a>
+                    </div>
+                    <div class="accordion-item border-b border-gray-200 last:border-b-0">
+                        <a href="{% url 'reports:my_report_assessments' %}" 
+                           class="flex items-center justify-between p-4 hover:bg-gray-50 transition-colors {% if current_section == 'initial-assessments' %}bg-blue-50 text-blue-600{% endif %}">
+                            <div class="flex items-center gap-3">
+                                <i class="fas fa-clipboard-check"></i>
+                                <span class="font-medium">Initial Assessments</span>
+                            </div>
+                            {% if current_section == 'initial-assessments' %}<i class="fas fa-check text-blue-600"></i>{% endif %}
+                        </a>
+                    </div>
+                    <div class="accordion-item border-b border-gray-200 last:border-b-0">
+                        <a href="{% url 'reports:my_report_certificates' %}" 
+                           class="flex items-center justify-between p-4 hover:bg-gray-50 transition-colors {% if current_section == 'certificates' %}bg-blue-50 text-blue-600{% endif %}">
+                            <div class="flex items-center gap-3">
+                                <i class="fas fa-certificate"></i>
+                                <span class="font-medium">Certificates</span>
+                            </div>
+                            {% if current_section == 'certificates' %}<i class="fas fa-check text-blue-600"></i>{% endif %}
+                        </a>
+                    </div>
+                    <div class="accordion-item">
+                        <a href="{% url 'reports:my_report_timeline' %}" 
+                           class="flex items-center justify-between p-4 hover:bg-gray-50 transition-colors {% if current_section == 'timeline' %}bg-blue-50 text-blue-600{% endif %}">
+                            <div class="flex items-center gap-3">
+                                <i class="fas fa-clock"></i>
+                                <span class="font-medium">Timeline</span>
+                            </div>
+                            {% if current_section == 'timeline' %}<i class="fas fa-check text-blue-600"></i>{% endif %}
+                        </a>
+                    </div>
+                {% else %}
+                    <!-- User Detail Report accordion -->
+                    <div class="accordion-item border-b border-gray-200 last:border-b-0">
+                        <a href="{% url 'reports:user_report_overview' user.id %}" 
+                           class="flex items-center justify-between p-4 hover:bg-gray-50 transition-colors {% if current_section == 'overview' %}bg-blue-50 text-blue-600{% endif %}">
+                            <div class="flex items-center gap-3">
+                                <i class="fas fa-chart-line"></i>
+                                <span class="font-medium">Overview</span>
+                            </div>
+                            {% if current_section == 'overview' %}<i class="fas fa-check text-blue-600"></i>{% endif %}
+                        </a>
+                    </div>
+                    <div class="accordion-item border-b border-gray-200 last:border-b-0">
+                        <a href="{% url 'reports:user_report_courses' user.id %}" 
+                           class="flex items-center justify-between p-4 hover:bg-gray-50 transition-colors {% if current_section == 'courses' %}bg-blue-50 text-blue-600{% endif %}">
+                            <div class="flex items-center gap-3">
+                                <i class="fas fa-book"></i>
+                                <span class="font-medium">Courses</span>
+                            </div>
+                            {% if current_section == 'courses' %}<i class="fas fa-check text-blue-600"></i>{% endif %}
+                        </a>
+                    </div>
+                    <div class="accordion-item border-b border-gray-200 last:border-b-0">
+                        <a href="{% url 'reports:user_report_activities' user.id %}" 
+                           class="flex items-center justify-between p-4 hover:bg-gray-50 transition-colors {% if current_section == 'learning-activities' %}bg-blue-50 text-blue-600{% endif %}">
+                            <div class="flex items-center gap-3">
+                                <i class="fas fa-tasks"></i>
+                                <span class="font-medium">Learning Activities</span>
+                            </div>
+                            {% if current_section == 'learning-activities' %}<i class="fas fa-check text-blue-600"></i>{% endif %}
+                        </a>
+                    </div>
+                    <div class="accordion-item border-b border-gray-200 last:border-b-0">
+                        <a href="{% url 'reports:user_report_assessments' user.id %}" 
+                           class="flex items-center justify-between p-4 hover:bg-gray-50 transition-colors {% if current_section == 'initial-assessments' %}bg-blue-50 text-blue-600{% endif %}">
+                            <div class="flex items-center gap-3">
+                                <i class="fas fa-clipboard-check"></i>
+                                <span class="font-medium">Initial Assessments</span>
+                            </div>
+                            {% if current_section == 'initial-assessments' %}<i class="fas fa-check text-blue-600"></i>{% endif %}
+                        </a>
+                    </div>
+                    <div class="accordion-item border-b border-gray-200 last:border-b-0">
+                        <a href="{% url 'reports:user_report_certificates' user.id %}" 
+                           class="flex items-center justify-between p-4 hover:bg-gray-50 transition-colors {% if current_section == 'certificates' %}bg-blue-50 text-blue-600{% endif %}">
+                            <div class="flex items-center gap-3">
+                                <i class="fas fa-certificate"></i>
+                                <span class="font-medium">Certificates</span>
+                            </div>
+                            {% if current_section == 'certificates' %}<i class="fas fa-check text-blue-600"></i>{% endif %}
+                        </a>
+                    </div>
+                    <div class="accordion-item">
+                        <a href="{% url 'reports:user_report_timeline' user.id %}" 
+                           class="flex items-center justify-between p-4 hover:bg-gray-50 transition-colors {% if current_section == 'timeline' %}bg-blue-50 text-blue-600{% endif %}">
+                            <div class="flex items-center gap-3">
+                                <i class="fas fa-clock"></i>
+                                <span class="font-medium">Timeline</span>
+                            </div>
+                            {% if current_section == 'timeline' %}<i class="fas fa-check text-blue-600"></i>{% endif %}
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
         </div>
 
         <!-- Section Content -->
