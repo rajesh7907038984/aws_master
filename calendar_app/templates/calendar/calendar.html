@@ -6,7 +6,7 @@
 {% endblock %}
 
 {% block content %}
-<div class="container mx-auto px-4 py-8">
+<div class="container mx-auto px-4 py-8 calendar-container">
     {% include 'components/breadcrumb.html' with breadcrumbs=breadcrumbs %}
     
     <!-- Full Calendar Implementation using Dashboard Pattern -->
@@ -80,12 +80,19 @@
 </div>
 
 <style>
+.calendar-container {
+    max-width: 100%;
+    overflow-x: hidden;
+}
+
 .calendar-main-widget {
     background: white;
     border-radius: 12px;
     padding: 2rem;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07);
     margin-bottom: 2rem;
+    max-width: 100%;
+    overflow-x: hidden;
 }
 
 .calendar-header {
@@ -177,6 +184,8 @@
     overflow: hidden;
     margin-bottom: 2rem;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    width: 100%;
+    max-width: 100%;
 }
 
 .calendar-day-header {
@@ -188,6 +197,14 @@
     color: #475569;
     text-transform: uppercase;
     letter-spacing: 0.025em;
+}
+
+.calendar-day-header .full-day {
+    display: inline;
+}
+
+.calendar-day-header .short-day {
+    display: none;
 }
 
 .calendar-day {
@@ -495,15 +512,29 @@
     .calendar-actions {
         justify-content: center;
     }
+    
+    .calendar-day-header .full-day {
+        display: none;
+    }
+    
+    .calendar-day-header .short-day {
+        display: inline;
+    }
 }
 
 @media (max-width: 768px) {
     .calendar-main-widget {
         padding: 1rem;
+        margin: 0 -0.5rem;
     }
     
     .calendar-header {
         gap: 0.75rem;
+    }
+    
+    .calendar-day-header {
+        padding: 0.5rem 0.25rem;
+        font-size: 0.75rem;
     }
     
     .calendar-day {
@@ -522,6 +553,7 @@
     
     .calendar-legend {
         gap: 1rem;
+        padding: 0.75rem;
     }
     
     .legend-item {
@@ -540,29 +572,107 @@
 
 @media (max-width: 480px) {
     .calendar-main-widget {
-        padding: 0.75rem;
+        padding: 0.5rem;
+        margin: 0 -0.75rem;
+        border-radius: 8px;
+    }
+    
+    .calendar-header {
+        gap: 0.5rem;
+    }
+    
+    .calendar-grid {
+        gap: 1px;
+    }
+    
+    .calendar-day-header {
+        padding: 0.4rem 0.1rem;
+        font-size: 0.65rem;
     }
     
     .calendar-day {
         min-height: 2.5rem;
+        padding: 0.2rem;
     }
     
     .calendar-day-number {
-        font-size: 0.75rem;
+        font-size: 0.7rem;
+        margin-bottom: 0.25rem;
+    }
+    
+    .activity-indicators {
+        gap: 2px;
+    }
+    
+    .activity-dot {
+        width: 5px;
+        height: 5px;
     }
     
     .current-month-year {
-        font-size: 0.9rem;
-        min-width: 120px;
+        font-size: 0.85rem;
+        min-width: 100px;
+    }
+    
+    .calendar-controls {
+        gap: 0.5rem;
     }
     
     .calendar-actions {
         flex-direction: column;
+        width: 100%;
     }
     
     .today-btn, .add-event-btn {
         font-size: 0.8rem;
         padding: 0.4rem 0.8rem;
+        width: 100%;
+        justify-content: center;
+    }
+    
+    .calendar-title {
+        font-size: 1.25rem;
+    }
+    
+    .nav-btn {
+        padding: 0.4rem 0.6rem;
+        font-size: 0.8rem;
+    }
+    
+    .calendar-legend {
+        flex-direction: column;
+        align-items: center;
+        gap: 0.5rem;
+    }
+}
+
+@media (max-width: 360px) {
+    .calendar-main-widget {
+        padding: 0.25rem;
+    }
+    
+    .calendar-day-header {
+        padding: 0.3rem 0.05rem;
+        font-size: 0.6rem;
+        letter-spacing: 0;
+    }
+    
+    .calendar-day {
+        min-height: 2rem;
+        padding: 0.15rem;
+    }
+    
+    .calendar-day-number {
+        font-size: 0.65rem;
+    }
+    
+    .current-month-year {
+        font-size: 0.8rem;
+        min-width: 90px;
+    }
+    
+    .calendar-title {
+        font-size: 1.1rem;
     }
 }
 </style>
@@ -650,12 +760,23 @@ document.addEventListener('DOMContentLoaded', function() {
             // Clear calendar
             calendar.innerHTML = '';
             
-            // Add day headers
-            const dayHeaders = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+            // Add day headers with both full and abbreviated names
+            const dayHeaders = [
+                { full: 'Sunday', short: 'Sun' },
+                { full: 'Monday', short: 'Mon' },
+                { full: 'Tuesday', short: 'Tue' },
+                { full: 'Wednesday', short: 'Wed' },
+                { full: 'Thursday', short: 'Thu' },
+                { full: 'Friday', short: 'Fri' },
+                { full: 'Saturday', short: 'Sat' }
+            ];
             dayHeaders.forEach(day => {
                 const dayHeader = document.createElement('div');
                 dayHeader.className = 'calendar-day-header';
-                dayHeader.textContent = day;
+                dayHeader.innerHTML = `
+                    <span class="full-day">${day.full}</span>
+                    <span class="short-day">${day.short}</span>
+                `;
                 calendar.appendChild(dayHeader);
             });
             
