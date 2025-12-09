@@ -1,24 +1,16 @@
 {% extends 'reports/course_report_sections/base.html' %}
 {% load static %}
 
-{% block extra_css %}
-<style>
-    /* Using unified chart styles */
-        height: 200px;
-    }
-</style>
-{% endblock %}
-
 {% block section_content %}
-<div class="grid grid-cols-12 gap-6">
+<div class="grid grid-cols-1 md:grid-cols-12 gap-6">
     <!-- Left Column -->
-    <div class="col-span-8">
+    <div class="md:col-span-8">
         <!-- Overview Statistics -->
-        <div class="bg-white rounded-lg shadow-sm border p-6 mb-6">
-            <h3 class="text-lg font-semibold mb-6">Overview</h3>
+        <div class="bg-white rounded-lg shadow-sm border p-4 md:p-6 mb-6">
+            <h3 class="text-lg font-semibold mb-4 md:mb-6">Overview</h3>
             
             <!-- Key Metrics Grid -->
-            <div class="grid grid-cols-3 gap-6 mb-8">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 mb-6 md:mb-8">
                 <!-- Completion Rate -->
                 <div class="flex items-center">
                     <div class="flex items-center justify-center w-10 h-10 bg-blue-100 rounded-lg mr-3">
@@ -79,7 +71,7 @@
     </div>
 
     <!-- Right Column -->
-    <div class="col-span-4">
+    <div class="md:col-span-4">
         <div class="mb-6">
         </div>
     </div>

@@ -3,91 +3,213 @@
 
 {% block title %}{{ course.title }} - {{ section_title }}{% endblock %}
 
+{% block extra_css %}
+<style>
+    /* Navigation tabs - vertical on mobile, horizontal on desktop */
+    .tabs-navigation {
+        display: block;
+        overflow: hidden;
+    }
+    
+    .tabs-navigation nav {
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .tabs-navigation nav a {
+        border-bottom: 1px solid #e5e7eb;
+        border-left: 3px solid transparent;
+        padding: 1rem;
+        text-decoration: none;
+        position: relative;
+        transition: all 0.2s ease;
+        color: #374151;
+    }
+    
+    .tabs-navigation nav a:last-child {
+        border-bottom: none;
+    }
+    
+    .tabs-navigation nav a:hover {
+        background-color: #f9fafb;
+    }
+    
+    .tabs-navigation nav a i {
+        width: 1.25rem;
+        text-align: center;
+        color: #6b7280;
+        font-size: 1rem;
+        margin-right: 0.75rem;
+        flex-shrink: 0;
+    }
+    
+    .tabs-navigation nav a span {
+        color: #374151;
+        font-weight: 500;
+        flex-grow: 1;
+    }
+    
+    /* Active tab styling for mobile */
+    .tabs-navigation nav a.active-tab {
+        border-left-color: #3b82f6;
+        background-color: #eff6ff;
+        font-weight: 600;
+    }
+    
+    .tabs-navigation nav a.active-tab:hover {
+        background-color: #eff6ff;
+    }
+    
+    .tabs-navigation nav a.active-tab i {
+        color: #3b82f6;
+    }
+    
+    .tabs-navigation nav a.active-tab span {
+        color: #3b82f6;
+        font-weight: 600;
+    }
+    
+    /* Desktop: horizontal tabs */
+    @media (min-width: 768px) {
+        .tabs-navigation {
+            border-radius: 0;
+            border-left: none;
+            border-right: none;
+            border-top: none;
+        }
+        
+        .tabs-navigation nav {
+            flex-direction: row;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: thin;
+        }
+        
+        .tabs-navigation nav a {
+            border-bottom: 3px solid transparent;
+            border-left: none;
+            padding: 0.875rem 1.5rem;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+        
+        .tabs-navigation nav a:last-child {
+            border-bottom: 3px solid transparent;
+        }
+        
+        .tabs-navigation nav a:hover {
+            background-color: #f9fafb;
+            border-bottom-color: #cbd5e1;
+        }
+        
+        .tabs-navigation nav a.active-tab {
+            border-left-color: transparent;
+            border-bottom-color: #3b82f6;
+            background-color: transparent;
+        }
+        
+        .tabs-navigation nav a.active-tab:hover {
+            background-color: transparent;
+            border-bottom-color: #3b82f6;
+        }
+        
+        .tabs-navigation nav a i {
+            margin-right: 0.5rem;
+        }
+        
+        .tabs-navigation nav a.active-tab i {
+            color: #3b82f6;
+        }
+        
+        .tabs-navigation nav a.active-tab span {
+            color: #3b82f6;
+            font-weight: 600;
+        }
+        
+        /* Scrollbar styling for desktop */
+        .tabs-navigation nav::-webkit-scrollbar {
+            height: 4px;
+        }
+        
+        .tabs-navigation nav::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        
+        .tabs-navigation nav::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        
+        .tabs-navigation nav::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="bg-white text-black min-h-screen">
     <div class="container mx-auto px-4 py-6">
         <!-- Breadcrumbs -->
-        <div class="mb-6">
-            <nav class="flex" aria-label="Breadcrumb">
-                <ol class="inline-flex items-center space-x-1 md:space-x-3">
-                    <li class="inline-flex items-center">
-                        <a href="{% url 'users:role_based_redirect' %}" class="text-gray-700 hover:text-gray-900">
-                            <i class="fas fa-home mr-2"></i>Dashboard
-                        </a>
-                    </li>
-                    <li>
-                        <div class="flex items-center">
-                            <i class="fas fa-chevron-right text-gray-400 mx-2"></i>
-                            <a href="{% url 'reports:overview' %}" class="text-gray-700 hover:text-gray-900">Reports</a>
-                        </div>
-                    </li>
-                    <li>
-                        <div class="flex items-center">
-                            <i class="fas fa-chevron-right text-gray-400 mx-2"></i>
-                            <a href="{% url 'reports:courses_report' %}" class="text-gray-700 hover:text-gray-900">Courses</a>
-                        </div>
-                    </li>
-                    <li aria-current="page">
-                        <div class="flex items-center">
-                            <i class="fas fa-chevron-right text-gray-400 mx-2"></i>
-                            <span class="text-gray-500">{{ course.title }}</span>
-                        </div>
-                    </li>
-                </ol>
-            </nav>
-        </div>
+        {% include 'components/breadcrumb.html' with breadcrumbs=breadcrumbs %}
 
         <!-- Course Header -->
         <div class="mb-6">
-            <div class="flex items-center justify-between">
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div class="flex items-center">
                     <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mr-4">
                         <i class="fas fa-lightbulb text-blue-600 text-xl"></i>
                     </div>
                     <div>
-                        <h1 class="text-2xl font-semibold text-gray-900">{{ course.code|default:"SK201" }}</h1>
-                        <p class="text-gray-600">{{ course.title }}</p>
+                        <h1 class="text-xl md:text-2xl font-semibold text-gray-900">{{ course.code|default:"SK201" }}</h1>
+                        <p class="text-sm md:text-base text-gray-600">{{ course.title }}</p>
                     </div>
                 </div>
-                <div class="flex items-center gap-3">
-                    <button onclick="window.history.back()" class="inline-flex items-center bg-gray-500 text-white py-2 px-4 rounded-md hover:bg-gray-600 transition-all">
-                        <i class="fas fa-arrow-left mr-2"></i>
-                        Back
+                <div class="flex items-center gap-2 md:gap-3">
+                    <button onclick="window.history.back()" class="inline-flex items-center bg-gray-500 text-white py-2 px-3 md:px-4 rounded-md hover:bg-gray-600 transition-all text-sm">
+                        <i class="fas fa-arrow-left mr-1 md:mr-2"></i>
+                        <span class="hidden md:inline">Back</span>
                     </button>
-                    <div class="dropdown relative inline-block">
-                        <button onclick="exportCourseTimeline()" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700">
-                            <i class="fas fa-download mr-2"></i>Export in Excel
-                        </button>
-                    </div>
+                    <button onclick="exportCourseTimeline()" class="bg-blue-600 text-white px-3 md:px-4 py-2 rounded-lg text-sm hover:bg-blue-700 whitespace-nowrap">
+                        <i class="fas fa-download mr-1 md:mr-2"></i>
+                        <span class="hidden sm:inline">Export in Excel</span>
+                        <span class="sm:hidden">Export</span>
+                    </button>
                 </div>
             </div>
         </div>
 
         <!-- Navigation Tabs -->
-        <div class="border-b border-gray-200 mb-6">
-            <nav class="flex -mb-px space-x-1">
+        <div class="tabs-navigation bg-white rounded-lg shadow-sm border mb-6">
+            <nav>
                 <a href="{% url 'reports:course_report_overview' course.id %}" 
-                   class="px-6 py-3 border-b-2 font-medium transition-colors {% if current_section == 'overview' %}border-blue-500 text-blue-600{% else %}border-transparent text-gray-500 hover:text-gray-700{% endif %}">
-                    <i class="fas fa-chart-line mr-2"></i>Overview
+                   class="flex items-center text-sm md:text-base {% if current_section == 'overview' %}active-tab{% endif %}">
+                    <i class="fas fa-chart-line"></i>
+                    <span>Overview</span>
                 </a>
                 <a href="{% url 'reports:course_report_users' course.id %}" 
-                   class="px-6 py-3 border-b-2 font-medium transition-colors {% if current_section == 'users' %}border-blue-500 text-blue-600{% else %}border-transparent text-gray-500 hover:text-gray-700{% endif %}">
-                    <i class="fas fa-users mr-2"></i>Users
+                   class="flex items-center text-sm md:text-base {% if current_section == 'users' %}active-tab{% endif %}">
+                    <i class="fas fa-users"></i>
+                    <span>Users</span>
                 </a>
                 <a href="{% url 'reports:course_report_activities' course.id %}" 
-                   class="px-6 py-3 border-b-2 font-medium transition-colors {% if current_section == 'learning-activities' %}border-blue-500 text-blue-600{% else %}border-transparent text-gray-500 hover:text-gray-700{% endif %}">
-                    <i class="fas fa-tasks mr-2"></i>Learning Activities
+                   class="flex items-center text-sm md:text-base {% if current_section == 'learning-activities' %}active-tab{% endif %}">
+                    <i class="fas fa-tasks"></i>
+                    <span>Learning Activities</span>
                 </a>
                 <a href="{% url 'reports:course_report_matrix' course.id %}" 
-                   class="px-6 py-3 border-b-2 font-medium transition-colors {% if current_section == 'unit-matrix' %}border-blue-500 text-blue-600{% else %}border-transparent text-gray-500 hover:text-gray-700{% endif %}">
-                    <i class="fas fa-table mr-2"></i>Unit Matrix
+                   class="flex items-center text-sm md:text-base {% if current_section == 'unit-matrix' %}active-tab{% endif %}">
+                    <i class="fas fa-table"></i>
+                    <span>Unit Matrix</span>
                 </a>
                 <a href="{% url 'reports:course_report_timeline' course.id %}" 
-                   class="px-6 py-3 border-b-2 font-medium transition-colors {% if current_section == 'timeline' %}border-blue-500 text-blue-600{% else %}border-transparent text-gray-500 hover:text-gray-700{% endif %}">
-                    <i class="fas fa-clock mr-2"></i>Timeline
+                   class="flex items-center text-sm md:text-base {% if current_section == 'timeline' %}active-tab{% endif %}">
+                    <i class="fas fa-clock"></i>
+                    <span>Timeline</span>
                 </a>
             </nav>
         </div>
+
 
         <!-- Section Content -->
         {% block section_content %}
