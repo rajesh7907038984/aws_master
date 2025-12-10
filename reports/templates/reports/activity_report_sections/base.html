@@ -7,56 +7,30 @@
 <div class="bg-white text-black min-h-screen">
     <div class="container mx-auto px-4 py-6">
         <!-- Breadcrumbs -->
-        <div class="mb-6">
-            <nav class="flex" aria-label="Breadcrumb">
-                <ol class="inline-flex items-center space-x-1 md:space-x-3">
-                    <li class="inline-flex items-center">
-                        <a href="{% url 'users:role_based_redirect' %}" class="text-gray-700 hover:text-gray-900">
-                            <i class="fas fa-home mr-2"></i>Dashboard
-                        </a>
-                    </li>
-                    <li>
-                        <div class="flex items-center">
-                            <i class="fas fa-chevron-right text-gray-400 mx-2"></i>
-                            <a href="{% url 'reports:overview' %}" class="text-gray-700 hover:text-gray-900">Reports</a>
-                        </div>
-                    </li>
-                    <li>
-                        <div class="flex items-center">
-                            <i class="fas fa-chevron-right text-gray-400 mx-2"></i>
-                            <a href="{% url 'reports:learning_activities' %}" class="text-gray-700 hover:text-gray-900">Learning Activities</a>
-                        </div>
-                    </li>
-                    <li aria-current="page">
-                        <div class="flex items-center">
-                            <i class="fas fa-chevron-right text-gray-400 mx-2"></i>
-                            <span class="text-gray-500">{{ activity.title }}</span>
-                        </div>
-                    </li>
-                </ol>
-            </nav>
-        </div>
+        {% include 'components/breadcrumb.html' with breadcrumbs=breadcrumbs %}
 
         <!-- Activity Header -->
         <div class="mb-6">
-            <div class="flex items-center justify-between">
+            <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                 <div class="flex items-center">
-                    <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mr-4">
+                    <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mr-4 flex-shrink-0">
                         <i class="fas fa-file-alt text-blue-600 text-xl"></i>
                     </div>
-                    <div>
-                        <h1 class="text-2xl font-semibold text-gray-900">{{ activity.title }}</h1>
-                        <p class="text-gray-600">{{ activity.get_content_type_display|default:"Learning Activity" }}</p>
+                    <div class="min-w-0 flex-1">
+                        <h1 class="text-xl sm:text-2xl font-semibold text-gray-900 break-words">{{ activity.title }}</h1>
+                        <p class="text-sm sm:text-base text-gray-600">{{ activity.get_content_type_display|default:"Learning Activity" }}</p>
                     </div>
                 </div>
-                <div class="flex items-center gap-3">
-                    <button onclick="window.history.back()" class="inline-flex items-center bg-gray-500 text-white py-2 px-4 rounded-md hover:bg-gray-600 transition-all">
-                        <i class="fas fa-arrow-left mr-2"></i>
-                        Back
+                <div class="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+                    <button onclick="window.history.back()" class="inline-flex items-center bg-gray-500 text-white py-2 px-3 sm:px-4 rounded-md hover:bg-gray-600 transition-all text-sm sm:text-base">
+                        <i class="fas fa-arrow-left mr-1 sm:mr-2"></i>
+                        <span class="hidden sm:inline">Back</span>
                     </button>
                     <div class="dropdown relative inline-block">
-                        <a href="{% url 'reports:activity_report_overview' activity.id %}?format=excel" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700">
-                            <i class="fas fa-download mr-2"></i>Export in Excel
+                        <a href="{% url 'reports:activity_report_overview' activity.id %}?format=excel" class="inline-flex items-center bg-blue-600 text-white px-3 sm:px-4 py-2 rounded-lg text-sm hover:bg-blue-700 whitespace-nowrap">
+                            <i class="fas fa-download mr-1 sm:mr-2"></i>
+                            <span class="hidden sm:inline">Export in Excel</span>
+                            <span class="sm:hidden">Export</span>
                         </a>
                     </div>
                 </div>

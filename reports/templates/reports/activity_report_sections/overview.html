@@ -6,86 +6,86 @@
 
 {% block section_content %}
 <!-- Key Metrics -->
-<div class="bg-white rounded-lg shadow-sm border p-6 mb-6">
-    <h3 class="text-lg font-semibold mb-6">Overview</h3>
+<div class="bg-white rounded-lg shadow-sm border p-4 sm:p-6 mb-6">
+    <h3 class="text-lg font-semibold mb-4 sm:mb-6">Overview</h3>
     
     <!-- Key Metrics Grid -->
-    <div class="grid grid-cols-2 md:grid-cols-3 gap-6 mb-8">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
         <!-- Completion Rate -->
-        <div class="flex items-center">
-            <div class="flex items-center justify-center w-10 h-10 bg-blue-100 rounded-lg mr-3">
-                <i class="fas fa-percentage text-blue-600"></i>
+        <div class="flex items-center p-3 sm:p-0">
+            <div class="flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 bg-blue-100 rounded-lg mr-3 flex-shrink-0">
+                <i class="fas fa-percentage text-blue-600 text-sm sm:text-base"></i>
             </div>
             <div>
-                <div class="text-2xl font-bold text-gray-900">
+                <div class="text-xl sm:text-2xl font-bold text-gray-900">
                     {% if progress_stats.total_users and progress_stats.total_users > 0 %}
                         {% widthratio progress_stats.completed_users progress_stats.total_users 100 %}%
                     {% else %}
                         0%
                     {% endif %}
                 </div>
-                <div class="text-sm text-gray-600">Completion Rate</div>
+                <div class="text-xs sm:text-sm text-gray-600">Completion Rate</div>
             </div>
         </div>
         
         <!-- Completed Users -->
-        <div class="flex items-center">
-            <div class="flex items-center justify-center w-10 h-10 bg-green-100 rounded-lg mr-3">
-                <i class="fas fa-check-circle text-green-600"></i>
+        <div class="flex items-center p-3 sm:p-0">
+            <div class="flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 bg-green-100 rounded-lg mr-3 flex-shrink-0">
+                <i class="fas fa-check-circle text-green-600 text-sm sm:text-base"></i>
             </div>
             <div>
-                <div class="text-2xl font-bold text-gray-900">{{ progress_stats.completed_users|default:0 }}</div>
-                <div class="text-sm text-gray-600">Completed Users</div>
+                <div class="text-xl sm:text-2xl font-bold text-gray-900">{{ progress_stats.completed_users|default:0 }}</div>
+                <div class="text-xs sm:text-sm text-gray-600">Completed Users</div>
             </div>
         </div>
         
         <!-- Average Score -->
-        <div class="flex items-center">
-            <div class="flex items-center justify-center w-10 h-10 bg-purple-100 rounded-lg mr-3">
-                <i class="fas fa-star text-purple-600"></i>
+        <div class="flex items-center p-3 sm:p-0">
+            <div class="flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 bg-purple-100 rounded-lg mr-3 flex-shrink-0">
+                <i class="fas fa-star text-purple-600 text-sm sm:text-base"></i>
             </div>
             <div>
-                <div class="text-2xl font-bold text-gray-900">
+                <div class="text-xl sm:text-2xl font-bold text-gray-900">
                     {% if progress_stats.average_score %}
                         {{ progress_stats.average_score|floatformat:1 }}%
                     {% else %}
                         -
                     {% endif %}
                 </div>
-                <div class="text-sm text-gray-600">Average Score</div>
+                <div class="text-xs sm:text-sm text-gray-600">Average Score</div>
             </div>
         </div>
         
         <!-- In Progress -->
-        <div class="flex items-center">
-            <div class="flex items-center justify-center w-10 h-10 bg-yellow-100 rounded-lg mr-3">
-                <i class="fas fa-clock text-yellow-600"></i>
+        <div class="flex items-center p-3 sm:p-0">
+            <div class="flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 bg-yellow-100 rounded-lg mr-3 flex-shrink-0">
+                <i class="fas fa-clock text-yellow-600 text-sm sm:text-base"></i>
             </div>
             <div>
-                <div class="text-2xl font-bold text-gray-900">{{ progress_stats.in_progress_users|default:0 }}</div>
-                <div class="text-sm text-gray-600">In Progress</div>
+                <div class="text-xl sm:text-2xl font-bold text-gray-900">{{ progress_stats.in_progress_users|default:0 }}</div>
+                <div class="text-xs sm:text-sm text-gray-600">In Progress</div>
             </div>
         </div>
         
         <!-- Not Started -->
-        <div class="flex items-center">
-            <div class="flex items-center justify-center w-10 h-10 bg-gray-100 rounded-lg mr-3">
-                <i class="fas fa-play-circle text-gray-600"></i>
+        <div class="flex items-center p-3 sm:p-0">
+            <div class="flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 bg-gray-100 rounded-lg mr-3 flex-shrink-0">
+                <i class="fas fa-play-circle text-gray-600 text-sm sm:text-base"></i>
             </div>
             <div>
-                <div class="text-2xl font-bold text-gray-900">{{ progress_stats.not_started_users|default:0 }}</div>
-                <div class="text-sm text-gray-600">Not Started</div>
+                <div class="text-xl sm:text-2xl font-bold text-gray-900">{{ progress_stats.not_started_users|default:0 }}</div>
+                <div class="text-xs sm:text-sm text-gray-600">Not Started</div>
             </div>
         </div>
         
         <!-- Total Attempts -->
-        <div class="flex items-center">
-            <div class="flex items-center justify-center w-10 h-10 bg-indigo-100 rounded-lg mr-3">
-                <i class="fas fa-redo text-indigo-600"></i>
+        <div class="flex items-center p-3 sm:p-0">
+            <div class="flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 bg-indigo-100 rounded-lg mr-3 flex-shrink-0">
+                <i class="fas fa-redo text-indigo-600 text-sm sm:text-base"></i>
             </div>
             <div>
-                <div class="text-2xl font-bold text-gray-900">{{ progress_stats.total_attempts|default:0 }}</div>
-                <div class="text-sm text-gray-600">Total Attempts</div>
+                <div class="text-xl sm:text-2xl font-bold text-gray-900">{{ progress_stats.total_attempts|default:0 }}</div>
+                <div class="text-xs sm:text-sm text-gray-600">Total Attempts</div>
             </div>
         </div>
     </div>
@@ -94,9 +94,9 @@
 <!-- SCORM-Specific Statistics removed - no longer supported -->
 
 <!-- Summary Statistics -->
-<div class="bg-white rounded-lg shadow-sm border p-6">
+<div class="bg-white rounded-lg shadow-sm border p-4 sm:p-6">
     <h3 class="text-lg font-semibold mb-4">Summary Statistics</h3>
-    <div class="space-y-4">
+    <div class="space-y-3 sm:space-y-4">
         <div class="flex items-center justify-between">
             <div class="flex items-center gap-3">
                 <i class="fas fa-users text-gray-400"></i>

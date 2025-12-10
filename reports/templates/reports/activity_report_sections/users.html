@@ -8,60 +8,60 @@
 <!-- Users Data Table -->
 <div class="bg-white rounded-lg shadow-sm border mt-6">
     <div class="overflow-x-auto">
-        <table class="w-full">
+        <table class="w-full min-w-max">
             <thead>
                 <tr class="bg-gray-50 border-b">
-                    <th class="px-6 py-3 text-left text-sm font-medium text-gray-500">
+                    <th class="px-3 sm:px-6 py-3 text-left text-xs sm:text-sm font-medium text-gray-500 whitespace-nowrap">
                         User <i class="fas fa-sort ml-1"></i>
                     </th>
-                    <th class="px-6 py-3 text-left text-sm font-medium text-gray-500">Status</th>
-                    <th class="px-6 py-3 text-left text-sm font-medium text-gray-500">Score</th>
-                    <th class="px-6 py-3 text-left text-sm font-medium text-gray-500">Attempts</th>
-                    <th class="px-6 py-3 text-left text-sm font-medium text-gray-500">Last Accessed</th>
-                    <th class="px-6 py-3 text-center text-sm font-medium text-gray-500">Actions</th>
+                    <th class="px-3 sm:px-6 py-3 text-left text-xs sm:text-sm font-medium text-gray-500 whitespace-nowrap">Status</th>
+                    <th class="px-3 sm:px-6 py-3 text-left text-xs sm:text-sm font-medium text-gray-500 whitespace-nowrap">Score</th>
+                    <th class="px-3 sm:px-6 py-3 text-left text-xs sm:text-sm font-medium text-gray-500 whitespace-nowrap">Attempts</th>
+                    <th class="px-3 sm:px-6 py-3 text-left text-xs sm:text-sm font-medium text-gray-500 whitespace-nowrap">Last Accessed</th>
+                    <th class="px-3 sm:px-6 py-3 text-center text-xs sm:text-sm font-medium text-gray-500 whitespace-nowrap">Actions</th>
                 </tr>
             </thead>
             <tbody>
                 {% for progress_data in enhanced_user_progress %}
                 <tr class="border-b hover:bg-gray-50">
-                    <td class="px-6 py-4">
-                        <div class="flex flex-col">
-                            <span class="font-medium">{{ progress_data.name }}</span>
-                            <span class="text-sm text-gray-500">{{ progress_data.email }}</span>
+                    <td class="px-3 sm:px-6 py-3 sm:py-4">
+                        <div class="flex flex-col min-w-[150px]">
+                            <span class="font-medium text-sm sm:text-base">{{ progress_data.name }}</span>
+                            <span class="text-xs sm:text-sm text-gray-500 truncate max-w-[200px]">{{ progress_data.email }}</span>
                         </div>
                     </td>
-                    <td class="px-6 py-4">
-                        <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full
+                    <td class="px-3 sm:px-6 py-3 sm:py-4">
+                        <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full whitespace-nowrap
                             {% if progress_data.status == 'Completed' %}bg-green-100 text-green-800
                             {% elif progress_data.status == 'In Progress' %}bg-yellow-100 text-yellow-800
                             {% else %}bg-gray-100 text-gray-800{% endif %}">
                             {{ progress_data.status }}
                         </span>
                     </td>
-                    <td class="px-6 py-4">
+                    <td class="px-3 sm:px-6 py-3 sm:py-4 text-sm sm:text-base whitespace-nowrap">
                         {% if progress_data.score %}
                             {{ progress_data.score|floatformat:1 }}%
                         {% else %}
                             -
                         {% endif %}
                     </td>
-                    <td class="px-6 py-4">{{ progress_data.attempts }}</td>
-                    <td class="px-6 py-4">
+                    <td class="px-3 sm:px-6 py-3 sm:py-4 text-sm sm:text-base whitespace-nowrap">{{ progress_data.attempts }}</td>
+                    <td class="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm whitespace-nowrap">
                         {% if progress_data.last_accessed %}
                             {{ progress_data.last_accessed|date:"d/m/Y H:i" }}
                         {% else %}
                             -
                         {% endif %}
                     </td>
-                    <td class="px-6 py-4 text-center">
-                        <a href="{% url 'reports:user_report_overview' progress_data.id %}" class="text-gray-500 hover:text-gray-700">
-                            <i class="fas fa-eye"></i>
+                    <td class="px-3 sm:px-6 py-3 sm:py-4 text-center">
+                        <a href="{% url 'reports:user_report_overview' progress_data.id %}" class="text-gray-500 hover:text-gray-700 inline-block p-2">
+                            <i class="fas fa-eye text-sm sm:text-base"></i>
                         </a>
                     </td>
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="6" class="px-6 py-8 text-center text-gray-500">
+                    <td colspan="6" class="px-3 sm:px-6 py-6 sm:py-8 text-center text-gray-500 text-sm sm:text-base">
                         No user progress data available
                     </td>
                 </tr>
